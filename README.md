@@ -12,4 +12,10 @@ blog = c.design_docs['blog']
 blog.views  #=> ["recent_posts"]
 # execute view and fetch docs
 blog.recent_posts
+# use memcached API
+c['password'] = 'secret'
+c['password']     #=> "secret"
+c['counter'] = 1  #=> 1
+c['counter'] += 1 #=> 2
+c['counter']      #=> 2
 ```

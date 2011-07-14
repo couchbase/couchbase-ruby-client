@@ -15,10 +15,6 @@
 # limitations under the License.
 #
 
-require 'memcached'
-require 'yajl'
-require 'curb'
-
 module Couchbase
   autoload :Bucket,         'couchbase/bucket'
   autoload :Configuration,  'couchbase/configuration'

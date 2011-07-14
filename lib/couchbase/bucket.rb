@@ -22,7 +22,10 @@ module Couchbase
     def initialize(bucket_info)
       @type = bucket_info['bucketType']
       @nodes = bucket_info['nodes'].map do |node|
-        Node.new(node['status'], node['hostname'], node['ports'], node['couchApiBase'])
+        Node.new(node['status'],
+                 node['hostname'].split(':').first,
+                 node['ports'],
+                 node['couchApiBase'])
       end
       if @type == 'membase'
         server_map = bucket_info['vBucketServerMap']

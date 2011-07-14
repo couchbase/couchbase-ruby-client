@@ -15,6 +15,9 @@
 # limitations under the License.
 #
 
+require 'yajl'
+require 'curb'
+
 module Couchbase
   module RestClient
     def get(uri, options = {})
