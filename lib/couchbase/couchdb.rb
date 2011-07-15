@@ -17,7 +17,13 @@
 
 module Couchbase
   module Couchdb
-    attr_accessor :uuid_batch_count
+    attr_accessor :uuid_batch_count, :per_page
+
+    def initialize(pool_uri, options = {})
+      @uuid_batch_count = options.delete(:uuid_batch_count) || 500
+      @per_page = options.delete(:per_page) || 20
+      super
+    end
 
     def design_docs(raw = false)
       docs = Couchbase.get("#{bucket.next_node.couch_api_base}/_all_docs",
@@ -40,7 +46,7 @@ module Couchbase
 
     protected
 
-    def next_uuid(count = 500)
+    def next_uuid(count = @uuid_batch_count)
       @uuids ||= []
       if @uuids.empty?
         @uuids = Couchbase.get("#{bucket.next_node.couch_api_base}/_uuids",

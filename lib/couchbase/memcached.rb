@@ -30,6 +30,7 @@ module Couchbase
       @data_mode = options.delete(:data_mode) || :json
       @memcached = ::Memcached.new(servers, options)
       @default_ttl = @memcached.options[:default_ttl]
+      super
     end
 
     def clone

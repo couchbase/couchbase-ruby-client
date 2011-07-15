@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+require 'will_paginate'
+
 module Couchbase
   class Document
     # Undefine as much methods as we can to free names for views
@@ -34,10 +36,9 @@ module Couchbase
         data['doc']['views'].each do |name, funs|
           @views << name
           self.instance_eval <<-EOV, __FILE__, __LINE__ + 1
-            def #{name}(params = {}, raw = false)
+            def #{name}(params = {})
               endpoint = "\#{@connection.bucket.next_node.couch_api_base}/\#{id}/_view/#{name}"
-              docs = Couchbase.get(endpoint, :params => params)
-              raw ? docs : docs['rows'].map{|d| Document.new(self, d)}
+              fetch_view(endpoint, params)
             end
           EOV
         end
@@ -55,6 +56,21 @@ module Couchbase
 
     def inspect
       %(#<#{self.class.name}:#{self.object_id} #{@data.inspect}>)
+    end
+
+    protected
+
+    def fetch_view(endpoint, params = {})
+      raw = params.delete(:raw)
+      page = (params[:page] || 1).to_i
+      per_page = (params[:per_page] || @connection.per_page).to_i
+      skip = (page-1) * per_page
+      docs = Couchbase.get(endpoint, :params => params.merge(:skip => skip, :limit => @connection.per_page))
+      collection = raw ? docs : docs['rows'].map{|d| Document.new(self, d)}
+      total_entries = docs['total_rows']
+      WillPaginate::Collection.create(page, per_page, total_entries) do |pager|
+        pager.replace(collection)
+      end
     end
   end
 end
