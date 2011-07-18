@@ -44,7 +44,7 @@ module Couchbase
 
     def execute(method, uri, options = {}, payload = nil)
       curl = Curl::Easy.new(build_query(uri, options[:params]))
-      curl.useragent = "couchbase-ruby/#{Couchbase::VERSION}"
+      curl.useragent = "couchbase-ruby-client/#{Couchbase::VERSION}"
       if @credentials
         curl.http_auth_types = :basic
         curl.username = @credentials[:username]
@@ -57,6 +57,8 @@ module Couchbase
                payload
              when Hash
                Yajl::Encoder.encode(payload)
+             when Couchbase::Document
+               Yajl::Encoder.encode(payload.data)
              end
       case method
       when :put

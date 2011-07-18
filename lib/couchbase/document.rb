@@ -24,26 +24,36 @@ module Couchbase
       undef_method(m) if m.to_s !~ /(?:^__|^nil\?$|^send$|^object_id$|^class$|)/
     end
 
-    attr_accessor :id, :data
-    attr_accessor :views
+    attr_accessor :data, :views
 
     def initialize(connection, data)
-      @id = data['id']
       @data = data
       @connection = connection
       @views = []
       begin
-        data['doc']['views'].each do |name, funs|
+        data['views'].each do |name, funs|
           @views << name
           self.instance_eval <<-EOV, __FILE__, __LINE__ + 1
             def #{name}(params = {})
-              endpoint = "\#{@connection.bucket.next_node.couch_api_base}/\#{id}/_view/#{name}"
+              endpoint = "\#{@connection.bucket.next_node.couch_api_base}/\#{@data['_id']}/_view/#{name}"
               fetch_view(endpoint, params)
             end
           EOV
         end
       rescue NoMethodError
       end
+    end
+
+    def self.wrap(connection, data)
+      Document.new(connection, data['doc'] || data)
+    end
+
+    def [](key)
+      @data[key]
+    end
+
+    def []=(key, value)
+      @data[key] = value
     end
 
     def design_doc?
@@ -61,12 +71,11 @@ module Couchbase
     protected
 
     def fetch_view(endpoint, params = {})
-      raw = params.delete(:raw)
       page = (params[:page] || 1).to_i
       per_page = (params[:per_page] || @connection.per_page).to_i
       skip = (page-1) * per_page
       docs = @connection.http_get(endpoint, :params => params.merge(:skip => skip, :limit => @connection.per_page))
-      collection = raw ? docs : docs['rows'].map{|d| Document.new(self, d)}
+      collection = docs['rows'].map{|d| Document.new(self, d)}
       total_entries = docs['total_rows']
       WillPaginate::Collection.create(page, per_page, total_entries) do |pager|
         pager.replace(collection)

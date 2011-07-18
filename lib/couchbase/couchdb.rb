@@ -17,43 +17,43 @@
 
 module Couchbase
   module Couchdb
-    attr_accessor :uuid_batch_count, :per_page
+    attr_accessor :per_page
 
     def initialize(pool_uri, options = {})
-      @uuid_batch_count = options[:uuid_batch_count] || 500
       @per_page = options[:per_page] || 20
       super
     end
 
-    def design_docs(raw = false)
+    def design_docs
       docs = http_get("#{bucket.next_node.couch_api_base}/_all_docs",
-                      :params => {:startkey => "_design/",
-                                  :endkey => "_design0",
-                                  :include_docs => true})
-      Hash.new.tap do |rv|
-        docs['rows'].each do |doc|
-          key = doc['id'].sub(/^_design\//, '')
-          next if key =~ /$dev_/
-          rv[key] = raw ? doc : Document.new(self, doc)
-        end
+                      :params => {:startkey => "_design/", :endkey => "_design0", :include_docs => true})
+      result = {}
+      docs['rows'].each do |doc|
+        doc = Document.wrap(self, doc)
+        key = doc['_id'].sub(/^_design\//, '')
+        next if key =~ /$dev_/
+        result[key] = doc
       end
+      result
     end
 
-    def save_doc(doc)
-      doc['id'] ||= next_uuid
-      http_put("#{bucket.next_node.couch_api_base}/#{doc['id']}", {}, doc)
+    def save_design_doc(id, views, language = 'javascript')
+      doc = Document.wrap(self, '_id' => "_design/#{id}", 'language' => language, 'views' => views)
+      rv = http_put("#{bucket.next_node.couch_api_base}/#{doc['_id']}", {}, doc)
+      doc['_rev'] = rv['rev']
+      doc
     end
 
-    protected
-
-    def next_uuid(count = @uuid_batch_count)
-      @uuids ||= []
-      if @uuids.empty?
-        @uuids = http_get("#{bucket.next_node.couch_api_base}/_uuids",
-                          :params => {:count => count})["uuids"]
+    def delete_design_doc(id, rev = nil)
+      if rev.nil?
+        ddoc = design_docs[id]
+        return nil unless ddoc
+        rev = ddoc['_rev']
+        id = ddoc['_id']
+      else
+        id = "_desing/#{id}" unless id =~ /^_design\//
       end
-      @uuids.pop
+      http_delete("#{bucket.next_node.couch_api_base}/#{id}", :params => {:rev => rev})
     end
-
   end
 end

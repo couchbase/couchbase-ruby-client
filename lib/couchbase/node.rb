@@ -33,10 +33,5 @@ module Couchbase
         end
       EOM
     end
-
-    # # temporary remapping to standalone couchdb instance
-    # def couch_api_base
-    #   "http://localhost:5995/posts"
-    # end
   end
 end
