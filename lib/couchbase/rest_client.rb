@@ -20,23 +20,23 @@ require 'curb'
 
 module Couchbase
   module RestClient
-    def get(uri, options = {})
+    def http_get(uri, options = {})
       execute(:get, uri, options)
     end
 
-    def head(uri, options = {})
+    def http_head(uri, options = {})
       execute(:head, uri, options)
     end
 
-    def delete(uri, options = {})
+    def http_delete(uri, options = {})
       execute(:delete, uri, options)
     end
 
-    def post(uri, options = {}, payload = nil)
+    def http_post(uri, options = {}, payload = nil)
       execute(:post, uri, options, payload)
     end
 
-    def put(uri, options = {}, payload = nil)
+    def http_put(uri, options = {}, payload = nil)
       execute(:put, uri, options, payload)
     end
 
@@ -44,6 +44,12 @@ module Couchbase
 
     def execute(method, uri, options = {}, payload = nil)
       curl = Curl::Easy.new(build_query(uri, options[:params]))
+      curl.useragent = "couchbase-ruby/#{Couchbase::VERSION}"
+      if @credentials
+        curl.http_auth_types = :basic
+        curl.username = @credentials[:username]
+        curl.password = @credentials[:password]
+      end
       curl.verbose = true if Kernel.respond_to?(:debugger)
       curl.headers.update(options[:headers] || {})
       data = case payload

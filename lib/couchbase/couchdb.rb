@@ -20,16 +20,16 @@ module Couchbase
     attr_accessor :uuid_batch_count, :per_page
 
     def initialize(pool_uri, options = {})
-      @uuid_batch_count = options.delete(:uuid_batch_count) || 500
-      @per_page = options.delete(:per_page) || 20
+      @uuid_batch_count = options[:uuid_batch_count] || 500
+      @per_page = options[:per_page] || 20
       super
     end
 
     def design_docs(raw = false)
-      docs = Couchbase.get("#{bucket.next_node.couch_api_base}/_all_docs",
-                           :params => {:startkey => "_design/",
-                                       :endkey => "_design0",
-                                       :include_docs => true})
+      docs = http_get("#{bucket.next_node.couch_api_base}/_all_docs",
+                      :params => {:startkey => "_design/",
+                                  :endkey => "_design0",
+                                  :include_docs => true})
       Hash.new.tap do |rv|
         docs['rows'].each do |doc|
           key = doc['id'].sub(/^_design\//, '')
@@ -41,7 +41,7 @@ module Couchbase
 
     def save_doc(doc)
       doc['id'] ||= next_uuid
-      Couchbase.put("#{bucket.next_node.couch_api_base}/#{doc['id']}", {}, doc)
+      http_put("#{bucket.next_node.couch_api_base}/#{doc['id']}", {}, doc)
     end
 
     protected
@@ -49,8 +49,8 @@ module Couchbase
     def next_uuid(count = @uuid_batch_count)
       @uuids ||= []
       if @uuids.empty?
-        @uuids = Couchbase.get("#{bucket.next_node.couch_api_base}/_uuids",
-                               :params => {:count => count})["uuids"]
+        @uuids = http_get("#{bucket.next_node.couch_api_base}/_uuids",
+                          :params => {:count => count})["uuids"]
       end
       @uuids.pop
     end

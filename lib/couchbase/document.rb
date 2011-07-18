@@ -65,7 +65,7 @@ module Couchbase
       page = (params[:page] || 1).to_i
       per_page = (params[:per_page] || @connection.per_page).to_i
       skip = (page-1) * per_page
-      docs = Couchbase.get(endpoint, :params => params.merge(:skip => skip, :limit => @connection.per_page))
+      docs = @connection.http_get(endpoint, :params => params.merge(:skip => skip, :limit => @connection.per_page))
       collection = raw ? docs : docs['rows'].map{|d| Document.new(self, d)}
       total_entries = docs['total_rows']
       WillPaginate::Collection.create(page, per_page, total_entries) do |pager|

@@ -17,17 +17,20 @@
 
 module Couchbase
   class Connection
+    include RestClient
     include Couchdb
     include Memcached
 
-    attr_accessor :pool_uri, :buckets, :bucket_name, :bucket_password
+    attr_accessor :pool_uri, :buckets, :bucket_name
 
     def initialize(pool_uri, options = {})
       @pool_uri = pool_uri
       @bucket_name = options[:bucket_name] || "default"
-      @bucket_password = bucket_password
       @buckets = {}
-      Couchbase.get("#{@pool_uri}/buckets").each do |bucket_info|
+      if password = options[:bucket_password]
+        @credentials = {:username => @bucket_name, :password => password}
+      end
+      http_get("#{@pool_uri}/buckets").each do |bucket_info|
         @buckets[bucket_info["name"]] = Bucket.new(bucket_info)
       end
       super

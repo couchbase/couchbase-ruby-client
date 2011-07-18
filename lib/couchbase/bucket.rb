@@ -33,7 +33,6 @@ module Couchbase
         @replicas_count = server_map['numReplicas']
         @servers = server_map['serverList']
         @vbuckets = server_map['vBucketMap']
-        @couch_api_base = server_map['couchApiBase']
       end
     end
 

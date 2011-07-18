@@ -27,7 +27,11 @@ module Couchbase
       servers = bucket.nodes.map do |n|
         "#{n.hostname}:#{n.ports['proxy']}" if n.healthy?
       end.compact
-      @data_mode = options.delete(:data_mode) || :json
+      options = options.dup
+      @data_mode = options[:data_mode] || :json
+      if @credentials
+        options[:credentials] = [@credentials[:username], @credentials[:password]]
+      end
       @memcached = ::Memcached.new(servers, options)
       @default_ttl = @memcached.options[:default_ttl]
       super

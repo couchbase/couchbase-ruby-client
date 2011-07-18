@@ -28,8 +28,6 @@ module Couchbase
   autoload :RestClient,     'couchbase/rest_client'
   autoload :VERSION,        'couchbase/version'
 
-  extend RestClient
-
   class << self
     def new(*args)
       Connection.new(*args)

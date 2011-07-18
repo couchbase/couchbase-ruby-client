@@ -6,6 +6,11 @@ EXAMPLE
 
     # establish connection with couchbase default pool and default bucket
     c = Couchbase.new("http://localhost:8091/pools/default")
+    # select custom bucket
+    c = Couchbase.new("http://localhost:8091/pools/default", :bucket_name => 'blog')
+    # specify password for bucket (and SASL auth for memcached client)
+    c = Couchbase.new("http://localhost:8091/pools/default", :bucket_name => 'blog',
+                      :bucket_password => 'secret')
     # fetch design document _design/blog
     blog = c.design_docs['blog']
     # get list of views
