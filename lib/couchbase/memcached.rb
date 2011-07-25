@@ -18,11 +18,16 @@
 require 'memcached'
 
 module Couchbase
+
+  # This module is included in the Couchbase::Connection and provides
+  # routines for Memcached API
+
   module Memcached
     FLAGS = ::Memcached::FLAGS
 
     attr_reader :memcached, :data_mode
 
+    # Initializes Memcached API. It builds server list using moxi ports.
     def initialize(pool_uri, options = {})
       servers = bucket.nodes.map do |n|
         "#{n.hostname}:#{n.ports['proxy']}" if n.healthy?

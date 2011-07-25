@@ -18,10 +18,17 @@
 require 'uri'
 
 module Couchbase
+
+  # This class holds all info about Couchbase bucket. It's able to
+  # refresh configuration dynamically using streaming URI.
+
   class Bucket
     attr_accessor :type, :hash_algorithm, :replicas_count, :servers, :vbuckets,
       :nodes, :streaming_uri
 
+    # Perform initial configuration and start thread which will listen
+    # for configuration update via +streaming_uri+. Server should push
+    # update notification about adding or removing nodes from cluester.
     def initialize(pool_uri, config, credentials = nil)
       @pool_uri = URI.parse(pool_uri)
       @credentials = credentials
@@ -29,10 +36,14 @@ module Couchbase
       listen_for_config_changes
     end
 
+    # Select next node for work with Couchbase. Currently it makes sense
+    # only for couchdb API, because memcached client works using moxi.
     def next_node
       nodes.shuffle.first
     end
 
+    # Perform configuration using configuration cache. It turn all URIs
+    # into full form (with schema, host and port).
     def setup(config)
       @streaming_uri = @pool_uri.merge(config['streamingUri'])
       @uri = @pool_uri.merge(config['uri'])
@@ -55,6 +66,10 @@ module Couchbase
 
     private
 
+    # Run background thread to listen for configuration changes.
+    # Rewrites configuration for each update. Curl::Multi uses select()
+    # call when waiting for data, so is should be efficient use ruby
+    # threads here.
     def listen_for_config_changes
       Thread.new do
         multi = Curl::Multi.new

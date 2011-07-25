@@ -29,6 +29,12 @@ module Couchbase
   autoload :VERSION,        'couchbase/version'
 
   class << self
+    # The method +new+ initializes new Connection instance with all arguments passed.
+    #
+    # === Examples
+    #   Couchbase.new("http://localhost:8091/pools/default") #=> establish connection with couchbase default pool and default bucket
+    #   Couchbase.new("http://localhost:8091/pools/default", :bucket_name => 'blog') #=> select custom bucket
+    #   Couchbase.new("http://localhost:8091/pools/default", :bucket_name => 'blog', :bucket_password => 'secret') #=> specify password for bucket (and SASL auth for memcached client)
     def new(*args)
       Connection.new(*args)
     end

@@ -16,6 +16,11 @@
 #
 
 module Couchbase
+
+  # This class in charge of all stuff connected to communication with
+  # Couchbase. It includes CouchDB and Memcached APIs. Also it includes
+  # methods for HTTP transport from RestClient.
+
   class Connection
     include RestClient
     include Couchdb
@@ -23,6 +28,18 @@ module Couchbase
 
     attr_accessor :pool_uri, :bucket, :environment
 
+    # Initializes connection using +pool_uri+ and optional
+    # +:bucket_name+ and +:password+ (for protected buckets). Bucket
+    # name will be used as a username for all authorizations (SASL for
+    # Memcached API and Basic for HTTP). It also accepts +:environment+
+    # parameter wich intended to let library know what mode it should
+    # use when it applicable (for example it skips/preserves design
+    # documents with '$dev_' prefix for CouchDB API). You can specify
+    # any string starting from 'dev' or 'test' to activate development
+    # mode.
+    #
+    # Raises ArgumentError when it cannot find specified bucket in given
+    # pool.
     def initialize(pool_uri, options = {})
       @pool_uri = pool_uri
       @bucket_name = options[:bucket_name] || "default"

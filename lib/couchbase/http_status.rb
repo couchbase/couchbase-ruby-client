@@ -16,7 +16,28 @@
 #
 
 module Couchbase
+
+  # This module contains definitions for exceptions which wrap HTTP
+  # errors. Also it collect them in useful structure
+  # +HttpStatus::Errors+ which is map with status code as a key and
+  # exception class as a value. See the usage example below.
+  #
+  # === Example
+  #
+  #   data = Yajl::Parser.parse(curl.body_str)
+  #   if error_class = HttpStatus::Errors[curl.response_code]
+  #     raise error_class.new(data['error'], data['reason'])
+  #   end
+  #
+
   module HttpStatus
+
+    # Base class for all HTTP error codes. It povides handy methods for
+    # investigating what happened. For example, it stores +status_code+
+    # and human readable +status_message+ automatically and allows to
+    # provide context specific code and message (+error+ and +reason+
+    # correspondingly)
+
     class Status < Exception
       class << self
         attr_accessor :status_code, :status_message
@@ -82,6 +103,7 @@ module Couchbase
       507 => 'Insufficient Storage'
     }
 
+    # Hash with error code as a key and exceptin class as a value
     Errors = {}
 
     StatusMessage.each do |status_code, status_message|
