@@ -44,11 +44,14 @@ EXAMPLE
     # check that it really has our view defined
     blog.views                            #=> ["recent_posts"]
 
-    # execute view and fetch docs
+    # execute view and fetch all docs
     blog.recent_posts                     #=> [#<Couchbase::Document:14244860 {"id"=>"hello-world", "key"=>"2009/01/15 15:52:20", "value"=>"Hello World"}>,...]
 
-    # with pagination (it uses :skip and :limit parameters, so it can be slow on large datasets)
+    # when you specify :page parameter view results will be fetched with pagination (it uses :skip
+    # and :limit parameters, so it can be slow on large datasets)
     c.per_page = 5
     posts = blog.recent_posts(:page => 1) #=> [#<Couchbase::Document:8718590...>, ...]
+    # or use :per_page params to override defaults
+    posts = blog.recent_posts(:page => 1, :per_page => 10) #=> [#<Couchbase::Document:8718590...>, ...]
     posts.current_page                    #=> 1
 ```
