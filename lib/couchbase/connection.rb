@@ -21,23 +21,23 @@ module Couchbase
     include Couchdb
     include Memcached
 
-    attr_accessor :pool_uri, :buckets, :bucket_name
+    attr_accessor :pool_uri, :bucket
 
     def initialize(pool_uri, options = {})
       @pool_uri = pool_uri
       @bucket_name = options[:bucket_name] || "default"
-      @buckets = {}
+      desc = http_get("#{@pool_uri}/buckets").detect do |bucket|
+               bucket['name'] == @bucket_name
+             end
+      unless desc
+        raise ArgumentError,
+          "There no such bucket with name '#{@bucket_name}' in pool #{pool_uri}"
+      end
       if password = options[:bucket_password]
         @credentials = {:username => @bucket_name, :password => password}
       end
-      http_get("#{@pool_uri}/buckets").each do |bucket_info|
-        @buckets[bucket_info["name"]] = Bucket.new(bucket_info)
-      end
+      @bucket = Bucket.new(pool_uri, desc, @credentials)
       super
-    end
-
-    def bucket(name = @bucket_name, password = @bucket_password)
-      @buckets[bucket_name]
     end
   end
 end

@@ -15,20 +15,37 @@
 # limitations under the License.
 #
 
+require 'uri'
+
 module Couchbase
   class Bucket
-    attr_accessor :type, :hash_algorithm, :replicas_count, :servers, :vbuckets, :nodes
+    attr_accessor :type, :hash_algorithm, :replicas_count, :servers, :vbuckets,
+      :nodes, :streaming_uri
 
-    def initialize(bucket_info)
-      @type = bucket_info['bucketType']
-      @nodes = bucket_info['nodes'].map do |node|
+    def initialize(pool_uri, config, credentials = nil)
+      @pool_uri = URI.parse(pool_uri)
+      @credentials = credentials
+      setup(config)
+      listen_for_config_changes
+    end
+
+    def next_node
+      nodes.shuffle.first
+    end
+
+    def setup(config)
+      @streaming_uri = @pool_uri.merge(config['streamingUri'])
+      @uri = @pool_uri.merge(config['uri'])
+      @type = config['bucketType']
+      @name = config['name']
+      @nodes = config['nodes'].map do |node|
         Node.new(node['status'],
                  node['hostname'].split(':').first,
                  node['ports'],
                  node['couchApiBase'])
       end
       if @type == 'membase'
-        server_map = bucket_info['vBucketServerMap']
+        server_map = config['vBucketServerMap']
         @hash_algorithm = server_map['hashAlgorithm']
         @replicas_count = server_map['numReplicas']
         @servers = server_map['serverList']
@@ -36,8 +53,28 @@ module Couchbase
       end
     end
 
-    def next_node
-      nodes.shuffle.first
+    private
+
+    def listen_for_config_changes
+      Thread.new do
+        multi = Curl::Multi.new
+        c = Curl::Easy.new(@streaming_uri.to_s) do |curl|
+          curl.useragent = "couchbase-ruby-client/#{Couchbase::VERSION}"
+          if @credentials
+            curl.http_auth_types = :basic
+            curl.username = @credentials[:username]
+            curl.password = @credentials[:password]
+          end
+          curl.verbose = true if Kernel.respond_to?(:debugger)
+          curl.on_body do |data|
+            config = Yajl::Parser.parse(data)
+            setup(config) if config
+            data.length
+          end
+        end
+        multi.add(c)
+        multi.perform
+      end
     end
   end
 end
