@@ -1,3 +1,8 @@
+Couchbase Ruby Client
+=====================
+
+This is the official client library for use with Couchbase Server.
+
 EXAMPLE
 =======
 
@@ -47,11 +52,10 @@ EXAMPLE
     # execute view and fetch all docs
     blog.recent_posts                     #=> [#<Couchbase::Document:14244860 {"id"=>"hello-world", "key"=>"2009/01/15 15:52:20", "value"=>"Hello World"}>,...]
 
-    # when you specify :page parameter view results will be fetched with pagination (it uses :skip
-    # and :limit parameters, so it can be slow on large datasets)
+    # when you specify :page parameter view results will be fetched with pagination (it uses :skip and :limit parameters, so it can be slow on large datasets)
     c.per_page = 5
-    posts = blog.recent_posts(:page => 1) #=> [#<Couchbase::Document:8718590...>, ...]
+    posts = blog.recent_posts(:page => 1)                   #=> [#<Couchbase::Document:8718590...>, ...]
     # or use :per_page params to override defaults
-    posts = blog.recent_posts(:page => 1, :per_page => 10) #=> [#<Couchbase::Document:8718590...>, ...]
-    posts.current_page                    #=> 1
+    posts = blog.recent_posts(:page => 1, :per_page => 10)  #=> [#<Couchbase::Document:8718590...>, ...]
+    posts.current_page                                      #=> 1
 ```
