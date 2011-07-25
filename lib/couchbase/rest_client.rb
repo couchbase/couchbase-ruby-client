@@ -20,6 +20,8 @@ require 'curb'
 
 module Couchbase
   module RestClient
+    def initialize(pool_uri, options = {}); end
+
     def http_get(uri, options = {})
       execute(:get, uri, options)
     end

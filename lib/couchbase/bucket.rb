@@ -29,7 +29,8 @@ module Couchbase
     include Memcached
 
     attr_accessor :pool_uri, :environment, :type, :hash_algorithm,
-      :replicas_count, :servers, :vbuckets, :nodes, :streaming_uri
+      :replicas_count, :servers, :vbuckets, :nodes, :streaming_uri,
+      :name, :uri
 
     # Initializes connection using +pool_uri+ and optional
     # +:bucket_name+ and +:password+ (for protected buckets). Bucket
