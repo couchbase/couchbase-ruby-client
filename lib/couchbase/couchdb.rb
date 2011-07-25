@@ -25,7 +25,7 @@ module Couchbase
     end
 
     def design_docs
-      docs = http_get("#{bucket.next_node.couch_api_base}/_all_docs",
+      docs = http_get("#{next_node.couch_api_base}/_all_docs",
                       :params => {:startkey => "_design/", :endkey => "_design0", :include_docs => true})
       result = {}
       docs['rows'].each do |doc|
@@ -39,7 +39,7 @@ module Couchbase
 
     def save_design_doc(id, views, language = 'javascript')
       doc = Document.wrap(self, '_id' => "_design/#{id}", 'language' => language, 'views' => views)
-      rv = http_put("#{bucket.next_node.couch_api_base}/#{doc['_id']}", {}, doc)
+      rv = http_put("#{next_node.couch_api_base}/#{doc['_id']}", {}, doc)
       doc['_rev'] = rv['rev']
       doc
     end
@@ -53,7 +53,7 @@ module Couchbase
       else
         id = "_desing/#{id}" unless id =~ /^_design\//
       end
-      http_delete("#{bucket.next_node.couch_api_base}/#{id}", :params => {:rev => rev})
+      http_delete("#{next_node.couch_api_base}/#{id}", :params => {:rev => rev})
     end
   end
 end

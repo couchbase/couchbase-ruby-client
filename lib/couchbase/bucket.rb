@@ -19,20 +19,58 @@ require 'uri'
 
 module Couchbase
 
-  # This class holds all info about Couchbase bucket. It's able to
-  # refresh configuration dynamically using streaming URI.
+  # This class in charge of all stuff connected to communication with
+  # Couchbase. It includes CouchDB and Memcached APIs. Also it includes
+  # methods for HTTP transport from RestClient.
 
   class Bucket
-    attr_accessor :type, :hash_algorithm, :replicas_count, :servers, :vbuckets,
-      :nodes, :streaming_uri
+    include RestClient
+    include Couchdb
+    include Memcached
 
-    # Perform initial configuration and start thread which will listen
-    # for configuration update via +streaming_uri+. Server should push
-    # update notification about adding or removing nodes from cluester.
-    def initialize(pool_uri, config, credentials = nil)
+    attr_accessor :pool_uri, :environment, :type, :hash_algorithm,
+      :replicas_count, :servers, :vbuckets, :nodes, :streaming_uri
+
+    # Initializes connection using +pool_uri+ and optional
+    # +:bucket_name+ and +:password+ (for protected buckets). Bucket
+    # name will be used as a username for all authorizations (SASL for
+    # Memcached API and Basic for HTTP). It also accepts +:environment+
+    # parameter wich intended to let library know what mode it should
+    # use when it applicable (for example it skips/preserves design
+    # documents with '$dev_' prefix for CouchDB API). You can specify
+    # any string starting from 'dev' or 'test' to activate development
+    # mode.
+    #
+    # Also starts thread which will simultanuously listen for
+    # configuration update via +streaming_uri+. Server should push
+    # update notification about adding or removing nodes from cluster.
+    #
+    # Raises ArgumentError when it cannot find specified bucket in given
+    # pool.
+    def initialize(pool_uri, options = {})
+      @name = options[:bucket_name] || "default"
       @pool_uri = URI.parse(pool_uri)
-      @credentials = credentials
-      setup(config)
+      @environment = if options[:environment].to_s =~ /^(dev|test)/
+                       :development
+                     else
+                       :production
+                     end
+      config = http_get("#{@pool_uri}/buckets").detect do |bucket|
+                 bucket['name'] == @name
+               end
+      unless config
+        raise ArgumentError,
+          "There no such bucket with name '#{@name}' in pool #{pool_uri}"
+      end
+      @uri = @pool_uri.merge(config['uri'])
+      @streaming_uri = @pool_uri.merge(config['streamingUri'])
+      if password = options[:bucket_password]
+        @credentials = {:username => @name, :password => password}
+      end
+      super
+
+      # Considering all initialization stuff completed and now we can
+      # start config listener
       listen_for_config_changes
     end
 
@@ -44,11 +82,12 @@ module Couchbase
 
     # Perform configuration using configuration cache. It turn all URIs
     # into full form (with schema, host and port).
+    #
+    # You can override this method in included modules or descendants if
+    # you'd like to reconfigure them when new configuration arrives from
+    # server.
     def setup(config)
-      @streaming_uri = @pool_uri.merge(config['streamingUri'])
-      @uri = @pool_uri.merge(config['uri'])
       @type = config['bucketType']
-      @name = config['name']
       @nodes = config['nodes'].map do |node|
         Node.new(node['status'],
                  node['hostname'].split(':').first,
@@ -62,6 +101,7 @@ module Couchbase
         @servers = server_map['serverList']
         @vbuckets = server_map['vBucketMap']
       end
+      super
     end
 
     private

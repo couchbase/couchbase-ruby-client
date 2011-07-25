@@ -29,16 +29,11 @@ module Couchbase
 
     # Initializes Memcached API. It builds server list using moxi ports.
     def initialize(pool_uri, options = {})
-      servers = bucket.nodes.map do |n|
-        "#{n.hostname}:#{n.ports['proxy']}" if n.healthy?
-      end.compact
-      options = options.dup
       @data_mode = options[:data_mode] || :json
+      @options = options.dup
       if @credentials
-        options[:credentials] = [@credentials[:username], @credentials[:password]]
+        @options[:credentials] = [@credentials[:username], @credentials[:password]]
       end
-      @memcached = ::Memcached.new(servers, options)
-      @default_ttl = @memcached.options[:default_ttl]
       super
     end
 
@@ -152,6 +147,16 @@ module Couchbase
     alias :decr :decrement
 
     private
+
+    # Setups memcached instance. Used for dynamic client reconfiguration
+    # when server pushes new config.
+    def setup(not_used)
+      servers = nodes.map do |n|
+        "#{n.hostname}:#{n.ports['proxy']}" if n.healthy?
+      end.compact
+      @memcached = ::Memcached.new(servers, @options)
+      @default_ttl = @memcached.options[:default_ttl]
+    end
 
     def encode(value, mode)
       case mode
