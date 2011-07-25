@@ -21,11 +21,16 @@ module Couchbase
     include Couchdb
     include Memcached
 
-    attr_accessor :pool_uri, :bucket
+    attr_accessor :pool_uri, :bucket, :environment
 
     def initialize(pool_uri, options = {})
       @pool_uri = pool_uri
       @bucket_name = options[:bucket_name] || "default"
+      @environment = if options[:environment].to_s =~ /^(dev|test)/
+                       :development
+                     else
+                       :production
+                     end
       desc = http_get("#{@pool_uri}/buckets").detect do |bucket|
                bucket['name'] == @bucket_name
              end

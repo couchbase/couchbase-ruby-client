@@ -31,7 +31,7 @@ module Couchbase
       docs['rows'].each do |doc|
         doc = Document.wrap(self, doc)
         key = doc['_id'].sub(/^_design\//, '')
-        next if key =~ /$dev_/
+        next if @environment == :production && key =~ /\$dev_/
         result[key] = doc
       end
       result
