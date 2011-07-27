@@ -30,7 +30,7 @@ module Couchbase
     # Initializes Memcached API. It builds server list using moxi ports.
     def initialize(pool_uri, options = {})
       @data_mode = options[:data_mode] || :json
-      @options = options.dup
+      @options = {:default_ttl => 0}.merge(options || {})
       if @credentials
         @options[:credentials] = [@credentials[:username], @credentials[:password]]
       end
@@ -40,8 +40,6 @@ module Couchbase
     def clone
       double = super
       double.instance_variable_set("@memcached", @memcached.clone)
-      double.instance_variable_set("@memcached", @memcached.options[:default_ttl])
-      double.instance_variable_set("@memcached", @memcached.options[:default_ttl])
       double
     end
     alias :dup :clone #:nodoc:
