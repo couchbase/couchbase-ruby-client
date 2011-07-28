@@ -35,7 +35,7 @@ module Couchbase
           @views << name
           self.instance_eval <<-EOV, __FILE__, __LINE__ + 1
             def #{name}(params = {})
-              endpoint = "\#{@connection.bucket.next_node.couch_api_base}/\#{@data['_id']}/_view/#{name}"
+              endpoint = "\#{@connection.next_node.couch_api_base}/\#{@data['_id']}/_view/#{name}"
               if params[:page]
                 fetch_view_with_pagination(endpoint, params)
               else
