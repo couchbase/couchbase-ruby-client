@@ -24,6 +24,7 @@ module Couchbase
       super
     end
 
+    # Fetch design docs stored in current bucket
     def design_docs
       docs = http_get("#{next_node.couch_api_base}/_all_docs",
                       :params => {:startkey => "_design/", :endkey => "_design0", :include_docs => true})
@@ -37,6 +38,7 @@ module Couchbase
       result
     end
 
+    # Update or create design doc with supplied views
     def save_design_doc(id, views, language = 'javascript')
       doc = Document.wrap(self, '_id' => "_design/#{id}", 'language' => language, 'views' => views)
       rv = http_put("#{next_node.couch_api_base}/#{doc['_id']}", {}, doc)
