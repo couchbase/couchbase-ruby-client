@@ -22,7 +22,7 @@ module Couchbase
   autoload :HttpStatus,     'couchbase/http_status'
   autoload :Memcached,      'couchbase/memcached'
   autoload :Node,           'couchbase/node'
-  autoload :Pool,           'couchbase/pool'
+  autoload :Latch,          'couchbase/latch'
   autoload :RestClient,     'couchbase/rest_client'
   autoload :VERSION,        'couchbase/version'
 

@@ -51,7 +51,7 @@ module Couchbase
     # Raises ArgumentError when it cannot find specified bucket in given
     # pool.
     def initialize(pool_uri, options = {})
-      @setup_done = false
+      @latch = Latch.new(:in_progress, :ready)
       @name = options[:bucket_name] || "default"
       @pool_uri = URI.parse(pool_uri)
       @environment = if options[:environment].to_s =~ /^(dev|test)/
@@ -77,9 +77,7 @@ module Couchbase
       # start config listener
       listen_for_config_changes
 
-      while not setup_done
-        sleep 0.001
-      end
+      @latch.wait
     end
 
     # Select next node for work with Couchbase. Currently it makes sense
@@ -110,7 +108,7 @@ module Couchbase
         @vbuckets = server_map['vBucketMap']
       end
       super
-      @setup_done = true
+      @latch.toggle
     end
 
     private
