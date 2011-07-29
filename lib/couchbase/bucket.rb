@@ -40,7 +40,7 @@ module Couchbase
     # Memcached API and Basic for HTTP). It also accepts +:environment+
     # parameter wich intended to let library know what mode it should
     # use when it applicable (for example it skips/preserves design
-    # documents with '$dev_' prefix for CouchDB API). You can specify
+    # documents with 'dev_' prefix for CouchDB API). You can specify
     # any string starting from 'dev' or 'test' to activate development
     # mode.
     #
