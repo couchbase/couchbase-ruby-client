@@ -32,6 +32,8 @@ module Couchbase
       :replicas_count, :servers, :vbuckets, :nodes, :streaming_uri,
       :name, :uri
 
+    attr_reader :setup_done
+
     # Initializes connection using +pool_uri+ and optional
     # +:bucket_name+ and +:password+ (for protected buckets). Bucket
     # name will be used as a username for all authorizations (SASL for
@@ -49,6 +51,7 @@ module Couchbase
     # Raises ArgumentError when it cannot find specified bucket in given
     # pool.
     def initialize(pool_uri, options = {})
+      @setup_done = false
       @name = options[:bucket_name] || "default"
       @pool_uri = URI.parse(pool_uri)
       @environment = if options[:environment].to_s =~ /^(dev|test)/
@@ -73,6 +76,10 @@ module Couchbase
       # Considering all initialization stuff completed and now we can
       # start config listener
       listen_for_config_changes
+
+      while not setup_done
+        sleep 0.001
+      end
     end
 
     # Select next node for work with Couchbase. Currently it makes sense
@@ -103,6 +110,7 @@ module Couchbase
         @vbuckets = server_map['vBucketMap']
       end
       super
+      @setup_done = true
     end
 
     private
@@ -114,22 +122,25 @@ module Couchbase
     def listen_for_config_changes
       Thread.new do
         multi = Curl::Multi.new
-        c = Curl::Easy.new(@streaming_uri.to_s) do |curl|
-          curl.useragent = "couchbase-ruby-client/#{Couchbase::VERSION}"
-          if @credentials
-            curl.http_auth_types = :basic
-            curl.username = @credentials[:username]
-            curl.password = @credentials[:password]
-          end
-          curl.verbose = true if Kernel.respond_to?(:debugger)
-          curl.on_body do |data|
-            config = Yajl::Parser.parse(data)
-            setup(config) if config
-            data.length
-          end
-        end
-        multi.add(c)
+        multi.add(mk_curl(@streaming_uri.to_s))
         multi.perform
+      end
+    end
+
+    def mk_curl(url)
+      Curl::Easy.new(url) do |curl|
+        curl.useragent = "couchbase-ruby-client/#{Couchbase::VERSION}"
+        if @credentials
+          curl.http_auth_types = :basic
+          curl.username = @credentials[:username]
+          curl.password = @credentials[:password]
+        end
+        curl.verbose = true if Kernel.respond_to?(:debugger)
+        curl.on_body do |data|
+          config = Yajl::Parser.parse(data)
+          setup(config) if config
+          data.length
+        end
       end
     end
   end
