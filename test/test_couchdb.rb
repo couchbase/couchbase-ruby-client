@@ -1,5 +1,4 @@
-require 'minitest/autorun'
-require 'couchbase'
+require File.join(File.dirname(__FILE__), 'setup')
 
 class TestCouchdb < MiniTest::Unit::TestCase
   def setup
@@ -26,6 +25,7 @@ class TestCouchdb < MiniTest::Unit::TestCase
 
     @bucket[test_id] = {'msg' => 'hello world'}
     @bucket.save_design_doc(test_id, 'all' => {'map' => 'function(doc){if(doc.msg){emit(doc._id, doc.msg)}}'})
+    assert_operation_completed { database_ready(@bucket) }
     ddoc = @bucket.design_docs[test_id]
     assert ddoc, "design document '_design/#{test_id}' not found"
     doc = ddoc.all.detect{|doc| doc['id'] == test_id && doc['value'] == 'hello world'}

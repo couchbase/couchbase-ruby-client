@@ -1,5 +1,4 @@
-require 'minitest/autorun'
-require 'couchbase'
+require File.join(File.dirname(__FILE__), 'setup')
 
 class TestMemcached < MiniTest::Unit::TestCase
 
