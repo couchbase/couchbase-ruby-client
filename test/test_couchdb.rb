@@ -7,7 +7,7 @@ class TestCouchdb < MiniTest::Unit::TestCase
   end
 
   def test_that_it_could_connect_to_couchdb
-    server_uri = @bucket.bucket.next_node.couch_api_base[/http:\/\/[^\/]+/]
+    server_uri = @bucket.next_node.couch_api_base[/http:\/\/[^\/]+/]
     assert_equal %w(couchdb version), @bucket.http_get(server_uri).keys
   end
 
