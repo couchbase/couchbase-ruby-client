@@ -31,18 +31,20 @@ module Couchbase
       @connection = connection
       @views = []
       begin
-        data['views'].each do |name, funs|
-          @views << name
-          self.instance_eval <<-EOV, __FILE__, __LINE__ + 1
-            def #{name}(params = {})
-              endpoint = "\#{@connection.next_node.couch_api_base}/\#{@data['_id']}/_view/#{name}"
-              if params[:page]
-                fetch_view_with_pagination(endpoint, params)
-              else
-                fetch_view(endpoint, params)
+        if design_doc?
+          data['views'].each do |name, funs|
+            @views << name
+              self.instance_eval <<-EOV, __FILE__, __LINE__ + 1
+              def #{name}(params = {})
+                endpoint = "\#{@connection.next_node.couch_api_base}/\#{@data['_id']}/_view/#{name}"
+                if params[:page]
+                  fetch_view_with_pagination(endpoint, params)
+                else
+                  fetch_view(endpoint, params)
+                end
               end
-            end
-          EOV
+            EOV
+          end
         end
       rescue NoMethodError
       end
@@ -61,7 +63,7 @@ module Couchbase
     end
 
     def design_doc?
-      !!(id =~ %r(_design/))
+      !!(@data['_id'] =~ %r(_design/))
     end
 
     def has_views?
