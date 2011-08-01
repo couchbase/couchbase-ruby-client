@@ -32,8 +32,6 @@ module Couchbase
       :replicas_count, :servers, :vbuckets, :nodes, :streaming_uri,
       :name, :uri
 
-    attr_reader :setup_done
-
     # Initializes connection using +pool_uri+ and optional
     # +:bucket_name+ and +:password+ (for protected buckets). Bucket
     # name will be used as a username for all authorizations (SASL for

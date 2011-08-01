@@ -11,6 +11,14 @@ class TestCouchdb < MiniTest::Unit::TestCase
     assert_equal %w(couchdb version), @bucket.http_get(server_uri).keys
   end
 
+  def test_that_it_raises_error_if_couch_api_isnt_implemented
+    bucket = Couchbase.new('http://localhost:8091/pools/default')
+    bucket.nodes.each{|node| node.couch_api_base = nil}
+    assert_raises(Couchbase::NotImplemented) do
+      bucket.design_docs
+    end
+  end
+
   def test_that_it_could_create_doc_using_memcached_api
     # cleanup
     @bucket.delete(test_id) rescue Memcached::NotFound

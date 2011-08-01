@@ -33,5 +33,17 @@ module Couchbase
         end
       EOM
     end
+
+    def have_couch_api?
+      !! @couch_api_base
+    end
+
+    def couch_api_base
+      if @couch_api_base
+        @couch_api_base
+      else
+        raise NotImplemented, "CouchDB API isn't available for the node #{@hostname}"
+      end
+    end
   end
 end

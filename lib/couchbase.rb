@@ -26,6 +26,11 @@ module Couchbase
   autoload :RestClient,     'couchbase/rest_client'
   autoload :VERSION,        'couchbase/version'
 
+  # This error is raising when library detects that some operation
+  # doesn't implemented by the server. For example views API doesn't
+  # implemented by Membase 1.7.x
+  class NotImplemented < Exception; end
+
   class << self
     # The method +new+ initializes new Bucket instance with all arguments passed.
     #
