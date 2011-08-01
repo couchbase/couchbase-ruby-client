@@ -28,9 +28,8 @@ module Couchbase
     include Couchdb
     include Memcached
 
-    attr_accessor :pool_uri, :environment, :type, :hash_algorithm,
-      :replicas_count, :servers, :vbuckets, :nodes, :streaming_uri,
-      :name, :uri
+    attr_accessor :pool_uri, :environment, :type, :nodes,
+      :streaming_uri, :name, :uri, :vbuckets
 
     # Initializes connection using +pool_uri+ and optional
     # +:bucket_name+ and +:password+ (for protected buckets). Bucket
@@ -99,11 +98,7 @@ module Couchbase
                  node['couchApiBase'])
       end
       if @type == 'membase'
-        server_map = config['vBucketServerMap']
-        @hash_algorithm = server_map['hashAlgorithm']
-        @replicas_count = server_map['numReplicas']
-        @servers = server_map['serverList']
-        @vbuckets = server_map['vBucketMap']
+        @vbuckets = config['vBucketServerMap']['vBucketMap']
       end
       super
       @latch.toggle
