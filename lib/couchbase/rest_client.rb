@@ -83,6 +83,7 @@ module Couchbase
     end
 
     def build_query(uri, params = nil)
+      uri = uri.dup
       return uri if params.nil? || params.empty?
       uri << "?"
       uri << params.map do |k, v|
