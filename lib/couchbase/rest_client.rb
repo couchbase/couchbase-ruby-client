@@ -42,9 +42,7 @@ module Couchbase
       execute(:put, uri, options, payload)
     end
 
-    protected
-
-    def execute(method, uri, options = {}, payload = nil)
+    def curl_easy(uri, options = {})
       curl = Curl::Easy.new(build_query(uri, options[:params]))
       curl.useragent = "couchbase-ruby-client/#{Couchbase::VERSION}"
       if @credentials
@@ -54,6 +52,13 @@ module Couchbase
       end
       curl.verbose = true if Kernel.respond_to?(:debugger)
       curl.headers.update(options[:headers] || {})
+      curl
+    end
+
+    protected
+
+    def execute(method, uri, options = {}, payload = nil)
+      curl = curl_easy(uri, options)
       data = case payload
              when IO
                payload

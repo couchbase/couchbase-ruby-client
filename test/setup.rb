@@ -1,8 +1,9 @@
 require 'minitest/autorun'
+require 'mocha'
 require 'couchbase'
+require 'yajl'
 
 class MiniTest::Unit::TestCase
-
   # retry block +attempts+ times and fail if time is out
   def assert_operation_completed(attempts = 10)
     timeout = 1
@@ -20,4 +21,8 @@ class MiniTest::Unit::TestCase
     bucket.http_get(all_dbs_uri).grep(/#{bucket.name}\/\d+/).size == bucket.vbuckets.size
   end
 
+  def json_fixture(path, options = {})
+    data = File.read(File.join(File.dirname(__FILE__), 'support', path))
+    options[:raw] ? data : Yajl::Parser.parse(data)
+  end
 end

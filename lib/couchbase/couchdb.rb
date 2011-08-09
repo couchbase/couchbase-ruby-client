@@ -17,10 +17,7 @@
 
 module Couchbase
   module Couchdb
-    attr_accessor :per_page
-
     def initialize(pool_uri, options = {})
-      @per_page = options[:per_page] || 20
       super
     end
 
@@ -44,6 +41,15 @@ module Couchbase
       rv = http_put("#{next_node.couch_api_base}/#{doc['_id']}", {}, doc)
       doc['_rev'] = rv['rev']
       doc
+    end
+
+    # Fetch all documents from the bucket.
+    #
+    # @param [ Hash ] params Params for Couchdb +/_all_docs+ query
+    #
+    # @return [ Couchbase::View ] View object
+    def all_docs(params = {})
+      View.new(self, "#{next_node.couch_api_base}/_all_docs", params)
     end
 
     def delete_design_doc(id, rev = nil)

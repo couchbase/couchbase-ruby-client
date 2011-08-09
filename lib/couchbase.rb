@@ -20,11 +20,12 @@ module Couchbase
   autoload :Couchdb,        'couchbase/couchdb'
   autoload :Document,       'couchbase/document'
   autoload :HttpStatus,     'couchbase/http_status'
+  autoload :Latch,          'couchbase/latch'
   autoload :Memcached,      'couchbase/memcached'
   autoload :Node,           'couchbase/node'
-  autoload :Latch,          'couchbase/latch'
   autoload :RestClient,     'couchbase/rest_client'
   autoload :VERSION,        'couchbase/version'
+  autoload :View,           'couchbase/view'
 
   # This error is raising when library detects that some operation
   # doesn't implemented by the server. For example views API doesn't

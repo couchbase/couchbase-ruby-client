@@ -32,7 +32,7 @@ module Couchbase
       :streaming_uri, :name, :uri, :vbuckets
 
     # Initializes connection using +pool_uri+ and optional
-    # +:bucket_name+ and +:password+ (for protected buckets). Bucket
+    # +:bucket_name+ and +:bucket_password+ (for protected buckets). Bucket
     # name will be used as a username for all authorizations (SASL for
     # Memcached API and Basic for HTTP). It also accepts +:environment+
     # parameter wich intended to let library know what mode it should

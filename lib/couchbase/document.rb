@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-require 'will_paginate'
-
 module Couchbase
   class Document
     # Undefine as much methods as we can to free names for views
@@ -34,14 +32,10 @@ module Couchbase
         if design_doc?
           data['views'].each do |name, funs|
             @views << name
-              self.instance_eval <<-EOV, __FILE__, __LINE__ + 1
+            self.instance_eval <<-EOV, __FILE__, __LINE__ + 1
               def #{name}(params = {})
                 endpoint = "\#{@connection.next_node.couch_api_base}/\#{@data['_id']}/_view/#{name}"
-                if params[:page]
-                  fetch_view_with_pagination(endpoint, params)
-                else
-                  fetch_view(endpoint, params)
-                end
+                View.new(@connection, endpoint, params)
               end
             EOV
           end
@@ -72,26 +66,6 @@ module Couchbase
 
     def inspect
       %(#<#{self.class.name}:#{self.object_id} #{@data.inspect}>)
-    end
-
-    protected
-
-    def fetch_view(endpoint, params = {})
-      docs = @connection.http_get(endpoint, :params => params)
-      docs['rows'].map{|d| Document.new(self, d)}
-    end
-
-    def fetch_view_with_pagination(endpoint, params = {})
-      page = params[:page].to_i
-      raise ArgumentError, ":page parameter should be a natural number" if page < 1
-      per_page = (params[:per_page] || @connection.per_page).to_i
-      skip = (page-1) * per_page
-      docs = @connection.http_get(endpoint, :params => params.merge(:skip => skip, :limit => per_page))
-      collection = docs['rows'].map{|d| Document.new(self, d)}
-      total_entries = docs['total_rows']
-      WillPaginate::Collection.create(page, per_page, total_entries) do |pager|
-        pager.replace(collection)
-      end
     end
   end
 end
