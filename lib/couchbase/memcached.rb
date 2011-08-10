@@ -31,6 +31,7 @@ module Couchbase
     def initialize(pool_uri, options = {})
       @data_mode = options[:data_mode] || :json
       @options = {:default_ttl => 0}.merge(options || {})
+      @options[:experimental_features] = true
       if @credentials
         @options[:credentials] = [@credentials[:username], @credentials[:password]]
       end
@@ -96,6 +97,10 @@ module Couchbase
 
     def get_from_last(keys, data_mode=@data_mode)
       decode(@memcached.get(keys, data_mode == :marshal), data_mode)
+    end
+
+    def touch(key, ttl=@default_ttl)
+      @memcached.touch(key, ttl)
     end
 
     def set(key, value, ttl=@default_ttl, data_mode=@data_mode, flags=FLAGS)
