@@ -130,7 +130,7 @@ module Couchbase
         curl.on_body do |data|
           config = Yajl::Parser.parse(data)
           setup(config) if config
-          data.length
+          data.bytesize
         end
       end
     end
