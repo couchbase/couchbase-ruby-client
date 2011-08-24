@@ -1,4 +1,8 @@
-=== Development version
+=== 0.9.5 / 2011-08-24
+
+* Update installation notes in README
+
+=== 0.9.4 / 2011-08-24
 
 * Use streaming json parser to iterate over view results
 * Update memcached gem dependency to v1.3
