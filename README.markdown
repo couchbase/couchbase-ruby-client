@@ -43,7 +43,7 @@ This gem supports memcached API accessible for [memcached][5] client
 with a bit syntax sugar:
 
     c.set('password', 'secret')
-    c.set('password')             #=> "secret"
+    c.get('password')             #=> "secret"
     c['password'] = 'secret'
     c['password']                 #=> "secret"
     c['counter'] = 1              #=> 1
