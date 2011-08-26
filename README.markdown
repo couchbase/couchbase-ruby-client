@@ -67,9 +67,23 @@ example, store a couple of posts using memcached API:
                         :date => '2009/01/15 15:52:20'}
     c.all_docs.count    #=> 3
 
-Now let's create design doc with sample view:
+Now let's create design doc with sample view and save it in file
+'blog.json':
 
-    c.save_design_doc('blog', 'recent_posts' => {'map' => 'function(doc){if(doc.date && doc.title){emit(doc.date, doc.title);}}'})
+    {
+      "_id": "_design/blog",
+      "language": "javascript",
+      "views": {
+        "recent_posts": {
+          "map": "function(doc){if(doc.date && doc.title){emit(doc.date, doc.title);}}"
+        }
+      }
+    }
+
+This design document could be loaded into the database like this (also you can
+pass the ruby Hash or String with JSON encoded document):
+
+    c.save_design_doc(File.open('blog.json'))
 
 To execute view you need to fetch it from design document `_design/blog`:
 

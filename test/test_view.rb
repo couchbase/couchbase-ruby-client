@@ -32,10 +32,12 @@ class TestView < MiniTest::Unit::TestCase
     end
 
     connection.delete_design_doc('test_view')
-    connection.save_design_doc('test_view',
-                               'all' => {'map' => 'function(doc){if(doc.counter){emit(doc._id, doc)}}'},
-                               'sum' => {'map' => 'function(doc){if(doc.counter){emit(doc.toy, doc.counter)}}',
-                                         'reduce' => 'function(keys,values,rereduce){return sum(values)}'})
+    connection.save_design_doc('_id' => '_design/test_view',
+                               'views' => {
+                                 'all' => {'map' => 'function(doc){if(doc.counter){emit(doc._id, doc)}}'},
+                                 'sum' => {'map' => 'function(doc){if(doc.counter){emit(doc.toy, doc.counter)}}',
+                                           'reduce' => 'function(keys,values,rereduce){return sum(values)}'}})
+
     assert connection.design_docs['test_view']
 
     assert_operation_completed do

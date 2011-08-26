@@ -24,12 +24,57 @@ class TestCouchdb < MiniTest::Unit::TestCase
     @bucket.delete_design_doc(test_id)
 
     @bucket[test_id] = {'msg' => 'hello world'}
-    @bucket.save_design_doc(test_id, 'all' => {'map' => 'function(doc){if(doc.msg){emit(doc._id, doc.msg)}}'})
+    @bucket.save_design_doc('_id' => "_design/#{test_id}",
+                            'views' => {'all' => {'map' => 'function(doc){if(doc.msg){emit(doc._id, doc.msg)}}'}})
     assert_operation_completed { database_ready(@bucket) }
     ddoc = @bucket.design_docs[test_id]
     assert ddoc, "design document '_design/#{test_id}' not found"
     doc = ddoc.all.detect{|doc| doc['id'] == test_id && doc['value'] == 'hello world'}
     assert doc, "object '#{test_id}' not found"
+  end
+
+  def test_it_creates_design_doc_from_string
+    doc = <<-EOD
+      {
+        "_id": "_design/#{test_id}",
+        "language": "javascript",
+        "views": {
+          "all": {
+            "map": "function(doc){ if(doc.msg){ emit(doc._id, doc.msg) } }"
+          }
+        }
+      }
+    EOD
+
+    @bucket.delete_design_doc(test_id)
+    @bucket.save_design_doc(doc)
+    assert_operation_completed { database_ready(@bucket) }
+    assert @bucket.design_docs[test_id], "design document '_design/#{test_id}' not found"
+  end
+
+  def test_it_creates_design_doc_from_io
+    doc = File.open(File.join(File.dirname(__FILE__), 'support', 'sample_design_doc.json'))
+    @bucket.delete_design_doc(test_id)
+    @bucket.save_design_doc(doc)
+    assert_operation_completed { database_ready(@bucket) }
+    assert @bucket.design_docs[test_id], "design document '_design/#{test_id}' not found"
+  end
+
+  def test_it_creates_design_doc_from_hash
+    doc = {
+      "_id" => "_design/#{test_id}",
+      "language" => "javascript",
+      "views" => {
+        "all" => {
+          "map" => "function(doc){ if(doc.msg){ emit(doc._id, doc.msg) } }"
+        }
+      }
+    }
+
+    @bucket.delete_design_doc(test_id)
+    @bucket.save_design_doc(doc)
+    assert_operation_completed { database_ready(@bucket) }
+    assert @bucket.design_docs[test_id], "design document '_design/#{test_id}' not found"
   end
 
   protected
