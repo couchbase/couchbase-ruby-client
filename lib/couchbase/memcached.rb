@@ -26,9 +26,20 @@ module Couchbase
 
     attr_reader :memcached, :default_format, :default_flags, :default_ttl
 
-    # Initializes Memcached API. It builds server list using moxi ports.
+    # Initializes Memcached API. It builds a server list using moxi ports.
+    #
+    # @param [Hash] options The options for module
+    # @option options [Symbol] :format format of the values. It can be on of
+    #   the <tt>[:plain, :document, :marshal]</tt>. You can choose
+    #   <tt>:plain</tt> if you no need any conversions to be applied to your
+    #   data, but your data should be passed as String. Choose
+    #   <tt>:document</tt> (default) format when you'll store hashes and plan
+    #   to execute CouchDB views with map/reduce operations on them. And
+    #   finally use <tt>:marshal</tt> format if you'd like to transparently
+    #   serialize almost any ruby object with standard <tt>Marshal.dump</tt>
+    #   and <tt>Marhal.load</tt> methods.
     def initialize(pool_uri, options = {})
-      @default_format = options[:format] || :json
+      @default_format = options[:format] || :document
       @default_flags = ::Memcached::FLAGS
       @options = {
         :binary_protocol => true,
@@ -102,7 +113,7 @@ module Couchbase
     # @param [Array, String] keys list of String keys or single key
     #
     # @param [Hash] options the options for operation
-    # @option options [String] :format (self.default_format) format of the value
+    # @option options [Symbol] :format (self.default_format) format of the value
     #
     # @raise [Memcached::NotFound] if the key does not exist on the server.
     def get(keys, options = {})
@@ -138,7 +149,7 @@ module Couchbase
     #
     # @param [Hash] options the options for operation
     # @option options [String] :ttl (self.default_ttl) the time to live of this key
-    # @option options [String] :format (self.default_format) format of the value
+    # @option options [Symbol] :format (self.default_format) format of the value
     # @option options [Fixnum] :flags (self.default_flags) flags for this key
     def set(key, value)
       ttl = options[:ttl] || @default_ttl
@@ -168,15 +179,16 @@ module Couchbase
     #
     # @param [Hash] options the options for operation
     # @option options [String] :ttl (self.default_ttl) the time to live of this key
-    # @option options [String] :format (self.default_format) format of the value
+    # @option options [Symbol] :format (self.default_format) format of the value
     # @option options [Fixnum] :flags (self.default_flags) flags for this key
     #
     # @yieldparam [Object] value old value.
     # @yieldreturn [Object] new value.
     #
     # @raise [Memcached::ClientError] if CAS doesn't enabled for current
-    #                                 connection. (:support_cas is true by
-    #                                 default)
+    #   connection. (:support_cas is true by default)
+    # @raise [Memcached::NotStored] if the key was updated before the the
+    #   code in block has been completed (the CAS value has been changed).
     #
     # @example Implement append to JSON encoded value
     #
@@ -207,7 +219,7 @@ module Couchbase
     #
     # @param [Hash] options the options for operation
     # @option options [String] :ttl (self.default_ttl) the time to live of this key
-    # @option options [String] :format (self.default_format) format of the value
+    # @option options [Symbol] :format (self.default_format) format of the value
     # @option options [Fixnum] :flags (self.default_flags) flags for this key
     #
     # @raise [Memcached::NotStored] if the key already exists on the server.
@@ -227,7 +239,7 @@ module Couchbase
     #
     # @param [Hash] options the options for operation
     # @option options [String] :ttl (self.default_ttl) the time to live of this key
-    # @option options [String] :format (self.default_format) format of the value
+    # @option options [Symbol] :format (self.default_format) format of the value
     # @option options [Fixnum] :flags (self.default_flags) flags for this key
     #
     # @raise [Memcached::NotFound] if the key doesn't exists on the server.
@@ -322,7 +334,7 @@ module Couchbase
 
     def encode(value, mode)
       case mode
-      when :json
+      when :document
         Yajl::Encoder.encode(value)
       when :marshal, :plain
         value   # encoding handled by memcached library internals
@@ -331,7 +343,7 @@ module Couchbase
 
     def decode(value, mode)
       case mode
-      when :json
+      when :document
         Yajl::Parser.parse(value)
       when :marshal, :plain
         value   # encoding handled by memcached library internals
