@@ -33,7 +33,7 @@ class TestBucket < MiniTest::Unit::TestCase
   end
 
   def test_initialization_low_level_drivers
-    bucket = Couchbase.new('http://localhost:8091/pools/default', :data_mode => :plain)
-    assert_equal :plain, bucket.data_mode
+    bucket = Couchbase.new('http://localhost:8091/pools/default', :format => :plain)
+    assert_equal :plain, bucket.default_format
   end
 end
