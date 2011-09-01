@@ -19,6 +19,55 @@ class TestView < MiniTest::Unit::TestCase
     assert_instance_of Couchbase::View, connection.all_docs
   end
 
+  def test_when_stream_has_errors_it_raises_error_by_default
+    response = <<-EOR
+      {
+        "total_rows": 0,
+        "rows": [ ],
+        "errors": [
+          {
+            "from": "127.0.0.1:5984",
+            "reason": "Design document `_design/testfoobar` missing in database `test_db_b`."
+          },
+          {
+            "from": "http:// localhost:5984/_view_merge/",
+            "reason": "Design document `_design/testfoobar` missing in database `test_db_c`."
+          }
+        ]
+      }
+    EOR
+    view = Couchbase::View.new(stub(:curl_easy => response),
+                               "http://localhost:5984/default/_design/test/_view/all")
+    assert_raises(Couchbase::ViewError) do
+      view.fetch
+    end
+  end
+
+  def test_when_stream_has_errors_and_error_callback_provided_it_executes_the_callback
+    response = <<-EOR
+      {
+        "total_rows": 0,
+        "rows": [ ],
+        "errors": [
+          {
+            "from": "127.0.0.1:5984",
+            "reason": "Design document `_design/testfoobar` missing in database `test_db_b`."
+          },
+          {
+            "from": "http:// localhost:5984/_view_merge/",
+            "reason": "Design document `_design/testfoobar` missing in database `test_db_c`."
+          }
+        ]
+      }
+    EOR
+    view = Couchbase::View.new(stub(:curl_easy => response),
+                               "http://localhost:5984/default/_design/test/_view/all")
+    errcount = 0
+    view.on_error{|from, reason| errcount += 1}
+    view.fetch
+    assert 2, errcount
+  end
+
   protected
 
   def populate_database

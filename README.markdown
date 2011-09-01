@@ -111,6 +111,27 @@ You can also use Enumerator to iterate view results
       acc
     end
 
+The Couchbase server could generate errors during view execution with
+`200 OK` and partial results. By default the library raises exception as
+soon as errors detected in the result stream, but you can define the
+callback `on_error` to intercept these errors and do something more
+useful.
+
+    view = blog.recent_posts
+    logger = Logger.new(STDOUT)
+
+    view.on_error do |from, reason|
+      logger.warn("#{view.inspect} received the error '#{reason}' from #{from}")
+    end
+
+    posts = view.each do |doc|
+      # do something
+      # with doc object
+    end
+
+Note that errors object in view results usually goes *after* the rows,
+so you will likely receive a number of view results successfully before
+the error is detected.
 
 [1]: https://github.com/brianmario/yajl-ruby/
 [2]: https://github.com/avsej/yaji/

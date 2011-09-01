@@ -68,27 +68,106 @@ module Couchbase
       fetch(params) {|doc| yield(doc)}
     end
 
+    # Registers callback function for handling error objects in view
+    # results stream.
+    #
+    # @yieldparam [String] from Location of the node where error occured
+    # @yieldparam [String] reason The reason message describing what
+    #   happened.
+    #
+    # @example Using <tt>#on_error</tt> to log all errors in view result
+    #
+    #     # JSON-encoded view result
+    #     #
+    #     # {
+    #     #   "total_rows": 0,
+    #     #   "rows": [ ],
+    #     #   "errors": [
+    #     #     {
+    #     #       "from": "127.0.0.1:5984",
+    #     #       "reason": "Design document `_design/testfoobar` missing in database `test_db_b`."
+    #     #     },
+    #     #     {
+    #     #       "from": "http:// localhost:5984/_view_merge/",
+    #     #       "reason": "Design document `_design/testfoobar` missing in database `test_db_c`."
+    #     #     }
+    #     #   ]
+    #     # }
+    #
+    #     view.on_error do |from, reason|
+    #       logger.warn("#{view.inspect} received the error '#{reason}' from #{from}")
+    #     end
+    #     docs = view.fetch
+    #
+    # @example More concise example to just count errors
+    #
+    #     errcount = 0
+    #     view.on_error{|f,r| errcount += 1}.fetch
+    #
+    def on_error(&callback)
+      @on_error = callback
+      self  # enable call chains
+    end
+
     # Performs query to CouchDB view. This method will stream results if block
     # given or return complete result set otherwise. In latter case it defines
     # method <tt>total_entries</tt> returning <tt>total_rows</tt> entry from
     # CouchDB result object.
     #
+    # @param [Hash] params parameters for CouchDB query. See here the full
+    #   list: http://wiki.apache.org/couchdb/HTTP_view_API#Querying_Options
+    #
+    # @yieldparam [Couchbase::Document] document
+    #
+    # @return [Array] with documents. There will be <tt>total_entries</tt>
+    #   method defined on this array if it's possible.
+    #
+    # @raise [Couchbase::ViewError] when <tt>on_error</tt> callback is nil and
+    #   error object found in the result stream.
+    #
     def fetch(params = {})
       curl = @connection.curl_easy(@endpoint, :params => @params.merge(params))
       if block_given?
-        iter = YAJI::Parser.new(curl).each("rows/")
-        loop { yield Document.new(self, iter.next) } rescue StopIteration
+        iter = YAJI::Parser.new(curl).each(["rows/", "errors/"], :with_path => true)
+        begin
+          loop do
+            path, obj = iter.next
+            if path == "errors/"
+              from, reason = obj["from"], obj["reason"]
+              if @on_error
+                @on_error.call(from, reason)
+              else
+                raise ViewError.new(from, reason)
+              end
+            else
+              yield Document.new(self, obj)
+            end
+          end
+        rescue StopIteration
+        end
       else
-        iter = YAJI::Parser.new(curl).each(["total_rows", "rows/"])
+        iter = YAJI::Parser.new(curl).each(["total_rows", "rows/", "errors/"], :with_path => true)
         docs = []
         begin
-          total_rows = iter.next
-          unless total_rows.is_a?(Numeric)
-            # when reduce function used, it doesn't fill 'total_rows'
-            docs << Document.new(self, total_rows)
-            total_rows = nil
+          path, obj = iter.next
+          if path == "total_rows"
+            # if total_rows key present, save it and take next object
+            total_rows = obj
+            path, obj = iter.next
           end
-          loop { docs << Document.new(self, iter.next) }
+          loop do
+            if path == "errors/"
+              from, reason = obj["from"], obj["reason"]
+              if @on_error
+                @on_error.call(from, reason)
+              else
+                raise ViewError.new(from, reason)
+              end
+            else
+              docs << Document.new(self, obj)
+            end
+            path, obj = iter.next
+          end
         rescue StopIteration
         end
         docs.instance_eval("def total_entries; #{total_rows}; end")

@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'memcached', '~> 1.3'
   s.add_runtime_dependency 'yajl-ruby', '~> 0.8.2'
   s.add_runtime_dependency 'curb', '~> 0.7.15'
-  s.add_runtime_dependency 'yaji', '~> 0.0.5'
+  s.add_runtime_dependency 'yaji', '~> 0.0.9'
 
   s.add_development_dependency 'rake'
   s.add_development_dependency 'minitest'

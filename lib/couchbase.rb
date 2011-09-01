@@ -32,6 +32,16 @@ module Couchbase
   # implemented by Membase 1.7.x
   class NotImplemented < Exception; end
 
+  class ViewError < Exception
+    attr_reader :from, :reason
+
+    def initialize(from, reason)
+      @from = from
+      @reason = reason
+      super("#{from}: #{reason}")
+    end
+  end
+
   class << self
     # The method +new+ initializes new Bucket instance with all arguments passed.
     #
