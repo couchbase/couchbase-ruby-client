@@ -173,7 +173,9 @@ module Couchbase
     # the key's value with the result of the block as long as the key hasn't
     # been updated in the meantime, otherwise raises
     # <b>Memcached::NotStored</b>. CAS stands for "compare and swap", and
-    # avoids the need for manual key mutexing.
+    # avoids the need for manual key mutexing. Read more info here:
+    #
+    #   http://docs.couchbase.org/memcached-api/memcached-api-protocol-text.html#memcached-api-protocol-text_cas
     #
     # @param [String] key
     #
