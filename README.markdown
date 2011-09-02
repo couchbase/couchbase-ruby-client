@@ -6,15 +6,11 @@ This is the official client library for use with Couchbase Server.
 INSTALL
 =======
 
-This gem depends on couple external libraries to work with JSON and
-HTTP. For JSON it uses [yajl-ruby][1] and [yaji][2] which build atop of
-[yajl][3], so you need it installed on your box. For Debian system it
-will be:
-
-    $ sudo gem install libyajl-dev
-
-For HTTP it uses [curb][4], the curl bindings for ruby. To install it
-use your package manager.
+This gem depends on a couple of external libraries to work with JSON and
+HTTP. For JSON it uses [yajl-ruby][1] and [yaji][2] which are built atop
+of [yajl][3]. For HTTP iteraction it uses [curb][4], the curl bindings for
+ruby. To install it use your package manager. On debian you can install
+it, use `aptitude`:
 
     $ sudo aptitude install libcurl3-dev
 
@@ -25,7 +21,7 @@ After that you can install the gem via rubygems:
 USAGE
 =====
 
-First of all you need load library:
+First of all you need to load library:
 
     gem 'couchbase-ruby-client'
     require 'couchbase'
