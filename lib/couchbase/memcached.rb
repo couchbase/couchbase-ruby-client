@@ -104,21 +104,38 @@ module Couchbase
     # behaviour if you pass Array of keys, which is much faster than normal
     # mode.
     #
-    # @note If you pass a String key, and the key does not exist on the
-    # server, <b>Memcached::NotFound</b> will be raised. If you pass an array
-    # of keys, memcached's <tt>multiget</tt> mode will be used, and a hash of
-    # key/value pairs will be returned. The hash will contain only the keys
-    # that were found.
+    # @overload get(key, options = {})
+    #   Get single key.
     #
-    # @param [Array, String] keys list of String keys or single key
+    #   @param [String] key
+    #   @param [Hash] options the options for operation
+    #   @option options [Symbol] :format (self.default_format) format of the value
+    #   @return [Object] the value is associated with the key
+    #   @raise [Memcached::NotFound] if the key does not exist on the server.
     #
-    # @param [Hash] options the options for operation
-    # @option options [Symbol] :format (self.default_format) format of the value
+    # @overload get(*keys, options = {})
+    #   Get multiple keys aka multiget (mget).
     #
-    # @raise [Memcached::NotFound] if the key does not exist on the server.
-    def get(keys, options = {})
+    #   @param [Array] keys the list of keys
+    #   @param [Hash] options the options for operation
+    #   @option options [Symbol] :format (self.default_format) format of the value
+    #   @return [Hash] result map, where keys are keys which were requested
+    #     and values are the values from the storage. Result will contain only
+    #     existing keys and in this case no exception will be raised.
+    def get(*args)
+      options = args.last.is_a?(Hash) ? args.pop : {}
+      raise ArgumentError, "You must provide at least one key" if args.empty?
+      keys = args.length == 1 ? args.pop : args
       format = options[:format] || @default_format
-      decode(@memcached.get(keys, format == :marshal), format)
+      rv = @memcached.get(keys, format == :marshal)
+      if keys.is_a?(Array)
+        rv.keys.each do |key|
+          rv[key] = decode(rv[key], format)
+        end
+        rv
+      else
+        decode(rv, format)
+      end
     end
 
     # Shortcut to <tt>#get</tt> operation. Gets a key's value from the server
