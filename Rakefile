@@ -8,9 +8,19 @@ Rake::TestTask.new do |test|
   test.verbose = true
 end
 
+require 'rubygems/package_task'
+def gemspec
+  @clean_gemspec ||= eval(File.read(File.expand_path('../couchbase.gemspec', __FILE__)))
+end
+
+Gem::PackageTask.new(gemspec) do |pkg|
+  pkg.need_zip = true
+  pkg.need_tar = true
+end
+
 desc 'Start an irb session and load the library.'
 task :console do
-  exec "irb -I lib -rruby-debug -rcouchbase"
+  exec "irb -I lib -rcouchbase"
 end
 
 task :default => :test
