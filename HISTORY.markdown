@@ -1,3 +1,10 @@
+=== 0.9.7 / 2011-10-04
+
+* Fix design doc removing
+* Fix 'set' method signature: add missing options argument
+* Rename gem to 'couchbase' for easy of use. The github project still
+  is 'couchbase-ruby-client'
+
 === 0.9.6 / 2011-10-04
 
 * Fix bug with decoding multiget result
