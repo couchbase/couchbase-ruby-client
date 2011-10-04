@@ -168,7 +168,7 @@ module Couchbase
     # @option options [String] :ttl (self.default_ttl) the time to live of this key
     # @option options [Symbol] :format (self.default_format) format of the value
     # @option options [Fixnum] :flags (self.default_flags) flags for this key
-    def set(key, value)
+    def set(key, value, options = {})
       ttl = options[:ttl] || @default_ttl
       format = options[:format] || @default_format
       flags = options[:flags] || @default_flags
