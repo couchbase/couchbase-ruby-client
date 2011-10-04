@@ -70,22 +70,17 @@ module Couchbase
 
     # Delete design doc with given id and revision.
     #
-    # @param [ String ] id Design document id. The method will prepend
-    #                      <tt>_design/</tt> prefix if it's absent.
+    # @param [ String ] id Design document id. It might have '_design/'
+    #                      prefix.
     #
     # @param [ String ] rev Document revision. It uses latest revision if
     #                        <tt>rev</tt> parameter is nil.
     #
     def delete_design_doc(id, rev = nil)
-      if rev.nil?
-        ddoc = design_docs[id]
-        return nil unless ddoc
-        rev = ddoc['_rev']
-        id = ddoc['_id']
-      else
-        id = "_desing/#{id}" unless id =~ /^_design\//
-      end
-      http_delete("#{next_node.couch_api_base}/#{id}", :params => {:rev => rev})
+      ddoc = design_docs[id.sub(/^_design\//, '')]
+      return nil unless ddoc
+      http_delete("#{next_node.couch_api_base}/#{ddoc['_id']}",
+                  :params => {:rev => rev || ddoc['_rev']})
     end
 
     protected

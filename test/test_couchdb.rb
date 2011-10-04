@@ -33,6 +33,19 @@ class TestCouchdb < MiniTest::Unit::TestCase
     assert doc, "object '#{test_id}' not found"
   end
 
+  def test_that_it_could_remove_design_doc
+    @bucket.delete_design_doc(test_id)
+    @bucket[test_id] = {'msg' => 'hello world'}
+    @bucket.save_design_doc('_id' => "_design/#{test_id}",
+                            'views' => {'all' => {'map' => 'function(doc){if(doc.msg){emit(doc._id, doc.msg)}}'}})
+    assert_operation_completed { database_ready(@bucket) }
+    ddoc = @bucket.design_docs[test_id]
+    assert ddoc, "design document '_design/#{test_id}' not found"
+    @bucket.delete_design_doc("_design/#{test_id}")
+    ddoc = @bucket.design_docs[test_id]
+    refute ddoc, "design document '_design/#{test_id}' still here"
+  end
+
   def test_it_creates_design_doc_from_string
     doc = <<-EOD
       {
