@@ -3,16 +3,14 @@ $:.push File.expand_path('../lib', __FILE__)
 require 'couchbase/version'
 
 Gem::Specification.new do |s|
-  s.name        = 'couchbase-ruby-client'
+  s.name        = 'couchbase'
   s.version     = Couchbase::VERSION
   s.author      = 'Couchbase'
   s.email       = 'info@couchbase.com'
   s.license     = 'ASL-2'
   s.homepage    = 'http://couchbase.org'
   s.summary     = %q{Couchbase ruby driver}
-  s.description = %q{Couchbase ruby driver}
-
-  s.rubyforge_project = 'couchbase-ruby-client'
+  s.description = %q{The official client library for use with Couchbase Server.}
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")

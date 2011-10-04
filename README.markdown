@@ -16,14 +16,13 @@ it, use `aptitude`:
 
 After that you can install the gem via rubygems:
 
-    $ gem install couchbase-ruby-client
+    $ gem install couchbase
 
 USAGE
 =====
 
 First of all you need to load library:
 
-    gem 'couchbase-ruby-client'
     require 'couchbase'
 
 To establish connection with couchbase you need to specify at least pool
