@@ -1,3 +1,12 @@
+=== 0.9.6 / 2011-10-04
+
+* Fix bug with decoding multiget result
+* Allow create design documents from IO and String
+* Rename json format to document, and describe possible formats
+* Allow to handle errors in view result stream
+* Remove dependency on libyajl library: it bundled with yaji now
+* Update rake tasks: create zip- and tar-balls
+
 === 0.9.5 / 2011-08-24
 
 * Update installation notes in README
