@@ -65,8 +65,9 @@ module Couchbase
       end
       @uri = @pool_uri.merge(config['uri'])
       @streaming_uri = @pool_uri.merge(config['streamingUri'])
-      if password = options[:bucket_password]
-        @credentials = {:username => @name, :password => password}
+      # credentials is used to choose the bucket
+      if @name != "default"
+        @credentials = {:username => @name, :password => options[:bucket_password] || ''}
       end
       super
 
