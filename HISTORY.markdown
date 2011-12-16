@@ -1,3 +1,7 @@
+=== 0.9.8 / 2011-12-16
+
+* Fix RCBC-10: It was impossible to store data in non-default buckets
+
 === 0.9.7 / 2011-10-04
 
 * Fix design doc removing
