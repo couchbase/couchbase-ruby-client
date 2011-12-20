@@ -1,4 +1,4 @@
-# Couchbase Ruby Client
+# Couchbase Ruby Client [![Build Status](https://secure.travis-ci.org/avsej/couchbase-ruby-client.png?branch=master)](http://travis-ci.org/avsej/couchbase-ruby-client)
 
 This is the official client library for use with Couchbase Server.
 
