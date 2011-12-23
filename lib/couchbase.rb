@@ -15,6 +15,30 @@
 # limitations under the License.
 #
 
+require 'couchbase/version'
+require 'couchbase_ext'
+
 module Couchbase
-  autoload :VERSION,        'couchbase/version'
+
+  class << self
+    # The method +new+ initializes new Bucket instance with all arguments passed.
+    #
+    # @example Use default values for all options
+    #   Couchbase.new
+    #
+    # @example Establish connection with couchbase default pool and default bucket
+    #   Couchbase.new("http://localhost:8091/pools/default")
+    #
+    # @example Select custom bucket
+    #   Couchbase.new("http://localhost:8091/pools/default", :bucket => 'blog')
+    #
+    # @example Specify bucket credentials
+    #   Couchbase.new("http://localhost:8091/pools/default", :bucket => 'blog', :username => 'bucket', :password => 'secret')
+    #
+    # @return [Bucket] connection instance
+    def new(*args)
+      Bucket.new(*args)
+    end
+  end
+
 end
