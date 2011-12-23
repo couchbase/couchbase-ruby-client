@@ -1,9 +1,0 @@
-{
-  "_id": "_design/test_it_creates_design_doc_from_io",
-  "language": "javascript",
-  "views": {
-    "all": {
-      "map": "function(doc){ if(doc.msg){ emit(doc._id, doc.msg) } }"
-    }
-  }
-}

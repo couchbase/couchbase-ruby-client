@@ -16,42 +16,5 @@
 #
 
 module Couchbase
-  autoload :Bucket,         'couchbase/bucket'
-  autoload :Couchdb,        'couchbase/couchdb'
-  autoload :Document,       'couchbase/document'
-  autoload :HttpStatus,     'couchbase/http_status'
-  autoload :Latch,          'couchbase/latch'
-  autoload :Memcached,      'couchbase/memcached'
-  autoload :Node,           'couchbase/node'
-  autoload :RestClient,     'couchbase/rest_client'
   autoload :VERSION,        'couchbase/version'
-  autoload :View,           'couchbase/view'
-
-  # This error is raising when library detects that some operation
-  # doesn't implemented by the server. For example views API doesn't
-  # implemented by Membase 1.7.x
-  class NotImplemented < Exception; end
-
-  class ViewError < Exception
-    attr_reader :from, :reason
-
-    def initialize(from, reason)
-      @from = from
-      @reason = reason
-      super("#{from}: #{reason}")
-    end
-  end
-
-  class << self
-    # The method +new+ initializes new Bucket instance with all arguments passed.
-    #
-    # === Examples
-    #   Couchbase.new("http://localhost:8091/pools/default") #=> establish connection with couchbase default pool and default bucket
-    #   Couchbase.new("http://localhost:8091/pools/default", :bucket_name => 'blog') #=> select custom bucket
-    #   Couchbase.new("http://localhost:8091/pools/default", :bucket_name => 'blog', :bucket_password => 'secret') #=> specify password for bucket (and SASL auth for memcached client)
-    def new(*args)
-      Bucket.new(*args)
-    end
-  end
-
 end
