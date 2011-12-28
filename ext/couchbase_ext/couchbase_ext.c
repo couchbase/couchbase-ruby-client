@@ -39,7 +39,13 @@
     rb_funcall(rb_stderr, rb_intern("print"), 1, rb_str_new2(" ")); \
     rb_funcall(rb_stderr, rb_intern("puts"), 1, rb_funcall(OBJ, rb_intern("inspect"), 0));
 
-typedef struct {
+#define FMT_MASK        0x3
+#define FMT_DOCUMENT    0x0
+#define FMT_MARSHAL     0x1
+#define FMT_PLAIN       0x2
+
+typedef struct
+{
     libcouchbase_t handle;
     struct libcouchbase_io_opt_st *io;
     uint16_t port;
@@ -49,28 +55,88 @@ typedef struct {
     char *bucket;
     char *username;
     char *password;
+    int async;
+    int quiet;
+    long seqno;
+    VALUE default_format;    /* should update +default_flags+ on change */
+    uint32_t default_flags;
+    uint32_t default_ttl;
     VALUE exception;        /* error delivered by error_callback */
+    VALUE on_error_proc;    /* is using to deliver errors in async mode */
 } bucket_t;
 
-static VALUE mCouchbase, mError, cBucket;
+typedef struct
+{
+    bucket_t* bucket;
+    int extended;
+    VALUE proc;
+    void *rv;
+    VALUE exception;
+    int quiet;
+} context_t;
 
-static ID sym_bucket,
-          sym_hostname,
-          sym_passwd,
-          sym_pool,
-          sym_port,
-          sym_username,
-          id_arity,
-          id_call,
-          id_iv_authority,
-          id_iv_bucket,
-          id_iv_error,
-          id_iv_hostname,
-          id_iv_password,
-          id_iv_pool,
-          id_iv_port,
-          id_iv_url,
-          id_iv_username;
+struct key_traits
+{
+    VALUE keys_ary;
+    size_t nkeys;
+    char **keys;
+    size_t *lens;
+    time_t *ttls;
+    int extended;
+    int explicit_ttl;
+    int quiet;
+};
+
+static VALUE mCouchbase, mError, mJSON, mMarshal, cBucket;
+static VALUE object_space;
+
+static ID  sym_async,
+           sym_add,
+           sym_append,
+           sym_bucket,
+           sym_cas,
+           sym_default_flags,
+           sym_default_format,
+           sym_document,
+           sym_extended,
+           sym_flags,
+           sym_format,
+           sym_get,
+           sym_hostname,
+           sym_marshal,
+           sym_password,
+           sym_plain,
+           sym_pool,
+           sym_port,
+           sym_prepend,
+           sym_quiet,
+           sym_replace,
+           sym_set,
+           sym_ttl,
+           sym_username,
+           id_arity,
+           id_call,
+           id_dump,
+           id_flatten_bang,
+           id_has_key_p,
+           id_load,
+           id_iv_async,
+           id_iv_authority,
+           id_iv_bucket,
+           id_iv_cas,
+           id_iv_default_flags,
+           id_iv_default_format,
+           id_iv_error,
+           id_iv_hostname,
+           id_iv_key,
+           id_iv_on_error,
+           id_iv_operation,
+           id_iv_password,
+           id_iv_pool,
+           id_iv_port,
+           id_iv_quiet,
+           id_iv_url,
+           id_iv_username;
 
 /* base error */
 static VALUE eBaseError;
@@ -132,10 +198,10 @@ cb_proc_call(VALUE recv, int argc, ...)
  * otherwise. Store given string to exceptions as message, and also
  * initialize +error+ attribute with given return code.  */
     static VALUE
-cb_check_error(libcouchbase_error_t rc, const char *msg)
+cb_check_error(libcouchbase_error_t rc, const char *msg, VALUE key)
 {
     VALUE klass, exc, str;
-    char buf[100];
+    char buf[300];
 
     if (rc == LIBCOUCHBASE_SUCCESS || rc == LIBCOUCHBASE_AUTH_CONTINUE) {
         return Qnil;
@@ -204,10 +270,229 @@ cb_check_error(libcouchbase_error_t rc, const char *msg)
     }
 
     str = rb_str_buf_new2(msg ? msg : "");
-    snprintf(buf, 100, " (error: %d)", rc);
+    rb_str_buf_cat2(str, " (");
+    if (key != Qnil) {
+        snprintf(buf, 300, "key: '%s', ", RSTRING_PTR(key));
+        rb_str_buf_cat2(str, buf);
+    }
+    snprintf(buf, 300, "error: %d)", rc);
+    rb_str_buf_cat2(str, buf);
     exc = rb_exc_new3(klass, str);
     rb_ivar_set(exc, id_iv_error, INT2FIX(rc));
+    rb_ivar_set(exc, id_iv_key, key);
+    rb_ivar_set(exc, id_iv_cas, Qnil);
+    rb_ivar_set(exc, id_iv_operation, Qnil);
     return exc;
+}
+
+    static inline uint32_t
+flags_set_format(uint32_t flags, ID format)
+{
+    flags &= ~((uint32_t)FMT_MASK); /* clear format bits */
+
+    if (format == sym_document) {
+        return flags | FMT_DOCUMENT;
+    } else if (format == sym_marshal) {
+        return flags | FMT_MARSHAL;
+    } else if (format == sym_plain) {
+        return flags | FMT_PLAIN;
+    }
+    return flags; /* document is the default */
+}
+
+    static inline ID
+flags_get_format(uint32_t flags)
+{
+    flags &= FMT_MASK; /* select format bits */
+
+    switch (flags) {
+        case FMT_DOCUMENT:
+            return sym_document;
+        case FMT_MARSHAL:
+            return sym_marshal;
+        case FMT_PLAIN:
+            /* fall through */
+        default:
+            /* all other formats treated as plain */
+            return sym_plain;
+    }
+}
+
+
+    static VALUE
+do_encode(VALUE *args)
+{
+    VALUE val = args[0];
+    uint32_t flags = ((uint32_t)args[1] & FMT_MASK);
+
+    switch (flags) {
+        case FMT_DOCUMENT:
+            return rb_funcall(mJSON, id_dump, 1, val);
+        case FMT_MARSHAL:
+            return rb_funcall(mMarshal, id_dump, 1, val);
+        case FMT_PLAIN:
+            /* fall through */
+        default:
+            /* all other formats treated as plain */
+            return val;
+    }
+}
+
+    static VALUE
+do_decode(VALUE *args)
+{
+    VALUE blob = args[0];
+    uint32_t flags = ((uint32_t)args[1] & FMT_MASK);
+
+    switch (flags) {
+        case FMT_DOCUMENT:
+            return rb_funcall(mJSON, id_load, 1, blob);
+        case FMT_MARSHAL:
+            return rb_funcall(mMarshal, id_load, 1, blob);
+        case FMT_PLAIN:
+            /* fall through */
+        default:
+            /* all other formats treated as plain */
+            return blob;
+    }
+}
+
+    static VALUE
+coding_failed(void)
+{
+    return Qundef;
+}
+
+    static VALUE
+encode_value(VALUE val, uint32_t flags)
+{
+    VALUE blob, args[2];
+
+    args[0] = val;
+    args[1] = (VALUE)flags;
+    blob = rb_rescue(do_encode, (VALUE)args, coding_failed, 0);
+    /* it must be bytestring after all */
+    if (TYPE(blob) != T_STRING) {
+        return Qundef;
+    }
+    return blob;
+}
+
+    static VALUE
+decode_value(VALUE blob, uint32_t flags)
+{
+    VALUE val, args[2];
+
+    /* first it must be bytestring */
+    if (TYPE(blob) != T_STRING) {
+        return Qundef;
+    }
+    args[0] = blob;
+    args[1] = (VALUE)flags;
+    val = rb_rescue(do_decode, (VALUE)args, coding_failed, 0);
+    return val;
+}
+
+    static VALUE
+unify_key(VALUE key)
+{
+    switch (TYPE(key)) {
+        case T_STRING:
+            return key;
+        case T_SYMBOL:
+            return rb_str_new2(rb_id2name(SYM2ID(key)));
+        default:    /* call #to_str or raise error */
+            return StringValue(key);
+    }
+}
+
+    static int
+cb_extract_keys_i(VALUE key, VALUE value, VALUE arg)
+{
+    struct key_traits *traits = (struct key_traits *)arg;
+    key = unify_key(key);
+    rb_ary_push(traits->keys_ary, key);
+    traits->keys[traits->nkeys] = RSTRING_PTR(key);
+    traits->lens[traits->nkeys] = RSTRING_LEN(key);
+    traits->ttls[traits->nkeys] = NUM2ULONG(value);
+    traits->nkeys++;
+    return ST_CONTINUE;
+}
+
+    static long
+cb_args_scan_keys(long argc, VALUE argv, bucket_t *bucket, struct key_traits *traits)
+{
+    VALUE arg, key, *keys_ptr, opts, ttl, ext;
+    long nn = 0, ii;
+    time_t exp;
+
+    traits->keys_ary = rb_ary_new();
+    traits->quiet = bucket->quiet;
+    if (argc == 1) {
+        arg = RARRAY_PTR(argv)[0];
+        switch (TYPE(arg)) {
+            case T_HASH:
+                /* hash of key-ttl pairs */
+                nn = RHASH_SIZE(arg);
+                traits->keys = calloc(nn, sizeof(char *));
+                traits->lens = calloc(nn, sizeof(size_t));
+                traits->explicit_ttl = 1;
+                traits->ttls = calloc(nn, sizeof(time_t));
+                rb_hash_foreach(arg, cb_extract_keys_i, (VALUE)traits);
+                break;
+            case T_STRING:
+            case T_SYMBOL:
+                /* single key with default expiration */
+                nn = traits->nkeys = 1;
+                traits->keys = calloc(nn, sizeof(char *));
+                traits->lens = calloc(nn, sizeof(size_t));
+                traits->ttls = calloc(nn, sizeof(time_t));
+                key = unify_key(arg);
+                rb_ary_push(traits->keys_ary, key);
+                traits->keys[0] = RSTRING_PTR(key);
+                traits->lens[0] = RSTRING_LEN(key);
+                traits->ttls[0] = bucket->default_ttl;
+                break;
+        }
+    } else if (argc > 1) {
+        /* keys with custom options */
+        opts = RARRAY_PTR(argv)[argc-1];
+        exp = bucket->default_ttl;
+        ext = Qfalse;
+        if (TYPE(opts) == T_HASH) {
+            (void)rb_ary_pop(argv);
+            if (RTEST(rb_funcall(opts, id_has_key_p, 1, sym_quiet))) {
+                traits->quiet = RTEST(rb_hash_aref(opts, sym_quiet));
+            }
+            ext = rb_hash_aref(opts, sym_extended);
+            ttl = rb_hash_aref(opts, sym_ttl);
+            if (ttl != Qnil) {
+                traits->explicit_ttl = 1;
+                exp = NUM2ULONG(ttl);
+            }
+            nn = RARRAY_LEN(argv);
+        } else {
+            nn = argc;
+        }
+        if (nn < 1) {
+            rb_raise(rb_eArgError, "must be at least one key");
+        }
+        traits->nkeys = nn;
+        traits->extended = RTEST(ext) ? 1 : 0;
+        traits->keys = calloc(nn, sizeof(char *));
+        traits->lens = calloc(nn, sizeof(size_t));
+        traits->ttls = calloc(nn, sizeof(time_t));
+        keys_ptr = RARRAY_PTR(argv);
+        for (ii = 0; ii < nn; ii++) {
+            key = unify_key(keys_ptr[ii]);
+            rb_ary_push(traits->keys_ary, key);
+            traits->keys[ii] = RSTRING_PTR(key);
+            traits->lens[ii] = RSTRING_LEN(key);
+            traits->ttls[ii] = exp;
+        }
+    }
+
+    return nn;
 }
 
     static void
@@ -216,7 +501,142 @@ error_callback(libcouchbase_t handle, libcouchbase_error_t error, const char *er
     bucket_t *bucket = (bucket_t *)libcouchbase_get_cookie(handle);
 
     bucket->io->stop_event_loop(bucket->io);
-    bucket->exception = cb_check_error(error, errinfo);
+    bucket->exception = cb_check_error(error, errinfo, Qnil);
+}
+
+    static void
+storage_callback(libcouchbase_t handle, const void *cookie,
+        libcouchbase_storage_t operation, libcouchbase_error_t error,
+        const void *key, size_t nkey, uint64_t cas)
+{
+    context_t *ctx = (context_t *)cookie;
+    bucket_t *bucket = ctx->bucket;
+    VALUE k, c, *rv = ctx->rv, exc;
+    ID o;
+
+    bucket->seqno--;
+
+    k = rb_str_new((const char*)key, nkey);
+    c = cas > 0 ? ULL2NUM(cas) : Qnil;
+    switch(operation) {
+        case LIBCOUCHBASE_ADD:
+            o = sym_add;
+            break;
+        case LIBCOUCHBASE_REPLACE:
+            o = sym_replace;
+            break;
+        case LIBCOUCHBASE_SET:
+            o = sym_set;
+            break;
+        case LIBCOUCHBASE_APPEND:
+            o = sym_append;
+            break;
+        case LIBCOUCHBASE_PREPEND:
+            o = sym_prepend;
+            break;
+        default:
+            o = Qnil;
+    }
+    exc = cb_check_error(error, "failed to store value", k);
+    if (exc != Qnil) {
+        rb_ivar_set(exc, id_iv_cas, c);
+        rb_ivar_set(exc, id_iv_operation, o);
+        if (bucket->async) {
+            if (bucket->on_error_proc != Qnil) {
+                cb_proc_call(bucket->on_error_proc, 3, o, k, exc);
+            } else {
+                if (NIL_P(bucket->exception)) {
+                    bucket->exception = exc;
+                }
+            }
+        }
+        if (NIL_P(ctx->exception)) {
+            ctx->exception = exc;
+        }
+    } else {
+        if (!bucket->async) {
+            *rv = c;
+        }
+        if (ctx->proc != Qnil) {
+            cb_proc_call(ctx->proc, 3, c, k, o);
+        }
+    }
+
+    if (bucket->seqno == 0) {
+        bucket->io->stop_event_loop(bucket->io);
+        rb_hash_delete(object_space, ctx->proc|1);
+    }
+    (void)handle;
+}
+
+    static void
+get_callback(libcouchbase_t handle, const void *cookie,
+        libcouchbase_error_t error, const void *key, size_t nkey,
+        const void *bytes, size_t nbytes, uint32_t flags, uint64_t cas)
+{
+    context_t *ctx = (context_t *)cookie;
+    bucket_t *bucket = ctx->bucket;
+    VALUE k, v, f, c, *rv = ctx->rv, exc = Qnil;
+
+    bucket->seqno--;
+
+    k = rb_str_new((const char*)key, nkey);
+
+    if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
+        exc = cb_check_error(error, "failed to get value", k);
+        if (exc != Qnil) {
+            rb_ivar_set(exc, id_iv_operation, sym_get);
+            if (bucket->async) {
+                if (bucket->on_error_proc != Qnil) {
+                    cb_proc_call(bucket->on_error_proc, 3, sym_get, k, exc);
+                } else {
+                    if (NIL_P(bucket->exception)) {
+                        bucket->exception = exc;
+                    }
+                }
+            }
+            if (NIL_P(ctx->exception)) {
+                ctx->exception = exc;
+            }
+        }
+    }
+
+    if (NIL_P(exc)) {
+        if (nbytes != 0) {
+            v = decode_value(rb_str_new((const char*)bytes, nbytes), flags);
+            if (v == Qundef) {
+                ctx->exception = rb_exc_new2(eValueFormatError, "unable to convert value");
+            } else {
+                if (ctx->extended) {
+                    f = ULONG2NUM(flags);
+                    c = ULL2NUM(cas);
+                    if (!bucket->async) {
+                        rb_hash_aset(*rv, k, rb_ary_new3(3, v, f, c));
+                    }
+                    if (ctx->proc != Qnil) {
+                        cb_proc_call(ctx->proc, 4, v, k, f, c);
+                    }
+                } else {
+                    if (!bucket->async) {
+                        rb_hash_aset(*rv, k, v);
+                    }
+                    if (ctx->proc != Qnil) {
+                        cb_proc_call(ctx->proc, 2, v, k);
+                    }
+                }
+            }
+        } else {
+            if (ctx->proc != Qnil) {
+                cb_proc_call(ctx->proc, 2, Qnil, k);
+            }
+        }
+    }
+
+    if (bucket->seqno == 0) {
+        bucket->io->stop_event_loop(bucket->io);
+        rb_hash_delete(object_space, ctx->proc|1);
+    }
+    (void)handle;
 }
 
     static char *
@@ -292,10 +712,21 @@ parse_bucket_uri(VALUE uri, bucket_t *bucket)
     free(src);
 }
 
+    static int
+cb_first_value_i(VALUE key, VALUE value, VALUE arg)
+{
+    VALUE *val = (VALUE *)arg;
+
+    *val = value;
+    (void)key;
+    return ST_STOP;
+}
+
     static VALUE
 cb_bucket_inspect(VALUE self)
 {
     VALUE str;
+    bucket_t *bucket = DATA_PTR(self);
     char buf[200];
 
     str = rb_str_buf_new2("#<");
@@ -303,10 +734,22 @@ cb_bucket_inspect(VALUE self)
     snprintf(buf, 20, ":%p ", (void *)self);
     rb_str_buf_cat2(str, buf);
     rb_str_append(str, rb_ivar_get(self, id_iv_url));
-    snprintf(buf, 120, ">");
+    snprintf(buf, 120, " default_format:%s default_flags:0x%x async:%s quiet:%s>",
+            rb_id2name(SYM2ID(bucket->default_format)),
+            bucket->default_flags,
+            bucket->async ? "true" : "false",
+            bucket->quiet ? "true" : "false");
     rb_str_buf_cat2(str, buf);
 
     return str;
+}
+
+    static VALUE
+cb_bucket_seqno(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+
+    return LONG2FIX(bucket->seqno);
 }
 
     void
@@ -331,7 +774,12 @@ cb_bucket_free(void *ptr)
     void
 cb_bucket_mark(void *ptr)
 {
-    (void)ptr;
+    bucket_t *bucket = ptr;
+
+    if (bucket) {
+        rb_gc_mark(bucket->exception);
+        rb_gc_mark(bucket->on_error_proc);
+    }
 }
 
     static VALUE
@@ -369,6 +817,15 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
  *   @option options [String] :username (nil) the user name to connect to the
  *     cluster. Used to authenticate on management API.
  *   @option options [String] :password (nil) the password of the user.
+ *   @option options [Boolean] :async (false) the flag specifying if the
+ *     connection asynchronous. By default all operations are synchronous and
+ *     block waiting for results, but you can make them asynchronous and run
+ *     event loop explicitly. (see Couchbase::Bucket#run)
+ *   @option options [Boolean] :quiet (false) the flag controlling if raising
+ *     exception when the client executes operations on unexising keys. If it
+ *     is +true+ it will raise +Couchbase::NotFoundError+ exceptions. The
+ *     default behaviour is to return +nil+ value silently (could be useful in
+ *     Rails cache).
  */
     static VALUE
 cb_bucket_init(int argc, VALUE *argv, VALUE self)
@@ -383,6 +840,11 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->port = 8091;
     bucket->pool = strdup("default");
     bucket->bucket = strdup("default");
+    bucket->async = 0;
+    bucket->quiet = 1;
+    bucket->default_flags = 0;
+    bucket->default_format = sym_document;
+    bucket->on_error_proc = Qnil;
 
     if (rb_scan_args(argc, argv, "02", &uri, &opts) > 0) {
         if (TYPE(uri) == T_HASH && argc == 1) {
@@ -419,13 +881,42 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
             if (arg != Qnil) {
                 bucket->username = strdup(StringValueCStr(arg));
             }
-            arg = rb_hash_aref(opts, sym_passwd);
+            arg = rb_hash_aref(opts, sym_password);
             if (arg != Qnil) {
                 bucket->password = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_port);
             if (arg != Qnil) {
                 bucket->port = (uint16_t)NUM2UINT(arg);
+            }
+            arg = rb_hash_aref(opts, sym_async);
+            bucket->async = RTEST(arg);
+            if (RTEST(rb_funcall(opts, id_has_key_p, 1, sym_quiet))) {
+                bucket->quiet = RTEST(rb_hash_aref(opts, sym_quiet));
+            }
+            arg = rb_hash_aref(opts, sym_default_flags);
+            if (arg != Qnil) {
+                bucket->default_flags = (uint32_t)NUM2ULONG(arg);
+            }
+            arg = rb_hash_aref(opts, sym_default_format);
+            if (arg != Qnil) {
+                if (TYPE(arg) == T_FIXNUM) {
+                    switch (FIX2INT(arg)) {
+                        case FMT_DOCUMENT:
+                            arg = sym_document;
+                            break;
+                        case FMT_MARSHAL:
+                            arg = sym_marshal;
+                            break;
+                        case FMT_PLAIN:
+                            arg = sym_plain;
+                            break;
+                    }
+                }
+                if (arg == sym_document || arg == sym_marshal || arg == sym_plain) {
+                    bucket->default_format = arg;
+                    bucket->default_flags = flags_set_format(bucket->default_flags, arg);
+                }
             }
         } else {
             opts = Qnil;
@@ -439,7 +930,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     snprintf(bucket->authority, len, "%s:%u", bucket->hostname, bucket->port);
     bucket->io = libcouchbase_create_io_ops(LIBCOUCHBASE_IO_OPS_DEFAULT, NULL, &err);
     if (bucket->io == NULL) {
-        rb_exc_raise(cb_check_error(err, "failed to create IO instance"));
+        rb_exc_raise(cb_check_error(err, "failed to create IO instance", Qnil));
     }
     bucket->handle = libcouchbase_create(bucket->authority,
             bucket->username, bucket->password, bucket->bucket, bucket->io);
@@ -448,10 +939,12 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     }
     libcouchbase_set_cookie(bucket->handle, bucket);
     (void)libcouchbase_set_error_callback(bucket->handle, error_callback);
+    (void)libcouchbase_set_storage_callback(bucket->handle, storage_callback);
+    (void)libcouchbase_set_get_callback(bucket->handle, get_callback);
 
     err = libcouchbase_connect(bucket->handle);
     if (err != LIBCOUCHBASE_SUCCESS) {
-        rb_exc_raise(cb_check_error(err, "failed to connect libcouchbase instance to server"));
+        rb_exc_raise(cb_check_error(err, "failed to connect libcouchbase instance to server", Qnil));
     }
     libcouchbase_wait(bucket->handle);
     if (bucket->exception != Qnil) {
@@ -465,6 +958,11 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     rb_ivar_set(self, id_iv_pool, rb_str_new2(bucket->pool));
     rb_ivar_set(self, id_iv_port, UINT2NUM(bucket->port));
     rb_ivar_set(self, id_iv_username, bucket->username ? rb_str_new2(bucket->username) : Qnil);
+    rb_ivar_set(self, id_iv_async, bucket->async ? Qtrue : Qfalse);
+    rb_ivar_set(self, id_iv_quiet, bucket->quiet ? Qtrue : Qfalse);
+    rb_ivar_set(self, id_iv_default_flags, ULONG2NUM(bucket->default_flags));
+    rb_ivar_set(self, id_iv_default_format, bucket->default_format);
+    rb_ivar_set(self, id_iv_on_error, bucket->on_error_proc);
 
     buf = rb_str_buf_new2("http://");
     rb_str_buf_cat2(buf, bucket->authority);
@@ -478,11 +976,329 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     return self;
 }
 
+    static VALUE
+cb_bucket_async_set(VALUE self, VALUE val)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    VALUE new;
+
+    bucket->async = RTEST(val);
+    new = bucket->async ? Qtrue : Qfalse;
+    rb_ivar_set(self, id_iv_async, new);
+    return new;
+}
+
+    static VALUE
+cb_bucket_quiet_set(VALUE self, VALUE val)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    VALUE new;
+
+    bucket->quiet = RTEST(val);
+    new = bucket->quiet ? Qtrue : Qfalse;
+    rb_ivar_set(self, id_iv_quiet, new);
+    return new;
+}
+
+    static VALUE
+cb_bucket_default_flags_set(VALUE self, VALUE val)
+{
+    bucket_t *bucket = DATA_PTR(self);
+
+    bucket->default_flags = (uint32_t)NUM2ULONG(val);
+    bucket->default_format = flags_get_format(bucket->default_flags);
+    rb_ivar_set(self, id_iv_default_format, bucket->default_format);
+    rb_ivar_set(self, id_iv_default_flags, val);
+    return val;
+}
+
+    static VALUE
+cb_bucket_default_format_set(VALUE self, VALUE val)
+{
+    bucket_t *bucket = DATA_PTR(self);
+
+    if (TYPE(val) == T_FIXNUM) {
+        switch (FIX2INT(val)) {
+            case FMT_DOCUMENT:
+                val = sym_document;
+                break;
+            case FMT_MARSHAL:
+                val = sym_marshal;
+                break;
+            case FMT_PLAIN:
+                val = sym_plain;
+                break;
+        }
+    }
+    if (val == sym_document || val == sym_marshal || val == sym_plain) {
+        bucket->default_format = val;
+        bucket->default_flags = flags_set_format(bucket->default_flags, val);
+        rb_ivar_set(self, id_iv_default_format, val);
+        rb_ivar_set(self, id_iv_default_flags, ULONG2NUM(bucket->default_flags));
+    }
+
+    return val;
+}
+
+    static VALUE
+cb_bucket_on_error_set(VALUE self, VALUE val)
+{
+    bucket_t *bucket = DATA_PTR(self);
+
+    if (rb_respond_to(val, id_call)) {
+        bucket->on_error_proc = val;
+    } else {
+        bucket->on_error_proc = Qnil;
+    }
+    rb_ivar_set(self, id_iv_on_error, bucket->on_error_proc);
+
+    return bucket->on_error_proc;
+}
+
+    static VALUE
+cb_bucket_on_error_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+
+    if (rb_block_given_p()) {
+        return cb_bucket_on_error_set(self, rb_block_proc());
+    } else {
+        return bucket->on_error_proc;
+    }
+}
+
+    static inline VALUE
+cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    context_t *ctx;
+    VALUE k, v, arg, opts, rv, proc, exc, fmt;
+    char *key, *bytes;
+    size_t nkey, nbytes;
+    uint32_t flags;
+    time_t exp = 0;
+    uint64_t cas = 0;
+    libcouchbase_error_t err;
+
+    rb_scan_args(argc, argv, "21&", &k, &v, &opts, &proc);
+    k = unify_key(k);
+    flags = bucket->default_flags;
+    if (opts != Qnil) {
+        Check_Type(opts, T_HASH);
+        arg = rb_hash_aref(opts, sym_flags);
+        if (arg != Qnil) {
+            flags = (uint32_t)NUM2ULONG(arg);
+        }
+        arg = rb_hash_aref(opts, sym_ttl);
+        if (arg != Qnil) {
+            exp = NUM2ULONG(arg);
+        }
+        arg = rb_hash_aref(opts, sym_cas);
+        if (arg != Qnil) {
+            cas = NUM2ULL(arg);
+        }
+        fmt = rb_hash_aref(opts, sym_format);
+        if (fmt != Qnil) { /* rewrite format bits */
+            flags = flags_set_format(flags, fmt);
+        }
+    }
+    key = RSTRING_PTR(k);
+    nkey = RSTRING_LEN(k);
+    v = encode_value(v, flags);
+    if (v == Qundef) {
+        rb_raise(eValueFormatError,
+                "unable to convert value for key '%s'", key);
+    }
+    bytes = RSTRING_PTR(v);
+    nbytes = RSTRING_LEN(v);
+    ctx = calloc(1, sizeof(context_t));
+    if (ctx == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+    }
+    rv = Qnil;
+    ctx->rv = &rv;
+    ctx->bucket = bucket;
+    ctx->proc = proc;
+    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    ctx->exception = Qnil;
+    err = libcouchbase_store(bucket->handle, (const void *)ctx, cmd,
+            (const void *)key, nkey, bytes, nbytes, flags, exp, cas);
+    exc = cb_check_error(err, "failed to schedule set request", Qnil);
+    if (exc != Qnil) {
+        free(ctx);
+        rb_exc_raise(exc);
+    }
+    bucket->seqno++;
+    if (bucket->async) {
+        return Qnil;
+    } else {
+        bucket->io->run_event_loop(bucket->io);
+        exc = ctx->exception;
+        free(ctx);
+        if (exc != Qnil) {
+            rb_exc_raise(exc);
+        }
+        if (bucket->exception != Qnil) {
+            rb_exc_raise(bucket->exception);
+        }
+        return rv;
+    }
+}
+
+    static VALUE
+cb_bucket_get(int argc, VALUE *argv, VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    context_t *ctx;
+    VALUE args, rv, proc, exc, vv = Qnil, keys;
+    long nn;
+    libcouchbase_error_t err;
+    struct key_traits *traits;
+    int extended;
+
+    rb_scan_args(argc, argv, "0*&", &args, &proc);
+    rb_funcall(args, id_flatten_bang, 0);
+    traits = calloc(1, sizeof(struct key_traits));
+    nn = cb_args_scan_keys(RARRAY_LEN(args), args, bucket, traits);
+    ctx = calloc(1, sizeof(context_t));
+    if (ctx == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+    }
+    keys = traits->keys_ary;
+    ctx->proc = proc;
+    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    ctx->bucket = bucket;
+    ctx->extended = traits->extended;
+    ctx->quiet = traits->quiet;
+    rv = rb_hash_new();
+    ctx->rv = &rv;
+    ctx->exception = Qnil;
+    if (!bucket->async) {
+        bucket->seqno = 0;
+    }
+    err = libcouchbase_mget(bucket->handle, (const void *)ctx,
+            traits->nkeys, (const void * const *)traits->keys,
+            traits->lens, (traits->explicit_ttl) ? traits->ttls : NULL);
+    free(traits->keys);
+    free(traits->lens);
+    free(traits->ttls);
+    free(traits);
+    exc = cb_check_error(err, "failed to schedule get request", Qnil);
+    if (exc != Qnil) {
+        free(ctx);
+        rb_exc_raise(exc);
+    }
+    bucket->seqno += nn;
+    if (bucket->async) {
+        return Qnil;
+    } else {
+        bucket->io->run_event_loop(bucket->io);
+        exc = ctx->exception;
+        extended = ctx->extended;
+        free(ctx);
+        if (exc != Qnil) {
+            rb_exc_raise(exc);
+        }
+        if (bucket->exception != Qnil) {
+            rb_exc_raise(bucket->exception);
+        }
+        if (nn > 1) {
+            if (extended) {
+                return rv;  /* return as a hash {key => [value, flags, cas], ...} */
+            } else {
+                long ii;
+                VALUE *keys_ptr, ret;
+                ret = rb_ary_new();
+                keys_ptr = RARRAY_PTR(keys);
+                for (ii = 0; ii < nn; ii++) {
+                    rb_ary_push(ret, rb_hash_aref(rv, keys_ptr[ii]));
+                }
+                return ret;  /* return as an array [value1, value2, ...] */
+            }
+        } else {
+            rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
+            return vv;
+        }
+    }
+}
+
+    static VALUE
+cb_bucket_run(int argc, VALUE *argv, VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    VALUE proc;
+
+    if (!bucket->async) {
+        return Qnil;
+    }
+    rb_scan_args(argc, argv, "00&", &proc);
+    if (NIL_P(proc)) {
+        if (bucket->seqno < 1) {
+            bucket->seqno = 0;
+            return Qnil;
+        }
+    } else {
+        bucket->seqno = 0;
+        cb_proc_call(proc, 1, self);
+    }
+    bucket->io->run_event_loop(bucket->io);
+    if (bucket->exception != Qnil) {
+        rb_exc_raise(bucket->exception);
+    }
+    return Qnil;
+}
+
+/*
+ * Unconditionally set the object in the cache
+ */
+    static VALUE
+cb_bucket_set(int argc, VALUE *argv, VALUE self)
+{
+    return cb_bucket_store(LIBCOUCHBASE_SET, argc, argv, self);
+}
+
+/*
+ * Add the item to the cache, but fail if the object exists alread
+ */
+    static VALUE
+cb_bucket_add(int argc, VALUE *argv, VALUE self)
+{
+    return cb_bucket_store(LIBCOUCHBASE_ADD, argc, argv, self);
+}
+
+/*
+ * Replace the existing object in the cache
+ */
+    static VALUE
+cb_bucket_replace(int argc, VALUE *argv, VALUE self)
+{
+    return cb_bucket_store(LIBCOUCHBASE_REPLACE, argc, argv, self);
+}
+
+/*
+ * Append this object to the existing object
+ */
+    static VALUE
+cb_bucket_append(int argc, VALUE *argv, VALUE self)
+{
+    return cb_bucket_store(LIBCOUCHBASE_APPEND, argc, argv, self);
+}
+
+/*
+ * Prepend this  object to the existing object
+ */
+    static VALUE
+cb_bucket_prepend(int argc, VALUE *argv, VALUE self)
+{
+    return cb_bucket_store(LIBCOUCHBASE_PREPEND, argc, argv, self);
+}
 
 /* Ruby Extension initializer */
     void
 Init_couchbase_ext(void)
 {
+    mJSON = rb_const_get(rb_cObject, rb_intern("JSON"));
+    mMarshal = rb_const_get(rb_cObject, rb_intern("Marshal"));
     mCouchbase = rb_define_module("Couchbase");
 
     mError = rb_define_module_under(mCouchbase, "Error");
@@ -557,16 +1373,76 @@ Init_couchbase_ext(void)
      * @return [Boolean] the error code from libcouchbase */
     rb_define_attr(eBaseError, "error", 1, 0);
     id_iv_error = rb_intern("@error");
+    /* Document-method: key
+     * @return [String] the key which generated error */
+    rb_define_attr(eBaseError, "key", 1, 0);
+    id_iv_error = rb_intern("@key");
+    /* Document-method: cas
+     * @return [Fixnum] the version of the key (+nil+ unless accessible */
+    rb_define_attr(eBaseError, "cas", 1, 0);
+    id_iv_error = rb_intern("@cas");
+    /* Document-method: operation
+     * @return [Symbol] the operation (+nil+ unless accessible) */
+    rb_define_attr(eBaseError, "operation", 1, 0);
+    id_iv_error = rb_intern("@operation");
 
     /* Document-class: Couchbase::Bucket
      * This class in charge of all stuff connected to communication with
      * Couchbase. */
     cBucket = rb_define_class_under(mCouchbase, "Bucket", rb_cObject);
+    object_space = rb_hash_new();
+    rb_define_const(cBucket, "OBJECT_SPACE", object_space);
+
+    rb_define_const(cBucket, "FMT_MASK", INT2FIX(FMT_MASK));
+    rb_define_const(cBucket, "FMT_DOCUMENT", INT2FIX(FMT_DOCUMENT));
+    rb_define_const(cBucket, "FMT_MARSHAL", INT2FIX(FMT_MARSHAL));
+    rb_define_const(cBucket, "FMT_PLAIN", INT2FIX(FMT_PLAIN));
 
     rb_define_singleton_method(cBucket, "new", cb_bucket_new, -1);
 
     rb_define_method(cBucket, "initialize", cb_bucket_init, -1);
     rb_define_method(cBucket, "inspect", cb_bucket_inspect, 0);
+    rb_define_method(cBucket, "seqno", cb_bucket_seqno, 0);
+
+    rb_define_method(cBucket, "add", cb_bucket_add, -1);
+    rb_define_method(cBucket, "append", cb_bucket_append, -1);
+    rb_define_method(cBucket, "prepend", cb_bucket_prepend, -1);
+    rb_define_method(cBucket, "replace", cb_bucket_replace, -1);
+    rb_define_method(cBucket, "set", cb_bucket_set, -1);
+    rb_define_method(cBucket, "get", cb_bucket_get, -1);
+    rb_define_method(cBucket, "run", cb_bucket_run, -1);
+
+    /* Document-method: async
+     * @return [Boolean] is the connection asynchronous. */
+    rb_define_attr(cBucket, "async", 1, 0);
+    rb_define_method(cBucket, "async=", cb_bucket_async_set, 1);
+    rb_define_alias(cBucket, "async?", "async");
+    id_iv_async = rb_intern("@async");
+
+    /* Document-method: quiet
+     * @return [Boolean] if true, the unknown keys will raise
+     *   Couchbase::Error::NotFoundError. */
+    rb_define_attr(cBucket, "quiet", 1, 0);
+    rb_define_method(cBucket, "quiet=", cb_bucket_quiet_set, 1);
+    rb_define_alias(cBucket, "quiet?", "quiet");
+    id_iv_quiet = rb_intern("@quiet");
+
+    /* Document-method: default_flags
+     * @return [Fixnum] */
+    rb_define_attr(cBucket, "default_flags", 1, 0);
+    rb_define_method(cBucket, "default_flags=", cb_bucket_default_flags_set, 1);
+    id_iv_default_flags = rb_intern("@default_flags");
+    /* Document-method: default_format
+     * @return [Symbol] */
+    rb_define_attr(cBucket, "default_format", 1, 0);
+    rb_define_method(cBucket, "default_format=", cb_bucket_default_format_set, 1);
+    id_iv_default_format = rb_intern("@default_format");
+    /* Document-method: on_error
+     * @return [Proc] */
+    rb_define_attr(cBucket, "on_error", 1, 0);
+    rb_define_method(cBucket, "on_error", cb_bucket_on_error_get, 0);
+    rb_define_method(cBucket, "on_error=", cb_bucket_on_error_set, 1);
+    id_iv_on_error = rb_intern("@on_error");
 
     /* Document-method: url
      * @return [String] the address of the cluster management endpoint. */
@@ -605,11 +1481,33 @@ Init_couchbase_ext(void)
     /* Define symbols */
     id_arity = rb_intern("arity");
     id_call = rb_intern("call");
+    id_load = rb_intern("load");
+    id_dump = rb_intern("dump");
+    id_flatten_bang = rb_intern("flatten!");
+    id_has_key_p = rb_intern("has_key?");
 
+    sym_add = ID2SYM(rb_intern("add"));
+    sym_append = ID2SYM(rb_intern("append"));
+    sym_async = ID2SYM(rb_intern("async"));
     sym_bucket = ID2SYM(rb_intern("bucket"));
+    sym_cas = ID2SYM(rb_intern("cas"));
+    sym_default_flags = ID2SYM(rb_intern("default_flags"));
+    sym_default_format = ID2SYM(rb_intern("default_format"));
+    sym_document = ID2SYM(rb_intern("document"));
+    sym_extended = ID2SYM(rb_intern("extended"));
+    sym_flags = ID2SYM(rb_intern("flags"));
+    sym_format = ID2SYM(rb_intern("format"));
+    sym_get = ID2SYM(rb_intern("get"));
     sym_hostname = ID2SYM(rb_intern("hostname"));
-    sym_passwd = ID2SYM(rb_intern("password"));
-    sym_port = ID2SYM(rb_intern("port"));
-    sym_username = ID2SYM(rb_intern("username"));
+    sym_marshal = ID2SYM(rb_intern("marshal"));
+    sym_password = ID2SYM(rb_intern("password"));
+    sym_plain = ID2SYM(rb_intern("plain"));
     sym_pool = ID2SYM(rb_intern("pool"));
+    sym_port = ID2SYM(rb_intern("port"));
+    sym_prepend = ID2SYM(rb_intern("prepend"));
+    sym_quiet = ID2SYM(rb_intern("quiet"));
+    sym_replace = ID2SYM(rb_intern("replace"));
+    sym_set = ID2SYM(rb_intern("set"));
+    sym_ttl = ID2SYM(rb_intern("ttl"));
+    sym_username = ID2SYM(rb_intern("username"));
 }

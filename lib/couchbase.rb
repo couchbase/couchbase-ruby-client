@@ -16,6 +16,7 @@
 #
 
 require 'couchbase/version'
+require 'yajl/json_gem'
 require 'couchbase_ext'
 
 module Couchbase

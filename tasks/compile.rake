@@ -5,7 +5,7 @@ def gemspec
   @clean_gemspec ||= eval(File.read(File.expand_path('../../couchbase.gemspec', __FILE__)))
 end
 
-# Setup compile tasks.  Configuration can be passed via EVN.
+# Setup compile tasks.  Configuration can be passed via ENV.
 # Example:
 #  rake compile with_libcouchbase_include=/opt/couchbase/include
 #               with_libcouchbase_lib=/opt/couchbase/lib
