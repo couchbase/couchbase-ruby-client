@@ -97,6 +97,7 @@ static ID  sym_async,
            sym_cas,
            sym_default_flags,
            sym_default_format,
+           sym_delete,
            sym_document,
            sym_extended,
            sym_flags,
@@ -571,6 +572,50 @@ storage_callback(libcouchbase_t handle, const void *cookie,
 }
 
     static void
+delete_callback(libcouchbase_t handle, const void *cookie,
+        libcouchbase_error_t error, const void *key, size_t nkey)
+{
+    context_t *ctx = (context_t *)cookie;
+    bucket_t *bucket = ctx->bucket;
+    VALUE k, success, *rv = ctx->rv, exc = Qnil;
+
+    bucket->seqno--;
+
+    k = rb_str_new((const char*)key, nkey);
+    if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
+        exc = cb_check_error(error, "failed to remove value", k);
+        if (exc != Qnil) {
+            if (bucket->async) {
+                if (bucket->on_error_proc != Qnil) {
+                    cb_proc_call(bucket->on_error_proc, 3, sym_delete, k, exc);
+                } else {
+                    if (NIL_P(bucket->exception)) {
+                        bucket->exception = exc;
+                    }
+                }
+            }
+            if (NIL_P(ctx->exception)) {
+                ctx->exception = exc;
+            }
+        }
+    }
+    if (NIL_P(exc)) {
+        success = (error == LIBCOUCHBASE_KEY_ENOENT) ? Qfalse : Qtrue;
+        if (!bucket->async) {
+            *rv = success;
+        }
+        if (ctx->proc != Qnil) {
+            cb_proc_call(ctx->proc, 2, k, success);
+        }
+    }
+    if (bucket->seqno == 0) {
+        bucket->io->stop_event_loop(bucket->io);
+        rb_hash_delete(object_space, ctx->proc|1);
+    }
+    (void)handle;
+}
+
+    static void
 get_callback(libcouchbase_t handle, const void *cookie,
         libcouchbase_error_t error, const void *key, size_t nkey,
         const void *bytes, size_t nbytes, uint32_t flags, uint64_t cas)
@@ -988,6 +1033,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     (void)libcouchbase_set_storage_callback(bucket->handle, storage_callback);
     (void)libcouchbase_set_get_callback(bucket->handle, get_callback);
     (void)libcouchbase_set_touch_callback(bucket->handle, touch_callback);
+    (void)libcouchbase_set_remove_callback(bucket->handle, delete_callback);
 
     err = libcouchbase_connect(bucket->handle);
     if (err != LIBCOUCHBASE_SUCCESS) {
@@ -1111,6 +1157,66 @@ cb_bucket_on_error_get(VALUE self)
         return cb_bucket_on_error_set(self, rb_block_proc());
     } else {
         return bucket->on_error_proc;
+    }
+}
+
+    static VALUE
+cb_bucket_delete(int argc, VALUE *argv, VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    context_t *ctx;
+    VALUE k, c, rv, proc, exc, opts;
+    char *key;
+    size_t nkey;
+    uint64_t cas = 0;
+    libcouchbase_error_t err;
+
+    rb_scan_args(argc, argv, "11&", &k, &opts, &proc);
+    k = unify_key(k);
+    key = RSTRING_PTR(k);
+    nkey = RSTRING_LEN(k);
+    ctx = calloc(1, sizeof(context_t));
+    ctx->quiet = bucket->quiet;
+    if (ctx == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+    }
+    if (opts != Qnil) {
+        if (TYPE(opts) == T_BIGNUM || TYPE(opts) == T_FIXNUM) {
+            cas = NUM2ULL(opts);
+        } else {
+            Check_Type(opts, T_HASH);
+            if ((c = rb_hash_aref(opts, sym_cas)) != Qnil) {
+                cas = NUM2ULL(c);
+            }
+            if (RTEST(rb_funcall(opts, id_has_key_p, 1, sym_quiet))) {
+                ctx->quiet = RTEST(rb_hash_aref(opts, sym_quiet));
+            }
+        }
+    }
+    ctx->proc = proc;
+    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    rv = rb_ary_new();
+    ctx->rv = &rv;
+    ctx->bucket = bucket;
+    ctx->exception = Qnil;
+    err = libcouchbase_remove(bucket->handle, (const void *)ctx,
+            (const void *)key, nkey, cas);
+    exc = cb_check_error(err, "failed to schedule delete request", Qnil);
+    if (exc != Qnil) {
+        free(ctx);
+        rb_exc_raise(exc);
+    }
+    bucket->seqno++;
+    if (bucket->async) {
+        return Qnil;
+    } else {
+        bucket->io->run_event_loop(bucket->io);
+        exc = ctx->exception;
+        free(ctx);
+        if (exc != Qnil) {
+            rb_exc_raise(exc);
+        }
+        return rv;
     }
 }
 
@@ -1530,6 +1636,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "get", cb_bucket_get, -1);
     rb_define_method(cBucket, "run", cb_bucket_run, -1);
     rb_define_method(cBucket, "touch", cb_bucket_touch, -1);
+    rb_define_method(cBucket, "delete", cb_bucket_delete, -1);
 
     rb_define_alias(cBucket, "[]", "get");
     /* rb_define_alias(cBucket, "[]=", "set"); */
@@ -1616,6 +1723,7 @@ Init_couchbase_ext(void)
     sym_cas = ID2SYM(rb_intern("cas"));
     sym_default_flags = ID2SYM(rb_intern("default_flags"));
     sym_default_format = ID2SYM(rb_intern("default_format"));
+    sym_delete = ID2SYM(rb_intern("delete"));
     sym_document = ID2SYM(rb_intern("document"));
     sym_extended = ID2SYM(rb_intern("extended"));
     sym_flags = ID2SYM(rb_intern("flags"));
@@ -1631,7 +1739,7 @@ Init_couchbase_ext(void)
     sym_quiet = ID2SYM(rb_intern("quiet"));
     sym_replace = ID2SYM(rb_intern("replace"));
     sym_set = ID2SYM(rb_intern("set"));
+    sym_touch = ID2SYM(rb_intern("touch"));
     sym_ttl = ID2SYM(rb_intern("ttl"));
     sym_username = ID2SYM(rb_intern("username"));
-    sym_touch = ID2SYM(rb_intern("touch"));
 }

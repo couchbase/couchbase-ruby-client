@@ -66,5 +66,24 @@ class TestAsync < MiniTest::Unit::TestCase
     refute connection.get(test_id)
   end
 
+  def test_nested_async_delete_get
+    connection = Couchbase.new(:port => @mock.port)
+    cas = connection.set(test_id, "foo")
+    success = false
+    val = :unknown
+
+    connection.async = true
+    connection.delete(test_id, :cas => cas) do |k, res|
+      success = res
+      connection.get(test_id) do |v|
+        val = v
+      end
+    end
+    connection.run
+    connection.async = false
+
+    assert success
+    refute val
+  end
 
 end
