@@ -112,6 +112,7 @@ static ID  sym_async,
            sym_quiet,
            sym_replace,
            sym_set,
+           sym_touch,
            sym_ttl,
            sym_username,
            id_arity,
@@ -639,6 +640,51 @@ get_callback(libcouchbase_t handle, const void *cookie,
     (void)handle;
 }
 
+    static void
+touch_callback(libcouchbase_t handle, const void *cookie,
+        libcouchbase_error_t error, const void *key, size_t nkey)
+{
+    context_t *ctx = (context_t *)cookie;
+    bucket_t *bucket = ctx->bucket;
+    VALUE k, success, *rv = ctx->rv, exc = Qnil;
+
+    bucket->seqno--;
+    k = rb_str_new((const char*)key, nkey);
+    if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
+        exc = cb_check_error(error, "failed to touch value", k);
+        if (exc != Qnil) {
+            rb_ivar_set(exc, id_iv_operation, sym_touch);
+            if (bucket->async) {
+                if (bucket->on_error_proc != Qnil) {
+                    cb_proc_call(bucket->on_error_proc, 3, sym_touch, k, exc);
+                } else {
+                    if (NIL_P(bucket->exception)) {
+                        bucket->exception = exc;
+                    }
+                }
+            }
+            if (NIL_P(ctx->exception)) {
+                ctx->exception = exc;
+            }
+        }
+    }
+
+    if (NIL_P(exc)) {
+        success = (error == LIBCOUCHBASE_KEY_ENOENT) ? Qfalse : Qtrue;
+        if (!bucket->async) {
+            rb_ary_push(*rv, success);
+        }
+        if (ctx->proc != Qnil) {
+            cb_proc_call(ctx->proc, 2, k, success);
+        }
+    }
+    if (bucket->seqno == 0) {
+        bucket->io->stop_event_loop(bucket->io);
+        rb_hash_delete(object_space, ctx->proc|1);
+    }
+    (void)handle;
+}
+
     static char *
 parse_path_segment(char *source, const char *key, char **result)
 {
@@ -941,6 +987,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     (void)libcouchbase_set_error_callback(bucket->handle, error_callback);
     (void)libcouchbase_set_storage_callback(bucket->handle, storage_callback);
     (void)libcouchbase_set_get_callback(bucket->handle, get_callback);
+    (void)libcouchbase_set_touch_callback(bucket->handle, touch_callback);
 
     err = libcouchbase_connect(bucket->handle);
     if (err != LIBCOUCHBASE_SUCCESS) {
@@ -1223,6 +1270,63 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
 }
 
     static VALUE
+cb_bucket_touch(int argc, VALUE *argv, VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    context_t *ctx;
+    VALUE args, rv, proc, exc;
+    size_t nn;
+    libcouchbase_error_t err;
+    struct key_traits *traits;
+
+    rb_scan_args(argc, argv, "0*&", &args, &proc);
+    rb_funcall(args, id_flatten_bang, 0);
+    traits = calloc(1, sizeof(struct key_traits));
+    nn = cb_args_scan_keys(RARRAY_LEN(args), args, bucket, traits);
+    ctx = calloc(1, sizeof(context_t));
+    if (ctx == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+    }
+    ctx->proc = proc;
+    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    ctx->bucket = bucket;
+    rv = rb_ary_new();
+    ctx->rv = &rv;
+    ctx->exception = Qnil;
+    if (!bucket->async) {
+        bucket->seqno = 0;
+    }
+    err = libcouchbase_mtouch(bucket->handle, (const void *)ctx,
+            traits->nkeys, (const void * const *)traits->keys,
+            traits->lens, traits->ttls);
+    free(traits);
+    exc = cb_check_error(err, "failed to schedule touch request", Qnil);
+    if (exc != Qnil) {
+        free(ctx);
+        rb_exc_raise(exc);
+    }
+    bucket->seqno += nn;
+    if (bucket->async) {
+        return Qnil;
+    } else {
+        bucket->io->run_event_loop(bucket->io);
+        exc = ctx->exception;
+        free(ctx);
+        if (exc != Qnil) {
+            rb_exc_raise(exc);
+        }
+        if (bucket->exception != Qnil) {
+            rb_exc_raise(bucket->exception);
+        }
+        if (nn > 1) {
+            return rv;
+        } else {
+            return rb_ary_pop(rv);
+        }
+    }
+}
+
+    static VALUE
 cb_bucket_run(int argc, VALUE *argv, VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
@@ -1425,6 +1529,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "set", cb_bucket_set, -1);
     rb_define_method(cBucket, "get", cb_bucket_get, -1);
     rb_define_method(cBucket, "run", cb_bucket_run, -1);
+    rb_define_method(cBucket, "touch", cb_bucket_touch, -1);
 
     rb_define_alias(cBucket, "[]", "get");
     /* rb_define_alias(cBucket, "[]=", "set"); */
@@ -1528,4 +1633,5 @@ Init_couchbase_ext(void)
     sym_set = ID2SYM(rb_intern("set"));
     sym_ttl = ID2SYM(rb_intern("ttl"));
     sym_username = ID2SYM(rb_intern("username"));
+    sym_touch = ID2SYM(rb_intern("touch"));
 }

@@ -44,4 +44,27 @@ class TestAsync < MiniTest::Unit::TestCase
     assert_equal "foo", val
   end
 
+  def test_nested_async_touch_get
+    connection = Couchbase.new(:port => @mock.port)
+    connection.set(test_id, "foo")
+    success = false
+    val = nil
+
+    connection.async = true
+    connection.touch(test_id, :ttl => 1) do |k, res|
+      success = res
+      connection.get(test_id) do |v|
+        val = v
+      end
+    end
+    connection.run
+    connection.async = false
+
+    assert success
+    assert_equal "foo", val
+    sleep(1)
+    refute connection.get(test_id)
+  end
+
+
 end
