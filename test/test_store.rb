@@ -143,4 +143,28 @@ class TestStore < MiniTest::Unit::TestCase
     val = connection.get(test_id)
     assert_equal "barfoo", val
   end
+
+  ArbitraryData = Struct.new(:baz)
+
+  def test_set_using_brackets
+    connection = Couchbase.new(:port => @mock.port)
+
+    connection[test_id(1)] = "foo"
+    val = connection.get(test_id(1))
+    assert_equal "foo", val
+
+    if RUBY_VERSION =~ /^1\.9/
+      eval <<-EOC
+      connection[test_id(2), :flags => 0x1100] = "bar"
+      val, flags = connection.get(test_id(2), :extended => true)
+      assert_equal "bar", val
+      assert_equal 0x1100, flags
+
+      connection[test_id(3), :format => :marshal] = ArbitraryData.new("thing")
+      val = connection.get(test_id(3))
+      assert val.is_a?(ArbitraryData)
+      assert_equal "thing", val.baz
+      EOC
+    end
+  end
 end

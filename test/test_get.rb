@@ -210,4 +210,22 @@ class TestGet < MiniTest::Unit::TestCase
       connection.run(&suite)
     end
   end
+
+  def test_get_using_brackets
+    connection = Couchbase.new(:port => @mock.port)
+
+    orig_cas = connection.set(test_id, "foo", :flags => 0x1100)
+
+    val = connection[test_id]
+    assert_equal "foo", val
+
+    if RUBY_VERSION =~ /^1\.9/
+      eval <<-EOC
+      val, flags, cas = connection[test_id, :extended => true]
+      assert_equal "foo", val
+      assert_equal 0x1100, flags
+      assert_equal orig_cas, cas
+      EOC
+    end
+  end
 end

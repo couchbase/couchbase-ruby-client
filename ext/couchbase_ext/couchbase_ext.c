@@ -1293,6 +1293,20 @@ cb_bucket_prepend(int argc, VALUE *argv, VALUE self)
     return cb_bucket_store(LIBCOUCHBASE_PREPEND, argc, argv, self);
 }
 
+    static VALUE
+cb_bucket_aset(int argc, VALUE *argv, VALUE self)
+{
+    VALUE temp;
+
+    if (argc == 3) {
+        /* swap opts and value, because value goes last for []= */
+        temp = argv[2];
+        argv[2] = argv[1];
+        argv[1] = temp;
+    }
+    return cb_bucket_set(argc, argv, self);
+}
+
 /* Ruby Extension initializer */
     void
 Init_couchbase_ext(void)
@@ -1411,6 +1425,10 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "set", cb_bucket_set, -1);
     rb_define_method(cBucket, "get", cb_bucket_get, -1);
     rb_define_method(cBucket, "run", cb_bucket_run, -1);
+
+    rb_define_alias(cBucket, "[]", "get");
+    /* rb_define_alias(cBucket, "[]=", "set"); */
+    rb_define_method(cBucket, "[]=", cb_bucket_aset, -1);
 
     /* Document-method: async
      * @return [Boolean] is the connection asynchronous. */
