@@ -106,4 +106,28 @@ class TestAsync < MiniTest::Unit::TestCase
     end
   end
 
+  def test_nested_async_flush_set
+    connection = Couchbase.new(:port => @mock.port)
+    cas = connection.set(test_id, "foo")
+    res = {}
+
+    connection.async = true
+    connection.flush do |host, ret|
+      assert ret
+      id = test_id(host)
+      res[id] = false
+      connection.set(id, true) do |cas|
+        res[id] = cas
+      end
+    end
+    connection.run
+    connection.async = false
+
+    refute connection.get(test_id)
+    res.keys.each do |key|
+      assert res[key].is_a?(Numeric)
+      assert connection.get(key)
+    end
+  end
+
 end

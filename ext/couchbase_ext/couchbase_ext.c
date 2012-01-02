@@ -101,6 +101,7 @@ static ID  sym_async,
            sym_document,
            sym_extended,
            sym_flags,
+           sym_flush,
            sym_format,
            sym_get,
            sym_hostname,
@@ -687,6 +688,52 @@ get_callback(libcouchbase_t handle, const void *cookie,
 }
 
     static void
+flush_callback(libcouchbase_t handle, const void* cookie,
+        const char* authority, libcouchbase_error_t error)
+{
+    context_t *ctx = (context_t *)cookie;
+    bucket_t *bucket = ctx->bucket;
+    VALUE node, success = Qtrue, *rv = ctx->rv, exc;
+
+    node = authority ? rb_str_new2(authority) : Qnil;
+    exc = cb_check_error(error, "failed to flush bucket", node);
+    if (exc != Qnil) {
+        if (bucket->async) {
+            if (bucket->on_error_proc != Qnil) {
+                cb_proc_call(bucket->on_error_proc, 3, sym_flush, node, exc);
+            } else {
+                if (NIL_P(bucket->exception)) {
+                    bucket->exception = exc;
+                }
+            }
+        }
+        if (NIL_P(ctx->exception)) {
+            ctx->exception = exc;
+        }
+        success = Qfalse;
+    }
+
+    if (authority) {
+        if (!bucket->async && RTEST(*rv)) {
+            /* rewrite status for positive values only */
+            *rv = success;
+        }
+        if (ctx->proc != Qnil) {
+            cb_proc_call(ctx->proc, 2, rb_str_new2(authority), success);
+        }
+    }
+    if (authority == NULL) {
+        bucket->seqno--;
+        if (bucket->seqno == 0) {
+            bucket->io->stop_event_loop(bucket->io);
+            rb_hash_delete(object_space, ctx->proc|1);
+        }
+    }
+
+    (void)handle;
+}
+
+    static void
 stat_callback(libcouchbase_t handle, const void* cookie,
         const char* authority, libcouchbase_error_t error, const void* key,
         size_t nkey, const void* bytes, size_t nbytes)
@@ -1086,6 +1133,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     (void)libcouchbase_set_touch_callback(bucket->handle, touch_callback);
     (void)libcouchbase_set_remove_callback(bucket->handle, delete_callback);
     (void)libcouchbase_set_stat_callback(bucket->handle, stat_callback);
+    (void)libcouchbase_set_flush_callback(bucket->handle, flush_callback);
 
     err = libcouchbase_connect(bucket->handle);
     if (err != LIBCOUCHBASE_SUCCESS) {
@@ -1485,6 +1533,48 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
 }
 
     static VALUE
+cb_bucket_flush(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    context_t *ctx;
+    VALUE rv, exc;
+    libcouchbase_error_t err;
+
+    ctx = calloc(1, sizeof(context_t));
+    if (ctx == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+    }
+    rv = Qtrue;	/* optimistic by default */
+    ctx->rv = &rv;
+    ctx->bucket = bucket;
+    ctx->exception = Qnil;
+    if (rb_block_given_p()) {
+        ctx->proc = rb_block_proc();
+    } else {
+        ctx->proc = Qnil;
+    }
+    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    err = libcouchbase_flush(bucket->handle, (const void *)ctx);
+    exc = cb_check_error(err, "failed to schedule flush request", Qnil);
+    if (exc != Qnil) {
+        free(ctx);
+        rb_exc_raise(exc);
+    }
+    bucket->seqno++;
+    if (bucket->async) {
+        return Qnil;
+    } else {
+        bucket->io->run_event_loop(bucket->io);
+        exc = ctx->exception;
+        free(ctx);
+        if (exc != Qnil) {
+            rb_exc_raise(exc);
+        }
+        return rv;
+    }
+}
+
+    static VALUE
 cb_bucket_stats(int argc, VALUE *argv, VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
@@ -1745,6 +1835,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "touch", cb_bucket_touch, -1);
     rb_define_method(cBucket, "delete", cb_bucket_delete, -1);
     rb_define_method(cBucket, "stats", cb_bucket_stats, -1);
+    rb_define_method(cBucket, "flush", cb_bucket_flush, 0);
 
     rb_define_alias(cBucket, "[]", "get");
     /* rb_define_alias(cBucket, "[]=", "set"); */
@@ -1835,6 +1926,7 @@ Init_couchbase_ext(void)
     sym_document = ID2SYM(rb_intern("document"));
     sym_extended = ID2SYM(rb_intern("extended"));
     sym_flags = ID2SYM(rb_intern("flags"));
+    sym_flush = ID2SYM(rb_intern("flush"));
     sym_format = ID2SYM(rb_intern("format"));
     sym_get = ID2SYM(rb_intern("get"));
     sym_hostname = ID2SYM(rb_intern("hostname"));
