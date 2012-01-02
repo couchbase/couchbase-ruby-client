@@ -73,6 +73,7 @@ typedef struct
     void *rv;
     VALUE exception;
     int quiet;
+    int arithm;           /* incr: +1, decr: -1, other: 0 */
 } context_t;
 
 struct key_traits
@@ -95,6 +96,8 @@ static ID  sym_async,
            sym_append,
            sym_bucket,
            sym_cas,
+           sym_create,
+           sym_decrement,
            sym_default_flags,
            sym_default_format,
            sym_delete,
@@ -105,6 +108,8 @@ static ID  sym_async,
            sym_format,
            sym_get,
            sym_hostname,
+           sym_increment,
+           sym_initial,
            sym_marshal,
            sym_password,
            sym_plain,
@@ -828,6 +833,62 @@ touch_callback(libcouchbase_t handle, const void *cookie,
     (void)handle;
 }
 
+    static void
+arithmetic_callback(libcouchbase_t handle, const void *cookie,
+        libcouchbase_error_t error, const void *key, size_t nkey,
+        uint64_t value, uint64_t cas)
+{
+    context_t *ctx = (context_t *)cookie;
+    bucket_t *bucket = ctx->bucket;
+    VALUE c, k, v, *rv = ctx->rv, exc;
+    ID o;
+
+    bucket->seqno--;
+
+    k = rb_str_new((const char*)key, nkey);
+    c = cas > 0 ? ULL2NUM(cas) : Qnil;
+    o = ctx->arithm > 0 ? sym_increment : sym_decrement;
+    exc = cb_check_error(error, "failed to perform arithmetic operation", k);
+    if (exc != Qnil) {
+        rb_ivar_set(exc, id_iv_cas, c);
+        rb_ivar_set(exc, id_iv_operation, o);
+        if (bucket->async) {
+            if (bucket->on_error_proc != Qnil) {
+                cb_proc_call(bucket->on_error_proc, 3, o, k, exc);
+            } else {
+                if (NIL_P(bucket->exception)) {
+                    bucket->exception = exc;
+                }
+            }
+        }
+        if (NIL_P(ctx->exception)) {
+            ctx->exception = exc;
+        }
+    } else {
+        v = ULL2NUM(value);
+        if (ctx->extended) {
+            if (!bucket->async) {
+                *rv = rb_ary_new3(2, v, c);
+            }
+            if (ctx->proc != Qnil) {
+                cb_proc_call(ctx->proc, 2, v, c);
+            }
+        } else {
+            if (!bucket->async) {
+                *rv = v;
+            }
+            if (ctx->proc != Qnil) {
+                cb_proc_call(ctx->proc, 1, v);
+            }
+        }
+    }
+    if (bucket->seqno == 0) {
+        bucket->io->stop_event_loop(bucket->io);
+        rb_hash_delete(object_space, ctx->proc|1);
+    }
+    (void)handle;
+}
+
     static char *
 parse_path_segment(char *source, const char *key, char **result)
 {
@@ -1134,6 +1195,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     (void)libcouchbase_set_remove_callback(bucket->handle, delete_callback);
     (void)libcouchbase_set_stat_callback(bucket->handle, stat_callback);
     (void)libcouchbase_set_flush_callback(bucket->handle, flush_callback);
+    (void)libcouchbase_set_arithmetic_callback(bucket->handle, arithmetic_callback);
 
     err = libcouchbase_connect(bucket->handle);
     if (err != LIBCOUCHBASE_SUCCESS) {
@@ -1396,6 +1458,91 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
         }
         return rv;
     }
+}
+
+    static inline VALUE
+cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    context_t *ctx;
+    VALUE k, d, arg, opts, rv, proc, exc;
+    char *key;
+    size_t nkey;
+    time_t exp;
+    uint64_t delta = 0, initial = 0;
+    int create = 0;
+    libcouchbase_error_t err;
+
+    rb_scan_args(argc, argv, "12&", &k, &d, &opts, &proc);
+    k = unify_key(k);
+    ctx = calloc(1, sizeof(context_t));
+    if (ctx == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+    }
+    if (argc == 2 && TYPE(d) == T_HASH) {
+        opts = d;
+        d = Qnil;
+    }
+    exp = bucket->default_ttl;
+    if (opts != Qnil) {
+        Check_Type(opts, T_HASH);
+        create = RTEST(rb_hash_aref(opts, sym_create));
+        ctx->extended = RTEST(rb_hash_aref(opts, sym_extended));
+        arg = rb_hash_aref(opts, sym_ttl);
+        if (arg != Qnil) {
+            exp = NUM2ULONG(arg);
+        }
+        arg = rb_hash_aref(opts, sym_initial);
+        if (arg != Qnil) {
+            initial = NUM2ULL(arg);
+            create = 1;
+        }
+    }
+    key = RSTRING_PTR(k);
+    nkey = RSTRING_LEN(k);
+    if (NIL_P(d)) {
+        delta = 1 * sign;
+    } else {
+        delta = NUM2ULL(d) * sign;
+    }
+    rv = Qnil;
+    ctx->rv = &rv;
+    ctx->bucket = bucket;
+    ctx->proc = proc;
+    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    ctx->exception = Qnil;
+    ctx->arithm = sign;
+    err = libcouchbase_arithmetic(bucket->handle, (const void *)ctx,
+            (const void *)key, nkey, delta, exp, create, initial);
+    exc = cb_check_error(err, "failed to schedule arithmetic request", k);
+    if (exc != Qnil) {
+        free(ctx);
+        rb_exc_raise(exc);
+    }
+    bucket->seqno++;
+    if (bucket->async) {
+        return Qnil;
+    } else {
+        bucket->io->run_event_loop(bucket->io);
+        exc = ctx->exception;
+        free(ctx);
+        if (exc != Qnil) {
+            rb_exc_raise(exc);
+        }
+        return rv;
+    }
+}
+
+static VALUE
+cb_bucket_incr(int argc, VALUE *argv, VALUE self)
+{
+    return cb_bucket_arithmetic(+1, argc, argv, self);
+}
+
+static VALUE
+cb_bucket_decr(int argc, VALUE *argv, VALUE self)
+{
+    return cb_bucket_arithmetic(-1, argc, argv, self);
 }
 
     static VALUE
@@ -1836,6 +1983,11 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "delete", cb_bucket_delete, -1);
     rb_define_method(cBucket, "stats", cb_bucket_stats, -1);
     rb_define_method(cBucket, "flush", cb_bucket_flush, 0);
+    rb_define_method(cBucket, "incr", cb_bucket_incr, -1);
+    rb_define_method(cBucket, "decr", cb_bucket_decr, -1);
+
+    rb_define_alias(cBucket, "decrement", "decr");
+    rb_define_alias(cBucket, "increment", "incr");
 
     rb_define_alias(cBucket, "[]", "get");
     /* rb_define_alias(cBucket, "[]=", "set"); */
@@ -1920,6 +2072,8 @@ Init_couchbase_ext(void)
     sym_async = ID2SYM(rb_intern("async"));
     sym_bucket = ID2SYM(rb_intern("bucket"));
     sym_cas = ID2SYM(rb_intern("cas"));
+    sym_create = ID2SYM(rb_intern("create"));
+    sym_decrement = ID2SYM(rb_intern("decrement"));
     sym_default_flags = ID2SYM(rb_intern("default_flags"));
     sym_default_format = ID2SYM(rb_intern("default_format"));
     sym_delete = ID2SYM(rb_intern("delete"));
@@ -1930,6 +2084,8 @@ Init_couchbase_ext(void)
     sym_format = ID2SYM(rb_intern("format"));
     sym_get = ID2SYM(rb_intern("get"));
     sym_hostname = ID2SYM(rb_intern("hostname"));
+    sym_increment = ID2SYM(rb_intern("increment"));
+    sym_initial = ID2SYM(rb_intern("initial"));
     sym_marshal = ID2SYM(rb_intern("marshal"));
     sym_password = ID2SYM(rb_intern("password"));
     sym_plain = ID2SYM(rb_intern("plain"));

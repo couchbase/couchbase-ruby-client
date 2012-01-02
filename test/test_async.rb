@@ -130,4 +130,21 @@ class TestAsync < MiniTest::Unit::TestCase
     end
   end
 
+  def test_nested_async_incr_get
+    connection = Couchbase.new(:port => @mock.port)
+    cas = connection.set(test_id, 1)
+    val = nil
+
+    connection.async = true
+    connection.incr(test_id) do
+      connection.get(test_id) do |v|
+        val = v
+      end
+    end
+    connection.run
+
+    connection.async = false
+    assert_equal 2, val
+  end
+
 end
