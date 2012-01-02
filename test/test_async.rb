@@ -86,4 +86,24 @@ class TestAsync < MiniTest::Unit::TestCase
     refute val
   end
 
+  def test_nested_async_stats_set
+    connection = Couchbase.new(:port => @mock.port)
+    stats = {}
+
+    connection.async = true
+    connection.stats do |host, key, val|
+      id = test_id(host, key)
+      stats[id] = false
+      connection.set(id, val) do |cas|
+        stats[id] = cas
+      end
+    end
+    connection.run
+    connection.async = false
+
+    stats.keys.each do |key|
+      assert stats[key].is_a?(Numeric)
+    end
+  end
+
 end

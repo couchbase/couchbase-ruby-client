@@ -113,6 +113,7 @@ static ID  sym_async,
            sym_quiet,
            sym_replace,
            sym_set,
+           sym_stats,
            sym_touch,
            sym_ttl,
            sym_username,
@@ -686,6 +687,56 @@ get_callback(libcouchbase_t handle, const void *cookie,
 }
 
     static void
+stat_callback(libcouchbase_t handle, const void* cookie,
+        const char* authority, libcouchbase_error_t error, const void* key,
+        size_t nkey, const void* bytes, size_t nbytes)
+{
+    context_t *ctx = (context_t *)cookie;
+    bucket_t *bucket = ctx->bucket;
+    VALUE stats, node, k, v, *rv = ctx->rv, exc = Qnil;
+
+    node = authority ? rb_str_new2(authority) : Qnil;
+    exc = cb_check_error(error, "failed to fetch stats", node);
+    if (exc != Qnil) {
+        if (bucket->async) {
+            if (bucket->on_error_proc != Qnil) {
+                cb_proc_call(bucket->on_error_proc, 3, sym_stats, node, exc);
+            } else {
+                if (NIL_P(bucket->exception)) {
+                    bucket->exception = exc;
+                }
+            }
+        }
+        if (NIL_P(ctx->exception)) {
+            ctx->exception = exc;
+        }
+    }
+    if (NIL_P(exc) && nkey != 0) {
+        k = rb_str_new((const char*)key, nkey);
+        v = rb_str_new((const char*)bytes, nbytes);
+        if (!bucket->async) {
+            stats = rb_hash_aref(*rv, node);
+            if (NIL_P(stats)) {
+                stats = rb_hash_new();
+                rb_hash_aset(*rv, node, stats);
+            }
+            rb_hash_aset(stats, k, v);
+        }
+        if (ctx->proc != Qnil) {
+            cb_proc_call(ctx->proc, 3, node, k, v);
+        }
+    }
+    if (authority == NULL) {
+        bucket->seqno--;
+        if (bucket->seqno == 0) {
+            bucket->io->stop_event_loop(bucket->io);
+            rb_hash_delete(object_space, ctx->proc|1);
+        }
+    }
+    (void)handle;
+}
+
+    static void
 touch_callback(libcouchbase_t handle, const void *cookie,
         libcouchbase_error_t error, const void *key, size_t nkey)
 {
@@ -1034,6 +1085,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     (void)libcouchbase_set_get_callback(bucket->handle, get_callback);
     (void)libcouchbase_set_touch_callback(bucket->handle, touch_callback);
     (void)libcouchbase_set_remove_callback(bucket->handle, delete_callback);
+    (void)libcouchbase_set_stat_callback(bucket->handle, stat_callback);
 
     err = libcouchbase_connect(bucket->handle);
     if (err != LIBCOUCHBASE_SUCCESS) {
@@ -1433,10 +1485,65 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
 }
 
     static VALUE
+cb_bucket_stats(int argc, VALUE *argv, VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    context_t *ctx;
+    VALUE rv, exc, arg, proc;
+    char *key;
+    size_t nkey;
+    libcouchbase_error_t err;
+
+    rb_scan_args(argc, argv, "01&", &arg, &proc);
+
+    ctx = calloc(1, sizeof(context_t));
+    if (ctx == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+    }
+    rv = rb_hash_new();
+    ctx->rv = &rv;
+    ctx->bucket = bucket;
+    ctx->proc = proc;
+    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    ctx->exception = Qnil;
+    if (arg != Qnil) {
+        key = RSTRING_PTR(arg);
+        nkey = RSTRING_LEN(arg);
+    } else {
+        key = NULL;
+        nkey = 0;
+    }
+    err = libcouchbase_server_stats(bucket->handle, (const void *)ctx,
+            key, nkey);
+    exc = cb_check_error(err, "failed to schedule stat request", Qnil);
+    if (exc != Qnil) {
+        free(ctx);
+        rb_exc_raise(exc);
+    }
+    bucket->seqno++;
+    if (bucket->async) {
+        return Qnil;
+    } else {
+        bucket->io->run_event_loop(bucket->io);
+        exc = ctx->exception;
+        free(ctx);
+        if (exc != Qnil) {
+            rb_exc_raise(exc);
+        }
+        if (bucket->exception != Qnil) {
+            rb_exc_raise(bucket->exception);
+        }
+        return rv;
+    }
+
+    return Qnil;
+}
+
+    static VALUE
 cb_bucket_run(int argc, VALUE *argv, VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
-    VALUE proc;
+    VALUE proc = Qnil;
 
     if (!bucket->async) {
         return Qnil;
@@ -1637,6 +1744,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "run", cb_bucket_run, -1);
     rb_define_method(cBucket, "touch", cb_bucket_touch, -1);
     rb_define_method(cBucket, "delete", cb_bucket_delete, -1);
+    rb_define_method(cBucket, "stats", cb_bucket_stats, -1);
 
     rb_define_alias(cBucket, "[]", "get");
     /* rb_define_alias(cBucket, "[]=", "set"); */
@@ -1739,6 +1847,7 @@ Init_couchbase_ext(void)
     sym_quiet = ID2SYM(rb_intern("quiet"));
     sym_replace = ID2SYM(rb_intern("replace"));
     sym_set = ID2SYM(rb_intern("set"));
+    sym_stats = ID2SYM(rb_intern("stats"));
     sym_touch = ID2SYM(rb_intern("touch"));
     sym_ttl = ID2SYM(rb_intern("ttl"));
     sym_username = ID2SYM(rb_intern("username"));
