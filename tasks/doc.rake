@@ -15,8 +15,13 @@
 # limitations under the License.
 #
 
-require 'bundler/gem_tasks'
+require 'rake/clean'
+require 'yard'
+require 'yard/rake/yardoc_task'
 
-Dir['tasks/*.rake'].sort.each { |f| load f }
+YARD::Rake::YardocTask.new do |t|
+  t.options = %w(--protected --no-private)
+  t.files.push('-', 'README.markdown', 'HISTORY.markdown')
+end
 
-task :default => [:clobber, :compile, :test]
+#CLOBBER << 'test/CouchbaseMock.jar'

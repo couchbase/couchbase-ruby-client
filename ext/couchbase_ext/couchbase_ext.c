@@ -1,6 +1,6 @@
 /* vim: ft=c et ts=8 sts=4 sw=4 cino=
  *
- *   Copyright 2011 Couchbase, Inc.
+ *   Copyright 2011, 2012 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -626,7 +626,6 @@ get_callback(libcouchbase_t handle, const void *cookie,
     bucket->seqno--;
 
     k = rb_str_new((const char*)key, nkey);
-
     if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
         exc = cb_check_error(error, "failed to get value", k);
         if (exc != Qnil) {
@@ -974,6 +973,9 @@ cb_bucket_inspect(VALUE self)
     return str;
 }
 
+/*
+ * @return [Fixnum] number of scheduled operations
+ */
     static VALUE
 cb_bucket_seqno(VALUE self)
 {
@@ -1012,6 +1014,9 @@ cb_bucket_mark(void *ptr)
     }
 }
 
+/*
+ * @return [Bucket] new instance (see Bucket#initialize)
+ */
     static VALUE
 cb_bucket_new(int argc, VALUE *argv, VALUE klass)
 {
@@ -1044,18 +1049,34 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
  *   @option options [Fixnum] :port (8091) the port of the managemenent API
  *   @option options [String] :pool ("default") the pool name
  *   @option options [String] :bucket ("default") the bucket name
+ *   @option options [Fixnum] :default_ttl (0) the TTL used by default during
+ *     storing key-value pairs.
+ *   @option options [Fixnum] :default_flags (0) the default flags.
+ *   @option options [Symbol] :default_format (:document) the format, which
+ *     will be used for values by default. Note that changing format will
+ *     amend flags. (see Bucket#default_format)
  *   @option options [String] :username (nil) the user name to connect to the
  *     cluster. Used to authenticate on management API.
  *   @option options [String] :password (nil) the password of the user.
- *   @option options [Boolean] :async (false) the flag specifying if the
- *     connection asynchronous. By default all operations are synchronous and
- *     block waiting for results, but you can make them asynchronous and run
- *     event loop explicitly. (see Couchbase::Bucket#run)
- *   @option options [Boolean] :quiet (false) the flag controlling if raising
+ *   @option options [Boolean] :quiet (true) the flag controlling if raising
  *     exception when the client executes operations on unexising keys. If it
  *     is +true+ it will raise +Couchbase::NotFoundError+ exceptions. The
- *     default behaviour is to return +nil+ value silently (could be useful in
+ *     default behaviour is to return +nil+ value silently (might be useful in
  *     Rails cache).
+ *
+ * @example Initialize connection using default options
+ *   Couchbase.new
+ *
+ * @example Select custom bucket
+ *   Couchbase.new(:bucket => 'foo')
+ *   Couchbase.new('http://localhost:8091/pools/default/buckets/foo')
+ *
+ * @example Connect to protected bucket
+ *   Couchbase.new(:bucket => 'protected', :username => 'protected', :password => 'secret')
+ *   Couchbase.new('http://localhost:8091/pools/default/buckets/protected',
+ *                 :username => 'protected', :password => 'secret')
+ *
+ * @return [Bucket]
  */
     static VALUE
 cb_bucket_init(int argc, VALUE *argv, VALUE self)
@@ -1799,6 +1820,25 @@ ensure_run(VALUE *args)
     return Qnil;
 }
 
+/*
+ * Run the event loop.
+ *
+ * @yieldparam [Bucket] the bucket instance
+ *
+ * @example Use block to run the loop
+ *   c = Couchbase.new
+ *   c.run do
+ *     c.get("foo") {|ret| puts ret.value}
+ *   end
+ *
+ * @example Use lambda to run the loop
+ *   c = Couchbase.new
+ *   operations = lambda do |c|
+ *     c.get("foo") {|ret| puts ret.value}
+ *   end
+ *   c.run(&operations)
+ *
+ */
     static VALUE
 cb_bucket_run(VALUE self)
 {
@@ -1848,7 +1888,7 @@ cb_bucket_append(int argc, VALUE *argv, VALUE self)
 }
 
 /*
- * Prepend this  object to the existing object
+ * Prepend this object to the existing object
  */
     static VALUE
 cb_bucket_prepend(int argc, VALUE *argv, VALUE self)
@@ -1870,6 +1910,12 @@ cb_bucket_aset(int argc, VALUE *argv, VALUE self)
     return cb_bucket_set(argc, argv, self);
 }
 
+/*
+ * Check if result of operation was successful.
+ *
+ * @return [Boolean] +false+ if there is an +error+ object attached,
+ *   +false+ otherwise.
+ */
     static VALUE
 cb_result_success_p(VALUE self)
 {
@@ -2009,7 +2055,7 @@ Init_couchbase_ext(void)
     rb_define_attr(eBaseError, "key", 1, 0);
     id_iv_key = rb_intern("@key");
     /* Document-method: cas
-     * @return [Fixnum] the version of the key (+nil+ unless accessible */
+     * @return [Fixnum] the version of the key (+nil+ unless accessible) */
     rb_define_attr(eBaseError, "cas", 1, 0);
     id_iv_cas = rb_intern("@cas");
     /* Document-method: operation
@@ -2088,49 +2134,140 @@ Init_couchbase_ext(void)
     /* rb_define_alias(cBucket, "[]=", "set"); */
     rb_define_method(cBucket, "[]=", cb_bucket_aset, -1);
 
-    /* Document-method: async
+    /* Document-method: async?
+     * Flag specifying if the connection asynchronous.
+     *
+     * By default all operations are synchronous and block waiting for
+     * results, but you can make them asynchronous and run event loop
+     * explicitly. (see Bucket#run)
+     *
+     * @example Return value of #get operation depending on async flag
+     *   connection = Connection.new
+     *   connection.async?      #=> false
+     *
+     *   connection.run do |conn|
+     *     conn.async?          #=> true
+     *   end
+     *
      * @return [Boolean] */
     rb_define_method(cBucket, "async?", cb_bucket_async_p, 0);
 
     /* Document-method: quiet
-     * @return [Boolean] if true, the unknown keys will raise
-     *   Couchbase::Error::NotFoundError. */
-    rb_define_attr(cBucket, "quiet", 1, 0);
+     * Flag specifying behaviour for operations on missing keys
+     *
+     * If it is +true+, the operations will silently return +nil+ or +false+
+     * instead of raising Couchbase::Error::NotFoundError.
+     *
+     * @example Hiding cache miss (considering "miss" key is not stored)
+     *   connection.quiet = true
+     *   connection.get("miss")     #=> nil
+     *
+     * @example Raising errors on miss (considering "miss" key is not stored)
+     *   connection.quiet = false
+     *   connection.get("miss")     #=> will raise Couchbase::Error::NotFoundError
+     *
+     * @return [Boolean] */
+    rb_define_attr(cBucket, "quiet", 1, 1);
     rb_define_method(cBucket, "quiet=", cb_bucket_quiet_set, 1);
     rb_define_alias(cBucket, "quiet?", "quiet");
     id_iv_quiet = rb_intern("@quiet");
 
     /* Document-method: default_flags
-     * @return [Fixnum] */
-    rb_define_attr(cBucket, "default_flags", 1, 0);
+     * Default flags for new values.
+     *
+     * The library reserves last two lower bits to store the format of the
+     * value. The can be masked via FMT_MASK constant.
+     *
+     * @example Selecting format bits
+     *   connection.default_flags & Couchbase::Bucket::FMT_MASK
+     *
+     * @example Set user defined bits
+     *   connection.default_flags |= 0x6660
+     *
+     * @note Amending format bit will also change #default_format value
+     *
+     * @return [Fixnum] the effective flags */
+    rb_define_attr(cBucket, "default_flags", 1, 1);
     rb_define_method(cBucket, "default_flags=", cb_bucket_default_flags_set, 1);
     id_iv_default_flags = rb_intern("@default_flags");
+
     /* Document-method: default_format
-     * @return [Symbol] */
-    rb_define_attr(cBucket, "default_format", 1, 0);
+     * Default format for new values.
+     *
+     * It uses flags field to store the format. It accepts either the Symbol
+     * (+:document+, +:marshal+, +:plain+) or Fixnum (use constants
+     * FMT_DOCUMENT, FMT_MARSHAL, FMT_PLAIN) and silently ignores all
+     * other value.
+     *
+     * Here is some notes regarding how to choose the format:
+     *
+     * * <tt>:document</tt> (default) format supports most of ruby types
+     *   which could be mapped to JSON data (hashes, arrays, string,
+     *   numbers). Future version will be able to run map/reduce queries on
+     *   the values in the document form (hashes).
+     *
+     * * <tt>:plain</tt> format if you no need any conversions to be applied
+     *   to your data, but your data should be passed as String. It could be
+     *   useful for building custom algorithms or formats. For example
+     *   implement set: http://dustin.github.com/2011/02/17/memcached-set.html
+     *
+     * * <tt>:marshal</tt> format if you'd like to transparently serialize
+     *   your ruby object with standard <tt>Marshal.dump</tt> and
+     *   <tt>Marhal.load</tt> methods.
+     *
+     * @example Selecting plain format using symbol
+     *   connection.format = :document
+     *
+     * @example Selecting plain format using Fixnum constant
+     *   connection.format = Couchbase::Bucket::FMT_PLAIN
+     *
+     * @note Amending default_format will also change #default_flags value
+     *
+     * @return [Symbol] the effective format */
+    rb_define_attr(cBucket, "default_format", 1, 1);
     rb_define_method(cBucket, "default_format=", cb_bucket_default_format_set, 1);
     id_iv_default_format = rb_intern("@default_format");
     /* Document-method: on_error
-     * @return [Proc] */
-    rb_define_attr(cBucket, "on_error", 1, 0);
+     * Error callback for asynchronous mode.
+     *
+     * This callback is using to deliver exceptions in asynchronous mode.
+     *
+     * @yieldparam [Symbol] op The operation caused the error
+     * @yieldparam [String] key The key which cause the error or +nil+
+     * @yieldparam [Exception] exc The exception instance
+     *
+     * @example Using lambda syntax
+     *   connection = Couchbase.new(:async => true)
+     *   connection.on_error = lambda {|op, key, exc| ... }
+     *   connection.run do |conn|
+     *     conn.set("foo", "bar")
+     *   end
+     *
+     * @example Using block syntax
+     *   connection = Couchbase.new(:async => true)
+     *   connection.on_error {|op, key, exc| ... }
+     *   ...
+     *
+     * @return [Proc] the effective callback */
+    rb_define_attr(cBucket, "on_error", 1, 1);
     rb_define_method(cBucket, "on_error", cb_bucket_on_error_get, 0);
     rb_define_method(cBucket, "on_error=", cb_bucket_on_error_set, 1);
     id_iv_on_error = rb_intern("@on_error");
 
     /* Document-method: url
-     * @return [String] the address of the cluster management endpoint. */
+     * @return [String] the address of the cluster management interface. */
     rb_define_attr(cBucket, "url", 1, 0);
     id_iv_url = rb_intern("@url");
     /* Document-method: hostname
-     * @return [String] */
+     * @return [String] the host name of the management interface (default: "localhost") */
     rb_define_attr(cBucket, "hostname", 1, 0);
     id_iv_hostname = rb_intern("@hostname");
     /* Document-method: port
-     * @return [Fixnum] */
+     * @return [Fixnum] the port number of the management interface (default: 8091) */
     rb_define_attr(cBucket, "port", 1, 0);
     id_iv_port = rb_intern("@port");
     /* Document-method: authority
-     * @return [String] Host with port. */
+     * @return [String] host with port. */
     rb_define_attr(cBucket, "authority", 1, 0);
     id_iv_authority = rb_intern("@authority");
     /* Document-method: bucket
@@ -2139,15 +2276,16 @@ Init_couchbase_ext(void)
     rb_define_alias(cBucket, "name", "bucket");
     id_iv_bucket = rb_intern("@bucket");
     /* Document-method: pool
-     * @return [String] */
+     * @return [String] the pool name (usually "default") */
     rb_define_attr(cBucket, "pool", 1, 0);
     id_iv_pool = rb_intern("@pool");
     /* Document-method: username
-     * @return [String] */
+     * @return [String] the username for protected buckets (usually matches
+     *   the bucket name) */
     rb_define_attr(cBucket, "username", 1, 0);
     id_iv_username = rb_intern("@username");
     /* Document-method: password
-     * @return [String] */
+     * @return [String] the password for protected buckets */
     rb_define_attr(cBucket, "password", 1, 0);
     id_iv_password = rb_intern("@password");
 

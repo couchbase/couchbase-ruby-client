@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011 Couchbase, Inc.
+# Copyright:: 2011, 2012 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+# Couchbase ruby client
 module Couchbase
   VERSION = "1.0.0"
 end
