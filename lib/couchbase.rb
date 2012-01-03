@@ -18,6 +18,7 @@
 require 'couchbase/version'
 require 'yajl/json_gem'
 require 'couchbase_ext'
+require 'couchbase/bucket'
 
 module Couchbase
 
