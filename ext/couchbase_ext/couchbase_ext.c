@@ -61,6 +61,7 @@ typedef struct
     VALUE default_format;    /* should update +default_flags+ on change */
     uint32_t default_flags;
     uint32_t default_ttl;
+    uint32_t timeout;
     VALUE exception;        /* error delivered by error_callback */
     VALUE on_error_proc;    /* is using to deliver errors in async mode */
 } bucket_t;
@@ -119,6 +120,7 @@ static ID  sym_add,
            sym_replace,
            sym_set,
            sym_stats,
+           sym_timeout,
            sym_touch,
            sym_ttl,
            sym_username,
@@ -145,6 +147,7 @@ static ID  sym_add,
            id_iv_pool,
            id_iv_port,
            id_iv_quiet,
+           id_iv_timeout,
            id_iv_url,
            id_iv_username,
            id_iv_value;
@@ -176,6 +179,8 @@ static VALUE eNotSupportedError;       /*LIBCOUCHBASE_NOT_SUPPORTED = 0x12*/
 static VALUE eUnknownCommandError;     /*LIBCOUCHBASE_UNKNOWN_COMMAND = 0x13*/
 static VALUE eUnknownHostError;        /*LIBCOUCHBASE_UNKNOWN_HOST = 0x14*/
 static VALUE eProtocolError;           /*LIBCOUCHBASE_PROTOCOL_ERROR = 0x15*/
+static VALUE eTimeoutError;            /*LIBCOUCHBASE_ETIMEDOUT = 0x16*/
+static VALUE eConnectError;            /*LIBCOUCHBASE_CONNECT_ERROR = 0x17*/
 
     static VALUE
 cb_proc_call(VALUE recv, int argc, ...)
@@ -274,6 +279,13 @@ cb_check_error(libcouchbase_error_t rc, const char *msg, VALUE key)
             break;
         case LIBCOUCHBASE_PROTOCOL_ERROR:
             klass = eProtocolError;
+            break;
+        case LIBCOUCHBASE_ETIMEDOUT:
+            klass = eTimeoutError;
+            break;
+        case LIBCOUCHBASE_CONNECT_ERROR:
+            klass = eConnectError;
+            break;
         case LIBCOUCHBASE_ERROR:
             /* fall through */
         default:
@@ -964,10 +976,11 @@ cb_bucket_inspect(VALUE self)
     snprintf(buf, 25, ":%p \"", (void *)self);
     rb_str_buf_cat2(str, buf);
     rb_str_append(str, rb_ivar_get(self, id_iv_url));
-    snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s>",
+    snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s, timeout=%u>",
             rb_id2name(SYM2ID(bucket->default_format)),
             bucket->default_flags,
-            bucket->quiet ? "true" : "false");
+            bucket->quiet ? "true" : "false",
+            bucket->timeout);
     rb_str_buf_cat2(str, buf);
 
     return str;
@@ -1096,6 +1109,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->default_flags = 0;
     bucket->default_format = sym_document;
     bucket->on_error_proc = Qnil;
+    bucket->timeout = 0;
 
     if (rb_scan_args(argc, argv, "02", &uri, &opts) > 0) {
         if (TYPE(uri) == T_HASH && argc == 1) {
@@ -1142,6 +1156,10 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
             }
             if (RTEST(rb_funcall(opts, id_has_key_p, 1, sym_quiet))) {
                 bucket->quiet = RTEST(rb_hash_aref(opts, sym_quiet));
+            }
+            arg = rb_hash_aref(opts, sym_timeout);
+            if (arg != Qnil) {
+                bucket->timeout = (uint32_t)NUM2ULONG(arg);
             }
             arg = rb_hash_aref(opts, sym_default_flags);
             if (arg != Qnil) {
@@ -1205,6 +1223,12 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
         rb_exc_raise(bucket->exception);
     }
 
+    if (bucket->timeout > 0) {
+        libcouchbase_set_timeout(bucket->handle, bucket->timeout);
+    } else {
+        bucket->timeout = libcouchbase_get_timeout(bucket->handle);
+    }
+
     rb_ivar_set(self, id_iv_authority, rb_str_new2(bucket->authority));
     rb_ivar_set(self, id_iv_bucket, rb_str_new2(bucket->bucket));
     rb_ivar_set(self, id_iv_hostname, rb_str_new2(bucket->hostname));
@@ -1216,6 +1240,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     rb_ivar_set(self, id_iv_default_flags, ULONG2NUM(bucket->default_flags));
     rb_ivar_set(self, id_iv_default_format, bucket->default_format);
     rb_ivar_set(self, id_iv_on_error, bucket->on_error_proc);
+    rb_ivar_set(self, id_iv_timeout, ULONG2NUM(bucket->timeout));
 
     buf = rb_str_buf_new2("http://");
     rb_str_buf_cat2(buf, bucket->authority);
@@ -1313,6 +1338,20 @@ cb_bucket_on_error_get(VALUE self)
     } else {
         return bucket->on_error_proc;
     }
+}
+
+    static VALUE
+cb_bucket_timeout_set(VALUE self, VALUE val)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    VALUE tmval;
+
+    bucket->timeout = (uint32_t)NUM2ULONG(val);
+    libcouchbase_set_timeout(bucket->handle, bucket->timeout);
+    tmval = ULONG2NUM(bucket->timeout);
+    rb_ivar_set(self, id_iv_timeout, tmval);
+
+    return tmval;
 }
 
     static VALUE
@@ -2045,6 +2084,12 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::Protocol
      * Protocol error */
     eProtocolError = rb_define_class_under(mError, "Protocol", eBaseError);
+    /* Document-class: Couchbase::Error::Timeout
+     * Timeout error */
+    eTimeoutError = rb_define_class_under(mError, "Timeout", eBaseError);
+    /* Document-class: Couchbase::Error::Connect
+     * Connect error */
+    eConnectError = rb_define_class_under(mError, "Connect", eBaseError);
 
     /* Document-method: error
      * @return [Boolean] the error code from libcouchbase */
@@ -2227,6 +2272,13 @@ Init_couchbase_ext(void)
     rb_define_attr(cBucket, "default_format", 1, 1);
     rb_define_method(cBucket, "default_format=", cb_bucket_default_format_set, 1);
     id_iv_default_format = rb_intern("@default_format");
+
+    /* Document-method: timeout
+     * @return [Fixnum] */
+    rb_define_attr(cBucket, "timeout", 1, 1);
+    rb_define_method(cBucket, "timeout=", cb_bucket_timeout_set, 1);
+    id_iv_timeout = rb_intern("@timeout");
+
     /* Document-method: on_error
      * Error callback for asynchronous mode.
      *
@@ -2326,6 +2378,7 @@ Init_couchbase_ext(void)
     sym_replace = ID2SYM(rb_intern("replace"));
     sym_set = ID2SYM(rb_intern("set"));
     sym_stats = ID2SYM(rb_intern("stats"));
+    sym_timeout = ID2SYM(rb_intern("timeout"));
     sym_touch = ID2SYM(rb_intern("touch"));
     sym_ttl = ID2SYM(rb_intern("ttl"));
     sym_username = ID2SYM(rb_intern("username"));
