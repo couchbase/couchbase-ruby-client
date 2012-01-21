@@ -61,21 +61,20 @@ class TestErrors < MiniTest::Unit::TestCase
     key3 = test_id(genkey(msg3))
     assert_equal msg3, connection.get(key3)
 
-    connection.async = true
-    msg4 = {"author" => "foo", "message" => "hi all", "time" => "2012-01-12 11:45:34"}
-    key4 = test_id(genkey(msg4))
+    connection.run do |conn|
+      msg4 = {"author" => "foo", "message" => "hi all", "time" => "2012-01-12 11:45:34"}
+      key4 = test_id(genkey(msg4))
 
-    connection.on_error do |op, key, err|
-      assert_equal :add, op
-      assert_equal key4, key
-      msg4 = msg3.merge("time" => msg3["time"] + [msg4["time"]])
-      connection.set(key, msg4, :cas => err.cas)
+      connection.on_error do |op, key, err|
+        assert_equal :add, op
+        assert_equal key4, key
+        msg4 = msg3.merge("time" => msg3["time"] + [msg4["time"]])
+        connection.set(key, msg4, :cas => err.cas)
+      end
+
+      connection.add(key4, msg4)
     end
 
-    connection.add(key4, msg4)
-    connection.run
-
-    connection.async = false
     msg5 = {"author" => "foo", "message" => "hi all",
                 "time" => ["2012-01-12 11:29:09", "2012-01-12 11:29:30", "2012-01-12 11:45:34"]}
     key5 = test_id(genkey(msg5))

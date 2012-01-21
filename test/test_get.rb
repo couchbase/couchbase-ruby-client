@@ -109,7 +109,6 @@ class TestGet < MiniTest::Unit::TestCase
   def test_asynchronous_get
     connection = Couchbase.new(:port => @mock.port)
     cas = connection.set(test_id, "foo", :flags => 0x6660)
-    connection.async = true
     res = []
 
     suite = lambda do |conn|
@@ -135,10 +134,6 @@ class TestGet < MiniTest::Unit::TestCase
       assert_equal cas, res[4][:cas]
     end
 
-    suite.call(connection)
-    connection.run
-    checks.call
-
     connection.run(&suite)
     checks.call
 
@@ -150,12 +145,12 @@ class TestGet < MiniTest::Unit::TestCase
     connection = Couchbase.new(:port => @mock.port)
     connection.set(test_id(1), "foo")
     connection.set(test_id(2), "bar")
-    connection.async = true
 
     res = {}
-    connection.get(test_id(1), test_id(2)) {|v, k| res[k] = v}
-    assert_equal 2, connection.seqno
-    connection.run
+    connection.run do |conn|
+      conn.get(test_id(1), test_id(2)) {|v, k| res[k] = v}
+      assert_equal 2, conn.seqno
+    end
 
     assert res[test_id(1)]
     assert_equal "foo", res[test_id(1)]
@@ -166,7 +161,6 @@ class TestGet < MiniTest::Unit::TestCase
   def test_asynchronous_get_missing
     connection = Couchbase.new(:port => @mock.port)
     connection.set(test_id, "foo")
-    connection.async = true
     res = {}
     missing = []
 

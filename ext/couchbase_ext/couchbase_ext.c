@@ -91,8 +91,7 @@ struct key_traits
 static VALUE mCouchbase, mError, mJSON, mMarshal, cBucket;
 static VALUE object_space;
 
-static ID  sym_async,
-           sym_add,
+static ID  sym_add,
            sym_append,
            sym_bucket,
            sym_cas,
@@ -129,7 +128,6 @@ static ID  sym_async,
            id_flatten_bang,
            id_has_key_p,
            id_load,
-           id_iv_async,
            id_iv_authority,
            id_iv_bucket,
            id_iv_cas,
@@ -281,10 +279,10 @@ cb_check_error(libcouchbase_error_t rc, const char *msg, VALUE key)
     str = rb_str_buf_new2(msg ? msg : "");
     rb_str_buf_cat2(str, " (");
     if (key != Qnil) {
-        snprintf(buf, 300, "key: '%s', ", RSTRING_PTR(key));
+        snprintf(buf, 300, "key=\"%s\", ", RSTRING_PTR(key));
         rb_str_buf_cat2(str, buf);
     }
-    snprintf(buf, 300, "error: %d)", rc);
+    snprintf(buf, 300, "error=0x%x)", rc);
     rb_str_buf_cat2(str, buf);
     exc = rb_exc_new3(klass, str);
     rb_ivar_set(exc, id_iv_error, INT2FIX(rc));
@@ -981,13 +979,12 @@ cb_bucket_inspect(VALUE self)
 
     str = rb_str_buf_new2("#<");
     rb_str_buf_cat2(str, rb_obj_classname(self));
-    snprintf(buf, 20, ":%p ", (void *)self);
+    snprintf(buf, 25, ":%p \"", (void *)self);
     rb_str_buf_cat2(str, buf);
     rb_str_append(str, rb_ivar_get(self, id_iv_url));
-    snprintf(buf, 120, " default_format:%s default_flags:0x%x async:%s quiet:%s>",
+    snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s>",
             rb_id2name(SYM2ID(bucket->default_format)),
             bucket->default_flags,
-            bucket->async ? "true" : "false",
             bucket->quiet ? "true" : "false");
     rb_str_buf_cat2(str, buf);
 
@@ -1139,8 +1136,6 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
             if (arg != Qnil) {
                 bucket->port = (uint16_t)NUM2UINT(arg);
             }
-            arg = rb_hash_aref(opts, sym_async);
-            bucket->async = RTEST(arg);
             if (RTEST(rb_funcall(opts, id_has_key_p, 1, sym_quiet))) {
                 bucket->quiet = RTEST(rb_hash_aref(opts, sym_quiet));
             }
@@ -1213,7 +1208,6 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     rb_ivar_set(self, id_iv_pool, rb_str_new2(bucket->pool));
     rb_ivar_set(self, id_iv_port, UINT2NUM(bucket->port));
     rb_ivar_set(self, id_iv_username, bucket->username ? rb_str_new2(bucket->username) : Qnil);
-    rb_ivar_set(self, id_iv_async, bucket->async ? Qtrue : Qfalse);
     rb_ivar_set(self, id_iv_quiet, bucket->quiet ? Qtrue : Qfalse);
     rb_ivar_set(self, id_iv_default_flags, ULONG2NUM(bucket->default_flags));
     rb_ivar_set(self, id_iv_default_format, bucket->default_format);
@@ -1232,15 +1226,10 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
 }
 
     static VALUE
-cb_bucket_async_set(VALUE self, VALUE val)
+cb_bucket_async_p(VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
-    VALUE new;
-
-    bucket->async = RTEST(val);
-    new = bucket->async ? Qtrue : Qfalse;
-    rb_ivar_set(self, id_iv_async, new);
-    return new;
+    return bucket->async ? Qtrue : Qfalse;
 }
 
     static VALUE
@@ -1334,6 +1323,9 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     libcouchbase_error_t err;
 
     rb_scan_args(argc, argv, "11&", &k, &opts, &proc);
+    if (!bucket->async && proc != Qnil) {
+        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
+    }
     k = unify_key(k);
     key = RSTRING_PTR(k);
     nkey = RSTRING_LEN(k);
@@ -1396,6 +1388,9 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     libcouchbase_error_t err;
 
     rb_scan_args(argc, argv, "21&", &k, &v, &opts, &proc);
+    if (!bucket->async && proc != Qnil) {
+        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
+    }
     k = unify_key(k);
     flags = bucket->default_flags;
     if (opts != Qnil) {
@@ -1474,6 +1469,9 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     libcouchbase_error_t err;
 
     rb_scan_args(argc, argv, "12&", &k, &d, &opts, &proc);
+    if (!bucket->async && proc != Qnil) {
+        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
+    }
     k = unify_key(k);
     ctx = calloc(1, sizeof(context_t));
     if (ctx == NULL) {
@@ -1557,6 +1555,9 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     int extended;
 
     rb_scan_args(argc, argv, "0*&", &args, &proc);
+    if (!bucket->async && proc != Qnil) {
+        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
+    }
     rb_funcall(args, id_flatten_bang, 0);
     traits = calloc(1, sizeof(struct key_traits));
     nn = cb_args_scan_keys(RARRAY_LEN(args), args, bucket, traits);
@@ -1633,6 +1634,9 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     struct key_traits *traits;
 
     rb_scan_args(argc, argv, "0*&", &args, &proc);
+    if (!bucket->async && proc != Qnil) {
+        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
+    }
     rb_funcall(args, id_flatten_bang, 0);
     traits = calloc(1, sizeof(struct key_traits));
     nn = cb_args_scan_keys(RARRAY_LEN(args), args, bucket, traits);
@@ -1687,6 +1691,9 @@ cb_bucket_flush(VALUE self)
     VALUE rv, exc;
     libcouchbase_error_t err;
 
+    if (!bucket->async && rb_block_given_p()) {
+        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
+    }
     ctx = calloc(1, sizeof(context_t));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
@@ -1732,6 +1739,9 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     libcouchbase_error_t err;
 
     rb_scan_args(argc, argv, "01&", &arg, &proc);
+    if (!bucket->async && proc != Qnil) {
+        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
+    }
 
     ctx = calloc(1, sizeof(context_t));
     if (ctx == NULL) {
@@ -1777,28 +1787,44 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
 }
 
     static VALUE
-cb_bucket_run(int argc, VALUE *argv, VALUE self)
+do_run(VALUE *args)
 {
+    VALUE self = args[0], proc = args[1], exc;
     bucket_t *bucket = DATA_PTR(self);
-    VALUE proc = Qnil;
 
-    if (!bucket->async) {
-        return Qnil;
-    }
-    rb_scan_args(argc, argv, "00&", &proc);
-    if (NIL_P(proc)) {
-        if (bucket->seqno < 1) {
-            bucket->seqno = 0;
-            return Qnil;
+    bucket->seqno = 0;
+    bucket->async = 1;
+    cb_proc_call(proc, 1, self);
+    if (bucket->seqno > 0) {
+        bucket->io->run_event_loop(bucket->io);
+        if (bucket->exception != Qnil) {
+            exc = bucket->exception;
+            bucket->exception = Qnil;
+            rb_exc_raise(exc);
         }
-    } else {
-        bucket->seqno = 0;
-        cb_proc_call(proc, 1, self);
     }
-    bucket->io->run_event_loop(bucket->io);
-    if (bucket->exception != Qnil) {
-        rb_exc_raise(bucket->exception);
-    }
+    return Qnil;
+}
+
+    static VALUE
+ensure_run(VALUE *args)
+{
+    VALUE self = args[0];
+    bucket_t *bucket = DATA_PTR(self);
+
+    bucket->async = 0;
+    return Qnil;
+}
+
+    static VALUE
+cb_bucket_run(VALUE self)
+{
+    VALUE args[2];
+
+    rb_need_block();
+    args[0] = self;
+    args[1] = rb_block_proc();
+    rb_ensure(do_run, (VALUE)args, ensure_run, (VALUE)args);
     return Qnil;
 }
 
@@ -1978,7 +2004,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "replace", cb_bucket_replace, -1);
     rb_define_method(cBucket, "set", cb_bucket_set, -1);
     rb_define_method(cBucket, "get", cb_bucket_get, -1);
-    rb_define_method(cBucket, "run", cb_bucket_run, -1);
+    rb_define_method(cBucket, "run", cb_bucket_run, 0);
     rb_define_method(cBucket, "touch", cb_bucket_touch, -1);
     rb_define_method(cBucket, "delete", cb_bucket_delete, -1);
     rb_define_method(cBucket, "stats", cb_bucket_stats, -1);
@@ -1994,11 +2020,8 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "[]=", cb_bucket_aset, -1);
 
     /* Document-method: async
-     * @return [Boolean] is the connection asynchronous. */
-    rb_define_attr(cBucket, "async", 1, 0);
-    rb_define_method(cBucket, "async=", cb_bucket_async_set, 1);
-    rb_define_alias(cBucket, "async?", "async");
-    id_iv_async = rb_intern("@async");
+     * @return [Boolean] */
+    rb_define_method(cBucket, "async?", cb_bucket_async_p, 0);
 
     /* Document-method: quiet
      * @return [Boolean] if true, the unknown keys will raise
@@ -2069,7 +2092,6 @@ Init_couchbase_ext(void)
 
     sym_add = ID2SYM(rb_intern("add"));
     sym_append = ID2SYM(rb_intern("append"));
-    sym_async = ID2SYM(rb_intern("async"));
     sym_bucket = ID2SYM(rb_intern("bucket"));
     sym_cas = ID2SYM(rb_intern("cas"));
     sym_create = ID2SYM(rb_intern("create"));

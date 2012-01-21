@@ -19,7 +19,9 @@ class TestFlush < MiniTest::Unit::TestCase
     connection = Couchbase.new(:port => @mock.port)
     flushed = {}
     on_node_flush = lambda{|node, res| flushed[node] = res}
-    connection.flush(&on_node_flush)
+    connection.run do |conn|
+      conn.flush(&on_node_flush)
+    end
     assert_equal 7, flushed.size
     flushed.each do |node, res|
       assert node.is_a?(String)

@@ -27,13 +27,12 @@ class TestCas < MiniTest::Unit::TestCase
     connection = Couchbase.new(:port => @mock.port,
                                :default_format => :document)
     connection.set(test_id, {"bar" => 1})
-    connection.async = true
-    connection.cas(test_id) do |val|
-      val["baz"] = 2
-      val
+    connection.run do |conn|
+      conn.cas(test_id) do |val|
+        val["baz"] = 2
+        val
+      end
     end
-    connection.run
-    connection.async = false
     val = connection.get(test_id)
     expected = {"bar" => 1, "baz" => 2}
     assert_equal expected, val

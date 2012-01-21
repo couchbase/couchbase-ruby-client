@@ -107,28 +107,17 @@ class TestBucket < MiniTest::Unit::TestCase
     end
   end
 
-  def test_it_allows_change_async_and_quiet_flags
+  def test_it_allows_change_quiet_flag
     with_mock do |mock|
       connection = Couchbase.new(:port => mock.port)
-      refute connection.async?
       assert connection.quiet?
 
-      connection.async = true
-      assert_equal true, connection.async?
-      connection.quiet = true
-      assert_equal true, connection.quiet?
-
-      connection = Couchbase.new(:port => mock.port, :quiet => true, :async => true)
-      assert connection.async?
+      connection = Couchbase.new(:port => mock.port, :quiet => true)
       assert connection.quiet?
 
-      connection.async = nil
-      assert_equal false, connection.async?
       connection.quiet = nil
       assert_equal false, connection.quiet?
 
-      connection.async = :foo
-      assert_equal true, connection.async?
       connection.quiet = :foo
       assert_equal true, connection.quiet?
     end

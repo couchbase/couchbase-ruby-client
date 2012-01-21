@@ -91,19 +91,18 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_asynchronous_set
-    connection = Couchbase.new(:port => @mock.port, :async => true)
-    cas1 = cas2 = cas4 = nil
-    connection.set(test_id("1"), "foo1") {|c| cas1 = c}
-    connection.set(test_id("2"), "foo2") # ignore result
-    connection.set(test_id("3"), "foo3") {|c, k, o| cas2 = {:cas => c, :key => k, :op => o}}
-    connection.set(test_id("3"), "foo4") {|c| cas4 = c}
-    assert_equal 4, connection.seqno
-    connection.run
-    assert_equal test_id("3"), cas2[:key]
-    assert_equal :set, cas2[:op]
-    assert cas2[:cas].is_a?(Numeric)
-    # prove that latest call wins
-    connection.set(test_id("3"), "bar", :cas => cas4)
+    connection = Couchbase.new(:port => @mock.port)
+    ret1 = ret2 = nil
+    connection.run do |conn|
+      conn.set(test_id("1"), "foo1") {|c| ret1 = c}
+      conn.set(test_id("2"), "foo2") # ignore result
+      conn.set(test_id("3"), "foo3") {|c, k, o| ret2 = {:cas => c, :key => k, :op => o}}
+      assert_equal 3, conn.seqno
+    end
+    assert_equal test_id("3"), ret2[:key]
+    assert_equal :set, ret2[:op]
+    assert ret1.is_a?(Numeric)
+    assert ret2[:cas].is_a?(Numeric)
   end
 
   def test_it_raises_error_when_appending_or_prepending_to_missing_key
