@@ -33,7 +33,8 @@ module Couchbase
     # @option options [Symbol] :format (self.default_format) format of the value
     # @option options [Fixnum] :flags (self.default_flags) flags for this key
     #
-    # @yieldparam [Object] value old value.
+    # @yieldparam [Object, Result] value old value in synchronous mode and
+    #   +Result+ object in asynchronous mode.
     # @yieldreturn [Object] new value.
     #
     # @raise [Couchbase::Errors:KeyExists] if the key was updated before the the
@@ -53,9 +54,9 @@ module Couchbase
     def cas(key, options = {})
       options = options.merge(:extended => true)
       if async?
-        get(key, options) do |val, key, flags, ver|
-          val = yield(val) # get new value from caller
-          set(key, val, :cas => ver)
+        get(key, options) do |ret|
+          val = yield(ret) # get new value from caller
+          set(ret.key, val, :cas => ret.cas)
         end
       else
         val, flags, ver = get(key, options)

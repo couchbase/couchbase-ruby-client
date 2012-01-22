@@ -10,7 +10,7 @@ class TestStore < MiniTest::Unit::TestCase
     stop_mock(@mock)
   end
 
-  def test_trivial_set
+  def test_trivial_delete
     connection = Couchbase.new(:port => @mock.port)
     connection.set(test_id, "bar")
     assert connection.delete(test_id)

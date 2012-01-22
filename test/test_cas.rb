@@ -28,9 +28,10 @@ class TestCas < MiniTest::Unit::TestCase
                                :default_format => :document)
     connection.set(test_id, {"bar" => 1})
     connection.run do |conn|
-      conn.cas(test_id) do |val|
-        val["baz"] = 2
-        val
+      conn.cas(test_id) do |ret|
+        new_val = ret.value
+        new_val["baz"] = 2
+        new_val
       end
     end
     val = connection.get(test_id)

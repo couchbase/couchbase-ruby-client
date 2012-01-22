@@ -88,7 +88,7 @@ struct key_traits
     int quiet;
 };
 
-static VALUE mCouchbase, mError, mJSON, mMarshal, cBucket;
+static VALUE mCouchbase, mError, mJSON, mMarshal, cBucket, cResult;
 static VALUE object_space;
 
 static ID  sym_add,
@@ -128,14 +128,17 @@ static ID  sym_add,
            id_flatten_bang,
            id_has_key_p,
            id_load,
+           id_to_s,
            id_iv_authority,
            id_iv_bucket,
            id_iv_cas,
            id_iv_default_flags,
            id_iv_default_format,
            id_iv_error,
+           id_iv_flags,
            id_iv_hostname,
            id_iv_key,
+           id_iv_node,
            id_iv_on_error,
            id_iv_operation,
            id_iv_password,
@@ -143,7 +146,8 @@ static ID  sym_add,
            id_iv_port,
            id_iv_quiet,
            id_iv_url,
-           id_iv_username;
+           id_iv_username,
+           id_iv_value;
 
 /* base error */
 static VALUE eBaseError;
@@ -518,7 +522,7 @@ storage_callback(libcouchbase_t handle, const void *cookie,
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
-    VALUE k, c, *rv = ctx->rv, exc;
+    VALUE k, c, *rv = ctx->rv, exc, res;
     ID o;
 
     bucket->seqno--;
@@ -548,25 +552,21 @@ storage_callback(libcouchbase_t handle, const void *cookie,
     if (exc != Qnil) {
         rb_ivar_set(exc, id_iv_cas, c);
         rb_ivar_set(exc, id_iv_operation, o);
-        if (bucket->async) {
-            if (bucket->on_error_proc != Qnil) {
-                cb_proc_call(bucket->on_error_proc, 3, o, k, exc);
-            } else {
-                if (NIL_P(bucket->exception)) {
-                    bucket->exception = exc;
-                }
-            }
-        }
         if (NIL_P(ctx->exception)) {
             ctx->exception = exc;
         }
-    } else {
-        if (!bucket->async) {
-            *rv = c;
-        }
+    }
+    if (bucket->async) { /* asynchronous */
         if (ctx->proc != Qnil) {
-            cb_proc_call(ctx->proc, 3, c, k, o);
+            res = rb_class_new_instance(0, NULL, cResult);
+            rb_ivar_set(res, id_iv_error, exc);
+            rb_ivar_set(res, id_iv_key, k);
+            rb_ivar_set(res, id_iv_operation, o);
+            rb_ivar_set(res, id_iv_cas, c);
+            cb_proc_call(ctx->proc, 1, res);
         }
+    } else {             /* synchronous */
+        *rv = c;
     }
 
     if (bucket->seqno == 0) {
@@ -582,7 +582,7 @@ delete_callback(libcouchbase_t handle, const void *cookie,
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
-    VALUE k, success, *rv = ctx->rv, exc = Qnil;
+    VALUE k, *rv = ctx->rv, exc = Qnil, res;
 
     bucket->seqno--;
 
@@ -590,28 +590,22 @@ delete_callback(libcouchbase_t handle, const void *cookie,
     if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
         exc = cb_check_error(error, "failed to remove value", k);
         if (exc != Qnil) {
-            if (bucket->async) {
-                if (bucket->on_error_proc != Qnil) {
-                    cb_proc_call(bucket->on_error_proc, 3, sym_delete, k, exc);
-                } else {
-                    if (NIL_P(bucket->exception)) {
-                        bucket->exception = exc;
-                    }
-                }
-            }
+            rb_ivar_set(exc, id_iv_operation, sym_delete);
             if (NIL_P(ctx->exception)) {
                 ctx->exception = exc;
             }
         }
     }
-    if (NIL_P(exc)) {
-        success = (error == LIBCOUCHBASE_KEY_ENOENT) ? Qfalse : Qtrue;
-        if (!bucket->async) {
-            *rv = success;
-        }
+    if (bucket->async) {    /* asynchronous */
         if (ctx->proc != Qnil) {
-            cb_proc_call(ctx->proc, 2, k, success);
+            res = rb_class_new_instance(0, NULL, cResult);
+            rb_ivar_set(res, id_iv_error, exc);
+            rb_ivar_set(res, id_iv_operation, sym_delete);
+            rb_ivar_set(res, id_iv_key, k);
+            cb_proc_call(ctx->proc, 1, res);
         }
+    } else {                /* synchronous */
+        *rv = (error == LIBCOUCHBASE_SUCCESS) ? Qtrue : Qfalse;
     }
     if (bucket->seqno == 0) {
         bucket->io->stop_event_loop(bucket->io);
@@ -627,7 +621,7 @@ get_callback(libcouchbase_t handle, const void *cookie,
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
-    VALUE k, v, f, c, *rv = ctx->rv, exc = Qnil;
+    VALUE k, v, f, c, *rv = ctx->rv, exc = Qnil, res;
 
     bucket->seqno--;
 
@@ -637,48 +631,40 @@ get_callback(libcouchbase_t handle, const void *cookie,
         exc = cb_check_error(error, "failed to get value", k);
         if (exc != Qnil) {
             rb_ivar_set(exc, id_iv_operation, sym_get);
-            if (bucket->async) {
-                if (bucket->on_error_proc != Qnil) {
-                    cb_proc_call(bucket->on_error_proc, 3, sym_get, k, exc);
-                } else {
-                    if (NIL_P(bucket->exception)) {
-                        bucket->exception = exc;
-                    }
-                }
-            }
             if (NIL_P(ctx->exception)) {
                 ctx->exception = exc;
             }
         }
     }
 
-    if (NIL_P(exc)) {
-        if (nbytes != 0) {
-            v = decode_value(rb_str_new((const char*)bytes, nbytes), flags);
-            if (v == Qundef) {
-                ctx->exception = rb_exc_new2(eValueFormatError, "unable to convert value");
+    f = ULONG2NUM(flags);
+    c = ULL2NUM(cas);
+    if (nbytes != 0) {
+        v = decode_value(rb_str_new((const char*)bytes, nbytes), flags);
+        if (v == Qundef) {
+            ctx->exception = rb_exc_new2(eValueFormatError, "unable to convert value");
+            v = Qnil;
+        }
+    } else {
+        v = Qnil;
+    }
+    if (bucket->async) { /* asynchronous */
+        if (ctx->proc != Qnil) {
+            res = rb_class_new_instance(0, NULL, cResult);
+            rb_ivar_set(res, id_iv_error, exc);
+            rb_ivar_set(res, id_iv_operation, sym_get);
+            rb_ivar_set(res, id_iv_key, k);
+            rb_ivar_set(res, id_iv_value, v);
+            rb_ivar_set(res, id_iv_flags, f);
+            rb_ivar_set(res, id_iv_cas, c);
+            cb_proc_call(ctx->proc, 1, res);
+        }
+    } else {                /* synchronous */
+        if (NIL_P(exc) && v != Qnil) {
+            if (ctx->extended) {
+                rb_hash_aset(*rv, k, rb_ary_new3(3, v, f, c));
             } else {
-                if (ctx->extended) {
-                    f = ULONG2NUM(flags);
-                    c = ULL2NUM(cas);
-                    if (!bucket->async) {
-                        rb_hash_aset(*rv, k, rb_ary_new3(3, v, f, c));
-                    }
-                    if (ctx->proc != Qnil) {
-                        cb_proc_call(ctx->proc, 4, v, k, f, c);
-                    }
-                } else {
-                    if (!bucket->async) {
-                        rb_hash_aset(*rv, k, v);
-                    }
-                    if (ctx->proc != Qnil) {
-                        cb_proc_call(ctx->proc, 2, v, k);
-                    }
-                }
-            }
-        } else {
-            if (ctx->proc != Qnil) {
-                cb_proc_call(ctx->proc, 2, Qnil, k);
+                rb_hash_aset(*rv, k, v);
             }
         }
     }
@@ -696,20 +682,12 @@ flush_callback(libcouchbase_t handle, const void* cookie,
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
-    VALUE node, success = Qtrue, *rv = ctx->rv, exc;
+    VALUE node, success = Qtrue, *rv = ctx->rv, exc, res;
 
     node = authority ? rb_str_new2(authority) : Qnil;
     exc = cb_check_error(error, "failed to flush bucket", node);
     if (exc != Qnil) {
-        if (bucket->async) {
-            if (bucket->on_error_proc != Qnil) {
-                cb_proc_call(bucket->on_error_proc, 3, sym_flush, node, exc);
-            } else {
-                if (NIL_P(bucket->exception)) {
-                    bucket->exception = exc;
-                }
-            }
-        }
+        rb_ivar_set(exc, id_iv_operation, sym_flush);
         if (NIL_P(ctx->exception)) {
             ctx->exception = exc;
         }
@@ -717,15 +695,21 @@ flush_callback(libcouchbase_t handle, const void* cookie,
     }
 
     if (authority) {
-        if (!bucket->async && RTEST(*rv)) {
-            /* rewrite status for positive values only */
-            *rv = success;
+        if (bucket->async) {    /* asynchronous */
+            if (ctx->proc != Qnil) {
+                res = rb_class_new_instance(0, NULL, cResult);
+                rb_ivar_set(res, id_iv_error, exc);
+                rb_ivar_set(res, id_iv_operation, sym_flush);
+                rb_ivar_set(res, id_iv_node, node);
+                cb_proc_call(ctx->proc, 1, res);
+            }
+        } else {                /* synchronous */
+            if (RTEST(*rv)) {
+                /* rewrite status for positive values only */
+                *rv = success;
+            }
         }
-        if (ctx->proc != Qnil) {
-            cb_proc_call(ctx->proc, 2, rb_str_new2(authority), success);
-        }
-    }
-    if (authority == NULL) {
+    } else {
         bucket->seqno--;
         if (bucket->seqno == 0) {
             bucket->io->stop_event_loop(bucket->io);
@@ -743,40 +727,40 @@ stat_callback(libcouchbase_t handle, const void* cookie,
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
-    VALUE stats, node, k, v, *rv = ctx->rv, exc = Qnil;
+    VALUE stats, node, k, v, *rv = ctx->rv, exc = Qnil, res;
 
     node = authority ? rb_str_new2(authority) : Qnil;
     exc = cb_check_error(error, "failed to fetch stats", node);
     if (exc != Qnil) {
-        if (bucket->async) {
-            if (bucket->on_error_proc != Qnil) {
-                cb_proc_call(bucket->on_error_proc, 3, sym_stats, node, exc);
-            } else {
-                if (NIL_P(bucket->exception)) {
-                    bucket->exception = exc;
-                }
-            }
-        }
+        rb_ivar_set(exc, id_iv_operation, sym_stats);
         if (NIL_P(ctx->exception)) {
             ctx->exception = exc;
         }
     }
-    if (NIL_P(exc) && nkey != 0) {
+    if (authority) {
         k = rb_str_new((const char*)key, nkey);
         v = rb_str_new((const char*)bytes, nbytes);
-        if (!bucket->async) {
-            stats = rb_hash_aref(*rv, node);
-            if (NIL_P(stats)) {
-                stats = rb_hash_new();
-                rb_hash_aset(*rv, node, stats);
+        if (bucket->async) {    /* asynchronous */
+            if (ctx->proc != Qnil) {
+                res = rb_class_new_instance(0, NULL, cResult);
+                rb_ivar_set(res, id_iv_error, exc);
+                rb_ivar_set(res, id_iv_operation, sym_stats);
+                rb_ivar_set(res, id_iv_node, node);
+                rb_ivar_set(res, id_iv_key, k);
+                rb_ivar_set(res, id_iv_value, v);
+                cb_proc_call(ctx->proc, 1, res);
             }
-            rb_hash_aset(stats, k, v);
+        } else {                /* synchronous */
+            if (NIL_P(exc)) {
+                stats = rb_hash_aref(*rv, node);
+                if (NIL_P(stats)) {
+                    stats = rb_hash_new();
+                    rb_hash_aset(*rv, node, stats);
+                }
+                rb_hash_aset(stats, k, v);
+            }
         }
-        if (ctx->proc != Qnil) {
-            cb_proc_call(ctx->proc, 3, node, k, v);
-        }
-    }
-    if (authority == NULL) {
+    } else {
         bucket->seqno--;
         if (bucket->seqno == 0) {
             bucket->io->stop_event_loop(bucket->io);
@@ -792,7 +776,7 @@ touch_callback(libcouchbase_t handle, const void *cookie,
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
-    VALUE k, success, *rv = ctx->rv, exc = Qnil;
+    VALUE k, success, *rv = ctx->rv, exc = Qnil, res;
 
     bucket->seqno--;
     k = rb_str_new((const char*)key, nkey);
@@ -800,28 +784,24 @@ touch_callback(libcouchbase_t handle, const void *cookie,
         exc = cb_check_error(error, "failed to touch value", k);
         if (exc != Qnil) {
             rb_ivar_set(exc, id_iv_operation, sym_touch);
-            if (bucket->async) {
-                if (bucket->on_error_proc != Qnil) {
-                    cb_proc_call(bucket->on_error_proc, 3, sym_touch, k, exc);
-                } else {
-                    if (NIL_P(bucket->exception)) {
-                        bucket->exception = exc;
-                    }
-                }
-            }
             if (NIL_P(ctx->exception)) {
                 ctx->exception = exc;
             }
         }
     }
 
-    if (NIL_P(exc)) {
-        success = (error == LIBCOUCHBASE_KEY_ENOENT) ? Qfalse : Qtrue;
-        if (!bucket->async) {
-            rb_ary_push(*rv, success);
-        }
+    if (bucket->async) {    /* asynchronous */
         if (ctx->proc != Qnil) {
-            cb_proc_call(ctx->proc, 2, k, success);
+            res = rb_class_new_instance(0, NULL, cResult);
+            rb_ivar_set(res, id_iv_error, exc);
+            rb_ivar_set(res, id_iv_operation, sym_touch);
+            rb_ivar_set(res, id_iv_key, k);
+            cb_proc_call(ctx->proc, 1, res);
+        }
+    } else {                /* synchronous */
+        if (NIL_P(exc)) {
+            success = (error == LIBCOUCHBASE_KEY_ENOENT) ? Qfalse : Qtrue;
+            rb_ary_push(*rv, success);
         }
     }
     if (bucket->seqno == 0) {
@@ -838,7 +818,7 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
-    VALUE c, k, v, *rv = ctx->rv, exc;
+    VALUE c, k, v, *rv = ctx->rv, exc, res;
     ID o;
 
     bucket->seqno--;
@@ -862,21 +842,24 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
         if (NIL_P(ctx->exception)) {
             ctx->exception = exc;
         }
-    } else {
-        v = ULL2NUM(value);
-        if (ctx->extended) {
-            if (!bucket->async) {
+    }
+    v = ULL2NUM(value);
+    if (bucket->async) {    /* asynchronous */
+        if (ctx->proc != Qnil) {
+            res = rb_class_new_instance(0, NULL, cResult);
+            rb_ivar_set(res, id_iv_error, exc);
+            rb_ivar_set(res, id_iv_operation, o);
+            rb_ivar_set(res, id_iv_key, k);
+            rb_ivar_set(res, id_iv_value, v);
+            rb_ivar_set(res, id_iv_cas, c);
+            cb_proc_call(ctx->proc, 1, res);
+        }
+    } else {                /* synchronous */
+        if (NIL_P(exc)) {
+            if (ctx->extended) {
                 *rv = rb_ary_new3(2, v, c);
-            }
-            if (ctx->proc != Qnil) {
-                cb_proc_call(ctx->proc, 2, v, c);
-            }
-        } else {
-            if (!bucket->async) {
+            } else {
                 *rv = v;
-            }
-            if (ctx->proc != Qnil) {
-                cb_proc_call(ctx->proc, 1, v);
             }
         }
     }
@@ -1887,6 +1870,60 @@ cb_bucket_aset(int argc, VALUE *argv, VALUE self)
     return cb_bucket_set(argc, argv, self);
 }
 
+    static VALUE
+cb_result_success_p(VALUE self)
+{
+    return RTEST(rb_ivar_get(self, id_iv_error)) ? Qfalse : Qtrue;
+}
+
+    static VALUE
+cb_result_inspect(VALUE self)
+{
+    VALUE str, attr, errno;
+    char buf[100];
+
+    str = rb_str_buf_new2("#<");
+    rb_str_buf_cat2(str, rb_obj_classname(self));
+    snprintf(buf, 100, ":%p", (void *)self);
+    rb_str_buf_cat2(str, buf);
+
+    attr = rb_ivar_get(self, id_iv_error);
+    if (RTEST(attr)) {
+        errno = rb_ivar_get(attr, id_iv_error);
+    } else {
+        errno = INT2FIX(0);
+    }
+    rb_str_buf_cat2(str, " error=0x");
+    rb_str_append(str, rb_funcall(errno, id_to_s, 1, INT2FIX(16)));
+
+    attr = rb_ivar_get(self, id_iv_key);
+    if (RTEST(attr)) {
+        rb_str_buf_cat2(str, " key=");
+        rb_str_append(str, rb_inspect(attr));
+    }
+
+    attr = rb_ivar_get(self, id_iv_cas);
+    if (RTEST(attr)) {
+        rb_str_buf_cat2(str, " cas=");
+        rb_str_append(str, rb_inspect(attr));
+    }
+
+    attr = rb_ivar_get(self, id_iv_flags);
+    if (RTEST(attr)) {
+        rb_str_buf_cat2(str, " flags=0x");
+        rb_str_append(str, rb_funcall(attr, id_to_s, 1, INT2FIX(16)));
+    }
+
+    attr = rb_ivar_get(self, id_iv_node);
+    if (RTEST(attr)) {
+        rb_str_buf_cat2(str, " node=");
+        rb_str_append(str, rb_inspect(attr));
+    }
+    rb_str_buf_cat2(str, ">");
+
+    return str;
+}
+
 /* Ruby Extension initializer */
     void
 Init_couchbase_ext(void)
@@ -1970,15 +2007,47 @@ Init_couchbase_ext(void)
     /* Document-method: key
      * @return [String] the key which generated error */
     rb_define_attr(eBaseError, "key", 1, 0);
-    id_iv_error = rb_intern("@key");
+    id_iv_key = rb_intern("@key");
     /* Document-method: cas
      * @return [Fixnum] the version of the key (+nil+ unless accessible */
     rb_define_attr(eBaseError, "cas", 1, 0);
-    id_iv_error = rb_intern("@cas");
+    id_iv_cas = rb_intern("@cas");
     /* Document-method: operation
      * @return [Symbol] the operation (+nil+ unless accessible) */
     rb_define_attr(eBaseError, "operation", 1, 0);
-    id_iv_error = rb_intern("@operation");
+    id_iv_operation = rb_intern("@operation");
+
+    /* Document-class: Couchbase::Result
+     * Protocol error */
+    cResult = rb_define_class_under(mCouchbase, "Result", rb_cObject);
+    rb_define_method(cResult, "inspect", cb_result_inspect, 0);
+    rb_define_method(cResult, "success?", cb_result_success_p, 0);
+    /* Document-method: operation
+     * @return [Symbol] */
+    rb_define_attr(cResult, "operation", 1, 0);
+    /* Document-method: error
+     * @return [Error::Base] */
+    rb_define_attr(cResult, "error", 1, 0);
+    /* Document-method: key
+     * @return [String] */
+    rb_define_attr(cResult, "key", 1, 0);
+    id_iv_key = rb_intern("@key");
+    /* Document-method: value
+     * @return [String] */
+    rb_define_attr(cResult, "value", 1, 0);
+    id_iv_value = rb_intern("@value");
+    /* Document-method: cas
+     * @return [Fixnum] */
+    rb_define_attr(cResult, "cas", 1, 0);
+    id_iv_cas = rb_intern("@cas");
+    /* Document-method: flags
+     * @return [Fixnum] */
+    rb_define_attr(cResult, "flags", 1, 0);
+    id_iv_flags = rb_intern("@flags");
+    /* Document-method: node
+     * @return [String] */
+    rb_define_attr(cResult, "node", 1, 0);
+    id_iv_node = rb_intern("@node");
 
     /* Document-class: Couchbase::Bucket
      * This class in charge of all stuff connected to communication with
@@ -2089,6 +2158,7 @@ Init_couchbase_ext(void)
     id_dump = rb_intern("dump");
     id_flatten_bang = rb_intern("flatten!");
     id_has_key_p = rb_intern("has_key?");
+    id_to_s = rb_intern("to_s");
 
     sym_add = ID2SYM(rb_intern("add"));
     sym_append = ID2SYM(rb_intern("append"));

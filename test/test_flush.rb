@@ -18,7 +18,7 @@ class TestFlush < MiniTest::Unit::TestCase
   def test_flush_with_block
     connection = Couchbase.new(:port => @mock.port)
     flushed = {}
-    on_node_flush = lambda{|node, res| flushed[node] = res}
+    on_node_flush = lambda{|res| flushed[res.node] = res.success?}
     connection.run do |conn|
       conn.flush(&on_node_flush)
     end

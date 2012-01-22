@@ -10,6 +10,17 @@ class TestAsync < MiniTest::Unit::TestCase
     stop_mock(@mock)
   end
 
+  def test_result_object_provides_enough_info
+    obj = Couchbase::Result.new
+    assert obj.respond_to?(:success?)
+    assert obj.respond_to?(:error)
+    assert obj.respond_to?(:key)
+    assert obj.respond_to?(:value)
+    assert obj.respond_to?(:node)
+    assert obj.respond_to?(:cas)
+    assert obj.respond_to?(:flags)
+  end
+
   def test_it_requires_block_for_running_loop
     connection = Couchbase.new(:port => @mock.port)
     refute connection.async?
@@ -38,9 +49,9 @@ class TestAsync < MiniTest::Unit::TestCase
     connection.set(test_id(:hit), 0)
 
     connection.run do |conn|
-      conn.get(test_id) do |val, key|
-        conn.get(test_id(:hit)) do |counter|
-          conn.set(test_id(:hit), counter + 1)
+      conn.get(test_id) do
+        conn.get(test_id(:hit)) do |res|
+          conn.set(test_id(:hit), res.value + 1)
         end
       end
     end
@@ -55,8 +66,8 @@ class TestAsync < MiniTest::Unit::TestCase
 
     connection.run do |conn|
       conn.set(test_id, "foo") do
-        conn.get(test_id) do |v|
-          val = v
+        conn.get(test_id) do |res|
+          val = res.value
         end
       end
     end
@@ -71,10 +82,10 @@ class TestAsync < MiniTest::Unit::TestCase
     val = nil
 
     connection.run do |conn|
-      conn.touch(test_id, :ttl => 1) do |k, res|
-        success = res
-        conn.get(test_id) do |v|
-          val = v
+      conn.touch(test_id, :ttl => 1) do |res1|
+        success = res1.success?
+        conn.get(test_id) do |res2|
+          val = res2.value
         end
       end
     end
@@ -92,10 +103,10 @@ class TestAsync < MiniTest::Unit::TestCase
     val = :unknown
 
     connection.run do |conn|
-      conn.delete(test_id, :cas => cas) do |k, res|
-        success = res
-        conn.get(test_id) do |v|
-          val = v
+      conn.delete(test_id, :cas => cas) do |res1|
+        success = res1.success?
+        conn.get(test_id) do |res2|
+          val = res2.value
         end
       end
     end
@@ -109,11 +120,11 @@ class TestAsync < MiniTest::Unit::TestCase
     stats = {}
 
     connection.run do |conn|
-      conn.stats do |host, key, val|
-        id = test_id(host, key)
+      conn.stats do |res1|
+        id = test_id(res1.node, res1.key)
         stats[id] = false
-        conn.set(id, val) do |cas|
-          stats[id] = cas
+        conn.set(id, res1.value) do |res2|
+          stats[id] = res2.cas
         end
       end
     end
@@ -129,12 +140,12 @@ class TestAsync < MiniTest::Unit::TestCase
     res = {}
 
     connection.run do |conn|
-      conn.flush do |host, ret|
-        assert ret
-        id = test_id(host)
+      conn.flush do |res1|
+        assert res1.success?
+        id = test_id(res1.node)
         res[id] = false
-        conn.set(id, true) do |cas|
-          res[id] = cas
+        conn.set(id, true) do |res2|
+          res[id] = res2.cas
         end
       end
     end
@@ -153,8 +164,8 @@ class TestAsync < MiniTest::Unit::TestCase
 
     connection.run do |conn|
       conn.incr(test_id) do
-        conn.get(test_id) do |v|
-          val = v
+        conn.get(test_id) do |res|
+          val = res.value
         end
       end
     end

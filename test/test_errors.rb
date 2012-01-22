@@ -65,14 +65,12 @@ class TestErrors < MiniTest::Unit::TestCase
       msg4 = {"author" => "foo", "message" => "hi all", "time" => "2012-01-12 11:45:34"}
       key4 = test_id(genkey(msg4))
 
-      connection.on_error do |op, key, err|
-        assert_equal :add, op
-        assert_equal key4, key
+      connection.add(key4, msg4) do |ret|
+        assert_equal :add, ret.operation
+        assert_equal key4, ret.key
         msg4 = msg3.merge("time" => msg3["time"] + [msg4["time"]])
-        connection.set(key, msg4, :cas => err.cas)
+        connection.set(ret.key, msg4, :cas => ret.cas)
       end
-
-      connection.add(key4, msg4)
     end
 
     msg5 = {"author" => "foo", "message" => "hi all",

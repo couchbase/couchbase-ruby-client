@@ -92,17 +92,17 @@ class TestStore < MiniTest::Unit::TestCase
 
   def test_asynchronous_set
     connection = Couchbase.new(:port => @mock.port)
-    ret1 = ret2 = nil
+    ret = nil
     connection.run do |conn|
-      conn.set(test_id("1"), "foo1") {|c| ret1 = c}
+      conn.set(test_id("1"), "foo1") {|res| ret = res}
       conn.set(test_id("2"), "foo2") # ignore result
-      conn.set(test_id("3"), "foo3") {|c, k, o| ret2 = {:cas => c, :key => k, :op => o}}
-      assert_equal 3, conn.seqno
+      assert_equal 2, conn.seqno
     end
-    assert_equal test_id("3"), ret2[:key]
-    assert_equal :set, ret2[:op]
-    assert ret1.is_a?(Numeric)
-    assert ret2[:cas].is_a?(Numeric)
+    assert ret.is_a?(Couchbase::Result)
+    assert ret.success?
+    assert_equal test_id("1"), ret.key
+    assert_equal :set, ret.operation
+    assert ret.cas.is_a?(Numeric)
   end
 
   def test_it_raises_error_when_appending_or_prepending_to_missing_key
