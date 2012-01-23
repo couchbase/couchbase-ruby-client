@@ -37,8 +37,8 @@ class TestFormat < MiniTest::Unit::TestCase
     orig_doc = {'name' => 'Twoflower', 'role' => 'The tourist'}
     connection = Couchbase.new(:port => @mock.port)
     assert_equal :document, connection.default_format
-    connection.set(test_id, orig_doc)
-    doc, flags, cas = connection.get(test_id, :extended => true)
+    connection.set(uniq_id, orig_doc)
+    doc, flags, cas = connection.get(uniq_id, :extended => true)
     assert_equal 0x00, flags & 0x11
     assert doc.is_a?(Hash)
     assert_equal 'Twoflower', doc['name']
@@ -52,7 +52,7 @@ class TestFormat < MiniTest::Unit::TestCase
 
     connection = Couchbase.new(:port => @mock.port, :default_format => :document)
     assert_raises(Couchbase::Error::ValueFormat) do
-      connection.set(test_id, orig_doc)
+      connection.set(uniq_id, orig_doc)
     end
 
     class << orig_doc
@@ -60,7 +60,7 @@ class TestFormat < MiniTest::Unit::TestCase
         JSON.dump(:name => name, :role => role)
       end
     end
-    connection.set(test_id, orig_doc) # OK
+    connection.set(uniq_id, orig_doc) # OK
 
     class << orig_doc
       undef to_json
@@ -68,14 +68,14 @@ class TestFormat < MiniTest::Unit::TestCase
         JSON.dump(:name => name, :role => role)
       end
     end
-    connection.set(test_id, orig_doc) # OK
+    connection.set(uniq_id, orig_doc) # OK
   end
 
   def test_it_could_dump_arbitrary_class_using_marshal_format
     orig_doc = ArbitraryClass.new("Twoflower", "The tourist")
     connection = Couchbase.new(:port => @mock.port)
-    connection.set(test_id, orig_doc, :format => :marshal)
-    doc, flags, cas = connection.get(test_id, :extended => true)
+    connection.set(uniq_id, orig_doc, :format => :marshal)
+    doc, flags, cas = connection.get(uniq_id, :extended => true)
     assert_equal 0x01, flags & 0x11
     assert doc.is_a?(ArbitraryClass)
     assert_equal 'Twoflower', doc.name
@@ -84,14 +84,14 @@ class TestFormat < MiniTest::Unit::TestCase
 
   def test_it_accepts_only_string_in_plain_mode
     connection = Couchbase.new(:port => @mock.port, :default_format => :plain)
-    connection.set(test_id, "1")
+    connection.set(uniq_id, "1")
 
     assert_raises(Couchbase::Error::ValueFormat) do
-      connection.set(test_id, 1)
+      connection.set(uniq_id, 1)
     end
 
     assert_raises(Couchbase::Error::ValueFormat) do
-      connection.set(test_id, {:foo => "bar"})
+      connection.set(uniq_id, {:foo => "bar"})
     end
   end
 

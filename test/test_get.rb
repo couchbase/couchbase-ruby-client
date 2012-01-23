@@ -29,22 +29,22 @@ class TestGet < MiniTest::Unit::TestCase
 
   def test_trivial_get
     connection = Couchbase.new(:port => @mock.port)
-    connection.set(test_id, "bar")
-    val = connection.get(test_id)
+    connection.set(uniq_id, "bar")
+    val = connection.get(uniq_id)
     assert_equal "bar", val
   end
 
   def test_extended_get
     connection = Couchbase.new(:port => @mock.port)
 
-    orig_cas = connection.set(test_id, "bar")
-    val, flags, cas = connection.get(test_id, :extended => true)
+    orig_cas = connection.set(uniq_id, "bar")
+    val, flags, cas = connection.get(uniq_id, :extended => true)
     assert_equal "bar", val
     assert_equal 0x0, flags
     assert_equal orig_cas, cas
 
-    orig_cas = connection.set(test_id, "bar", :flags => 0x1000)
-    val, flags, cas = connection.get(test_id, :extended => true)
+    orig_cas = connection.set(uniq_id, "bar", :flags => 0x1000)
+    val, flags, cas = connection.get(uniq_id, :extended => true)
     assert_equal "bar", val
     assert_equal 0x1000, flags
     assert_equal orig_cas, cas
@@ -53,10 +53,10 @@ class TestGet < MiniTest::Unit::TestCase
   def test_multi_get
     connection = Couchbase.new(:port => @mock.port)
 
-    connection.set(test_id(1), "foo1")
-    connection.set(test_id(2), "foo2")
+    connection.set(uniq_id(1), "foo1")
+    connection.set(uniq_id(2), "foo2")
 
-    val1, val2 = connection.get(test_id(1), test_id(2))
+    val1, val2 = connection.get(uniq_id(1), uniq_id(2))
     assert_equal "foo1", val1
     assert_equal "foo2", val2
   end
@@ -64,76 +64,76 @@ class TestGet < MiniTest::Unit::TestCase
   def test_multi_get_extended
     connection = Couchbase.new(:port => @mock.port)
 
-    cas1 = connection.set(test_id(1), "foo1")
-    cas2 = connection.set(test_id(2), "foo2")
+    cas1 = connection.set(uniq_id(1), "foo1")
+    cas2 = connection.set(uniq_id(2), "foo2")
 
-    results = connection.get(test_id(1), test_id(2), :extended => true)
-    assert_equal ["foo1", 0x0, cas1], results[test_id(1)]
-    assert_equal ["foo2", 0x0, cas2], results[test_id(2)]
+    results = connection.get(uniq_id(1), uniq_id(2), :extended => true)
+    assert_equal ["foo1", 0x0, cas1], results[uniq_id(1)]
+    assert_equal ["foo2", 0x0, cas2], results[uniq_id(2)]
   end
 
   def test_missing_in_quiet_mode
     connection = Couchbase.new(:port => @mock.port)
-    cas1 = connection.set(test_id(1), "foo1")
-    cas2 = connection.set(test_id(2), "foo2")
+    cas1 = connection.set(uniq_id(1), "foo1")
+    cas2 = connection.set(uniq_id(2), "foo2")
 
-    val = connection.get(test_id(:missing))
+    val = connection.get(uniq_id(:missing))
     refute(val)
-    val = connection.get(test_id(:missing), :extended => true)
+    val = connection.get(uniq_id(:missing), :extended => true)
     refute(val)
 
-    val1, missing, val2  = connection.get(test_id(1), test_id(:missing), test_id(2))
+    val1, missing, val2  = connection.get(uniq_id(1), uniq_id(:missing), uniq_id(2))
     assert_equal "foo1", val1
     refute missing
     assert_equal "foo2", val2
 
-    results = connection.get(test_id(1), test_id(:missing), test_id(2), :extended => true)
-    assert_equal ["foo1", 0x0, cas1], results[test_id(1)]
-    refute results[test_id(:missing)]
-    assert_equal ["foo2", 0x0, cas2], results[test_id(2)]
+    results = connection.get(uniq_id(1), uniq_id(:missing), uniq_id(2), :extended => true)
+    assert_equal ["foo1", 0x0, cas1], results[uniq_id(1)]
+    refute results[uniq_id(:missing)]
+    assert_equal ["foo2", 0x0, cas2], results[uniq_id(2)]
   end
 
   def test_it_allows_temporary_quiet_flag
     connection = Couchbase.new(:port => @mock.port, :quiet => false)
     assert_raises(Couchbase::Error::NotFound) do
-      connection.get(test_id(:missing))
+      connection.get(uniq_id(:missing))
     end
-    refute connection.get(test_id(:missing), :quiet => true)
+    refute connection.get(uniq_id(:missing), :quiet => true)
   end
 
   def test_missing_in_verbose_mode
     connection = Couchbase.new(:port => @mock.port, :quiet => false)
-    connection.set(test_id(1), "foo1")
-    connection.set(test_id(2), "foo2")
+    connection.set(uniq_id(1), "foo1")
+    connection.set(uniq_id(2), "foo2")
 
     assert_raises(Couchbase::Error::NotFound) do
-      connection.get(test_id(:missing))
+      connection.get(uniq_id(:missing))
     end
 
     assert_raises(Couchbase::Error::NotFound) do
-      connection.get(test_id(:missing), :extended => true)
+      connection.get(uniq_id(:missing), :extended => true)
     end
 
     assert_raises(Couchbase::Error::NotFound) do
-      connection.get(test_id(1), test_id(:missing), test_id(2))
+      connection.get(uniq_id(1), uniq_id(:missing), uniq_id(2))
     end
 
     assert_raises(Couchbase::Error::NotFound) do
-      connection.get(test_id(1), test_id(:missing), test_id(2), :extended => true)
+      connection.get(uniq_id(1), uniq_id(:missing), uniq_id(2), :extended => true)
     end
   end
 
   def test_asynchronous_get
     connection = Couchbase.new(:port => @mock.port)
-    cas = connection.set(test_id, "foo", :flags => 0x6660)
+    cas = connection.set(uniq_id, "foo", :flags => 0x6660)
     res = []
 
     suite = lambda do |conn|
       res.clear
-      conn.get(test_id) # ignore result
-      conn.get(test_id) {|ret| res << ret}
+      conn.get(uniq_id) # ignore result
+      conn.get(uniq_id) {|ret| res << ret}
       handler = lambda {|ret| res << ret}
-      conn.get(test_id, &handler)
+      conn.get(uniq_id, &handler)
       assert_equal 3, conn.seqno
     end
 
@@ -141,7 +141,7 @@ class TestGet < MiniTest::Unit::TestCase
       res.each do |r|
         assert r.is_a?(Couchbase::Result)
         assert r.success?
-        assert_equal test_id, r.key
+        assert_equal uniq_id, r.key
         assert_equal "foo", r.value
         assert_equal 0x6660, r.flags
         assert_equal cas, r.cas
@@ -157,24 +157,24 @@ class TestGet < MiniTest::Unit::TestCase
 
   def test_asynchronous_multi_get
     connection = Couchbase.new(:port => @mock.port)
-    connection.set(test_id(1), "foo")
-    connection.set(test_id(2), "bar")
+    connection.set(uniq_id(1), "foo")
+    connection.set(uniq_id(2), "bar")
 
     res = {}
     connection.run do |conn|
-      conn.get(test_id(1), test_id(2)) {|ret| res[ret.key] = ret.value}
+      conn.get(uniq_id(1), uniq_id(2)) {|ret| res[ret.key] = ret.value}
       assert_equal 2, conn.seqno
     end
 
-    assert res[test_id(1)]
-    assert_equal "foo", res[test_id(1)]
-    assert res[test_id(2)]
-    assert_equal "bar", res[test_id(2)]
+    assert res[uniq_id(1)]
+    assert_equal "foo", res[uniq_id(1)]
+    assert res[uniq_id(2)]
+    assert_equal "bar", res[uniq_id(2)]
   end
 
   def test_asynchronous_get_missing
     connection = Couchbase.new(:port => @mock.port)
-    connection.set(test_id, "foo")
+    connection.set(uniq_id, "foo")
     res = {}
     missing = []
 
@@ -194,39 +194,39 @@ class TestGet < MiniTest::Unit::TestCase
     suite = lambda do |conn|
       res.clear
       missing.clear
-      conn.get(test_id(:missing1), &get_handler)
-      conn.get(test_id, test_id(:missing2), &get_handler)
+      conn.get(uniq_id(:missing1), &get_handler)
+      conn.get(uniq_id, uniq_id(:missing2), &get_handler)
       assert 3, conn.seqno
     end
 
     connection.run(&suite)
-    assert_equal "foo", res[test_id]
-    assert res.has_key?(test_id(:missing1)) # handler was called with nil
-    refute res[test_id(:missing1)]
-    assert res.has_key?(test_id(:missing2))
-    refute res[test_id(:missing2)]
+    assert_equal "foo", res[uniq_id]
+    assert res.has_key?(uniq_id(:missing1)) # handler was called with nil
+    refute res[uniq_id(:missing1)]
+    assert res.has_key?(uniq_id(:missing2))
+    refute res[uniq_id(:missing2)]
     assert_empty missing
 
     connection.quiet = false
 
     connection.run(&suite)
-    refute res.has_key?(test_id(:missing1))
-    refute res.has_key?(test_id(:missing2))
-    assert_equal [test_id(:missing1), test_id(:missing2)], missing.sort
-    assert_equal "foo", res[test_id]
+    refute res.has_key?(uniq_id(:missing1))
+    refute res.has_key?(uniq_id(:missing2))
+    assert_equal [uniq_id(:missing1), uniq_id(:missing2)], missing.sort
+    assert_equal "foo", res[uniq_id]
   end
 
   def test_get_using_brackets
     connection = Couchbase.new(:port => @mock.port)
 
-    orig_cas = connection.set(test_id, "foo", :flags => 0x1100)
+    orig_cas = connection.set(uniq_id, "foo", :flags => 0x1100)
 
-    val = connection[test_id]
+    val = connection[uniq_id]
     assert_equal "foo", val
 
     if RUBY_VERSION =~ /^1\.9/
       eval <<-EOC
-      val, flags, cas = connection[test_id, :extended => true]
+      val, flags, cas = connection[uniq_id, :extended => true]
       assert_equal "foo", val
       assert_equal 0x1100, flags
       assert_equal orig_cas, cas

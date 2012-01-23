@@ -111,7 +111,7 @@ class MiniTest::Unit::TestCase
     stop_mock(mock) if mock
   end
 
-  def test_id(*suffixes)
+  def uniq_id(*suffixes)
     [caller.first[/.*[` ](.*)'/, 1], suffixes].join("_")
   end
 end

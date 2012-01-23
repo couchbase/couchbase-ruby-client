@@ -54,7 +54,7 @@ class TestAsync < MiniTest::Unit::TestCase
 
     assert_raises(RuntimeError) do
       connection.run do |conn|
-        conn.set(test_id, "foo") { raise }
+        conn.set(uniq_id, "foo") { raise }
       end
     end
     refute connection.async?
@@ -62,18 +62,18 @@ class TestAsync < MiniTest::Unit::TestCase
 
   def test_nested_async_get_set
     connection = Couchbase.new(:port => @mock.port)
-    connection.set(test_id, {"bar" => 1})
-    connection.set(test_id(:hit), 0)
+    connection.set(uniq_id, {"bar" => 1})
+    connection.set(uniq_id(:hit), 0)
 
     connection.run do |conn|
-      conn.get(test_id) do
-        conn.get(test_id(:hit)) do |res|
-          conn.set(test_id(:hit), res.value + 1)
+      conn.get(uniq_id) do
+        conn.get(uniq_id(:hit)) do |res|
+          conn.set(uniq_id(:hit), res.value + 1)
         end
       end
     end
 
-    val = connection.get(test_id(:hit))
+    val = connection.get(uniq_id(:hit))
     assert_equal 1, val
   end
 
@@ -82,8 +82,8 @@ class TestAsync < MiniTest::Unit::TestCase
     val = nil
 
     connection.run do |conn|
-      conn.set(test_id, "foo") do
-        conn.get(test_id) do |res|
+      conn.set(uniq_id, "foo") do
+        conn.get(uniq_id) do |res|
           val = res.value
         end
       end
@@ -94,14 +94,14 @@ class TestAsync < MiniTest::Unit::TestCase
 
   def test_nested_async_touch_get
     connection = Couchbase.new(:port => @mock.port)
-    connection.set(test_id, "foo")
+    connection.set(uniq_id, "foo")
     success = false
     val = nil
 
     connection.run do |conn|
-      conn.touch(test_id, :ttl => 1) do |res1|
+      conn.touch(uniq_id, :ttl => 1) do |res1|
         success = res1.success?
-        conn.get(test_id) do |res2|
+        conn.get(uniq_id) do |res2|
           val = res2.value
         end
       end
@@ -110,19 +110,19 @@ class TestAsync < MiniTest::Unit::TestCase
     assert success
     assert_equal "foo", val
     sleep(1)
-    refute connection.get(test_id)
+    refute connection.get(uniq_id)
   end
 
   def test_nested_async_delete_get
     connection = Couchbase.new(:port => @mock.port)
-    cas = connection.set(test_id, "foo")
+    cas = connection.set(uniq_id, "foo")
     success = false
     val = :unknown
 
     connection.run do |conn|
-      conn.delete(test_id, :cas => cas) do |res1|
+      conn.delete(uniq_id, :cas => cas) do |res1|
         success = res1.success?
-        conn.get(test_id) do |res2|
+        conn.get(uniq_id) do |res2|
           val = res2.value
         end
       end
@@ -138,7 +138,7 @@ class TestAsync < MiniTest::Unit::TestCase
 
     connection.run do |conn|
       conn.stats do |res1|
-        id = test_id(res1.node, res1.key)
+        id = uniq_id(res1.node, res1.key)
         stats[id] = false
         conn.set(id, res1.value) do |res2|
           stats[id] = res2.cas
@@ -153,13 +153,13 @@ class TestAsync < MiniTest::Unit::TestCase
 
   def test_nested_async_flush_set
     connection = Couchbase.new(:port => @mock.port)
-    cas = connection.set(test_id, "foo")
+    cas = connection.set(uniq_id, "foo")
     res = {}
 
     connection.run do |conn|
       conn.flush do |res1|
         assert res1.success?
-        id = test_id(res1.node)
+        id = uniq_id(res1.node)
         res[id] = false
         conn.set(id, true) do |res2|
           res[id] = res2.cas
@@ -167,7 +167,7 @@ class TestAsync < MiniTest::Unit::TestCase
       end
     end
 
-    refute connection.get(test_id)
+    refute connection.get(uniq_id)
     res.keys.each do |key|
       assert res[key].is_a?(Numeric)
       assert connection.get(key)
@@ -176,12 +176,12 @@ class TestAsync < MiniTest::Unit::TestCase
 
   def test_nested_async_incr_get
     connection = Couchbase.new(:port => @mock.port)
-    cas = connection.set(test_id, 1)
+    cas = connection.set(uniq_id, 1)
     val = nil
 
     connection.run do |conn|
-      conn.incr(test_id) do
-        conn.get(test_id) do |res|
+      conn.incr(uniq_id) do
+        conn.get(uniq_id) do |res|
           val = res.value
         end
       end
@@ -194,16 +194,16 @@ class TestAsync < MiniTest::Unit::TestCase
     connection = Couchbase.new(:port => @mock.port)
     refute connection.async?
 
-    assert_raises(ArgumentError) { connection.add(test_id, "foo") {} }
-    assert_raises(ArgumentError) { connection.set(test_id, "foo") {} }
-    assert_raises(ArgumentError) { connection.replace(test_id, "foo") {} }
-    assert_raises(ArgumentError) { connection.get(test_id) {} }
-    assert_raises(ArgumentError) { connection.touch(test_id) {} }
-    assert_raises(ArgumentError) { connection.incr(test_id) {} }
-    assert_raises(ArgumentError) { connection.decr(test_id) {} }
-    assert_raises(ArgumentError) { connection.delete(test_id) {} }
-    assert_raises(ArgumentError) { connection.append(test_id, "bar") {} }
-    assert_raises(ArgumentError) { connection.prepend(test_id, "bar") {} }
+    assert_raises(ArgumentError) { connection.add(uniq_id, "foo") {} }
+    assert_raises(ArgumentError) { connection.set(uniq_id, "foo") {} }
+    assert_raises(ArgumentError) { connection.replace(uniq_id, "foo") {} }
+    assert_raises(ArgumentError) { connection.get(uniq_id) {} }
+    assert_raises(ArgumentError) { connection.touch(uniq_id) {} }
+    assert_raises(ArgumentError) { connection.incr(uniq_id) {} }
+    assert_raises(ArgumentError) { connection.decr(uniq_id) {} }
+    assert_raises(ArgumentError) { connection.delete(uniq_id) {} }
+    assert_raises(ArgumentError) { connection.append(uniq_id, "bar") {} }
+    assert_raises(ArgumentError) { connection.prepend(uniq_id, "bar") {} }
     assert_raises(ArgumentError) { connection.flush {} }
     assert_raises(ArgumentError) { connection.stats {} }
   end

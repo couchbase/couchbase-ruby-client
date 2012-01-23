@@ -29,25 +29,25 @@ class TestStore < MiniTest::Unit::TestCase
 
   def test_trivial_set
     connection = Couchbase.new(:port => @mock.port)
-    cas = connection.set(test_id, "bar")
+    cas = connection.set(uniq_id, "bar")
     assert(cas > 0)
   end
 
   def test_set_with_cas
     connection = Couchbase.new(:port => @mock.port)
 
-    cas1 = connection.set(test_id, "bar1")
+    cas1 = connection.set(uniq_id, "bar1")
     assert cas1 > 0
 
     assert_raises(Couchbase::Error::KeyExists) do
-      connection.set(test_id, "bar2", :cas => cas1+1)
+      connection.set(uniq_id, "bar2", :cas => cas1+1)
     end
 
-    cas2 = connection.set(test_id, "bar2", :cas => cas1)
+    cas2 = connection.set(uniq_id, "bar2", :cas => cas1)
     assert cas2 > 0
     refute_equal cas2, cas1
 
-    cas3 = connection.set(test_id, "bar3")
+    cas3 = connection.set(uniq_id, "bar3")
     assert cas3 > 0
     refute_equal cas3, cas2
     refute_equal cas3, cas1
@@ -56,15 +56,15 @@ class TestStore < MiniTest::Unit::TestCase
   def test_add
     connection = Couchbase.new(:port => @mock.port)
 
-    cas1 = connection.add(test_id, "bar")
+    cas1 = connection.add(uniq_id, "bar")
     assert cas1 > 0
 
     assert_raises(Couchbase::Error::KeyExists) do
-      connection.add(test_id, "bar")
+      connection.add(uniq_id, "bar")
     end
 
     assert_raises(Couchbase::Error::KeyExists) do
-      connection.add(test_id, "bar", :cas => cas1)
+      connection.add(uniq_id, "bar", :cas => cas1)
     end
   end
 
@@ -72,22 +72,22 @@ class TestStore < MiniTest::Unit::TestCase
     connection = Couchbase.new(:port => @mock.port)
 
     assert_raises(Couchbase::Error::NotFound) do
-      connection.replace(test_id, "bar")
+      connection.replace(uniq_id, "bar")
     end
 
-    cas1 = connection.set(test_id, "bar")
+    cas1 = connection.set(uniq_id, "bar")
     assert cas1 > 0
 
-    connection.replace(test_id, "bar")
+    connection.replace(uniq_id, "bar")
   end
 
   def test_acceptable_keys
     connection = Couchbase.new(:port => @mock.port)
 
-    cas = connection.set(test_id.to_sym, "bar")
+    cas = connection.set(uniq_id.to_sym, "bar")
     assert cas > 0
 
-    cas = connection.set(test_id.to_s, "bar")
+    cas = connection.set(uniq_id.to_s, "bar")
     assert cas > 0
 
     assert_raises(TypeError) do
@@ -111,13 +111,13 @@ class TestStore < MiniTest::Unit::TestCase
     connection = Couchbase.new(:port => @mock.port)
     ret = nil
     connection.run do |conn|
-      conn.set(test_id("1"), "foo1") {|res| ret = res}
-      conn.set(test_id("2"), "foo2") # ignore result
+      conn.set(uniq_id("1"), "foo1") {|res| ret = res}
+      conn.set(uniq_id("2"), "foo2") # ignore result
       assert_equal 2, conn.seqno
     end
     assert ret.is_a?(Couchbase::Result)
     assert ret.success?
-    assert_equal test_id("1"), ret.key
+    assert_equal uniq_id("1"), ret.key
     assert_equal :set, ret.operation
     assert ret.cas.is_a?(Numeric)
   end
@@ -126,37 +126,37 @@ class TestStore < MiniTest::Unit::TestCase
     connection = Couchbase.new(:port => @mock.port)
 
     assert_raises(Couchbase::Error::NotStored) do
-      connection.append(test_id(:missing), "foo")
+      connection.append(uniq_id(:missing), "foo")
     end
 
     assert_raises(Couchbase::Error::NotStored) do
-      connection.prepend(test_id(:missing), "foo")
+      connection.prepend(uniq_id(:missing), "foo")
     end
   end
 
   def test_append
     connection = Couchbase.new(:port => @mock.port, :default_format => :plain)
 
-    cas1 = connection.set(test_id, "foo")
+    cas1 = connection.set(uniq_id, "foo")
     assert cas1 > 0
-    cas2 = connection.append(test_id, "bar")
+    cas2 = connection.append(uniq_id, "bar")
     assert cas2 > 0
     refute_equal cas2, cas1
 
-    val = connection.get(test_id)
+    val = connection.get(uniq_id)
     assert_equal "foobar", val
   end
 
   def test_prepend
     connection = Couchbase.new(:port => @mock.port, :default_format => :plain)
 
-    cas1 = connection.set(test_id, "foo")
+    cas1 = connection.set(uniq_id, "foo")
     assert cas1 > 0
-    cas2 = connection.prepend(test_id, "bar")
+    cas2 = connection.prepend(uniq_id, "bar")
     assert cas2 > 0
     refute_equal cas2, cas1
 
-    val = connection.get(test_id)
+    val = connection.get(uniq_id)
     assert_equal "barfoo", val
   end
 
@@ -165,19 +165,19 @@ class TestStore < MiniTest::Unit::TestCase
   def test_set_using_brackets
     connection = Couchbase.new(:port => @mock.port)
 
-    connection[test_id(1)] = "foo"
-    val = connection.get(test_id(1))
+    connection[uniq_id(1)] = "foo"
+    val = connection.get(uniq_id(1))
     assert_equal "foo", val
 
     if RUBY_VERSION =~ /^1\.9/
       eval <<-EOC
-      connection[test_id(2), :flags => 0x1100] = "bar"
-      val, flags = connection.get(test_id(2), :extended => true)
+      connection[uniq_id(2), :flags => 0x1100] = "bar"
+      val, flags = connection.get(uniq_id(2), :extended => true)
       assert_equal "bar", val
       assert_equal 0x1100, flags
 
-      connection[test_id(3), :format => :marshal] = ArbitraryData.new("thing")
-      val = connection.get(test_id(3))
+      connection[uniq_id(3), :format => :marshal] = ArbitraryData.new("thing")
+      val = connection.get(uniq_id(3))
       assert val.is_a?(ArbitraryData)
       assert_equal "thing", val.baz
       EOC

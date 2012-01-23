@@ -36,9 +36,9 @@ class TestErrors < MiniTest::Unit::TestCase
   def test_graceful_add_with_collision
     connection = Couchbase.new(:port => @mock.port)
     msg1 = {"author" => "foo", "message" => "hi all", "time" => "2012-01-12 11:29:09"}
-    key1 = test_id(genkey(msg1))
+    key1 = uniq_id(genkey(msg1))
     msg2 = {"author" => "foo", "message" => "hi all", "time" => "2012-01-12 11:29:30"}
-    key2 = test_id(genkey(msg2))
+    key2 = uniq_id(genkey(msg2))
 
     connection.add(key1, msg1)
     begin
@@ -58,12 +58,12 @@ class TestErrors < MiniTest::Unit::TestCase
 
     msg3 = {"author" => "foo", "message" => "hi all",
                 "time" => ["2012-01-12 11:29:09", "2012-01-12 11:29:30"]}
-    key3 = test_id(genkey(msg3))
+    key3 = uniq_id(genkey(msg3))
     assert_equal msg3, connection.get(key3)
 
     connection.run do |conn|
       msg4 = {"author" => "foo", "message" => "hi all", "time" => "2012-01-12 11:45:34"}
-      key4 = test_id(genkey(msg4))
+      key4 = uniq_id(genkey(msg4))
 
       connection.add(key4, msg4) do |ret|
         assert_equal :add, ret.operation
@@ -75,7 +75,7 @@ class TestErrors < MiniTest::Unit::TestCase
 
     msg5 = {"author" => "foo", "message" => "hi all",
                 "time" => ["2012-01-12 11:29:09", "2012-01-12 11:29:30", "2012-01-12 11:45:34"]}
-    key5 = test_id(genkey(msg5))
+    key5 = uniq_id(genkey(msg5))
     assert_equal msg5, connection.get(key5)
   end
 

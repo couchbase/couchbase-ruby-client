@@ -30,12 +30,12 @@ class TestCas < MiniTest::Unit::TestCase
   def test_compare_and_swap
     connection = Couchbase.new(:port => @mock.port,
                                :default_format => :document)
-    connection.set(test_id, {"bar" => 1})
-    connection.cas(test_id) do |val|
+    connection.set(uniq_id, {"bar" => 1})
+    connection.cas(uniq_id) do |val|
       val["baz"] = 2
       val
     end
-    val = connection.get(test_id)
+    val = connection.get(uniq_id)
     expected = {"bar" => 1, "baz" => 2}
     assert_equal expected, val
   end
@@ -43,15 +43,15 @@ class TestCas < MiniTest::Unit::TestCase
   def test_compare_and_swap_async
     connection = Couchbase.new(:port => @mock.port,
                                :default_format => :document)
-    connection.set(test_id, {"bar" => 1})
+    connection.set(uniq_id, {"bar" => 1})
     connection.run do |conn|
-      conn.cas(test_id) do |ret|
+      conn.cas(uniq_id) do |ret|
         new_val = ret.value
         new_val["baz"] = 2
         new_val
       end
     end
-    val = connection.get(test_id)
+    val = connection.get(uniq_id)
     expected = {"bar" => 1, "baz" => 2}
     assert_equal expected, val
   end
