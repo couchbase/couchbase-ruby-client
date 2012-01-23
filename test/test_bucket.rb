@@ -109,13 +109,13 @@ class TestBucket < MiniTest::Unit::TestCase
 
   def test_it_raises_error_with_wrong_credentials
     with_mock(:buckets_spec => 'protected:secret') do |mock|
-      assert_raises Couchbase::Error::Libcouchbase do
+      assert_raises Couchbase::Error::Protocol do
         Couchbase.new(:port => mock.port,
                       :bucket => 'protected',
                       :username => 'wrong',
                       :password => 'secret')
       end
-      assert_raises Couchbase::Error::Libcouchbase do
+      assert_raises Couchbase::Error::Protocol do
         Couchbase.new(:port => mock.port,
                       :bucket => 'protected',
                       :username => 'protected',

@@ -286,7 +286,7 @@ cb_check_error(libcouchbase_error_t rc, const char *msg, VALUE key)
         snprintf(buf, 300, "key=\"%s\", ", RSTRING_PTR(key));
         rb_str_buf_cat2(str, buf);
     }
-    snprintf(buf, 300, "error=0x%x)", rc);
+    snprintf(buf, 300, "error=0x%02x)", rc);
     rb_str_buf_cat2(str, buf);
     exc = rb_exc_new3(klass, str);
     rb_ivar_set(exc, id_iv_error, INT2FIX(rc));
