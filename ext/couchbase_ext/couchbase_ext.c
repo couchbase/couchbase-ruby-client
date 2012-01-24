@@ -1364,6 +1364,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     size_t nkey;
     uint64_t cas = 0;
     libcouchbase_error_t err;
+    long seqno;
 
     rb_scan_args(argc, argv, "11&", &k, &opts, &proc);
     if (!bucket->async && proc != Qnil) {
@@ -1396,6 +1397,8 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     ctx->rv = &rv;
     ctx->bucket = bucket;
     ctx->exception = Qnil;
+    seqno = bucket->seqno;
+    bucket->seqno++;
     err = libcouchbase_remove(bucket->handle, (const void *)ctx,
             (const void *)key, nkey, cas);
     exc = cb_check_error(err, "failed to schedule delete request", Qnil);
@@ -1403,11 +1406,13 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
-    bucket->seqno++;
     if (bucket->async) {
         return Qnil;
     } else {
-        bucket->io->run_event_loop(bucket->io);
+        if (bucket->seqno - seqno > 0) {
+            /* we have some operations pending */
+            bucket->io->run_event_loop(bucket->io);
+        }
         exc = ctx->exception;
         free(ctx);
         if (exc != Qnil) {
@@ -1429,6 +1434,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     time_t exp = 0;
     uint64_t cas = 0;
     libcouchbase_error_t err;
+    long seqno;
 
     rb_scan_args(argc, argv, "21&", &k, &v, &opts, &proc);
     if (!bucket->async && proc != Qnil) {
@@ -1474,6 +1480,8 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     ctx->proc = proc;
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
     ctx->exception = Qnil;
+    seqno = bucket->seqno;
+    bucket->seqno++;
     err = libcouchbase_store(bucket->handle, (const void *)ctx, cmd,
             (const void *)key, nkey, bytes, nbytes, flags, exp, cas);
     exc = cb_check_error(err, "failed to schedule set request", Qnil);
@@ -1481,11 +1489,13 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
-    bucket->seqno++;
     if (bucket->async) {
         return Qnil;
     } else {
-        bucket->io->run_event_loop(bucket->io);
+        if (bucket->seqno - seqno > 0) {
+            /* we have some operations pending */
+            bucket->io->run_event_loop(bucket->io);
+        }
         exc = ctx->exception;
         free(ctx);
         if (exc != Qnil) {
@@ -1510,6 +1520,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     uint64_t delta = 0, initial = 0;
     int create = 0;
     libcouchbase_error_t err;
+    long seqno;
 
     rb_scan_args(argc, argv, "12&", &k, &d, &opts, &proc);
     if (!bucket->async && proc != Qnil) {
@@ -1553,6 +1564,8 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
     ctx->exception = Qnil;
     ctx->arithm = sign;
+    seqno = bucket->seqno;
+    bucket->seqno++;
     err = libcouchbase_arithmetic(bucket->handle, (const void *)ctx,
             (const void *)key, nkey, delta, exp, create, initial);
     exc = cb_check_error(err, "failed to schedule arithmetic request", k);
@@ -1560,11 +1573,13 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
-    bucket->seqno++;
     if (bucket->async) {
         return Qnil;
     } else {
-        bucket->io->run_event_loop(bucket->io);
+        if (bucket->seqno - seqno > 0) {
+            /* we have some operations pending */
+            bucket->io->run_event_loop(bucket->io);
+        }
         exc = ctx->exception;
         free(ctx);
         if (exc != Qnil) {
@@ -1596,6 +1611,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     libcouchbase_error_t err;
     struct key_traits *traits;
     int extended;
+    long seqno;
 
     rb_scan_args(argc, argv, "0*&", &args, &proc);
     if (!bucket->async && proc != Qnil) {
@@ -1617,9 +1633,8 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     rv = rb_hash_new();
     ctx->rv = &rv;
     ctx->exception = Qnil;
-    if (!bucket->async) {
-        bucket->seqno = 0;
-    }
+    seqno = bucket->seqno;
+    bucket->seqno += nn;
     err = libcouchbase_mget(bucket->handle, (const void *)ctx,
             traits->nkeys, (const void * const *)traits->keys,
             traits->lens, (traits->explicit_ttl) ? traits->ttls : NULL);
@@ -1632,11 +1647,13 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
-    bucket->seqno += nn;
     if (bucket->async) {
         return Qnil;
     } else {
-        bucket->io->run_event_loop(bucket->io);
+        if (bucket->seqno - seqno > 0) {
+            /* we have some operations pending */
+            bucket->io->run_event_loop(bucket->io);
+        }
         exc = ctx->exception;
         extended = ctx->extended;
         free(ctx);
@@ -1675,6 +1692,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     size_t nn;
     libcouchbase_error_t err;
     struct key_traits *traits;
+    long seqno;
 
     rb_scan_args(argc, argv, "0*&", &args, &proc);
     if (!bucket->async && proc != Qnil) {
@@ -1693,9 +1711,8 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     rv = rb_ary_new();
     ctx->rv = &rv;
     ctx->exception = Qnil;
-    if (!bucket->async) {
-        bucket->seqno = 0;
-    }
+    seqno = bucket->seqno;
+    bucket->seqno += nn;
     err = libcouchbase_mtouch(bucket->handle, (const void *)ctx,
             traits->nkeys, (const void * const *)traits->keys,
             traits->lens, traits->ttls);
@@ -1705,11 +1722,13 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
-    bucket->seqno += nn;
     if (bucket->async) {
         return Qnil;
     } else {
-        bucket->io->run_event_loop(bucket->io);
+        if (bucket->seqno - seqno > 0) {
+            /* we have some operations pending */
+            bucket->io->run_event_loop(bucket->io);
+        }
         exc = ctx->exception;
         free(ctx);
         if (exc != Qnil) {
@@ -1733,6 +1752,7 @@ cb_bucket_flush(VALUE self)
     context_t *ctx;
     VALUE rv, exc;
     libcouchbase_error_t err;
+    long seqno;
 
     if (!bucket->async && rb_block_given_p()) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
@@ -1751,17 +1771,21 @@ cb_bucket_flush(VALUE self)
         ctx->proc = Qnil;
     }
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    seqno = bucket->seqno;
+    bucket->seqno++;
     err = libcouchbase_flush(bucket->handle, (const void *)ctx);
     exc = cb_check_error(err, "failed to schedule flush request", Qnil);
     if (exc != Qnil) {
         free(ctx);
         rb_exc_raise(exc);
     }
-    bucket->seqno++;
     if (bucket->async) {
         return Qnil;
     } else {
-        bucket->io->run_event_loop(bucket->io);
+        if (bucket->seqno - seqno > 0) {
+            /* we have some operations pending */
+            bucket->io->run_event_loop(bucket->io);
+        }
         exc = ctx->exception;
         free(ctx);
         if (exc != Qnil) {
@@ -1780,6 +1804,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     char *key;
     size_t nkey;
     libcouchbase_error_t err;
+    long seqno;
 
     rb_scan_args(argc, argv, "01&", &arg, &proc);
     if (!bucket->async && proc != Qnil) {
@@ -1803,6 +1828,8 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
         key = NULL;
         nkey = 0;
     }
+    seqno = bucket->seqno;
+    bucket->seqno++;
     err = libcouchbase_server_stats(bucket->handle, (const void *)ctx,
             key, nkey);
     exc = cb_check_error(err, "failed to schedule stat request", Qnil);
@@ -1810,11 +1837,13 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
-    bucket->seqno++;
     if (bucket->async) {
         return Qnil;
     } else {
-        bucket->io->run_event_loop(bucket->io);
+        if (bucket->seqno - seqno > 0) {
+            /* we have some operations pending */
+            bucket->io->run_event_loop(bucket->io);
+        }
         exc = ctx->exception;
         free(ctx);
         if (exc != Qnil) {
