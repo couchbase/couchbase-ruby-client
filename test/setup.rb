@@ -19,11 +19,51 @@ require 'minitest/autorun'
 require 'couchbase'
 
 require 'socket'
+require 'open-uri'
+
+class CouchbaseServer
+  attr_accessor :host, :port, :num_nodes, :buckets_spec
+
+  def real?
+    true
+  end
+
+  def initialize(params = {})
+    @host, @port = ENV['COUCHBASE_SERVER'].split(':')
+    @port = @port.to_i
+
+    if @host.nil? || @host.empty? || @port == 0
+      raise ArgumentError, "Check COUCHBASE_SERVER variable. It should be hostname:port"
+    end
+
+    @config = Yajl::Parser.parse(open("http://#{@host}:#{@port}/pools/default"))
+    @num_nodes = @config["nodes"].size
+    @buckets_spec = params[:buckets_spec] || "default:"  # "default:,protected:secret,cache::memcache"
+  end
+
+  def start
+    # flush all buckets
+    @buckets_spec.split(',') do |bucket|
+      name, password, _ = bucket.split(':')
+      connection = Couchbase.new(:hostname => @host,
+                                 :port => @port,
+                                 :username => name,
+                                 :bucket => name,
+                                 :password => password)
+      connection.flush
+    end
+  end
+  def stop; end
+end
 
 class CouchbaseMock
   Monitor = Struct.new(:pid, :client, :socket, :port)
 
   attr_accessor :host, :port, :buckets_spec, :num_nodes, :num_vbuckets
+
+  def real?
+    false
+  end
 
   def initialize(params = {})
     @host = "127.0.0.1"
@@ -91,7 +131,17 @@ end
 class MiniTest::Unit::TestCase
 
   def start_mock(params = {})
-    mock = CouchbaseMock.new(params)
+    mock = nil
+    if ENV['COUCHBASE_SERVER']
+      mock = CouchbaseServer.new(params)
+      if (params[:port] && mock.port != params[:port]) ||
+        (params[:host] && mock.host != params[:host]) ||
+        mock.buckets_spec != "default:"
+        skip("Unable to configure real cluster. Requested config is: #{params.inspect}")
+      end
+    else
+      mock = CouchbaseMock.new(params)
+    end
     mock.start
     mock
   end

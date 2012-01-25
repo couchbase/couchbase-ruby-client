@@ -31,7 +31,7 @@ class TestStats < MiniTest::Unit::TestCase
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     stats = connection.stats
     assert stats.is_a?(Hash)
-    assert_equal 4, stats.size
+    assert_equal @mock.num_nodes, stats.size
     node, info = stats.first
     assert node.is_a?(String)
     assert info.is_a?(Hash)
@@ -39,15 +39,20 @@ class TestStats < MiniTest::Unit::TestCase
   end
 
   def test_stats_with_argument
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    stats = connection.stats("pid")
-    assert stats.is_a?(Hash)
-    assert_equal 4, stats.size
-    node, info = stats.first
-    assert node.is_a?(String)
-    assert info.is_a?(Hash)
-    assert_equal 1, info.size
-    assert info["pid"]
+    if @mock.real?
+      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+      stats = connection.stats("memory")
+      assert stats.is_a?(Hash)
+      assert_equal @mock.num_nodes, stats.size
+      node, info = stats.first
+      assert node.is_a?(String)
+      assert info.is_a?(Hash)
+      assert info.size > 0
+      assert info["mem_used"]
+    else
+      # FIXME
+      skip("make CouchbaseMock.jar STATS more real-life")
+    end
   end
 
 end

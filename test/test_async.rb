@@ -109,7 +109,7 @@ class TestAsync < MiniTest::Unit::TestCase
 
     assert success
     assert_equal "foo", val
-    sleep(1)
+    sleep(2)
     refute connection.get(uniq_id)
   end
 

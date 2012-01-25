@@ -39,7 +39,7 @@ class TestFlush < MiniTest::Unit::TestCase
     connection.run do |conn|
       conn.flush(&on_node_flush)
     end
-    assert_equal 7, flushed.size
+    assert_equal @mock.num_nodes, flushed.size
     flushed.each do |node, res|
       assert node.is_a?(String)
       assert res

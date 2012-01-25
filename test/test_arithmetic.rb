@@ -83,7 +83,7 @@ class TestArithmetic < MiniTest::Unit::TestCase
     assert_equal 0, val
     val = connection.incr(uniq_id(:missing), :create => true)
     assert_equal 1, val
-    sleep(1)
+    sleep(2)
     refute connection.get(uniq_id(:missing))
   end
 

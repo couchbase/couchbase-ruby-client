@@ -109,6 +109,18 @@ class TestBucket < MiniTest::Unit::TestCase
   end
 
   def test_it_raises_error_with_wrong_credentials
+    with_mock do |mock|
+      assert_raises Couchbase::Error::Protocol do
+        Couchbase.new(:hostname => mock.host,
+                      :port => mock.port,
+                      :bucket => 'default',
+                      :username => 'wrong.username',
+                      :password => 'wrong_password')
+      end
+    end
+  end
+
+  def test_it_unable_to_connect_to_protected_buckets_with_wrond_credentials
     with_mock(:buckets_spec => 'protected:secret') do |mock|
       assert_raises Couchbase::Error::Protocol do
         Couchbase.new(:hostname => mock.host,
@@ -126,6 +138,7 @@ class TestBucket < MiniTest::Unit::TestCase
       end
     end
   end
+
 
   def test_it_allows_change_quiet_flag
     with_mock do |mock|

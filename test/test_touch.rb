@@ -33,7 +33,7 @@ class TestTouch < MiniTest::Unit::TestCase
     connection.touch(uniq_id, :ttl => 2)
     sleep(1)
     assert connection.get(uniq_id)
-    sleep(1)
+    sleep(2)
     refute connection.get(uniq_id)
   end
 
