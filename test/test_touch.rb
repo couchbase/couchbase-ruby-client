@@ -28,7 +28,7 @@ class TestTouch < MiniTest::Unit::TestCase
   end
 
   def test_trivial_touch
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, "bar", :ttl => 1)
     connection.touch(uniq_id, :ttl => 2)
     sleep(1)
@@ -38,7 +38,7 @@ class TestTouch < MiniTest::Unit::TestCase
   end
 
   def test_it_uses_default_ttl_for_touch
-    connection = Couchbase.new(:port => @mock.port, :default_ttl => 1)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_ttl => 1)
     connection.set(uniq_id, "bar", :ttl => 10)
     connection.touch(uniq_id, :ttl => 1)
     sleep(2)
@@ -46,7 +46,7 @@ class TestTouch < MiniTest::Unit::TestCase
   end
 
   def test_it_accepts_ttl_for_get_command
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, "bar", :ttl => 10)
     val = connection.get(uniq_id, :ttl => 1)
     assert_equal "bar", val

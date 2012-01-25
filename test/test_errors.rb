@@ -34,7 +34,7 @@ class TestErrors < MiniTest::Unit::TestCase
   end
 
   def test_graceful_add_with_collision
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     msg1 = {"author" => "foo", "message" => "hi all", "time" => "2012-01-12 11:29:09"}
     key1 = uniq_id(genkey(msg1))
     msg2 = {"author" => "foo", "message" => "hi all", "time" => "2012-01-12 11:29:30"}

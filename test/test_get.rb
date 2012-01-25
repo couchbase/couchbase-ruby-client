@@ -28,14 +28,14 @@ class TestGet < MiniTest::Unit::TestCase
   end
 
   def test_trivial_get
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, "bar")
     val = connection.get(uniq_id)
     assert_equal "bar", val
   end
 
   def test_extended_get
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     orig_cas = connection.set(uniq_id, "bar")
     val, flags, cas = connection.get(uniq_id, :extended => true)
@@ -51,7 +51,7 @@ class TestGet < MiniTest::Unit::TestCase
   end
 
   def test_multi_get
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     connection.set(uniq_id(1), "foo1")
     connection.set(uniq_id(2), "foo2")
@@ -62,7 +62,7 @@ class TestGet < MiniTest::Unit::TestCase
   end
 
   def test_multi_get_extended
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     cas1 = connection.set(uniq_id(1), "foo1")
     cas2 = connection.set(uniq_id(2), "foo2")
@@ -73,7 +73,7 @@ class TestGet < MiniTest::Unit::TestCase
   end
 
   def test_missing_in_quiet_mode
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     cas1 = connection.set(uniq_id(1), "foo1")
     cas2 = connection.set(uniq_id(2), "foo2")
 
@@ -94,7 +94,7 @@ class TestGet < MiniTest::Unit::TestCase
   end
 
   def test_it_allows_temporary_quiet_flag
-    connection = Couchbase.new(:port => @mock.port, :quiet => false)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => false)
     assert_raises(Couchbase::Error::NotFound) do
       connection.get(uniq_id(:missing))
     end
@@ -102,7 +102,7 @@ class TestGet < MiniTest::Unit::TestCase
   end
 
   def test_missing_in_verbose_mode
-    connection = Couchbase.new(:port => @mock.port, :quiet => false)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => false)
     connection.set(uniq_id(1), "foo1")
     connection.set(uniq_id(2), "foo2")
 
@@ -124,7 +124,7 @@ class TestGet < MiniTest::Unit::TestCase
   end
 
   def test_asynchronous_get
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     cas = connection.set(uniq_id, "foo", :flags => 0x6660)
     res = []
 
@@ -156,7 +156,7 @@ class TestGet < MiniTest::Unit::TestCase
   end
 
   def test_asynchronous_multi_get
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id(1), "foo")
     connection.set(uniq_id(2), "bar")
 
@@ -173,7 +173,7 @@ class TestGet < MiniTest::Unit::TestCase
   end
 
   def test_asynchronous_get_missing
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, "foo")
     res = {}
     missing = []
@@ -217,7 +217,7 @@ class TestGet < MiniTest::Unit::TestCase
   end
 
   def test_get_using_brackets
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     orig_cas = connection.set(uniq_id, "foo", :flags => 0x1100)
 

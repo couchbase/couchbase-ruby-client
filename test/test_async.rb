@@ -39,7 +39,7 @@ class TestAsync < MiniTest::Unit::TestCase
   end
 
   def test_it_requires_block_for_running_loop
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     refute connection.async?
     assert_raises(LocalJumpError) do
       connection.run
@@ -50,7 +50,7 @@ class TestAsync < MiniTest::Unit::TestCase
   end
 
   def test_it_resets_async_flag_when_raising_exception_from_callback
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     assert_raises(RuntimeError) do
       connection.run do |conn|
@@ -61,7 +61,7 @@ class TestAsync < MiniTest::Unit::TestCase
   end
 
   def test_nested_async_get_set
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, {"bar" => 1})
     connection.set(uniq_id(:hit), 0)
 
@@ -78,7 +78,7 @@ class TestAsync < MiniTest::Unit::TestCase
   end
 
   def test_nested_async_set_get
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     val = nil
 
     connection.run do |conn|
@@ -93,7 +93,7 @@ class TestAsync < MiniTest::Unit::TestCase
   end
 
   def test_nested_async_touch_get
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, "foo")
     success = false
     val = nil
@@ -114,7 +114,7 @@ class TestAsync < MiniTest::Unit::TestCase
   end
 
   def test_nested_async_delete_get
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     cas = connection.set(uniq_id, "foo")
     success = false
     val = :unknown
@@ -133,7 +133,7 @@ class TestAsync < MiniTest::Unit::TestCase
   end
 
   def test_nested_async_stats_set
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     stats = {}
 
     connection.run do |conn|
@@ -152,7 +152,7 @@ class TestAsync < MiniTest::Unit::TestCase
   end
 
   def test_nested_async_flush_set
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     cas = connection.set(uniq_id, "foo")
     res = {}
 
@@ -175,7 +175,7 @@ class TestAsync < MiniTest::Unit::TestCase
   end
 
   def test_nested_async_incr_get
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     cas = connection.set(uniq_id, 1)
     val = nil
 
@@ -191,7 +191,7 @@ class TestAsync < MiniTest::Unit::TestCase
   end
 
   def test_it_doesnt_accept_callbacks_in_synchronous_mode
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     refute connection.async?
 
     assert_raises(ArgumentError) { connection.add(uniq_id, "foo") {} }

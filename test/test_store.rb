@@ -28,13 +28,13 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_trivial_set
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     cas = connection.set(uniq_id, "bar")
     assert(cas > 0)
   end
 
   def test_set_with_cas
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     cas1 = connection.set(uniq_id, "bar1")
     assert cas1 > 0
@@ -54,7 +54,7 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_add
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     cas1 = connection.add(uniq_id, "bar")
     assert cas1 > 0
@@ -69,7 +69,7 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_replace
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     assert_raises(Couchbase::Error::NotFound) do
       connection.replace(uniq_id, "bar")
@@ -82,7 +82,7 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_acceptable_keys
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     cas = connection.set(uniq_id.to_sym, "bar")
     assert cas > 0
@@ -108,7 +108,7 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_asynchronous_set
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     ret = nil
     connection.run do |conn|
       conn.set(uniq_id("1"), "foo1") {|res| ret = res}
@@ -123,7 +123,7 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_it_raises_error_when_appending_or_prepending_to_missing_key
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     assert_raises(Couchbase::Error::NotStored) do
       connection.append(uniq_id(:missing), "foo")
@@ -135,7 +135,7 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_append
-    connection = Couchbase.new(:port => @mock.port, :default_format => :plain)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :plain)
 
     cas1 = connection.set(uniq_id, "foo")
     assert cas1 > 0
@@ -148,7 +148,7 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_prepend
-    connection = Couchbase.new(:port => @mock.port, :default_format => :plain)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :plain)
 
     cas1 = connection.set(uniq_id, "foo")
     assert cas1 > 0
@@ -163,7 +163,7 @@ class TestStore < MiniTest::Unit::TestCase
   ArbitraryData = Struct.new(:baz)
 
   def test_set_using_brackets
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     connection[uniq_id(1)] = "foo"
     val = connection.get(uniq_id(1))

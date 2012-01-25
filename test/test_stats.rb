@@ -28,7 +28,7 @@ class TestStats < MiniTest::Unit::TestCase
   end
 
   def test_trivial_stats_without_argument
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     stats = connection.stats
     assert stats.is_a?(Hash)
     assert_equal 4, stats.size
@@ -39,7 +39,7 @@ class TestStats < MiniTest::Unit::TestCase
   end
 
   def test_stats_with_argument
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     stats = connection.stats("pid")
     assert stats.is_a?(Hash)
     assert_equal 4, stats.size

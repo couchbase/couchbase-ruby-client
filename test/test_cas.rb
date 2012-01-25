@@ -28,7 +28,7 @@ class TestCas < MiniTest::Unit::TestCase
   end
 
   def test_compare_and_swap
-    connection = Couchbase.new(:port => @mock.port,
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
                                :default_format => :document)
     connection.set(uniq_id, {"bar" => 1})
     connection.cas(uniq_id) do |val|
@@ -41,7 +41,7 @@ class TestCas < MiniTest::Unit::TestCase
   end
 
   def test_compare_and_swap_async
-    connection = Couchbase.new(:port => @mock.port,
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
                                :default_format => :document)
     connection.set(uniq_id, {"bar" => 1})
     connection.run do |conn|

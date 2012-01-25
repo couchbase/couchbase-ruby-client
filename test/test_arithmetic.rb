@@ -28,7 +28,7 @@ class TestArithmetic < MiniTest::Unit::TestCase
   end
 
   def test_trivial_incr_decr
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     connection.set(uniq_id, 1)
     val = connection.incr(uniq_id)
@@ -44,7 +44,7 @@ class TestArithmetic < MiniTest::Unit::TestCase
   end
 
   def test_it_fails_to_incr_decr_missing_key
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     assert_raises(Couchbase::Error::NotFound) do
       connection.incr(uniq_id(:missing))
@@ -55,7 +55,7 @@ class TestArithmetic < MiniTest::Unit::TestCase
   end
 
   def test_it_creates_missing_key_when_initial_value_specified
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     val = connection.incr(uniq_id(:missing), :initial => 5)
     assert_equal 5, val
@@ -66,7 +66,7 @@ class TestArithmetic < MiniTest::Unit::TestCase
   end
 
   def test_it_uses_zero_as_default_value_for_missing_keys
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     val = connection.incr(uniq_id(:missing), :create => true)
     assert_equal 0, val
@@ -77,7 +77,7 @@ class TestArithmetic < MiniTest::Unit::TestCase
   end
 
   def test_it_allows_custom_ttl
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     val = connection.incr(uniq_id(:missing), :create => true, :ttl => 1)
     assert_equal 0, val
@@ -88,7 +88,7 @@ class TestArithmetic < MiniTest::Unit::TestCase
   end
 
   def test_it_allows_custom_delta
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     connection.set(uniq_id, 12)
     val = connection.incr(uniq_id, 10)

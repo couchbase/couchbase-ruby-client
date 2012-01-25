@@ -21,7 +21,7 @@ class TestCouchbase < MiniTest::Unit::TestCase
 
   def test_that_it_create_instance_of_bucket
     with_mock do |mock|
-      assert_instance_of Couchbase::Bucket, Couchbase.new("http://localhost:#{mock.port}/pools/default")
+      assert_instance_of Couchbase::Bucket, Couchbase.new("http://#{mock.host}:#{mock.port}/pools/default")
     end
   end
 

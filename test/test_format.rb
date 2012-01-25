@@ -35,7 +35,7 @@ class TestFormat < MiniTest::Unit::TestCase
 
   def test_default_document_format
     orig_doc = {'name' => 'Twoflower', 'role' => 'The tourist'}
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     assert_equal :document, connection.default_format
     connection.set(uniq_id, orig_doc)
     doc, flags, cas = connection.get(uniq_id, :extended => true)
@@ -50,7 +50,7 @@ class TestFormat < MiniTest::Unit::TestCase
     refute orig_doc.respond_to?(:to_s)
     refute orig_doc.respond_to?(:to_json)
 
-    connection = Couchbase.new(:port => @mock.port, :default_format => :document)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :document)
     assert_raises(Couchbase::Error::ValueFormat) do
       connection.set(uniq_id, orig_doc)
     end
@@ -73,7 +73,7 @@ class TestFormat < MiniTest::Unit::TestCase
 
   def test_it_could_dump_arbitrary_class_using_marshal_format
     orig_doc = ArbitraryClass.new("Twoflower", "The tourist")
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, orig_doc, :format => :marshal)
     doc, flags, cas = connection.get(uniq_id, :extended => true)
     assert_equal 0x01, flags & 0x11
@@ -83,7 +83,7 @@ class TestFormat < MiniTest::Unit::TestCase
   end
 
   def test_it_accepts_only_string_in_plain_mode
-    connection = Couchbase.new(:port => @mock.port, :default_format => :plain)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :plain)
     connection.set(uniq_id, "1")
 
     assert_raises(Couchbase::Error::ValueFormat) do

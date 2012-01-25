@@ -28,14 +28,14 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_trivial_delete
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, "bar")
     assert connection.delete(uniq_id)
     refute connection.delete(uniq_id)
   end
 
   def test_delete_missing
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     refute connection.delete(uniq_id(:missing))
     connection.quiet = false
     assert_raises(Couchbase::Error::NotFound) do
@@ -45,7 +45,7 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_delete_with_cas
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     cas = connection.set(uniq_id, "bar")
     missing_cas = cas - 1
     assert_raises(Couchbase::Error::KeyExists) do
@@ -55,7 +55,7 @@ class TestStore < MiniTest::Unit::TestCase
   end
 
   def test_allow_fixnum_as_cas_parameter
-    connection = Couchbase.new(:port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     cas = connection.set(uniq_id, "bar")
     assert connection.delete(uniq_id, cas)
   end
