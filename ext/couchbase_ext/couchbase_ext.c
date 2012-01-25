@@ -60,7 +60,7 @@ typedef struct
     long seqno;
     VALUE default_format;    /* should update +default_flags+ on change */
     uint32_t default_flags;
-    uint32_t default_ttl;
+    time_t default_ttl;
     uint32_t timeout;
     VALUE exception;        /* error delivered by error_callback */
     VALUE on_error_proc;    /* is using to deliver errors in async mode */
@@ -530,7 +530,7 @@ error_callback(libcouchbase_t handle, libcouchbase_error_t error, const char *er
     static void
 storage_callback(libcouchbase_t handle, const void *cookie,
         libcouchbase_storage_t operation, libcouchbase_error_t error,
-        const void *key, size_t nkey, uint64_t cas)
+        const void *key, libcouchbase_size_t nkey, libcouchbase_cas_t cas)
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
@@ -590,7 +590,8 @@ storage_callback(libcouchbase_t handle, const void *cookie,
 
     static void
 delete_callback(libcouchbase_t handle, const void *cookie,
-        libcouchbase_error_t error, const void *key, size_t nkey)
+        libcouchbase_error_t error, const void *key,
+        libcouchbase_size_t nkey)
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
@@ -628,8 +629,10 @@ delete_callback(libcouchbase_t handle, const void *cookie,
 
     static void
 get_callback(libcouchbase_t handle, const void *cookie,
-        libcouchbase_error_t error, const void *key, size_t nkey,
-        const void *bytes, size_t nbytes, uint32_t flags, uint64_t cas)
+        libcouchbase_error_t error, const void *key,
+        libcouchbase_size_t nkey, const void *bytes,
+        libcouchbase_size_t nbytes, libcouchbase_uint32_t flags,
+        libcouchbase_cas_t cas)
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
@@ -734,7 +737,8 @@ flush_callback(libcouchbase_t handle, const void* cookie,
     static void
 stat_callback(libcouchbase_t handle, const void* cookie,
         const char* authority, libcouchbase_error_t error, const void* key,
-        size_t nkey, const void* bytes, size_t nbytes)
+        libcouchbase_size_t nkey, const void* bytes,
+        libcouchbase_size_t nbytes)
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
@@ -783,7 +787,8 @@ stat_callback(libcouchbase_t handle, const void* cookie,
 
     static void
 touch_callback(libcouchbase_t handle, const void *cookie,
-        libcouchbase_error_t error, const void *key, size_t nkey)
+        libcouchbase_error_t error, const void *key,
+        libcouchbase_size_t nkey)
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
@@ -824,8 +829,9 @@ touch_callback(libcouchbase_t handle, const void *cookie,
 
     static void
 arithmetic_callback(libcouchbase_t handle, const void *cookie,
-        libcouchbase_error_t error, const void *key, size_t nkey,
-        uint64_t value, uint64_t cas)
+        libcouchbase_error_t error, const void *key,
+        libcouchbase_size_t nkey, libcouchbase_uint64_t value,
+        libcouchbase_cas_t cas)
 {
     context_t *ctx = (context_t *)cookie;
     bucket_t *bucket = ctx->bucket;
@@ -1362,7 +1368,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     VALUE k, c, rv, proc, exc, opts;
     char *key;
     size_t nkey;
-    uint64_t cas = 0;
+    libcouchbase_cas_t cas = 0;
     libcouchbase_error_t err;
     long seqno;
 
@@ -1432,7 +1438,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     size_t nkey, nbytes;
     uint32_t flags;
     time_t exp = 0;
-    uint64_t cas = 0;
+    libcouchbase_cas_t cas = 0;
     libcouchbase_error_t err;
     long seqno;
 
