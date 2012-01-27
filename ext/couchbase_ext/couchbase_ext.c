@@ -767,12 +767,12 @@ stat_callback(libcouchbase_t handle, const void* cookie,
             }
         } else {                /* synchronous */
             if (NIL_P(exc)) {
-                stats = rb_hash_aref(*rv, node);
+                stats = rb_hash_aref(*rv, k);
                 if (NIL_P(stats)) {
                     stats = rb_hash_new();
-                    rb_hash_aset(*rv, node, stats);
+                    rb_hash_aset(*rv, k, stats);
                 }
-                rb_hash_aset(stats, k, v);
+                rb_hash_aset(stats, node, v);
             }
         }
     } else {
@@ -1801,6 +1801,39 @@ cb_bucket_flush(VALUE self)
     }
 }
 
+/* Document-method: stats(arg = nil)
+ *
+ * Get stats from cluster
+ *
+ * Fetches stats from each node in cluster. In ssynchronous mode it returns
+ * the hash of stats keys and node-value pairs as a value. In asynchronous
+ * mode it yields Result value with +node+, +key+ and +value+ defined.
+ *
+ * @param [String] arg argument to STATS query
+ * @yieldparam [Result] ret the object with +node+, +key+ and +value+
+ *   attributes.
+ *
+ * @example Found how many items in the bucket
+ *   total = 0
+ *   c.stats["total_items"].each do |key, value|
+ *     total += value.to_i
+ *   end
+ *
+ * @example Found total items number asynchronously
+ *   total = 0
+ *   c.run do
+ *     c.stats do |ret|
+ *       if ret.key == "total_items"
+ *         total += ret.value.to_i
+ *       end
+ *     end
+ *   end
+ *
+ * @example Get memory stats (works on couchbase buckets)
+ *   c.stats(:memory)   #=> {"mem_used"=>{...}, ...}
+ *
+ * @return [Hash] where keys are stat keys, values are host-value pairs
+ */
     static VALUE
 cb_bucket_stats(int argc, VALUE *argv, VALUE self)
 {
@@ -1828,6 +1861,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
     ctx->exception = Qnil;
     if (arg != Qnil) {
+        arg = unify_key(arg);
         key = RSTRING_PTR(arg);
         nkey = RSTRING_LEN(arg);
     } else {
