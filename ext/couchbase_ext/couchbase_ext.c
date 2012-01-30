@@ -131,25 +131,12 @@ static ID  sym_add,
            id_has_key_p,
            id_load,
            id_to_s,
-           id_iv_authority,
-           id_iv_bucket,
            id_iv_cas,
-           id_iv_default_flags,
-           id_iv_default_format,
            id_iv_error,
            id_iv_flags,
-           id_iv_hostname,
            id_iv_key,
            id_iv_node,
-           id_iv_on_error,
            id_iv_operation,
-           id_iv_password,
-           id_iv_pool,
-           id_iv_port,
-           id_iv_quiet,
-           id_iv_timeout,
-           id_iv_url,
-           id_iv_username,
            id_iv_value;
 
 /* base error */
@@ -970,28 +957,6 @@ cb_first_value_i(VALUE key, VALUE value, VALUE arg)
     return ST_STOP;
 }
 
-    static VALUE
-cb_bucket_inspect(VALUE self)
-{
-    VALUE str;
-    bucket_t *bucket = DATA_PTR(self);
-    char buf[200];
-
-    str = rb_str_buf_new2("#<");
-    rb_str_buf_cat2(str, rb_obj_classname(self));
-    snprintf(buf, 25, ":%p \"", (void *)self);
-    rb_str_buf_cat2(str, buf);
-    rb_str_append(str, rb_ivar_get(self, id_iv_url));
-    snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s, timeout=%u>",
-            rb_id2name(SYM2ID(bucket->default_format)),
-            bucket->default_flags,
-            bucket->quiet ? "true" : "false",
-            bucket->timeout);
-    rb_str_buf_cat2(str, buf);
-
-    return str;
-}
-
 /*
  * @return [Fixnum] number of scheduled operations
  */
@@ -1100,7 +1065,7 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
     static VALUE
 cb_bucket_init(int argc, VALUE *argv, VALUE self)
 {
-    VALUE uri, opts, arg, buf;
+    VALUE uri, opts, arg;
     libcouchbase_error_t err;
     bucket_t *bucket = DATA_PTR(self);
     size_t len;
@@ -1235,28 +1200,6 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
         bucket->timeout = libcouchbase_get_timeout(bucket->handle);
     }
 
-    rb_ivar_set(self, id_iv_authority, rb_str_new2(bucket->authority));
-    rb_ivar_set(self, id_iv_bucket, rb_str_new2(bucket->bucket));
-    rb_ivar_set(self, id_iv_hostname, rb_str_new2(bucket->hostname));
-    rb_ivar_set(self, id_iv_password, bucket->password ? rb_str_new2(bucket->password) : Qnil);
-    rb_ivar_set(self, id_iv_pool, rb_str_new2(bucket->pool));
-    rb_ivar_set(self, id_iv_port, UINT2NUM(bucket->port));
-    rb_ivar_set(self, id_iv_username, bucket->username ? rb_str_new2(bucket->username) : Qnil);
-    rb_ivar_set(self, id_iv_quiet, bucket->quiet ? Qtrue : Qfalse);
-    rb_ivar_set(self, id_iv_default_flags, ULONG2NUM(bucket->default_flags));
-    rb_ivar_set(self, id_iv_default_format, bucket->default_format);
-    rb_ivar_set(self, id_iv_on_error, bucket->on_error_proc);
-    rb_ivar_set(self, id_iv_timeout, ULONG2NUM(bucket->timeout));
-
-    buf = rb_str_buf_new2("http://");
-    rb_str_buf_cat2(buf, bucket->authority);
-    rb_str_buf_cat2(buf, "/pools/");
-    rb_str_buf_cat2(buf, bucket->pool);
-    rb_str_buf_cat2(buf, "/buckets/");
-    rb_str_buf_cat2(buf, bucket->bucket);
-    rb_str_buf_cat2(buf, "/");
-    rb_ivar_set(self, id_iv_url, buf);
-
     return self;
 }
 
@@ -1268,6 +1211,13 @@ cb_bucket_async_p(VALUE self)
 }
 
     static VALUE
+cb_bucket_quiet_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    return bucket->quiet ? Qtrue : Qfalse;
+}
+
+    static VALUE
 cb_bucket_quiet_set(VALUE self, VALUE val)
 {
     bucket_t *bucket = DATA_PTR(self);
@@ -1275,8 +1225,14 @@ cb_bucket_quiet_set(VALUE self, VALUE val)
 
     bucket->quiet = RTEST(val);
     new = bucket->quiet ? Qtrue : Qfalse;
-    rb_ivar_set(self, id_iv_quiet, new);
     return new;
+}
+
+    static VALUE
+cb_bucket_default_flags_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    return ULONG2NUM(bucket->default_flags);
 }
 
     static VALUE
@@ -1286,9 +1242,14 @@ cb_bucket_default_flags_set(VALUE self, VALUE val)
 
     bucket->default_flags = (uint32_t)NUM2ULONG(val);
     bucket->default_format = flags_get_format(bucket->default_flags);
-    rb_ivar_set(self, id_iv_default_format, bucket->default_format);
-    rb_ivar_set(self, id_iv_default_flags, val);
     return val;
+}
+
+    static VALUE
+cb_bucket_default_format_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    return bucket->default_format;
 }
 
     static VALUE
@@ -1312,8 +1273,6 @@ cb_bucket_default_format_set(VALUE self, VALUE val)
     if (val == sym_document || val == sym_marshal || val == sym_plain) {
         bucket->default_format = val;
         bucket->default_flags = flags_set_format(bucket->default_flags, val);
-        rb_ivar_set(self, id_iv_default_format, val);
-        rb_ivar_set(self, id_iv_default_flags, ULONG2NUM(bucket->default_flags));
     }
 
     return val;
@@ -1329,7 +1288,6 @@ cb_bucket_on_error_set(VALUE self, VALUE val)
     } else {
         bucket->on_error_proc = Qnil;
     }
-    rb_ivar_set(self, id_iv_on_error, bucket->on_error_proc);
 
     return bucket->on_error_proc;
 }
@@ -1347,6 +1305,13 @@ cb_bucket_on_error_get(VALUE self)
 }
 
     static VALUE
+cb_bucket_timeout_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    return ULONG2NUM(bucket->timeout);
+}
+
+    static VALUE
 cb_bucket_timeout_set(VALUE self, VALUE val)
 {
     bucket_t *bucket = DATA_PTR(self);
@@ -1355,9 +1320,121 @@ cb_bucket_timeout_set(VALUE self, VALUE val)
     bucket->timeout = (uint32_t)NUM2ULONG(val);
     libcouchbase_set_timeout(bucket->handle, bucket->timeout);
     tmval = ULONG2NUM(bucket->timeout);
-    rb_ivar_set(self, id_iv_timeout, tmval);
 
     return tmval;
+}
+
+    static VALUE
+cb_bucket_hostname_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    if (bucket->hostname) {
+        free(bucket->hostname);
+    }
+    bucket->hostname = strdup(libcouchbase_get_host(bucket->handle));
+    if (bucket->hostname == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+    }
+    return rb_str_new2(bucket->hostname);
+}
+
+    static VALUE
+cb_bucket_port_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    bucket->port = atoi(libcouchbase_get_port(bucket->handle));
+    return UINT2NUM(bucket->port);
+}
+
+    static VALUE
+cb_bucket_authority_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    size_t len;
+
+    (void)cb_bucket_hostname_get(self);
+    (void)cb_bucket_port_get(self);
+    len = strlen(bucket->hostname) + 10;
+    bucket->authority = calloc(len, sizeof(char));
+    if (bucket->authority == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+    }
+    snprintf(bucket->authority, len, "%s:%u", bucket->hostname, bucket->port);
+    return rb_str_new2(bucket->authority);
+}
+
+    static VALUE
+cb_bucket_bucket_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    return rb_str_new2(bucket->bucket);
+}
+
+    static VALUE
+cb_bucket_pool_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    return rb_str_new2(bucket->pool);
+}
+
+    static VALUE
+cb_bucket_username_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    return rb_str_new2(bucket->username);
+}
+
+    static VALUE
+cb_bucket_password_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    return rb_str_new2(bucket->password);
+}
+
+    static VALUE
+cb_bucket_url_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    VALUE str;
+
+    (void)cb_bucket_authority_get(self);
+    str = rb_str_buf_new2("http://");
+    rb_str_buf_cat2(str, bucket->authority);
+    rb_str_buf_cat2(str, "/pools/");
+    rb_str_buf_cat2(str, bucket->pool);
+    rb_str_buf_cat2(str, "/buckets/");
+    rb_str_buf_cat2(str, bucket->bucket);
+    rb_str_buf_cat2(str, "/");
+    return str;
+}
+
+    static VALUE
+cb_bucket_inspect(VALUE self)
+{
+    VALUE str;
+    bucket_t *bucket = DATA_PTR(self);
+    char buf[200];
+
+    str = rb_str_buf_new2("#<");
+    rb_str_buf_cat2(str, rb_obj_classname(self));
+    snprintf(buf, 25, ":%p \"", (void *)self);
+    (void)cb_bucket_authority_get(self);
+    rb_str_buf_cat2(str, buf);
+    rb_str_buf_cat2(str, "http://");
+    rb_str_buf_cat2(str, bucket->authority);
+    rb_str_buf_cat2(str, "/pools/");
+    rb_str_buf_cat2(str, bucket->pool);
+    rb_str_buf_cat2(str, "/buckets/");
+    rb_str_buf_cat2(str, bucket->bucket);
+    rb_str_buf_cat2(str, "/");
+    snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s, timeout=%u>",
+            rb_id2name(SYM2ID(bucket->default_format)),
+            bucket->default_flags,
+            bucket->quiet ? "true" : "false",
+            bucket->timeout);
+    rb_str_buf_cat2(str, buf);
+
+    return str;
 }
 
     static VALUE
@@ -2281,10 +2358,10 @@ Init_couchbase_ext(void)
      *   connection.get("miss")     #=> will raise Couchbase::Error::NotFoundError
      *
      * @return [Boolean] */
-    rb_define_attr(cBucket, "quiet", 1, 1);
+    /* rb_define_attr(cBucket, "quiet", 1, 1); */
+    rb_define_method(cBucket, "quiet", cb_bucket_quiet_get, 0);
     rb_define_method(cBucket, "quiet=", cb_bucket_quiet_set, 1);
     rb_define_alias(cBucket, "quiet?", "quiet");
-    id_iv_quiet = rb_intern("@quiet");
 
     /* Document-method: default_flags
      * Default flags for new values.
@@ -2301,9 +2378,9 @@ Init_couchbase_ext(void)
      * @note Amending format bit will also change #default_format value
      *
      * @return [Fixnum] the effective flags */
-    rb_define_attr(cBucket, "default_flags", 1, 1);
+    /* rb_define_attr(cBucket, "default_flags", 1, 1); */
+    rb_define_method(cBucket, "default_flags", cb_bucket_default_flags_get, 0);
     rb_define_method(cBucket, "default_flags=", cb_bucket_default_flags_set, 1);
-    id_iv_default_flags = rb_intern("@default_flags");
 
     /* Document-method: default_format
      * Default format for new values.
@@ -2338,15 +2415,15 @@ Init_couchbase_ext(void)
      * @note Amending default_format will also change #default_flags value
      *
      * @return [Symbol] the effective format */
-    rb_define_attr(cBucket, "default_format", 1, 1);
+    /* rb_define_attr(cBucket, "default_format", 1, 1); */
+    rb_define_method(cBucket, "default_format", cb_bucket_default_format_get, 0);
     rb_define_method(cBucket, "default_format=", cb_bucket_default_format_set, 1);
-    id_iv_default_format = rb_intern("@default_format");
 
     /* Document-method: timeout
      * @return [Fixnum] */
-    rb_define_attr(cBucket, "timeout", 1, 1);
+    /* rb_define_attr(cBucket, "timeout", 1, 1); */
+    rb_define_method(cBucket, "timeout", cb_bucket_timeout_get, 0);
     rb_define_method(cBucket, "timeout=", cb_bucket_timeout_set, 1);
-    id_iv_timeout = rb_intern("@timeout");
 
     /* Document-method: on_error
      * Error callback for asynchronous mode.
@@ -2370,45 +2447,44 @@ Init_couchbase_ext(void)
      *   ...
      *
      * @return [Proc] the effective callback */
-    rb_define_attr(cBucket, "on_error", 1, 1);
+    /* rb_define_attr(cBucket, "on_error", 1, 1); */
     rb_define_method(cBucket, "on_error", cb_bucket_on_error_get, 0);
     rb_define_method(cBucket, "on_error=", cb_bucket_on_error_set, 1);
-    id_iv_on_error = rb_intern("@on_error");
 
     /* Document-method: url
      * @return [String] the address of the cluster management interface. */
-    rb_define_attr(cBucket, "url", 1, 0);
-    id_iv_url = rb_intern("@url");
+    /* rb_define_attr(cBucket, "url", 1, 0); */
+    rb_define_method(cBucket, "url", cb_bucket_url_get, 0);
     /* Document-method: hostname
      * @return [String] the host name of the management interface (default: "localhost") */
-    rb_define_attr(cBucket, "hostname", 1, 0);
-    id_iv_hostname = rb_intern("@hostname");
+    /* rb_define_attr(cBucket, "hostname", 1, 0); */
+    rb_define_method(cBucket, "hostname", cb_bucket_hostname_get, 0);
     /* Document-method: port
      * @return [Fixnum] the port number of the management interface (default: 8091) */
-    rb_define_attr(cBucket, "port", 1, 0);
-    id_iv_port = rb_intern("@port");
+    /* rb_define_attr(cBucket, "port", 1, 0); */
+    rb_define_method(cBucket, "port", cb_bucket_port_get, 0);
     /* Document-method: authority
      * @return [String] host with port. */
-    rb_define_attr(cBucket, "authority", 1, 0);
-    id_iv_authority = rb_intern("@authority");
+    /* rb_define_attr(cBucket, "authority", 1, 0); */
+    rb_define_method(cBucket, "authority", cb_bucket_authority_get, 0);
     /* Document-method: bucket
      * @return [String] the bucket name */
-    rb_define_attr(cBucket, "bucket", 1, 0);
+    /* rb_define_attr(cBucket, "bucket", 1, 0); */
+    rb_define_method(cBucket, "bucket", cb_bucket_bucket_get, 0);
     rb_define_alias(cBucket, "name", "bucket");
-    id_iv_bucket = rb_intern("@bucket");
     /* Document-method: pool
      * @return [String] the pool name (usually "default") */
-    rb_define_attr(cBucket, "pool", 1, 0);
-    id_iv_pool = rb_intern("@pool");
+    /* rb_define_attr(cBucket, "pool", 1, 0); */
+    rb_define_method(cBucket, "pool", cb_bucket_pool_get, 0);
     /* Document-method: username
      * @return [String] the username for protected buckets (usually matches
      *   the bucket name) */
-    rb_define_attr(cBucket, "username", 1, 0);
-    id_iv_username = rb_intern("@username");
+    /* rb_define_attr(cBucket, "username", 1, 0); */
+    rb_define_method(cBucket, "username", cb_bucket_username_get, 0);
     /* Document-method: password
      * @return [String] the password for protected buckets */
-    rb_define_attr(cBucket, "password", 1, 0);
-    id_iv_password = rb_intern("@password");
+    /* rb_define_attr(cBucket, "password", 1, 0); */
+    rb_define_method(cBucket, "password", cb_bucket_password_get, 0);
 
     /* Define symbols */
     id_arity = rb_intern("arity");
