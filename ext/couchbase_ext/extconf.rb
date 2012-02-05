@@ -96,7 +96,6 @@ if try_compile(<<-SRC)
   define("HAVE_STDARG_PROTOTYPES")
 end
 
-have_library("event", "event_init", "event.h") || abort
 have_library("couchbase", "libcouchbase_create", "libcouchbase/couchbase.h") || abort
 create_header("couchbase_config.h")
 create_makefile("couchbase_ext")

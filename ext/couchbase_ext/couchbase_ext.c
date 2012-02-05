@@ -21,7 +21,6 @@
 #endif
 
 #include <libcouchbase/couchbase.h>
-#include <event.h>
 #include "couchbase_config.h"
 
 #ifdef HAVE_STDARG_PROTOTYPES
