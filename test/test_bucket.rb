@@ -110,7 +110,7 @@ class TestBucket < MiniTest::Unit::TestCase
 
   def test_it_raises_error_with_wrong_credentials
     with_mock do |mock|
-      assert_raises Couchbase::Error::Protocol do
+      assert_raises Couchbase::Error::Auth do
         Couchbase.new(:hostname => mock.host,
                       :port => mock.port,
                       :bucket => 'default',
@@ -122,14 +122,14 @@ class TestBucket < MiniTest::Unit::TestCase
 
   def test_it_unable_to_connect_to_protected_buckets_with_wrond_credentials
     with_mock(:buckets_spec => 'protected:secret') do |mock|
-      assert_raises Couchbase::Error::Protocol do
+      assert_raises Couchbase::Error::Auth do
         Couchbase.new(:hostname => mock.host,
                       :port => mock.port,
                       :bucket => 'protected',
                       :username => 'wrong',
                       :password => 'secret')
       end
-      assert_raises Couchbase::Error::Protocol do
+      assert_raises Couchbase::Error::Auth do
         Couchbase.new(:hostname => mock.host,
                       :port => mock.port,
                       :bucket => 'protected',

@@ -168,6 +168,7 @@ static VALUE eUnknownHostError;        /*LIBCOUCHBASE_UNKNOWN_HOST = 0x14*/
 static VALUE eProtocolError;           /*LIBCOUCHBASE_PROTOCOL_ERROR = 0x15*/
 static VALUE eTimeoutError;            /*LIBCOUCHBASE_ETIMEDOUT = 0x16*/
 static VALUE eConnectError;            /*LIBCOUCHBASE_CONNECT_ERROR = 0x17*/
+static VALUE eBucketNotFoundError;     /*LIBCOUCHBASE_BUCKET_ENOENT = 0x18*/
 
     static VALUE
 cb_proc_call(VALUE recv, int argc, ...)
@@ -272,6 +273,9 @@ cb_check_error(libcouchbase_error_t rc, const char *msg, VALUE key)
             break;
         case LIBCOUCHBASE_CONNECT_ERROR:
             klass = eConnectError;
+            break;
+        case LIBCOUCHBASE_BUCKET_ENOENT:
+            klass = eBucketNotFoundError;
             break;
         case LIBCOUCHBASE_ERROR:
             /* fall through */
@@ -2170,6 +2174,9 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::Auth
      * Authentication error */
     eAuthError = rb_define_class_under(mError, "Auth", eBaseError);
+    /* Document-class: Couchbase::Error::BucketNotFound
+     * The given bucket not found in the cluster */
+    eBucketNotFoundError = rb_define_class_under(mError, "BucketNotFound", eBaseError);
     /* Document-class: Couchbase::Error::Busy
      * The cluster is too busy now. Try again later */
     eBusyError = rb_define_class_under(mError, "Busy", eBaseError);
