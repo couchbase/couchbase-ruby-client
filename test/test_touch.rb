@@ -37,10 +37,22 @@ class TestTouch < MiniTest::Unit::TestCase
     refute connection.get(uniq_id)
   end
 
+  def test_multi_touch
+    connection = Couchbase.new(:port => @mock.port)
+    connection.set(uniq_id(1), "bar")
+    connection.set(uniq_id(2), "baz")
+    ret = connection.touch(uniq_id(1) => 1, uniq_id(2) => 1)
+    assert ret[uniq_id(1)]
+    assert ret[uniq_id(2)]
+    sleep(2)
+    refute connection.get(uniq_id(1))
+    refute connection.get(uniq_id(2))
+  end
+
   def test_it_uses_default_ttl_for_touch
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_ttl => 1)
     connection.set(uniq_id, "bar", :ttl => 10)
-    connection.touch(uniq_id, :ttl => 1)
+    connection.touch(uniq_id)
     sleep(2)
     refute connection.get(uniq_id)
   end

@@ -26,7 +26,7 @@ module Couchbase
     #
     #   http://docs.couchbase.org/memcached-api/memcached-api-protocol-text_cas.html
     #
-    # @param [String] key
+    # @param [String, Symbol] key
     #
     # @param [Hash] options the options for operation
     # @option options [String] :ttl (self.default_ttl) the time to live of this key

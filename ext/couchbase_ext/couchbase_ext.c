@@ -99,6 +99,7 @@ static ID  sym_add,
            sym_decrement,
            sym_default_flags,
            sym_default_format,
+           sym_default_ttl,
            sym_delete,
            sym_document,
            sym_extended,
@@ -807,7 +808,7 @@ touch_callback(libcouchbase_t handle, const void *cookie,
     } else {                /* synchronous */
         if (NIL_P(exc)) {
             success = (error == LIBCOUCHBASE_KEY_ENOENT) ? Qfalse : Qtrue;
-            rb_ary_push(*rv, success);
+            rb_hash_aset(*rv, k, success);
         }
     }
     if (bucket->seqno == 0) {
@@ -1080,6 +1081,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->bucket = strdup("default");
     bucket->async = 0;
     bucket->quiet = 1;
+    bucket->default_ttl = 0;
     bucket->default_flags = 0;
     bucket->default_format = sym_document;
     bucket->on_error_proc = Qnil;
@@ -1134,6 +1136,10 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
             arg = rb_hash_aref(opts, sym_timeout);
             if (arg != Qnil) {
                 bucket->timeout = (uint32_t)NUM2ULONG(arg);
+            }
+            arg = rb_hash_aref(opts, sym_default_ttl);
+            if (arg != Qnil) {
+                bucket->default_ttl = (uint32_t)NUM2ULONG(arg);
             }
             arg = rb_hash_aref(opts, sym_default_flags);
             if (arg != Qnil) {
@@ -1692,7 +1698,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
     context_t *ctx;
-    VALUE args, rv, proc, exc, vv = Qnil, keys;
+    VALUE args, rv, proc, exc, keys;
     long nn;
     libcouchbase_error_t err;
     struct key_traits *traits;
@@ -1763,19 +1769,77 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
                 return ret;  /* return as an array [value1, value2, ...] */
             }
         } else {
+            VALUE vv = Qnil;
             rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
             return vv;
         }
     }
 }
 
-    static VALUE
+/*
+ * Update the expiry time of an item
+ *
+ * The +touch+ method allow you to update the expiration time on a given
+ * key. This can be useful for situations where you want to prevent an item
+ * from expiring without resetting the associated value. For example, for a
+ * session database you might want to keep the session alive in the database
+ * each time the user accesses a web page without explicitly updating the
+ * session value, keeping the user's session active and available.
+ *
+ * @overload touch(key, options = {})
+ *   @param key [String, Symbol] Key used to reference the value.
+ *   @param options [Hash] Options for operation.
+ *   @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
+ *     Values larger than 30*24*60*60 seconds (30 days) are interpreted as
+ *     absolute times (from the epoch).
+ *
+ *   @yieldparam ret [Result] the result of operation in asynchronous mode
+ *     (valid attributes: +error+, +operation+, +key+).
+ *
+ *   @return [Boolean] +true+ if the operation was successful and +false+
+ *     otherwise.
+ *
+ *   @example Touch value using +default_ttl+
+ *     c.touch("foo")
+ *
+ *   @example Touch value using custom TTL (10 seconds)
+ *     c.touch("foo", :ttl => 10)
+ *
+ * @overload touch(keys)
+ *   @param keys [Hash] The Hash where keys represent the keys in the
+ *     database, values -- the expiry times for corresponding key. See
+ *     description of +:ttl+ argument above for more information about TTL
+ *     values.
+ *
+ *   @yieldparam ret [Result] the result of operation for each key in
+ *     asynchronous mode (valid attributes: +error+, +operation+, +key+).
+ *
+ *   @return [Hash] Mapping keys to result of touch operation (+true+ if the
+ *     operation was successful and +false+ otherwise)
+ *
+ *   @example Touch several values
+ *     c.touch("foo" => 10, :bar => 20) #=> {"foo" => true, "bar" => true}
+ *
+ *   @example Touch several values in async mode
+ *     c.run do
+ *       c.touch("foo" => 10, :bar => 20) do |ret|
+ *          ret.operation   #=> :touch
+ *          ret.success?    #=> true
+ *          ret.key         #=> "foo" and "bar" in separate calls
+ *       end
+ *     end
+ *
+ *   @example Touch single value
+ *     c.touch("foo" => 10)             #=> true
+ *
+ */
+   static VALUE
 cb_bucket_touch(int argc, VALUE *argv, VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
     context_t *ctx;
     VALUE args, rv, proc, exc;
-    size_t nn;
+    size_t nn, ii;
     libcouchbase_error_t err;
     struct key_traits *traits;
     long seqno;
@@ -1794,7 +1858,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     ctx->proc = proc;
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
     ctx->bucket = bucket;
-    rv = rb_ary_new();
+    rv = rb_hash_new();
     ctx->rv = &rv;
     ctx->exception = Qnil;
     seqno = bucket->seqno;
@@ -1802,6 +1866,8 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     err = libcouchbase_mtouch(bucket->handle, (const void *)ctx,
             traits->nkeys, (const void * const *)traits->keys,
             traits->lens, traits->ttls);
+    free(traits->keys);
+    free(traits->lens);
     free(traits);
     exc = cb_check_error(err, "failed to schedule touch request", Qnil);
     if (exc != Qnil) {
@@ -1824,9 +1890,11 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
             rb_exc_raise(bucket->exception);
         }
         if (nn > 1) {
-            return rv;
+            return rv;  /* return as a hash {key => true, ...} */
         } else {
-            return rb_ary_pop(rv);
+            VALUE vv = Qnil;
+            rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
+            return vv;
         }
     }
 }
@@ -2509,6 +2577,7 @@ Init_couchbase_ext(void)
     sym_decrement = ID2SYM(rb_intern("decrement"));
     sym_default_flags = ID2SYM(rb_intern("default_flags"));
     sym_default_format = ID2SYM(rb_intern("default_format"));
+    sym_default_ttl = ID2SYM(rb_intern("default_ttl"));
     sym_delete = ID2SYM(rb_intern("delete"));
     sym_document = ID2SYM(rb_intern("document"));
     sym_extended = ID2SYM(rb_intern("extended"));
