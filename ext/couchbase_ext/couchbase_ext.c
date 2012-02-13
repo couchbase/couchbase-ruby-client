@@ -86,6 +86,7 @@ struct key_traits
     int extended;
     int explicit_ttl;
     int quiet;
+    int mgat;
 };
 
 static VALUE mCouchbase, mError, mJSON, mMarshal, cBucket, cResult;
@@ -436,44 +437,20 @@ cb_extract_keys_i(VALUE key, VALUE value, VALUE arg)
     static long
 cb_args_scan_keys(long argc, VALUE argv, bucket_t *bucket, struct key_traits *traits)
 {
-    VALUE arg, key, *keys_ptr, opts, ttl, ext;
+    VALUE key, *keys_ptr, opts, ttl, ext;
     long nn = 0, ii;
     time_t exp;
 
     traits->keys_ary = rb_ary_new();
     traits->quiet = bucket->quiet;
-    if (argc == 1) {
-        arg = RARRAY_PTR(argv)[0];
-        switch (TYPE(arg)) {
-            case T_HASH:
-                /* hash of key-ttl pairs */
-                nn = RHASH_SIZE(arg);
-                traits->keys = calloc(nn, sizeof(char *));
-                traits->lens = calloc(nn, sizeof(size_t));
-                traits->explicit_ttl = 1;
-                traits->ttls = calloc(nn, sizeof(time_t));
-                rb_hash_foreach(arg, cb_extract_keys_i, (VALUE)traits);
-                break;
-            case T_STRING:
-            case T_SYMBOL:
-                /* single key with default expiration */
-                nn = traits->nkeys = 1;
-                traits->keys = calloc(nn, sizeof(char *));
-                traits->lens = calloc(nn, sizeof(size_t));
-                traits->ttls = calloc(nn, sizeof(time_t));
-                key = unify_key(arg);
-                rb_ary_push(traits->keys_ary, key);
-                traits->keys[0] = RSTRING_PTR(key);
-                traits->lens[0] = RSTRING_LEN(key);
-                traits->ttls[0] = bucket->default_ttl;
-                break;
-        }
-    } else if (argc > 1) {
+    traits->mgat = 0;
+
+    if (argc > 0) {
         /* keys with custom options */
         opts = RARRAY_PTR(argv)[argc-1];
         exp = bucket->default_ttl;
         ext = Qfalse;
-        if (TYPE(opts) == T_HASH) {
+        if (argc > 1 && TYPE(opts) == T_HASH) {
             (void)rb_ary_pop(argv);
             if (RTEST(rb_funcall(opts, id_has_key_p, 1, sym_quiet))) {
                 traits->quiet = RTEST(rb_hash_aref(opts, sym_quiet));
@@ -491,18 +468,30 @@ cb_args_scan_keys(long argc, VALUE argv, bucket_t *bucket, struct key_traits *tr
         if (nn < 1) {
             rb_raise(rb_eArgError, "must be at least one key");
         }
-        traits->nkeys = nn;
-        traits->extended = RTEST(ext) ? 1 : 0;
-        traits->keys = calloc(nn, sizeof(char *));
-        traits->lens = calloc(nn, sizeof(size_t));
-        traits->ttls = calloc(nn, sizeof(time_t));
         keys_ptr = RARRAY_PTR(argv);
-        for (ii = 0; ii < nn; ii++) {
-            key = unify_key(keys_ptr[ii]);
-            rb_ary_push(traits->keys_ary, key);
-            traits->keys[ii] = RSTRING_PTR(key);
-            traits->lens[ii] = RSTRING_LEN(key);
-            traits->ttls[ii] = exp;
+        traits->extended = RTEST(ext) ? 1 : 0;
+        if (nn == 1 && TYPE(keys_ptr[0]) == T_HASH) {
+            /* hash of key-ttl pairs */
+            nn = RHASH_SIZE(keys_ptr[0]);
+            traits->keys = calloc(nn, sizeof(char *));
+            traits->lens = calloc(nn, sizeof(size_t));
+            traits->explicit_ttl = 1;
+            traits->mgat = 1;
+            traits->ttls = calloc(nn, sizeof(time_t));
+            rb_hash_foreach(keys_ptr[0], cb_extract_keys_i, (VALUE)traits);
+        } else {
+            /* the list of keys */
+            traits->nkeys = nn;
+            traits->keys = calloc(nn, sizeof(char *));
+            traits->lens = calloc(nn, sizeof(size_t));
+            traits->ttls = calloc(nn, sizeof(time_t));
+            for (ii = 0; ii < nn; ii++) {
+                key = unify_key(keys_ptr[ii]);
+                rb_ary_push(traits->keys_ary, key);
+                traits->keys[ii] = RSTRING_PTR(key);
+                traits->lens[ii] = RSTRING_LEN(key);
+                traits->ttls[ii] = exp;
+            }
         }
     }
 
@@ -1693,6 +1682,87 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
     return cb_bucket_arithmetic(-1, argc, argv, self);
 }
 
+/*
+ * Obtain an object stored in Couchbase by given key.
+ *
+ * @overload get(*keys, options = {})
+ *   @param keys [String, Symbol, Array] One or several keys to fetch
+ *   @param options [Hash] Options for operation.
+ *   @option options [Boolean] :extended (false) If set to +true+, the
+ *     operation will return tuple +[value, flags, cas]+, otherwise (by
+ *     default) it returns just value.
+ *   @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
+ *     Values larger than 30*24*60*60 seconds (30 days) are interpreted as
+ *     absolute times (from the epoch).
+ *   @option options [Boolean] :quiet (self.quiet) If set to +true+, the
+ *     operation won't raise error for missing key, it will return +nil+.
+ *     Otherwise it will raise error in synchronous mode. In asynchronous
+ *     mode this option ignored.
+ *
+ *   @yieldparam ret [Result] the result of operation in asynchronous mode
+ *     (valid attributes: +error+, +operation+, +key+, +value+, +flags+,
+ *     +cas+).
+ *
+ *   @return [Object, Array, Hash] the value(s) (or tuples in extended mode)
+ *     assiciated with the key.
+ *
+ *   @raise [Couchbase::Errors:NotFound] if the key is missing in the
+ *     bucket.
+ *
+ *   @example Get single value in quite mode (the default)
+ *     c.get("foo")     #=> the associated value or nil
+ *
+ *   @example Use alternative hash-like syntax
+ *     c["foo"]         #=> the associated value or nil
+ *
+ *   @example Get single value in verbose mode
+ *     c.get("missing-foo", :quiet => false)  #=> raises Couchbase::Error::NotFound
+ *
+ *   @example Get and touch single value. The key won't be accessible after 10 seconds
+ *     c.get("foo", :ttl => 10)
+ *
+ *   @example Extended get
+ *     val, flags, cas = c.get("foo", :extended => true)
+ *
+ *   @example Get multiple keys
+ *     c.get("foo", "bar", "baz")   #=> [val1, val2, val3]
+ *
+ *   @example Extended get multiple keys
+ *     c.get("foo", "bar", :extended => true)
+ *     #=> {"foo" => [val1, flags1, cas1], "bar" => [val2, flags2, cas2]}
+ *
+ *   @example Asynchronous get
+ *     c.run do
+ *       c.get("foo", "bar", "baz") do |res|
+ *         ret.operation   #=> :get
+ *         ret.success?    #=> true
+ *         ret.key         #=> "foo", "bar" or "baz" in separate calls
+ *         ret.value
+ *         ret.flags
+ *         ret.cas
+ *       end
+ *     end
+ *
+ * @overload get(keys, options = {})
+ *   When the method receive hash map, it will behave like it receive list
+ *   of keys (+keys.keys+), but also touch each key setting expiry time to
+ *   the corresponding value. But unlike usual get this command always
+ *   return hash map +{key => value}+ or +{key => [value, flags, cas]}+.
+ *
+ *   @param keys [Hash] Map key-ttl
+ *   @param options [Hash] Options for operation. (see options definition
+ *     above)
+ *
+ *   @return [Hash] the values (or tuples in extended mode) assiciated with
+ *     the keys.
+ *
+ *   @example Get and touch multiple keys
+ *     c.get("foo" => 10, "bar" => 20)   #=> {"foo" => val1, "bar" => val2}
+ *
+ *   @example Extended get and touch multiple keys
+ *     c.get({"foo" => 10, "bar" => 20}, :extended => true)
+ *     #=> {"foo" => [val1, flags1, cas1], "bar" => [val2, flags2, cas2]}
+ */
     static VALUE
 cb_bucket_get(int argc, VALUE *argv, VALUE self)
 {
@@ -1702,7 +1772,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     long nn;
     libcouchbase_error_t err;
     struct key_traits *traits;
-    int extended;
+    int extended, mgat;
     long seqno;
 
     rb_scan_args(argc, argv, "0*&", &args, &proc);
@@ -1716,6 +1786,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
+    mgat = traits->mgat;
     keys = traits->keys_ary;
     ctx->proc = proc;
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
@@ -1755,19 +1826,18 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         if (bucket->exception != Qnil) {
             rb_exc_raise(bucket->exception);
         }
+        if (mgat || (extended && nn > 1)) {
+            return rv;  /* return as a hash {key => [value, flags, cas], ...} */
+        }
         if (nn > 1) {
-            if (extended) {
-                return rv;  /* return as a hash {key => [value, flags, cas], ...} */
-            } else {
-                long ii;
-                VALUE *keys_ptr, ret;
-                ret = rb_ary_new();
-                keys_ptr = RARRAY_PTR(keys);
-                for (ii = 0; ii < nn; ii++) {
-                    rb_ary_push(ret, rb_hash_aref(rv, keys_ptr[ii]));
-                }
-                return ret;  /* return as an array [value1, value2, ...] */
+            long ii;
+            VALUE *keys_ptr, ret;
+            ret = rb_ary_new();
+            keys_ptr = RARRAY_PTR(keys);
+            for (ii = 0; ii < nn; ii++) {
+                rb_ary_push(ret, rb_hash_aref(rv, keys_ptr[ii]));
             }
+            return ret;  /* return as an array [value1, value2, ...] */
         } else {
             VALUE vv = Qnil;
             rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
@@ -1839,7 +1909,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     bucket_t *bucket = DATA_PTR(self);
     context_t *ctx;
     VALUE args, rv, proc, exc;
-    size_t nn, ii;
+    size_t nn;
     libcouchbase_error_t err;
     struct key_traits *traits;
     long seqno;

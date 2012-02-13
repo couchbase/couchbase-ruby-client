@@ -72,6 +72,41 @@ class TestGet < MiniTest::Unit::TestCase
     assert_equal ["foo2", 0x0, cas2], results[uniq_id(2)]
   end
 
+  def test_multi_get_and_touch
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection.set(uniq_id(1), "foo1")
+    connection.set(uniq_id(2), "foo2")
+
+    results = connection.get(uniq_id(1) => 1, uniq_id(2) => 1)
+    assert results.is_a?(Hash)
+    assert_equal "foo1", results[uniq_id(1)]
+    assert_equal "foo2", results[uniq_id(2)]
+    sleep(2)
+    assert connection.get(uniq_id(1), uniq_id(2)).compact.empty?
+  end
+
+  def test_multi_get_and_touch_extended
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+
+    cas1 = connection.set(uniq_id(1), "foo1")
+    cas2 = connection.set(uniq_id(2), "foo2")
+
+    results = connection.get({uniq_id(1) => 1, uniq_id(2) => 1}, :extended => true)
+    assert_equal ["foo1", 0x0, cas1], results[uniq_id(1)]
+    assert_equal ["foo2", 0x0, cas2], results[uniq_id(2)]
+  end
+
+  def test_multi_get_and_touch_with_single_key
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection.set(uniq_id, "foo1")
+
+    results = connection.get(uniq_id => 1)
+    assert results.is_a?(Hash)
+    assert_equal "foo1", results[uniq_id]
+    sleep(2)
+    refute = connection.get(uniq_id)
+  end
+
   def test_missing_in_quiet_mode
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     cas1 = connection.set(uniq_id(1), "foo1")
