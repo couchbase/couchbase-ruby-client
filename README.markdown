@@ -87,20 +87,13 @@ This is equivalent to following forms:
 
 The hash parameters take precedence on string URL.
 
-The library supports both synchronous and asynchronous mode. You can
-choose either using the `:async` option or attribute.
-
-    c = Couchbase.new(:async => true)
-    # ... asynchronous mode
-    c.async = false
-    # ... synchronous mode
-
-In asynchronous mode all operations will return control to caller
+The library supports both synchronous and asynchronous mode. In
+asynchronous mode all operations will return control to caller
 without blocking current thread. You can pass the block to method and it
 will be called with result when the operation will be completed. You
 need to run event loop when you scheduled your operations:
 
-    c = Couchbase.new(:async => true)
+    c = Couchbase.new
     c.run do |conn|
       conn.get("foo") {|ret| puts ret.value}
       conn.set("bar", "baz")
@@ -156,7 +149,7 @@ You can turn on these exception by passing `:quiet => false` when you
 are instantiating the connection or change corresponding attribute:
 
     c.quiet = false
-    c.get("missing-key")            #=> raise Couchbase::Error::NotFound
+    c.get("missing-key")                    #=> raise Couchbase::Error::NotFound
     c.get("missing-key", :quiet => true)    #=> nil
 
 The library supports three different formats for representing values:
@@ -190,8 +183,17 @@ Get multiple values. In quiet mode will put `nil` values on missing
 positions:
 
     vals = c.get("foo", "bar", "baz")
-    c.get("foo"){|val, key| ... }
-    c.get("foo", :extended => true){|val, key, flags, cas| ... }
+    val_foo, val_bar, val_baz = c.get("foo", "bar", "baz")
+    c.run do
+      c.get("foo") do |ret|
+        ret.success?
+        ret.error
+        ret.key
+        ret.value
+        ret.flags
+        ret.cas
+      end
+    end
 
 Get multiple values with extended information. The result will
 represented by hash with tuples `[value, flags, cas]` as a value.
@@ -264,12 +266,24 @@ Couchbase::Error::DeltaBadval if the delta or value is not a number.
     c.incr("foo", 4)                #=> 8
     c.incr("foo", -1)               #=> 7
     c.incr("foo", -100)             #=> 0
-    c.incr("foo"){|val, cas| ... }
+    c.run do
+      c.incr("foo") do |ret|
+        ret.success?
+        ret.value
+        ret.cas
+      end
+    end
 
     c.set("foo", 10)
     c.decr("foo", 1)                #=> 9
     c.decr("foo", 100)              #=> 0
-    c.decr("foo"){|val, cas| ... }
+    c.run do
+      c.decr("foo") do |ret|
+        ret.success?
+        ret.value
+        ret.cas
+      end
+    end
 
     c.incr("missing1", :initial => 10)      #=> 10
     c.incr("missing1", :initial => 10)      #=> 11
@@ -287,21 +301,39 @@ performed on client side with following `set` operation:
     c.delete("foo")
     c.delete("foo", :cas => 8835713818674332672)
     c.delete("foo", 8835713818674332672)
-    c.delete{|key, success| ... }
+    c.run do
+      c.delete do |ret|
+        ret.success?
+        ret.key
+      end
+    end
 
 ### Flush
 
 Flush the items in the cluster.
 
     c.flush
-    c.flush{|node, success| ... }
+    c.run do
+      c.flush do |ret|
+        ret.success?
+        ret.node
+      end
+    end
 
 ### Stats
 
 Return statistics from each node in the cluster
 
     c.stats
-    c.stats{|node, key, value| ... }
+    c.stats(:memory)
+    c.run do
+      c.stats do |ret|
+        ret.success?
+        ret.node
+        ret.key
+        ret.value
+      end
+    end
 
 The result is represented as a hash with the server node address as
 the key and stats as key-value pairs.

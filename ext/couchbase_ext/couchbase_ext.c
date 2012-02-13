@@ -955,6 +955,7 @@ cb_first_value_i(VALUE key, VALUE value, VALUE arg)
 }
 
 /*
+ * @private
  * @return [Fixnum] number of scheduled operations
  */
     static VALUE
@@ -1155,7 +1156,9 @@ do_connect(bucket_t *bucket)
 /*
  * Create and initialize new Bucket.
  *
- * @return [Bucket] new instance (see Bucket#initialize)
+ * @return [Bucket] new instance
+ *
+ * @see Bucket#initialize
  */
     static VALUE
 cb_bucket_new(int argc, VALUE *argv, VALUE klass)
@@ -1196,7 +1199,7 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
  *   @option options [Fixnum] :default_flags (0) the default flags.
  *   @option options [Symbol] :default_format (:document) the format, which
  *     will be used for values by default. Note that changing format will
- *     amend flags. (see Bucket#default_format)
+ *     amend flags. (see {Bucket#default_format})
  *   @option options [String] :username (nil) the user name to connect to the
  *     cluster. Used to authenticate on management API.
  *   @option options [String] :password (nil) the password of the user.
@@ -1251,10 +1254,10 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
  * redefinition.
  *
  * @overload reconnect(url, options = {})
- *  see Bucket#initialize(url, options)
+ *  see {Bucket#initialize Bucket#initialize(url, options)}
  *
  * @overload reconnect(options = {})
- *  see Bucket#initialize(options)
+ *  see {Bucket#initialize Bucket#initialize(options)}
  *
  *  @example reconnect with current parameters
  *    c.reconnect
@@ -1285,6 +1288,25 @@ cb_bucket_connected_p(VALUE self)
     return bucket->handle ? Qtrue : Qfalse;
 }
 
+/* Document-method: async?
+ * Check whether the connection asynchronous.
+ *
+ * By default all operations are synchronous and block waiting for
+ * results, but you can make them asynchronous and run event loop
+ * explicitly. (see {Bucket#run})
+ *
+ * @example Return value of #get operation depending on async flag
+ *   connection = Connection.new
+ *   connection.async?      #=> false
+ *
+ *   connection.run do |conn|
+ *     conn.async?          #=> true
+ *   end
+ *
+ * @return [Boolean] +true+ if the connection if asynchronous
+ *
+ * @see Bucket#run
+ */
     static VALUE
 cb_bucket_async_p(VALUE self)
 {
@@ -1406,6 +1428,9 @@ cb_bucket_timeout_set(VALUE self, VALUE val)
     return tmval;
 }
 
+/* Document-method: hostname
+ * @return [String] the host name of the management interface (default: "localhost")
+ */
     static VALUE
 cb_bucket_hostname_get(VALUE self)
 {
@@ -1423,6 +1448,9 @@ cb_bucket_hostname_get(VALUE self)
     return rb_str_new2(bucket->hostname);
 }
 
+/* Document-method: port
+ * @return [Fixnum] the port number of the management interface (default: 8091)
+ */
     static VALUE
 cb_bucket_port_get(VALUE self)
 {
@@ -1433,6 +1461,9 @@ cb_bucket_port_get(VALUE self)
     return UINT2NUM(bucket->port);
 }
 
+/* Document-method: authority
+ * @return [String] host with port
+ */
     static VALUE
 cb_bucket_authority_get(VALUE self)
 {
@@ -1450,6 +1481,9 @@ cb_bucket_authority_get(VALUE self)
     return rb_str_new2(bucket->authority);
 }
 
+/* Document-method: bucket
+ * @return [String] the bucket name
+ */
     static VALUE
 cb_bucket_bucket_get(VALUE self)
 {
@@ -1457,6 +1491,9 @@ cb_bucket_bucket_get(VALUE self)
     return rb_str_new2(bucket->bucket);
 }
 
+/* Document-method: pool
+ * @return [String] the pool name (usually "default")
+ */
     static VALUE
 cb_bucket_pool_get(VALUE self)
 {
@@ -1464,6 +1501,10 @@ cb_bucket_pool_get(VALUE self)
     return rb_str_new2(bucket->pool);
 }
 
+/* Document-method: username
+ * @return [String] the username for protected buckets (usually matches
+ *   the bucket name)
+ */
     static VALUE
 cb_bucket_username_get(VALUE self)
 {
@@ -1471,6 +1512,9 @@ cb_bucket_username_get(VALUE self)
     return rb_str_new2(bucket->username);
 }
 
+/* Document-method: password
+ * @return [String] the password for protected buckets
+ */
     static VALUE
 cb_bucket_password_get(VALUE self)
 {
@@ -1478,6 +1522,9 @@ cb_bucket_password_get(VALUE self)
     return rb_str_new2(bucket->password);
 }
 
+/* Document-method: url
+ * @return [String] the address of the cluster management interface
+ */
     static VALUE
 cb_bucket_url_get(VALUE self)
 {
@@ -1495,6 +1542,12 @@ cb_bucket_url_get(VALUE self)
     return str;
 }
 
+/*
+ * Returns a string containing a human-readable representation of the
+ * Bucket.
+ *
+ * @return [String]
+ */
     static VALUE
 cb_bucket_inspect(VALUE self)
 {
@@ -1525,6 +1578,42 @@ cb_bucket_inspect(VALUE self)
     return str;
 }
 
+/* Document-method: delete(key, options = {})
+ *
+ * Delete the specified key
+ *
+ * @param key [String, Symbol] Key used to reference the value.
+ * @param options [Hash] Options for operation.
+ * @option options [Boolean] :quiet (self.quiet) If set to +true+, the
+ *   operation won't raise error for missing key, it will return +nil+.
+ *   Otherwise it will raise error in synchronous mode. In asynchronous
+ *   mode this option ignored.
+ * @option options [Fixnum] :cas The CAS value for an object. This value
+ *   created on the server and is guaranteed to be unique for each value of
+ *   a given key. This value is used to provide simple optimistic
+ *   concurrency control when multiple clients or threads try to
+ *   update/delete an item simultaneously.
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ * @raise [ArgumentError] when passing the block in synchronous mode
+ * @raise [Couchbase::Error::KeyExists] on CAS mismatch
+ * @raise [Couchbase::Error::NotFound] if key is missing in verbose mode
+ *
+ * @example Delete the key in quiet mode (default)
+ *   c.set("foo", "bar")
+ *   c.delete("foo")        #=> true
+ *   c.delete("foo")        #=> false
+ *
+ * @example Delete the key verbosely
+ *   c.set("foo", "bar")
+ *   c.delete("foo", :quiet => false)   #=> true
+ *   c.delete("foo", :quiet => false)   #=> will raise Couchbase::Error::NotFound
+ *
+ * @example Delete the key with version check
+ *   ver = c.set("foo", "bar")          #=> 5992859822302167040
+ *   c.delete("foo", :cas => 123456)    #=> will raise Couchbase::Error::KeyExists
+ *   c.delete("foo", :cas => ver)       #=> true
+ */
     static VALUE
 cb_bucket_delete(int argc, VALUE *argv, VALUE self)
 {
@@ -1769,12 +1858,176 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     }
 }
 
+/* Document-method: incr(key, delta = 1, options = {})
+ *
+ * Increment the value of an existing numeric key
+ *
+ * The increment methods enable you to increase a given stored integer
+ * value. These are the incremental equivalent of the decrement operations
+ * and work on the same basis; updating the value of a key if it can be
+ * parsed to an integer. The update operation occurs on the server and is
+ * provided at the protocol level. This simplifies what would otherwise be a
+ * two-stage get and set operation.
+ *
+ * @note that server values stored and transmitted as unsigned numbers,
+ *   therefore if you try to store negative number and then increment or
+ *   decrement it will cause overflow. (see "Integer overflow" example
+ *   below)
+ *
+ * @param key [String, Symbol] Key used to reference the value.
+ * @param delta [Fixnum] Integer (up to 64 bits) value to increment
+ * @param options [Hash] Options for operation.
+ * @option options [Boolean] :create (false) If set to +true+, it will
+ *   initialize the key with zero value and zero flags (use +:initial+
+ *   option to set another initial value). Note: it won't increment the
+ *   missing value.
+ * @option options [Fixnum] :initial (0) Integer (up to 64 bits) value for
+ *   missing key initialization. This option imply +:create+ option is
+ *   +true+.
+ * @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
+ *   Values larger than 30*24*60*60 seconds (30 days) are interpreted as
+ *   absolute times (from the epoch). This option ignored for existent
+ *   keys.
+ * @option options [Boolean] :extended (false) If set to +true+, the
+ *   operation will return tuple +[value, cas]+, otherwise (by default) it
+ *   returns just value.
+ *
+ * @yieldparam ret [Result] the result of operation in asynchronous mode
+ *   (valid attributes: +error+, +operation+, +key+, +value+, +cas+).
+ *
+ * @return [Fixnum] the actual value of the key.
+ *
+ * @raise [Couchbase::Error::NotFound] if key is missing and +:create+
+ *   option isn't +true+.
+ *
+ * @raise [Couchbase::Error::DeltaBadval] if the key contains non-numeric
+ *   value
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ *
+ * @raise [ArgumentError] when passing the block in synchronous mode
+ *
+ * @example Increment key by one
+ *   c.incr("foo")
+ *
+ * @example Increment key by 50
+ *   c.incr("foo", 50)
+ *
+ * @example Increment key by one <b>OR</b> initialize with zero
+ *   c.incr("foo", :create => true)   #=> will return old+1 or 0
+ *
+ * @example Increment key by one <b>OR</b> initialize with three
+ *   c.incr("foo", 50, :initial => 3) #=> will return old+50 or 3
+ *
+ * @example Increment key and get its CAS value
+ *   val, cas = c.incr("foo", :extended => true)
+ *
+ * @example Integer overflow
+ *   c.set("foo", -100)
+ *   c.get("foo")           #=> -100
+ *   c.incr("foo")          #=> 18446744073709551517
+ *
+ * @example Asynchronous invocation
+ *   c.run do
+ *     c.incr("foo") do |ret|
+ *       ret.operation   #=> :increment
+ *       ret.success?    #=> true
+ *       ret.key         #=> "foo"
+ *       ret.value
+ *       ret.cas
+ *     end
+ *   end
+ *
+ */
 static VALUE
 cb_bucket_incr(int argc, VALUE *argv, VALUE self)
 {
     return cb_bucket_arithmetic(+1, argc, argv, self);
 }
 
+/* Document-method: decr(key, delta = 1, options = {})
+ *
+ * Decrement the value of an existing numeric key
+ *
+ * The decrement methods reduce the value of a given key if the
+ * corresponding value can be parsed to an integer value. These operations
+ * are provided at a protocol level to eliminate the need to get, update,
+ * and reset a simple integer value in the database. It supports the use of
+ * an explicit offset value that will be used to reduce the stored value in
+ * the database.
+ *
+ * @note that server values stored and transmitted as unsigned numbers,
+ *   therefore if you try to decrement negative or zero key, you will always
+ *   get zero.
+ *
+ * @param key [String, Symbol] Key used to reference the value.
+ * @param delta [Fixnum] Integer (up to 64 bits) value to decrement
+ * @param options [Hash] Options for operation.
+ * @option options [Boolean] :create (false) If set to +true+, it will
+ *   initialize the key with zero value and zero flags (use +:initial+
+ *   option to set another initial value). Note: it won't decrement the
+ *   missing value.
+ * @option options [Fixnum] :initial (0) Integer (up to 64 bits) value for
+ *   missing key initialization. This option imply +:create+ option is
+ *   +true+.
+ * @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
+ *   Values larger than 30*24*60*60 seconds (30 days) are interpreted as
+ *   absolute times (from the epoch). This option ignored for existent
+ *   keys.
+ * @option options [Boolean] :extended (false) If set to +true+, the
+ *   operation will return tuple +[value, cas]+, otherwise (by default) it
+ *   returns just value.
+ *
+ * @yieldparam ret [Result] the result of operation in asynchronous mode
+ *   (valid attributes: +error+, +operation+, +key+, +value+, +cas+).
+ *
+ * @return [Fixnum] the actual value of the key.
+ *
+ * @raise [Couchbase::Error::NotFound] if key is missing and +:create+
+ *   option isn't +true+.
+ *
+ * @raise [Couchbase::Error::DeltaBadval] if the key contains non-numeric
+ *   value
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ *
+ * @raise [ArgumentError] when passing the block in synchronous mode
+ *
+ * @example Decrement key by one
+ *   c.decr("foo")
+ *
+ * @example Decrement key by 50
+ *   c.decr("foo", 50)
+ *
+ * @example Decrement key by one <b>OR</b> initialize with zero
+ *   c.decr("foo", :create => true)   #=> will return old-1 or 0
+ *
+ * @example Decrement key by one <b>OR</b> initialize with three
+ *   c.decr("foo", 50, :initial => 3) #=> will return old-50 or 3
+ *
+ * @example Decrement key and get its CAS value
+ *   val, cas = c.decr("foo", :extended => true)
+ *
+ * @example Decrementing zero
+ *   c.set("foo", 0)
+ *   c.decrement("foo", 100500)   #=> 0
+ *
+ * @example Decrementing negative value
+ *   c.set("foo", -100)
+ *   c.decrement("foo", 100500)   #=> 0
+ *
+ * @example Asynchronous invocation
+ *   c.run do
+ *     c.decr("foo") do |ret|
+ *       ret.operation   #=> :decrement
+ *       ret.success?    #=> true
+ *       ret.key         #=> "foo"
+ *       ret.value
+ *       ret.cas
+ *     end
+ *   end
+ *
+ */
 static VALUE
 cb_bucket_decr(int argc, VALUE *argv, VALUE self)
 {
@@ -1805,10 +2058,12 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
  *   @return [Object, Array, Hash] the value(s) (or tuples in extended mode)
  *     assiciated with the key.
  *
- *   @raise [Couchbase::Errors:NotFound] if the key is missing in the
+ *   @raise [Couchbase::Error::NotFound] if the key is missing in the
  *     bucket.
  *
- *   @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ *   @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ *
+ *   @raise [ArgumentError] when passing the block in synchronous mode
  *
  *   @example Get single value in quite mode (the default)
  *     c.get("foo")     #=> the associated value or nil
@@ -1817,7 +2072,7 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
  *     c["foo"]         #=> the associated value or nil
  *
  *   @example Get single value in verbose mode
- *     c.get("missing-foo", :quiet => false)  #=> raises Couchbase::Error::NotFound
+ *     c.get("missing-foo", :quiet => false)  #=> raises Couchbase::NotFound
  *
  *   @example Get and touch single value. The key won't be accessible after 10 seconds
  *     c.get("foo", :ttl => 10)
@@ -1973,7 +2228,9 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
  *   @return [Boolean] +true+ if the operation was successful and +false+
  *     otherwise.
  *
- *   @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ *   @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ *
+ *   @raise [ArgumentError] when passing the block in synchronous mode
  *
  *   @example Touch value using +default_ttl+
  *     c.touch("foo")
@@ -2078,10 +2335,29 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     }
 }
 
-/*
+/* Document-method: flush
+ *
  * Deletes all values from a server
  *
- * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ * @yieldparam [Result] ret the object with +error+, +node+ and +operation+
+ *   attributes.
+ *
+ * @return [Boolean] +true+ on success
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ * @raise [ArgumentError] when passing the block in synchronous mode
+ *
+ * @example Simple flush the bucket
+ *   c.flush    #=> true
+ *
+ * @example Asynchronous flush
+ *   c.run do
+ *     c.flush do |ret|
+ *       ret.operation   #=> :flush
+ *       ret.success?    #=> true
+ *       ret.node        #=> "localhost:11211"
+ *     end
+ *   end
  */
     static VALUE
 cb_bucket_flush(VALUE self)
@@ -2138,11 +2414,15 @@ cb_bucket_flush(VALUE self)
 
 /* Document-method: stats(arg = nil)
  *
- * Get stats from cluster
+ * Request server statistics.
  *
- * Fetches stats from each node in cluster. In ssynchronous mode it returns
- * the hash of stats keys and node-value pairs as a value. In asynchronous
- * mode it yields Result value with +node+, +key+ and +value+ defined.
+ * Fetches stats from each node in cluster. Without a key specified the
+ * server will respond with a "default" set of statistical information. In
+ * asynchronous mode each statistic is returned in separate call where the
+ * Result object yielded (+#key+ contains the name of the statistical item
+ * and the +#value+ contains the value, the +#node+ will indicate the server
+ * address). In synchronous mode it returns the hash of stats keys and
+ * node-value pairs as a value.
  *
  * @param [String] arg argument to STATS query
  * @yieldparam [Result] ret the object with +node+, +key+ and +value+
@@ -2169,7 +2449,8 @@ cb_bucket_flush(VALUE self)
  *
  * @return [Hash] where keys are stat keys, values are host-value pairs
  *
- * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ * @raise [ArgumentError] when passing the block in synchronous mode
  */
     static VALUE
 cb_bucket_stats(int argc, VALUE *argv, VALUE self)
@@ -2274,7 +2555,7 @@ ensure_run(VALUE *args)
 /*
  * Run the event loop.
  *
- * @yieldparam [Bucket] the bucket instance
+ * @yieldparam [Bucket] bucket the bucket instance
  *
  * @example Use block to run the loop
  *   c = Couchbase.new
@@ -2291,7 +2572,7 @@ ensure_run(VALUE *args)
  *
  * @return [nil]
  *
- * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
  */
     static VALUE
 cb_bucket_run(VALUE self)
@@ -2305,8 +2586,72 @@ cb_bucket_run(VALUE self)
     return Qnil;
 }
 
-/*
- * Unconditionally set the object in the cache
+/* Document-method: set(key, value, options = {})
+ *
+ * Unconditionally store the object in the Couchbase
+ *
+ * @param key [String, Symbol] Key used to reference the value.
+ * @param value [Object] Value to be stored
+ * @param options [Hash] Options for operation.
+ * @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
+ *   Values larger than 30*24*60*60 seconds (30 days) are interpreted as
+ *   absolute times (from the epoch).
+ * @option options [Fixnum] :flags (self.default_flags) Flags for storage
+ *   options. Flags are ignored by the server but preserved for use by the
+ *   client. For more info see {Bucket#default_flags}.
+ * @option options [Symbol] :format (self.default_format) The
+ *   representation for storing the value in the bucket. For more info see
+ *   {Bucket#default_format}.
+ * @option options [Fixnum] :cas The CAS value for an object. This value
+ *   created on the server and is guaranteed to be unique for each value of
+ *   a given key. This value is used to provide simple optimistic
+ *   concurrency control when multiple clients or threads try to update an
+ *   item simultaneously.
+ *
+ * @yieldparam ret [Result] the result of operation in asynchronous mode
+ *   (valid attributes: +error+, +operation+, +key+).
+ *
+ * @return [Fixnum] The CAS value of the object.
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect}).
+ * @raise [Couchbase::Error::KeyExists] if the key already exists on the
+ *   server.
+ * @raise [Couchbase::Error::ValueFormat] if the value cannot be serialized
+ *   with chosen encoder, e.g. if you try to store the Hash in +:plain+
+ *   mode.
+ * @raise [ArgumentError] when passing the block in synchronous mode
+ *
+ * @example Store the key which will be expired in 2 seconds using relative TTL.
+ *   c.set("foo", "bar", :ttl => 2)
+ *
+ * @example Store the key which will be expired in 2 seconds using absolute TTL.
+ *   c.set("foo", "bar", :ttl => Time.now.to_i + 2)
+ *
+ * @example Force JSON document format for value
+ *   c.set("foo", {"bar" => "baz}, :format => :document)
+ *
+ * @example Use hash-like syntax to store the value
+ *   c.set["foo"] = {"bar" => "baz}
+ *
+ * @example Use extended hash-like syntax
+ *  c["foo", {:flags => 0x1000, :format => :plain}] = "bar"
+ *  c["foo", :flags => 0x1000] = "bar"  # for ruby 1.9.x only
+ *
+ * @example Set application specific flags (note that it will be OR-ed with format flags)
+ *   c.set("foo", "bar", :flags => 0x1000)
+ *
+ * @example Perform optimistic locking by specifying last known CAS version
+ *   c.set("foo", "bar", :cas => 8835713818674332672)
+ *
+ * @example Perform asynchronous call
+ *   c.run do
+ *     c.set("foo", "bar") do |ret|
+ *       ret.operation   #=> :set
+ *       ret.success?    #=> true
+ *       ret.key         #=> "foo"
+ *       ret.cas
+ *     end
+ *   end
  */
     static VALUE
 cb_bucket_set(int argc, VALUE *argv, VALUE self)
@@ -2314,8 +2659,44 @@ cb_bucket_set(int argc, VALUE *argv, VALUE self)
     return cb_bucket_store(LIBCOUCHBASE_SET, argc, argv, self);
 }
 
-/*
- * Add the item to the cache, but fail if the object exists alread
+/* Document-method: add(key, value, options = {})
+ *
+ * Add the item to the database, but fail if the object exists already
+ *
+ * @param key [String, Symbol] Key used to reference the value.
+ * @param value [Object] Value to be stored
+ * @param options [Hash] Options for operation.
+ * @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
+ *   Values larger than 30*24*60*60 seconds (30 days) are interpreted as
+ *   absolute times (from the epoch).
+ * @option options [Fixnum] :flags (self.default_flags) Flags for storage
+ *   options. Flags are ignored by the server but preserved for use by the
+ *   client. For more info see {Bucket#default_flags}.
+ * @option options [Symbol] :format (self.default_format) The
+ *   representation for storing the value in the bucket. For more info see
+ *   {Bucket#default_format}.
+ * @option options [Fixnum] :cas The CAS value for an object. This value
+ *   created on the server and is guaranteed to be unique for each value of
+ *   a given key. This value is used to provide simple optimistic
+ *   concurrency control when multiple clients or threads try to update an
+ *   item simultaneously.
+ *
+ * @yieldparam ret [Result] the result of operation in asynchronous mode
+ *   (valid attributes: +error+, +operation+, +key+).
+ *
+ * @return [Fixnum] The CAS value of the object.
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ * @raise [Couchbase::Error::KeyExists] if the key already exists on the
+ *   server
+ * @raise [Couchbase::Error::ValueFormat] if the value cannot be serialized
+ *   with chosen encoder, e.g. if you try to store the Hash in +:plain+
+ *   mode.
+ * @raise [ArgumentError] when passing the block in synchronous mode
+ *
+ * @example Add the same key twice
+ *   c.add("foo", "bar")  #=> stored successully
+ *   c.add("foo", "baz")  #=> will raise Couchbase::Error::KeyExists: failed to store value (key="foo", error=0x0c)
  */
     static VALUE
 cb_bucket_add(int argc, VALUE *argv, VALUE self)
@@ -2323,10 +2704,32 @@ cb_bucket_add(int argc, VALUE *argv, VALUE self)
     return cb_bucket_store(LIBCOUCHBASE_ADD, argc, argv, self);
 }
 
-/*
- * Replace the existing object in the cache
+/* Document-method: replace(key, value, options = {})
  *
- * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ * Replace the existing object in the database
+ *
+ * @param key [String, Symbol] Key used to reference the value.
+ * @param value [Object] Value to be stored
+ * @param options [Hash] Options for operation.
+ * @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
+ *   Values larger than 30*24*60*60 seconds (30 days) are interpreted as
+ *   absolute times (from the epoch).
+ * @option options [Fixnum] :flags (self.default_flags) Flags for storage
+ *   options. Flags are ignored by the server but preserved for use by the
+ *   client. For more info see {Bucket#default_flags}.
+ * @option options [Symbol] :format (self.default_format) The
+ *   representation for storing the value in the bucket. For more info see
+ *   {Bucket#default_format}.
+ *
+ * @return [Fixnum] The CAS value of the object.
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ * @raise [Couchbase::Error::NotFound] if the key doesn't exists
+ * @raise [Couchbase::Error::KeyExists] on CAS mismatch
+ * @raise [ArgumentError] when passing the block in synchronous mode
+ *
+ * @example Replacing missing key
+ *   c.replace("foo", "baz")  #=> will raise Couchbase::Error::NotFound: failed to store value (key="foo", error=0x0d)
  */
     static VALUE
 cb_bucket_replace(int argc, VALUE *argv, VALUE self)
@@ -2334,10 +2737,69 @@ cb_bucket_replace(int argc, VALUE *argv, VALUE self)
     return cb_bucket_store(LIBCOUCHBASE_REPLACE, argc, argv, self);
 }
 
-/*
+/* Document-method: append(key, value, options = {})
+ *
  * Append this object to the existing object
  *
- * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ * @note This operation is kind of data-aware from server point of view.
+ *   This mean that the server treats value as binary stream and just
+ *   perform concatenation, therefore it won't work with +:marshal+ and
+ *   +:document+ formats, because of lack of knowledge how to merge values
+ *   in these formats. See Bucket#cas for workaround.
+ *
+ * @param key [String, Symbol] Key used to reference the value.
+ * @param value [Object] Value to be stored
+ * @param options [Hash] Options for operation.
+ * @option options [Fixnum] :cas The CAS value for an object. This value
+ *   created on the server and is guaranteed to be unique for each value of
+ *   a given key. This value is used to provide simple optimistic
+ *   concurrency control when multiple clients or threads try to update an
+ *   item simultaneously.
+ * @option options [Symbol] :format (self.default_format) The
+ *   representation for storing the value in the bucket. For more info see
+ *   {Bucket#default_format}.
+ *
+ * @return [Fixnum] The CAS value of the object.
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ * @raise [Couchbase::Error::KeyExists] on CAS mismatch
+ * @raise [Couchbase::Error::NotStored] if the key doesn't exist
+ * @raise [ArgumentError] when passing the block in synchronous mode
+ *
+ * @example Simple append
+ *   c.set("foo", "aaa")
+ *   c.append("foo", "bbb")
+ *   c.get("foo")           #=> "aaabbb"
+ *
+ * @example Implementing sets using append
+ *   def set_add(key, *values)
+ *     encoded = values.flatten.map{|v| "+#{v} "}.join
+ *     append(key, encoded)
+ *   end
+ *
+ *   def set_remove(key, *values)
+ *     encoded = values.flatten.map{|v| "-#{v} "}.join
+ *     append(key, encoded)
+ *   end
+ *
+ *   def set_get(key)
+ *     encoded = get(key)
+ *     ret = Set.new
+ *     encoded.split(' ').each do |v|
+ *       op, val = v[0], v[1..-1]
+ *       case op
+ *       when "-"
+ *         ret.delete(val)
+ *       when "+"
+ *         ret.add(val)
+ *       end
+ *     end
+ *     ret
+ *   end
+ *
+ * @example Using optimistic locking. The operation will fail on CAS mismatch
+ *   ver = c.set("foo", "aaa")
+ *   c.append("foo", "bbb", :cas => ver)
  */
     static VALUE
 cb_bucket_append(int argc, VALUE *argv, VALUE self)
@@ -2345,10 +2807,48 @@ cb_bucket_append(int argc, VALUE *argv, VALUE self)
     return cb_bucket_store(LIBCOUCHBASE_APPEND, argc, argv, self);
 }
 
-/*
+/* Document-method: prepend(key, value, options = {})
+ *
  * Prepend this object to the existing object
  *
- * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ * @note This operation is kind of data-aware from server point of view.
+ *   This mean that the server treats value as binary stream and just
+ *   perform concatenation, therefore it won't work with +:marshal+ and
+ *   +:document+ formats, because of lack of knowledge how to merge values
+ *   in these formats. See Bucket#cas for workaround.
+ *
+ * @param key [String, Symbol] Key used to reference the value.
+ * @param value [Object] Value to be stored
+ * @param options [Hash] Options for operation.
+ * @option options [Fixnum] :cas The CAS value for an object. This value
+ *   created on the server and is guaranteed to be unique for each value of
+ *   a given key. This value is used to provide simple optimistic
+ *   concurrency control when multiple clients or threads try to update an
+ *   item simultaneously.
+ * @option options [Symbol] :format (self.default_format) The
+ *   representation for storing the value in the bucket. For more info see
+ *   {Bucket#default_format}.
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ * @raise [Couchbase::Error::KeyExists] on CAS mismatch
+ * @raise [Couchbase::Error::NotStored] if the key doesn't exist
+ * @raise [ArgumentError] when passing the block in synchronous mode
+ *
+ * @example Simple prepend example
+ *   c.set("foo", "aaa")
+ *   c.prepend("foo", "bbb")
+ *   c.get("foo")           #=> "bbbaaa"
+ *
+ * @example Using explicit format option
+ *   c.default_format       #=> :document
+ *   c.set("foo", {"y" => "z"})
+ *   c.prepend("foo", '[', :format => :plain)
+ *   c.append("foo", ', {"z": "y"}]', :format => :plain)
+ *   c.get("foo")           #=> [{"y"=>"z"}, {"z"=>"y"}]
+ *
+ * @example Using optimistic locking. The operation will fail on CAS mismatch
+ *   ver = c.set("foo", "aaa")
+ *   c.prepend("foo", "bbb", :cas => ver)
  */
     static VALUE
 cb_bucket_prepend(int argc, VALUE *argv, VALUE self)
@@ -2375,7 +2875,7 @@ cb_bucket_aset(int argc, VALUE *argv, VALUE self)
  *
  * @return [true]
  *
- * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
  */
     static VALUE
 cb_bucket_disconnect(VALUE self)
@@ -2404,6 +2904,11 @@ cb_result_success_p(VALUE self)
     return RTEST(rb_ivar_get(self, id_iv_error)) ? Qfalse : Qtrue;
 }
 
+/*
+ * Returns a string containing a human-readable representation of the Result.
+ *
+ * @return [String]
+ */
     static VALUE
 cb_result_inspect(VALUE self)
 {
@@ -2555,7 +3060,7 @@ Init_couchbase_ext(void)
     id_iv_operation = rb_intern("@operation");
 
     /* Document-class: Couchbase::Result
-     * Protocol error */
+     * The object which yielded to asynchronous callbacks */
     cResult = rb_define_class_under(mCouchbase, "Result", rb_cObject);
     rb_define_method(cResult, "inspect", cb_result_inspect, 0);
     rb_define_method(cResult, "success?", cb_result_success_p, 0);
@@ -2563,7 +3068,7 @@ Init_couchbase_ext(void)
      * @return [Symbol] */
     rb_define_attr(cResult, "operation", 1, 0);
     /* Document-method: error
-     * @return [Error::Base] */
+     * @return [Couchbase::Error::Base] */
     rb_define_attr(cResult, "error", 1, 0);
     /* Document-method: key
      * @return [String] */
@@ -2591,17 +3096,35 @@ Init_couchbase_ext(void)
      * Couchbase. */
     cBucket = rb_define_class_under(mCouchbase, "Bucket", rb_cObject);
     object_space = rb_hash_new();
+    /* @private Hack to avoid GC in some cases */
     rb_define_const(cBucket, "OBJECT_SPACE", object_space);
 
+    /* 0x03: Bitmask for flag bits responsible for format */
     rb_define_const(cBucket, "FMT_MASK", INT2FIX(FMT_MASK));
+    /* 0x00: Document format. The (default) format supports most of ruby
+     * types which could be mapped to JSON data (hashes, arrays, strings,
+     * numbers). Future version will be able to run map/reduce queries on
+     * the values in the document form (hashes). */
     rb_define_const(cBucket, "FMT_DOCUMENT", INT2FIX(FMT_DOCUMENT));
+    /* 0x01:  Marshal format. The format which supports transparent
+     * serialization of ruby objects with standard <tt>Marshal.dump</tt> and
+     * <tt>Marhal.load</tt> methods. */
     rb_define_const(cBucket, "FMT_MARSHAL", INT2FIX(FMT_MARSHAL));
+    /* 0x02:  Plain format. The format which force client don't apply any
+     * conversions to the value, but it should be passed as String. It
+     * could be useful for building custom algorithms or formats. For
+     * example implement set:
+     * http://dustin.github.com/2011/02/17/memcached-set.html */
     rb_define_const(cBucket, "FMT_PLAIN", INT2FIX(FMT_PLAIN));
 
     rb_define_singleton_method(cBucket, "new", cb_bucket_new, -1);
 
     rb_define_method(cBucket, "initialize", cb_bucket_init, -1);
     rb_define_method(cBucket, "inspect", cb_bucket_inspect, 0);
+
+    /* Document-method: seqno
+     * The number of scheduled commands */
+    /* rb_define_attr(cBucket, "seqno", 1, 0); */
     rb_define_method(cBucket, "seqno", cb_bucket_seqno, 0);
 
     rb_define_method(cBucket, "add", cb_bucket_add, -1);
@@ -2624,33 +3147,17 @@ Init_couchbase_ext(void)
     rb_define_alias(cBucket, "increment", "incr");
 
     rb_define_alias(cBucket, "[]", "get");
-    /* rb_define_alias(cBucket, "[]=", "set"); */
+    rb_define_alias(cBucket, "[]=", "set");
     rb_define_method(cBucket, "[]=", cb_bucket_aset, -1);
 
     rb_define_method(cBucket, "connected?", cb_bucket_connected_p, 0);
-    /* Document-method: async?
-     * Flag specifying if the connection asynchronous.
-     *
-     * By default all operations are synchronous and block waiting for
-     * results, but you can make them asynchronous and run event loop
-     * explicitly. (see Bucket#run)
-     *
-     * @example Return value of #get operation depending on async flag
-     *   connection = Connection.new
-     *   connection.async?      #=> false
-     *
-     *   connection.run do |conn|
-     *     conn.async?          #=> true
-     *   end
-     *
-     * @return [Boolean] */
     rb_define_method(cBucket, "async?", cb_bucket_async_p, 0);
 
     /* Document-method: quiet
      * Flag specifying behaviour for operations on missing keys
      *
      * If it is +true+, the operations will silently return +nil+ or +false+
-     * instead of raising Couchbase::Error::NotFoundError.
+     * instead of raising Couchbase::Error::NotFound.
      *
      * @example Hiding cache miss (considering "miss" key is not stored)
      *   connection.quiet = true
@@ -2658,7 +3165,7 @@ Init_couchbase_ext(void)
      *
      * @example Raising errors on miss (considering "miss" key is not stored)
      *   connection.quiet = false
-     *   connection.get("miss")     #=> will raise Couchbase::Error::NotFoundError
+     *   connection.get("miss")     #=> will raise Couchbase::Error::NotFound
      *
      * @return [Boolean] */
     /* rb_define_attr(cBucket, "quiet", 1, 1); */
@@ -2696,7 +3203,7 @@ Init_couchbase_ext(void)
      * Here is some notes regarding how to choose the format:
      *
      * * <tt>:document</tt> (default) format supports most of ruby types
-     *   which could be mapped to JSON data (hashes, arrays, string,
+     *   which could be mapped to JSON data (hashes, arrays, strings,
      *   numbers). Future version will be able to run map/reduce queries on
      *   the values in the document form (hashes).
      *
@@ -2723,7 +3230,9 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "default_format=", cb_bucket_default_format_set, 1);
 
     /* Document-method: timeout
-     * @return [Fixnum] */
+     * @return [Fixnum] The timeout for the operations. The client will
+     *   raise Couchbase::Error::Timeout exception for all commands which
+     *   weren't completed in given timeslot. */
     /* rb_define_attr(cBucket, "timeout", 1, 1); */
     rb_define_method(cBucket, "timeout", cb_bucket_timeout_get, 0);
     rb_define_method(cBucket, "timeout=", cb_bucket_timeout_set, 1);
@@ -2754,38 +3263,21 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "on_error", cb_bucket_on_error_get, 0);
     rb_define_method(cBucket, "on_error=", cb_bucket_on_error_set, 1);
 
-    /* Document-method: url
-     * @return [String] the address of the cluster management interface. */
     /* rb_define_attr(cBucket, "url", 1, 0); */
     rb_define_method(cBucket, "url", cb_bucket_url_get, 0);
-    /* Document-method: hostname
-     * @return [String] the host name of the management interface (default: "localhost") */
     /* rb_define_attr(cBucket, "hostname", 1, 0); */
     rb_define_method(cBucket, "hostname", cb_bucket_hostname_get, 0);
-    /* Document-method: port
-     * @return [Fixnum] the port number of the management interface (default: 8091) */
     /* rb_define_attr(cBucket, "port", 1, 0); */
     rb_define_method(cBucket, "port", cb_bucket_port_get, 0);
-    /* Document-method: authority
-     * @return [String] host with port. */
     /* rb_define_attr(cBucket, "authority", 1, 0); */
     rb_define_method(cBucket, "authority", cb_bucket_authority_get, 0);
-    /* Document-method: bucket
-     * @return [String] the bucket name */
     /* rb_define_attr(cBucket, "bucket", 1, 0); */
     rb_define_method(cBucket, "bucket", cb_bucket_bucket_get, 0);
     rb_define_alias(cBucket, "name", "bucket");
-    /* Document-method: pool
-     * @return [String] the pool name (usually "default") */
     /* rb_define_attr(cBucket, "pool", 1, 0); */
     rb_define_method(cBucket, "pool", cb_bucket_pool_get, 0);
-    /* Document-method: username
-     * @return [String] the username for protected buckets (usually matches
-     *   the bucket name) */
     /* rb_define_attr(cBucket, "username", 1, 0); */
     rb_define_method(cBucket, "username", cb_bucket_username_get, 0);
-    /* Document-method: password
-     * @return [String] the password for protected buckets */
     /* rb_define_attr(cBucket, "password", 1, 0); */
     rb_define_method(cBucket, "password", cb_bucket_password_get, 0);
 

@@ -37,7 +37,7 @@ module Couchbase
     #   +Result+ object in asynchronous mode.
     # @yieldreturn [Object] new value.
     #
-    # @raise [Couchbase::Errors:KeyExists] if the key was updated before the the
+    # @raise [Couchbase::Error::KeyExists] if the key was updated before the the
     #   code in block has been completed (the CAS value has been changed).
     #
     # @example Implement append to JSON encoded value
