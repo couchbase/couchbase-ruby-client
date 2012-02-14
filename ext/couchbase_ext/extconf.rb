@@ -20,62 +20,70 @@ ENV['RC_ARCHS'] = '' if RUBY_PLATFORM =~ /darwin/
 
 require 'mkmf'
 
-LIBDIR = Config::CONFIG['libdir']
-INCLUDEDIR = Config::CONFIG['includedir']
-
-HEADER_DIRS = [
-  # First search /opt/local for macports
-  '/opt/local/include',
-  # Then search /usr/local for people that installed from source
-  '/usr/local/include',
-  # Check the ruby install locations
-  INCLUDEDIR,
-  # Finally fall back to /usr
-  '/usr/include'
-]
-
-LIB_DIRS = [
-  # First search /opt/local for macports
-  '/opt/local/lib',
-  # Then search /usr/local for people that installed from source
-  '/usr/local/lib',
-  # Check the ruby install locations
-  LIBDIR,
-  # Finally fall back to /usr
-  '/usr/lib'
-]
-
-# For people using homebrew
-brew_prefix = `brew --prefix libevent 2> /dev/null`.chomp
-unless brew_prefix.empty?
-  LIB_DIRS.unshift File.join(brew_prefix, 'lib')
-  HEADER_DIRS.unshift File.join(brew_prefix, 'include')
-end
-
-HEADER_DIRS.delete_if{|d| !File.exists?(d)}
-LIB_DIRS.delete_if{|d| !File.exists?(d)}
-
 def define(macro, value = nil)
   $defs.push("-D #{[macro.upcase, value].compact.join('=')}")
 end
 
-# it will find the libcouchbase likely. you can specify its path otherwise
-#
-#   ruby extconf.rb [--with-libcouchbase-include=<dir>] [--with-libcouchbase-lib=<dir>]
-#
-# or
-#
-#   ruby extconf.rb [--with-libcouchbase-dir=<dir>]
-#
-dir_config("libcouchbase", HEADER_DIRS, LIB_DIRS)
-
-if COMMON_HEADERS !~ /"ruby\.h"/
-  COMMON_HEADERS << %(#include "ruby.h"\n)
-end
+$CFLAGS  << " #{ENV["CFLAGS"]}"
+$LDFLAGS << " #{ENV["LDFLAGS"]}"
+$LIBS    << " #{ENV["LIBS"]}"
 
 $CFLAGS << ' -std=c99 -Wall -Wextra '
 if ENV['DEBUG']
-  $CFLAGS << ' -O0 -ggdb3 -pedantic'
+  $CFLAGS << ' -O0 -ggdb3 -pedantic '
+end
+
+if RbConfig::CONFIG['target_os'] =~ /mingw32/
+  dir_config("libcouchbase")
+else
+  LIBDIR = RbConfig::CONFIG['libdir']
+  INCLUDEDIR = RbConfig::CONFIG['includedir']
+
+  HEADER_DIRS = [
+    # First search /opt/local for macports
+    '/opt/local/include',
+    # Then search /usr/local for people that installed from source
+    '/usr/local/include',
+    # Check the ruby install locations
+    INCLUDEDIR,
+    # Finally fall back to /usr
+    '/usr/include'
+  ]
+
+  LIB_DIRS = [
+    # First search /opt/local for macports
+    '/opt/local/lib',
+    # Then search /usr/local for people that installed from source
+    '/usr/local/lib',
+    # Check the ruby install locations
+    LIBDIR,
+    # Finally fall back to /usr
+    '/usr/lib'
+  ]
+
+  # For people using homebrew
+  brew_prefix = `brew --prefix libevent 2> /dev/null`.chomp
+  unless brew_prefix.empty?
+    LIB_DIRS.unshift File.join(brew_prefix, 'lib')
+    HEADER_DIRS.unshift File.join(brew_prefix, 'include')
+  end
+
+  HEADER_DIRS.delete_if{|d| !File.exists?(d)}
+  LIB_DIRS.delete_if{|d| !File.exists?(d)}
+
+  # it will find the libcouchbase likely. you can specify its path otherwise
+  #
+  #   ruby extconf.rb [--with-libcouchbase-include=<dir>] [--with-libcouchbase-lib=<dir>]
+  #
+  # or
+  #
+  #   ruby extconf.rb [--with-libcouchbase-dir=<dir>]
+  #
+  dir_config("libcouchbase", HEADER_DIRS, LIB_DIRS)
+end
+
+if COMMON_HEADERS !~ /"ruby\.h"/
+  COMMON_HEADERS << %(\n#include "ruby.h"\n)
 end
 
 if try_compile(<<-SRC)
@@ -96,6 +104,8 @@ if try_compile(<<-SRC)
   define("HAVE_STDARG_PROTOTYPES")
 end
 
+have_library("vbucket", "vbucket_config_create", "libvbucket/vbucket.h") || abort
+have_library("sasl", "sasl_client_init", "sasl/sasl.h") || have_library("sasl2", "sasl_client_init", "sasl/sasl.h") || abort
 have_library("couchbase", "libcouchbase_create", "libcouchbase/couchbase.h") || abort
 create_header("couchbase_config.h")
 create_makefile("couchbase_ext")

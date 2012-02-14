@@ -81,7 +81,7 @@ struct key_traits
     VALUE keys_ary;
     size_t nkeys;
     char **keys;
-    size_t *lens;
+    libcouchbase_size_t *lens;
     time_t *ttls;
     int extended;
     int explicit_ttl;
@@ -2896,7 +2896,7 @@ cb_result_success_p(VALUE self)
     static VALUE
 cb_result_inspect(VALUE self)
 {
-    VALUE str, attr, errno;
+    VALUE str, attr, error;
     char buf[100];
 
     str = rb_str_buf_new2("#<");
@@ -2906,12 +2906,12 @@ cb_result_inspect(VALUE self)
 
     attr = rb_ivar_get(self, id_iv_error);
     if (RTEST(attr)) {
-        errno = rb_ivar_get(attr, id_iv_error);
+        error = rb_ivar_get(attr, id_iv_error);
     } else {
-        errno = INT2FIX(0);
+        error = INT2FIX(0);
     }
     rb_str_buf_cat2(str, " error=0x");
-    rb_str_append(str, rb_funcall(errno, id_to_s, 1, INT2FIX(16)));
+    rb_str_append(str, rb_funcall(error, id_to_s, 1, INT2FIX(16)));
 
     attr = rb_ivar_get(self, id_iv_key);
     if (RTEST(attr)) {

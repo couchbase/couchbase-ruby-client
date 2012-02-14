@@ -32,6 +32,16 @@ end
 #  rake compile with_libcouchbase_dir=/opt/couchbase
 #
 Rake::ExtensionTask.new("couchbase_ext", gemspec) do |ext|
+  ext.cross_compile = true
+  ext.cross_platform = [ENV['HOST'] || "i386-mingw32"]
+  if ENV['RUBY_CC_VERSION']
+    ext.lib_dir = "lib/couchbase"
+  end
+  ext.cross_compiling do |spec|
+    spec.files.delete("lib/couchbase/couchbase_ext.so")
+    spec.files.push("lib/couchbase_ext.rb", Dir["lib/couchbase/1.{8,9}/couchbase_ext.so"])
+  end
+
   CLEAN.include "#{ext.lib_dir}/*.#{RbConfig::CONFIG['DLEXT']}"
 
   ENV.each do |key, val|
@@ -49,4 +59,76 @@ require 'rubygems/package_task'
 Gem::PackageTask.new(gemspec) do |pkg|
   pkg.need_zip = true
   pkg.need_tar = true
+end
+
+require 'mini_portile'
+require 'rake/extensioncompiler'
+
+class MiniPortile
+  alias :initialize_with_default_host :initialize
+  def initialize(name, version)
+    initialize_with_default_host(name, version)
+    @host = ENV['HOST'] || Rake::ExtensionCompiler.mingw_host
+  end
+
+  alias :cook_without_checkpoint :cook
+  def cook
+    checkpoint = "ports/.#{name}-#{version}-#{host}.installed"
+    unless File.exist?(checkpoint)
+      cook_without_checkpoint
+      FileUtils.touch(checkpoint)
+    end
+  end
+end
+
+namespace :ports do
+  directory "ports"
+
+  task :libvbucket => ["ports"] do
+    recipe = MiniPortile.new "libvbucket", "1.8.0.2"
+    recipe.files << "http://packages.couchbase.com/clients/c/#{recipe.name}-#{recipe.version}.tar.gz"
+    recipe.configure_options.push("--disable-debug",
+                                  "--without-docs",
+                                  "--disable-dependency-tracking")
+    recipe.cook
+    recipe.activate
+  end
+
+  task :libisasl => ["ports"] do
+    recipe = MiniPortile.new "libisasl", "1.0.0_3_g35e33e3"
+    recipe.files << "http://cloud.github.com/downloads/avsej/libisasl/#{recipe.name}-#{recipe.version}.tar.gz"
+    recipe.configure_options.push("--disable-debug",
+                                  "--disable-dependency-tracking")
+    recipe.cook
+    recipe.activate
+  end
+
+  task :libcouchbase => [:libvbucket, :libisasl] do
+    recipe = MiniPortile.new "libcouchbase", "1.0.1_8_gd9ed22a"
+    recipe.files << "http://files.avsej.net/#{recipe.name}-#{recipe.version}.tar.gz"
+    recipe.configure_options.push("--disable-debug",
+                                  "--disable-dependency-tracking",
+                                  "--disable-couchbasemock",
+                                  "--disable-tools",
+                                  "--with-memcached-headers-url=https://raw.github.com/membase/memcached/engine/include/memcached")
+    recipe.cook
+    recipe.activate
+  end
+end
+
+file "lib/couchbase_ext.rb" do
+  File.open("lib/couchbase_ext.rb", 'wb') do |f|
+    f.write <<-RUBY
+      require "couchbase/\#{RUBY_VERSION.sub(/\\.\\d+$/, '')}/couchbase_ext"
+    RUBY
+  end
+end
+
+task :cross => ["lib/couchbase_ext.rb", "ports:libcouchbase"]
+
+desc "Package gem for windows"
+task "package:windows" => :package do
+  sh("env RUBY_CC_VERSION=1.8.7 rvm 1.8.7 do bundle exec rake cross compile")
+  sh("env RUBY_CC_VERSION=1.9.2 rvm 1.9.2 do bundle exec rake cross compile")
+  sh("env RUBY_CC_VERSION=1.8.7:1.9.2 rvm 1.9.2 do bundle exec rake cross native gem")
 end
