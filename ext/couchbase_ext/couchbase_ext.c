@@ -654,7 +654,7 @@ get_callback(libcouchbase_t handle, const void *cookie,
             cb_proc_call(ctx->proc, 1, res);
         }
     } else {                /* synchronous */
-        if (NIL_P(exc) && v != Qnil) {
+        if (NIL_P(exc) && error != LIBCOUCHBASE_KEY_ENOENT) {
             if (ctx->extended) {
                 rb_hash_aset(*rv, k, rb_ary_new3(3, v, f, c));
             } else {

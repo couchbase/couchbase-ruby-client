@@ -268,4 +268,21 @@ class TestGet < MiniTest::Unit::TestCase
       EOC
     end
   end
+
+  def test_it_allows_to_store_nil
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+
+    orig_cas = connection.set(uniq_id, nil)
+    assert orig_cas.is_a?(Numeric)
+
+    refute connection.get(uniq_id)
+    # doesn't raise NotFound exception
+    refute connection.get(uniq_id, :quiet => false)
+    # returns CAS
+    value, flags, cas = connection.get(uniq_id, :extended => true)
+    refute value
+    assert_equal 0x00, flags
+    assert_equal orig_cas, cas
+  end
+
 end
