@@ -285,4 +285,27 @@ class TestGet < MiniTest::Unit::TestCase
     assert_equal orig_cas, cas
   end
 
+  def test_zero_length_string_is_not_nil
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+
+    connection.set(uniq_id, "", :format => :document)
+    assert_equal "", connection.get(uniq_id)
+
+    connection.set(uniq_id, "", :format => :plain)
+    assert_equal "", connection.get(uniq_id)
+
+    connection.set(uniq_id, "", :format => :marshal)
+    assert_equal "", connection.get(uniq_id)
+
+    connection.set(uniq_id, nil, :format => :document)
+    assert_equal nil, connection.get(uniq_id, :quiet => false)
+
+    assert_raises Couchbase::Error::ValueFormat do
+      connection.set(uniq_id, nil, :format => :plain)
+    end
+
+    connection.set(uniq_id, nil, :format => :marshal)
+    assert_equal nil, connection.get(uniq_id, :quiet => false)
+  end
+
 end

@@ -640,7 +640,11 @@ get_callback(libcouchbase_t handle, const void *cookie,
             v = Qnil;
         }
     } else {
-        v = Qnil;
+        if (flags_get_format(flags) == sym_plain) {
+            v = rb_str_new2("");
+        } else {
+            v = Qnil;
+        }
     }
     if (bucket->async) { /* asynchronous */
         if (ctx->proc != Qnil) {
