@@ -87,6 +87,17 @@ class TestArithmetic < MiniTest::Unit::TestCase
     refute connection.get(uniq_id(:missing))
   end
 
+  def test_decrement_with_absolute_ttl
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    # absolute TTL: one second from now
+    exp = Time.now.to_i + 1
+    val = connection.decr(uniq_id, 12, :initial => 0, :ttl => exp)
+    assert_equal 0, val
+    assert_equal 0, connection.get(uniq_id)
+    sleep(2)
+    refute connection.get(uniq_id)
+  end
+
   def test_it_allows_custom_delta
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
