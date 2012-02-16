@@ -1169,7 +1169,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     }
     snprintf(bucket->authority, len, "%s:%u", bucket->hostname, bucket->port);
     bucket->io = libcouchbase_create_io_ops(LIBCOUCHBASE_IO_OPS_DEFAULT, NULL, &err);
-    if (bucket->io == NULL) {
+    if (bucket->io == NULL && err != LIBCOUCHBASE_SUCCESS) {
         rb_exc_raise(cb_check_error(err, "failed to create IO instance", Qnil));
     }
     bucket->handle = libcouchbase_create(bucket->authority,
