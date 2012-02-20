@@ -139,7 +139,6 @@ class TestBucket < MiniTest::Unit::TestCase
     end
   end
 
-
   def test_it_allows_change_quiet_flag
     with_mock do |mock|
       connection = Couchbase.new(:hostname => mock.host,
@@ -158,4 +157,63 @@ class TestBucket < MiniTest::Unit::TestCase
       assert_equal true, connection.quiet?
     end
   end
+
+  def test_it_is_connected
+    with_mock do |mock|
+      connection = Couchbase.new(:hostname => mock.host,
+                                 :port => mock.port)
+      assert connection.connected?
+    end
+  end
+
+  def test_it_is_possible_to_disconnect_instance
+    with_mock do |mock|
+      connection = Couchbase.new(:hostname => mock.host,
+                                 :port => mock.port)
+      connection.disconnect
+      refute connection.connected?
+    end
+  end
+
+  def test_it_raises_error_on_double_disconnect
+    with_mock do |mock|
+      connection = Couchbase.new(:hostname => mock.host,
+                                 :port => mock.port)
+      connection.disconnect
+      assert_raises Couchbase::Error::Connect do
+        connection.disconnect
+      end
+    end
+  end
+
+  def test_it_allows_to_reconnect_the_instance
+    with_mock do |mock|
+      connection = Couchbase.new(:hostname => mock.host,
+                                 :port => mock.port)
+      connection.disconnect
+      refute connection.connected?
+      connection.reconnect
+      assert connection.connected?
+      assert connection.set(uniq_id, "foo")
+    end
+  end
+
+  def test_it_allows_to_change_configuration_during_reconnect
+    with_mock(:buckets_spec => 'protected:secret') do |mock|
+      connection = Couchbase.new(:hostname => mock.host,
+                                 :port => mock.port,
+                                 :bucket => 'protected',
+                                 :username => 'protected',
+                                 :password => 'secret')
+      connection.disconnect
+      assert_raises Couchbase::Error::Auth do
+        connection.reconnect(:password => 'incorrect')
+      end
+      refute connection.connected?
+
+      connection.reconnect(:password => 'secret')
+      assert connection.connected?
+    end
+  end
+
 end

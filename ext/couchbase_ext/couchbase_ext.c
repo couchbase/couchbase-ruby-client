@@ -973,13 +973,13 @@ cb_bucket_free(void *ptr)
     if (bucket) {
         if (bucket->handle) {
             libcouchbase_destroy(bucket->handle);
-            free(bucket->authority);
-            free(bucket->hostname);
-            free(bucket->pool);
-            free(bucket->bucket);
-            free(bucket->username);
-            free(bucket->password);
         }
+        free(bucket->authority);
+        free(bucket->hostname);
+        free(bucket->pool);
+        free(bucket->bucket);
+        free(bucket->username);
+        free(bucket->password);
         free(bucket);
     }
 }
@@ -995,90 +995,11 @@ cb_bucket_mark(void *ptr)
     }
 }
 
-/*
- * @return [Bucket] new instance (see Bucket#initialize)
- */
-    static VALUE
-cb_bucket_new(int argc, VALUE *argv, VALUE klass)
-{
-    VALUE obj;
-    bucket_t *bucket;
-
-    /* allocate new bucket struct and set it to zero */
-    obj = Data_Make_Struct(klass, bucket_t, cb_bucket_mark, cb_bucket_free,
-            bucket);
-    rb_obj_call_init(obj, argc, argv);
-    return obj;
-}
-
-/*
- * @overload initialize(url, options = {})
- *   Initialize bucket using URI of the cluster and options. It is possible
- *   to override some parts of URI using the options keys (e.g. :host or
- *   :port)
- *
- *   @param [String] url The full URL of management API of the cluster.
- *   @param [Hash] options The options for connection. See options definition
- *     below.
- *
- * @overload initialize(options = {})
- *   Initialize bucket using options only.
- *
- *   @param [Hash] options The options for operation for connection
- *   @option options [String] :host ("localhost") the hostname or IP address
- *     of the node
- *   @option options [Fixnum] :port (8091) the port of the managemenent API
- *   @option options [String] :pool ("default") the pool name
- *   @option options [String] :bucket ("default") the bucket name
- *   @option options [Fixnum] :default_ttl (0) the TTL used by default during
- *     storing key-value pairs.
- *   @option options [Fixnum] :default_flags (0) the default flags.
- *   @option options [Symbol] :default_format (:document) the format, which
- *     will be used for values by default. Note that changing format will
- *     amend flags. (see Bucket#default_format)
- *   @option options [String] :username (nil) the user name to connect to the
- *     cluster. Used to authenticate on management API.
- *   @option options [String] :password (nil) the password of the user.
- *   @option options [Boolean] :quiet (true) the flag controlling if raising
- *     exception when the client executes operations on unexising keys. If it
- *     is +true+ it will raise +Couchbase::NotFoundError+ exceptions. The
- *     default behaviour is to return +nil+ value silently (might be useful in
- *     Rails cache).
- *
- * @example Initialize connection using default options
- *   Couchbase.new
- *
- * @example Select custom bucket
- *   Couchbase.new(:bucket => 'foo')
- *   Couchbase.new('http://localhost:8091/pools/default/buckets/foo')
- *
- * @example Connect to protected bucket
- *   Couchbase.new(:bucket => 'protected', :username => 'protected', :password => 'secret')
- *   Couchbase.new('http://localhost:8091/pools/default/buckets/protected',
- *                 :username => 'protected', :password => 'secret')
- *
- * @return [Bucket]
- */
-    static VALUE
-cb_bucket_init(int argc, VALUE *argv, VALUE self)
+static void
+do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
 {
     VALUE uri, opts, arg;
-    libcouchbase_error_t err;
-    bucket_t *bucket = DATA_PTR(self);
     size_t len;
-
-    bucket->exception = Qnil;
-    bucket->hostname = strdup("localhost");
-    bucket->port = 8091;
-    bucket->pool = strdup("default");
-    bucket->bucket = strdup("default");
-    bucket->async = 0;
-    bucket->quiet = 1;
-    bucket->default_ttl = 0;
-    bucket->default_flags = 0;
-    bucket->default_format = sym_document;
-    bucket->on_error_proc = Qnil;
-    bucket->timeout = 0;
 
     if (rb_scan_args(argc, argv, "02", &uri, &opts) > 0) {
         if (TYPE(uri) == T_HASH && argc == 1) {
@@ -1113,10 +1034,16 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
             }
             arg = rb_hash_aref(opts, sym_username);
             if (arg != Qnil) {
+                if (bucket->username) {
+                    free(bucket->username);
+                }
                 bucket->username = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_password);
             if (arg != Qnil) {
+                if (bucket->password) {
+                    free(bucket->password);
+                }
                 bucket->password = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_port);
@@ -1163,11 +1090,26 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
         }
     }
     len = strlen(bucket->hostname) + 10;
+    if (bucket->authority) {
+        free(bucket->authority);
+    }
     bucket->authority = calloc(len, sizeof(char));
     if (bucket->authority == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
     }
     snprintf(bucket->authority, len, "%s:%u", bucket->hostname, bucket->port);
+}
+
+    static void
+do_connect(bucket_t *bucket)
+{
+    libcouchbase_error_t err;
+
+    if (bucket->handle) {
+        libcouchbase_destroy(bucket->handle);
+        bucket->handle = NULL;
+        bucket->io = NULL;
+    }
     bucket->io = libcouchbase_create_io_ops(LIBCOUCHBASE_IO_OPS_DEFAULT, NULL, &err);
     if (bucket->io == NULL && err != LIBCOUCHBASE_SUCCESS) {
         rb_exc_raise(cb_check_error(err, "failed to create IO instance", Qnil));
@@ -1189,10 +1131,17 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
 
     err = libcouchbase_connect(bucket->handle);
     if (err != LIBCOUCHBASE_SUCCESS) {
+        libcouchbase_destroy(bucket->handle);
+        bucket->handle = NULL;
+        bucket->io = NULL;
         rb_exc_raise(cb_check_error(err, "failed to connect libcouchbase instance to server", Qnil));
     }
+    bucket->exception = Qnil;
     libcouchbase_wait(bucket->handle);
     if (bucket->exception != Qnil) {
+        libcouchbase_destroy(bucket->handle);
+        bucket->handle = NULL;
+        bucket->io = NULL;
         rb_exc_raise(bucket->exception);
     }
 
@@ -1201,8 +1150,139 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     } else {
         bucket->timeout = libcouchbase_get_timeout(bucket->handle);
     }
+}
+
+/*
+ * Create and initialize new Bucket.
+ *
+ * @return [Bucket] new instance (see Bucket#initialize)
+ */
+    static VALUE
+cb_bucket_new(int argc, VALUE *argv, VALUE klass)
+{
+    VALUE obj;
+    bucket_t *bucket;
+
+    /* allocate new bucket struct and set it to zero */
+    obj = Data_Make_Struct(klass, bucket_t, cb_bucket_mark, cb_bucket_free,
+            bucket);
+    rb_obj_call_init(obj, argc, argv);
+    return obj;
+}
+
+/*
+ * Initialize new Bucket.
+ *
+ * @overload initialize(url, options = {})
+ *   Initialize bucket using URI of the cluster and options. It is possible
+ *   to override some parts of URI using the options keys (e.g. :host or
+ *   :port)
+ *
+ *   @param [String] url The full URL of management API of the cluster.
+ *   @param [Hash] options The options for connection. See options definition
+ *     below.
+ *
+ * @overload initialize(options = {})
+ *   Initialize bucket using options only.
+ *
+ *   @param [Hash] options The options for operation for connection
+ *   @option options [String] :host ("localhost") the hostname or IP address
+ *     of the node
+ *   @option options [Fixnum] :port (8091) the port of the managemenent API
+ *   @option options [String] :pool ("default") the pool name
+ *   @option options [String] :bucket ("default") the bucket name
+ *   @option options [Fixnum] :default_ttl (0) the TTL used by default during
+ *     storing key-value pairs.
+ *   @option options [Fixnum] :default_flags (0) the default flags.
+ *   @option options [Symbol] :default_format (:document) the format, which
+ *     will be used for values by default. Note that changing format will
+ *     amend flags. (see Bucket#default_format)
+ *   @option options [String] :username (nil) the user name to connect to the
+ *     cluster. Used to authenticate on management API.
+ *   @option options [String] :password (nil) the password of the user.
+ *   @option options [Boolean] :quiet (true) the flag controlling if raising
+ *     exception when the client executes operations on unexising keys. If it
+ *     is +true+ it will raise +Couchbase::Error::NotFound+ exceptions. The
+ *     default behaviour is to return +nil+ value silently (might be useful in
+ *     Rails cache).
+ *
+ * @example Initialize connection using default options
+ *   Couchbase.new
+ *
+ * @example Select custom bucket
+ *   Couchbase.new(:bucket => 'foo')
+ *   Couchbase.new('http://localhost:8091/pools/default/buckets/foo')
+ *
+ * @example Connect to protected bucket
+ *   Couchbase.new(:bucket => 'protected', :username => 'protected', :password => 'secret')
+ *   Couchbase.new('http://localhost:8091/pools/default/buckets/protected',
+ *                 :username => 'protected', :password => 'secret')
+ *
+ * @return [Bucket]
+ */
+    static VALUE
+cb_bucket_init(int argc, VALUE *argv, VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+
+    bucket->exception = Qnil;
+    bucket->hostname = strdup("localhost");
+    bucket->port = 8091;
+    bucket->pool = strdup("default");
+    bucket->bucket = strdup("default");
+    bucket->async = 0;
+    bucket->quiet = 1;
+    bucket->default_ttl = 0;
+    bucket->default_flags = 0;
+    bucket->default_format = sym_document;
+    bucket->on_error_proc = Qnil;
+    bucket->timeout = 0;
+
+    do_scan_connection_options(bucket, argc, argv);
+    do_connect(bucket);
 
     return self;
+}
+
+/*
+ * Reconnect the bucket
+ *
+ * Reconnect the bucket using initial configuration with optional
+ * redefinition.
+ *
+ * @overload reconnect(url, options = {})
+ *  see Bucket#initialize(url, options)
+ *
+ * @overload reconnect(options = {})
+ *  see Bucket#initialize(options)
+ *
+ *  @example reconnect with current parameters
+ *    c.reconnect
+ *
+ *  @example reconnect the instance to another bucket
+ *    c.reconnect(:bucket => 'new')
+ */
+    static VALUE
+cb_bucket_reconnect(int argc, VALUE *argv, VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+
+    do_scan_connection_options(bucket, argc, argv);
+    do_connect(bucket);
+
+    return self;
+}
+
+/* Document-method: connected?
+ * Check whether the instance connected to the cluster.
+ *
+ * @return [Boolean] +true+ if the instance connected to the cluster
+ */
+    static VALUE
+cb_bucket_connected_p(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    return bucket->handle ? Qtrue : Qfalse;
 }
 
     static VALUE
@@ -1330,12 +1410,15 @@ cb_bucket_timeout_set(VALUE self, VALUE val)
 cb_bucket_hostname_get(VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
-    if (bucket->hostname) {
-        free(bucket->hostname);
-    }
-    bucket->hostname = strdup(libcouchbase_get_host(bucket->handle));
-    if (bucket->hostname == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+    if (bucket->handle) {
+        if (bucket->hostname) {
+            free(bucket->hostname);
+            bucket->hostname = NULL;
+        }
+        bucket->hostname = strdup(libcouchbase_get_host(bucket->handle));
+        if (bucket->hostname == NULL) {
+            rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+        }
     }
     return rb_str_new2(bucket->hostname);
 }
@@ -1344,7 +1427,9 @@ cb_bucket_hostname_get(VALUE self)
 cb_bucket_port_get(VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
-    bucket->port = atoi(libcouchbase_get_port(bucket->handle));
+    if (bucket->handle) {
+        bucket->port = atoi(libcouchbase_get_port(bucket->handle));
+    }
     return UINT2NUM(bucket->port);
 }
 
@@ -1429,10 +1514,11 @@ cb_bucket_inspect(VALUE self)
     rb_str_buf_cat2(str, "/buckets/");
     rb_str_buf_cat2(str, bucket->bucket);
     rb_str_buf_cat2(str, "/");
-    snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s, timeout=%u>",
+    snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s, connected=%s, timeout=%u>",
             rb_id2name(SYM2ID(bucket->default_format)),
             bucket->default_flags,
             bucket->quiet ? "true" : "false",
+            bucket->handle ? "true" : "false",
             bucket->timeout);
     rb_str_buf_cat2(str, buf);
 
@@ -1451,6 +1537,9 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     libcouchbase_error_t err;
     long seqno;
 
+    if (bucket->handle == NULL) {
+        rb_raise(eConnectError, "closed connection");
+    }
     rb_scan_args(argc, argv, "11&", &k, &opts, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
@@ -1521,6 +1610,9 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     libcouchbase_error_t err;
     long seqno;
 
+    if (bucket->handle == NULL) {
+        rb_raise(eConnectError, "closed connection");
+    }
     rb_scan_args(argc, argv, "21&", &k, &v, &opts, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
@@ -1607,6 +1699,9 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     libcouchbase_error_t err;
     long seqno;
 
+    if (bucket->handle == NULL) {
+        rb_raise(eConnectError, "closed connection");
+    }
     rb_scan_args(argc, argv, "12&", &k, &d, &opts, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
@@ -1713,6 +1808,8 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
  *   @raise [Couchbase::Errors:NotFound] if the key is missing in the
  *     bucket.
  *
+ *   @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ *
  *   @example Get single value in quite mode (the default)
  *     c.get("foo")     #=> the associated value or nil
  *
@@ -1779,6 +1876,9 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     int extended, mgat;
     long seqno;
 
+    if (bucket->handle == NULL) {
+        rb_raise(eConnectError, "closed connection");
+    }
     rb_scan_args(argc, argv, "0*&", &args, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
@@ -1873,6 +1973,8 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
  *   @return [Boolean] +true+ if the operation was successful and +false+
  *     otherwise.
  *
+ *   @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ *
  *   @example Touch value using +default_ttl+
  *     c.touch("foo")
  *
@@ -1918,6 +2020,9 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     struct key_traits *traits;
     long seqno;
 
+    if (bucket->handle == NULL) {
+        rb_raise(eConnectError, "closed connection");
+    }
     rb_scan_args(argc, argv, "0*&", &args, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
@@ -1973,6 +2078,11 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     }
 }
 
+/*
+ * Deletes all values from a server
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ */
     static VALUE
 cb_bucket_flush(VALUE self)
 {
@@ -1982,6 +2092,9 @@ cb_bucket_flush(VALUE self)
     libcouchbase_error_t err;
     long seqno;
 
+    if (bucket->handle == NULL) {
+        rb_raise(eConnectError, "closed connection");
+    }
     if (!bucket->async && rb_block_given_p()) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
@@ -2055,6 +2168,8 @@ cb_bucket_flush(VALUE self)
  *   c.stats(:memory)   #=> {"mem_used"=>{...}, ...}
  *
  * @return [Hash] where keys are stat keys, values are host-value pairs
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
  */
     static VALUE
 cb_bucket_stats(int argc, VALUE *argv, VALUE self)
@@ -2067,6 +2182,9 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     libcouchbase_error_t err;
     long seqno;
 
+    if (bucket->handle == NULL) {
+        rb_raise(eConnectError, "closed connection");
+    }
     rb_scan_args(argc, argv, "01&", &arg, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
@@ -2126,6 +2244,9 @@ do_run(VALUE *args)
     VALUE self = args[0], proc = args[1], exc;
     bucket_t *bucket = DATA_PTR(self);
 
+    if (bucket->handle == NULL) {
+        rb_raise(eConnectError, "closed connection");
+    }
     bucket->seqno = 0;
     bucket->async = 1;
     cb_proc_call(proc, 1, self);
@@ -2168,6 +2289,9 @@ ensure_run(VALUE *args)
  *   end
  *   c.run(&operations)
  *
+ * @return [nil]
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
  */
     static VALUE
 cb_bucket_run(VALUE self)
@@ -2201,6 +2325,8 @@ cb_bucket_add(int argc, VALUE *argv, VALUE self)
 
 /*
  * Replace the existing object in the cache
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
  */
     static VALUE
 cb_bucket_replace(int argc, VALUE *argv, VALUE self)
@@ -2210,6 +2336,8 @@ cb_bucket_replace(int argc, VALUE *argv, VALUE self)
 
 /*
  * Append this object to the existing object
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
  */
     static VALUE
 cb_bucket_append(int argc, VALUE *argv, VALUE self)
@@ -2219,6 +2347,8 @@ cb_bucket_append(int argc, VALUE *argv, VALUE self)
 
 /*
  * Prepend this object to the existing object
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
  */
     static VALUE
 cb_bucket_prepend(int argc, VALUE *argv, VALUE self)
@@ -2238,6 +2368,28 @@ cb_bucket_aset(int argc, VALUE *argv, VALUE self)
         argv[1] = temp;
     }
     return cb_bucket_set(argc, argv, self);
+}
+
+/*
+ * Close the connection to the cluster
+ *
+ * @return [true]
+ *
+ * @raise [Couchbase::Error::Connect] if connection closed (see Bucket#reconnect)
+ */
+    static VALUE
+cb_bucket_disconnect(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+
+    if (bucket->handle) {
+        libcouchbase_destroy(bucket->handle);
+        bucket->handle = NULL;
+        bucket->io = NULL;
+        return Qtrue;
+    } else {
+        rb_raise(eConnectError, "closed connection");
+    }
 }
 
 /*
@@ -2465,6 +2617,8 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "flush", cb_bucket_flush, 0);
     rb_define_method(cBucket, "incr", cb_bucket_incr, -1);
     rb_define_method(cBucket, "decr", cb_bucket_decr, -1);
+    rb_define_method(cBucket, "disconnect", cb_bucket_disconnect, 0);
+    rb_define_method(cBucket, "reconnect", cb_bucket_reconnect, -1);
 
     rb_define_alias(cBucket, "decrement", "decr");
     rb_define_alias(cBucket, "increment", "incr");
@@ -2473,6 +2627,7 @@ Init_couchbase_ext(void)
     /* rb_define_alias(cBucket, "[]=", "set"); */
     rb_define_method(cBucket, "[]=", cb_bucket_aset, -1);
 
+    rb_define_method(cBucket, "connected?", cb_bucket_connected_p, 0);
     /* Document-method: async?
      * Flag specifying if the connection asynchronous.
      *
