@@ -89,7 +89,7 @@ struct key_traits
     int mgat;
 };
 
-static VALUE mCouchbase, mError, mJSON, mMarshal, cBucket, cResult;
+static VALUE mCouchbase, mError, mJSON, mURI, mMarshal, cBucket, cResult;
 static VALUE object_space;
 
 static ID  sym_add,
@@ -130,15 +130,23 @@ static ID  sym_add,
            id_dump,
            id_flatten_bang,
            id_has_key_p,
-           id_load,
-           id_to_s,
+           id_host,
            id_iv_cas,
            id_iv_error,
            id_iv_flags,
            id_iv_key,
            id_iv_node,
            id_iv_operation,
-           id_iv_value;
+           id_iv_value,
+           id_load,
+           id_match,
+           id_parse,
+           id_password,
+           id_path,
+           id_port,
+           id_scheme,
+           id_to_s,
+           id_user;
 
 /* base error */
 static VALUE eBaseError;
@@ -871,79 +879,6 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
     (void)handle;
 }
 
-    static char *
-parse_path_segment(char *source, const char *key, char **result)
-{
-    size_t len;
-    char *eot;
-
-    if (source == NULL) {
-        return NULL;
-    }
-    eot = strchr(source, '/');
-    if (eot > source && strncmp(source, key, eot - source) == 0) {
-        *eot = '\0';
-        source = eot + 1;
-        eot = strchr(source, '/');
-        len = strlen(source);
-        if (eot > source || len) {
-            if (eot) {
-                *eot = '\0';
-                eot++;
-            }
-            *result = strdup(source);
-        }
-    }
-    return eot;
-}
-
-    static void
-parse_bucket_uri(VALUE uri, bucket_t *bucket)
-{
-    char *src, *ptr, *eot, sep = '\0';
-
-    ptr = src = strdup(StringValueCStr(uri));
-    eot = strchr(ptr, ':');
-    if (eot < ptr || strncmp(ptr, "http", eot - ptr) != 0) {
-        free(src);
-        rb_raise(rb_eArgError, "invalid URI format: missing schema");
-        return;
-    }
-    ptr = eot + 1;
-    if (ptr[0] != '/' || ptr[1] != '/') {
-        free(src);
-        rb_raise(rb_eArgError, "invalid URI format.");
-        return;
-    }
-    ptr += 2;
-    eot = ptr;
-    while (*eot) {
-        if (*eot == '?' || *eot == '#' || *eot == ':' || *eot == '/') {
-            break;
-        }
-        ++eot;
-    }
-    if (eot > ptr) {
-        sep = *eot;
-        *eot = '\0';
-        bucket->hostname = strdup(ptr);
-    }
-    ptr = eot + 1;
-    eot = strchr(ptr, '/');
-    if (sep == ':') {
-        if (eot > ptr) {
-            *eot = '\0';
-        }
-        bucket->port = (uint16_t)atoi(ptr);
-        if (eot > ptr) {
-            ptr = eot + 1;
-        }
-    }
-    ptr = parse_path_segment(ptr, "pools", &bucket->pool);
-    parse_path_segment(ptr, "buckets", &bucket->bucket);
-    free(src);
-}
-
     static int
 cb_first_value_i(VALUE key, VALUE value, VALUE arg)
 {
@@ -996,7 +931,7 @@ cb_bucket_mark(void *ptr)
     }
 }
 
-static void
+    static void
 do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
 {
     VALUE uri, opts, arg;
@@ -1008,8 +943,57 @@ do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
             uri = Qnil;
         }
         if (uri != Qnil) {
+            const char path_re[] = "^(/pools/([A-Za-z0-9_.-]+)(/buckets/([A-Za-z0-9_.-]+))?)?";
+            VALUE match, uri_obj, re;
+
             Check_Type(uri, T_STRING);
-            parse_bucket_uri(uri, bucket);
+            uri_obj = rb_funcall(mURI, id_parse, 1, uri);
+
+            arg = rb_funcall(uri_obj, id_scheme, 0);
+            if (arg == Qnil || rb_str_cmp(arg, rb_str_new2("http"))) {
+                rb_raise(rb_eArgError, "invalid URI: invalid scheme");
+            }
+
+            arg = rb_funcall(uri_obj, id_user, 0);
+            if (arg != Qnil) {
+                free(bucket->username);
+                bucket->username = strdup(RSTRING_PTR(arg));
+                if (bucket->username == NULL) {
+                    rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+                }
+            }
+
+            arg = rb_funcall(uri_obj, id_password, 0);
+            if (arg != Qnil) {
+                free(bucket->password);
+                bucket->password = strdup(RSTRING_PTR(arg));
+                if (bucket->password == NULL) {
+                    rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+                }
+            }
+            arg = rb_funcall(uri_obj, id_host, 0);
+            if (arg != Qnil) {
+                free(bucket->hostname);
+                bucket->hostname = strdup(RSTRING_PTR(arg));
+                if (bucket->hostname == NULL) {
+                    rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+                }
+            } else {
+                rb_raise(rb_eArgError, "invalid URI: missing hostname");
+            }
+
+            arg = rb_funcall(uri_obj, id_port, 0);
+            bucket->port = NIL_P(arg) ? 8091 : (uint16_t)NUM2UINT(arg);
+
+            arg = rb_funcall(uri_obj, id_path, 0);
+            re = rb_reg_new(path_re, sizeof(path_re) - 1, 0);
+            match = rb_funcall(re, id_match, 1, arg);
+            arg = rb_reg_nth_match(2, match);
+            free(bucket->pool);
+            bucket->pool = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
+            arg = rb_reg_nth_match(4, match);
+            free(bucket->bucket);
+            bucket->bucket = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
         }
         if (TYPE(opts) == T_HASH) {
             arg = rb_hash_aref(opts, sym_hostname);
@@ -2962,6 +2946,7 @@ cb_result_inspect(VALUE self)
 Init_couchbase_ext(void)
 {
     mJSON = rb_const_get(rb_cObject, rb_intern("JSON"));
+    mURI = rb_const_get(rb_cObject, rb_intern("URI"));
     mMarshal = rb_const_get(rb_cObject, rb_intern("Marshal"));
     mCouchbase = rb_define_module("Couchbase");
 
@@ -3284,11 +3269,19 @@ Init_couchbase_ext(void)
     /* Define symbols */
     id_arity = rb_intern("arity");
     id_call = rb_intern("call");
-    id_load = rb_intern("load");
     id_dump = rb_intern("dump");
     id_flatten_bang = rb_intern("flatten!");
     id_has_key_p = rb_intern("has_key?");
+    id_host = rb_intern("host");
+    id_load = rb_intern("load");
+    id_match = rb_intern("match");
+    id_parse = rb_intern("parse");
+    id_password = rb_intern("password");
+    id_path = rb_intern("path");
+    id_port = rb_intern("port");
+    id_scheme = rb_intern("scheme");
     id_to_s = rb_intern("to_s");
+    id_user = rb_intern("user");
 
     sym_add = ID2SYM(rb_intern("add"));
     sym_append = ID2SYM(rb_intern("append"));

@@ -17,6 +17,7 @@
 
 require 'couchbase/version'
 require 'yajl/json_gem'
+require 'uri'
 require 'couchbase_ext'
 require 'couchbase/bucket'
 

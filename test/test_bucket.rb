@@ -23,7 +23,6 @@ class TestBucket < MiniTest::Unit::TestCase
     with_mock(:host => 'localhost', :port => 8091, :buckets_spec => 'default,foo') do |mock|
       connections = [
         Couchbase.new,
-        Couchbase.new("http://#{mock.host}"),
         Couchbase.new("http://#{mock.host}:8091"),
         Couchbase.new("http://#{mock.host}:8091/pools/default"),
         Couchbase.new(:hostname => mock.host),
@@ -102,6 +101,15 @@ class TestBucket < MiniTest::Unit::TestCase
                                  :bucket => 'protected',
                                  :username => 'protected',
                                  :password => 'secret')
+      assert_equal "protected", connection.bucket
+      assert_equal "protected", connection.username
+      assert_equal "secret", connection.password
+    end
+  end
+
+  def test_it_allows_to_specify_credentials_in_url
+    with_mock(:buckets_spec => 'protected:secret') do |mock|
+      connection = Couchbase.new("http://protected:secret@#{mock.host}:#{mock.port}/pools/default/buckets/protected/")
       assert_equal "protected", connection.bucket
       assert_equal "protected", connection.username
       assert_equal "secret", connection.password
