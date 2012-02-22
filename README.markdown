@@ -132,10 +132,10 @@ To handle global errors in async mode `#on_error` callback should be
 used. It can be set in following fashions:
 
     c.on_error do |opcode, key, exc|
-      ...
+      # ...
     end
 
-    handler = lambda {|opcode, key, exc| ...}
+    handler = lambda {|opcode, key, exc| }
     c.on_error = handler
 
 By default connection uses `:quiet` mode. This mean it won't raise
@@ -216,7 +216,7 @@ Hash-like syntax
     c.touch("foo", 10)
     c.touch("foo", :ttl => 10)
     c.touch("foo" => 10, "bar" => 20)
-    c.touch("foo" => 10, "bar" => 20){|key, success| ... }
+    c.touch("foo" => 10, "bar" => 20){|key, success|  }
 
 ### Set
 
@@ -224,9 +224,9 @@ Hash-like syntax
     c.set("foo", "bar", :flags => 0x1000, :ttl => 30, :format => :plain)
     c["foo"] = "bar"
     c["foo", {:flags => 0x1000, :format => :plain}] = "bar"
-    c["foo", :flags => 0x1000] = "bar"  # for ruby 1.9.x only
+    c["foo", :flags => 0x1000] = "bar"          # for ruby 1.9.x only
     c.set("foo", "bar", :cas => 8835713818674332672)
-    c.set("foo", "bar"){|cas, key, operation| ... }
+    c.set("foo", "bar"){|cas, key, operation|  }
 
 ### Add
 
@@ -344,16 +344,16 @@ the key and stats as key-value pairs.
           "threads"=>"4",
           "connection_structures"=>"22",
           "ep_max_txn_size"=>"10000",
-          ...
+          # ...
         },
       "172.16.16.76:12000"=>
         {
           "threads"=>"4",
           "connection_structures"=>"447",
           "ep_max_txn_size"=>"10000",
-          ...
+          # ...
         },
-      ...
+      # ...
     }
 
 [1]: https://github.com/brianmario/yajl-ruby/
