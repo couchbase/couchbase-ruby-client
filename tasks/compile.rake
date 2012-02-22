@@ -94,17 +94,8 @@ namespace :ports do
     recipe.activate
   end
 
-  task :libisasl => ["ports"] do
-    recipe = MiniPortile.new "libisasl", "1.0.0_3_g35e33e3"
-    recipe.files << "http://cloud.github.com/downloads/avsej/libisasl/#{recipe.name}-#{recipe.version}.tar.gz"
-    recipe.configure_options.push("--disable-debug",
-                                  "--disable-dependency-tracking")
-    recipe.cook
-    recipe.activate
-  end
-
-  task :libcouchbase => [:libvbucket, :libisasl] do
-    recipe = MiniPortile.new "libcouchbase", "1.0.1_8_gd9ed22a"
+  task :libcouchbase => [:libvbucket] do
+    recipe = MiniPortile.new "libcouchbase", "1.0.1_22_g256d0b7"
     recipe.files << "http://files.avsej.net/#{recipe.name}-#{recipe.version}.tar.gz"
     recipe.configure_options.push("--disable-debug",
                                   "--disable-dependency-tracking",

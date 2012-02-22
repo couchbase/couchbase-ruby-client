@@ -104,8 +104,10 @@ if try_compile(<<-SRC)
   define("HAVE_STDARG_PROTOTYPES")
 end
 
-have_library("vbucket", "vbucket_config_create", "libvbucket/vbucket.h") || abort
-have_library("sasl", "sasl_client_init", "sasl/sasl.h") || have_library("sasl2", "sasl_client_init", "sasl/sasl.h") || abort
+
+if RbConfig::CONFIG['target_os'] =~ /mingw32/
+  have_library("vbucket", "vbucket_config_create", "libvbucket/vbucket.h") || abort
+end
 have_library("couchbase", "libcouchbase_create", "libcouchbase/couchbase.h") || abort
 create_header("couchbase_config.h")
 create_makefile("couchbase_ext")
