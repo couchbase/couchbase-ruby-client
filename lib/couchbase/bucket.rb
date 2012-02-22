@@ -16,6 +16,7 @@
 #
 
 module Couchbase
+
   class Bucket
 
     # Reads a key's value from the server and yields it to a block. Replaces
@@ -67,4 +68,5 @@ module Couchbase
     alias :compare_and_swap :cas
 
   end
+
 end

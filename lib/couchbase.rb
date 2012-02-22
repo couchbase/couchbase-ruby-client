@@ -25,24 +25,57 @@ require 'couchbase/bucket'
 module Couchbase
 
   class << self
-    # The method +new+ initializes new Bucket instance with all arguments passed.
+    # The method +connect+ initializes new Bucket instance with all arguments passed.
     #
     # @example Use default values for all options
-    #   Couchbase.new
+    #   Couchbase.connect
     #
     # @example Establish connection with couchbase default pool and default bucket
-    #   Couchbase.new("http://localhost:8091/pools/default")
+    #   Couchbase.connect("http://localhost:8091/pools/default")
     #
     # @example Select custom bucket
-    #   Couchbase.new("http://localhost:8091/pools/default", :bucket => 'blog')
+    #   Couchbase.connect("http://localhost:8091/pools/default", :bucket => 'blog')
     #
     # @example Specify bucket credentials
-    #   Couchbase.new("http://localhost:8091/pools/default", :bucket => 'blog', :username => 'bucket', :password => 'secret')
+    #   Couchbase.connect("http://localhost:8091/pools/default", :bucket => 'blog', :username => 'bucket', :password => 'secret')
     #
     # @return [Bucket] connection instance
-    def new(*args)
-      Bucket.new(*args)
+    def connect(*options)
+      Bucket.new(*options)
     end
+    alias :new :connect
+
+    # Default connection options
+    #
+    # @example Using {Couchbase#connection_options} to change the bucket
+    #   Couchbase.connection_options = {:bucket => 'blog'}
+    #   Couchbase.bucket.name     #=> "blog"
+    #
+    # @return [Hash, String]
+    attr_accessor :connection_options
+
+    # @private the thread local storage
+    def thread_storage
+      Thread.current[:couchbase] ||= {}
+    end
+
+    # The connection instance for current thread
+    #
+    # @example
+    #   Couchbase.bucket.set("foo", "bar")
+    #
+    # @return [Bucket]
+    def bucket
+      thread_storage[:bucket] ||= connect(*connection_options)
+    end
+
+    # Set a connection instance for current thread
+    #
+    # @return [Bucket]
+    def bucket=(connection)
+      thread_storage[:bucket] = connection
+    end
+
   end
 
 end
