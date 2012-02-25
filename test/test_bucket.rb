@@ -76,7 +76,7 @@ class TestBucket < MiniTest::Unit::TestCase
 
   def test_it_raises_network_error_if_server_not_found
     refute(`netstat -tnl` =~ /12345/)
-    assert_raises Couchbase::Error::Network do
+    assert_raises Couchbase::Error::Connect do
       Couchbase.new(:port => 12345)
     end
   end
