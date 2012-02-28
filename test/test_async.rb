@@ -208,4 +208,28 @@ class TestAsync < MiniTest::Unit::TestCase
     assert_raises(ArgumentError) { connection.stats {} }
   end
 
+  def test_it_disallow_nested_run
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    assert_raises(Couchbase::Error::Invalid) do
+      connection.run do
+        connection.run do
+        end
+      end
+    end
+  end
+
+  def test_it_extends_timeout_in_async_mode_if_needed
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection.set(uniq_id, "foo")
+
+    connection.timeout = 100  # 100 us
+    connection.run do
+      connection.get(uniq_id) do |ret|
+        assert ret.success?
+        assert_equal "foo", ret.value
+      end
+      sleep(1.5)
+    end
+  end
+
 end
