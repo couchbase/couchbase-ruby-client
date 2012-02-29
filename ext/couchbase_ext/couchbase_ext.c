@@ -1190,7 +1190,7 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
  *   @option options [String] :password (nil) the password of the user.
  *   @option options [Boolean] :quiet (true) the flag controlling if raising
  *     exception when the client executes operations on unexising keys. If it
- *     is +true+ it will raise +Couchbase::Error::NotFound+ exceptions. The
+ *     is +true+ it will raise {Couchbase::Error::NotFound} exceptions. The
  *     default behaviour is to return +nil+ value silently (might be useful in
  *     Rails cache).
  *
@@ -3160,7 +3160,7 @@ Init_couchbase_ext(void)
      * Flag specifying behaviour for operations on missing keys
      *
      * If it is +true+, the operations will silently return +nil+ or +false+
-     * instead of raising Couchbase::Error::NotFound.
+     * instead of raising {Couchbase::Error::NotFound}.
      *
      * @example Hiding cache miss (considering "miss" key is not stored)
      *   connection.quiet = true
@@ -3234,7 +3234,7 @@ Init_couchbase_ext(void)
 
     /* Document-method: timeout
      * @return [Fixnum] The timeout for the operations. The client will
-     *   raise Couchbase::Error::Timeout exception for all commands which
+     *   raise {Couchbase::Error::Timeout} exception for all commands which
      *   weren't completed in given timeslot. */
     /* rb_define_attr(cBucket, "timeout", 1, 1); */
     rb_define_method(cBucket, "timeout", cb_bucket_timeout_get, 0);

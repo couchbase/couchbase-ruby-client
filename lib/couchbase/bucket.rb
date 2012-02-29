@@ -22,7 +22,7 @@ module Couchbase
     # Reads a key's value from the server and yields it to a block. Replaces
     # the key's value with the result of the block as long as the key hasn't
     # been updated in the meantime, otherwise raises
-    # Couchbase::Error::KeyExists. CAS stands for "compare and swap", and
+    # {Couchbase::Error::KeyExists}. CAS stands for "compare and swap", and
     # avoids the need for manual key mutexing. Read more info here:
     #
     #   http://docs.couchbase.org/memcached-api/memcached-api-protocol-text_cas.html
