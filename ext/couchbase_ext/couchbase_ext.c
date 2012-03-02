@@ -126,6 +126,7 @@ static ID  sym_add,
            sym_touch,
            sym_ttl,
            sym_username,
+           sym_version,
            id_arity,
            id_call,
            id_dump,
@@ -728,6 +729,51 @@ flush_callback(libcouchbase_t handle, const void* cookie,
 }
 
     static void
+version_callback(libcouchbase_t handle, const void *cookie,
+        const char *authority, libcouchbase_error_t error,
+        const char *bytes, libcouchbase_size_t nbytes)
+{
+    context_t *ctx = (context_t *)cookie;
+    bucket_t *bucket = ctx->bucket;
+    VALUE node, v, *rv = ctx->rv, exc, res;
+
+    node = authority ? rb_str_new2(authority) : Qnil;
+    exc = cb_check_error(error, "failed to get version", node);
+    if (exc != Qnil) {
+        rb_ivar_set(exc, id_iv_operation, sym_flush);
+        if (NIL_P(ctx->exception)) {
+            ctx->exception = exc;
+        }
+    }
+
+    if (authority) {
+        v = rb_str_new((const char*)bytes, nbytes);
+        if (bucket->async) {    /* asynchronous */
+            if (ctx->proc != Qnil) {
+                res = rb_class_new_instance(0, NULL, cResult);
+                rb_ivar_set(res, id_iv_error, exc);
+                rb_ivar_set(res, id_iv_operation, sym_version);
+                rb_ivar_set(res, id_iv_node, node);
+                rb_ivar_set(res, id_iv_value, v);
+                cb_proc_call(ctx->proc, 1, res);
+            }
+        } else {                /* synchronous */
+            if (NIL_P(exc)) {
+                rb_hash_aset(*rv, node, v);
+            }
+        }
+    } else {
+        bucket->seqno--;
+        if (bucket->seqno == 0) {
+            bucket->io->stop_event_loop(bucket->io);
+            rb_hash_delete(object_space, ctx->proc|1);
+        }
+    }
+
+    (void)handle;
+}
+
+    static void
 stat_callback(libcouchbase_t handle, const void* cookie,
         const char* authority, libcouchbase_error_t error, const void* key,
         libcouchbase_size_t nkey, const void* bytes,
@@ -1114,6 +1160,7 @@ do_connect(bucket_t *bucket)
     (void)libcouchbase_set_stat_callback(bucket->handle, stat_callback);
     (void)libcouchbase_set_flush_callback(bucket->handle, flush_callback);
     (void)libcouchbase_set_arithmetic_callback(bucket->handle, arithmetic_callback);
+    (void)libcouchbase_set_version_callback(bucket->handle, version_callback);
 
     err = libcouchbase_connect(bucket->handle);
     if (err != LIBCOUCHBASE_SUCCESS) {
@@ -2398,6 +2445,84 @@ cb_bucket_flush(VALUE self)
 }
 
 /*
+ * Returns versions of the server for each node in the cluster
+ *
+ * @overload version
+ *   @yieldparam [Result] ret the object with +error+, +node+, +operation+
+ *     and +value+ attributes.
+ *
+ *   @return [Hash] node-version pairs
+ *
+ *   @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
+ *   @raise [ArgumentError] when passing the block in synchronous mode
+ *
+ *   @example Synchronous version request
+ *     c.version            #=> will render version
+ *
+ *   @example Asynchronous version request
+ *     c.run do
+ *       c.version do |ret|
+ *         ret.operation    #=> :version
+ *         ret.success?     #=> true
+ *         ret.node         #=> "localhost:11211"
+ *         ret.value        #=> will render version
+ *       end
+ *     end
+ */
+    static VALUE
+cb_bucket_version(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    context_t *ctx;
+    VALUE rv, exc;
+    libcouchbase_error_t err;
+    long seqno;
+
+    if (bucket->handle == NULL) {
+        rb_raise(eConnectError, "closed connection");
+    }
+    if (!bucket->async && rb_block_given_p()) {
+        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
+    }
+    ctx = calloc(1, sizeof(context_t));
+    if (ctx == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+    }
+    rv = rb_hash_new();
+    ctx->rv = &rv;
+    ctx->bucket = bucket;
+    ctx->exception = Qnil;
+    if (rb_block_given_p()) {
+        ctx->proc = rb_block_proc();
+    } else {
+        ctx->proc = Qnil;
+    }
+    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    seqno = bucket->seqno;
+    bucket->seqno++;
+    err = libcouchbase_server_versions(bucket->handle, (const void *)ctx);
+    exc = cb_check_error(err, "failed to schedule version request", Qnil);
+    if (exc != Qnil) {
+        free(ctx);
+        rb_exc_raise(exc);
+    }
+    if (bucket->async) {
+        return Qnil;
+    } else {
+        if (bucket->seqno - seqno > 0) {
+            /* we have some operations pending */
+            bucket->io->run_event_loop(bucket->io);
+        }
+        exc = ctx->exception;
+        free(ctx);
+        if (exc != Qnil) {
+            rb_exc_raise(exc);
+        }
+        return rv;
+    }
+}
+
+/*
  * Request server statistics.
  *
  * Fetches stats from each node in cluster. Without a key specified the
@@ -3141,6 +3266,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "delete", cb_bucket_delete, -1);
     rb_define_method(cBucket, "stats", cb_bucket_stats, -1);
     rb_define_method(cBucket, "flush", cb_bucket_flush, 0);
+    rb_define_method(cBucket, "version", cb_bucket_version, 0);
     rb_define_method(cBucket, "incr", cb_bucket_incr, -1);
     rb_define_method(cBucket, "decr", cb_bucket_decr, -1);
     rb_define_method(cBucket, "disconnect", cb_bucket_disconnect, 0);
@@ -3334,4 +3460,5 @@ Init_couchbase_ext(void)
     sym_touch = ID2SYM(rb_intern("touch"));
     sym_ttl = ID2SYM(rb_intern("ttl"));
     sym_username = ID2SYM(rb_intern("username"));
+    sym_version = ID2SYM(rb_intern("version"));
 }
