@@ -2,65 +2,72 @@
 
 This is the official client library for use with Couchbase Server.
 
+## SUPPORT
+
+If you found an issue, please file it in our [JIRA][1]. Also you are
+always welcome on `#libcouchbase` channel at [freenode.net IRC servers][2].
+
+Documentation: [http://rdoc.info/gems/couchbase](http://rdoc.info/gems/couchbase)
+
 ## INSTALL
 
-This gem depends on a couple of external libraries to work with JSON and
-Couchbase Server. For JSON it uses [yajl-ruby][1] which is built atop
-[yajl][2]. For Couchbase iteraction it uses [libcouchbase][3]. The first
-dependency shouldn't cause any issues because it will bundle yajl in the c
-extensions. To install yajl-ruby use following command:
-
-    $ gem install yajl-ruby
-
-In most cases installing libcouchbase is just as simple.
+This gem depends [libcouchbase][3]. In most cases installing
+libcouchbase doesn't take much effort.
 
 ### MacOS (Homebrew)
 
     $ brew install libcouchbase
 
-Or if our pull request isn't yet merged:
+Or if [our pull requests][4] for isn't yet merged:
 
-    $ brew install http://packages.couchbase.com/clients/c/homebrew/libvbucket.rb
-    $ brew install http://packages.couchbase.com/clients/c/homebrew/libcouchbase.rb
+    $ brew install https://github.com/avsej/homebrew/raw/libvbucket/Library/Formula/libvbucket.rb
+    $ brew install https://github.com/avsej/homebrew/raw/libcouchbase/Library/Formula/libcouchbase.rb
 
 ### Debian (Ubuntu)
 
-Download packages depending on your architecture:
+Add the appropriate line to /etc/apt/sources.list.d/couchbase.list for
+your OS release:
 
-    $ wget http://packages.couchbase.com/clients/c/libvbucket{1,1-dbg,-dev}_1.8.0.1-1_amd64.deb
-    $ wget http://packages.couchbase.com/clients/c/libcouchbase{1,1-dbg,-dev}_1.0.0-1_amd64.deb
+    # Ubuntu 11.10 Oneiric Ocelot (Debian unstable)
+    deb http://packages.couchbase.com/ubuntu oneiric oneiric/main
 
-or
+    # Ubuntu 10.04 Lucid Lynx (Debian stable or testing)
+    deb http://packages.couchbase.com/ubuntu lucid lucid/main
 
-    $ wget http://packages.couchbase.com/clients/c/libvbucket{1,1-dbg,-dev}_1.8.0.1-1_i386.deb
-    $ wget http://packages.couchbase.com/clients/c/libcouchbase{1,1-dbg,-dev}_1.0.0-1_i386.deb
+Import Couchbase PGP key:
 
-Then install them using dpkg tool
+    wget -O- http://packages.couchbase.com/ubuntu/couchbase.key | sudo apt-key add -
 
-    $ sudo dpkg -i lib{vbucket,couchbase}*.deb
+Then install them
+
+    $ sudo apt-get update && sudo apt-get install libcouchbase-dev
 
 ### Centos (Redhat and rpm-based systems)
 
-Download packages depending on your architecture:
+Add these lines to /etc/yum.repos.d/couchbase.repo using the correct architecture
 
-    $ wget http://packages.couchbase.com/clients/c/libvbucket{1,-debuginfo,-devel}-1.8.0.1-1.x86_64.rpm
-    $ wget http://packages.couchbase.com/clients/c/libcouchbase{1,-debuginfo,-devel}-1.0.0-1.x86_64.rpm
+    [couchbase]
+    name = Couchbase package repository
+    baseurl = http://packages.couchbase.com/rpm/5.5/i386
 
-or
+    [couchbase]
+    name = Couchbase package repository
+    baseurl = http:///packages.couchbase.com/rpm/5.5/x86_64
 
-    $ wget http://packages.couchbase.com/clients/c/libvbucket{1,-debuginfo,-devel}-1.8.0.1-1.i386.rpm
-    $ wget http://packages.couchbase.com/clients/c/libcouchbase{1,-debuginfo,-devel}-1.0.0-1.i386.rpm
+Then to install libcouchbase itself, run:
 
-Then install them using rpm tool
+    $ sudo yum update && sudo yum install libcouchbase-devel
 
-    $ sudo rpm -ivh lib{vbucket,couchbase}*.rpm
+### Windows
+
+There no additional dependencies for Windows systems. The gem carry
+prebuilt binary for it.
 
 ### Couchbase gem
 
 Now install the couchbase gem itself
 
     $ gem install couchbase
-
 
 ## USAGE
 
@@ -167,7 +174,7 @@ The library supports three different formats for representing values:
 * `:plain` Use this format if you'd like to transparently serialize your
   ruby object with standard `Marshal.dump` and `Marshal.load` methods
 
-The couchbase API is the superset of [Memcached binary protocol][4], so
+The couchbase API is the superset of [Memcached binary protocol][5], so
 you can use its operations.
 
 ### Get
@@ -356,7 +363,8 @@ the key and stats as key-value pairs.
       # ...
     }
 
-[1]: https://github.com/brianmario/yajl-ruby/
-[2]: http://lloyd.github.com/yajl/
+[1]: http://couchbase.com/issues/browse/RCBC
+[2]: http://freenode.net/irc_servers.shtml
 [3]: http://www.couchbase.com/develop/c/current
-[4]: http://code.google.com/p/memcached/wiki/BinaryProtocolRevamped
+[4]: https://github.com/mxcl/homebrew/pulls/avsej
+[5]: http://code.google.com/p/memcached/wiki/BinaryProtocolRevamped
