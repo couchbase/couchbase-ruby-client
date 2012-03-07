@@ -20,32 +20,32 @@ require File.join(File.dirname(__FILE__), 'setup')
 class TestBucket < MiniTest::Unit::TestCase
 
   def test_it_substitute_default_parts_to_url
-    with_mock(:host => 'localhost', :port => 8091, :buckets_spec => 'default,foo') do |mock|
-      connections = [
-        Couchbase.new,
-        Couchbase.new("http://#{mock.host}:8091"),
-        Couchbase.new("http://#{mock.host}:8091/pools/default"),
-        Couchbase.new(:hostname => mock.host),
-        Couchbase.new(:hostname => mock.host, :port => 8091)
-      ]
-      connections.each do |connection|
-        assert_equal mock.host, connection.hostname
-        assert_equal 8091, connection.port
-        assert_equal "#{mock.host}:8091", connection.authority
-        assert_equal 'default', connection.bucket
-        assert_equal "http://#{mock.host}:8091/pools/default/buckets/default/", connection.url
-      end
+#   with_mock(:host => 'localhost', :port => 8091, :buckets_spec => 'default,foo') do |mock|
+#     connections = [
+#       Couchbase.new,
+#       Couchbase.new("http://#{mock.host}:8091"),
+#       Couchbase.new("http://#{mock.host}:8091/pools/default"),
+#       Couchbase.new(:hostname => mock.host),
+#       Couchbase.new(:hostname => mock.host, :port => 8091)
+#     ]
+#     connections.each do |connection|
+#       assert_equal mock.host, connection.hostname
+#       assert_equal 8091, connection.port
+#       assert_equal "#{mock.host}:8091", connection.authority
+#       assert_equal 'default', connection.bucket
+#       assert_equal "http://#{mock.host}:8091/pools/default/buckets/default/", connection.url
+#     end
 
-      connections = [
-        Couchbase.new("http://#{mock.host}:8091/pools/default/buckets/foo"),
-        Couchbase.new(:bucket => 'foo'),
-        Couchbase.new("http://#{mock.host}:8091/pools/default/buckets/default", :bucket => 'foo')
-      ]
-      connections.each do |connection|
-        assert_equal 'foo', connection.bucket
-        assert_equal "http://#{mock.host}:8091/pools/default/buckets/foo/", connection.url
-      end
-    end
+#     connections = [
+#       Couchbase.new("http://#{mock.host}:8091/pools/default/buckets/foo"),
+#       Couchbase.new(:bucket => 'foo'),
+#       Couchbase.new("http://#{mock.host}:8091/pools/default/buckets/default", :bucket => 'foo')
+#     ]
+#     connections.each do |connection|
+#       assert_equal 'foo', connection.bucket
+#       assert_equal "http://#{mock.host}:8091/pools/default/buckets/foo/", connection.url
+#     end
+#   end
 
     with_mock(:host => 'localhost') do |mock| # pick first free port
       connections = [
