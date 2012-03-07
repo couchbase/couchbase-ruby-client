@@ -1,3 +1,20 @@
+## 1.1.0 / 2012-03-07
+
+* Timeout support (CCBC-20)
+* Implement disconnect/reconnect interface
+* Improve error handling code
+* Use URI parser from stdlib
+* Improve the documentation and the tests
+* Remove direct dependency on libevent
+* Remove sasl dependency
+* Fix storing empty line and nil
+* Allow running tests on real cluster
+* Cross-build for windows
+* Keep connections in thread local storage
+* Add block execution time to timeout
+* Implement VERSION command
+* Configure Travis-CI
+
 ## 1.0.0 / 2011-12-23
 
 * Implement all operations using libcouchbase as backend
