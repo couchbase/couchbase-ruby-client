@@ -85,7 +85,7 @@ namespace :ports do
   directory "ports"
 
   task :libvbucket => ["ports"] do
-    recipe = MiniPortile.new "libvbucket", "1.8.0.2"
+    recipe = MiniPortile.new "libvbucket", "1.8.0.3"
     recipe.files << "http://packages.couchbase.com/clients/c/#{recipe.name}-#{recipe.version}.tar.gz"
     recipe.configure_options.push("--disable-debug",
                                   "--without-docs",
@@ -95,13 +95,12 @@ namespace :ports do
   end
 
   task :libcouchbase => [:libvbucket] do
-    recipe = MiniPortile.new "libcouchbase", "1.0.1_22_g256d0b7"
-    recipe.files << "http://files.avsej.net/#{recipe.name}-#{recipe.version}.tar.gz"
+    recipe = MiniPortile.new "libcouchbase", "1.0.2"
+    recipe.files << "http://packages.couchbase.com/clients/c/#{recipe.name}-#{recipe.version}.tar.gz"
     recipe.configure_options.push("--disable-debug",
                                   "--disable-dependency-tracking",
                                   "--disable-couchbasemock",
-                                  "--disable-tools",
-                                  "--with-memcached-headers-url=https://raw.github.com/membase/memcached/engine/include/memcached")
+                                  "--disable-tools")
     recipe.cook
     recipe.activate
   end
