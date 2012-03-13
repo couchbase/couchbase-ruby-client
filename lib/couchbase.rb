@@ -17,9 +17,13 @@
 
 require 'couchbase/version'
 require 'yajl/json_gem'
+require 'yaji'
 require 'uri'
 require 'couchbase_ext'
+require 'couchbase/utils'
 require 'couchbase/bucket'
+require 'couchbase/view_row'
+require 'couchbase/view'
 
 # Couchbase ruby client
 module Couchbase

@@ -64,6 +64,7 @@ typedef struct
     uint32_t timeout;
     VALUE exception;        /* error delivered by error_callback */
     VALUE on_error_proc;    /* is using to deliver errors in async mode */
+    VALUE environment;      /* sym_development or sym_production */
 } bucket_t;
 
 typedef struct
@@ -77,6 +78,18 @@ typedef struct
     int quiet;
     int arithm;           /* incr: +1, decr: -1, other: 0 */
 } context_t;
+
+typedef struct {
+    bucket_t *bucket;
+    char *path;
+    size_t npath;
+    char *body;
+    size_t nbody;
+    int chunked;
+    int extended;
+    libcouchbase_http_method_t method;
+    VALUE on_body_callback;
+} couch_request_t;
 
 struct key_traits
 {
@@ -92,20 +105,26 @@ struct key_traits
     VALUE force_format;
 };
 
-static VALUE mCouchbase, mError, mJSON, mURI, mMarshal, cBucket, cResult;
+static VALUE mCouchbase, mError, mJSON, mURI, mMarshal, cBucket, cResult, cCouchRequest;
 static VALUE object_space;
 
 static ID  sym_add,
            sym_append,
+           sym_body,
            sym_bucket,
            sym_cas,
+           sym_chunked,
+           sym_couch_request,
            sym_create,
            sym_decrement,
            sym_default_flags,
            sym_default_format,
            sym_default_ttl,
            sym_delete,
+           sym_delete,
+           sym_development,
            sym_document,
+           sym_environment,
            sym_extended,
            sym_flags,
            sym_flush,
@@ -115,11 +134,15 @@ static ID  sym_add,
            sym_increment,
            sym_initial,
            sym_marshal,
+           sym_method,
            sym_password,
            sym_plain,
            sym_pool,
            sym_port,
+           sym_post,
            sym_prepend,
+           sym_production,
+           sym_put,
            sym_quiet,
            sym_replace,
            sym_set,
@@ -136,11 +159,13 @@ static ID  sym_add,
            id_has_key_p,
            id_host,
            id_iv_cas,
+           id_iv_completed,
            id_iv_error,
            id_iv_flags,
            id_iv_key,
            id_iv_node,
            id_iv_operation,
+           id_iv_status,
            id_iv_value,
            id_load,
            id_match,
@@ -212,12 +237,13 @@ cb_proc_call(VALUE recv, int argc, ...)
     return rb_funcall2(recv, id_call, arity, argv);
 }
 
-/* Helper to conver return code from libcouchbase to meaningful exception.
+/* Helper to convert return code from libcouchbase to meaningful exception.
  * Returns nil if the code considering successful and exception object
  * otherwise. Store given string to exceptions as message, and also
  * initialize +error+ attribute with given return code.  */
     static VALUE
-cb_check_error(libcouchbase_error_t rc, const char *msg, VALUE key)
+cb_check_error_with_status(libcouchbase_error_t rc, const char *msg, VALUE key,
+        libcouchbase_http_status_t status)
 {
     VALUE klass, exc, str;
     char buf[300];
@@ -304,6 +330,102 @@ cb_check_error(libcouchbase_error_t rc, const char *msg, VALUE key)
         snprintf(buf, 300, "key=\"%s\", ", RSTRING_PTR(key));
         rb_str_buf_cat2(str, buf);
     }
+    if (status > 0) {
+        const char *reason = NULL;
+        snprintf(buf, 300, "status=\"%d\"", status);
+        rb_str_buf_cat2(str, buf);
+        switch (status) {
+            case LIBCOUCHBASE_HTTP_STATUS_BAD_REQUEST:
+                reason = " (Bad Request)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_UNAUTHORIZED:
+                reason = " (Unauthorized)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_PAYMENT_REQUIRED:
+                reason = " (Payment Required)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_FORBIDDEN:
+                reason = " (Forbidden)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_NOT_FOUND:
+                reason = " (Not Found)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_METHOD_NOT_ALLOWED:
+                reason = " (Method Not Allowed)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_NOT_ACCEPTABLE:
+                reason = " (Not Acceptable)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED:
+                reason = " (Proxy Authentication Required)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_REQUEST_TIMEOUT:
+                reason = " (Request Timeout)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_CONFLICT:
+                reason = " (Conflict)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_GONE:
+                reason = " (Gone)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_LENGTH_REQUIRED:
+                reason = " (Length Required)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_PRECONDITION_FAILED:
+                reason = " (Precondition Failed)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_REQUEST_ENTITY_TOO_LARGE:
+                reason = " (Request Entity Too Large)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_REQUEST_URI_TOO_LONG:
+                reason = " (Request Uri Too Long)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE:
+                reason = " (Unsupported Media Type)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_REQUESTED_RANGE_NOT_SATISFIABLE:
+                reason = " (Requested Range Not Satisfiable)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_EXPECTATION_FAILED:
+                reason = " (Expectation Failed)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_UNPROCESSABLE_ENTITY:
+                reason = " (Unprocessable Entity)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_LOCKED:
+                reason = " (Locked)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_FAILED_DEPENDENCY:
+                reason = " (Failed Dependency)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_INTERNAL_SERVER_ERROR:
+                reason = " (Internal Server Error)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_NOT_IMPLEMENTED:
+                reason = " (Not Implemented)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_BAD_GATEWAY:
+                reason = " (Bad Gateway)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_SERVICE_UNAVAILABLE:
+                reason = " (Service Unavailable)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_GATEWAY_TIMEOUT:
+                reason = " (Gateway Timeout)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED:
+                reason = " (Http Version Not Supported)";
+                break;
+            case LIBCOUCHBASE_HTTP_STATUS_INSUFFICIENT_STORAGE:
+                reason = " (Insufficient Storage)";
+                break;
+            default:
+                reason = "";
+        }
+        rb_str_buf_cat2(str, reason);
+        rb_str_buf_cat2(str, ", ");
+
+    }
     snprintf(buf, 300, "error=0x%02x)", rc);
     rb_str_buf_cat2(str, buf);
     exc = rb_exc_new3(klass, str);
@@ -311,8 +433,16 @@ cb_check_error(libcouchbase_error_t rc, const char *msg, VALUE key)
     rb_ivar_set(exc, id_iv_key, key);
     rb_ivar_set(exc, id_iv_cas, Qnil);
     rb_ivar_set(exc, id_iv_operation, Qnil);
+    rb_ivar_set(exc, id_iv_status, status ? INT2FIX(status) : Qnil);
     return exc;
 }
+
+    static VALUE
+cb_check_error(libcouchbase_error_t rc, const char *msg, VALUE key)
+{
+    return cb_check_error_with_status(rc, msg, key, 0);
+}
+
 
     static inline uint32_t
 flags_set_format(uint32_t flags, ID format)
@@ -949,6 +1079,86 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
     (void)handle;
 }
 
+    static void
+couch_complete_callback(libcouchbase_couch_request_t request,
+        libcouchbase_t handle,
+        const void *cookie,
+        libcouchbase_error_t error,
+        libcouchbase_http_status_t status,
+        const char *path,
+        libcouchbase_size_t npath,
+        const void *bytes,
+        libcouchbase_size_t nbytes)
+{
+    context_t *ctx = (context_t *)cookie;
+    bucket_t *bucket = ctx->bucket;
+    VALUE *rv = ctx->rv, k, v, res;
+
+    k = rb_str_new((const char*)path, npath);
+    ctx->exception = cb_check_error_with_status(error,
+            "failed to execute couch request", k, status);
+    v = nbytes ? rb_str_new((const char*)bytes, nbytes) : Qnil;
+    if (ctx->proc != Qnil) {
+        if (ctx->extended) {
+            res = rb_class_new_instance(0, NULL, cResult);
+            rb_ivar_set(res, id_iv_error, ctx->exception);
+            rb_ivar_set(res, id_iv_operation, sym_couch_request);
+            rb_ivar_set(res, id_iv_key, k);
+            rb_ivar_set(res, id_iv_value, v);
+            rb_ivar_set(res, id_iv_completed, Qtrue);
+        } else {
+            res = v;
+        }
+        cb_proc_call(ctx->proc, 1, res);
+    }
+    if (!bucket->async && ctx->exception == Qnil) {
+        *rv = v;
+    }
+    bucket->seqno--;
+    if (bucket->seqno == 0) {
+        bucket->io->stop_event_loop(bucket->io);
+    }
+    (void)handle;
+    (void)request;
+}
+
+    static void
+couch_data_callback(libcouchbase_couch_request_t request,
+        libcouchbase_t handle,
+        const void *cookie,
+        libcouchbase_error_t error,
+        libcouchbase_http_status_t status,
+        const char *path,
+        libcouchbase_size_t npath,
+        const void *bytes,
+        libcouchbase_size_t nbytes)
+{
+    context_t *ctx = (context_t *)cookie;
+    VALUE k, v, res;
+
+    k = rb_str_new((const char*)path, npath);
+    ctx->exception = cb_check_error_with_status(error,
+            "failed to execute couch request", k, status);
+    v = nbytes ? rb_str_new((const char*)bytes, nbytes) : Qnil;
+    if (ctx->exception != Qnil) {
+        libcouchbase_cancel_couch_request(request);
+    }
+    if (ctx->proc != Qnil) {
+        if (ctx->extended) {
+            res = rb_class_new_instance(0, NULL, cResult);
+            rb_ivar_set(res, id_iv_error, ctx->exception);
+            rb_ivar_set(res, id_iv_operation, sym_couch_request);
+            rb_ivar_set(res, id_iv_key, k);
+            rb_ivar_set(res, id_iv_value, v);
+            rb_ivar_set(res, id_iv_completed, Qfalse);
+        } else {
+            res = v;
+        }
+        cb_proc_call(ctx->proc, 1, res);
+    }
+    (void)handle;
+}
+
     static int
 cb_first_value_i(VALUE key, VALUE value, VALUE arg)
 {
@@ -1142,6 +1352,12 @@ do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
                     bucket->default_flags = flags_set_format(bucket->default_flags, arg);
                 }
             }
+            arg = rb_hash_aref(opts, sym_environment);
+            if (arg != Qnil) {
+                if (arg == sym_production || arg == sym_development) {
+                    bucket->environment = arg;
+                }
+            }
         } else {
             opts = Qnil;
         }
@@ -1186,6 +1402,8 @@ do_connect(bucket_t *bucket)
     (void)libcouchbase_set_flush_callback(bucket->handle, flush_callback);
     (void)libcouchbase_set_arithmetic_callback(bucket->handle, arithmetic_callback);
     (void)libcouchbase_set_version_callback(bucket->handle, version_callback);
+    (void)libcouchbase_set_couch_complete_callback(bucket->handle, couch_complete_callback);
+    (void)libcouchbase_set_couch_data_callback(bucket->handle, couch_data_callback);
 
     err = libcouchbase_connect(bucket->handle);
     if (err != LIBCOUCHBASE_SUCCESS) {
@@ -1269,6 +1487,11 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
  *     is +true+ it will raise {Couchbase::Error::NotFound} exceptions. The
  *     default behaviour is to return +nil+ value silently (might be useful in
  *     Rails cache).
+ *   @option options [Symbol] :environment (:production) the mode of the
+ *     connection. Currently it influences only on design documents set. If
+ *     the environment is +:development+, you will able to get design
+ *     documents with 'dev_' prefix, otherwise (in +:production+ mode) the
+ *     library will hide them from you.
  *
  * @example Initialize connection using default options
  *   Couchbase.new
@@ -1301,6 +1524,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->default_format = sym_document;
     bucket->on_error_proc = Qnil;
     bucket->timeout = 0;
+    bucket->environment = sym_production;
 
     do_scan_connection_options(bucket, argc, argv);
     do_connect(bucket);
@@ -1610,6 +1834,20 @@ cb_bucket_password_get(VALUE self)
     return rb_str_new2(bucket->password);
 }
 
+/* Document-method: environment
+ *
+ * @since 1.2.0
+ *
+ * @see Bucket#initialize
+ *
+ * @return [Symbol] the environment (+:development+ or +:production+)
+ */
+    static VALUE
+cb_bucket_environment_get(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    return bucket->environment;
+}
 /* Document-method: url
  *
  * @since 1.0.0
@@ -3184,6 +3422,258 @@ cb_result_inspect(VALUE self)
     return str;
 }
 
+    void
+cb_couch_request_free(void *ptr)
+{
+    couch_request_t *request = ptr;
+    if (request) {
+        free(request->path);
+        free(request->body);
+        free(request);
+    }
+}
+
+    void
+cb_couch_request_mark(void *ptr)
+{
+    couch_request_t *request = ptr;
+    if (request) {
+        rb_gc_mark(request->on_body_callback);
+    }
+}
+
+/*
+ * Create and initialize new CouchRequest
+ *
+ * @since 1.2.0
+ *
+ * @return [Bucket::CouchRequest] new instance
+ *
+ * @see Bucket::CouchRequest#initialize
+ */
+    static VALUE
+cb_couch_request_new(int argc, VALUE *argv, VALUE klass)
+{
+    VALUE obj;
+    couch_request_t *request;
+
+    /* allocate new bucket struct and set it to zero */
+    obj = Data_Make_Struct(klass, couch_request_t, cb_couch_request_mark,
+            cb_couch_request_free, request);
+    rb_obj_call_init(obj, argc, argv);
+    return obj;
+}
+
+/*
+ * Returns a string containing a human-readable representation of the
+ *   CouchRequest.
+ *
+ * @since 1.2.0
+ *
+ * @return [String]
+ */
+    static VALUE
+cb_couch_request_inspect(VALUE self)
+{
+    VALUE str;
+    couch_request_t *req = DATA_PTR(self);
+    char buf[200];
+
+    str = rb_str_buf_new2("#<");
+    rb_str_buf_cat2(str, rb_obj_classname(self));
+    snprintf(buf, 20, ":%p \"", (void *)self);
+    rb_str_buf_cat2(str, buf);
+    rb_str_buf_cat2(str, req->path);
+    snprintf(buf, 100, "\" chunked:%s>", req->chunked ? "true" : "false");
+    rb_str_buf_cat2(str, buf);
+
+    return str;
+}
+
+/*
+ * Initialize new CouchRequest
+ *
+ * @since 1.2.0
+ *
+ * @return [Bucket::CouchRequest]
+ */
+    static VALUE
+cb_couch_request_init(int argc, VALUE *argv, VALUE self)
+{
+    couch_request_t *request = DATA_PTR(self);
+    VALUE bucket, path, opts, on_body, mm, pp, body;
+    rb_scan_args(argc, argv, "22", &bucket, &pp, &opts, &on_body);
+
+    if (NIL_P(on_body) && rb_block_given_p()) {
+        on_body = rb_block_proc();
+    }
+    path = StringValue(pp);	/* convert path to string */
+    request->path = strdup(RSTRING_PTR(path));
+    request->npath = RSTRING_LEN(path);
+    request->on_body_callback = on_body;
+    if (CLASS_OF(bucket) != cBucket) {
+        rb_raise(rb_eTypeError, "wrong argument type (expected Couchbase::Bucket)");
+    }
+    request->bucket = DATA_PTR(bucket);
+    request->method = LIBCOUCHBASE_HTTP_METHOD_GET;
+    request->extended = Qfalse;
+    request->chunked = Qfalse;
+    if (opts != Qnil) {
+        Check_Type(opts, T_HASH);
+        request->extended = RTEST(rb_hash_aref(opts, sym_extended));
+        request->chunked = RTEST(rb_hash_aref(opts, sym_chunked));
+        if ((mm = rb_hash_aref(opts, sym_method)) != Qnil) {
+            if (mm == sym_get) {
+                request->method = LIBCOUCHBASE_HTTP_METHOD_GET;
+            } else if (mm == sym_post) {
+                request->method = LIBCOUCHBASE_HTTP_METHOD_POST;
+            } else if (mm == sym_put) {
+                request->method = LIBCOUCHBASE_HTTP_METHOD_PUT;
+            } else if (mm == sym_delete) {
+                request->method = LIBCOUCHBASE_HTTP_METHOD_DELETE;
+            } else {
+                rb_raise(rb_eArgError, "unsupported HTTP method");
+            }
+        }
+        if ((body = rb_hash_aref(opts, sym_body)) != Qnil) {
+            Check_Type(body, T_STRING);
+            request->body = strdup(RSTRING_PTR(body));
+            request->nbody = RSTRING_LEN(body);
+        }
+    }
+
+    return self;
+}
+
+/*
+ * Set +on_body+ callback
+ *
+ * @since 1.2.0
+ */
+    static VALUE
+cb_couch_request_on_body(VALUE self)
+{
+    couch_request_t *request = DATA_PTR(self);
+    VALUE old = request->on_body_callback;
+    if (rb_block_given_p()) {
+        request->on_body_callback = rb_block_proc();
+    }
+    return old;
+}
+
+/*
+ * Execute {Bucket::CouchRequest}
+ *
+ * @since 1.2.0
+ */
+    static VALUE
+cb_couch_request_perform(VALUE self)
+{
+    couch_request_t *req = DATA_PTR(self);
+    context_t *ctx;
+    VALUE rv, exc;
+    libcouchbase_error_t err;
+    bucket_t *bucket;
+
+    ctx = calloc(1, sizeof(context_t));
+    if (ctx == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory");
+    }
+    rv = Qnil;
+    ctx->rv = &rv;
+    ctx->bucket = bucket = req->bucket;
+    ctx->proc = rb_block_given_p() ? rb_block_proc() : req->on_body_callback;
+    ctx->extended = req->extended;
+
+    (void)libcouchbase_make_couch_request(bucket->handle, (const void *)ctx,
+            req->path, req->npath, req->body, req->nbody, req->method,
+            req->chunked, &err);
+    exc = cb_check_error(err, "failed to schedule document request",
+            rb_str_new(req->path, req->npath));
+    if (exc != Qnil) {
+        free(ctx);
+        rb_exc_raise(exc);
+    }
+    bucket->seqno++;
+    if (bucket->async) {
+        return Qnil;
+    } else {
+        bucket->io->run_event_loop(bucket->io);
+        exc = ctx->exception;
+        free(ctx);
+        if (exc != Qnil) {
+            rb_exc_raise(exc);
+        }
+        return rv;
+    }
+    return Qnil;
+}
+
+/* Document-method: path
+ *
+ * @since 1.2.0
+ *
+ * @return [String] the requested path
+ */
+    static VALUE
+cb_couch_request_path_get(VALUE self)
+{
+    couch_request_t *req = DATA_PTR(self);
+    return rb_str_new2(req->path);
+}
+
+/* Document-method: chunked
+ *
+ * @since 1.2.0
+ *
+ * @return [Boolean] +false+ if library should collect whole response before
+ *   yielding, +true+ if the client is ready to handle response in chunks.
+ */
+    static VALUE
+cb_couch_request_chunked_get(VALUE self)
+{
+    couch_request_t *req = DATA_PTR(self);
+    return RTEST(req->chunked);
+}
+
+/* Document-method: extended
+ *
+ * @since 1.2.0
+ *
+ * @return [Boolean] if +false+ the callbacks should receive just the data,
+ *   and {Couchbase::Result} instance otherwise.
+ */
+    static VALUE
+cb_couch_request_extended_get(VALUE self)
+{
+    couch_request_t *req = DATA_PTR(self);
+    return RTEST(req->extended);
+}
+
+/* Document-method: make_couch_request(path, options = {})
+ *
+ * @since 1.2.0
+ *
+ * @param path [String]
+ * @param options [Hash]
+ * @option options [Boolean] :extended (false) set it to +true+ if the
+ *   {Couchbase::Result} object needed. The response chunk will be
+ *   accessible through +#value+ attribute.
+ * @yieldparam [String,Couchbase::Result] res the response chunk if the
+ *   :extended option is +false+ and result object otherwise
+ *
+ * @return [Couchbase::Bucket::CouchRequest]
+ */
+    static VALUE
+cb_bucket_make_couch_request(int argc, VALUE *argv, VALUE self)
+{
+    VALUE args[4]; /* bucket, path, options, block */
+
+    args[0] = self;
+    rb_scan_args(argc, argv, "11&", &args[1], &args[2], &args[3]);
+    return cb_couch_request_new(4, args, cCouchRequest);
+}
+
 /* Ruby Extension initializer */
     void
 Init_couchbase_ext(void)
@@ -3438,6 +3928,11 @@ Init_couchbase_ext(void)
      */
     rb_define_attr(cResult, "node", 1, 0);
     id_iv_node = rb_intern("@node");
+    /* Document-method: completed
+     * In {Bucket::CouchRequest} operations used to mark the final call
+     * @return [Boolean] */
+    rb_define_attr(cResult, "completed", 1, 0);
+    id_iv_completed = rb_intern("@completed");
 
     /* Document-class: Couchbase::Bucket
      *
@@ -3498,6 +3993,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "decr", cb_bucket_decr, -1);
     rb_define_method(cBucket, "disconnect", cb_bucket_disconnect, 0);
     rb_define_method(cBucket, "reconnect", cb_bucket_reconnect, -1);
+    rb_define_method(cBucket, "make_couch_request", cb_bucket_make_couch_request, -1);
 
     rb_define_alias(cBucket, "decrement", "decr");
     rb_define_alias(cBucket, "increment", "incr");
@@ -3556,6 +4052,8 @@ Init_couchbase_ext(void)
      * Default format for new values.
      *
      * @since 1.0.0
+     *
+     * @see http://couchbase.com/docs/couchbase-manual-2.0/couchbase-views-datastore.html
      *
      * It uses flags field to store the format. It accepts either the Symbol
      * (+:document+, +:marshal+, +:plain+) or Fixnum (use constants
@@ -3711,6 +4209,34 @@ Init_couchbase_ext(void)
      */
     /* rb_define_attr(cBucket, "password", 1, 0); */
     rb_define_method(cBucket, "password", cb_bucket_password_get, 0);
+    /* Document-method: environment
+     *
+     * The environment of the connection (+:development+ or +:production+)
+     *
+     * @since 1.2.0
+     *
+     * @returns [Symbol]
+     */
+    /* rb_define_attr(cBucket, "environment", 1, 0); */
+    rb_define_method(cBucket, "environment", cb_bucket_environment_get, 0);
+
+    cCouchRequest = rb_define_class_under(cBucket, "CouchRequest", rb_cObject);
+
+    rb_define_singleton_method(cCouchRequest, "new", cb_couch_request_new, -1);
+
+    rb_define_method(cCouchRequest, "initialize", cb_couch_request_init, -1);
+    rb_define_method(cCouchRequest, "inspect", cb_couch_request_inspect, 0);
+    rb_define_method(cCouchRequest, "on_body", cb_couch_request_on_body, 0);
+    rb_define_method(cCouchRequest, "perform", cb_couch_request_perform, 0);
+
+    /* rb_define_attr(cCouchRequest, "path", 1, 0); */
+    rb_define_method(cCouchRequest, "path", cb_couch_request_path_get, 0);
+    /* rb_define_attr(cCouchRequest, "extended", 1, 0); */
+    rb_define_method(cCouchRequest, "extended", cb_couch_request_extended_get, 0);
+    rb_define_alias(cCouchRequest, "extended?", "extended");
+    /* rb_define_attr(cCouchRequest, "chunked", 1, 0); */
+    rb_define_method(cCouchRequest, "chunked", cb_couch_request_chunked_get, 0);
+    rb_define_alias(cCouchRequest, "chunked?", "chunked");
 
     /* Define symbols */
     id_arity = rb_intern("arity");
@@ -3731,15 +4257,21 @@ Init_couchbase_ext(void)
 
     sym_add = ID2SYM(rb_intern("add"));
     sym_append = ID2SYM(rb_intern("append"));
+    sym_body = ID2SYM(rb_intern("body"));
     sym_bucket = ID2SYM(rb_intern("bucket"));
     sym_cas = ID2SYM(rb_intern("cas"));
+    sym_chunked = ID2SYM(rb_intern("chunked"));
+    sym_couch_request = ID2SYM(rb_intern("couch_request"));
     sym_create = ID2SYM(rb_intern("create"));
     sym_decrement = ID2SYM(rb_intern("decrement"));
     sym_default_flags = ID2SYM(rb_intern("default_flags"));
     sym_default_format = ID2SYM(rb_intern("default_format"));
     sym_default_ttl = ID2SYM(rb_intern("default_ttl"));
     sym_delete = ID2SYM(rb_intern("delete"));
+    sym_delete = ID2SYM(rb_intern("delete"));
+    sym_development = ID2SYM(rb_intern("development"));
     sym_document = ID2SYM(rb_intern("document"));
+    sym_environment = ID2SYM(rb_intern("environment"));
     sym_extended = ID2SYM(rb_intern("extended"));
     sym_flags = ID2SYM(rb_intern("flags"));
     sym_flush = ID2SYM(rb_intern("flush"));
@@ -3749,11 +4281,15 @@ Init_couchbase_ext(void)
     sym_increment = ID2SYM(rb_intern("increment"));
     sym_initial = ID2SYM(rb_intern("initial"));
     sym_marshal = ID2SYM(rb_intern("marshal"));
+    sym_method = ID2SYM(rb_intern("method"));
     sym_password = ID2SYM(rb_intern("password"));
     sym_plain = ID2SYM(rb_intern("plain"));
     sym_pool = ID2SYM(rb_intern("pool"));
     sym_port = ID2SYM(rb_intern("port"));
+    sym_post = ID2SYM(rb_intern("post"));
     sym_prepend = ID2SYM(rb_intern("prepend"));
+    sym_production = ID2SYM(rb_intern("production"));
+    sym_put = ID2SYM(rb_intern("put"));
     sym_quiet = ID2SYM(rb_intern("quiet"));
     sym_replace = ID2SYM(rb_intern("replace"));
     sym_set = ID2SYM(rb_intern("set"));

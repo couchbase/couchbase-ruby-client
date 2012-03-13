@@ -108,6 +108,6 @@ end
 if RbConfig::CONFIG['target_os'] =~ /mingw32/
   have_library("vbucket", "vbucket_config_create", "libvbucket/vbucket.h") or abort "You should install libvbucket >= 1.8.0.2"
 end
-have_library("couchbase", "libcouchbase_server_versions", "libcouchbase/couchbase.h") or abort "You should install libcouchbase >= 1.0.2"
+have_library("couchbase", "libcouchbase_make_couch_request", "libcouchbase/couchbase.h") or abort "You should install libcouchbase >= 1.1.0dp"
 create_header("couchbase_config.h")
 create_makefile("couchbase_ext")

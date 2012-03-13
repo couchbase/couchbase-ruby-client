@@ -71,6 +71,94 @@ module Couchbase
     end
     alias :compare_and_swap :cas
 
+    # Fetch design docs stored in current bucket
+    #
+    # @since 1.2.0
+    #
+    # @return [ Hash ]
+    def design_docs
+      docs = all_docs(:startkey => "_design/", :endkey => "_design0", :include_docs => true)
+      docmap = {}
+      docs.each do |doc|
+        key = doc.id.sub(/^_design\//, '')
+        next if self.environment == :production && key =~ /dev_/
+        docmap[key] = doc
+      end
+      docmap
+    end
+
+    # Fetch all documents from the bucket.
+    #
+    # @since 1.2.0
+    #
+    # @param [ Hash ] params Params for CouchDB <tt>/_all_docs</tt> query
+    #
+    # @return [ Couchbase::View ] View object
+    def all_docs(params = {})
+      View.new(self, "_all_docs", params)
+    end
+
+    # Update or create design doc with supplied views
+    #
+    # @since 1.2.0
+    #
+    # @param [ Hash, IO, String ] data The source object containing JSON
+    #                                  encoded design document. It must have
+    #                                  <tt>_id</tt> key set, this key should
+    #                                  start with <tt>_design/</tt>.
+    #
+    # @return [ true, false ]
+    def save_design_doc(data)
+      attrs = case data
+              when String
+                Yajl::Parser.parse(data)
+              when IO
+                Yajl::Parser.parse(data.read)
+              when Hash
+                data
+              else
+                raise ArgumentError, "Document should be Hash, String or IO instance"
+              end
+
+      if attrs['_id'].to_s !~ /^_design\//
+        raise ArgumentError, "'_id' key must be set and start with '_design/'."
+      end
+      attrs['language'] ||= 'javascript'
+      req = make_couch_request(attrs['_id'],
+                               :body => Yajl::Encoder.encode(attrs),
+                               :method => :put)
+      res = Yajl::Parser.parse(req.perform)
+      if res['ok']
+        true
+      else
+        raise "Failed to save design document: #{res['error']}"
+      end
+    end
+
+    # Delete design doc with given id and revision.
+    #
+    # @since 1.2.0
+    #
+    # @param [ String ] id Design document id. It might have '_design/'
+    #                      prefix.
+    #
+    # @param [ String ] rev Document revision. It uses latest revision if
+    #                        <tt>rev</tt> parameter is nil.
+    #
+    # @return [ true, false ]
+    def delete_design_doc(id, rev = nil)
+      ddoc = design_docs[id.sub(/^_design\//, '')]
+      return nil unless ddoc
+      path = Utils.build_query(ddoc['_id'], :rev => rev || ddoc['_rev'])
+      req = make_couch_request(path, :method => :delete)
+      res = Yajl::Parser.parse(req.perform)
+      if res['ok']
+        true
+      else
+        raise "Failed to save design document: #{res['error']}"
+      end
+    end
+
   end
 
 end

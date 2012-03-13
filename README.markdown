@@ -366,6 +366,99 @@ the key and stats as key-value pairs.
       # ...
     }
 
+### Views (Map/Reduce queries)
+
+If you store structured data, they will be treated as documents and you
+can handle them in map/reduce function from Couchbase Views. For example,
+store a couple of posts using memcached API:
+
+    c['biking'] = {:title => 'Biking',
+                   :body => 'I went to the the pet store earlier and brought home a little kitty...',
+                   :date => '2009/01/30 18:04:11'}
+    c['bought-a-cat'] = {:title => 'Biking',
+                         :body => 'My biggest hobby is mountainbiking. The other day...',
+                         :date => '2009/01/30 20:04:11'}
+    c['hello-world'] = {:title => 'Hello World',
+                        :body => 'Well hello and welcome to my new blog...',
+                        :date => '2009/01/15 15:52:20'}
+    c.all_docs.count    #=> 3
+
+Now let's create design doc with sample view and save it in file
+'blog.json':
+
+    {
+      "_id": "_design/blog",
+      "language": "javascript",
+      "views": {
+        "recent_posts": {
+          "map": "function(doc){if(doc.date && doc.title){emit(doc.date, doc.title);}}"
+        }
+      }
+    }
+
+This design document could be loaded into the database like this (also you can
+pass the ruby Hash or String with JSON encoded document):
+
+    c.save_design_doc(File.open('blog.json'))
+
+To execute view you need to fetch it from design document `_design/blog`:
+
+    blog = c.design_docs['blog']
+    blog.views                    #=> ["recent_posts"]
+    blog.recent_posts             #=> [#<Couchbase::ViewRow:9855800 @id="hello-world" @key="2009/01/15 15:52:20" @value="Hello World" @doc=nil @meta={} @views=[]>, ...]
+
+Gem uses streaming parser to access view results so you can iterate them
+easily and if your code won't keep links to the documents GC might free
+them as soon as it decide they are unreachable, because parser doesn't
+store global JSON tree.
+
+    blog.recent_posts.each do |doc|
+      # do something
+      # with doc object
+      doc.key   # gives the key argument of the emit()
+      doc.value # gives the value argument of the emit()
+    end
+
+Load with documents
+
+    blog.recent_posts(:include_docs => true).each do |doc|
+      doc.doc       # gives the document which emitted the item
+      doc['date']   # gives the argument of the underlying document
+    end
+
+
+You can also use Enumerator to iterate view results
+
+    require 'date'
+    posts_by_date = Hash.new{|h,k| h[k] = []}
+    enum = c.all_docs(:include_docs => true).each  # request hasn't issued yet
+    enum.inject(posts_by_date) do |acc, doc|
+      acc[date] = Date.strptime(doc['date'], '%Y/%m/%d')
+      acc
+    end
+
+The Couchbase server could generate errors during view execution with
+`200 OK` and partial results. By default the library raises exception as
+soon as errors detected in the result stream, but you can define the
+callback `on_error` to intercept these errors and do something more
+useful.
+
+    view = blog.recent_posts(:include_docs => true)
+    logger = Logger.new(STDOUT)
+
+    view.on_error do |from, reason|
+      logger.warn("#{view.inspect} received the error '#{reason}' from #{from}")
+    end
+
+    posts = view.each do |doc|
+      # do something
+      # with doc object
+    end
+
+Note that errors object in view results usually goes *after* the rows,
+so you will likely receive a number of view results successfully before
+the error is detected.
+
 [1]: http://couchbase.com/issues/browse/RCBC
 [2]: http://freenode.net/irc_servers.shtml
 [3]: http://www.couchbase.com/develop/c/current
