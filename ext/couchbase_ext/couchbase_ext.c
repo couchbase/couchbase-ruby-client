@@ -192,6 +192,9 @@ cb_proc_call(VALUE recv, int argc, ...)
     int ii;
 
     arity = FIX2INT(rb_funcall(recv, id_arity, 0));
+    if (arity < 0) {
+        arity = argc;
+    }
     if (arity > 0) {
         va_init_list(ar, argc);
         argv = ALLOCA_N(VALUE, argc);
@@ -204,7 +207,6 @@ cb_proc_call(VALUE recv, int argc, ...)
         }
         va_end(ar);
     } else {
-        arity = 0;
         argv = NULL;
     }
     return rb_funcall2(recv, id_call, arity, argv);
