@@ -308,4 +308,23 @@ class TestGet < MiniTest::Unit::TestCase
     assert_equal nil, connection.get(uniq_id, :quiet => false)
   end
 
+  def test_format_forcing
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+
+    connection.set(uniq_id, '{"foo":"bar"}', :format => :plain)
+    value, flags, _ = connection.get(uniq_id, :extended => true)
+    assert_equal '{"foo":"bar"}', value
+    assert_equal 0x02, flags
+
+    value, flags, _ = connection.get(uniq_id, :extended => true, :format => :document)
+    expected = {"foo" => "bar"}
+    assert_equal expected, value
+    assert_equal 0x02, flags
+
+    connection.prepend(uniq_id, "NOT-A-JSON")
+    assert_raises Couchbase::Error::ValueFormat do
+      connection.get(uniq_id, :format => :document)
+    end
+  end
+
 end

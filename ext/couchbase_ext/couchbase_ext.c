@@ -73,6 +73,7 @@ typedef struct
     VALUE proc;
     void *rv;
     VALUE exception;
+    VALUE force_format;
     int quiet;
     int arithm;           /* incr: +1, decr: -1, other: 0 */
 } context_t;
@@ -88,6 +89,7 @@ struct key_traits
     int explicit_ttl;
     int quiet;
     int mgat;
+    VALUE force_format;
 };
 
 static VALUE mCouchbase, mError, mJSON, mURI, mMarshal, cBucket, cResult;
@@ -367,18 +369,30 @@ do_encode(VALUE *args)
 do_decode(VALUE *args)
 {
     VALUE blob = args[0];
-    uint32_t flags = ((uint32_t)args[1] & FMT_MASK);
+    VALUE force_format = args[2];
 
-    switch (flags) {
-        case FMT_DOCUMENT:
+    if (TYPE(force_format) == T_SYMBOL) {
+        if (force_format == sym_document) {
             return rb_funcall(mJSON, id_load, 1, blob);
-        case FMT_MARSHAL:
+        } else if (force_format == sym_marshal) {
             return rb_funcall(mMarshal, id_load, 1, blob);
-        case FMT_PLAIN:
-            /* fall through */
-        default:
-            /* all other formats treated as plain */
+        } else { /* sym_plain and any other symbol */
             return blob;
+        }
+    } else {
+        uint32_t flags = ((uint32_t)args[1] & FMT_MASK);
+
+        switch (flags) {
+            case FMT_DOCUMENT:
+                return rb_funcall(mJSON, id_load, 1, blob);
+            case FMT_MARSHAL:
+                return rb_funcall(mMarshal, id_load, 1, blob);
+            case FMT_PLAIN:
+                /* fall through */
+            default:
+                /* all other formats treated as plain */
+                return blob;
+        }
     }
 }
 
@@ -404,9 +418,9 @@ encode_value(VALUE val, uint32_t flags)
 }
 
     static VALUE
-decode_value(VALUE blob, uint32_t flags)
+decode_value(VALUE blob, uint32_t flags, VALUE force_format)
 {
-    VALUE val, args[2];
+    VALUE val, args[3];
 
     /* first it must be bytestring */
     if (TYPE(blob) != T_STRING) {
@@ -414,6 +428,7 @@ decode_value(VALUE blob, uint32_t flags)
     }
     args[0] = blob;
     args[1] = (VALUE)flags;
+    args[2] = (VALUE)force_format;
     val = rb_rescue(do_decode, (VALUE)args, coding_failed, 0);
     return val;
 }
@@ -464,6 +479,10 @@ cb_args_scan_keys(long argc, VALUE argv, bucket_t *bucket, struct key_traits *tr
             (void)rb_ary_pop(argv);
             if (RTEST(rb_funcall(opts, id_has_key_p, 1, sym_quiet))) {
                 traits->quiet = RTEST(rb_hash_aref(opts, sym_quiet));
+            }
+            traits->force_format = rb_hash_aref(opts, sym_format);
+            if (traits->force_format != Qnil) {
+                Check_Type(traits->force_format, T_SYMBOL);
             }
             ext = rb_hash_aref(opts, sym_extended);
             ttl = rb_hash_aref(opts, sym_ttl);
@@ -644,9 +663,11 @@ get_callback(libcouchbase_t handle, const void *cookie,
     f = ULONG2NUM(flags);
     c = ULL2NUM(cas);
     if (nbytes != 0) {
-        v = decode_value(rb_str_new((const char*)bytes, nbytes), flags);
+        v = decode_value(rb_str_new((const char*)bytes, nbytes), flags, ctx->force_format);
         if (v == Qundef) {
             ctx->exception = rb_exc_new2(eValueFormatError, "unable to convert value");
+            rb_ivar_set(ctx->exception, id_iv_operation, sym_get);
+            rb_ivar_set(ctx->exception, id_iv_key, k);
             v = Qnil;
         }
     } else {
@@ -2082,6 +2103,9 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
  *     operation won't raise error for missing key, it will return +nil+.
  *     Otherwise it will raise error in synchronous mode. In asynchronous
  *     mode this option ignored.
+ *   @option options [Symbol] :format (nil) Explicitly choose the decoder
+ *     for this key (+:plain+, +:document+, +:marshal+). See
+ *     {Bucket#default_format}.
  *
  *   @yieldparam ret [Result] the result of operation in asynchronous mode
  *     (valid attributes: +error+, +operation+, +key+, +value+, +flags+,
@@ -2184,6 +2208,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     ctx->bucket = bucket;
     ctx->extended = traits->extended;
     ctx->quiet = traits->quiet;
+    ctx->force_format = traits->force_format;
     rv = rb_hash_new();
     ctx->rv = &rv;
     ctx->exception = Qnil;
