@@ -1,3 +1,9 @@
+## 1.1.1 / 2012-03-19
+
+* Allow to force format for get operation (thanks to Darian Shimy)
+* Use all arguments if receiver arity is -1 (couchbase_ext.c)
+* Doc fixes
+
 ## 1.1.0 / 2012-03-07
 
 * Timeout support (CCBC-20)
