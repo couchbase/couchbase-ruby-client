@@ -90,7 +90,7 @@ This is equivalent to following forms:
     c = Couchbase.new("http://localhost:8091")
     c = Couchbase.new(:hostname => "localhost")
     c = Couchbase.new(:hostname => "localhost", :port => 8091)
-    c = Couchbase.new(:hostname => "default", :bucket => "default")
+    c = Couchbase.new(:pool => "default", :bucket => "default")
 
 The hash parameters take precedence on string URL.
 
