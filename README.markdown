@@ -81,18 +81,26 @@ as the endpoint. The client will automatically adjust configuration when
 the cluster will rebalance its nodes when nodes are added or deleted
 therefore this client is "smart".
 
-    c = Couchbase.new
+    c = Couchbase.connect
 
 This is equivalent to following forms:
 
-    c = Couchbase.new("http://localhost:8091/pools/default/buckets/default")
-    c = Couchbase.new("http://localhost:8091/pools/default")
-    c = Couchbase.new("http://localhost:8091")
-    c = Couchbase.new(:host => "localhost")
-    c = Couchbase.new(:host => "localhost", :port => 8091)
-    c = Couchbase.new(:pool => "default", :bucket => "default")
+    c = Couchbase.connect("http://localhost:8091/pools/default/buckets/default")
+    c = Couchbase.connect("http://localhost:8091/pools/default")
+    c = Couchbase.connect("http://localhost:8091")
+    c = Couchbase.connect(:hostname => "localhost")
+    c = Couchbase.connect(:hostname => "localhost", :port => 8091)
+    c = Couchbase.connect(:pool => "default", :bucket => "default")
 
 The hash parameters take precedence on string URL.
+
+There is also handy method `Couchbase.bucket` which uses thread local
+storage to keep the reference to default connection. You can set the
+connection options via `Couchbase.connection_options`:
+
+    Couchbase.connection_options = {:bucket => 'blog'}
+    Couchbase.bucket.name                   #=> "blog"
+    Couchbase.bucket.set("foo", "bar")      #=> 3289400178357895424
 
 The library supports both synchronous and asynchronous mode. In
 asynchronous mode all operations will return control to caller
@@ -100,7 +108,7 @@ without blocking current thread. You can pass the block to method and it
 will be called with result when the operation will be completed. You
 need to run event loop when you scheduled your operations:
 
-    c = Couchbase.new
+    c = Couchbase.connect
     c.run do |conn|
       conn.get("foo") {|ret| puts ret.value}
       conn.set("bar", "baz")
@@ -166,12 +174,12 @@ The library supports three different formats for representing values:
   version will be able to run map/reduce queries on the values in the
   document form (hashes)
 
-* `:marshal` This format avoids any conversions to be applied to your
+* `:plain` This format avoids any conversions to be applied to your
   data, but your data should be passed as String. This is useful for
   building custom algorithms or formats. For example to implement a set:
   http://dustin.github.com/2011/02/17/memcached-set.html
 
-* `:plain` Use this format if you'd like to transparently serialize your
+* `:marshal` Use this format if you'd like to transparently serialize your
   ruby object with standard `Marshal.dump` and `Marshal.load` methods
 
 The couchbase API is the superset of [Memcached binary protocol][5], so
