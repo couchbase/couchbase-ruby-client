@@ -1,4 +1,4 @@
-# Couchbase Ruby Client [![Build Status](https://secure.travis-ci.org/avsej/couchbase-ruby-client.png?branch=master)](http://travis-ci.org/avsej/couchbase-ruby-client)
+# Couchbase Ruby Client [![Build Status](https://secure.travis-ci.org/couchbase/couchbase-ruby-client.png?branch=master)](http://travis-ci.org/couchbase/couchbase-ruby-client)
 
 This is the official client library for use with Couchbase Server.
 
@@ -17,11 +17,6 @@ libcouchbase doesn't take much effort.
 ### MacOS (Homebrew)
 
     $ brew install libcouchbase
-
-Or if [our pull requests][4] for isn't yet merged:
-
-    $ brew install https://github.com/avsej/homebrew/raw/libvbucket/Library/Formula/libvbucket.rb
-    $ brew install https://github.com/avsej/homebrew/raw/libcouchbase/Library/Formula/libcouchbase.rb
 
 ### Debian (Ubuntu)
 
