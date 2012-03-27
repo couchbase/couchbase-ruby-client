@@ -43,7 +43,7 @@ module Couchbase
     #
     # @return [Bucket] connection instance
     def connect(*options)
-      Bucket.new(*options)
+      Bucket.new(*(options.flatten))
     end
     alias :new :connect
 
@@ -67,12 +67,14 @@ module Couchbase
     #
     # @since 1.1.0
     #
+    # @see Couchbase.connection_options
+    #
     # @example
     #   Couchbase.bucket.set("foo", "bar")
     #
     # @return [Bucket]
     def bucket
-      thread_storage[:bucket] ||= connect(*connection_options)
+      thread_storage[:bucket] ||= connect(connection_options)
     end
 
     # Set a connection instance for current thread
