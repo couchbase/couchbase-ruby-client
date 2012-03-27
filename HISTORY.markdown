@@ -1,3 +1,11 @@
+## 1.2.0.dp / 2012-04-06
+
+* Properly handle hashes as Couchbase.connection_options
+* Implement views
+* Use verbose mode by default throwing exceptions on NOT_FOUND errors.
+  This means that quiet attribute is false now on new connections.
+* Doc fixes
+
 ## 1.1.1 / 2012-03-19
 
 * Allow to force format for get operation (thanks to Darian Shimy)
