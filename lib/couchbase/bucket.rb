@@ -29,7 +29,7 @@ module Couchbase
     # {Couchbase::Error::KeyExists}. CAS stands for "compare and swap", and
     # avoids the need for manual key mutexing. Read more info here:
     #
-    #   http://docs.couchbase.org/memcached-api/memcached-api-protocol-text_cas.html
+    # @see http://couchbase.com/docs/memcached-api/memcached-api-protocol-text_cas.html
     #
     # @param [String, Symbol] key
     #
