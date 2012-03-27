@@ -960,6 +960,8 @@ cb_first_value_i(VALUE key, VALUE value, VALUE arg)
 }
 
 /*
+ * @since 1.0.0
+ *
  * @private
  * @return [Fixnum] number of scheduled operations
  */
@@ -1211,6 +1213,8 @@ do_connect(bucket_t *bucket)
 /*
  * Create and initialize new Bucket.
  *
+ * @since 1.0.0
+ *
  * @return [Bucket] new instance
  *
  * @see Bucket#initialize
@@ -1230,6 +1234,8 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
 
 /*
  * Initialize new Bucket.
+ *
+ * @since 1.0.0
  *
  * @overload initialize(url, options = {})
  *   Initialize bucket using URI of the cluster and options. It is possible
@@ -1305,6 +1311,8 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
 /*
  * Reconnect the bucket
  *
+ * @since 1.1.0
+ *
  * Reconnect the bucket using initial configuration with optional
  * redefinition.
  *
@@ -1334,6 +1342,8 @@ cb_bucket_reconnect(int argc, VALUE *argv, VALUE self)
 /* Document-method: connected?
  * Check whether the instance connected to the cluster.
  *
+ * @since 1.1.0
+ *
  * @return [Boolean] +true+ if the instance connected to the cluster
  */
     static VALUE
@@ -1345,6 +1355,8 @@ cb_bucket_connected_p(VALUE self)
 
 /* Document-method: async?
  * Check whether the connection asynchronous.
+ *
+ * @since 1.0.0
  *
  * By default all operations are synchronous and block waiting for
  * results, but you can make them asynchronous and run event loop
@@ -1484,6 +1496,9 @@ cb_bucket_timeout_set(VALUE self, VALUE val)
 }
 
 /* Document-method: hostname
+ *
+ * @since 1.0.0
+ *
  * @return [String] the host name of the management interface (default: "localhost")
  */
     static VALUE
@@ -1504,6 +1519,9 @@ cb_bucket_hostname_get(VALUE self)
 }
 
 /* Document-method: port
+ *
+ * @since 1.0.0
+ *
  * @return [Fixnum] the port number of the management interface (default: 8091)
  */
     static VALUE
@@ -1517,6 +1535,9 @@ cb_bucket_port_get(VALUE self)
 }
 
 /* Document-method: authority
+ *
+ * @since 1.0.0
+ *
  * @return [String] host with port
  */
     static VALUE
@@ -1537,6 +1558,9 @@ cb_bucket_authority_get(VALUE self)
 }
 
 /* Document-method: bucket
+ *
+ * @since 1.0.0
+ *
  * @return [String] the bucket name
  */
     static VALUE
@@ -1547,6 +1571,9 @@ cb_bucket_bucket_get(VALUE self)
 }
 
 /* Document-method: pool
+ *
+ * @since 1.0.0
+ *
  * @return [String] the pool name (usually "default")
  */
     static VALUE
@@ -1557,6 +1584,9 @@ cb_bucket_pool_get(VALUE self)
 }
 
 /* Document-method: username
+ *
+ * @since 1.0.0
+ *
  * @return [String] the username for protected buckets (usually matches
  *   the bucket name)
  */
@@ -1568,6 +1598,9 @@ cb_bucket_username_get(VALUE self)
 }
 
 /* Document-method: password
+ *
+ * @since 1.0.0
+ *
  * @return [String] the password for protected buckets
  */
     static VALUE
@@ -1578,6 +1611,9 @@ cb_bucket_password_get(VALUE self)
 }
 
 /* Document-method: url
+ *
+ * @since 1.0.0
+ *
  * @return [String] the address of the cluster management interface
  */
     static VALUE
@@ -1600,6 +1636,8 @@ cb_bucket_url_get(VALUE self)
 /*
  * Returns a string containing a human-readable representation of the
  * Bucket.
+ *
+ * @since 1.0.0
  *
  * @return [String]
  */
@@ -1635,6 +1673,8 @@ cb_bucket_inspect(VALUE self)
 
 /*
  * Delete the specified key
+ *
+ * @since 1.0.0
  *
  * @overload delete(key, options = {})
  *   @param key [String, Symbol] Key used to reference the value.
@@ -1916,7 +1956,9 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
 /*
  * Increment the value of an existing numeric key
  *
- * The increment methods enable you to increase a given stored integer
+ * @since 1.0.0
+ *
+ * The increment methods allow you to increase a given stored integer
  * value. These are the incremental equivalent of the decrement operations
  * and work on the same basis; updating the value of a key if it can be
  * parsed to an integer. The update operation occurs on the server and is
@@ -2002,6 +2044,8 @@ cb_bucket_incr(int argc, VALUE *argv, VALUE self)
 
 /*
  * Decrement the value of an existing numeric key
+ *
+ * @since 1.0.0
  *
  * The decrement methods reduce the value of a given key if the
  * corresponding value can be parsed to an integer value. These operations
@@ -2091,6 +2135,8 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
 
 /*
  * Obtain an object stored in Couchbase by given key.
+ *
+ * @since 1.0.0
  *
  * @overload get(*keys, options = {})
  *   @param keys [String, Symbol, Array] One or several keys to fetch
@@ -2267,6 +2313,8 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
 /*
  * Update the expiry time of an item
  *
+ * @since 1.0.0
+ *
  * The +touch+ method allow you to update the expiration time on a given
  * key. This can be useful for situations where you want to prevent an item
  * from expiring without resetting the associated value. For example, for a
@@ -2397,6 +2445,8 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
 /*
  * Deletes all values from a server
  *
+ * @since 1.0.0
+ *
  * @overload flush
  *   @yieldparam [Result] ret the object with +error+, +node+ and +operation+
  *     attributes.
@@ -2473,6 +2523,8 @@ cb_bucket_flush(VALUE self)
 
 /*
  * Returns versions of the server for each node in the cluster
+ *
+ * @since 1.1.0
  *
  * @overload version
  *   @yieldparam [Result] ret the object with +error+, +node+, +operation+
@@ -2551,6 +2603,8 @@ cb_bucket_version(VALUE self)
 
 /*
  * Request server statistics.
+ *
+ * @since 1.0.0
  *
  * Fetches stats from each node in cluster. Without a key specified the
  * server will respond with a "default" set of statistical information. In
@@ -2708,6 +2762,8 @@ ensure_run(VALUE *args)
 /*
  * Run the event loop.
  *
+ * @since 1.0.0
+ *
  * @yieldparam [Bucket] bucket the bucket instance
  *
  * @example Use block to run the loop
@@ -2741,6 +2797,8 @@ cb_bucket_run(VALUE self)
 
 /*
  * Unconditionally store the object in the Couchbase
+ *
+ * @since 1.0.0
  *
  * @overload set(key, value, options = {})
  *
@@ -2816,7 +2874,10 @@ cb_bucket_set(int argc, VALUE *argv, VALUE self)
 /*
  * Add the item to the database, but fail if the object exists already
  *
+ * @since 1.0.0
+ *
  * @overload add(key, value, options = {})
+ *
  *   @param key [String, Symbol] Key used to reference the value.
  *   @param value [Object] Value to be stored
  *   @param options [Hash] Options for operation.
@@ -2861,6 +2922,8 @@ cb_bucket_add(int argc, VALUE *argv, VALUE self)
 /*
  * Replace the existing object in the database
  *
+ * @since 1.0.0
+ *
  * @overload replace(key, value, options = {})
  *   @param key [String, Symbol] Key used to reference the value.
  *   @param value [Object] Value to be stored
@@ -2893,6 +2956,8 @@ cb_bucket_replace(int argc, VALUE *argv, VALUE self)
 
 /*
  * Append this object to the existing object
+ *
+ * @since 1.0.0
  *
  * @note This operation is kind of data-aware from server point of view.
  *   This mean that the server treats value as binary stream and just
@@ -2964,6 +3029,8 @@ cb_bucket_append(int argc, VALUE *argv, VALUE self)
 /*
  * Prepend this object to the existing object
  *
+ * @since 1.0.0
+ *
  * @note This operation is kind of data-aware from server point of view.
  *   This mean that the server treats value as binary stream and just
  *   perform concatenation, therefore it won't work with +:marshal+ and
@@ -3027,6 +3094,8 @@ cb_bucket_aset(int argc, VALUE *argv, VALUE self)
 /*
  * Close the connection to the cluster
  *
+ * @since 1.1.0
+ *
  * @return [true]
  *
  * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
@@ -3049,6 +3118,8 @@ cb_bucket_disconnect(VALUE self)
 /*
  * Check if result of operation was successful.
  *
+ * @since 1.0.0
+ *
  * @return [Boolean] +false+ if there is an +error+ object attached,
  *   +false+ otherwise.
  */
@@ -3060,6 +3131,8 @@ cb_result_success_p(VALUE self)
 
 /*
  * Returns a string containing a human-readable representation of the Result.
+ *
+ * @since 1.0.0
  *
  * @return [String]
  */
@@ -3122,133 +3195,257 @@ Init_couchbase_ext(void)
 
     mError = rb_define_module_under(mCouchbase, "Error");
     /* Document-class: Couchbase::Error::Base
-     * The base error class */
+     * The base error class
+     *
+     * @since 1.0.0
+     */
     eBaseError = rb_define_class_under(mError, "Base", rb_eRuntimeError);
     /* Document-class: Couchbase::Error::Auth
-     * Authentication error */
+     * Authentication error
+     *
+     * @since 1.0.0
+     */
     eAuthError = rb_define_class_under(mError, "Auth", eBaseError);
     /* Document-class: Couchbase::Error::BucketNotFound
-     * The given bucket not found in the cluster */
+     * The given bucket not found in the cluster
+     *
+     * @since 1.0.0
+     */
     eBucketNotFoundError = rb_define_class_under(mError, "BucketNotFound", eBaseError);
     /* Document-class: Couchbase::Error::Busy
-     * The cluster is too busy now. Try again later */
+     * The cluster is too busy now. Try again later
+     *
+     * @since 1.0.0
+     */
     eBusyError = rb_define_class_under(mError, "Busy", eBaseError);
     /* Document-class: Couchbase::Error::DeltaBadval
-     * The given value is not a number */
+     * The given value is not a number
+     *
+     * @since 1.0.0
+     */
     eDeltaBadvalError = rb_define_class_under(mError, "DeltaBadval", eBaseError);
     /* Document-class: Couchbase::Error::Internal
-     * Internal error */
+     * Internal error
+     *
+     * @since 1.0.0
+     */
     eInternalError = rb_define_class_under(mError, "Internal", eBaseError);
     /* Document-class: Couchbase::Error::Invalid
-     * Invalid arguments */
+     * Invalid arguments
+     *
+     * @since 1.0.0
+     */
     eInvalidError = rb_define_class_under(mError, "Invalid", eBaseError);
     /* Document-class: Couchbase::Error::KeyExists
-     * Key already exists */
+     * Key already exists
+     *
+     * @since 1.0.0
+     */
     eKeyExistsError = rb_define_class_under(mError, "KeyExists", eBaseError);
     /* Document-class: Couchbase::Error::Libcouchbase
-     * Generic error */
+     * Generic error
+     *
+     * @since 1.0.0
+     */
     eLibcouchbaseError = rb_define_class_under(mError, "Libcouchbase", eBaseError);
     /* Document-class: Couchbase::Error::Libevent
-     * Problem using libevent */
+     * Problem using libevent
+     *
+     * @since 1.0.0
+     */
     eLibeventError = rb_define_class_under(mError, "Libevent", eBaseError);
     /* Document-class: Couchbase::Error::Network
-     * Network error */
+     * Network error
+     *
+     * @since 1.0.0
+     */
     eNetworkError = rb_define_class_under(mError, "Network", eBaseError);
     /* Document-class: Couchbase::Error::NoMemory
-     * Out of memory error */
+     * Out of memory error
+     *
+     * @since 1.0.0
+     */
     eNoMemoryError = rb_define_class_under(mError, "NoMemory", eBaseError);
     /* Document-class: Couchbase::Error::NotFound
-     * No such key */
+     * No such key
+     *
+     * @since 1.0.0
+     */
     eNotFoundError = rb_define_class_under(mError, "NotFound", eBaseError);
     /* Document-class: Couchbase::Error::NotMyVbucket
-     * The vbucket is not located on this server */
+     * The vbucket is not located on this server
+     *
+     * @since 1.0.0
+     */
     eNotMyVbucketError = rb_define_class_under(mError, "NotMyVbucket", eBaseError);
     /* Document-class: Couchbase::Error::NotStored
-     * Not stored */
+     * Not stored
+     *
+     * @since 1.0.0
+     */
     eNotStoredError = rb_define_class_under(mError, "NotStored", eBaseError);
     /* Document-class: Couchbase::Error::NotSupported
-     * Not supported */
+     * Not supported
+     *
+     * @since 1.0.0
+     */
     eNotSupportedError = rb_define_class_under(mError, "NotSupported", eBaseError);
     /* Document-class: Couchbase::Error::Range
-     * Invalid range */
+     * Invalid range
+     *
+     * @since 1.0.0
+     */
     eRangeError = rb_define_class_under(mError, "Range", eBaseError);
     /* Document-class: Couchbase::Error::TemporaryFail
-     * Temporary failure. Try again later */
+     * Temporary failure. Try again later
+     *
+     * @since 1.0.0
+     */
     eTmpFailError = rb_define_class_under(mError, "TemporaryFail", eBaseError);
     /* Document-class: Couchbase::Error::TooBig
-     * Object too big */
+     * Object too big
+     *
+     * @since 1.0.0
+     */
     eTooBigError = rb_define_class_under(mError, "TooBig", eBaseError);
     /* Document-class: Couchbase::Error::UnknownCommand
-     * Unknown command */
+     * Unknown command
+     *
+     * @since 1.0.0
+     */
     eUnknownCommandError = rb_define_class_under(mError, "UnknownCommand", eBaseError);
     /* Document-class: Couchbase::Error::UnknownHost
-     * Unknown host */
+     * Unknown host
+     *
+     * @since 1.0.0
+     */
     eUnknownHostError = rb_define_class_under(mError, "UnknownHost", eBaseError);
     /* Document-class: Couchbase::Error::ValueFormat
-     * Failed to decode or encode value */
+     * Failed to decode or encode value
+     *
+     * @since 1.0.0
+     */
     eValueFormatError = rb_define_class_under(mError, "ValueFormat", eBaseError);
     /* Document-class: Couchbase::Error::Protocol
-     * Protocol error */
+     * Protocol error
+     *
+     * @since 1.0.0
+     */
     eProtocolError = rb_define_class_under(mError, "Protocol", eBaseError);
     /* Document-class: Couchbase::Error::Timeout
-     * Timeout error */
+     * Timeout error
+     *
+     * @since 1.1.0
+     */
     eTimeoutError = rb_define_class_under(mError, "Timeout", eBaseError);
     /* Document-class: Couchbase::Error::Connect
-     * Connect error */
+     * Connect error
+     *
+     * @since 1.1.0
+     */
     eConnectError = rb_define_class_under(mError, "Connect", eBaseError);
 
     /* Document-method: error
-     * @return [Boolean] the error code from libcouchbase */
+     *
+     * @since 1.0.0
+     *
+     * @return [Boolean] the error code from libcouchbase
+     */
     rb_define_attr(eBaseError, "error", 1, 0);
     id_iv_error = rb_intern("@error");
     /* Document-method: key
+     *
+     * @since 1.0.0
+     *
      * @return [String] the key which generated error */
     rb_define_attr(eBaseError, "key", 1, 0);
     id_iv_key = rb_intern("@key");
     /* Document-method: cas
+     *
+     * @since 1.0.0
+     *
      * @return [Fixnum] the version of the key (+nil+ unless accessible) */
     rb_define_attr(eBaseError, "cas", 1, 0);
     id_iv_cas = rb_intern("@cas");
     /* Document-method: operation
+     *
+     * @since 1.0.0
+     *
      * @return [Symbol] the operation (+nil+ unless accessible) */
     rb_define_attr(eBaseError, "operation", 1, 0);
     id_iv_operation = rb_intern("@operation");
 
     /* Document-class: Couchbase::Result
-     * The object which yielded to asynchronous callbacks */
+     *
+     * The object which yielded to asynchronous callbacks
+     *
+     * @since 1.0.0
+     */
     cResult = rb_define_class_under(mCouchbase, "Result", rb_cObject);
     rb_define_method(cResult, "inspect", cb_result_inspect, 0);
     rb_define_method(cResult, "success?", cb_result_success_p, 0);
     /* Document-method: operation
-     * @return [Symbol] */
+     *
+     * @since 1.0.0
+     *
+     * @return [Symbol]
+     */
     rb_define_attr(cResult, "operation", 1, 0);
     /* Document-method: error
-     * @return [Couchbase::Error::Base] */
+     *
+     * @since 1.0.0
+     *
+     * @return [Couchbase::Error::Base]
+     */
     rb_define_attr(cResult, "error", 1, 0);
     /* Document-method: key
-     * @return [String] */
+     *
+     * @since 1.0.0
+     *
+     * @return [String]
+     */
     rb_define_attr(cResult, "key", 1, 0);
     id_iv_key = rb_intern("@key");
     /* Document-method: value
-     * @return [String] */
+     *
+     * @since 1.0.0
+     *
+     * @return [String]
+     */
     rb_define_attr(cResult, "value", 1, 0);
     id_iv_value = rb_intern("@value");
     /* Document-method: cas
-     * @return [Fixnum] */
+     *
+     * @since 1.0.0
+     *
+     * @return [Fixnum]
+     */
     rb_define_attr(cResult, "cas", 1, 0);
     id_iv_cas = rb_intern("@cas");
     /* Document-method: flags
-     * @return [Fixnum] */
+     *
+     * @since 1.0.0
+     *
+     * @return [Fixnum]
+     */
     rb_define_attr(cResult, "flags", 1, 0);
     id_iv_flags = rb_intern("@flags");
     /* Document-method: node
-     * @return [String] */
+     *
+     * @since 1.0.0
+     *
+     * @return [String]
+     */
     rb_define_attr(cResult, "node", 1, 0);
     id_iv_node = rb_intern("@node");
 
     /* Document-class: Couchbase::Bucket
+     *
      * This class in charge of all stuff connected to communication with
-     * Couchbase. */
+     * Couchbase.
+     *
+     * @since 1.0.0
+     */
     cBucket = rb_define_class_under(mCouchbase, "Bucket", rb_cObject);
     object_space = rb_hash_new();
     /* @private Hack to avoid GC in some cases */
@@ -3278,7 +3475,10 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "inspect", cb_bucket_inspect, 0);
 
     /* Document-method: seqno
-     * The number of scheduled commands */
+     * The number of scheduled commands
+     *
+     * @since 1.0.0
+     */
     /* rb_define_attr(cBucket, "seqno", 1, 0); */
     rb_define_method(cBucket, "seqno", cb_bucket_seqno, 0);
 
@@ -3312,6 +3512,8 @@ Init_couchbase_ext(void)
     /* Document-method: quiet
      * Flag specifying behaviour for operations on missing keys
      *
+     * @since 1.0.0
+     *
      * If it is +true+, the operations will silently return +nil+ or +false+
      * instead of raising {Couchbase::Error::NotFound}.
      *
@@ -3332,6 +3534,8 @@ Init_couchbase_ext(void)
     /* Document-method: default_flags
      * Default flags for new values.
      *
+     * @since 1.0.0
+     *
      * The library reserves last two lower bits to store the format of the
      * value. The can be masked via FMT_MASK constant.
      *
@@ -3350,6 +3554,8 @@ Init_couchbase_ext(void)
 
     /* Document-method: default_format
      * Default format for new values.
+     *
+     * @since 1.0.0
      *
      * It uses flags field to store the format. It accepts either the Symbol
      * (+:document+, +:marshal+, +:plain+) or Fixnum (use constants
@@ -3386,6 +3592,9 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "default_format=", cb_bucket_default_format_set, 1);
 
     /* Document-method: timeout
+     *
+     * @since 1.1.0
+     *
      * @return [Fixnum] The timeout for the operations. The client will
      *   raise {Couchbase::Error::Timeout} exception for all commands which
      *   weren't completed in given timeslot. */
@@ -3395,6 +3604,8 @@ Init_couchbase_ext(void)
 
     /* Document-method: on_error
      * Error callback for asynchronous mode.
+     *
+     * @since 1.0.0
      *
      * This callback is using to deliver exceptions in asynchronous mode.
      *
@@ -3419,21 +3630,85 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "on_error", cb_bucket_on_error_get, 0);
     rb_define_method(cBucket, "on_error=", cb_bucket_on_error_set, 1);
 
+    /* Document-method: url
+     *
+     * The config url for this connection.
+     *
+     * Generally it is the bootstrap URL, but it could be different after
+     * cluster upgrade. This url is used to fetch the cluster
+     * configuration.
+     *
+     * @since 1.0.0
+     */
     /* rb_define_attr(cBucket, "url", 1, 0); */
     rb_define_method(cBucket, "url", cb_bucket_url_get, 0);
+    /* Document-method: hostname
+     *
+     * The hostname of the current node
+     *
+     * @see Bucket#url
+     *
+     * @since 1.0.0
+     */
     /* rb_define_attr(cBucket, "hostname", 1, 0); */
     rb_define_method(cBucket, "hostname", cb_bucket_hostname_get, 0);
+    /* Document-method: port
+     *
+     * The port of the current node
+     *
+     * @see Bucket#url
+     *
+     * @since 1.0.0
+     */
     /* rb_define_attr(cBucket, "port", 1, 0); */
     rb_define_method(cBucket, "port", cb_bucket_port_get, 0);
+    /* Document-method: authority
+     *
+     * The authority ("hostname:port") of the current node
+     *
+     * @see Bucket#url
+     *
+     * @since 1.0.0
+     */
     /* rb_define_attr(cBucket, "authority", 1, 0); */
     rb_define_method(cBucket, "authority", cb_bucket_authority_get, 0);
+    /* Document-method: bucket
+     *
+     * The bucket name of the current connection
+     *
+     * @see Bucket#url
+     *
+     * @since 1.0.0
+     */
     /* rb_define_attr(cBucket, "bucket", 1, 0); */
     rb_define_method(cBucket, "bucket", cb_bucket_bucket_get, 0);
     rb_define_alias(cBucket, "name", "bucket");
+    /* Document-method: pool
+     *
+     * The pool name of the current connection
+     *
+     * @see Bucket#url
+     *
+     * @since 1.0.0
+     */
     /* rb_define_attr(cBucket, "pool", 1, 0); */
     rb_define_method(cBucket, "pool", cb_bucket_pool_get, 0);
+    /* Document-method: username
+     *
+     * The user name used to connect to the cluster
+     *
+     * @see Bucket#url
+     *
+     * @since 1.0.0
+     */
     /* rb_define_attr(cBucket, "username", 1, 0); */
     rb_define_method(cBucket, "username", cb_bucket_username_get, 0);
+    /* Document-method: password
+     *
+     * The password used to connect to the cluster
+     *
+     * @since 1.0.0
+     */
     /* rb_define_attr(cBucket, "password", 1, 0); */
     rb_define_method(cBucket, "password", cb_bucket_password_get, 0);
 

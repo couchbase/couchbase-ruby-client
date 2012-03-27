@@ -27,6 +27,8 @@ module Couchbase
   class << self
     # The method +connect+ initializes new Bucket instance with all arguments passed.
     #
+    # @since 1.0.0
+    #
     # @example Use default values for all options
     #   Couchbase.connect
     #
@@ -47,6 +49,8 @@ module Couchbase
 
     # Default connection options
     #
+    # @since 1.1.0
+    #
     # @example Using {Couchbase#connection_options} to change the bucket
     #   Couchbase.connection_options = {:bucket => 'blog'}
     #   Couchbase.bucket.name     #=> "blog"
@@ -61,6 +65,8 @@ module Couchbase
 
     # The connection instance for current thread
     #
+    # @since 1.1.0
+    #
     # @example
     #   Couchbase.bucket.set("foo", "bar")
     #
@@ -70,6 +76,8 @@ module Couchbase
     end
 
     # Set a connection instance for current thread
+    #
+    # @since 1.1.0
     #
     # @return [Bucket]
     def bucket=(connection)

@@ -19,6 +19,10 @@ module Couchbase
 
   class Bucket
 
+    # Compare and swap value.
+    #
+    # @since 1.0.0
+    #
     # Reads a key's value from the server and yields it to a block. Replaces
     # the key's value with the result of the block as long as the key hasn't
     # been updated in the meantime, otherwise raises
