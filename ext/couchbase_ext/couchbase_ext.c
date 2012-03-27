@@ -1264,7 +1264,7 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
  *   @option options [String] :username (nil) the user name to connect to the
  *     cluster. Used to authenticate on management API.
  *   @option options [String] :password (nil) the password of the user.
- *   @option options [Boolean] :quiet (true) the flag controlling if raising
+ *   @option options [true, false] :quiet (true) the flag controlling if raising
  *     exception when the client executes operations on unexising keys. If it
  *     is +true+ it will raise {Couchbase::Error::NotFound} exceptions. The
  *     default behaviour is to return +nil+ value silently (might be useful in
@@ -1344,7 +1344,7 @@ cb_bucket_reconnect(int argc, VALUE *argv, VALUE self)
  *
  * @since 1.1.0
  *
- * @return [Boolean] +true+ if the instance connected to the cluster
+ * @return [true, false] +true+ if the instance connected to the cluster
  */
     static VALUE
 cb_bucket_connected_p(VALUE self)
@@ -1370,7 +1370,7 @@ cb_bucket_connected_p(VALUE self)
  *     conn.async?          #=> true
  *   end
  *
- * @return [Boolean] +true+ if the connection if asynchronous
+ * @return [true, false] +true+ if the connection if asynchronous
  *
  * @see Bucket#run
  */
@@ -1679,7 +1679,7 @@ cb_bucket_inspect(VALUE self)
  * @overload delete(key, options = {})
  *   @param key [String, Symbol] Key used to reference the value.
  *   @param options [Hash] Options for operation.
- *   @option options [Boolean] :quiet (self.quiet) If set to +true+, the
+ *   @option options [true, false] :quiet (self.quiet) If set to +true+, the
  *     operation won't raise error for missing key, it will return +nil+.
  *     Otherwise it will raise error in synchronous mode. In asynchronous
  *     mode this option ignored.
@@ -1974,7 +1974,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
  *   @param key [String, Symbol] Key used to reference the value.
  *   @param delta [Fixnum] Integer (up to 64 bits) value to increment
  *   @param options [Hash] Options for operation.
- *   @option options [Boolean] :create (false) If set to +true+, it will
+ *   @option options [true, false] :create (false) If set to +true+, it will
  *     initialize the key with zero value and zero flags (use +:initial+
  *     option to set another initial value). Note: it won't increment the
  *     missing value.
@@ -1985,7 +1985,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
  *     Values larger than 30*24*60*60 seconds (30 days) are interpreted as
  *     absolute times (from the epoch). This option ignored for existent
  *     keys.
- *   @option options [Boolean] :extended (false) If set to +true+, the
+ *   @option options [true, false] :extended (false) If set to +true+, the
  *     operation will return tuple +[value, cas]+, otherwise (by default) it
  *     returns just value.
  *
@@ -2062,7 +2062,7 @@ cb_bucket_incr(int argc, VALUE *argv, VALUE self)
  *   @param key [String, Symbol] Key used to reference the value.
  *   @param delta [Fixnum] Integer (up to 64 bits) value to decrement
  *   @param options [Hash] Options for operation.
- *   @option options [Boolean] :create (false) If set to +true+, it will
+ *   @option options [true, false] :create (false) If set to +true+, it will
  *     initialize the key with zero value and zero flags (use +:initial+
  *     option to set another initial value). Note: it won't decrement the
  *     missing value.
@@ -2073,7 +2073,7 @@ cb_bucket_incr(int argc, VALUE *argv, VALUE self)
  *     Values larger than 30*24*60*60 seconds (30 days) are interpreted as
  *     absolute times (from the epoch). This option ignored for existent
  *     keys.
- *   @option options [Boolean] :extended (false) If set to +true+, the
+ *   @option options [true, false] :extended (false) If set to +true+, the
  *     operation will return tuple +[value, cas]+, otherwise (by default) it
  *     returns just value.
  *
@@ -2141,13 +2141,13 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
  * @overload get(*keys, options = {})
  *   @param keys [String, Symbol, Array] One or several keys to fetch
  *   @param options [Hash] Options for operation.
- *   @option options [Boolean] :extended (false) If set to +true+, the
+ *   @option options [true, false] :extended (false) If set to +true+, the
  *     operation will return tuple +[value, flags, cas]+, otherwise (by
  *     default) it returns just value.
  *   @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
  *     Values larger than 30*24*60*60 seconds (30 days) are interpreted as
  *     absolute times (from the epoch).
- *   @option options [Boolean] :quiet (self.quiet) If set to +true+, the
+ *   @option options [true, false] :quiet (self.quiet) If set to +true+, the
  *     operation won't raise error for missing key, it will return +nil+.
  *     Otherwise it will raise error in synchronous mode. In asynchronous
  *     mode this option ignored.
@@ -2332,7 +2332,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
  *   @yieldparam ret [Result] the result of operation in asynchronous mode
  *     (valid attributes: +error+, +operation+, +key+).
  *
- *   @return [Boolean] +true+ if the operation was successful and +false+
+ *   @return [true, false] +true+ if the operation was successful and +false+
  *     otherwise.
  *
  *   @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
@@ -2451,7 +2451,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
  *   @yieldparam [Result] ret the object with +error+, +node+ and +operation+
  *     attributes.
  *
- *   @return [Boolean] +true+ on success
+ *   @return [true, false] +true+ on success
  *
  *   @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
  *   @raise [ArgumentError] when passing the block in synchronous mode
@@ -3120,7 +3120,7 @@ cb_bucket_disconnect(VALUE self)
  *
  * @since 1.0.0
  *
- * @return [Boolean] +false+ if there is an +error+ object attached,
+ * @return [true, false] +false+ if there is an +error+ object attached,
  *   +false+ otherwise.
  */
     static VALUE
@@ -3349,7 +3349,7 @@ Init_couchbase_ext(void)
      *
      * @since 1.0.0
      *
-     * @return [Boolean] the error code from libcouchbase
+     * @return [true, false] the error code from libcouchbase
      */
     rb_define_attr(eBaseError, "error", 1, 0);
     id_iv_error = rb_intern("@error");
@@ -3525,7 +3525,7 @@ Init_couchbase_ext(void)
      *   connection.quiet = false
      *   connection.get("miss")     #=> will raise Couchbase::Error::NotFound
      *
-     * @return [Boolean] */
+     * @return [true, false] */
     /* rb_define_attr(cBucket, "quiet", 1, 1); */
     rb_define_method(cBucket, "quiet", cb_bucket_quiet_get, 0);
     rb_define_method(cBucket, "quiet=", cb_bucket_quiet_set, 1);
