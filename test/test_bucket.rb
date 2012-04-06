@@ -151,7 +151,7 @@ class TestBucket < MiniTest::Unit::TestCase
     with_mock do |mock|
       connection = Couchbase.new(:hostname => mock.host,
                                  :port => mock.port)
-      assert connection.quiet?
+      refute connection.quiet?
 
       connection = Couchbase.new(:hostname => mock.host,
                                  :port => mock.port,

@@ -84,7 +84,9 @@ class TestArithmetic < MiniTest::Unit::TestCase
     val = connection.incr(uniq_id(:missing), :create => true)
     assert_equal 1, val
     sleep(2)
-    refute connection.get(uniq_id(:missing))
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id(:missing))
+    end
   end
 
   def test_decrement_with_absolute_ttl
@@ -95,7 +97,9 @@ class TestArithmetic < MiniTest::Unit::TestCase
     assert_equal 0, val
     assert_equal 0, connection.get(uniq_id)
     sleep(2)
-    refute connection.get(uniq_id)
+    assert_raises(Couchbase::Error::NotFound) do
+      refute connection.get(uniq_id)
+    end
   end
 
   def test_it_allows_custom_delta

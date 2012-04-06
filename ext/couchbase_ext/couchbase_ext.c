@@ -1482,7 +1482,7 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
  *   @option options [String] :username (nil) the user name to connect to the
  *     cluster. Used to authenticate on management API.
  *   @option options [String] :password (nil) the password of the user.
- *   @option options [true, false] :quiet (true) the flag controlling if raising
+ *   @option options [true, false] :quiet (false) the flag controlling if raising
  *     exception when the client executes operations on unexising keys. If it
  *     is +true+ it will raise {Couchbase::Error::NotFound} exceptions. The
  *     default behaviour is to return +nil+ value silently (might be useful in
@@ -1518,7 +1518,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->pool = strdup("default");
     bucket->bucket = strdup("default");
     bucket->async = 0;
-    bucket->quiet = 1;
+    bucket->quiet = 0;
     bucket->default_ttl = 0;
     bucket->default_flags = 0;
     bucket->default_format = sym_document;
@@ -1940,6 +1940,7 @@ cb_bucket_inspect(VALUE self)
  *   @example Delete the key verbosely
  *     c.set("foo", "bar")
  *     c.delete("foo", :quiet => false)   #=> true
+ *     c.delete("foo", :quiet => true)    #=> nil (default behaviour)
  *     c.delete("foo", :quiet => false)   #=> will raise Couchbase::Error::NotFound
  *
  *   @example Delete the key with version check
@@ -2415,6 +2416,7 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
  *
  *   @example Get single value in verbose mode
  *     c.get("missing-foo", :quiet => false)  #=> raises Couchbase::NotFound
+ *     c.get("missing-foo", :quiet => true)   #=> returns nil
  *
  *   @example Get and touch single value. The key won't be accessible after 10 seconds
  *     c.get("foo", :ttl => 10)

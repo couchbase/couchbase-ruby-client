@@ -110,7 +110,9 @@ class TestAsync < MiniTest::Unit::TestCase
     assert success
     assert_equal "foo", val
     sleep(2)
-    refute connection.get(uniq_id)
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id)
+    end
   end
 
   def test_nested_async_delete_get
@@ -167,7 +169,9 @@ class TestAsync < MiniTest::Unit::TestCase
       end
     end
 
-    refute connection.get(uniq_id)
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id)
+    end
     res.keys.each do |key|
       assert res[key].is_a?(Numeric)
       assert connection.get(key)

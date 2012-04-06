@@ -34,7 +34,9 @@ class TestTouch < MiniTest::Unit::TestCase
     sleep(1)
     assert connection.get(uniq_id)
     sleep(2)
-    refute connection.get(uniq_id)
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id)
+    end
   end
 
   def test_multi_touch
@@ -45,8 +47,12 @@ class TestTouch < MiniTest::Unit::TestCase
     assert ret[uniq_id(1)]
     assert ret[uniq_id(2)]
     sleep(2)
-    refute connection.get(uniq_id(1))
-    refute connection.get(uniq_id(2))
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id(1))
+    end
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id(2))
+    end
   end
 
   def test_it_uses_default_ttl_for_touch
@@ -54,7 +60,9 @@ class TestTouch < MiniTest::Unit::TestCase
     connection.set(uniq_id, "bar", :ttl => 10)
     connection.touch(uniq_id)
     sleep(2)
-    refute connection.get(uniq_id)
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id)
+    end
   end
 
   def test_it_accepts_ttl_for_get_command
@@ -63,7 +71,9 @@ class TestTouch < MiniTest::Unit::TestCase
     val = connection.get(uniq_id, :ttl => 1)
     assert_equal "bar", val
     sleep(2)
-    refute connection.get(uniq_id)
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id)
+    end
   end
 
 end

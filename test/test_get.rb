@@ -82,7 +82,10 @@ class TestGet < MiniTest::Unit::TestCase
     assert_equal "foo1", results[uniq_id(1)]
     assert_equal "foo2", results[uniq_id(2)]
     sleep(2)
-    assert connection.get(uniq_id(1), uniq_id(2)).compact.empty?
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id(1), uniq_id(2))
+    end
+    assert connection.get(uniq_id(1), uniq_id(2), :quiet => true).compact.empty?
   end
 
   def test_multi_get_and_touch_extended
@@ -104,11 +107,13 @@ class TestGet < MiniTest::Unit::TestCase
     assert results.is_a?(Hash)
     assert_equal "foo1", results[uniq_id]
     sleep(2)
-    refute = connection.get(uniq_id)
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id)
+    end
   end
 
   def test_missing_in_quiet_mode
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => true)
     cas1 = connection.set(uniq_id(1), "foo1")
     cas2 = connection.set(uniq_id(2), "foo2")
 
@@ -235,20 +240,19 @@ class TestGet < MiniTest::Unit::TestCase
     end
 
     connection.run(&suite)
+    refute res.has_key?(uniq_id(:missing1))
+    refute res.has_key?(uniq_id(:missing2))
+    assert_equal [uniq_id(:missing1), uniq_id(:missing2)], missing.sort
+    assert_equal "foo", res[uniq_id]
+
+    connection.quiet = true
+    connection.run(&suite)
     assert_equal "foo", res[uniq_id]
     assert res.has_key?(uniq_id(:missing1)) # handler was called with nil
     refute res[uniq_id(:missing1)]
     assert res.has_key?(uniq_id(:missing2))
     refute res[uniq_id(:missing2)]
     assert_empty missing
-
-    connection.quiet = false
-
-    connection.run(&suite)
-    refute res.has_key?(uniq_id(:missing1))
-    refute res.has_key?(uniq_id(:missing2))
-    assert_equal [uniq_id(:missing1), uniq_id(:missing2)], missing.sort
-    assert_equal "foo", res[uniq_id]
   end
 
   def test_get_using_brackets
