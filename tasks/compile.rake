@@ -94,7 +94,7 @@ namespace :ports do
   end
 
   task :libcouchbase => [:libvbucket] do
-    recipe = MiniPortile.new "libcouchbase", "1.0.2"
+    recipe = MiniPortile.new "libcouchbase", "1.1.0dp2"
     recipe.files << "http://packages.couchbase.com/clients/c/#{recipe.name}-#{recipe.version}.tar.gz"
     recipe.configure_options.push("--disable-debug",
                                   "--disable-dependency-tracking",
