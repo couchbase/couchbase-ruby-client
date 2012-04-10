@@ -3110,6 +3110,32 @@ cb_bucket_run(int argc, VALUE *argv, VALUE self)
 }
 
 /*
+ * Stop the event loop.
+ *
+ * @since 1.2.0
+ *
+ * @example Breakout the event loop when 5th request is completed
+ *   c = Couchbase.connect
+ *   c.run do
+ *     10.times do |ii|
+ *       c.get("foo") do |ret|
+ *         puts ii
+ *         c.stop if ii == 5
+ *       end
+ *     end
+ *   end
+ *
+ * @return [nil]
+ */
+    static VALUE
+cb_bucket_stop(VALUE self)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    bucket->io->stop_event_loop(bucket->io);
+    return Qnil;
+}
+
+/*
  * Unconditionally store the object in the Couchbase
  *
  * @since 1.0.0
@@ -4060,6 +4086,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "set", cb_bucket_set, -1);
     rb_define_method(cBucket, "get", cb_bucket_get, -1);
     rb_define_method(cBucket, "run", cb_bucket_run, -1);
+    rb_define_method(cBucket, "stop", cb_bucket_stop, 0);
     rb_define_method(cBucket, "touch", cb_bucket_touch, -1);
     rb_define_method(cBucket, "delete", cb_bucket_delete, -1);
     rb_define_method(cBucket, "stats", cb_bucket_stats, -1);
