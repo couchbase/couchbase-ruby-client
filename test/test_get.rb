@@ -331,4 +331,22 @@ class TestGet < MiniTest::Unit::TestCase
     end
   end
 
+  # http://www.couchbase.com/issues/browse/RCBC-31
+  def test_consistent_behaviour_for_arrays
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+
+    cas = connection.set(uniq_id("foo"), "foo")
+    connection.set(uniq_id("bar"), "bar")
+
+    assert_equal "foo", connection.get(uniq_id("foo"))
+    assert_equal ["foo"], connection.get([uniq_id("foo")])
+    assert_equal ["foo", "bar"], connection.get([uniq_id("foo"), uniq_id("bar")])
+    assert_equal ["foo", "bar"], connection.get(uniq_id("foo"), uniq_id("bar"))
+    expected = {uniq_id("foo") => ["foo", 0x00, cas]}
+    assert_equal expected, connection.get([uniq_id("foo")], :extended => true)
+    assert_raises TypeError do
+      connection.get([uniq_id("foo"), uniq_id("bar")], [uniq_id("foo")])
+    end
+  end
+
 end

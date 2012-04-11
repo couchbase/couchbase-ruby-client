@@ -102,6 +102,7 @@ struct key_traits
     int explicit_ttl;
     int quiet;
     int mgat;
+    int is_array;
     VALUE force_format;
 };
 
@@ -622,9 +623,12 @@ cb_args_scan_keys(long argc, VALUE argv, bucket_t *bucket, struct key_traits *tr
                 traits->explicit_ttl = 1;
                 exp = NUM2ULONG(ttl);
             }
+        }
+        nn = RARRAY_LEN(argv);
+        if (nn == 1 && TYPE(RARRAY_PTR(argv)[0]) == T_ARRAY) {
+            argv = RARRAY_PTR(argv)[0];
             nn = RARRAY_LEN(argv);
-        } else {
-            nn = argc;
+            traits->is_array = 1;
         }
         if (nn < 1) {
             rb_raise(rb_eArgError, "must be at least one key");
@@ -2472,7 +2476,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     long nn;
     libcouchbase_error_t err;
     struct key_traits *traits;
-    int extended, mgat;
+    int extended, mgat, is_array;
     long seqno;
 
     if (bucket->handle == NULL) {
@@ -2482,7 +2486,6 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    rb_funcall(args, id_flatten_bang, 0);
     traits = calloc(1, sizeof(struct key_traits));
     nn = cb_args_scan_keys(RARRAY_LEN(args), args, bucket, traits);
     ctx = calloc(1, sizeof(context_t));
@@ -2491,6 +2494,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     }
     mgat = traits->mgat;
     keys = traits->keys_ary;
+    is_array = traits->is_array;
     ctx->proc = proc;
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
     ctx->bucket = bucket;
@@ -2530,10 +2534,10 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         if (bucket->exception != Qnil) {
             rb_exc_raise(bucket->exception);
         }
-        if (mgat || (extended && nn > 1)) {
+        if (mgat || (extended && (nn > 1 || is_array))) {
             return rv;  /* return as a hash {key => [value, flags, cas], ...} */
         }
-        if (nn > 1) {
+        if (nn > 1 || is_array) {
             long ii;
             VALUE *keys_ptr, ret;
             ret = rb_ary_new();
