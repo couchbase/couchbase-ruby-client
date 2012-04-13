@@ -47,7 +47,7 @@ Add these lines to /etc/yum.repos.d/couchbase.repo using the correct architectur
 
     [couchbase]
     name = Couchbase package repository
-    baseurl = http:///packages.couchbase.com/rpm/5.5/x86_64
+    baseurl = http://packages.couchbase.com/rpm/5.5/x86_64
 
 Then to install libcouchbase itself, run:
 
@@ -373,10 +373,10 @@ can handle them in map/reduce function from Couchbase Views. For example,
 store a couple of posts using memcached API:
 
     c['biking'] = {:title => 'Biking',
-                   :body => 'I went to the the pet store earlier and brought home a little kitty...',
+                   :body => 'My biggest hobby is mountainbiking. The other day...',
                    :date => '2009/01/30 18:04:11'}
-    c['bought-a-cat'] = {:title => 'Biking',
-                         :body => 'My biggest hobby is mountainbiking. The other day...',
+    c['bought-a-cat'] = {:title => 'Bought a Cat',
+                         :body => 'I went to the the pet store earlier and brought home a little kitty...',
                          :date => '2009/01/30 20:04:11'}
     c['hello-world'] = {:title => 'Hello World',
                         :body => 'Well hello and welcome to my new blog...',
