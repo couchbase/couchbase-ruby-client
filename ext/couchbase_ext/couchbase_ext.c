@@ -43,6 +43,8 @@
 #define FMT_MARSHAL     0x1
 #define FMT_PLAIN       0x2
 
+#define HEADER_SIZE     24
+
 typedef struct
 {
     libcouchbase_t handle;
@@ -60,7 +62,10 @@ typedef struct
     VALUE default_format;    /* should update +default_flags+ on change */
     uint32_t default_flags;
     time_t default_ttl;
+    hrtime_t blk_start;       /* timestamp when async block was started */
     uint32_t timeout;
+    size_t threshold;       /* the number of bytes to trigger event loop, zero if don't care */
+    size_t nbytes;          /* the number of bytes scheduled to be sent */
     VALUE exception;        /* error delivered by error_callback */
     VALUE on_error_proc;    /* is using to deliver errors in async mode */
     VALUE environment;      /* sym_development or sym_production */
@@ -145,6 +150,7 @@ static ID  sym_add,
            sym_put,
            sym_quiet,
            sym_replace,
+           sym_send_threshold,
            sym_set,
            sym_stats,
            sym_timeout,
@@ -207,6 +213,8 @@ static VALUE eProtocolError;           /*LIBCOUCHBASE_PROTOCOL_ERROR = 0x15*/
 static VALUE eTimeoutError;            /*LIBCOUCHBASE_ETIMEDOUT = 0x16*/
 static VALUE eConnectError;            /*LIBCOUCHBASE_CONNECT_ERROR = 0x17*/
 static VALUE eBucketNotFoundError;     /*LIBCOUCHBASE_BUCKET_ENOENT = 0x18*/
+
+static void maybe_do_loop(bucket_t *bucket);
 
     static VALUE
 cb_proc_call(VALUE recv, int argc, ...)
@@ -2006,7 +2014,9 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
+    bucket->nbytes += HEADER_SIZE + nkey;
     if (bucket->async) {
+        maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (bucket->seqno - seqno > 0) {
@@ -2092,7 +2102,9 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
+    bucket->nbytes += HEADER_SIZE + 8 + nkey + nbytes;
     if (bucket->async) {
+        maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (bucket->seqno - seqno > 0) {
@@ -2179,7 +2191,9 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
+    bucket->nbytes += HEADER_SIZE + 20 + nkey;
     if (bucket->async) {
+        maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (bucket->seqno - seqno > 0) {
@@ -2472,7 +2486,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     bucket_t *bucket = DATA_PTR(self);
     context_t *ctx;
     VALUE args, rv, proc, exc, keys;
-    long nn;
+    size_t nn, ii, ll;
     libcouchbase_error_t err;
     struct key_traits *traits;
     int extended, mgat, is_array;
@@ -2508,6 +2522,9 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     err = libcouchbase_mget(bucket->handle, (const void *)ctx,
             traits->nkeys, (const void * const *)traits->keys,
             traits->lens, (traits->explicit_ttl) ? traits->ttls : NULL);
+    for (ii = 0, ll = 0; ii < traits->nkeys; ++ii) {
+        ll += traits->lens[ii];
+    }
     free(traits->keys);
     free(traits->lens);
     free(traits->ttls);
@@ -2517,7 +2534,9 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
+    bucket->nbytes += HEADER_SIZE + 4 + ll;
     if (bucket->async) {
+        maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (bucket->seqno - seqno > 0) {
@@ -2537,7 +2556,6 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
             return rv;  /* return as a hash {key => [value, flags, cas], ...} */
         }
         if (nn > 1 || is_array) {
-            long ii;
             VALUE *keys_ptr, ret;
             ret = rb_ary_new();
             keys_ptr = RARRAY_PTR(keys);
@@ -2622,7 +2640,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     bucket_t *bucket = DATA_PTR(self);
     context_t *ctx;
     VALUE args, rv, proc, exc;
-    size_t nn;
+    size_t nn, ii, ll;
     libcouchbase_error_t err;
     struct key_traits *traits;
     long seqno;
@@ -2652,6 +2670,9 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     err = libcouchbase_mtouch(bucket->handle, (const void *)ctx,
             traits->nkeys, (const void * const *)traits->keys,
             traits->lens, traits->ttls);
+    for (ii = 0, ll = 0; ii < traits->nkeys; ++ii) {
+        ll += traits->lens[ii];
+    }
     free(traits->keys);
     free(traits->lens);
     free(traits);
@@ -2660,7 +2681,9 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
+    bucket->nbytes += HEADER_SIZE + 4 + ll;
     if (bucket->async) {
+        maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (bucket->seqno - seqno > 0) {
@@ -2748,7 +2771,9 @@ cb_bucket_flush(VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
+    bucket->nbytes += HEADER_SIZE;
     if (bucket->async) {
+        maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (bucket->seqno - seqno > 0) {
@@ -2828,7 +2853,9 @@ cb_bucket_version(VALUE self)
         free(ctx);
         rb_exc_raise(exc);
     }
+    bucket->nbytes += HEADER_SIZE;
     if (bucket->async) {
+        maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (bucket->seqno - seqno > 0) {
@@ -2933,6 +2960,8 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
         rb_exc_raise(exc);
     }
     if (bucket->async) {
+        bucket->nbytes += HEADER_SIZE + nkey;
+        maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (bucket->seqno - seqno > 0) {
@@ -2953,13 +2982,37 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     return Qnil;
 }
 
+    static void
+do_loop(bucket_t *bucket)
+{
+    uint32_t old_tmo, new_tmo, diff;
+
+    old_tmo = libcouchbase_get_timeout(bucket->handle);
+    diff = (gethrtime() - bucket->blk_start) / 1000; /* in microseconds */
+    new_tmo = bucket->timeout += diff;
+    libcouchbase_set_timeout(bucket->handle, bucket->timeout);
+    bucket->io->run_event_loop(bucket->io);
+    /* restore timeout if it wasn't changed */
+    if (bucket->timeout == new_tmo) {
+        libcouchbase_set_timeout(bucket->handle, old_tmo);
+    }
+    bucket->blk_start = gethrtime();
+    bucket->nbytes = 0;
+}
+
+    static void
+maybe_do_loop(bucket_t *bucket)
+{
+    if (bucket->threshold != 0 && bucket->nbytes > bucket->threshold) {
+        do_loop(bucket);
+    }
+}
+
     static VALUE
 do_run(VALUE *args)
 {
-    VALUE self = args[0], proc = args[1], exc;
+    VALUE self = args[0], opts = args[1], proc = args[2], exc;
     bucket_t *bucket = DATA_PTR(self);
-    hrtime_t tm;
-    uint32_t old_tmo, new_tmo, diff;
 
     if (bucket->handle == NULL) {
         rb_raise(eConnectError, "closed connection");
@@ -2967,21 +3020,22 @@ do_run(VALUE *args)
     if (bucket->async) {
         rb_raise(eInvalidError, "nested #run");
     }
+    bucket->threshold = 0;
+    if (opts != Qnil) {
+        VALUE arg;
+        Check_Type(opts, T_HASH);
+        arg = rb_hash_aref(opts, sym_send_threshold);
+        if (arg != Qnil) {
+            bucket->threshold = (uint32_t)NUM2ULONG(arg);
+        }
+    }
     bucket->seqno = 0;
     bucket->async = 1;
 
-    tm = gethrtime();
+    bucket->blk_start = gethrtime();
     cb_proc_call(proc, 1, self);
     if (bucket->seqno > 0) {
-        old_tmo = libcouchbase_get_timeout(bucket->handle);
-        diff = (gethrtime() - tm) / 1000; /* in microseconds */
-        new_tmo = bucket->timeout += diff;
-        libcouchbase_set_timeout(bucket->handle, bucket->timeout);
-        bucket->io->run_event_loop(bucket->io);
-        /* restore timeout if it wasn't changed */
-        if (bucket->timeout == new_tmo) {
-            libcouchbase_set_timeout(bucket->handle, old_tmo);
-        }
+        do_loop(bucket);
         if (bucket->exception != Qnil) {
             exc = bucket->exception;
             bucket->exception = Qnil;
@@ -3006,6 +3060,12 @@ ensure_run(VALUE *args)
  *
  * @since 1.0.0
  *
+ * @param [Hash] options The options for operation for connection
+ * @option options [Fixnum] :send_threshold (0) if the internal command
+ *   buffer will exceeds this value, then the library will start network
+ *   interaction and block the current thread until all scheduled commands
+ *   will be completed.
+ *
  * @yieldparam [Bucket] bucket the bucket instance
  *
  * @example Use block to run the loop
@@ -3021,18 +3081,30 @@ ensure_run(VALUE *args)
  *   end
  *   c.run(&operations)
  *
+ * @example Use threshold to send out commands automatically
+ *   c = Couchbase.connect
+ *   sent = 0
+ *   c.run(:send_threshold => 8192) do  # 8Kb
+ *     c.set("foo1", "x" * 100) {|r| sent += 1}
+ *     # 128 bytes buffered, sent is 0 now
+ *     c.set("foo2", "x" * 10000) {|r| sent += 1}
+ *     # 10028 bytes added, sent is 2 now
+ *     c.set("foo3", "x" * 100) {|r| sent += 1}
+ *   end
+ *   # all commands were executed and sent is 3 now
+ *
  * @return [nil]
  *
  * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
  */
     static VALUE
-cb_bucket_run(VALUE self)
+cb_bucket_run(int argc, VALUE *argv, VALUE self)
 {
-    VALUE args[2];
+    VALUE args[3];
 
     rb_need_block();
     args[0] = self;
-    args[1] = rb_block_proc();
+    rb_scan_args(argc, argv, "01&", &args[1], &args[2]);
     rb_ensure(do_run, (VALUE)args, ensure_run, (VALUE)args);
     return Qnil;
 }
@@ -3987,7 +4059,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "replace", cb_bucket_replace, -1);
     rb_define_method(cBucket, "set", cb_bucket_set, -1);
     rb_define_method(cBucket, "get", cb_bucket_get, -1);
-    rb_define_method(cBucket, "run", cb_bucket_run, 0);
+    rb_define_method(cBucket, "run", cb_bucket_run, -1);
     rb_define_method(cBucket, "touch", cb_bucket_touch, -1);
     rb_define_method(cBucket, "delete", cb_bucket_delete, -1);
     rb_define_method(cBucket, "stats", cb_bucket_stats, -1);
@@ -4296,6 +4368,7 @@ Init_couchbase_ext(void)
     sym_put = ID2SYM(rb_intern("put"));
     sym_quiet = ID2SYM(rb_intern("quiet"));
     sym_replace = ID2SYM(rb_intern("replace"));
+    sym_send_threshold = ID2SYM(rb_intern("send_threshold"));
     sym_set = ID2SYM(rb_intern("set"));
     sym_stats = ID2SYM(rb_intern("stats"));
     sym_timeout = ID2SYM(rb_intern("timeout"));

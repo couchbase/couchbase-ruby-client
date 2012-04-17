@@ -236,4 +236,14 @@ class TestAsync < MiniTest::Unit::TestCase
     end
   end
 
+  def test_send_threshold
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+
+    sent = false
+    connection.run(:send_threshold => 100) do # 100 bytes
+      connection.set(uniq_id, "foo" * 100) {|r| sent = true}
+      assert sent
+    end
+  end
+
 end
