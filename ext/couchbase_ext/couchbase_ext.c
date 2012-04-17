@@ -59,6 +59,7 @@ typedef struct
     int async;
     int quiet;
     long seqno;
+    long wanted_seqno;
     VALUE default_format;    /* should update +default_flags+ on change */
     uint32_t default_flags;
     time_t default_ttl;
@@ -733,7 +734,7 @@ storage_callback(libcouchbase_t handle, const void *cookie,
         *rv = c;
     }
 
-    if (bucket->seqno == 0) {
+    if (bucket->seqno == bucket->wanted_seqno) {
         bucket->io->stop_event_loop(bucket->io);
         rb_hash_delete(object_space, ctx->proc|1);
     }
@@ -772,7 +773,7 @@ delete_callback(libcouchbase_t handle, const void *cookie,
     } else {                /* synchronous */
         *rv = (error == LIBCOUCHBASE_SUCCESS) ? Qtrue : Qfalse;
     }
-    if (bucket->seqno == 0) {
+    if (bucket->seqno == bucket->wanted_seqno) {
         bucket->io->stop_event_loop(bucket->io);
         rb_hash_delete(object_space, ctx->proc|1);
     }
@@ -841,7 +842,7 @@ get_callback(libcouchbase_t handle, const void *cookie,
         }
     }
 
-    if (bucket->seqno == 0) {
+    if (bucket->seqno == bucket->wanted_seqno) {
         bucket->io->stop_event_loop(bucket->io);
         rb_hash_delete(object_space, ctx->proc|1);
     }
@@ -883,7 +884,7 @@ flush_callback(libcouchbase_t handle, const void* cookie,
         }
     } else {
         bucket->seqno--;
-        if (bucket->seqno == 0) {
+        if (bucket->seqno == bucket->wanted_seqno) {
             bucket->io->stop_event_loop(bucket->io);
             rb_hash_delete(object_space, ctx->proc|1);
         }
@@ -928,7 +929,7 @@ version_callback(libcouchbase_t handle, const void *cookie,
         }
     } else {
         bucket->seqno--;
-        if (bucket->seqno == 0) {
+        if (bucket->seqno == bucket->wanted_seqno) {
             bucket->io->stop_event_loop(bucket->io);
             rb_hash_delete(object_space, ctx->proc|1);
         }
@@ -980,7 +981,7 @@ stat_callback(libcouchbase_t handle, const void* cookie,
         }
     } else {
         bucket->seqno--;
-        if (bucket->seqno == 0) {
+        if (bucket->seqno == bucket->wanted_seqno) {
             bucket->io->stop_event_loop(bucket->io);
             rb_hash_delete(object_space, ctx->proc|1);
         }
@@ -1023,7 +1024,7 @@ touch_callback(libcouchbase_t handle, const void *cookie,
             rb_hash_aset(*rv, k, success);
         }
     }
-    if (bucket->seqno == 0) {
+    if (bucket->seqno == bucket->wanted_seqno) {
         bucket->io->stop_event_loop(bucket->io);
         rb_hash_delete(object_space, ctx->proc|1);
     }
@@ -1083,7 +1084,7 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
             }
         }
     }
-    if (bucket->seqno == 0) {
+    if (bucket->seqno == bucket->wanted_seqno) {
         bucket->io->stop_event_loop(bucket->io);
         rb_hash_delete(object_space, ctx->proc|1);
     }
@@ -1126,7 +1127,7 @@ couch_complete_callback(libcouchbase_couch_request_t request,
         *rv = v;
     }
     bucket->seqno--;
-    if (bucket->seqno == 0) {
+    if (bucket->seqno == bucket->wanted_seqno) {
         bucket->io->stop_event_loop(bucket->io);
     }
     (void)handle;
@@ -3136,6 +3137,45 @@ cb_bucket_stop(VALUE self)
 }
 
 /*
+ * Make sure that the connection received part of the responses
+ *
+ * @since 1.2.0
+ *
+ * @param [Fixnum] seqno The number of the requests which could be left
+ *   unanswered for now.
+ *
+ * @example Waiting for first two requests
+ *  connection = Couchbase.connect
+ *  completed = 0
+ *  connection.run do
+ *    connection.set(uniq_id(:foo), "foo") {|r| completed+= 1}
+ *    connection.set(uniq_id(:bar), "bar") {|r| completed+= 1}
+ *    connection.set(uniq_id(:baz), "baz") {|r| completed+= 1}
+ *
+ *    connection.seqno      #=> 3
+ *
+ *    # waiting for first two of the commands to complete (note that they
+ *    # could go in any order
+ *    connection.wait_for_seqno(1)
+ *    connection.seqno      #=> 1
+ *    completed             #=> 2
+ *  end
+ */
+    static VALUE
+cb_bucket_wait_for_seqno(VALUE self, VALUE val)
+{
+    bucket_t *bucket = DATA_PTR(self);
+    long wanted = NUM2LONG(val);
+
+    if (wanted >= 0 && wanted < bucket->seqno) {
+        bucket->wanted_seqno = wanted;
+        do_loop(bucket);
+        bucket->wanted_seqno = 0;
+    }
+    return Qnil;
+}
+
+/*
  * Unconditionally store the object in the Couchbase
  *
  * @since 1.0.0
@@ -4087,6 +4127,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "get", cb_bucket_get, -1);
     rb_define_method(cBucket, "run", cb_bucket_run, -1);
     rb_define_method(cBucket, "stop", cb_bucket_stop, 0);
+    rb_define_method(cBucket, "wait_for_seqno", cb_bucket_wait_for_seqno, 1);
     rb_define_method(cBucket, "touch", cb_bucket_touch, -1);
     rb_define_method(cBucket, "delete", cb_bucket_delete, -1);
     rb_define_method(cBucket, "stats", cb_bucket_stats, -1);

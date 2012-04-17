@@ -246,4 +246,21 @@ class TestAsync < MiniTest::Unit::TestCase
     end
   end
 
+  def test_waiting_for_command_sequence_number
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+
+    completed = 0
+    connection.run do
+      connection.set(uniq_id(:foo), "foo") {|r| completed+= 1}
+      connection.set(uniq_id(:bar), "bar") {|r| completed+= 1}
+      connection.set(uniq_id(:baz), "baz") {|r| completed+= 1}
+      assert_equal 3, connection.seqno
+
+      # waiting for two of the commands to complete
+      connection.wait_for_seqno(1)
+
+      assert_equal 1, connection.seqno
+      assert_equal 2, completed
+    end
+  end
 end
