@@ -20,9 +20,8 @@
 #include <st.h>
 #endif
 
-#include <time.h>
 #include <libcouchbase/couchbase.h>
-#include "couchbase_config.h"
+#include "couchbase_ext.h"
 
 #ifdef HAVE_STDARG_PROTOTYPES
 #include <stdarg.h>
@@ -2959,7 +2958,7 @@ do_run(VALUE *args)
 {
     VALUE self = args[0], proc = args[1], exc;
     bucket_t *bucket = DATA_PTR(self);
-    time_t tm;
+    hrtime_t tm;
     uint32_t old_tmo, new_tmo, diff;
 
     if (bucket->handle == NULL) {
@@ -2971,12 +2970,11 @@ do_run(VALUE *args)
     bucket->seqno = 0;
     bucket->async = 1;
 
-    tm = time(NULL);
+    tm = gethrtime();
     cb_proc_call(proc, 1, self);
     if (bucket->seqno > 0) {
         old_tmo = libcouchbase_get_timeout(bucket->handle);
-        diff = (uint32_t)(time(NULL) - tm + 1);
-        diff *= 1000000;
+        diff = (gethrtime() - tm) / 1000; /* in microseconds */
         new_tmo = bucket->timeout += diff;
         libcouchbase_set_timeout(bucket->handle, bucket->timeout);
         bucket->io->run_event_loop(bucket->io);
