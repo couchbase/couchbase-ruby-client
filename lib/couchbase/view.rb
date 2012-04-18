@@ -35,6 +35,8 @@ module Couchbase
   class View
     include Enumerable
 
+    attr_reader :params
+
     # Set up view endpoint and optional params
     #
     # @param [ Couchbase::Bucket ] bucket Connection object which
@@ -152,48 +154,55 @@ module Couchbase
         body = MultiJson.dump(body)
       end
       path = Utils.build_query(@endpoint, params)
-      request = @bucket.make_couch_request(path, :body => body, :chunked => true)
-
-      document_extractor = lambda do |iter, acc|
-        path, obj = iter.next
-        if acc
-          if path == "/total_rows"
-            # if total_rows key present, save it and take next object
-            total_rows = obj
-            path, obj = iter.next
-          end
-        end
-        loop do
-          if path == "/errors/"
-            from, reason = obj["from"], obj["reason"]
-            if @on_error
-              @on_error.call(from, reason)
-            else
-              raise Error::View.new(from, reason)
-            end
+      request = @bucket.make_couch_request(path, :body => body, :chunked => true, :extended => true)
+      res = []
+      request.on_body do |chunk|
+        # fill the result buffer, which will be processed later. stop event
+        # loop if there no pending memcached commands
+        res << chunk
+        request.pause if @bucket.seqno.zero?
+      end
+      filter = ["/rows/", "/errors/"]
+      filter << "/total_rows" unless block_given?
+      parser = YAJI::Parser.new(:filter => filter, :with_path => true)
+      docs = []
+      parser.on_object do |path, obj|
+        case path
+        when "/total_rows"
+          # if total_rows key present, save it and take next object
+          docs.instance_eval("def total_rows; #{obj}; end")
+        when "/errors/"
+          from, reason = obj["from"], obj["reason"]
+          if @on_error
+            @on_error.call(from, reason)
           else
-            if acc
-              acc << @wrapper_class.wrap(@bucket, obj)
-            else
-              yield @wrapper_class.wrap(@bucket, obj)
-            end
+            raise Error::View.new(from, reason)
           end
-          path, obj = iter.next
-        end
-        if acc
-          acc.instance_eval("def total_rows; #{total_rows}; end")
+        else
+          if block_given?
+            yield @wrapper_class.wrap(@bucket, obj)
+          else
+            docs << @wrapper_class.wrap(@bucket, obj)
+          end
         end
       end
-
-      if block_given?
-        iter = YAJI::Parser.new(request).each(["/rows/", "/errors/"], :with_path => true)
-        document_extractor.call(iter, nil) rescue StopIteration
-      else
-        iter = YAJI::Parser.new(request).each(["/total_rows", "/rows/", "/errors/"], :with_path => true)
-        docs = []
-        document_extractor.call(iter, docs) rescue StopIteration
-        return docs
+      # run event loop until the terminating chunk will be found
+      # last_res variable keeps latest known chunk of the result
+      last_res = nil
+      loop do
+        # feed response received chunks to the parser
+        while r = res.shift
+          last_res = r
+          parser << r.value
+        end
+        if last_res.nil? || !last_res.completed?  # shall we run the event loop?
+          request.continue
+        else
+          break
+        end
       end
+      # return nil for call with block
+      block_given? ? nil : docs
     end
 
     def inspect
