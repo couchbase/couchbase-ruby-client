@@ -16,6 +16,8 @@ libcouchbase doesn't take much effort.
 
 ### MacOS (Homebrew)
 
+    $ brew install libevent
+    $ brew link libevent
     $ brew install libcouchbase
 
 ### Debian (Ubuntu)
