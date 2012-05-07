@@ -149,12 +149,13 @@ module Couchbase
     #   doc.recent_posts(:body => {:keys => ["key1", "key2"]})
     def fetch(params = {})
       params = @params.merge(params)
-      body = params.delete(:body)
-      if body && !body.is_a?(String)
-        body = MultiJson.dump(body)
+      options = {:chunked => true, :extended => true}
+      if body = params.delete(:body)
+        body = MultiJson.dump(body) unless body.is_a?(String)
+        options.update(:body => body, :method => params.delete(:method) || :post)
       end
       path = Utils.build_query(@endpoint, params)
-      request = @bucket.make_couch_request(path, :body => body, :chunked => true, :extended => true)
+      request = @bucket.make_couch_request(path, options)
       res = []
       request.on_body do |chunk|
         # fill the result buffer, which will be processed later. stop event
