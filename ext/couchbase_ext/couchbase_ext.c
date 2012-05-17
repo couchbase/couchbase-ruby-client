@@ -110,7 +110,7 @@ struct key_traits
     VALUE force_format;
 };
 
-static VALUE mCouchbase, mError, mJSON, mURI, mMarshal, cBucket, cResult, cCouchRequest;
+static VALUE mCouchbase, mError, mMultiJson, mURI, mMarshal, cBucket, cResult, cCouchRequest;
 static VALUE object_space;
 
 static ID  sym_add,
@@ -494,7 +494,7 @@ do_encode(VALUE *args)
 
     switch (flags) {
         case FMT_DOCUMENT:
-            return rb_funcall(mJSON, id_dump, 1, val);
+            return rb_funcall(mMultiJson, id_dump, 1, val);
         case FMT_MARSHAL:
             return rb_funcall(mMarshal, id_dump, 1, val);
         case FMT_PLAIN:
@@ -513,7 +513,7 @@ do_decode(VALUE *args)
 
     if (TYPE(force_format) == T_SYMBOL) {
         if (force_format == sym_document) {
-            return rb_funcall(mJSON, id_load, 1, blob);
+            return rb_funcall(mMultiJson, id_load, 1, blob);
         } else if (force_format == sym_marshal) {
             return rb_funcall(mMarshal, id_load, 1, blob);
         } else { /* sym_plain and any other symbol */
@@ -524,7 +524,7 @@ do_decode(VALUE *args)
 
         switch (flags) {
             case FMT_DOCUMENT:
-                return rb_funcall(mJSON, id_load, 1, blob);
+                return rb_funcall(mMultiJson, id_load, 1, blob);
             case FMT_MARSHAL:
                 return rb_funcall(mMarshal, id_load, 1, blob);
             case FMT_PLAIN:
@@ -3780,7 +3780,7 @@ cb_bucket_make_couch_request(int argc, VALUE *argv, VALUE self)
     void
 Init_couchbase_ext(void)
 {
-    mJSON = rb_const_get(rb_cObject, rb_intern("JSON"));
+    mMultiJson = rb_const_get(rb_cObject, rb_intern("MultiJson"));
     mURI = rb_const_get(rb_cObject, rb_intern("URI"));
     mMarshal = rb_const_get(rb_cObject, rb_intern("Marshal"));
     mCouchbase = rb_define_module("Couchbase");

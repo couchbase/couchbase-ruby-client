@@ -25,7 +25,7 @@ module Couchbase
       uri << "?"
       uri << params.map do |k, v|
         if %w{key startkey endkey start_key end_key}.include?(k.to_s)
-          v = Yajl::Encoder.encode(v)
+          v = MultiJson.dump(v)
         end
         if v.class == Array
           build_query(v.map { |x| [k, x] })

@@ -149,7 +149,7 @@ module Couchbase
       params = @params.merge(params)
       body = params.delete(:body)
       if body && !body.is_a?(String)
-        body = Yajl::Encoder.encode(body)
+        body = MultiJson.dump(body)
       end
       path = Utils.build_query(@endpoint, params)
       request = @bucket.make_couch_request(path, :body => body, :chunked => true)

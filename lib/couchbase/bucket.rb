@@ -111,9 +111,9 @@ module Couchbase
     def save_design_doc(data)
       attrs = case data
               when String
-                Yajl::Parser.parse(data)
+                MultiJson.load(data)
               when IO
-                Yajl::Parser.parse(data.read)
+                MultiJson.load(data.read)
               when Hash
                 data
               else
@@ -125,9 +125,9 @@ module Couchbase
       end
       attrs['language'] ||= 'javascript'
       req = make_couch_request(attrs['_id'],
-                               :body => Yajl::Encoder.encode(attrs),
+                               :body => MultiJson.dump(attrs),
                                :method => :put)
-      res = Yajl::Parser.parse(req.perform)
+      res = MultiJson.load(req.perform)
       if res['ok']
         true
       else
@@ -151,7 +151,7 @@ module Couchbase
       return nil unless ddoc
       path = Utils.build_query(ddoc['_id'], :rev => rev || ddoc['_rev'])
       req = make_couch_request(path, :method => :delete)
-      res = Yajl::Parser.parse(req.perform)
+      res = MultiJson.load(req.perform)
       if res['ok']
         true
       else

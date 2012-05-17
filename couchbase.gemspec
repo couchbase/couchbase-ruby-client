@@ -35,8 +35,9 @@ Gem::Specification.new do |s|
   s.extensions    = `git ls-files -- ext/**/extconf.rb`.split("\n")
   s.require_paths = ['lib']
 
-  s.add_runtime_dependency 'yaji', '~> 0.2.3'
-  s.add_runtime_dependency 'yajl-ruby', '~> 1.1.0'
+  s.add_runtime_dependency 'yaji', '~> 0.3.0'
+#   s.add_runtime_dependency 'yajl-ruby', '~> 1.1.0'
+  s.add_runtime_dependency 'multi_json', '~> 1.0'
 
   s.add_development_dependency 'rake', '~> 0.8.7'
   s.add_development_dependency 'minitest'

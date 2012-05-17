@@ -16,7 +16,8 @@
 #
 
 require 'couchbase/version'
-require 'yajl/json_gem'
+require 'multi_json'
+require 'ext/multi_json_fix'
 require 'yaji'
 require 'uri'
 require 'couchbase_ext'

@@ -36,7 +36,7 @@ class CouchbaseServer
       raise ArgumentError, "Check COUCHBASE_SERVER variable. It should be hostname:port"
     end
 
-    @config = Yajl::Parser.parse(open("http://#{@host}:#{@port}/pools/default"))
+    @config = MultiJson.load(open("http://#{@host}:#{@port}/pools/default"))
     @num_nodes = @config["nodes"].size
     @buckets_spec = params[:buckets_spec] || "default:"  # "default:,protected:secret,cache::memcache"
   end
