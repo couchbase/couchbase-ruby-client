@@ -24,19 +24,19 @@ module Couchbase
       return uri if params.nil? || params.empty?
       uri << "?"
       uri << params.map do |k, v|
+        if %w{key startkey endkey start_key end_key}.include?(k.to_s)
+          v = Yajl::Encoder.encode(v)
+        end
         if v.class == Array
           build_query(v.map { |x| [k, x] })
         else
-          if %w{key startkey endkey start_key end_key}.include?(k.to_s)
-            v = Yajl::Encoder.encode(v)
-          end
           "#{escape(k)}=#{escape(v)}"
         end
       end.join("&")
     end
 
     def self.escape(s)
-      s.to_s.gsub(/([^ a-zA-Z0-9_.-]+)/n) {
+      s.to_s.gsub(/([^ a-zA-Z0-9_.-]+)/nu) {
         '%'+$1.unpack('H2'*bytesize($1)).join('%').upcase
       }.tr(' ', '+')
     end
