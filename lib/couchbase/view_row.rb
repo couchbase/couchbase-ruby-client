@@ -106,7 +106,7 @@ module Couchbase
               @data['id']
             end
       @views = []
-      if design_doc?
+      if design_doc? && @doc.has_key?('views')
         @doc['views'].each do |name, _|
           @views << name
           self.instance_eval <<-EOV, __FILE__, __LINE__ + 1
