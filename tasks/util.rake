@@ -17,5 +17,5 @@
 
 desc 'Start an irb session and load the library.'
 task :console => :compile do
-  exec "irb -I lib -rruby-debug -rcouchbase"
+  exec "irb -I lib -r#{RUBY_VERSION =~ /^1\.9/ ? 'debugger' : 'ruby-debug'} -rcouchbase"
 end

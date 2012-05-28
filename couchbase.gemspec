@@ -45,5 +45,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'rdiscount'
   s.add_development_dependency 'yard'
   s.add_development_dependency 'mini_portile'
-  s.add_development_dependency RUBY_VERSION =~ /^1\.9/ ? 'ruby-debug19' : 'ruby-debug'
+  s.add_development_dependency RUBY_VERSION =~ /^1\.9/ ? 'debugger' : 'ruby-debug'
 end
