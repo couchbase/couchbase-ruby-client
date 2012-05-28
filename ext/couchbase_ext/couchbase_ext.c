@@ -45,7 +45,7 @@
 
 #define HEADER_SIZE     24
 
-typedef struct
+struct bucket_st
 {
     libcouchbase_t handle;
     struct libcouchbase_io_opt_st *io;
@@ -70,24 +70,24 @@ typedef struct
     VALUE exception;        /* error delivered by error_callback */
     VALUE on_error_proc;    /* is using to deliver errors in async mode */
     VALUE environment;      /* sym_development or sym_production */
-} bucket_t;
+};
 
-struct couch_request_t;
-typedef struct
+struct couch_request_st;
+struct context_st
 {
-    bucket_t* bucket;
+    struct bucket_st* bucket;
     int extended;
     VALUE proc;
     void *rv;
     VALUE exception;
     VALUE force_format;
-    struct couch_request_t *request;
+    struct couch_request_st *request;
     int quiet;
     int arithm;           /* incr: +1, decr: -1, other: 0 */
-} context_t;
+};
 
-struct couch_request_t {
-    bucket_t *bucket;
+struct couch_request_st {
+    struct bucket_st *bucket;
     VALUE bucket_obj;
     char *path;
     size_t npath;
@@ -99,11 +99,11 @@ struct couch_request_t {
     int completed;
     libcouchbase_http_method_t method;
     libcouchbase_couch_request_t request;
-    context_t *ctx;
+    struct context_st *ctx;
     VALUE on_body_callback;
 };
 
-struct key_traits
+struct key_traits_st
 {
     VALUE keys_ary;
     size_t nkeys;
@@ -222,7 +222,7 @@ static VALUE eTimeoutError;            /*LIBCOUCHBASE_ETIMEDOUT = 0x16*/
 static VALUE eConnectError;            /*LIBCOUCHBASE_CONNECT_ERROR = 0x17*/
 static VALUE eBucketNotFoundError;     /*LIBCOUCHBASE_BUCKET_ENOENT = 0x18*/
 
-static void maybe_do_loop(bucket_t *bucket);
+static void maybe_do_loop(struct bucket_st *bucket);
 
     static VALUE
 cb_proc_call(VALUE recv, int argc, ...)
@@ -597,7 +597,7 @@ unify_key(VALUE key)
     static int
 cb_extract_keys_i(VALUE key, VALUE value, VALUE arg)
 {
-    struct key_traits *traits = (struct key_traits *)arg;
+    struct key_traits_st *traits = (struct key_traits_st *)arg;
     key = unify_key(key);
     rb_ary_push(traits->keys_ary, key);
     traits->keys[traits->nkeys] = RSTRING_PTR(key);
@@ -608,7 +608,7 @@ cb_extract_keys_i(VALUE key, VALUE value, VALUE arg)
 }
 
     static long
-cb_args_scan_keys(long argc, VALUE argv, bucket_t *bucket, struct key_traits *traits)
+cb_args_scan_keys(long argc, VALUE argv, struct bucket_st *bucket, struct key_traits_st *traits)
 {
     VALUE key, *keys_ptr, opts, ttl, ext;
     long nn = 0, ii;
@@ -681,7 +681,7 @@ cb_args_scan_keys(long argc, VALUE argv, bucket_t *bucket, struct key_traits *tr
     static void
 error_callback(libcouchbase_t handle, libcouchbase_error_t error, const char *errinfo)
 {
-    bucket_t *bucket = (bucket_t *)libcouchbase_get_cookie(handle);
+    struct bucket_st *bucket = (struct bucket_st *)libcouchbase_get_cookie(handle);
 
     bucket->io->stop_event_loop(bucket->io);
     bucket->exception = cb_check_error(error, errinfo, Qnil);
@@ -692,8 +692,8 @@ storage_callback(libcouchbase_t handle, const void *cookie,
         libcouchbase_storage_t operation, libcouchbase_error_t error,
         const void *key, libcouchbase_size_t nkey, libcouchbase_cas_t cas)
 {
-    context_t *ctx = (context_t *)cookie;
-    bucket_t *bucket = ctx->bucket;
+    struct context_st *ctx = (struct context_st *)cookie;
+    struct bucket_st *bucket = ctx->bucket;
     VALUE k, c, *rv = ctx->rv, exc, res;
     ID o;
 
@@ -753,8 +753,8 @@ delete_callback(libcouchbase_t handle, const void *cookie,
         libcouchbase_error_t error, const void *key,
         libcouchbase_size_t nkey)
 {
-    context_t *ctx = (context_t *)cookie;
-    bucket_t *bucket = ctx->bucket;
+    struct context_st *ctx = (struct context_st *)cookie;
+    struct bucket_st *bucket = ctx->bucket;
     VALUE k, *rv = ctx->rv, exc = Qnil, res;
 
     bucket->seqno--;
@@ -794,8 +794,8 @@ get_callback(libcouchbase_t handle, const void *cookie,
         libcouchbase_size_t nbytes, libcouchbase_uint32_t flags,
         libcouchbase_cas_t cas)
 {
-    context_t *ctx = (context_t *)cookie;
-    bucket_t *bucket = ctx->bucket;
+    struct context_st *ctx = (struct context_st *)cookie;
+    struct bucket_st *bucket = ctx->bucket;
     VALUE k, v, f, c, *rv = ctx->rv, exc = Qnil, res;
 
     bucket->seqno--;
@@ -860,8 +860,8 @@ get_callback(libcouchbase_t handle, const void *cookie,
 flush_callback(libcouchbase_t handle, const void* cookie,
         const char* authority, libcouchbase_error_t error)
 {
-    context_t *ctx = (context_t *)cookie;
-    bucket_t *bucket = ctx->bucket;
+    struct context_st *ctx = (struct context_st *)cookie;
+    struct bucket_st *bucket = ctx->bucket;
     VALUE node, success = Qtrue, *rv = ctx->rv, exc, res;
 
     node = authority ? rb_str_new2(authority) : Qnil;
@@ -905,8 +905,8 @@ version_callback(libcouchbase_t handle, const void *cookie,
         const char *authority, libcouchbase_error_t error,
         const char *bytes, libcouchbase_size_t nbytes)
 {
-    context_t *ctx = (context_t *)cookie;
-    bucket_t *bucket = ctx->bucket;
+    struct context_st *ctx = (struct context_st *)cookie;
+    struct bucket_st *bucket = ctx->bucket;
     VALUE node, v, *rv = ctx->rv, exc, res;
 
     node = authority ? rb_str_new2(authority) : Qnil;
@@ -951,8 +951,8 @@ stat_callback(libcouchbase_t handle, const void* cookie,
         libcouchbase_size_t nkey, const void* bytes,
         libcouchbase_size_t nbytes)
 {
-    context_t *ctx = (context_t *)cookie;
-    bucket_t *bucket = ctx->bucket;
+    struct context_st *ctx = (struct context_st *)cookie;
+    struct bucket_st *bucket = ctx->bucket;
     VALUE stats, node, k, v, *rv = ctx->rv, exc = Qnil, res;
 
     node = authority ? rb_str_new2(authority) : Qnil;
@@ -1001,8 +1001,8 @@ touch_callback(libcouchbase_t handle, const void *cookie,
         libcouchbase_error_t error, const void *key,
         libcouchbase_size_t nkey)
 {
-    context_t *ctx = (context_t *)cookie;
-    bucket_t *bucket = ctx->bucket;
+    struct context_st *ctx = (struct context_st *)cookie;
+    struct bucket_st *bucket = ctx->bucket;
     VALUE k, success, *rv = ctx->rv, exc = Qnil, res;
 
     bucket->seqno--;
@@ -1044,8 +1044,8 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
         libcouchbase_size_t nkey, libcouchbase_uint64_t value,
         libcouchbase_cas_t cas)
 {
-    context_t *ctx = (context_t *)cookie;
-    bucket_t *bucket = ctx->bucket;
+    struct context_st *ctx = (struct context_st *)cookie;
+    struct bucket_st *bucket = ctx->bucket;
     VALUE c, k, v, *rv = ctx->rv, exc, res;
     ID o;
 
@@ -1109,8 +1109,8 @@ couch_complete_callback(libcouchbase_couch_request_t request,
         const void *bytes,
         libcouchbase_size_t nbytes)
 {
-    context_t *ctx = (context_t *)cookie;
-    bucket_t *bucket = ctx->bucket;
+    struct context_st *ctx = (struct context_st *)cookie;
+    struct bucket_st *bucket = ctx->bucket;
     VALUE *rv = ctx->rv, k, v, res;
 
     ctx->request->completed = 1;
@@ -1149,7 +1149,7 @@ couch_data_callback(libcouchbase_couch_request_t request,
         const void *bytes,
         libcouchbase_size_t nbytes)
 {
-    context_t *ctx = (context_t *)cookie;
+    struct context_st *ctx = (struct context_st *)cookie;
     VALUE k, v, res;
 
     k = rb_str_new((const char*)path, npath);
@@ -1194,7 +1194,7 @@ cb_first_value_i(VALUE key, VALUE value, VALUE arg)
     static VALUE
 cb_bucket_seqno(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
 
     return LONG2FIX(bucket->seqno);
 }
@@ -1202,7 +1202,7 @@ cb_bucket_seqno(VALUE self)
     void
 cb_bucket_free(void *ptr)
 {
-    bucket_t *bucket = ptr;
+    struct bucket_st *bucket = ptr;
 
     if (bucket) {
         if (bucket->handle) {
@@ -1221,7 +1221,7 @@ cb_bucket_free(void *ptr)
     void
 cb_bucket_mark(void *ptr)
 {
-    bucket_t *bucket = ptr;
+    struct bucket_st *bucket = ptr;
 
     if (bucket) {
         rb_gc_mark(bucket->exception);
@@ -1230,7 +1230,7 @@ cb_bucket_mark(void *ptr)
 }
 
     static void
-do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
+do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
 {
     VALUE uri, opts, arg;
     size_t len;
@@ -1390,7 +1390,7 @@ do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
 }
 
     static void
-do_connect(bucket_t *bucket)
+do_connect(struct bucket_st *bucket)
 {
     libcouchbase_error_t err;
 
@@ -1457,10 +1457,10 @@ do_connect(bucket_t *bucket)
 cb_bucket_new(int argc, VALUE *argv, VALUE klass)
 {
     VALUE obj;
-    bucket_t *bucket;
+    struct bucket_st *bucket;
 
     /* allocate new bucket struct and set it to zero */
-    obj = Data_Make_Struct(klass, bucket_t, cb_bucket_mark, cb_bucket_free,
+    obj = Data_Make_Struct(klass, struct bucket_st, cb_bucket_mark, cb_bucket_free,
             bucket);
     rb_obj_call_init(obj, argc, argv);
     return obj;
@@ -1526,7 +1526,7 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
     static VALUE
 cb_bucket_init(int argc, VALUE *argv, VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
 
     bucket->exception = Qnil;
     bucket->hostname = strdup("localhost");
@@ -1571,7 +1571,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     static VALUE
 cb_bucket_reconnect(int argc, VALUE *argv, VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
 
     do_scan_connection_options(bucket, argc, argv);
     do_connect(bucket);
@@ -1589,7 +1589,7 @@ cb_bucket_reconnect(int argc, VALUE *argv, VALUE self)
     static VALUE
 cb_bucket_connected_p(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     return bucket->handle ? Qtrue : Qfalse;
 }
 
@@ -1617,21 +1617,21 @@ cb_bucket_connected_p(VALUE self)
     static VALUE
 cb_bucket_async_p(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     return bucket->async ? Qtrue : Qfalse;
 }
 
     static VALUE
 cb_bucket_quiet_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     return bucket->quiet ? Qtrue : Qfalse;
 }
 
     static VALUE
 cb_bucket_quiet_set(VALUE self, VALUE val)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     VALUE new;
 
     bucket->quiet = RTEST(val);
@@ -1642,14 +1642,14 @@ cb_bucket_quiet_set(VALUE self, VALUE val)
     static VALUE
 cb_bucket_default_flags_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     return ULONG2NUM(bucket->default_flags);
 }
 
     static VALUE
 cb_bucket_default_flags_set(VALUE self, VALUE val)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
 
     bucket->default_flags = (uint32_t)NUM2ULONG(val);
     bucket->default_format = flags_get_format(bucket->default_flags);
@@ -1659,14 +1659,14 @@ cb_bucket_default_flags_set(VALUE self, VALUE val)
     static VALUE
 cb_bucket_default_format_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     return bucket->default_format;
 }
 
     static VALUE
 cb_bucket_default_format_set(VALUE self, VALUE val)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
 
     if (TYPE(val) == T_FIXNUM) {
         switch (FIX2INT(val)) {
@@ -1692,7 +1692,7 @@ cb_bucket_default_format_set(VALUE self, VALUE val)
     static VALUE
 cb_bucket_on_error_set(VALUE self, VALUE val)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
 
     if (rb_respond_to(val, id_call)) {
         bucket->on_error_proc = val;
@@ -1706,7 +1706,7 @@ cb_bucket_on_error_set(VALUE self, VALUE val)
     static VALUE
 cb_bucket_on_error_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
 
     if (rb_block_given_p()) {
         return cb_bucket_on_error_set(self, rb_block_proc());
@@ -1718,14 +1718,14 @@ cb_bucket_on_error_get(VALUE self)
     static VALUE
 cb_bucket_timeout_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     return ULONG2NUM(bucket->timeout);
 }
 
     static VALUE
 cb_bucket_timeout_set(VALUE self, VALUE val)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     VALUE tmval;
 
     bucket->timeout = (uint32_t)NUM2ULONG(val);
@@ -1744,7 +1744,7 @@ cb_bucket_timeout_set(VALUE self, VALUE val)
     static VALUE
 cb_bucket_hostname_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     if (bucket->handle) {
         if (bucket->hostname) {
             free(bucket->hostname);
@@ -1767,7 +1767,7 @@ cb_bucket_hostname_get(VALUE self)
     static VALUE
 cb_bucket_port_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     if (bucket->handle) {
         bucket->port = atoi(libcouchbase_get_port(bucket->handle));
     }
@@ -1783,7 +1783,7 @@ cb_bucket_port_get(VALUE self)
     static VALUE
 cb_bucket_authority_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     size_t len;
 
     (void)cb_bucket_hostname_get(self);
@@ -1806,7 +1806,7 @@ cb_bucket_authority_get(VALUE self)
     static VALUE
 cb_bucket_bucket_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     return rb_str_new2(bucket->bucket);
 }
 
@@ -1819,7 +1819,7 @@ cb_bucket_bucket_get(VALUE self)
     static VALUE
 cb_bucket_pool_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     return rb_str_new2(bucket->pool);
 }
 
@@ -1833,7 +1833,7 @@ cb_bucket_pool_get(VALUE self)
     static VALUE
 cb_bucket_username_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     return rb_str_new2(bucket->username);
 }
 
@@ -1846,7 +1846,7 @@ cb_bucket_username_get(VALUE self)
     static VALUE
 cb_bucket_password_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     return rb_str_new2(bucket->password);
 }
 
@@ -1861,7 +1861,7 @@ cb_bucket_password_get(VALUE self)
     static VALUE
 cb_bucket_environment_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     return bucket->environment;
 }
 /* Document-method: url
@@ -1873,7 +1873,7 @@ cb_bucket_environment_get(VALUE self)
     static VALUE
 cb_bucket_url_get(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     VALUE str;
 
     (void)cb_bucket_authority_get(self);
@@ -1899,7 +1899,7 @@ cb_bucket_url_get(VALUE self)
 cb_bucket_inspect(VALUE self)
 {
     VALUE str;
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     char buf[200];
 
     str = rb_str_buf_new2("#<");
@@ -1967,8 +1967,8 @@ cb_bucket_inspect(VALUE self)
     static VALUE
 cb_bucket_delete(int argc, VALUE *argv, VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
-    context_t *ctx;
+    struct bucket_st *bucket = DATA_PTR(self);
+    struct context_st *ctx;
     VALUE k, c, rv, proc, exc, opts;
     char *key;
     size_t nkey;
@@ -1986,7 +1986,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     k = unify_key(k);
     key = RSTRING_PTR(k);
     nkey = RSTRING_LEN(k);
-    ctx = calloc(1, sizeof(context_t));
+    ctx = calloc(1, sizeof(struct context_st));
     ctx->quiet = bucket->quiet;
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
@@ -2040,8 +2040,8 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     static inline VALUE
 cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
-    context_t *ctx;
+    struct bucket_st *bucket = DATA_PTR(self);
+    struct context_st *ctx;
     VALUE k, v, arg, opts, rv, proc, exc, fmt;
     char *key, *bytes;
     size_t nkey, nbytes;
@@ -2088,7 +2088,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     }
     bytes = RSTRING_PTR(v);
     nbytes = RSTRING_LEN(v);
-    ctx = calloc(1, sizeof(context_t));
+    ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2131,8 +2131,8 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     static inline VALUE
 cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
-    context_t *ctx;
+    struct bucket_st *bucket = DATA_PTR(self);
+    struct context_st *ctx;
     VALUE k, d, arg, opts, rv, proc, exc;
     char *key;
     size_t nkey;
@@ -2150,7 +2150,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
     k = unify_key(k);
-    ctx = calloc(1, sizeof(context_t));
+    ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2488,12 +2488,12 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
     static VALUE
 cb_bucket_get(int argc, VALUE *argv, VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
-    context_t *ctx;
+    struct bucket_st *bucket = DATA_PTR(self);
+    struct context_st *ctx;
     VALUE args, rv, proc, exc, keys;
     size_t nn, ii, ll;
     libcouchbase_error_t err;
-    struct key_traits *traits;
+    struct key_traits_st *traits;
     int extended, mgat, is_array;
     long seqno;
 
@@ -2504,9 +2504,9 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    traits = calloc(1, sizeof(struct key_traits));
+    traits = calloc(1, sizeof(struct key_traits_st));
     nn = cb_args_scan_keys(RARRAY_LEN(args), args, bucket, traits);
-    ctx = calloc(1, sizeof(context_t));
+    ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2642,12 +2642,12 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
    static VALUE
 cb_bucket_touch(int argc, VALUE *argv, VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
-    context_t *ctx;
+    struct bucket_st *bucket = DATA_PTR(self);
+    struct context_st *ctx;
     VALUE args, rv, proc, exc;
     size_t nn, ii, ll;
     libcouchbase_error_t err;
-    struct key_traits *traits;
+    struct key_traits_st *traits;
     long seqno;
 
     if (bucket->handle == NULL) {
@@ -2658,9 +2658,9 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
     rb_funcall(args, id_flatten_bang, 0);
-    traits = calloc(1, sizeof(struct key_traits));
+    traits = calloc(1, sizeof(struct key_traits_st));
     nn = cb_args_scan_keys(RARRAY_LEN(args), args, bucket, traits);
-    ctx = calloc(1, sizeof(context_t));
+    ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2742,8 +2742,8 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     static VALUE
 cb_bucket_flush(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
-    context_t *ctx;
+    struct bucket_st *bucket = DATA_PTR(self);
+    struct context_st *ctx;
     VALUE rv, exc;
     libcouchbase_error_t err;
     long seqno;
@@ -2754,7 +2754,7 @@ cb_bucket_flush(VALUE self)
     if (!bucket->async && rb_block_given_p()) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    ctx = calloc(1, sizeof(context_t));
+    ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2824,8 +2824,8 @@ cb_bucket_flush(VALUE self)
     static VALUE
 cb_bucket_version(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
-    context_t *ctx;
+    struct bucket_st *bucket = DATA_PTR(self);
+    struct context_st *ctx;
     VALUE rv, exc;
     libcouchbase_error_t err;
     long seqno;
@@ -2836,7 +2836,7 @@ cb_bucket_version(VALUE self)
     if (!bucket->async && rb_block_given_p()) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    ctx = calloc(1, sizeof(context_t));
+    ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2921,8 +2921,8 @@ cb_bucket_version(VALUE self)
     static VALUE
 cb_bucket_stats(int argc, VALUE *argv, VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
-    context_t *ctx;
+    struct bucket_st *bucket = DATA_PTR(self);
+    struct context_st *ctx;
     VALUE rv, exc, arg, proc;
     char *key;
     size_t nkey;
@@ -2937,7 +2937,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
 
-    ctx = calloc(1, sizeof(context_t));
+    ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2988,7 +2988,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
 }
 
     static void
-do_loop(bucket_t *bucket)
+do_loop(struct bucket_st *bucket)
 {
     uint32_t old_tmo, new_tmo, diff;
 
@@ -3006,7 +3006,7 @@ do_loop(bucket_t *bucket)
 }
 
     static void
-maybe_do_loop(bucket_t *bucket)
+maybe_do_loop(struct bucket_st *bucket)
 {
     if (bucket->threshold != 0 && bucket->nbytes > bucket->threshold) {
         do_loop(bucket);
@@ -3017,7 +3017,7 @@ maybe_do_loop(bucket_t *bucket)
 do_run(VALUE *args)
 {
     VALUE self = args[0], opts = args[1], proc = args[2], exc;
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
 
     if (bucket->handle == NULL) {
         rb_raise(eConnectError, "closed connection");
@@ -3054,7 +3054,7 @@ do_run(VALUE *args)
 ensure_run(VALUE *args)
 {
     VALUE self = args[0];
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
 
     bucket->async = 0;
     return Qnil;
@@ -3135,7 +3135,7 @@ cb_bucket_run(int argc, VALUE *argv, VALUE self)
     static VALUE
 cb_bucket_stop(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     bucket->io->stop_event_loop(bucket->io);
     return Qnil;
 }
@@ -3168,7 +3168,7 @@ cb_bucket_stop(VALUE self)
     static VALUE
 cb_bucket_wait_for_seqno(VALUE self, VALUE val)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
     long wanted = NUM2LONG(val);
 
     if (wanted >= 0 && wanted < bucket->seqno) {
@@ -3487,7 +3487,7 @@ cb_bucket_aset(int argc, VALUE *argv, VALUE self)
     static VALUE
 cb_bucket_disconnect(VALUE self)
 {
-    bucket_t *bucket = DATA_PTR(self);
+    struct bucket_st *bucket = DATA_PTR(self);
 
     if (bucket->handle) {
         libcouchbase_destroy(bucket->handle);
@@ -3571,7 +3571,7 @@ cb_result_inspect(VALUE self)
     void
 cb_couch_request_free(void *ptr)
 {
-    struct couch_request_t *request = ptr;
+    struct couch_request_st *request = ptr;
     if (request) {
         request->running = 0;
         if (TYPE(request->bucket_obj) == T_DATA) {
@@ -3586,7 +3586,7 @@ cb_couch_request_free(void *ptr)
     void
 cb_couch_request_mark(void *ptr)
 {
-    struct couch_request_t *request = ptr;
+    struct couch_request_st *request = ptr;
     if (request) {
         rb_gc_mark(request->on_body_callback);
     }
@@ -3605,10 +3605,10 @@ cb_couch_request_mark(void *ptr)
 cb_couch_request_new(int argc, VALUE *argv, VALUE klass)
 {
     VALUE obj;
-    struct couch_request_t *request;
+    struct couch_request_st *request;
 
     /* allocate new bucket struct and set it to zero */
-    obj = Data_Make_Struct(klass, struct couch_request_t, cb_couch_request_mark,
+    obj = Data_Make_Struct(klass, struct couch_request_st, cb_couch_request_mark,
             cb_couch_request_free, request);
     rb_obj_call_init(obj, argc, argv);
     return obj;
@@ -3626,7 +3626,7 @@ cb_couch_request_new(int argc, VALUE *argv, VALUE klass)
 cb_couch_request_inspect(VALUE self)
 {
     VALUE str;
-    struct couch_request_t *req = DATA_PTR(self);
+    struct couch_request_st *req = DATA_PTR(self);
     char buf[200];
 
     str = rb_str_buf_new2("#<");
@@ -3650,7 +3650,7 @@ cb_couch_request_inspect(VALUE self)
     static VALUE
 cb_couch_request_init(int argc, VALUE *argv, VALUE self)
 {
-    struct couch_request_t *request = DATA_PTR(self);
+    struct couch_request_st *request = DATA_PTR(self);
     VALUE bucket, path, opts, on_body, mm, pp, body;
     rb_scan_args(argc, argv, "22", &bucket, &pp, &opts, &on_body);
 
@@ -3704,7 +3704,7 @@ cb_couch_request_init(int argc, VALUE *argv, VALUE self)
     static VALUE
 cb_couch_request_on_body(VALUE self)
 {
-    struct couch_request_t *request = DATA_PTR(self);
+    struct couch_request_st *request = DATA_PTR(self);
     VALUE old = request->on_body_callback;
     if (rb_block_given_p()) {
         request->on_body_callback = rb_block_proc();
@@ -3720,13 +3720,13 @@ cb_couch_request_on_body(VALUE self)
     static VALUE
 cb_couch_request_perform(VALUE self)
 {
-    struct couch_request_t *req = DATA_PTR(self);
-    context_t *ctx;
+    struct couch_request_st *req = DATA_PTR(self);
+    struct context_st *ctx;
     VALUE rv, exc;
     libcouchbase_error_t err;
-    bucket_t *bucket;
+    struct bucket_st *bucket;
 
-    ctx = calloc(1, sizeof(context_t));
+    ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory");
     }
@@ -3769,7 +3769,7 @@ cb_couch_request_perform(VALUE self)
     static VALUE
 cb_couch_request_pause(VALUE self)
 {
-    struct couch_request_t *req = DATA_PTR(self);
+    struct couch_request_st *req = DATA_PTR(self);
     req->bucket->io->stop_event_loop(req->bucket->io);
     return Qnil;
 }
@@ -3778,7 +3778,7 @@ cb_couch_request_pause(VALUE self)
 cb_couch_request_continue(VALUE self)
 {
     VALUE exc, *rv;
-    struct couch_request_t *req = DATA_PTR(self);
+    struct couch_request_st *req = DATA_PTR(self);
 
     if (req->running) {
         req->bucket->io->run_event_loop(req->bucket->io);
@@ -3806,7 +3806,7 @@ cb_couch_request_continue(VALUE self)
     static VALUE
 cb_couch_request_path_get(VALUE self)
 {
-    struct couch_request_t *req = DATA_PTR(self);
+    struct couch_request_st *req = DATA_PTR(self);
     return rb_str_new2(req->path);
 }
 
@@ -3820,7 +3820,7 @@ cb_couch_request_path_get(VALUE self)
     static VALUE
 cb_couch_request_chunked_get(VALUE self)
 {
-    struct couch_request_t *req = DATA_PTR(self);
+    struct couch_request_st *req = DATA_PTR(self);
     return RTEST(req->chunked);
 }
 
@@ -3834,7 +3834,7 @@ cb_couch_request_chunked_get(VALUE self)
     static VALUE
 cb_couch_request_extended_get(VALUE self)
 {
-    struct couch_request_t *req = DATA_PTR(self);
+    struct couch_request_st *req = DATA_PTR(self);
     return RTEST(req->extended);
 }
 
