@@ -1,6 +1,6 @@
 before_install:
   - wget -O- http://packages.couchbase.com/ubuntu/couchbase.key | sudo apt-key add -
-  - echo deb http://packages.couchbase.com/preview/ubuntu lucid lucid/main | sudo tee /etc/apt/sources.list.d/couchbase.list
+  - echo deb http://packages.couchbase.com/snapshot/ubuntu oneiric oneiric/main | sudo tee /etc/apt/sources.list.d/couchbase.list
   - sudo apt-get update
   - sudo apt-get -y install libevent-dev libvbucket-dev libcouchbase-dev
 
