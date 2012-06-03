@@ -58,7 +58,7 @@ class TestFormat < MiniTest::Unit::TestCase
 
       class << orig_doc
         def to_json
-          JSON.dump(:name => name, :role => role)
+          MultiJson.dump(:name => name, :role => role)
         end
       end
       connection.set(uniq_id, orig_doc) # OK
@@ -66,7 +66,7 @@ class TestFormat < MiniTest::Unit::TestCase
       class << orig_doc
         undef to_json
         def to_s
-          JSON.dump(:name => name, :role => role)
+          MultiJson.dump(:name => name, :role => role)
         end
       end
       connection.set(uniq_id, orig_doc) # OK
