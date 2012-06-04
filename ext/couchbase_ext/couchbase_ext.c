@@ -4078,9 +4078,39 @@ Init_couchbase_ext(void)
 
     /* Document-method: error
      *
+     * The underlying libcouchbase library could return one of the following
+     * error codes. The ruby client will wrap these errors into appropriate
+     * exception class, derived from {Couchbase::Error::Base}.
+     *
+     * 0x00 :: LIBCOUCHBASE_SUCCESS (Success)
+     * 0x01 :: LIBCOUCHBASE_AUTH_CONTINUE (Continue authentication)
+     * 0x02 :: LIBCOUCHBASE_AUTH_ERROR (Authentication error)
+     * 0x03 :: LIBCOUCHBASE_DELTA_BADVAL (Not a number)
+     * 0x04 :: LIBCOUCHBASE_E2BIG (Object too big)
+     * 0x05 :: LIBCOUCHBASE_EBUSY (Too busy. Try again later)
+     * 0x06 :: LIBCOUCHBASE_EINTERNAL (Internal error)
+     * 0x07 :: LIBCOUCHBASE_EINVAL (Invalid arguments)
+     * 0x08 :: LIBCOUCHBASE_ENOMEM (Out of memory)
+     * 0x09 :: LIBCOUCHBASE_ERANGE (Invalid range)
+     * 0x0a :: LIBCOUCHBASE_ERROR (Generic error)
+     * 0x0b :: LIBCOUCHBASE_ETMPFAIL (Temporary failure. Try again later)
+     * 0x0c :: LIBCOUCHBASE_KEY_EEXISTS (Key exists (with a different CAS value))
+     * 0x0d :: LIBCOUCHBASE_KEY_ENOENT (No such key)
+     * 0x0e :: LIBCOUCHBASE_LIBEVENT_ERROR (Problem using libevent)
+     * 0x0f :: LIBCOUCHBASE_NETWORK_ERROR (Network error)
+     * 0x10 :: LIBCOUCHBASE_NOT_MY_VBUCKET (The vbucket is not located on this server)
+     * 0x11 :: LIBCOUCHBASE_NOT_STORED (Not stored)
+     * 0x12 :: LIBCOUCHBASE_NOT_SUPPORTED (Not supported)
+     * 0x13 :: LIBCOUCHBASE_UNKNOWN_COMMAND (Unknown command)
+     * 0x14 :: LIBCOUCHBASE_UNKNOWN_HOST (Unknown host)
+     * 0x15 :: LIBCOUCHBASE_PROTOCOL_ERROR (Protocol error)
+     * 0x16 :: LIBCOUCHBASE_ETIMEDOUT (Operation timed out)
+     * 0x17 :: LIBCOUCHBASE_CONNECT_ERROR (Connection failure)
+     * 0x18 :: LIBCOUCHBASE_BUCKET_ENOENT (No such bucket)
+     *
      * @since 1.0.0
      *
-     * @return [true, false] the error code from libcouchbase
+     * @return [Fixnum] the error code from libcouchbase
      */
     rb_define_attr(eBaseError, "error", 1, 0);
     id_iv_error = rb_intern("@error");
