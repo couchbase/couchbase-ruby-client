@@ -50,7 +50,11 @@ class CouchbaseServer
                                  :username => name,
                                  :bucket => name,
                                  :password => password)
-      connection.flush
+      begin
+        connection.flush
+      rescue Couchbase::Error::NotSupported
+        # on recent server flush is disabled
+      end
     end
   end
   def stop; end

@@ -349,4 +349,54 @@ class TestGet < MiniTest::Unit::TestCase
     end
   end
 
+  def test_get_with_lock_trivial
+    if @mock.real?
+      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+      connection.set(uniq_id, "foo")
+      assert_equal "foo", connection.get(uniq_id, :lock => 1)
+      assert_raises Couchbase::Error::KeyExists do
+        connection.set(uniq_id, "bar")
+      end
+      sleep(2)
+      connection.set(uniq_id, "bar")
+    else
+      skip("implement GETL in CouchbaseMock.jar")
+    end
+  end
+
+  def test_multi_get_with_lock
+    if @mock.real?
+      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+      connection.set(uniq_id(1), "foo1")
+      connection.set(uniq_id(2), "foo2")
+      assert_equal ["foo1", "foo2"], connection.get([uniq_id(1), uniq_id(2)], :lock => 1)
+      assert_raises Couchbase::Error::KeyExists do
+        connection.set(uniq_id(1), "bar")
+      end
+      assert_raises Couchbase::Error::KeyExists do
+        connection.set(uniq_id(2), "bar")
+      end
+    else
+      skip("implement GETL in CouchbaseMock.jar")
+    end
+  end
+
+  def test_multi_get_with_custom_locks
+    if @mock.real?
+      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+      connection.set(uniq_id(1), "foo1")
+      connection.set(uniq_id(2), "foo2")
+      expected = {uniq_id(1) => "foo1", uniq_id(2) => "foo2"}
+      assert_equal expected, connection.get({uniq_id(1) => 1, uniq_id(2) => 2}, :lock => true)
+      assert_raises Couchbase::Error::KeyExists do
+        connection.set(uniq_id(1), "foo")
+      end
+      assert_raises Couchbase::Error::KeyExists do
+        connection.set(uniq_id(2), "foo")
+      end
+    else
+      skip("implement GETL in CouchbaseMock.jar")
+    end
+  end
+
 end

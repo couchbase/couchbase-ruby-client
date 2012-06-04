@@ -108,7 +108,7 @@ end
 if RbConfig::CONFIG['target_os'] =~ /mingw32/
   have_library("vbucket", "vbucket_config_create", "libvbucket/vbucket.h") or abort "You should install libvbucket >= 1.8.0.2"
 end
-have_library("couchbase", "libcouchbase_make_couch_request", "libcouchbase/couchbase.h") or abort "You should install libcouchbase >= 1.1.0dp"
+have_library("couchbase", "libcouchbase_getl", "libcouchbase/couchbase.h") or abort "You should install libcouchbase >= 1.1.0dp3"
 have_header("mach/mach_time.h")
 have_header("stdint.h") or abort "Failed to locate stdint.h"
 have_header("sys/time.h")
