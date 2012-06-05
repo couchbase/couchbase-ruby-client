@@ -1,3 +1,22 @@
+## 1.2.0.dp2 / 2012-06-05
+
+* RCBC-31 Make Bucket#get more consistent
+* Use monotonic high resolution clock
+* Implement threshold for outgoing commands
+* Allow to stop event loop from ruby
+* RCBC-35 Fix the params escaping
+* RCBC-34 Use multi_json gem
+* Allow to block and wait for part of the requests
+* Fix view iterator. It doesn't lock event loop anymore
+* Specify HTTP method when body is set for View request
+* Define views only if "views" key presented
+* Use plain structs instead of typedefs
+* Use debugger gem for 1.9.x rubies
+* Use latest stable build of libcouchbase for travis-ci
+* Require yajl as development dependency
+* Implement get with lock operation
+* Update docs
+
 ## 1.2.0.dp / 2012-04-06
 
 * Properly handle hashes as Couchbase.connection_options
