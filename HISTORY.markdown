@@ -1,3 +1,7 @@
+## 1.1.2 / 2012-06-05
+
+* Upgrade libcouchbase dependency up to 1.0.4
+
 ## 1.1.1 / 2012-03-19
 
 * Allow to force format for get operation (thanks to Darian Shimy)
