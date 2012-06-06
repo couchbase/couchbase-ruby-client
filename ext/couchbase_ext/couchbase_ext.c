@@ -3377,6 +3377,11 @@ cb_bucket_add(int argc, VALUE *argv, VALUE self)
  *   @option options [Symbol] :format (self.default_format) The
  *     representation for storing the value in the bucket. For more info see
  *     {Bucket#default_format}.
+ *   @option options [Fixnum] :cas The CAS value for an object. This value
+ *     created on the server and is guaranteed to be unique for each value of
+ *     a given key. This value is used to provide simple optimistic
+ *     concurrency control when multiple clients or threads try to update an
+ *     item simultaneously.
  *
  *   @return [Fixnum] The CAS value of the object.
  *
