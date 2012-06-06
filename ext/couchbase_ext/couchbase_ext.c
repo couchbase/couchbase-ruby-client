@@ -4370,9 +4370,9 @@ Init_couchbase_ext(void)
      *
      * @since 1.1.0
      *
-     * @return [Fixnum] The timeout for the operations. The client will
-     *   raise {Couchbase::Error::Timeout} exception for all commands which
-     *   weren't completed in given timeslot. */
+     * @return [Fixnum] The timeout for the operations in microseconds. The
+     *   client will raise {Couchbase::Error::Timeout} exception for all
+     *   commands which weren't completed in given timeslot. */
     /* rb_define_attr(cBucket, "timeout", 1, 1); */
     rb_define_method(cBucket, "timeout", cb_bucket_timeout_get, 0);
     rb_define_method(cBucket, "timeout=", cb_bucket_timeout_set, 1);
