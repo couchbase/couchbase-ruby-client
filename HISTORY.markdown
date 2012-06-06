@@ -1,3 +1,9 @@
+## 1.2.0.dp4 / 2012-06-07
+
+* RCBC-36 Fix segfault
+* Comment out unpredictable test
+* Update replace documentation: it accepts :cas option
+
 ## 1.2.0.dp3 / 2012-06-06
 
 * Fix for multi_json < 1.3.3
