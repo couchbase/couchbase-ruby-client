@@ -1,3 +1,9 @@
+## 1.2.0.dp3 / 2012-06-06
+
+* Fix for multi_json < 1.3.3
+* Break out from event loop for non-chunked responses (fix creating
+  design create)
+
 ## 1.2.0.dp2 / 2012-06-05
 
 * RCBC-31 Make Bucket#get more consistent
