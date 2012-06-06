@@ -3630,7 +3630,7 @@ cb_couch_request_free(void *ptr)
     struct couch_request_st *request = ptr;
     if (request) {
         request->running = 0;
-        if (TYPE(request->bucket_obj) == T_DATA) {
+        if (TYPE(request->bucket_obj) == T_DATA && !request->completed) {
             libcouchbase_cancel_couch_request(request->request);
         }
         free(request->path);
