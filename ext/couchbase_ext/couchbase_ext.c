@@ -1146,6 +1146,9 @@ couch_complete_callback(libcouchbase_couch_request_t request,
     if (!bucket->async && ctx->exception == Qnil) {
         *rv = v;
     }
+    if (bucket->seqno == bucket->wanted_seqno) {
+        bucket->io->stop_event_loop(bucket->io);
+    }
     (void)handle;
     (void)request;
 }
