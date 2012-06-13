@@ -70,6 +70,8 @@ struct bucket_st
     VALUE exception;        /* error delivered by error_callback */
     VALUE on_error_proc;    /* is using to deliver errors in async mode */
     VALUE environment;      /* sym_development or sym_production */
+    char *key_prefix;
+    VALUE key_prefix_val;
 };
 
 struct couch_request_st;
@@ -117,6 +119,7 @@ struct key_traits_st
     int is_array;
     int assemble_hash;
     int lock;
+    struct bucket_st *bucket;
     VALUE force_format;
 };
 
@@ -149,6 +152,7 @@ static ID  sym_add,
            sym_hostname,
            sym_increment,
            sym_initial,
+           sym_key_prefix,
            sym_lock,
            sym_marshal,
            sym_method,
@@ -585,24 +589,43 @@ decode_value(VALUE blob, uint32_t flags, VALUE force_format)
     return val;
 }
 
-    static VALUE
-unify_key(VALUE key)
+    static void
+strip_key_prefix(struct bucket_st *bucket, VALUE key)
 {
+    if (bucket->key_prefix) {
+        rb_str_update(key, 0, RSTRING_LEN(bucket->key_prefix_val), rb_str_new2(""));
+    }
+}
+
+    static VALUE
+unify_key(struct bucket_st *bucket, VALUE key, int apply_prefix)
+{
+    VALUE ret;
+
+    if (bucket->key_prefix && apply_prefix) {
+        ret = rb_str_dup(bucket->key_prefix_val);
+    } else {
+        ret = rb_str_new2("");
+    }
     switch (TYPE(key)) {
         case T_STRING:
-            return key;
+            rb_str_concat(ret, key);
+            break;
         case T_SYMBOL:
-            return rb_str_new2(rb_id2name(SYM2ID(key)));
+            rb_str_concat(ret, rb_str_new2(rb_id2name(SYM2ID(key))));
+            break;
         default:    /* call #to_str or raise error */
-            return StringValue(key);
+            rb_str_concat(ret, StringValue(key));
+            break;
     }
+    return ret;
 }
 
     static int
 cb_extract_keys_i(VALUE key, VALUE value, VALUE arg)
 {
     struct key_traits_st *traits = (struct key_traits_st *)arg;
-    key = unify_key(key);
+    key = unify_key(traits->bucket, key, 1);
     rb_ary_push(traits->keys_ary, key);
     traits->keys[traits->nkeys] = RSTRING_PTR(key);
     traits->lens[traits->nkeys] = RSTRING_LEN(key);
@@ -612,14 +635,14 @@ cb_extract_keys_i(VALUE key, VALUE value, VALUE arg)
 }
 
     static long
-cb_args_scan_keys(long argc, VALUE argv, struct bucket_st *bucket, struct key_traits_st *traits)
+cb_args_scan_keys(long argc, VALUE argv, struct key_traits_st *traits)
 {
     VALUE key, *keys_ptr, opts, ttl, ext;
     long nn = 0, ii;
     time_t exp;
 
     traits->keys_ary = rb_ary_new();
-    traits->quiet = bucket->quiet;
+    traits->quiet = traits->bucket->quiet;
     traits->mgat = 0;
     traits->assemble_hash = 0;
     traits->lock = 0;
@@ -627,7 +650,7 @@ cb_args_scan_keys(long argc, VALUE argv, struct bucket_st *bucket, struct key_tr
     if (argc > 0) {
         /* keys with custom options */
         opts = RARRAY_PTR(argv)[argc-1];
-        exp = bucket->default_ttl;
+        exp = traits->bucket->default_ttl;
         ext = Qfalse;
         if (argc > 1 && TYPE(opts) == T_HASH) {
             (void)rb_ary_pop(argv);
@@ -682,7 +705,7 @@ cb_args_scan_keys(long argc, VALUE argv, struct bucket_st *bucket, struct key_tr
             traits->lens = calloc(nn, sizeof(size_t));
             traits->ttls = calloc(nn, sizeof(time_t));
             for (ii = 0; ii < nn; ii++) {
-                key = unify_key(keys_ptr[ii]);
+                key = unify_key(traits->bucket, keys_ptr[ii], 1);
                 rb_ary_push(traits->keys_ary, key);
                 traits->keys[ii] = RSTRING_PTR(key);
                 traits->lens[ii] = RSTRING_LEN(key);
@@ -716,6 +739,7 @@ storage_callback(libcouchbase_t handle, const void *cookie,
     bucket->seqno--;
 
     k = rb_str_new((const char*)key, nkey);
+    strip_key_prefix(bucket, k);
     c = cas > 0 ? ULL2NUM(cas) : Qnil;
     switch(operation) {
         case LIBCOUCHBASE_ADD:
@@ -776,6 +800,7 @@ delete_callback(libcouchbase_t handle, const void *cookie,
     bucket->seqno--;
 
     k = rb_str_new((const char*)key, nkey);
+    strip_key_prefix(bucket, k);
     if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
         exc = cb_check_error(error, "failed to remove value", k);
         if (exc != Qnil) {
@@ -817,6 +842,7 @@ get_callback(libcouchbase_t handle, const void *cookie,
     bucket->seqno--;
 
     k = rb_str_new((const char*)key, nkey);
+    strip_key_prefix(bucket, k);
     if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
         exc = cb_check_error(error, "failed to get value", k);
         if (exc != Qnil) {
@@ -1023,6 +1049,7 @@ touch_callback(libcouchbase_t handle, const void *cookie,
 
     bucket->seqno--;
     k = rb_str_new((const char*)key, nkey);
+    strip_key_prefix(bucket, k);
     if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
         exc = cb_check_error(error, "failed to touch value", k);
         if (exc != Qnil) {
@@ -1068,6 +1095,7 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
     bucket->seqno--;
 
     k = rb_str_new((const char*)key, nkey);
+    strip_key_prefix(bucket, k);
     c = cas > 0 ? ULL2NUM(cas) : Qnil;
     o = ctx->arithm > 0 ? sym_increment : sym_decrement;
     exc = cb_check_error(error, "failed to perform arithmetic operation", k);
@@ -1233,6 +1261,7 @@ cb_bucket_free(void *ptr)
         free(bucket->bucket);
         free(bucket->username);
         free(bucket->password);
+        free(bucket->key_prefix);
         free(bucket);
     }
 }
@@ -1245,6 +1274,7 @@ cb_bucket_mark(void *ptr)
     if (bucket) {
         rb_gc_mark(bucket->exception);
         rb_gc_mark(bucket->on_error_proc);
+        rb_gc_mark(bucket->key_prefix_val);
     }
 }
 
@@ -1393,6 +1423,12 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
                     bucket->environment = arg;
                 }
             }
+            arg = rb_hash_aref(opts, sym_key_prefix);
+            if (arg != Qnil) {
+                free(bucket->key_prefix);
+                bucket->key_prefix = strdup(StringValueCStr(arg));
+                bucket->key_prefix_val = rb_str_new2(bucket->key_prefix);
+            }
         } else {
             opts = Qnil;
         }
@@ -1527,6 +1563,9 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
  *     the environment is +:development+, you will able to get design
  *     documents with 'dev_' prefix, otherwise (in +:production+ mode) the
  *     library will hide them from you.
+ *   @option options [String] :key_prefix (nil) the prefix string which will
+ *     be prepended to each key before sending out, and sripped before
+ *     returning back to the application.
  *
  * @example Initialize connection using default options
  *   Couchbase.new
@@ -1560,6 +1599,8 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->on_error_proc = Qnil;
     bucket->timeout = 0;
     bucket->environment = sym_production;
+    bucket->key_prefix = NULL;
+    bucket->key_prefix_val = Qnil;
 
     do_scan_connection_options(bucket, argc, argv);
     do_connect(bucket);
@@ -1754,6 +1795,24 @@ cb_bucket_timeout_set(VALUE self, VALUE val)
     return tmval;
 }
 
+    static VALUE
+cb_bucket_key_prefix_get(VALUE self)
+{
+    struct bucket_st *bucket = DATA_PTR(self);
+    return bucket->key_prefix_val;
+}
+
+    static VALUE
+cb_bucket_key_prefix_set(VALUE self, VALUE val)
+{
+    struct bucket_st *bucket = DATA_PTR(self);
+
+    bucket->key_prefix = strdup(StringValueCStr(val));
+    bucket->key_prefix_val = rb_str_new2(bucket->key_prefix);
+
+    return bucket->key_prefix_val;
+}
+
 /* Document-method: hostname
  *
  * @since 1.0.0
@@ -1933,13 +1992,18 @@ cb_bucket_inspect(VALUE self)
     rb_str_buf_cat2(str, "/buckets/");
     rb_str_buf_cat2(str, bucket->bucket);
     rb_str_buf_cat2(str, "/");
-    snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s, connected=%s, timeout=%u>",
+    snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s, connected=%s, timeout=%u",
             rb_id2name(SYM2ID(bucket->default_format)),
             bucket->default_flags,
             bucket->quiet ? "true" : "false",
             bucket->handle ? "true" : "false",
             bucket->timeout);
     rb_str_buf_cat2(str, buf);
+    if (bucket->key_prefix) {
+        rb_str_buf_cat2(str, ", key_prefix=");
+        rb_str_append(str, rb_inspect(bucket->key_prefix_val));
+    }
+    rb_str_buf_cat2(str, ">");
 
     return str;
 }
@@ -2002,7 +2066,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    k = unify_key(k);
+    k = unify_key(bucket, k, 1);
     key = RSTRING_PTR(k);
     nkey = RSTRING_LEN(k);
     ctx = calloc(1, sizeof(struct context_st));
@@ -2077,7 +2141,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    k = unify_key(k);
+    k = unify_key(bucket, k, 1);
     flags = bucket->default_flags;
     if (opts != Qnil) {
         Check_Type(opts, T_HASH);
@@ -2168,7 +2232,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    k = unify_key(k);
+    k = unify_key(bucket, k, 1);
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
@@ -2559,7 +2623,8 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
     traits = calloc(1, sizeof(struct key_traits_st));
-    nn = cb_args_scan_keys(RARRAY_LEN(args), args, bucket, traits);
+    traits->bucket = bucket;
+    nn = cb_args_scan_keys(RARRAY_LEN(args), args, traits);
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
@@ -2727,7 +2792,8 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     }
     rb_funcall(args, id_flatten_bang, 0);
     traits = calloc(1, sizeof(struct key_traits_st));
-    nn = cb_args_scan_keys(RARRAY_LEN(args), args, bucket, traits);
+    traits->bucket = bucket;
+    nn = cb_args_scan_keys(RARRAY_LEN(args), args, traits);
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
@@ -3016,7 +3082,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
     ctx->exception = Qnil;
     if (arg != Qnil) {
-        arg = unify_key(arg);
+        arg = unify_key(bucket, arg, 0);
         key = RSTRING_PTR(arg);
         nkey = RSTRING_LEN(arg);
     } else {
@@ -4394,6 +4460,16 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "timeout", cb_bucket_timeout_get, 0);
     rb_define_method(cBucket, "timeout=", cb_bucket_timeout_set, 1);
 
+    /* Document-method: key_prefix
+     *
+     * @since 1.2.0.dp5
+     *
+     * @return [String] The library will prepend +key_prefix+ to each key to
+     *   provide simple namespacing. */
+    /* rb_define_attr(cBucket, "key_prefix", 1, 1); */
+    rb_define_method(cBucket, "key_prefix", cb_bucket_key_prefix_get, 0);
+    rb_define_method(cBucket, "key_prefix=", cb_bucket_key_prefix_set, 1);
+
     /* Document-method: on_error
      * Error callback for asynchronous mode.
      *
@@ -4577,6 +4653,7 @@ Init_couchbase_ext(void)
     sym_hostname = ID2SYM(rb_intern("hostname"));
     sym_increment = ID2SYM(rb_intern("increment"));
     sym_initial = ID2SYM(rb_intern("initial"));
+    sym_key_prefix = ID2SYM(rb_intern("key_prefix"));
     sym_lock = ID2SYM(rb_intern("lock"));
     sym_marshal = ID2SYM(rb_intern("marshal"));
     sym_method = ID2SYM(rb_intern("method"));

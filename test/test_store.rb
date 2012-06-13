@@ -160,6 +160,18 @@ class TestStore < MiniTest::Unit::TestCase
     assert_equal "barfoo", val
   end
 
+  def test_set_with_prefix
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :key_prefix => "prefix:")
+    connection.set(uniq_id(:foo), "bar")
+    assert_equal "bar", connection.get(uniq_id(:foo))
+    expected = {uniq_id(:foo) => "bar"}
+    assert_equal expected, connection.get(uniq_id(:foo), :assemble_hash => true)
+
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :key_prefix => nil)
+    expected = {"prefix:#{uniq_id(:foo)}" => "bar"}
+    assert_equal expected, connection.get("prefix:#{uniq_id(:foo)}", :assemble_hash => true)
+  end
+
   ArbitraryData = Struct.new(:baz)
 
   def test_set_using_brackets
