@@ -115,6 +115,7 @@ struct key_traits_st
     int quiet;
     int mgat;
     int is_array;
+    int assemble_hash;
     int lock;
     VALUE force_format;
 };
@@ -124,6 +125,7 @@ static VALUE object_space;
 
 static ID  sym_add,
            sym_append,
+           sym_assemble_hash,
            sym_body,
            sym_bucket,
            sym_cas,
@@ -619,6 +621,7 @@ cb_args_scan_keys(long argc, VALUE argv, struct bucket_st *bucket, struct key_tr
     traits->keys_ary = rb_ary_new();
     traits->quiet = bucket->quiet;
     traits->mgat = 0;
+    traits->assemble_hash = 0;
     traits->lock = 0;
 
     if (argc > 0) {
@@ -650,6 +653,7 @@ cb_args_scan_keys(long argc, VALUE argv, struct bucket_st *bucket, struct key_tr
                     exp = NUM2ULONG(ttl);
                 }
             }
+            traits->assemble_hash = RTEST(rb_hash_aref(opts, sym_assemble_hash));
         }
         nn = RARRAY_LEN(argv);
         if (nn == 1 && TYPE(RARRAY_PTR(argv)[0]) == T_ARRAY) {
@@ -2441,6 +2445,9 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
  *     inspecting keys  "ep_getl_default_timeout" and "ep_getl_max_timeout"
  *     correspondingly. See overloaded hash syntax to specify custom timeout
  *     per each key.
+ *   @option options [true, false] :assemble_hash (false) Assemble Hash for
+ *     results. Hash assembled automatically if +:extended+ option is true
+ *     or in case of "get and touch" multimple keys.
  *
  *   @yieldparam ret [Result] the result of operation in asynchronous mode
  *     (valid attributes: +error+, +operation+, +key+, +value+, +flags+,
@@ -2474,6 +2481,10 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
  *
  *   @example Get multiple keys
  *     c.get("foo", "bar", "baz")   #=> [val1, val2, val3]
+ *
+ *   @example Get multiple keys with assembing result into the Hash
+ *     c.get("foo", "bar", "baz", :assemble_hash => true)
+ *     #=> {"foo" => val1, "bar" => val2, "baz" => val3}
  *
  *   @example Extended get multiple keys
  *     c.get("foo", "bar", :extended => true)
@@ -2537,7 +2548,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     size_t nn, ii, ll = 0;
     libcouchbase_error_t err = LIBCOUCHBASE_SUCCESS;
     struct key_traits_st *traits;
-    int extended, mgat, is_array;
+    int extended, mgat, is_array, assemble_hash;
     long seqno;
 
     if (bucket->handle == NULL) {
@@ -2554,6 +2565,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
     mgat = traits->mgat;
+    assemble_hash = traits->assemble_hash;
     keys = traits->keys_ary;
     is_array = traits->is_array;
     ctx->proc = proc;
@@ -2613,7 +2625,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         if (bucket->exception != Qnil) {
             rb_exc_raise(bucket->exception);
         }
-        if (mgat || (extended && (nn > 1 || is_array))) {
+        if (assemble_hash || mgat || (extended && (nn > 1 || is_array))) {
             return rv;  /* return as a hash {key => [value, flags, cas], ...} */
         }
         if (nn > 1 || is_array) {
@@ -4541,6 +4553,7 @@ Init_couchbase_ext(void)
 
     sym_add = ID2SYM(rb_intern("add"));
     sym_append = ID2SYM(rb_intern("append"));
+    sym_assemble_hash = ID2SYM(rb_intern("assemble_hash"));
     sym_body = ID2SYM(rb_intern("body"));
     sym_bucket = ID2SYM(rb_intern("bucket"));
     sym_cas = ID2SYM(rb_intern("cas"));

@@ -399,4 +399,12 @@ class TestGet < MiniTest::Unit::TestCase
     end
   end
 
+  def test_multi_get_result_hash_assembling
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection.set(uniq_id(1), "foo")
+    connection.set(uniq_id(2), "bar")
+
+    expected = {uniq_id(1) => "foo", uniq_id(2) => "bar"}
+    assert_equal expected, connection.get(uniq_id(1), uniq_id(2), :assemble_hash => true)
+  end
 end
