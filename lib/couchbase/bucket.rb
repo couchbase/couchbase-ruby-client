@@ -34,7 +34,7 @@ module Couchbase
     # @param [String, Symbol] key
     #
     # @param [Hash] options the options for operation
-    # @option options [String] :ttl (self.default_ttl) the time to live of this key
+    # @option options [Fixnum] :ttl (self.default_ttl) the time to live of this key
     # @option options [Symbol] :format (self.default_format) format of the value
     # @option options [Fixnum] :flags (self.default_flags) flags for this key
     #
