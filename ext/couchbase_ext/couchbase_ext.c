@@ -74,6 +74,7 @@ typedef struct
     VALUE exception;        /* error delivered by error_callback */
     VALUE on_error_proc;    /* is using to deliver errors in async mode */
     VALUE object_space;
+    char *node_list;
 } bucket_t;
 
 typedef struct
@@ -124,6 +125,7 @@ static ID  sym_add,
            sym_increment,
            sym_initial,
            sym_marshal,
+           sym_node_list,
            sym_password,
            sym_plain,
            sym_pool,
@@ -1097,6 +1099,14 @@ do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
             bucket->bucket = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
         }
         if (TYPE(opts) == T_HASH) {
+            arg = rb_hash_aref(opts, sym_node_list);
+            if (arg != Qnil) {
+                VALUE tt;
+                free(bucket->node_list);
+                Check_Type(arg, T_ARRAY);
+                tt = rb_ary_join(arg, rb_str_new2(";"));
+                bucket->node_list = strdup(StringValueCStr(tt));
+            }
             arg = rb_hash_aref(opts, sym_hostname);
             if (arg != Qnil) {
                 if (bucket->hostname) {
@@ -1200,7 +1210,7 @@ do_connect(bucket_t *bucket)
     if (bucket->io == NULL && err != LIBCOUCHBASE_SUCCESS) {
         rb_exc_raise(cb_check_error(err, "failed to create IO instance", Qnil));
     }
-    bucket->handle = libcouchbase_create(bucket->authority,
+    bucket->handle = libcouchbase_create(bucket->node_list ? bucket-> node_list : bucket->authority,
             bucket->username, bucket->password, bucket->bucket, bucket->io);
     if (bucket->handle == NULL) {
         rb_raise(eLibcouchbaseError, "failed to create libcouchbase instance");
@@ -1267,6 +1277,10 @@ cb_bucket_alloc(VALUE klass)
  *   Initialize bucket using options only.
  *
  *   @param [Hash] options The options for operation for connection
+ *   @option options [Array] :node_list (nil) the list of nodes to connect
+ *     to. If specified it takes precedence over +:host+ option. The list
+ *     must be array of strings in form of host names or host names with
+ *     ports (in first case port 8091 will be used, see examples).
  *   @option options [String] :host ("localhost") the hostname or IP address
  *     of the node
  *   @option options [Fixnum] :port (8091) the port of the managemenent API
@@ -1299,6 +1313,9 @@ cb_bucket_alloc(VALUE klass)
  *   Couchbase.new('http://localhost:8091/pools/default/buckets/protected',
  *                 :username => 'protected', :password => 'secret')
  *
+ * @example Use list of nodes, in case some nodes might be dead
+ *   Couchbase.new(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
+ *
  * @return [Bucket]
  */
     static VALUE
@@ -1319,6 +1336,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->on_error_proc = Qnil;
     bucket->timeout = 0;
     bucket->object_space = rb_hash_new();
+    bucket->node_list = NULL;
 
     do_scan_connection_options(bucket, argc, argv);
     do_connect(bucket);
@@ -3558,6 +3576,7 @@ Init_couchbase_ext(void)
     sym_increment = ID2SYM(rb_intern("increment"));
     sym_initial = ID2SYM(rb_intern("initial"));
     sym_marshal = ID2SYM(rb_intern("marshal"));
+    sym_node_list = ID2SYM(rb_intern("node_list"));
     sym_password = ID2SYM(rb_intern("password"));
     sym_plain = ID2SYM(rb_intern("plain"));
     sym_pool = ID2SYM(rb_intern("pool"));
