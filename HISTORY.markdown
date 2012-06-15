@@ -1,3 +1,11 @@
+## 1.2.0.dp5 / 2012-06-15
+
+* Allow to force assembling result Hash for multi-get
+* Fix documentation for :ttl option in Bucket#cas
+* Implement key prefix (simple namespacing)
+* Implement cache store adapter for Rails
+* Integrate with Rack and Rails session store
+
 ## 1.2.0.dp4 / 2012-06-07
 
 * RCBC-36 Fix segfault
