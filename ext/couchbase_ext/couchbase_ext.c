@@ -100,7 +100,7 @@ struct couch_request_st {
     int running;
     int completed;
     libcouchbase_http_method_t method;
-    libcouchbase_couch_request_t request;
+    libcouchbase_http_request_t request;
     struct context_st *ctx;
     VALUE on_body_callback;
 };
@@ -1143,7 +1143,7 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
 }
 
     static void
-couch_complete_callback(libcouchbase_couch_request_t request,
+couch_complete_callback(libcouchbase_http_request_t request,
         libcouchbase_t handle,
         const void *cookie,
         libcouchbase_error_t error,
@@ -1186,7 +1186,7 @@ couch_complete_callback(libcouchbase_couch_request_t request,
 }
 
     static void
-couch_data_callback(libcouchbase_couch_request_t request,
+couch_data_callback(libcouchbase_http_request_t request,
         libcouchbase_t handle,
         const void *cookie,
         libcouchbase_error_t error,
@@ -1204,7 +1204,7 @@ couch_data_callback(libcouchbase_couch_request_t request,
             "failed to execute couch request", k, status);
     v = nbytes ? rb_str_new((const char*)bytes, nbytes) : Qnil;
     if (ctx->exception != Qnil) {
-        libcouchbase_cancel_couch_request(request);
+        libcouchbase_cancel_http_request(request);
     }
     if (ctx->proc != Qnil) {
         if (ctx->extended) {
@@ -3714,7 +3714,7 @@ cb_couch_request_free(void *ptr)
     if (request) {
         request->running = 0;
         if (TYPE(request->bucket_obj) == T_DATA && !request->completed) {
-            libcouchbase_cancel_couch_request(request->request);
+            libcouchbase_cancel_http_request(request->request);
         }
         free(request->path);
         free(request->body);
