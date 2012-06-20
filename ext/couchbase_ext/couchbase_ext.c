@@ -4016,7 +4016,7 @@ Init_couchbase_ext(void)
      *
      * @since 1.0.0
      */
-    eBaseError = rb_define_class_under(mError, "Base", rb_eRuntimeError);
+    eBaseError = rb_define_class_under(mError, "Base", rb_eStandardError);
     /* Document-class: Couchbase::Error::Auth
      * Authentication error
      *
