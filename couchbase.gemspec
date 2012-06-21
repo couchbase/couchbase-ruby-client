@@ -43,6 +43,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'rake-compiler', '>= 0.7.5'
   s.add_development_dependency 'rdiscount'
   s.add_development_dependency 'yard'
+  s.add_development_dependency 'yard-xml'
   s.add_development_dependency 'mini_portile'
   s.add_development_dependency 'yajl-ruby', '~> 1.1.0'
   s.add_development_dependency RUBY_VERSION =~ /^1\.9/ ? 'debugger' : 'ruby-debug'
