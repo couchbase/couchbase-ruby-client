@@ -39,13 +39,13 @@ module Couchbase
 
     # Set up view endpoint and optional params
     #
-    # @param [ Couchbase::Bucket ] bucket Connection object which
+    # @param [Couchbase::Bucket] bucket Connection object which
     #   stores all info about how to make requests to Couchbase views.
     #
-    # @param [ String ] endpoint Full CouchDB view URI.
+    # @param [String] endpoint Full Couchbase View URI.
     #
-    # @param [ Hash ] params Optional parameter which will be passed to
-    #   Couchbase::View#each
+    # @param [Hash] params Optional parameter which will be passed to
+    #   {View#fetch}
     #
     def initialize(bucket, endpoint, params = {})
       @bucket = bucket
@@ -60,6 +60,9 @@ module Couchbase
     # Yields each document that was fetched by view. It doesn't instantiate
     # all the results because of streaming JSON parser. Returns Enumerator
     # unless block given.
+    #
+    # @param [Hash] params Params for Couchdb query. Some useful are:
+    #   :start_key, :start_key_doc_id, :descending. See {View#fetch}.
     #
     # @example Use each method with block
     #
@@ -80,9 +83,6 @@ module Couchbase
     #     # do something with document
     #   end
     #
-    # @param [ Hash ] params Params for Couchdb query. Some useful are:
-    #   :startkey, :startkey_docid, :descending.
-    #
     def each(params = {})
       return enum_for(:each, params) unless block_given?
       fetch(params) {|doc| yield(doc)}
@@ -95,7 +95,7 @@ module Couchbase
     # @yieldparam [String] reason The reason message describing what
     #   happened.
     #
-    # @example Using <tt>#on_error</tt> to log all errors in view result
+    # @example Using +#on_error+ to log all errors in view result
     #
     #     # JSON-encoded view result
     #     #
@@ -129,24 +129,106 @@ module Couchbase
       self  # enable call chains
     end
 
-    # Performs query to CouchDB view. This method will stream results if block
+    # Performs query to Couchbase view. This method will stream results if block
     # given or return complete result set otherwise. In latter case it defines
-    # method <tt>total_rows</tt> returning corresponding entry from CouchDB
-    # result object.
+    # method +total_rows+ returning corresponding entry from
+    # Couchbase result object.
     #
-    # @param [Hash] params parameters for CouchDB query. See here the full
-    #   list: http://wiki.apache.org/couchdb/HTTP_view_API#Querying_Options
+    # @note Avoid using +$+ symbol as prefix for properties in your
+    #   documents, because server marks with it meta fields like flags and
+    #   expiration, therefore dollar prefix is some kind of reserved. It
+    #   won't hurt your application. Currently the {ViewRow}
+    #   class extracts +$flags+, +$cas+ and +$expiration+ properties from
+    #   the document and store them in {ViewRow#meta} hash.
+    #
+    # @param [Hash] params parameters for Couchbase query.
+    # @option params [true, false] :include_docs (false) Include the full
+    #   content of the documents in the return.
+    # @option params [true, false] :descending (false) Return the documents
+    #   in descending by key order
+    # @option params [String, Fixnum, Hash, Array] :key Return only
+    #   documents that match the specified key. Will be JSON encoded.
+    # @option params [Array] :keys The same as +:key+, but will work for
+    #   set of keys. Will be JSON encoded.
+    # @option params [String, Fixnum, Hash, Array] :startkey Return
+    #   records starting with the specified key. +:start_key+ option should
+    #   also work here. Will be JSON encoded.
+    # @option params [String] :startkey_docid Document id to start with
+    #   (to allow pagination for duplicate startkeys). +:start_key_doc_id+
+    #   also should work.
+    # @option params [String, Fixnum, Hash, Array] :endkey Stop returning
+    #   records when the specified key is reached. +:end_key+ option should
+    #   also work here. Will be JSON encoded.
+    # @option params [String] :endkey_docid Last document id to include
+    #   in the output (to allow pagination for duplicate startkeys).
+    #   +:end_key_doc_id+ also should work.
+    # @option params [true, false] :inclusive_end (true) Specifies whether
+    #   the specified end key should be included in the result
+    # @option params [Fixnum] :limit Limit the number of documents in the
+    #   output.
+    # @option params [Fixnum] :skip Skip this number of records before
+    #   starting to return the results.
+    # @option params [String, Symbol] :on_error (:continue) Sets the
+    #   response in the event of an error. Supported values:
+    #   :continue:: Continue to generate view information in the event of an
+    #               error, including the error information in the view
+    #               response stream.
+    #   :stop::     Stop immediately when an error condition occurs. No
+    #               further view information will be returned.
+    # @option params [Fixnum] :connection_timeout (60000) Timeout before the
+    #   view request is dropped (milliseconds)
+    # @option params [true, false] :reduce (true) Use the reduction function
+    # @option params [true, false] :group (false) Group the results using
+    #   the reduce function to a group or single row.
+    # @option params [Fixnum] :group_level Specify the group level to be
+    #   used.
+    # @option params [String, Symbol, false] :stale (:update_after) Allow
+    #   the results from a stale view to be used. Supported values:
+    #   false::         Force a view update before returning data
+    #   :ok::           Allow stale views
+    #   :update_after:: Allow stale view, update view after it has been
+    #                   accessed
+    # @option params [Hash] :body Accepts the same parameters, except
+    #   +:body+ of course, but sends them in POST body instead of query
+    #   string. It could be useful for really large and complex parameters.
     #
     # @yieldparam [Couchbase::ViewRow] document
     #
-    # @return [Array] with documents. There will be <tt>total_entries</tt>
+    # @return [Array] with documents. There will be +total_entries+
     #   method defined on this array if it's possible.
     #
-    # @raise [Couchbase::Error::View] when <tt>on_error</tt> callback is nil and
+    # @raise [Couchbase::Error::View] when +on_error+ callback is nil and
     #   error object found in the result stream.
     #
     # @example Query +recent_posts+ view with key filter
     #   doc.recent_posts(:body => {:keys => ["key1", "key2"]})
+    #
+    # @example Fetch second page of result set (splitted in 10 items per page)
+    #   page = 2
+    #   per_page = 10
+    #   doc.recent_posts(:skip => (page - 1) * per_page, :limit => per_page)
+    #
+    # @example Simple join using Map/Reduce
+    #   # Given the bucket with Posts(:id, :type, :title, :body) and
+    #   # Comments(:id, :type, :post_id, :author, :body). The map function
+    #   # below (in javascript) will build the View index called
+    #   # "recent_posts_with_comments" which will behave like left inner join.
+    #   #
+    #   #   function(doc) {
+    #   #     switch (doc.type) {
+    #   #       case "Post":
+    #   #         emit([doc.id, 0], null);
+    #   #         break;
+    #   #       case "Comment":
+    #   #         emit([doc.post_id, 1], null);
+    #   #         break;
+    #   #     }
+    #   #   }
+    #   #
+    #   post_id = 42
+    #   doc.recent_posts_with_comments(:start_key => [post_id, 0],
+    #                                  :end_key => [post_id, 1],
+    #                                  :include_docs => true)
     def fetch(params = {})
       params = @params.merge(params)
       options = {:chunked => true, :extended => true}
@@ -206,6 +288,10 @@ module Couchbase
       block_given? ? nil : docs
     end
 
+
+    # Returns a string containing a human-readable representation of the {View}
+    #
+    # @return [String]
     def inspect
       %(#<#{self.class.name}:#{self.object_id} @endpoint=#{@endpoint.inspect} @params=#{@params.inspect}>)
     end

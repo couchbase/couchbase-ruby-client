@@ -75,7 +75,7 @@ module Couchbase
     #
     # @since 1.2.0
     #
-    # @return [ Hash ]
+    # @return [Hash]
     def design_docs
       docs = all_docs(:startkey => "_design/", :endkey => "_design0", :include_docs => true)
       docmap = {}
@@ -91,9 +91,9 @@ module Couchbase
     #
     # @since 1.2.0
     #
-    # @param [ Hash ] params Params for CouchDB <tt>/_all_docs</tt> query
+    # @param [Hash] params Params for Couchbase +/_all_docs+ query
     #
-    # @return [ Couchbase::View ] View object
+    # @return [Couchbase::View] View object
     def all_docs(params = {})
       View.new(self, "_all_docs", params)
     end
@@ -102,12 +102,11 @@ module Couchbase
     #
     # @since 1.2.0
     #
-    # @param [ Hash, IO, String ] data The source object containing JSON
-    #                                  encoded design document. It must have
-    #                                  <tt>_id</tt> key set, this key should
-    #                                  start with <tt>_design/</tt>.
+    # @param [Hash, IO, String] data The source object containing JSON
+    #   encoded design document. It must have +_id+ key set, this key
+    #   should start with +_design/+.
     #
-    # @return [ true, false ]
+    # @return [true, false]
     def save_design_doc(data)
       attrs = case data
               when String
@@ -139,13 +138,13 @@ module Couchbase
     #
     # @since 1.2.0
     #
-    # @param [ String ] id Design document id. It might have '_design/'
-    #                      prefix.
+    # @param [String] id Design document id. It might have '_design/'
+    #   prefix.
     #
-    # @param [ String ] rev Document revision. It uses latest revision if
-    #                        <tt>rev</tt> parameter is nil.
+    # @param [String] rev Document revision. It uses latest revision if
+    #   +rev+ parameter is nil.
     #
-    # @return [ true, false ]
+    # @return [true, false]
     def delete_design_doc(id, rev = nil)
       ddoc = design_docs[id.sub(/^_design\//, '')]
       return nil unless ddoc

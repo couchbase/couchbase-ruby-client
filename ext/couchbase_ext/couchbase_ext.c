@@ -1970,7 +1970,7 @@ cb_bucket_url_get(VALUE self)
 
 /*
  * Returns a string containing a human-readable representation of the
- * Bucket.
+ * {Bucket}.
  *
  * @since 1.0.0
  *
@@ -3489,7 +3489,7 @@ cb_bucket_replace(int argc, VALUE *argv, VALUE self)
  *   This mean that the server treats value as binary stream and just
  *   perform concatenation, therefore it won't work with +:marshal+ and
  *   +:document+ formats, because of lack of knowledge how to merge values
- *   in these formats. See Bucket#cas for workaround.
+ *   in these formats. See {Bucket#cas} for workaround.
  *
  * @overload append(key, value, options = {})
  *   @param key [String, Symbol] Key used to reference the value.
@@ -3561,7 +3561,7 @@ cb_bucket_append(int argc, VALUE *argv, VALUE self)
  *   This mean that the server treats value as binary stream and just
  *   perform concatenation, therefore it won't work with +:marshal+ and
  *   +:document+ formats, because of lack of knowledge how to merge values
- *   in these formats. See Bucket#cas for workaround.
+ *   in these formats. See {Bucket#cas} for workaround.
  *
  * @overload prepend(key, value, options = {})
  *   @param key [String, Symbol] Key used to reference the value.

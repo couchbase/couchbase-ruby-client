@@ -24,7 +24,7 @@ module Couchbase
       return uri if params.nil? || params.empty?
       uri << "?"
       uri << params.map do |k, v|
-        if %w{key startkey endkey start_key end_key}.include?(k.to_s)
+        if %w{key keys startkey endkey start_key end_key}.include?(k.to_s)
           v = MultiJson.dump(v)
         end
         if v.class == Array

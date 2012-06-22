@@ -77,6 +77,13 @@ module Couchbase
     # @return [String]
     attr_accessor :id
 
+    # The meta data linked to the document
+    #
+    # @since 1.2.0
+    #
+    # @return [Hash]
+    attr_accessor :meta
+
     # The list of views defined or empty array
     #
     # @since 1.2.0
@@ -119,7 +126,7 @@ module Couchbase
       @meta = {}
       if @doc
         @doc.keys.each do |key|
-          if key.start_with?("$")
+          if %w($flags $expiration $cas).include?(key)
             @meta[key.sub(/^\$/, '')] = @doc.delete(key)
           end
         end
