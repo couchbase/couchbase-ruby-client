@@ -29,11 +29,15 @@ module Couchbase
     # {Couchbase::Error::KeyExists}. CAS stands for "compare and swap", and
     # avoids the need for manual key mutexing. Read more info here:
     #
+    # In asynchronous mode it will yield result twice, first for
+    # {Bucket#get} with {Result#operation} equal to +:get+ and
+    # second time for {Bucket#set} with {Result#operation} equal to +:set+.
+    #
     # @see http://couchbase.com/docs/memcached-api/memcached-api-protocol-text_cas.html
     #
     # @param [String, Symbol] key
     #
-    # @param [Hash] options the options for operation
+    # @param [Hash] options the options for "swap" part
     # @option options [Fixnum] :ttl (self.default_ttl) the time to live of this key
     # @option options [Symbol] :format (self.default_format) format of the value
     # @option options [Fixnum] :flags (self.default_flags) flags for this key
@@ -44,6 +48,7 @@ module Couchbase
     #
     # @raise [Couchbase::Error::KeyExists] if the key was updated before the the
     #   code in block has been completed (the CAS value has been changed).
+    # @raise [ArgumentError] if the block is missing for async mode
     #
     # @example Implement append to JSON encoded value
     #
@@ -55,18 +60,36 @@ module Couchbase
     #     end
     #     c.get("foo")      #=> {"bar" => 1, "baz" => 2}
     #
+    # @example Append JSON encoded value asynchronously
+    #
+    #     c.default_format = :document
+    #     c.set("foo", {"bar" => 1})
+    #     c.run do
+    #       c.cas("foo") do |val|
+    #         case val.operation
+    #         when :get
+    #           val["baz"] = 2
+    #           val
+    #         when :set
+    #           # verify all is ok
+    #           puts "error: #{ret.error.inspect}" unless ret.success?
+    #         end
+    #       end
+    #     end
+    #     c.get("foo")      #=> {"bar" => 1, "baz" => 2}
+    #
     # @return [Fixnum] the CAS of new value
     def cas(key, options = {})
-      options = options.merge(:extended => true)
       if async?
-        get(key, options) do |ret|
-          val = yield(ret) # get new value from caller
-          set(ret.key, val, :cas => ret.cas)
+        block = Proc.new
+        get(key) do |ret|
+          val = block.call(ret) # get new value from caller
+          set(ret.key, val, options.merge(:cas => ret.cas), &block)
         end
       else
-        val, flags, ver = get(key, options)
+        val, flags, ver = get(key, :extended => true)
         val = yield(val) # get new value from caller
-        set(key, val, :cas => ver)
+        set(key, val, options.merge(:cas => ver))
       end
     end
     alias :compare_and_swap :cas

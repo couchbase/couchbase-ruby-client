@@ -44,13 +44,23 @@ class TestCas < MiniTest::Unit::TestCase
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
                                :default_format => :document)
     connection.set(uniq_id, {"bar" => 1})
+    calls = 0
     connection.run do |conn|
       conn.cas(uniq_id) do |ret|
-        new_val = ret.value
-        new_val["baz"] = 2
-        new_val
+        calls += 1
+        case ret.operation
+        when :get
+          new_val = ret.value
+          new_val["baz"] = 2
+          new_val
+        when :set
+          assert ret.success?
+        else
+          flunk "Unexpected operation: #{ret.operation.inspect}"
+        end
       end
     end
+    assert_equal 2, calls
     val = connection.get(uniq_id)
     expected = {"bar" => 1, "baz" => 2}
     assert_equal expected, val
