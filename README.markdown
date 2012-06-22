@@ -18,9 +18,15 @@ libcouchbase doesn't take much effort.
 
     $ brew install libcouchbase
 
+The official homebrew repository contains only stable versions of
+libvbucket and libcouchbase, if you need preview, take a look at
+Couchbase's fork: https://github.com/couchbase/homebrew
+
+    $ brew install https://raw.github.com/couchbase/homebrew/preview/Library/Formula/libcouchbase.rb
+
 ### Debian (Ubuntu)
 
-Add the appropriate line to /etc/apt/sources.list.d/couchbase.list for
+Add the appropriate line to `/etc/apt/sources.list.d/couchbase.list` for
 your OS release:
 
     # Ubuntu 11.10 Oneiric Ocelot (Debian unstable)
@@ -37,6 +43,15 @@ Then install them
 
     $ sudo apt-get update && sudo apt-get install libcouchbase-dev
 
+Again, if you need preview versions, just use another repositories in
+your `couchbase.list`
+
+    # Ubuntu 11.10 Oneiric Ocelot (Debian unstable)
+    deb http://packages.couchbase.com/preview/ubuntu oneiric oneiric/main
+
+    # Ubuntu 10.04 Lucid Lynx (Debian stable or testing)
+    deb http://packages.couchbase.com/preview/ubuntu lucid lucid/main
+
 ### Centos (Redhat and rpm-based systems)
 
 Add these lines to /etc/yum.repos.d/couchbase.repo using the correct architecture
@@ -52,6 +67,17 @@ Add these lines to /etc/yum.repos.d/couchbase.repo using the correct architectur
 Then to install libcouchbase itself, run:
 
     $ sudo yum update && sudo yum install libcouchbase-devel
+
+We have preview repositories for RPMs too, use them if you need to try
+fresh version of couchbase gem:
+
+    [couchbase]
+    name = Couchbase package repository
+    baseurl = http://packages.couchbase.com/preview/rpm/5.5/i386
+
+    [couchbase]
+    name = Couchbase package repository
+    baseurl = http://packages.couchbase.com/preview/rpm/5.5/x86_64
 
 ### Windows
 
@@ -88,6 +114,14 @@ This is equivalent to following forms:
     c = Couchbase.connect(:pool => "default", :bucket => "default")
 
 The hash parameters take precedence on string URL.
+
+If you worry about state of your nodes or not sure what node is alive,
+you can pass the list of nodes and the library will iterate over it
+until finds the working one. From that moment it won't use **your**
+list, because node list from cluster config is more actual.
+
+    c = Couchbase.connect(:bucket => "mybucket",
+                          :node_list => ['example.com:8091', example.net'])
 
 There is also handy method `Couchbase.bucket` which uses thread local
 storage to keep the reference to default connection. You can set the
