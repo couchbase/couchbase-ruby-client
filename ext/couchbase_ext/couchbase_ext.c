@@ -1345,37 +1345,27 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
         if (TYPE(opts) == T_HASH) {
             arg = rb_hash_aref(opts, sym_hostname);
             if (arg != Qnil) {
-                if (bucket->hostname) {
-                    free(bucket->hostname);
-                }
+                free(bucket->hostname);
                 bucket->hostname = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_pool);
             if (arg != Qnil) {
-                if (bucket->pool) {
-                    free(bucket->pool);
-                }
+                free(bucket->pool);
                 bucket->pool = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_bucket);
             if (arg != Qnil) {
-                if (bucket->bucket) {
-                    free(bucket->bucket);
-                }
+                free(bucket->bucket);
                 bucket->bucket = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_username);
             if (arg != Qnil) {
-                if (bucket->username) {
-                    free(bucket->username);
-                }
+                free(bucket->username);
                 bucket->username = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_password);
             if (arg != Qnil) {
-                if (bucket->password) {
-                    free(bucket->password);
-                }
+                free(bucket->password);
                 bucket->password = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_port);
@@ -1434,9 +1424,7 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
         }
     }
     len = strlen(bucket->hostname) + 10;
-    if (bucket->authority) {
-        free(bucket->authority);
-    }
+    free(bucket->authority);
     bucket->authority = calloc(len, sizeof(char));
     if (bucket->authority == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
@@ -1824,10 +1812,7 @@ cb_bucket_hostname_get(VALUE self)
 {
     struct bucket_st *bucket = DATA_PTR(self);
     if (bucket->handle) {
-        if (bucket->hostname) {
-            free(bucket->hostname);
-            bucket->hostname = NULL;
-        }
+        free(bucket->hostname);
         bucket->hostname = strdup(libcouchbase_get_host(bucket->handle));
         if (bucket->hostname == NULL) {
             rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
