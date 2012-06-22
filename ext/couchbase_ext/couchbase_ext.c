@@ -141,7 +141,7 @@ static ID  sym_add,
            sym_default_format,
            sym_default_ttl,
            sym_delete,
-           sym_delete,
+           sym_delta,
            sym_development,
            sym_document,
            sym_environment,
@@ -2257,6 +2257,11 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
         if (arg != Qnil) {
             initial = NUM2ULL(arg);
             create = 1;
+        }
+        arg = rb_hash_aref(opts, sym_delta);
+        if (NIL_P(d) && arg != Qnil) {
+            Check_Type(arg, T_FIXNUM);
+            d = arg;
         }
     }
     key = RSTRING_PTR(k);
@@ -4644,7 +4649,7 @@ Init_couchbase_ext(void)
     sym_default_format = ID2SYM(rb_intern("default_format"));
     sym_default_ttl = ID2SYM(rb_intern("default_ttl"));
     sym_delete = ID2SYM(rb_intern("delete"));
-    sym_delete = ID2SYM(rb_intern("delete"));
+    sym_delta = ID2SYM(rb_intern("delta"));
     sym_development = ID2SYM(rb_intern("development"));
     sym_document = ID2SYM(rb_intern("document"));
     sym_environment = ID2SYM(rb_intern("environment"));

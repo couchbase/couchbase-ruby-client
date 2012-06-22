@@ -110,4 +110,13 @@ class TestArithmetic < MiniTest::Unit::TestCase
     assert_equal 22, val
   end
 
+  def test_it_allows_to_specify_delta_in_options
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+
+    connection.set(uniq_id, 12)
+    options = {:delta => 10}
+    val = connection.incr(uniq_id, options)
+    assert_equal 22, val
+  end
+
 end
