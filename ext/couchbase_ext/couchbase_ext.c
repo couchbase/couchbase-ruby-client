@@ -1474,6 +1474,11 @@ do_connect(struct bucket_st *bucket)
     (void)libcouchbase_set_couch_complete_callback(bucket->handle, couch_complete_callback);
     (void)libcouchbase_set_couch_data_callback(bucket->handle, couch_data_callback);
 
+    if (bucket->timeout > 0) {
+        libcouchbase_set_timeout(bucket->handle, bucket->timeout);
+    } else {
+        bucket->timeout = libcouchbase_get_timeout(bucket->handle);
+    }
     err = libcouchbase_connect(bucket->handle);
     if (err != LIBCOUCHBASE_SUCCESS) {
         libcouchbase_destroy(bucket->handle);
@@ -1488,12 +1493,6 @@ do_connect(struct bucket_st *bucket)
         bucket->handle = NULL;
         bucket->io = NULL;
         rb_exc_raise(bucket->exception);
-    }
-
-    if (bucket->timeout > 0) {
-        libcouchbase_set_timeout(bucket->handle, bucket->timeout);
-    } else {
-        bucket->timeout = libcouchbase_get_timeout(bucket->handle);
     }
 }
 
@@ -1568,6 +1567,8 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
  *   @option options [String] :key_prefix (nil) the prefix string which will
  *     be prepended to each key before sending out, and sripped before
  *     returning back to the application.
+ *   @option options [Fixnum] :timeout (2500000) the timeout for IO
+ *     operations (in microseconds)
  *
  * @example Initialize connection using default options
  *   Couchbase.new
