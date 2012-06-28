@@ -34,6 +34,8 @@ module Couchbase
     #
     # @since 1.0.0
     #
+    # @see Bucket#initialize
+    #
     # @example Use default values for all options
     #   Couchbase.connect
     #

@@ -1585,6 +1585,12 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
  * @example Use list of nodes, in case some nodes might be dead
  *   Couchbase.new(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
  *
+ * @raise [Couchbase::Error::BucketNotFound] if there no such bucket to
+ *   connect
+ *
+ * @raise [Couchbase::Error::Connect] if the socket wasn't accessible
+ *   (doesn't accept connections or doesn't respond in time)
+ *
  * @return [Bucket]
  */
     static VALUE
