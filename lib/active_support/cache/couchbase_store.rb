@@ -315,7 +315,7 @@ module ActiveSupport
         @data.send(method, key, value, options)
       rescue Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
-        raise if @raise_errors
+        raise if @raise_errors || method == :add
         false
       end
 
