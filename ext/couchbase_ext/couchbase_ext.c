@@ -123,7 +123,17 @@ struct key_traits_st
     VALUE force_format;
 };
 
-static VALUE mCouchbase, mError, mMultiJson, mURI, mMarshal, cBucket, cResult, cCouchRequest;
+struct timer_st
+{
+    struct bucket_st *bucket;
+    int periodic;
+    uint32_t usec;
+    libcouchbase_timer_t timer;
+    VALUE self;
+    VALUE callback;
+};
+
+static VALUE mCouchbase, mError, mMultiJson, mURI, mMarshal, cBucket, cResult, cCouchRequest, cTimer;
 static VALUE object_space;
 
 static ID  sym_add,
@@ -158,6 +168,7 @@ static ID  sym_add,
            sym_method,
            sym_node_list,
            sym_password,
+           sym_periodic,
            sym_plain,
            sym_pool,
            sym_port,
@@ -3635,6 +3646,189 @@ cb_result_inspect(VALUE self)
 }
 
     void
+cb_timer_free(void *ptr)
+{
+    free(ptr);
+}
+
+    void
+cb_timer_mark(void *ptr)
+{
+    struct timer_st *timer = ptr;
+    if (timer) {
+        rb_gc_mark(timer->callback);
+    }
+}
+
+/*
+ * Create and initialize new Timer
+ *
+ * @since 1.2.0.dp6
+ *
+ * @return [Couchbase::Timer] new instance
+ *
+ * @see Couchbase::Timer#initialize
+ */
+    static VALUE
+cb_timer_new(int argc, VALUE *argv, VALUE klass)
+{
+    VALUE obj;
+    struct timer_st *timer;
+
+    /* allocate new bucket struct and set it to zero */
+    obj = Data_Make_Struct(klass, struct timer_st, cb_timer_mark,
+            cb_timer_free, timer);
+    rb_obj_call_init(obj, argc, argv);
+    return obj;
+}
+
+/*
+ * Returns a string containing a human-readable representation of the
+ * Timer.
+ *
+ * @since 1.2.0.dp6
+ *
+ * @return [String]
+ */
+    static VALUE
+cb_timer_inspect(VALUE self)
+{
+    VALUE str;
+    struct timer_st *tm = DATA_PTR(self);
+    char buf[200];
+
+    str = rb_str_buf_new2("#<");
+    rb_str_buf_cat2(str, rb_obj_classname(self));
+    snprintf(buf, 20, ":%p", (void *)self);
+    rb_str_buf_cat2(str, buf);
+    snprintf(buf, 100, " timeout:%u periodic:%s>",
+            tm->usec, tm->periodic ? "true" : "false");
+    rb_str_buf_cat2(str, buf);
+
+    return str;
+}
+
+/*
+ * Cancel the timer.
+ *
+ * @since 1.2.0.dp6
+ *
+ * This operation makes sense for periodic timers or if one need to cancel
+ * regular timer before it will be triggered.
+ *
+ * @example Cancel periodic timer
+ *   n = 1
+ *   c.run do
+ *     tm = c.create_periodic_timer(500000) do
+ *       c.incr("foo") do
+ *         if n == 5
+ *           tm.cancel
+ *         else
+ *           n += 1
+ *         end
+ *       end
+ *     end
+ *   end
+ *
+ * @return [String]
+ */
+    static VALUE
+cb_timer_cancel(VALUE self)
+{
+    struct timer_st *tm = DATA_PTR(self);
+    libcouchbase_timer_destroy(tm->bucket->handle, tm->timer);
+    return self;
+}
+
+    static VALUE
+trigger_timer(VALUE timer)
+{
+    struct timer_st *tm = DATA_PTR(timer);
+    return cb_proc_call(tm->callback, 1, timer);
+}
+
+    static void
+timer_callback(libcouchbase_timer_t timer, libcouchbase_t instance,
+        const void *cookie)
+{
+    struct timer_st *tm = (struct timer_st *)cookie;
+    int error = 0;
+
+    rb_protect(trigger_timer, tm->self, &error);
+    if (error) {
+        libcouchbase_timer_destroy(instance, timer);
+    }
+    (void)cookie;
+}
+
+/*
+ * Initialize new Timer
+ *
+ * @since 1.2.0
+ *
+ * The timers could used to trigger reccuring events or implement timeouts.
+ * The library will call given block after time interval pass.
+ *
+ * @param bucket [Bucket] the connection object
+ * @param interval [Fixnum] the interval in microseconds
+ * @param options [Hash]
+ * @option options [Boolean] :periodic (false) set it to +true+ if the timer
+ *   should be triggered until it will be canceled.
+ *
+ * @yieldparam [Timer] timer the current timer
+ *
+ * @example Create regular timer for 0.5 second
+ *   c.run do
+ *     Couchbase::Timer.new(c, 500000) do
+ *       puts "ding-dong"
+ *     end
+ *   end
+ *
+ * @example Create periodic timer
+ *   n = 10
+ *   c.run do
+ *     Couchbase::Timer.new(c, 500000, :periodic => true) do |tm|
+ *       puts "#{n}"
+ *       n -= 1
+ *       tm.cancel if n.zero?
+ *     end
+ *   end
+ *
+ *
+ * @return [Couchbase::Timer]
+ */
+    static VALUE
+cb_timer_init(int argc, VALUE *argv, VALUE self)
+{
+    struct timer_st *tm = DATA_PTR(self);
+    VALUE bucket, opts, timeout, exc, cb;
+    libcouchbase_error_t err;
+
+    rb_need_block();
+    rb_scan_args(argc, argv, "21&", &bucket, &timeout, &opts, &cb);
+
+    if (CLASS_OF(bucket) != cBucket) {
+        rb_raise(rb_eTypeError, "wrong argument type (expected Couchbase::Bucket)");
+    }
+    tm->self = self;
+    tm->callback = cb;
+    tm->usec = NUM2ULONG(timeout);
+    tm->bucket = DATA_PTR(bucket);
+    if (opts != Qnil) {
+        Check_Type(opts, T_HASH);
+        tm->periodic = RTEST(rb_hash_aref(opts, sym_periodic));
+    }
+    tm->timer = libcouchbase_timer_create(tm->bucket->handle, tm, tm->usec,
+            tm->periodic, timer_callback, &err);
+    exc = cb_check_error(err, "failed to attach the timer", Qnil);
+    if (exc != Qnil) {
+        rb_exc_raise(exc);
+    }
+
+    return self;
+}
+
+    void
 cb_couch_request_free(void *ptr)
 {
     struct couch_request_st *request = ptr;
@@ -4528,6 +4722,12 @@ Init_couchbase_ext(void)
     rb_define_method(cCouchRequest, "chunked", cb_couch_request_chunked_get, 0);
     rb_define_alias(cCouchRequest, "chunked?", "chunked");
 
+    cTimer = rb_define_class_under(mCouchbase, "Timer", rb_cObject);
+    rb_define_singleton_method(cTimer, "new", cb_timer_new, -1);
+    rb_define_method(cTimer, "initialize", cb_timer_init, -1);
+    rb_define_method(cTimer, "inspect", cb_timer_inspect, 0);
+    rb_define_method(cTimer, "cancel", cb_timer_cancel, 0);
+
     /* Define symbols */
     id_arity = rb_intern("arity");
     id_call = rb_intern("call");
@@ -4578,6 +4778,7 @@ Init_couchbase_ext(void)
     sym_method = ID2SYM(rb_intern("method"));
     sym_node_list = ID2SYM(rb_intern("node_list"));
     sym_password = ID2SYM(rb_intern("password"));
+    sym_periodic = ID2SYM(rb_intern("periodic"));
     sym_plain = ID2SYM(rb_intern("plain"));
     sym_pool = ID2SYM(rb_intern("pool"));
     sym_port = ID2SYM(rb_intern("port"));

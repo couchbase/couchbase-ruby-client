@@ -400,6 +400,27 @@ the key and stats as key-value pairs.
       # ...
     }
 
+### Timers
+
+It is possible to create timers to implement general purpose timeouts.
+Note that timers are using microseconds for time intervals. For example,
+following examples increment the keys value five times with 0.5 second
+interval:
+
+    c.set("foo", 100)
+    n = 1
+    c.run do
+      c.create_periodic_timer(500000) do |tm|
+        c.incr("foo") do
+          if n == 5
+            tm.cancel
+          else
+            n += 1
+          end
+        end
+      end
+    end
+
 ### Views (Map/Reduce queries)
 
 If you store structured data, they will be treated as documents and you

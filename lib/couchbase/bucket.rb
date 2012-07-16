@@ -181,6 +181,14 @@ module Couchbase
       end
     end
 
+    def create_timer(interval, &block)
+      Timer.new(self, interval, &block)
+    end
+
+    def create_periodic_timer(interval, &block)
+      Timer.new(self, interval, :periodic => true, &block)
+    end
+
   end
 
 end
