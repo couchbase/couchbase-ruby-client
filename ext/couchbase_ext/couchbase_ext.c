@@ -58,8 +58,6 @@ struct bucket_st
     char *password;
     int async;
     int quiet;
-    long seqno;
-    long wanted_seqno;
     VALUE default_format;    /* should update +default_flags+ on change */
     uint32_t default_flags;
     time_t default_ttl;
@@ -87,6 +85,7 @@ struct context_st
     struct couch_request_st *request;
     int quiet;
     int arithm;           /* incr: +1, decr: -1, other: 0 */
+    size_t nqueries;
 };
 
 struct couch_request_st {
@@ -738,8 +737,7 @@ storage_callback(libcouchbase_t handle, const void *cookie,
     VALUE k, c, *rv = ctx->rv, exc, res;
     ID o;
 
-    bucket->seqno--;
-
+    ctx->nqueries--;
     k = rb_str_new((const char*)key, nkey);
     strip_key_prefix(bucket, k);
     c = cas > 0 ? ULL2NUM(cas) : Qnil;
@@ -783,8 +781,7 @@ storage_callback(libcouchbase_t handle, const void *cookie,
         *rv = c;
     }
 
-    if (bucket->seqno == bucket->wanted_seqno) {
-        bucket->io->stop_event_loop(bucket->io);
+    if (ctx->nqueries == 0) {
         rb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
@@ -799,8 +796,7 @@ delete_callback(libcouchbase_t handle, const void *cookie,
     struct bucket_st *bucket = ctx->bucket;
     VALUE k, *rv = ctx->rv, exc = Qnil, res;
 
-    bucket->seqno--;
-
+    ctx->nqueries--;
     k = rb_str_new((const char*)key, nkey);
     strip_key_prefix(bucket, k);
     if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
@@ -823,8 +819,7 @@ delete_callback(libcouchbase_t handle, const void *cookie,
     } else {                /* synchronous */
         *rv = (error == LIBCOUCHBASE_SUCCESS) ? Qtrue : Qfalse;
     }
-    if (bucket->seqno == bucket->wanted_seqno) {
-        bucket->io->stop_event_loop(bucket->io);
+    if (ctx->nqueries == 0) {
         rb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
@@ -841,8 +836,7 @@ get_callback(libcouchbase_t handle, const void *cookie,
     struct bucket_st *bucket = ctx->bucket;
     VALUE k, v, f, c, *rv = ctx->rv, exc = Qnil, res;
 
-    bucket->seqno--;
-
+    ctx->nqueries--;
     k = rb_str_new((const char*)key, nkey);
     strip_key_prefix(bucket, k);
     if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
@@ -893,8 +887,7 @@ get_callback(libcouchbase_t handle, const void *cookie,
         }
     }
 
-    if (bucket->seqno == bucket->wanted_seqno) {
-        bucket->io->stop_event_loop(bucket->io);
+    if (ctx->nqueries == 0) {
         rb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
@@ -934,11 +927,8 @@ flush_callback(libcouchbase_t handle, const void* cookie,
             }
         }
     } else {
-        bucket->seqno--;
-        if (bucket->seqno == bucket->wanted_seqno) {
-            bucket->io->stop_event_loop(bucket->io);
-            rb_hash_delete(object_space, ctx->proc|1);
-        }
+        ctx->nqueries--;
+        rb_hash_delete(object_space, ctx->proc|1);
     }
 
     (void)handle;
@@ -979,11 +969,8 @@ version_callback(libcouchbase_t handle, const void *cookie,
             }
         }
     } else {
-        bucket->seqno--;
-        if (bucket->seqno == bucket->wanted_seqno) {
-            bucket->io->stop_event_loop(bucket->io);
-            rb_hash_delete(object_space, ctx->proc|1);
-        }
+        ctx->nqueries--;
+        rb_hash_delete(object_space, ctx->proc|1);
     }
 
     (void)handle;
@@ -1031,11 +1018,8 @@ stat_callback(libcouchbase_t handle, const void* cookie,
             }
         }
     } else {
-        bucket->seqno--;
-        if (bucket->seqno == bucket->wanted_seqno) {
-            bucket->io->stop_event_loop(bucket->io);
-            rb_hash_delete(object_space, ctx->proc|1);
-        }
+        ctx->nqueries--;
+        rb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
 }
@@ -1049,7 +1033,7 @@ touch_callback(libcouchbase_t handle, const void *cookie,
     struct bucket_st *bucket = ctx->bucket;
     VALUE k, success, *rv = ctx->rv, exc = Qnil, res;
 
-    bucket->seqno--;
+    ctx->nqueries--;
     k = rb_str_new((const char*)key, nkey);
     strip_key_prefix(bucket, k);
     if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
@@ -1076,8 +1060,7 @@ touch_callback(libcouchbase_t handle, const void *cookie,
             rb_hash_aset(*rv, k, success);
         }
     }
-    if (bucket->seqno == bucket->wanted_seqno) {
-        bucket->io->stop_event_loop(bucket->io);
+    if (ctx->nqueries == 0) {
         rb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
@@ -1094,8 +1077,7 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
     VALUE c, k, v, *rv = ctx->rv, exc, res;
     ID o;
 
-    bucket->seqno--;
-
+    ctx->nqueries--;
     k = rb_str_new((const char*)key, nkey);
     strip_key_prefix(bucket, k);
     c = cas > 0 ? ULL2NUM(cas) : Qnil;
@@ -1137,8 +1119,7 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
             }
         }
     }
-    if (bucket->seqno == bucket->wanted_seqno) {
-        bucket->io->stop_event_loop(bucket->io);
+    if (ctx->nqueries == 0) {
         rb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
@@ -1179,9 +1160,6 @@ couch_complete_callback(libcouchbase_http_request_t request,
     }
     if (!bucket->async && ctx->exception == Qnil) {
         *rv = v;
-    }
-    if (bucket->seqno == bucket->wanted_seqno) {
-        bucket->io->stop_event_loop(bucket->io);
     }
     (void)handle;
     (void)request;
@@ -1232,20 +1210,6 @@ cb_first_value_i(VALUE key, VALUE value, VALUE arg)
     *val = value;
     (void)key;
     return ST_STOP;
-}
-
-/*
- * @since 1.0.0
- *
- * @private
- * @return [Fixnum] number of scheduled operations
- */
-    static VALUE
-cb_bucket_seqno(VALUE self)
-{
-    struct bucket_st *bucket = DATA_PTR(self);
-
-    return LONG2FIX(bucket->seqno);
 }
 
     void
@@ -2067,7 +2031,6 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     size_t nkey;
     libcouchbase_cas_t cas = 0;
     libcouchbase_error_t err;
-    long seqno;
 
     if (bucket->handle == NULL) {
         rb_raise(eConnectError, "closed connection");
@@ -2103,8 +2066,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     ctx->rv = &rv;
     ctx->bucket = bucket;
     ctx->exception = Qnil;
-    seqno = bucket->seqno;
-    bucket->seqno++;
+    ctx->nqueries = 1;
     err = libcouchbase_remove(bucket->handle, (const void *)ctx,
             (const void *)key, nkey, cas);
     exc = cb_check_error(err, "failed to schedule delete request", Qnil);
@@ -2117,9 +2079,9 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
         maybe_do_loop(bucket);
         return Qnil;
     } else {
-        if (bucket->seqno - seqno > 0) {
+        if (ctx->nqueries > 0) {
             /* we have some operations pending */
-            bucket->io->run_event_loop(bucket->io);
+            libcouchbase_wait(bucket->handle);
         }
         exc = ctx->exception;
         free(ctx);
@@ -2142,7 +2104,6 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     time_t exp = 0;
     libcouchbase_cas_t cas = 0;
     libcouchbase_error_t err;
-    long seqno;
 
     if (bucket->handle == NULL) {
         rb_raise(eConnectError, "closed connection");
@@ -2191,8 +2152,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     ctx->proc = proc;
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
     ctx->exception = Qnil;
-    seqno = bucket->seqno;
-    bucket->seqno++;
+    ctx->nqueries = 1;
     err = libcouchbase_store(bucket->handle, (const void *)ctx, cmd,
             (const void *)key, nkey, bytes, nbytes, flags, exp, cas);
     exc = cb_check_error(err, "failed to schedule set request", Qnil);
@@ -2205,9 +2165,9 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
         maybe_do_loop(bucket);
         return Qnil;
     } else {
-        if (bucket->seqno - seqno > 0) {
+        if (ctx->nqueries > 0) {
             /* we have some operations pending */
-            bucket->io->run_event_loop(bucket->io);
+            libcouchbase_wait(bucket->handle);
         }
         exc = ctx->exception;
         free(ctx);
@@ -2233,7 +2193,6 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     uint64_t delta = 0, initial = 0;
     int create = 0;
     libcouchbase_error_t err;
-    long seqno;
 
     if (bucket->handle == NULL) {
         rb_raise(eConnectError, "closed connection");
@@ -2285,8 +2244,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
     ctx->exception = Qnil;
     ctx->arithm = sign;
-    seqno = bucket->seqno;
-    bucket->seqno++;
+    ctx->nqueries = 1;
     err = libcouchbase_arithmetic(bucket->handle, (const void *)ctx,
             (const void *)key, nkey, delta, exp, create, initial);
     exc = cb_check_error(err, "failed to schedule arithmetic request", k);
@@ -2299,9 +2257,9 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
         maybe_do_loop(bucket);
         return Qnil;
     } else {
-        if (bucket->seqno - seqno > 0) {
+        if (ctx->nqueries > 0) {
             /* we have some operations pending */
-            bucket->io->run_event_loop(bucket->io);
+            libcouchbase_wait(bucket->handle);
         }
         exc = ctx->exception;
         free(ctx);
@@ -2628,7 +2586,6 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     libcouchbase_error_t err = LIBCOUCHBASE_SUCCESS;
     struct key_traits_st *traits;
     int extended, mgat, is_array, assemble_hash;
-    long seqno;
 
     if (bucket->handle == NULL) {
         rb_raise(eConnectError, "closed connection");
@@ -2657,8 +2614,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     rv = rb_hash_new();
     ctx->rv = &rv;
     ctx->exception = Qnil;
-    seqno = bucket->seqno;
-    bucket->seqno += nn;
+    ctx->nqueries = traits->nkeys;
     if (traits->lock) {
         for (ii = 0; ii < traits->nkeys; ++ii) {
             err = libcouchbase_getl(bucket->handle, (const void *)ctx,
@@ -2692,9 +2648,9 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         maybe_do_loop(bucket);
         return Qnil;
     } else {
-        if (bucket->seqno - seqno > 0) {
+        if (ctx->nqueries > 0) {
             /* we have some operations pending */
-            bucket->io->run_event_loop(bucket->io);
+            libcouchbase_wait(bucket->handle);
         }
         exc = ctx->exception;
         extended = ctx->extended;
@@ -2796,7 +2752,6 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     size_t nn, ii, ll;
     libcouchbase_error_t err;
     struct key_traits_st *traits;
-    long seqno;
 
     if (bucket->handle == NULL) {
         rb_raise(eConnectError, "closed connection");
@@ -2819,8 +2774,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     rv = rb_hash_new();
     ctx->rv = &rv;
     ctx->exception = Qnil;
-    seqno = bucket->seqno;
-    bucket->seqno += nn;
+    ctx->nqueries = traits->nkeys;
     err = libcouchbase_mtouch(bucket->handle, (const void *)ctx,
             traits->nkeys, (const void * const *)traits->keys,
             traits->lens, traits->ttls);
@@ -2840,9 +2794,9 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
         maybe_do_loop(bucket);
         return Qnil;
     } else {
-        if (bucket->seqno - seqno > 0) {
+        if (ctx->nqueries > 0) {
             /* we have some operations pending */
-            bucket->io->run_event_loop(bucket->io);
+            libcouchbase_wait(bucket->handle);
         }
         exc = ctx->exception;
         free(ctx);
@@ -2895,7 +2849,6 @@ cb_bucket_flush(VALUE self)
     struct context_st *ctx;
     VALUE rv, exc;
     libcouchbase_error_t err;
-    long seqno;
 
     if (bucket->handle == NULL) {
         rb_raise(eConnectError, "closed connection");
@@ -2917,8 +2870,7 @@ cb_bucket_flush(VALUE self)
         ctx->proc = Qnil;
     }
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
-    seqno = bucket->seqno;
-    bucket->seqno++;
+    ctx->nqueries = 1;
     err = libcouchbase_flush(bucket->handle, (const void *)ctx);
     exc = cb_check_error(err, "failed to schedule flush request", Qnil);
     if (exc != Qnil) {
@@ -2930,9 +2882,9 @@ cb_bucket_flush(VALUE self)
         maybe_do_loop(bucket);
         return Qnil;
     } else {
-        if (bucket->seqno - seqno > 0) {
+        if (ctx->nqueries > 0) {
             /* we have some operations pending */
-            bucket->io->run_event_loop(bucket->io);
+            libcouchbase_wait(bucket->handle);
         }
         exc = ctx->exception;
         free(ctx);
@@ -2977,7 +2929,6 @@ cb_bucket_version(VALUE self)
     struct context_st *ctx;
     VALUE rv, exc;
     libcouchbase_error_t err;
-    long seqno;
 
     if (bucket->handle == NULL) {
         rb_raise(eConnectError, "closed connection");
@@ -2999,8 +2950,7 @@ cb_bucket_version(VALUE self)
         ctx->proc = Qnil;
     }
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
-    seqno = bucket->seqno;
-    bucket->seqno++;
+    ctx->nqueries = 1;
     err = libcouchbase_server_versions(bucket->handle, (const void *)ctx);
     exc = cb_check_error(err, "failed to schedule version request", Qnil);
     if (exc != Qnil) {
@@ -3012,9 +2962,9 @@ cb_bucket_version(VALUE self)
         maybe_do_loop(bucket);
         return Qnil;
     } else {
-        if (bucket->seqno - seqno > 0) {
+        if (ctx->nqueries > 0) {
             /* we have some operations pending */
-            bucket->io->run_event_loop(bucket->io);
+            libcouchbase_wait(bucket->handle);
         }
         exc = ctx->exception;
         free(ctx);
@@ -3076,7 +3026,6 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     char *key;
     size_t nkey;
     libcouchbase_error_t err;
-    long seqno;
 
     if (bucket->handle == NULL) {
         rb_raise(eConnectError, "closed connection");
@@ -3104,8 +3053,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
         key = NULL;
         nkey = 0;
     }
-    seqno = bucket->seqno;
-    bucket->seqno++;
+    ctx->nqueries = 1;
     err = libcouchbase_server_stats(bucket->handle, (const void *)ctx,
             key, nkey);
     exc = cb_check_error(err, "failed to schedule stat request", Qnil);
@@ -3118,9 +3066,9 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
         maybe_do_loop(bucket);
         return Qnil;
     } else {
-        if (bucket->seqno - seqno > 0) {
+        if (ctx->nqueries > 0) {
             /* we have some operations pending */
-            bucket->io->run_event_loop(bucket->io);
+            libcouchbase_wait(bucket->handle);
         }
         exc = ctx->exception;
         free(ctx);
@@ -3145,7 +3093,7 @@ do_loop(struct bucket_st *bucket)
     diff = (gethrtime() - bucket->blk_start) / 1000; /* in microseconds */
     new_tmo = bucket->timeout += diff;
     libcouchbase_set_timeout(bucket->handle, bucket->timeout);
-    bucket->io->run_event_loop(bucket->io);
+    libcouchbase_wait(bucket->handle);
     /* restore timeout if it wasn't changed */
     if (bucket->timeout == new_tmo) {
         libcouchbase_set_timeout(bucket->handle, old_tmo);
@@ -3183,18 +3131,14 @@ do_run(VALUE *args)
             bucket->threshold = (uint32_t)NUM2ULONG(arg);
         }
     }
-    bucket->seqno = 0;
     bucket->async = 1;
-
     bucket->blk_start = gethrtime();
     cb_proc_call(proc, 1, self);
-    if (bucket->seqno > 0) {
-        do_loop(bucket);
-        if (bucket->exception != Qnil) {
-            exc = bucket->exception;
-            bucket->exception = Qnil;
-            rb_exc_raise(exc);
-        }
+    do_loop(bucket);
+    if (bucket->exception != Qnil) {
+        exc = bucket->exception;
+        bucket->exception = Qnil;
+        rb_exc_raise(exc);
     }
     return Qnil;
 }
@@ -3286,45 +3230,6 @@ cb_bucket_stop(VALUE self)
 {
     struct bucket_st *bucket = DATA_PTR(self);
     bucket->io->stop_event_loop(bucket->io);
-    return Qnil;
-}
-
-/*
- * Make sure that the connection received part of the responses
- *
- * @since 1.2.0
- *
- * @param [Fixnum] seqno The number of the requests which could be left
- *   unanswered for now.
- *
- * @example Waiting for first two requests
- *  connection = Couchbase.connect
- *  completed = 0
- *  connection.run do
- *    connection.set(uniq_id(:foo), "foo") {|r| completed+= 1}
- *    connection.set(uniq_id(:bar), "bar") {|r| completed+= 1}
- *    connection.set(uniq_id(:baz), "baz") {|r| completed+= 1}
- *
- *    connection.seqno      #=> 3
- *
- *    # waiting for first two of the commands to complete (note that they
- *    # could go in any order
- *    connection.wait_for_seqno(1)
- *    connection.seqno      #=> 1
- *    completed             #=> 2
- *  end
- */
-    static VALUE
-cb_bucket_wait_for_seqno(VALUE self, VALUE val)
-{
-    struct bucket_st *bucket = DATA_PTR(self);
-    long wanted = NUM2LONG(val);
-
-    if (wanted >= 0 && wanted < bucket->seqno) {
-        bucket->wanted_seqno = wanted;
-        do_loop(bucket);
-        bucket->wanted_seqno = 0;
-    }
     return Qnil;
 }
 
@@ -3905,7 +3810,7 @@ cb_couch_request_perform(VALUE self)
     if (bucket->async) {
         return Qnil;
     } else {
-        bucket->io->run_event_loop(bucket->io);
+        libcouchbase_wait(bucket->handle);
         if (req->completed) {
             exc = ctx->exception;
             free(ctx);
@@ -3935,7 +3840,7 @@ cb_couch_request_continue(VALUE self)
     struct couch_request_st *req = DATA_PTR(self);
 
     if (req->running) {
-        req->bucket->io->run_event_loop(req->bucket->io);
+        libcouchbase_wait(req->bucket->handle);
         if (req->completed) {
             exc = req->ctx->exception;
             rv = req->ctx->rv;
@@ -4342,14 +4247,6 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "initialize", cb_bucket_init, -1);
     rb_define_method(cBucket, "inspect", cb_bucket_inspect, 0);
 
-    /* Document-method: seqno
-     * The number of scheduled commands
-     *
-     * @since 1.0.0
-     */
-    /* rb_define_attr(cBucket, "seqno", 1, 0); */
-    rb_define_method(cBucket, "seqno", cb_bucket_seqno, 0);
-
     rb_define_method(cBucket, "add", cb_bucket_add, -1);
     rb_define_method(cBucket, "append", cb_bucket_append, -1);
     rb_define_method(cBucket, "prepend", cb_bucket_prepend, -1);
@@ -4358,7 +4255,6 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "get", cb_bucket_get, -1);
     rb_define_method(cBucket, "run", cb_bucket_run, -1);
     rb_define_method(cBucket, "stop", cb_bucket_stop, 0);
-    rb_define_method(cBucket, "wait_for_seqno", cb_bucket_wait_for_seqno, 1);
     rb_define_method(cBucket, "touch", cb_bucket_touch, -1);
     rb_define_method(cBucket, "delete", cb_bucket_delete, -1);
     rb_define_method(cBucket, "stats", cb_bucket_stats, -1);

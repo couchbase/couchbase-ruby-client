@@ -240,10 +240,8 @@ module Couchbase
       request = @bucket.make_couch_request(path, options)
       res = []
       request.on_body do |chunk|
-        # fill the result buffer, which will be processed later. stop event
-        # loop if there no pending memcached commands
         res << chunk
-        request.pause if @bucket.seqno.zero?
+        request.pause if chunk.value.nil?
       end
       filter = ["/rows/", "/errors/"]
       filter << "/total_rows" unless block_given?

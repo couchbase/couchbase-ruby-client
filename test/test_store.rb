@@ -113,7 +113,6 @@ class TestStore < MiniTest::Unit::TestCase
     connection.run do |conn|
       conn.set(uniq_id("1"), "foo1") {|res| ret = res}
       conn.set(uniq_id("2"), "foo2") # ignore result
-      assert_equal 2, conn.seqno
     end
     assert ret.is_a?(Couchbase::Result)
     assert ret.success?

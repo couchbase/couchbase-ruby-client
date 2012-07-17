@@ -174,7 +174,6 @@ class TestGet < MiniTest::Unit::TestCase
       conn.get(uniq_id) {|ret| res << ret}
       handler = lambda {|ret| res << ret}
       conn.get(uniq_id, &handler)
-      assert_equal 3, conn.seqno
     end
 
     checks = lambda do
@@ -203,7 +202,6 @@ class TestGet < MiniTest::Unit::TestCase
     res = {}
     connection.run do |conn|
       conn.get(uniq_id(1), uniq_id(2)) {|ret| res[ret.key] = ret.value}
-      assert_equal 2, conn.seqno
     end
 
     assert res[uniq_id(1)]
@@ -236,7 +234,6 @@ class TestGet < MiniTest::Unit::TestCase
       missing.clear
       conn.get(uniq_id(:missing1), &get_handler)
       conn.get(uniq_id, uniq_id(:missing2), &get_handler)
-      assert 3, conn.seqno
     end
 
     connection.run(&suite)
