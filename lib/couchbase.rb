@@ -48,6 +48,9 @@ module Couchbase
     # @example Specify bucket credentials
     #   Couchbase.connect("http://localhost:8091/pools/default", :bucket => 'blog', :username => 'bucket', :password => 'secret')
     #
+    # @example Use URL notation
+    #   Couchbase.connect("http://bucket:secret@localhost:8091/pools/default/buckets/blog")
+    #
     # @return [Bucket] connection instance
     def connect(*options)
       Bucket.new(*(options.flatten))
