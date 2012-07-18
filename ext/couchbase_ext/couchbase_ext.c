@@ -177,6 +177,7 @@ static ID  sym_add,
            sym_version,
            id_arity,
            id_call,
+           id_delete,
            id_dump,
            id_flatten_bang,
            id_has_key_p,
@@ -260,6 +261,12 @@ cb_proc_call(VALUE recv, int argc, ...)
         argv = NULL;
     }
     return rb_funcall2(recv, id_call, arity, argv);
+}
+
+VALUE
+cb_hash_delete(VALUE hash, VALUE key)
+{
+    return rb_funcall(hash, id_delete, 1, key);
 }
 
 /* Helper to convert return code from libcouchbase to meaningful exception.
@@ -782,7 +789,7 @@ storage_callback(libcouchbase_t handle, const void *cookie,
     }
 
     if (ctx->nqueries == 0) {
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
 }
@@ -820,7 +827,7 @@ delete_callback(libcouchbase_t handle, const void *cookie,
         *rv = (error == LIBCOUCHBASE_SUCCESS) ? Qtrue : Qfalse;
     }
     if (ctx->nqueries == 0) {
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
 }
@@ -888,7 +895,7 @@ get_callback(libcouchbase_t handle, const void *cookie,
     }
 
     if (ctx->nqueries == 0) {
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
 }
@@ -928,7 +935,7 @@ flush_callback(libcouchbase_t handle, const void* cookie,
         }
     } else {
         ctx->nqueries--;
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_hash_delete(object_space, ctx->proc|1);
     }
 
     (void)handle;
@@ -970,7 +977,7 @@ version_callback(libcouchbase_t handle, const void *cookie,
         }
     } else {
         ctx->nqueries--;
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_hash_delete(object_space, ctx->proc|1);
     }
 
     (void)handle;
@@ -1019,7 +1026,7 @@ stat_callback(libcouchbase_t handle, const void* cookie,
         }
     } else {
         ctx->nqueries--;
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
 }
@@ -1061,7 +1068,7 @@ touch_callback(libcouchbase_t handle, const void *cookie,
         }
     }
     if (ctx->nqueries == 0) {
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
 }
@@ -1120,7 +1127,7 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
         }
     }
     if (ctx->nqueries == 0) {
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_hash_delete(object_space, ctx->proc|1);
     }
     (void)handle;
 }
@@ -4524,6 +4531,7 @@ Init_couchbase_ext(void)
     /* Define symbols */
     id_arity = rb_intern("arity");
     id_call = rb_intern("call");
+    id_delete = rb_intern("delete");
     id_dump = rb_intern("dump");
     id_flatten_bang = rb_intern("flatten!");
     id_has_key_p = rb_intern("has_key?");
