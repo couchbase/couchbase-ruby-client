@@ -57,12 +57,12 @@ module Couchbase
       if async?
         get(key, options) do |ret|
           val = yield(ret) # get new value from caller
-          set(ret.key, val, :cas => ret.cas)
+          set(ret.key, val, :cas => ret.cas, :flags => ret.flags)
         end
       else
         val, flags, ver = get(key, options)
         val = yield(val) # get new value from caller
-        set(key, val, :cas => ver)
+        set(key, val, :cas => ver, :flags => flags)
       end
     end
     alias :compare_and_swap :cas

@@ -56,4 +56,12 @@ class TestCas < MiniTest::Unit::TestCase
     assert_equal expected, val
   end
 
+  def test_flags_replication
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
+                               :default_format => :document)
+    connection.set(uniq_id, "bar", :flags => 0x100)
+    connection.cas(uniq_id) { "baz" }
+    _, flags, _ = connection.get(uniq_id, :extended => true)
+    assert_equal 0x100, flags
+  end
 end
