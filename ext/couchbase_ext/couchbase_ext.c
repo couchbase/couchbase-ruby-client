@@ -119,6 +119,7 @@ struct key_traits_st
     int is_array;
     int assemble_hash;
     int lock;
+    int replica;
     struct bucket_st *bucket;
     VALUE force_format;
 };
@@ -178,6 +179,7 @@ static ID  sym_add,
            sym_put,
            sym_quiet,
            sym_replace,
+           sym_replica,
            sym_send_threshold,
            sym_set,
            sym_stats,
@@ -665,6 +667,7 @@ cb_args_scan_keys(long argc, VALUE argv, struct key_traits_st *traits)
     traits->mgat = 0;
     traits->assemble_hash = 0;
     traits->lock = 0;
+    traits->replica = 0;
 
     if (argc > 0) {
         /* keys with custom options */
@@ -673,6 +676,7 @@ cb_args_scan_keys(long argc, VALUE argv, struct key_traits_st *traits)
         ext = Qfalse;
         if (argc > 1 && TYPE(opts) == T_HASH) {
             (void)rb_ary_pop(argv);
+            traits->replica = RTEST(rb_hash_aref(opts, sym_replica));
             if (RTEST(rb_funcall(opts, id_has_key_p, 1, sym_quiet))) {
                 traits->quiet = RTEST(rb_hash_aref(opts, sym_quiet));
             }
@@ -2503,6 +2507,8 @@ cb_bucket_decr(int argc, VALUE *argv, VALUE self)
  *   @option options [true, false] :assemble_hash (false) Assemble Hash for
  *     results. Hash assembled automatically if +:extended+ option is true
  *     or in case of "get and touch" multimple keys.
+ *   @option options [true, false] :replica (false) Read key from replica
+ *     node. Options +:ttl+ and +:lock+ are not compatible with +:replica+.
  *
  *   @yieldparam ret [Result] the result of operation in asynchronous mode
  *     (valid attributes: +error+, +operation+, +key+, +value+, +flags+,
@@ -2642,6 +2648,10 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
                 break;
             }
         }
+    } else if (traits->replica) {
+        err = libcouchbase_get_replica(bucket->handle, (const void *)ctx,
+                traits->nkeys, (const void * const *)traits->keys,
+                traits->lens);
     } else {
         err = libcouchbase_mget(bucket->handle, (const void *)ctx,
                 traits->nkeys, (const void * const *)traits->keys,
@@ -4788,6 +4798,7 @@ Init_couchbase_ext(void)
     sym_put = ID2SYM(rb_intern("put"));
     sym_quiet = ID2SYM(rb_intern("quiet"));
     sym_replace = ID2SYM(rb_intern("replace"));
+    sym_replica = ID2SYM(rb_intern("replica"));
     sym_send_threshold = ID2SYM(rb_intern("send_threshold"));
     sym_set = ID2SYM(rb_intern("set"));
     sym_stats = ID2SYM(rb_intern("stats"));
