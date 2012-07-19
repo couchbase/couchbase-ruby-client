@@ -159,6 +159,7 @@ static ID  sym_add,
            sym_flags,
            sym_flush,
            sym_format,
+           sym_found,
            sym_get,
            sym_hostname,
            sym_increment,
@@ -168,8 +169,11 @@ static ID  sym_add,
            sym_marshal,
            sym_method,
            sym_node_list,
+           sym_not_found,
+           sym_observe,
            sym_password,
            sym_periodic,
+           sym_persisted,
            sym_plain,
            sym_pool,
            sym_port,
@@ -199,10 +203,14 @@ static ID  sym_add,
            id_iv_completed,
            id_iv_error,
            id_iv_flags,
+           id_iv_from_master,
            id_iv_key,
            id_iv_node,
            id_iv_operation,
            id_iv_status,
+           id_iv_status,
+           id_iv_time_to_persist,
+           id_iv_time_to_replicate,
            id_iv_value,
            id_load,
            id_match,
@@ -1224,6 +1232,63 @@ couch_data_callback(libcouchbase_http_request_t request,
     (void)handle;
 }
 
+
+    static void
+observe_callback(libcouchbase_t handle, const void *cookie,
+        libcouchbase_error_t error, libcouchbase_observe_t status,
+        const void *key, libcouchbase_size_t nkey, libcouchbase_cas_t cas,
+        int from_master, libcouchbase_time_t ttp, libcouchbase_time_t ttr)
+{
+    struct context_st *ctx = (struct context_st *)cookie;
+    struct bucket_st *bucket = ctx->bucket;
+    VALUE k, res, *rv = ctx->rv;
+
+    if (key) {
+        k = rb_str_new((const char*)key, nkey);
+        ctx->exception = cb_check_error_with_status(error,
+                "failed to execute observe request", k, status);
+        res = rb_class_new_instance(0, NULL, cResult);
+        rb_ivar_set(res, id_iv_error, ctx->exception);
+        rb_ivar_set(res, id_iv_operation, sym_observe);
+        rb_ivar_set(res, id_iv_key, k);
+        rb_ivar_set(res, id_iv_cas, ULL2NUM(cas));
+        rb_ivar_set(res, id_iv_from_master, from_master ? Qtrue : Qfalse);
+        rb_ivar_set(res, id_iv_time_to_persist, ULONG2NUM(ttp));
+        rb_ivar_set(res, id_iv_time_to_replicate, ULONG2NUM(ttr));
+        switch (status) {
+            case LIBCOUCHBASE_OBSERVE_FOUND:
+                rb_ivar_set(res, id_iv_status, sym_found);
+                break;
+            case LIBCOUCHBASE_OBSERVE_PERSISTED:
+                rb_ivar_set(res, id_iv_status, sym_persisted);
+                break;
+            case LIBCOUCHBASE_OBSERVE_NOT_FOUND:
+                rb_ivar_set(res, id_iv_status, sym_not_found);
+                break;
+            default:
+                rb_ivar_set(res, id_iv_status, Qnil);
+        }
+        if (bucket->async) { /* asynchronous */
+            if (ctx->proc != Qnil) {
+                cb_proc_call(ctx->proc, 1, res);
+            }
+        } else {             /* synchronous */
+            if (NIL_P(ctx->exception)) {
+                VALUE stats = rb_hash_aref(*rv, k);
+                if (NIL_P(stats)) {
+                    stats = rb_ary_new();
+                    rb_hash_aset(*rv, k, stats);
+                }
+                rb_ary_push(stats, res);
+            }
+        }
+    } else {
+        ctx->nqueries--;
+        cb_hash_delete(object_space, ctx->proc|1);
+    }
+    (void)handle;
+}
+
     static int
 cb_first_value_i(VALUE key, VALUE value, VALUE arg)
 {
@@ -1459,6 +1524,7 @@ do_connect(struct bucket_st *bucket)
     (void)libcouchbase_set_version_callback(bucket->handle, version_callback);
     (void)libcouchbase_set_couch_complete_callback(bucket->handle, couch_complete_callback);
     (void)libcouchbase_set_couch_data_callback(bucket->handle, couch_data_callback);
+    (void)libcouchbase_set_observe_callback(bucket->handle, observe_callback);
 
     if (bucket->timeout > 0) {
         libcouchbase_set_timeout(bucket->handle, bucket->timeout);
@@ -2470,6 +2536,110 @@ static VALUE
 cb_bucket_decr(int argc, VALUE *argv, VALUE self)
 {
     return cb_bucket_arithmetic(-1, argc, argv, self);
+}
+
+/*
+ * Observe key state
+ *
+ * @since 1.2.0.dp6
+ *
+ * @overload observe(*keys, options = {})
+ *   @param keys [String, Symbol, Array] One or several keys to fetch
+ *   @param options [Hash] Options for operation.
+ *
+ *   @yieldparam ret [Result] the result of operation in asynchronous mode
+ *     (valid attributes: +error+, +status+, +operation+, +key+, +cas+,
+ *     +from_master+, +time_to_persist+, +time_to_replicate+).
+ *
+ *   @return [Hash<String, Array<Result>>, Array<Result>] the state of the
+ *     keys on all nodes. If the +keys+ argument was String or Symbol, this
+ *     method will return just array of results (result per each node),
+ *     otherwise it will return hash map.
+ *
+ *   @example Observe single key
+ *     c.observe("foo")
+ *     #=> [#<Couchbase::Result:0x00000001650df0 ....>, ...]
+ *
+ *   @example Observe multiple keys
+ *     keys = ["foo", "bar"]
+ *     stats = c.observe(keys)
+ *     stats.size   #=> 2
+ *     stats["foo"] #=> #<Couchbase::Result:0x00000001650df0 ....>
+ */
+    static VALUE
+cb_bucket_observe(int argc, VALUE *argv, VALUE self)
+{
+    struct bucket_st *bucket = DATA_PTR(self);
+    struct context_st *ctx;
+    VALUE args, rv, proc, exc;
+    size_t ii, ll = 0, nn;
+    libcouchbase_error_t err = LIBCOUCHBASE_SUCCESS;
+    struct key_traits_st *traits;
+    int is_array;
+
+    if (bucket->handle == NULL) {
+        rb_raise(eConnectError, "closed connection");
+    }
+    rb_scan_args(argc, argv, "0*&", &args, &proc);
+    if (!bucket->async && proc != Qnil) {
+        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
+    }
+    traits = calloc(1, sizeof(struct key_traits_st));
+    traits->bucket = bucket;
+    is_array = traits->is_array;
+    nn = cb_args_scan_keys(RARRAY_LEN(args), args, traits);
+    ctx = calloc(1, sizeof(struct context_st));
+    if (ctx == NULL) {
+        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+    }
+    ctx->proc = proc;
+    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    ctx->bucket = bucket;
+    rv = rb_hash_new();
+    ctx->rv = &rv;
+    ctx->exception = Qnil;
+    ctx->nqueries = traits->nkeys;
+    err = libcouchbase_observe(bucket->handle, (const void *)ctx,
+            traits->nkeys, (const void * const *)traits->keys, traits->lens);
+    if (err == LIBCOUCHBASE_SUCCESS) {
+        for (ii = 0; ii < traits->nkeys; ++ii) {
+            ll += traits->lens[ii];
+        }
+    }
+    free(traits->keys);
+    free(traits->lens);
+    free(traits->ttls);
+    free(traits);
+    exc = cb_check_error(err, "failed to schedule observe request", Qnil);
+    if (exc != Qnil) {
+        free(ctx);
+        rb_exc_raise(exc);
+    }
+    bucket->nbytes += HEADER_SIZE + 4 + ll;
+    if (bucket->async) {
+        maybe_do_loop(bucket);
+        return Qnil;
+    } else {
+        if (ctx->nqueries > 0) {
+            /* we have some operations pending */
+            libcouchbase_wait(bucket->handle);
+        }
+        exc = ctx->exception;
+        free(ctx);
+        if (exc != Qnil) {
+            rb_exc_raise(exc);
+        }
+        if (bucket->exception != Qnil) {
+            rb_exc_raise(bucket->exception);
+        }
+        if (nn > 1 || is_array) {
+            return rv;  /* return as a hash {key => {}, ...} */
+        } else {
+            VALUE vv = Qnil;
+            rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
+            return vv;  /* return first value */
+        }
+    }
 }
 
 /*
@@ -3633,6 +3803,12 @@ cb_result_inspect(VALUE self)
         rb_str_append(str, rb_inspect(attr));
     }
 
+    attr = rb_ivar_get(self, id_iv_status);
+    if (RTEST(attr)) {
+        rb_str_buf_cat2(str, " status=");
+        rb_str_append(str, rb_inspect(attr));
+    }
+
     attr = rb_ivar_get(self, id_iv_cas);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " cas=");
@@ -3650,6 +3826,25 @@ cb_result_inspect(VALUE self)
         rb_str_buf_cat2(str, " node=");
         rb_str_append(str, rb_inspect(attr));
     }
+
+    attr = rb_ivar_get(self, id_iv_from_master);
+    if (attr != Qnil) {
+        rb_str_buf_cat2(str, " from_master=");
+        rb_str_append(str, rb_inspect(attr));
+    }
+
+    attr = rb_ivar_get(self, id_iv_time_to_persist);
+    if (RTEST(attr)) {
+        rb_str_buf_cat2(str, " time_to_persist=");
+        rb_str_append(str, rb_inspect(attr));
+    }
+
+    attr = rb_ivar_get(self, id_iv_time_to_replicate);
+    if (RTEST(attr)) {
+        rb_str_buf_cat2(str, " time_to_replicate=");
+        rb_str_append(str, rb_inspect(attr));
+    }
+
     rb_str_buf_cat2(str, ">");
 
     return str;
@@ -4422,6 +4617,57 @@ Init_couchbase_ext(void)
     rb_define_attr(cResult, "completed", 1, 0);
     rb_define_alias(cResult, "completed?", "completed");
     id_iv_completed = rb_intern("@completed");
+    /* Document-method: status
+     *
+     * @since 1.2.0.dp6
+     *
+     * @see Bucket#observe
+     *
+     * Status of the key. Possible values:
+     * +:found+ :: Key found in cache, but not yet persisted
+     * +:persisted+ :: Key found and persisted
+     * +:not_found+ :: Key not found
+     *
+     * @return [Symbol]
+     */
+    rb_define_attr(cResult, "status", 1, 0);
+    id_iv_status = rb_intern("@status");
+    /* Document-method: from_master
+     *
+     * @since 1.2.0.dp6
+     *
+     * @see Bucket#observe
+     *
+     * True if key stored on master
+     * @return [Boolean]
+     */
+    rb_define_attr(cResult, "from_master", 1, 0);
+    rb_define_alias(cResult, "from_master?", "from_master");
+    id_iv_from_master = rb_intern("@from_master");
+    /* Document-method: time_to_persist
+     *
+     * @since 1.2.0.dp6
+     *
+     * @see Bucket#observe
+     *
+     * Average time needed to persist key on the disk (zero if unavailable)
+     * @return [Fixnum]
+     */
+    rb_define_attr(cResult, "time_to_persist", 1, 0);
+    rb_define_alias(cResult, "ttp", "time_to_persist");
+    id_iv_time_to_persist = rb_intern("@time_to_persist");
+    /* Document-method: time_to_persist
+     *
+     * @since 1.2.0.dp6
+     *
+     * @see Bucket#observe
+     *
+     * Average time needed to replicate key on the disk (zero if unavailable)
+     * @return [Fixnum]
+     */
+    rb_define_attr(cResult, "time_to_replicate", 1, 0);
+    rb_define_alias(cResult, "ttr", "time_to_replicate");
+    id_iv_time_to_replicate = rb_intern("@time_to_replicate");
 
     /* Document-class: Couchbase::Bucket
      *
@@ -4476,6 +4722,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "disconnect", cb_bucket_disconnect, 0);
     rb_define_method(cBucket, "reconnect", cb_bucket_reconnect, -1);
     rb_define_method(cBucket, "make_couch_request", cb_bucket_make_couch_request, -1);
+    rb_define_method(cBucket, "observe", cb_bucket_observe, -1);
 
     rb_define_alias(cBucket, "decrement", "decr");
     rb_define_alias(cBucket, "increment", "incr");
@@ -4778,6 +5025,7 @@ Init_couchbase_ext(void)
     sym_flags = ID2SYM(rb_intern("flags"));
     sym_flush = ID2SYM(rb_intern("flush"));
     sym_format = ID2SYM(rb_intern("format"));
+    sym_found = ID2SYM(rb_intern("found"));
     sym_get = ID2SYM(rb_intern("get"));
     sym_hostname = ID2SYM(rb_intern("hostname"));
     sym_increment = ID2SYM(rb_intern("increment"));
@@ -4787,8 +5035,11 @@ Init_couchbase_ext(void)
     sym_marshal = ID2SYM(rb_intern("marshal"));
     sym_method = ID2SYM(rb_intern("method"));
     sym_node_list = ID2SYM(rb_intern("node_list"));
+    sym_not_found = ID2SYM(rb_intern("not_found"));
+    sym_observe = ID2SYM(rb_intern("observe"));
     sym_password = ID2SYM(rb_intern("password"));
     sym_periodic = ID2SYM(rb_intern("periodic"));
+    sym_persisted = ID2SYM(rb_intern("persisted"));
     sym_plain = ID2SYM(rb_intern("plain"));
     sym_pool = ID2SYM(rb_intern("pool"));
     sym_port = ID2SYM(rb_intern("port"));
