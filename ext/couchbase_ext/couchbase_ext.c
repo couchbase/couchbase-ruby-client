@@ -61,6 +61,7 @@ struct bucket_st
     VALUE default_format;    /* should update +default_flags+ on change */
     uint32_t default_flags;
     time_t default_ttl;
+    time_t default_observe_timeout;
     uint32_t timeout;
     size_t threshold;       /* the number of bytes to trigger event loop, zero if don't care */
     size_t nbytes;          /* the number of bytes scheduled to be sent */
@@ -148,6 +149,7 @@ static ID  sym_add,
            sym_decrement,
            sym_default_flags,
            sym_default_format,
+           sym_default_observe_timeout,
            sym_default_ttl,
            sym_delete,
            sym_delta,
@@ -1453,6 +1455,10 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
             if (arg != Qnil) {
                 bucket->default_ttl = (uint32_t)NUM2ULONG(arg);
             }
+            arg = rb_hash_aref(opts, sym_default_observe_timeout);
+            if (arg != Qnil) {
+                bucket->default_observe_timeout = (uint32_t)NUM2ULONG(arg);
+            }
             arg = rb_hash_aref(opts, sym_default_flags);
             if (arg != Qnil) {
                 bucket->default_flags = (uint32_t)NUM2ULONG(arg);
@@ -1495,6 +1501,9 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
     }
     len = strlen(bucket->hostname) + 10;
     free(bucket->authority);
+    if (bucket->default_observe_timeout < 2) {
+        rb_raise(rb_eArgError, "default_observe_timeout is too low");
+    }
     bucket->authority = calloc(len, sizeof(char));
     if (bucket->authority == NULL) {
         rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
@@ -1669,6 +1678,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->default_ttl = 0;
     bucket->default_flags = 0;
     bucket->default_format = sym_document;
+    bucket->default_observe_timeout = 2500000;
     bucket->on_error_proc = Qnil;
     bucket->timeout = 0;
     bucket->environment = sym_production;
@@ -2031,6 +2041,38 @@ cb_bucket_num_replicas_get(VALUE self)
     } else {
         return INT2FIX(nr);
     }
+}
+/* Document-method: default_observe_timeout
+ *
+ * @since 1.2.0.dp6
+ *
+ * Get default timeout value for {Bucket#observe_and_wait} operation in
+ * microseconds
+ *
+ * @returns [Fixnum]
+ */
+    static VALUE
+cb_bucket_default_observe_timeout_get(VALUE self)
+{
+    struct bucket_st *bucket = DATA_PTR(self);
+    return INT2FIX(bucket->default_observe_timeout);
+}
+
+/* Document-method: default_observe_timeout=
+ *
+ * @since 1.2.0.dp6
+ *
+ * Set default timeout value for {Bucket#observe_and_wait} operation in
+ * microseconds
+ *
+ * @returns [Fixnum]
+ */
+    static VALUE
+cb_bucket_default_observe_timeout_set(VALUE self, VALUE val)
+{
+    struct bucket_st *bucket = DATA_PTR(self);
+    bucket->default_observe_timeout = FIX2INT(val);
+    return val;
 }
 /* Document-method: url
  *
