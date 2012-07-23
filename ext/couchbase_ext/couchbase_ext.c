@@ -170,6 +170,7 @@ static ID  sym_add,
            sym_method,
            sym_node_list,
            sym_not_found,
+           sym_num_replicas,
            sym_observe,
            sym_password,
            sym_periodic,
@@ -2003,6 +2004,25 @@ cb_bucket_environment_get(VALUE self)
 {
     struct bucket_st *bucket = DATA_PTR(self);
     return bucket->environment;
+}
+/* Document-method: num_replicas
+ *
+ * @since 1.2.0.dp6
+ *
+ * The numbers of the replicas for each node in the cluster
+ *
+ * @returns [Fixnum]
+ */
+    static VALUE
+cb_bucket_num_replicas_get(VALUE self)
+{
+    struct bucket_st *bucket = DATA_PTR(self);
+    int32_t nr = libcouchbase_get_num_replicas(bucket->handle);
+    if (nr < 0) {
+        return Qnil;
+    } else {
+        return INT2FIX(nr);
+    }
 }
 /* Document-method: url
  *
@@ -4958,6 +4978,28 @@ Init_couchbase_ext(void)
      */
     /* rb_define_attr(cBucket, "environment", 1, 0); */
     rb_define_method(cBucket, "environment", cb_bucket_environment_get, 0);
+    /* Document-method: num_replicas
+     *
+     * @since 1.2.0.dp6
+     *
+     * The numbers of the replicas for each node in the cluster
+     *
+     * @returns [Fixnum]
+     */
+    /* rb_define_attr(cBucket, "num_replicas", 1, 0); */
+    rb_define_method(cBucket, "num_replicas", cb_bucket_num_replicas_get, 0);
+    /* Document-method: default_observe_timeout
+     *
+     * @since 1.2.0.dp6
+     *
+     * The default timeout value for {Bucket#observe_and_wait} operation in
+     * microseconds
+     *
+     * @returns [Fixnum]
+     */
+    /* rb_define_attr(cBucket, "default_observe_timeout", 1, 1); */
+    rb_define_method(cBucket, "default_observe_timeout", cb_bucket_default_observe_timeout_get, 0);
+    rb_define_method(cBucket, "default_observe_timeout=", cb_bucket_default_observe_timeout_set, 1);
 
     cCouchRequest = rb_define_class_under(cBucket, "CouchRequest", rb_cObject);
 
@@ -5036,6 +5078,7 @@ Init_couchbase_ext(void)
     sym_method = ID2SYM(rb_intern("method"));
     sym_node_list = ID2SYM(rb_intern("node_list"));
     sym_not_found = ID2SYM(rb_intern("not_found"));
+    sym_num_replicas = ID2SYM(rb_intern("num_replicas"));
     sym_observe = ID2SYM(rb_intern("observe"));
     sym_password = ID2SYM(rb_intern("password"));
     sym_periodic = ID2SYM(rb_intern("periodic"));
