@@ -253,6 +253,7 @@ static VALUE eProtocolError;           /*LIBCOUCHBASE_PROTOCOL_ERROR = 0x15*/
 static VALUE eTimeoutError;            /*LIBCOUCHBASE_ETIMEDOUT = 0x16*/
 static VALUE eConnectError;            /*LIBCOUCHBASE_CONNECT_ERROR = 0x17*/
 static VALUE eBucketNotFoundError;     /*LIBCOUCHBASE_BUCKET_ENOENT = 0x18*/
+static VALUE eClientNoMemoryError;     /*LIBCOUCHBASE_CLIENT_ENOMEM = 0x19*/
 
 static void maybe_do_loop(struct bucket_st *bucket);
 
@@ -371,6 +372,9 @@ cb_check_error_with_status(libcouchbase_error_t rc, const char *msg, VALUE key,
             break;
         case LIBCOUCHBASE_BUCKET_ENOENT:
             klass = eBucketNotFoundError;
+            break;
+        case LIBCOUCHBASE_CLIENT_ENOMEM:
+            klass = eClientNoMemoryError;
             break;
         case LIBCOUCHBASE_ERROR:
             /* fall through */
@@ -1365,7 +1369,7 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
                 free(bucket->username);
                 bucket->username = strdup(RSTRING_PTR(arg));
                 if (bucket->username == NULL) {
-                    rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+                    rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
                 }
             }
 
@@ -1374,7 +1378,7 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
                 free(bucket->password);
                 bucket->password = strdup(RSTRING_PTR(arg));
                 if (bucket->password == NULL) {
-                    rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+                    rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
                 }
             }
             arg = rb_funcall(uri_obj, id_host, 0);
@@ -1382,7 +1386,7 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
                 free(bucket->hostname);
                 bucket->hostname = strdup(RSTRING_PTR(arg));
                 if (bucket->hostname == NULL) {
-                    rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+                    rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
                 }
             } else {
                 rb_raise(rb_eArgError, "invalid URI: missing hostname");
@@ -1494,7 +1498,7 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
     free(bucket->authority);
     bucket->authority = calloc(len, sizeof(char));
     if (bucket->authority == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
     }
     snprintf(bucket->authority, len, "%s:%u", bucket->hostname, bucket->port);
 }
@@ -1898,7 +1902,7 @@ cb_bucket_hostname_get(VALUE self)
         free(bucket->hostname);
         bucket->hostname = strdup(libcouchbase_get_host(bucket->handle));
         if (bucket->hostname == NULL) {
-            rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+            rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
         }
     }
     return rb_str_new2(bucket->hostname);
@@ -1937,7 +1941,7 @@ cb_bucket_authority_get(VALUE self)
     len = strlen(bucket->hostname) + 10;
     bucket->authority = calloc(len, sizeof(char));
     if (bucket->authority == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
     }
     snprintf(bucket->authority, len, "%s:%u", bucket->hostname, bucket->port);
     return rb_str_new2(bucket->authority);
@@ -2158,7 +2162,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     ctx = calloc(1, sizeof(struct context_st));
     ctx->quiet = bucket->quiet;
     if (ctx == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
     }
     if (opts != Qnil) {
         if (TYPE(opts) == T_BIGNUM || TYPE(opts) == T_FIXNUM) {
@@ -2257,7 +2261,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     nbytes = RSTRING_LEN(v);
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
     }
     rv = Qnil;
     ctx->rv = &rv;
@@ -2317,7 +2321,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     k = unify_key(bucket, k, 1);
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
     }
     if (argc == 2 && TYPE(d) == T_HASH) {
         opts = d;
@@ -2615,7 +2619,7 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
     nn = cb_args_scan_keys(RARRAY_LEN(args), args, traits);
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
     }
     ctx->proc = proc;
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
@@ -2818,7 +2822,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     nn = cb_args_scan_keys(RARRAY_LEN(args), args, traits);
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
     }
     mgat = traits->mgat;
     assemble_hash = traits->assemble_hash;
@@ -2989,7 +2993,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     nn = cb_args_scan_keys(RARRAY_LEN(args), args, traits);
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
     }
     ctx->proc = proc;
     rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
@@ -3081,7 +3085,7 @@ cb_bucket_flush(VALUE self)
     }
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
     }
     rv = Qtrue;	/* optimistic by default */
     ctx->rv = &rv;
@@ -3161,7 +3165,7 @@ cb_bucket_version(VALUE self)
     }
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
     }
     rv = rb_hash_new();
     ctx->rv = &rv;
@@ -3260,7 +3264,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
 
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory for context");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
     }
     rv = rb_hash_new();
     ctx->rv = &rv;
@@ -4218,7 +4222,7 @@ cb_couch_request_perform(VALUE self)
 
     ctx = calloc(1, sizeof(struct context_st));
     if (ctx == NULL) {
-        rb_raise(eNoMemoryError, "failed to allocate memory");
+        rb_raise(eClientNoMemoryError, "failed to allocate memory");
     }
     rv = Qnil;
     ctx->rv = &rv;
@@ -4429,11 +4433,17 @@ Init_couchbase_ext(void)
      */
     eNetworkError = rb_define_class_under(mError, "Network", eBaseError);
     /* Document-class: Couchbase::Error::NoMemory
-     * Out of memory error
+     * Out of memory error (on Server)
      *
      * @since 1.0.0
      */
     eNoMemoryError = rb_define_class_under(mError, "NoMemory", eBaseError);
+    /* Document-class: Couchbase::Error::ClientNoMemory
+     * Out of memory error (on Client)
+     *
+     * @since 1.2.0.dp6
+     */
+    eClientNoMemoryError = rb_define_class_under(mError, "ClientNoMemory", eBaseError);
     /* Document-class: Couchbase::Error::NotFound
      * No such key
      *
@@ -4544,6 +4554,7 @@ Init_couchbase_ext(void)
      * 0x16 :: LIBCOUCHBASE_ETIMEDOUT (Operation timed out)
      * 0x17 :: LIBCOUCHBASE_CONNECT_ERROR (Connection failure)
      * 0x18 :: LIBCOUCHBASE_BUCKET_ENOENT (No such bucket)
+     * 0x18 :: LIBCOUCHBASE_CLIENT_ENOMEM (Out of memory on the client)
      *
      * @since 1.0.0
      *
