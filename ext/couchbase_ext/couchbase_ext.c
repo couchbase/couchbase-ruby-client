@@ -1233,7 +1233,6 @@ couch_data_callback(libcouchbase_http_request_t request,
     (void)handle;
 }
 
-
     static void
 observe_callback(libcouchbase_t handle, const void *cookie,
         libcouchbase_error_t error, libcouchbase_observe_t status,
@@ -1249,6 +1248,7 @@ observe_callback(libcouchbase_t handle, const void *cookie,
         ctx->exception = cb_check_error_with_status(error,
                 "failed to execute observe request", k, status);
         res = rb_class_new_instance(0, NULL, cResult);
+        rb_ivar_set(res, id_iv_completed, Qfalse);
         rb_ivar_set(res, id_iv_error, ctx->exception);
         rb_ivar_set(res, id_iv_operation, sym_observe);
         rb_ivar_set(res, id_iv_key, k);
@@ -1284,6 +1284,11 @@ observe_callback(libcouchbase_t handle, const void *cookie,
             }
         }
     } else {
+        if (bucket->async && ctx->proc != Qnil) {
+            res = rb_class_new_instance(0, NULL, cResult);
+            rb_ivar_set(res, id_iv_completed, Qtrue);
+            cb_proc_call(ctx->proc, 1, res);
+        }
         ctx->nqueries--;
         cb_hash_delete(object_space, ctx->proc|1);
     }
