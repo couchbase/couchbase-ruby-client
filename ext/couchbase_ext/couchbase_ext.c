@@ -72,6 +72,7 @@ struct bucket_st
     VALUE key_prefix_val;
     char *node_list;
     VALUE object_space;
+    VALUE self;             /* the pointer to bucket representation in ruby land */
 };
 
 struct couch_request_st;
@@ -82,7 +83,9 @@ struct context_st
     VALUE proc;
     void *rv;
     VALUE exception;
+    VALUE observe_options;
     VALUE force_format;
+    VALUE operation;
     struct couch_request_st *request;
     int quiet;
     int arithm;           /* incr: +1, decr: -1, other: 0 */
@@ -198,6 +201,7 @@ static ID  sym_add,
            id_call,
            id_delete,
            id_dump,
+           id_dup,
            id_flatten_bang,
            id_has_key_p,
            id_host,
@@ -214,16 +218,17 @@ static ID  sym_add,
            id_iv_time_to_persist,
            id_iv_time_to_replicate,
            id_iv_value,
-           id_dup,
            id_load,
            id_match,
+           id_observe_and_wait,
            id_parse,
            id_password,
            id_path,
            id_port,
            id_scheme,
            id_to_s,
-           id_user;
+           id_user,
+           id_verify_observe_options;
 
 /* base error */
 static VALUE eBaseError;
@@ -776,6 +781,25 @@ error_callback(libcouchbase_t handle, libcouchbase_error_t error, const char *er
     bucket->exception = cb_check_error(error, errinfo, Qnil);
 }
 
+    static VALUE
+storage_observe_callback(VALUE args, VALUE cookie)
+{
+    struct context_st *ctx = (struct context_st *)cookie;
+    VALUE res = rb_ary_shift(args);
+
+    if (ctx->proc != Qnil) {
+        rb_ivar_set(res, id_iv_operation, ctx->operation);
+        cb_proc_call(ctx->proc, 1, res);
+    }
+    if (!RTEST(ctx->observe_options)) {
+        ctx->nqueries--;
+        if (ctx->nqueries == 0) {
+            cb_gc_unprotect(ctx->bucket, ctx->proc);
+        }
+    }
+    return Qnil;
+}
+
     static void
 storage_callback(libcouchbase_t handle, const void *cookie,
         libcouchbase_storage_t operation, libcouchbase_error_t error,
@@ -784,46 +808,53 @@ storage_callback(libcouchbase_t handle, const void *cookie,
     struct context_st *ctx = (struct context_st *)cookie;
     struct bucket_st *bucket = ctx->bucket;
     VALUE k, c, *rv = ctx->rv, exc, res;
-    ID o;
 
-    ctx->nqueries--;
     k = rb_str_new((const char*)key, nkey);
     strip_key_prefix(bucket, k);
     c = cas > 0 ? ULL2NUM(cas) : Qnil;
     switch(operation) {
         case LIBCOUCHBASE_ADD:
-            o = sym_add;
+            ctx->operation = sym_add;
             break;
         case LIBCOUCHBASE_REPLACE:
-            o = sym_replace;
+            ctx->operation = sym_replace;
             break;
         case LIBCOUCHBASE_SET:
-            o = sym_set;
+            ctx->operation = sym_set;
             break;
         case LIBCOUCHBASE_APPEND:
-            o = sym_append;
+            ctx->operation = sym_append;
             break;
         case LIBCOUCHBASE_PREPEND:
-            o = sym_prepend;
+            ctx->operation = sym_prepend;
             break;
         default:
-            o = Qnil;
+            ctx->operation = Qnil;
     }
     exc = cb_check_error(error, "failed to store value", k);
     if (exc != Qnil) {
         rb_ivar_set(exc, id_iv_cas, c);
-        rb_ivar_set(exc, id_iv_operation, o);
+        rb_ivar_set(exc, id_iv_operation, ctx->operation);
         if (NIL_P(ctx->exception)) {
             ctx->exception = exc;
             cb_gc_protect(bucket, ctx->exception);
         }
     }
+
     if (bucket->async) { /* asynchronous */
-        if (ctx->proc != Qnil) {
+        if (RTEST(ctx->observe_options)) {
+            VALUE args[2]; /* it's ok to pass pointer to stack struct here */
+            args[0] = rb_hash_new();
+            rb_hash_aset(args[0], k, c);
+            args[1] = ctx->observe_options;
+            rb_block_call(bucket->self, id_observe_and_wait, 2, args,
+                    storage_observe_callback, (VALUE)ctx);
+            cb_gc_unprotect(bucket, ctx->observe_options);
+        } else if (ctx->proc != Qnil) {
             res = rb_class_new_instance(0, NULL, cResult);
             rb_ivar_set(res, id_iv_error, exc);
             rb_ivar_set(res, id_iv_key, k);
-            rb_ivar_set(res, id_iv_operation, o);
+            rb_ivar_set(res, id_iv_operation, ctx->operation);
             rb_ivar_set(res, id_iv_cas, c);
             cb_proc_call(ctx->proc, 1, res);
         }
@@ -831,8 +862,11 @@ storage_callback(libcouchbase_t handle, const void *cookie,
         *rv = c;
     }
 
-    if (ctx->nqueries == 0) {
-        cb_gc_unprotect(bucket, ctx->proc);
+    if (!RTEST(ctx->observe_options)) {
+        ctx->nqueries--;
+        if (ctx->nqueries == 0) {
+            cb_gc_unprotect(bucket, ctx->proc);
+        }
     }
     (void)handle;
 }
@@ -1693,6 +1727,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
 {
     struct bucket_st *bucket = DATA_PTR(self);
 
+    bucket->self = self;
     bucket->exception = Qnil;
     bucket->hostname = strdup("localhost");
     bucket->port = 8091;
@@ -1744,6 +1779,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b = DATA_PTR(copy);
     orig_b = DATA_PTR(orig);
 
+    copy_b->self = copy_b->self;
     copy_b->port = orig_b->port;
     copy_b->authority = strdup(orig_b->authority);
     copy_b->hostname = strdup(orig_b->hostname);
@@ -2342,7 +2378,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
 {
     struct bucket_st *bucket = DATA_PTR(self);
     struct context_st *ctx;
-    VALUE k, v, arg, opts, rv, proc, exc, fmt;
+    VALUE k, v, arg, opts, rv, proc, exc, fmt, obs = Qnil;
     char *key, *bytes;
     size_t nkey, nbytes;
     uint32_t flags;
@@ -2358,6 +2394,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
     k = unify_key(bucket, k, 1);
+    cb_gc_protect(bucket, k);
     flags = bucket->default_flags;
     if (opts != Qnil) {
         Check_Type(opts, T_HASH);
@@ -2372,6 +2409,11 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
         arg = rb_hash_aref(opts, sym_cas);
         if (arg != Qnil) {
             cas = NUM2ULL(arg);
+        }
+        obs = rb_hash_aref(opts, sym_observe);
+        if (obs != Qnil) {
+            Check_Type(obs, T_HASH);
+            rb_funcall(self, id_verify_observe_options, 1, obs);
         }
         fmt = rb_hash_aref(opts, sym_format);
         if (fmt != Qnil) { /* rewrite format bits */
@@ -2396,6 +2438,10 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     ctx->bucket = bucket;
     ctx->proc = proc;
     cb_gc_protect(bucket, ctx->proc);
+    ctx->observe_options = obs;
+    if (RTEST(ctx->observe_options)) {
+        cb_gc_protect(bucket, ctx->observe_options);
+    }
     ctx->exception = Qnil;
     ctx->nqueries = 1;
     err = libcouchbase_store(bucket->handle, (const void *)ctx, cmd,
@@ -2423,6 +2469,16 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
         if (bucket->exception != Qnil) {
             rb_exc_raise(bucket->exception);
         }
+        if (RTEST(obs)) {
+            VALUE res;
+            arg = rb_hash_new();
+            rb_hash_aset(arg, k, rv);
+            res = rb_funcall(bucket->self, id_observe_and_wait, 2, arg, obs);
+            res = rb_ary_shift(res);
+            rv = rb_ivar_get(res, id_iv_cas);
+            cb_gc_unprotect(bucket, obs);
+        }
+        cb_gc_protect(bucket, k);
         return rv;
     }
 }
@@ -2792,7 +2848,7 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
         if (bucket->exception != Qnil) {
             rb_exc_raise(bucket->exception);
         }
-        if (nn > 1 || is_array) {
+            if (nn > 1 || is_array) {
             return rv;  /* return as a hash {key => {}, ...} */
         } else {
             VALUE vv = Qnil;
@@ -3608,6 +3664,9 @@ cb_bucket_stop(VALUE self)
  *     a given key. This value is used to provide simple optimistic
  *     concurrency control when multiple clients or threads try to update an
  *     item simultaneously.
+ *   @option options [Hash] :observe Apply persistence condition before
+ *     returning result. When this option specified the library will observe
+ *     given condition. See {Bucket#observe_and_wait}.
  *
  *   @yieldparam ret [Result] the result of operation in asynchronous mode
  *     (valid attributes: +error+, +operation+, +key+).
@@ -3621,6 +3680,8 @@ cb_bucket_stop(VALUE self)
  *     with chosen encoder, e.g. if you try to store the Hash in +:plain+
  *     mode.
  *   @raise [ArgumentError] when passing the block in synchronous mode
+ *   @raise [Couchbase::Error::Timeout] if timeout interval for observe
+ *     exceeds
  *
  *   @example Store the key which will be expired in 2 seconds using relative TTL.
  *     c.set("foo", "bar", :ttl => 2)
@@ -3653,6 +3714,9 @@ cb_bucket_stop(VALUE self)
  *         ret.cas
  *       end
  *     end
+ *
+ *   @example Ensure that the key will be persisted at least on the one node
+ *     c.set("foo", "bar", :observe => {:persisted => 1})
  */
     static VALUE
 cb_bucket_set(int argc, VALUE *argv, VALUE self)
@@ -3684,6 +3748,9 @@ cb_bucket_set(int argc, VALUE *argv, VALUE self)
  *     a given key. This value is used to provide simple optimistic
  *     concurrency control when multiple clients or threads try to update an
  *     item simultaneously.
+ *   @option options [Hash] :observe Apply persistence condition before
+ *     returning result. When this option specified the library will observe
+ *     given condition. See {Bucket#observe_and_wait}.
  *
  *   @yieldparam ret [Result] the result of operation in asynchronous mode
  *     (valid attributes: +error+, +operation+, +key+).
@@ -3697,10 +3764,15 @@ cb_bucket_set(int argc, VALUE *argv, VALUE self)
  *     with chosen encoder, e.g. if you try to store the Hash in +:plain+
  *     mode.
  *   @raise [ArgumentError] when passing the block in synchronous mode
+ *   @raise [Couchbase::Error::Timeout] if timeout interval for observe
+ *     exceeds
  *
  *   @example Add the same key twice
  *     c.add("foo", "bar")  #=> stored successully
  *     c.add("foo", "baz")  #=> will raise Couchbase::Error::KeyExists: failed to store value (key="foo", error=0x0c)
+ *
+ *   @example Ensure that the key will be persisted at least on the one node
+ *     c.add("foo", "bar", :observe => {:persisted => 1})
  */
     static VALUE
 cb_bucket_add(int argc, VALUE *argv, VALUE self)
@@ -3731,6 +3803,9 @@ cb_bucket_add(int argc, VALUE *argv, VALUE self)
  *     a given key. This value is used to provide simple optimistic
  *     concurrency control when multiple clients or threads try to update an
  *     item simultaneously.
+ *   @option options [Hash] :observe Apply persistence condition before
+ *     returning result. When this option specified the library will observe
+ *     given condition. See {Bucket#observe_and_wait}.
  *
  *   @return [Fixnum] The CAS value of the object.
  *
@@ -3738,9 +3813,14 @@ cb_bucket_add(int argc, VALUE *argv, VALUE self)
  *   @raise [Couchbase::Error::NotFound] if the key doesn't exists
  *   @raise [Couchbase::Error::KeyExists] on CAS mismatch
  *   @raise [ArgumentError] when passing the block in synchronous mode
+ *   @raise [Couchbase::Error::Timeout] if timeout interval for observe
+ *     exceeds
  *
  *   @example Replacing missing key
  *     c.replace("foo", "baz")  #=> will raise Couchbase::Error::NotFound: failed to store value (key="foo", error=0x0d)
+ *
+ *   @example Ensure that the key will be persisted at least on the one node
+ *     c.replace("foo", "bar", :observe => {:persisted => 1})
  */
     static VALUE
 cb_bucket_replace(int argc, VALUE *argv, VALUE self)
@@ -3771,6 +3851,9 @@ cb_bucket_replace(int argc, VALUE *argv, VALUE self)
  *   @option options [Symbol] :format (self.default_format) The
  *     representation for storing the value in the bucket. For more info see
  *     {Bucket#default_format}.
+ *   @option options [Hash] :observe Apply persistence condition before
+ *     returning result. When this option specified the library will observe
+ *     given condition. See {Bucket#observe_and_wait}.
  *
  *   @return [Fixnum] The CAS value of the object.
  *
@@ -3778,6 +3861,8 @@ cb_bucket_replace(int argc, VALUE *argv, VALUE self)
  *   @raise [Couchbase::Error::KeyExists] on CAS mismatch
  *   @raise [Couchbase::Error::NotStored] if the key doesn't exist
  *   @raise [ArgumentError] when passing the block in synchronous mode
+ *   @raise [Couchbase::Error::Timeout] if timeout interval for observe
+ *     exceeds
  *
  *   @example Simple append
  *     c.set("foo", "aaa")
@@ -3813,6 +3898,9 @@ cb_bucket_replace(int argc, VALUE *argv, VALUE self)
  *   @example Using optimistic locking. The operation will fail on CAS mismatch
  *     ver = c.set("foo", "aaa")
  *     c.append("foo", "bbb", :cas => ver)
+ *
+ *   @example Ensure that the key will be persisted at least on the one node
+ *     c.append("foo", "bar", :observe => {:persisted => 1})
  */
     static VALUE
 cb_bucket_append(int argc, VALUE *argv, VALUE self)
@@ -3843,11 +3931,16 @@ cb_bucket_append(int argc, VALUE *argv, VALUE self)
  *   @option options [Symbol] :format (self.default_format) The
  *     representation for storing the value in the bucket. For more info see
  *     {Bucket#default_format}.
+ *   @option options [Hash] :observe Apply persistence condition before
+ *     returning result. When this option specified the library will observe
+ *     given condition. See {Bucket#observe_and_wait}.
  *
  *   @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
  *   @raise [Couchbase::Error::KeyExists] on CAS mismatch
  *   @raise [Couchbase::Error::NotStored] if the key doesn't exist
  *   @raise [ArgumentError] when passing the block in synchronous mode
+ *   @raise [Couchbase::Error::Timeout] if timeout interval for observe
+ *     exceeds
  *
  *   @example Simple prepend example
  *     c.set("foo", "aaa")
@@ -3864,6 +3957,9 @@ cb_bucket_append(int argc, VALUE *argv, VALUE self)
  *   @example Using optimistic locking. The operation will fail on CAS mismatch
  *     ver = c.set("foo", "aaa")
  *     c.prepend("foo", "bbb", :cas => ver)
+ *
+ *   @example Ensure that the key will be persisted at least on the one node
+ *     c.prepend("foo", "bar", :observe => {:persisted => 1})
  */
     static VALUE
 cb_bucket_prepend(int argc, VALUE *argv, VALUE self)
@@ -3949,6 +4045,12 @@ cb_result_inspect(VALUE self)
     }
     rb_str_buf_cat2(str, " error=0x");
     rb_str_append(str, rb_funcall(error, id_to_s, 1, INT2FIX(16)));
+
+    attr = rb_ivar_get(self, id_iv_operation);
+    if (RTEST(attr)) {
+        rb_str_buf_cat2(str, " operation=");
+        rb_str_append(str, rb_inspect(attr));
+    }
 
     attr = rb_ivar_get(self, id_iv_key);
     if (RTEST(attr)) {
@@ -5159,6 +5261,7 @@ Init_couchbase_ext(void)
     id_host = rb_intern("host");
     id_load = rb_intern("load");
     id_match = rb_intern("match");
+    id_observe_and_wait = rb_intern("observe_and_wait");
     id_parse = rb_intern("parse");
     id_password = rb_intern("password");
     id_path = rb_intern("path");
@@ -5166,6 +5269,7 @@ Init_couchbase_ext(void)
     id_scheme = rb_intern("scheme");
     id_to_s = rb_intern("to_s");
     id_user = rb_intern("user");
+    id_verify_observe_options = rb_intern("verify_observe_options");
 
     sym_add = ID2SYM(rb_intern("add"));
     sym_append = ID2SYM(rb_intern("append"));
