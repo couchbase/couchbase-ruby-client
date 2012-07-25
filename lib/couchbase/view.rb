@@ -24,7 +24,7 @@ module Couchbase
       def initialize(from, reason)
         @from = from
         @reason = reason
-        super("#{from}: #{reason}")
+        super("SERVER: #{from}: #{reason}")
       end
     end
   end
