@@ -504,18 +504,18 @@ cb_args_scan_keys(long argc, VALUE argv, bucket_t *bucket, struct key_traits *tr
         if (nn == 1 && TYPE(keys_ptr[0]) == T_HASH) {
             /* hash of key-ttl pairs */
             nn = RHASH_SIZE(keys_ptr[0]);
-            traits->keys = calloc(nn, sizeof(char *));
-            traits->lens = calloc(nn, sizeof(size_t));
+            traits->keys = xcalloc(nn, sizeof(char *));
+            traits->lens = xcalloc(nn, sizeof(size_t));
             traits->explicit_ttl = 1;
             traits->mgat = 1;
-            traits->ttls = calloc(nn, sizeof(time_t));
+            traits->ttls = xcalloc(nn, sizeof(time_t));
             rb_hash_foreach(keys_ptr[0], cb_extract_keys_i, (VALUE)traits);
         } else {
             /* the list of keys */
             traits->nkeys = nn;
-            traits->keys = calloc(nn, sizeof(char *));
-            traits->lens = calloc(nn, sizeof(size_t));
-            traits->ttls = calloc(nn, sizeof(time_t));
+            traits->keys = xcalloc(nn, sizeof(char *));
+            traits->lens = xcalloc(nn, sizeof(size_t));
+            traits->ttls = xcalloc(nn, sizeof(time_t));
             for (ii = 0; ii < nn; ii++) {
                 key = unify_key(keys_ptr[ii]);
                 rb_ary_push(traits->keys_ary, key);
@@ -980,13 +980,13 @@ cb_bucket_free(void *ptr)
         if (bucket->handle) {
             libcouchbase_destroy(bucket->handle);
         }
-        free(bucket->authority);
-        free(bucket->hostname);
-        free(bucket->pool);
-        free(bucket->bucket);
-        free(bucket->username);
-        free(bucket->password);
-        free(bucket);
+        xfree(bucket->authority);
+        xfree(bucket->hostname);
+        xfree(bucket->pool);
+        xfree(bucket->bucket);
+        xfree(bucket->username);
+        xfree(bucket->password);
+        xfree(bucket);
     }
 }
 
@@ -1026,7 +1026,7 @@ do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
 
             arg = rb_funcall(uri_obj, id_user, 0);
             if (arg != Qnil) {
-                free(bucket->username);
+                xfree(bucket->username);
                 bucket->username = strdup(RSTRING_PTR(arg));
                 if (bucket->username == NULL) {
                     rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
@@ -1035,7 +1035,7 @@ do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
 
             arg = rb_funcall(uri_obj, id_password, 0);
             if (arg != Qnil) {
-                free(bucket->password);
+                xfree(bucket->password);
                 bucket->password = strdup(RSTRING_PTR(arg));
                 if (bucket->password == NULL) {
                     rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
@@ -1043,7 +1043,7 @@ do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
             }
             arg = rb_funcall(uri_obj, id_host, 0);
             if (arg != Qnil) {
-                free(bucket->hostname);
+                xfree(bucket->hostname);
                 bucket->hostname = strdup(RSTRING_PTR(arg));
                 if (bucket->hostname == NULL) {
                     rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
@@ -1059,45 +1059,45 @@ do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
             re = rb_reg_new(path_re, sizeof(path_re) - 1, 0);
             match = rb_funcall(re, id_match, 1, arg);
             arg = rb_reg_nth_match(2, match);
-            free(bucket->pool);
+            xfree(bucket->pool);
             bucket->pool = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
             arg = rb_reg_nth_match(4, match);
-            free(bucket->bucket);
+            xfree(bucket->bucket);
             bucket->bucket = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
         }
         if (TYPE(opts) == T_HASH) {
             arg = rb_hash_aref(opts, sym_hostname);
             if (arg != Qnil) {
                 if (bucket->hostname) {
-                    free(bucket->hostname);
+                    xfree(bucket->hostname);
                 }
                 bucket->hostname = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_pool);
             if (arg != Qnil) {
                 if (bucket->pool) {
-                    free(bucket->pool);
+                    xfree(bucket->pool);
                 }
                 bucket->pool = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_bucket);
             if (arg != Qnil) {
                 if (bucket->bucket) {
-                    free(bucket->bucket);
+                    xfree(bucket->bucket);
                 }
                 bucket->bucket = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_username);
             if (arg != Qnil) {
                 if (bucket->username) {
-                    free(bucket->username);
+                    xfree(bucket->username);
                 }
                 bucket->username = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, sym_password);
             if (arg != Qnil) {
                 if (bucket->password) {
-                    free(bucket->password);
+                    xfree(bucket->password);
                 }
                 bucket->password = strdup(StringValueCStr(arg));
             }
@@ -1146,9 +1146,9 @@ do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
     }
     len = strlen(bucket->hostname) + 10;
     if (bucket->authority) {
-        free(bucket->authority);
+        xfree(bucket->authority);
     }
-    bucket->authority = calloc(len, sizeof(char));
+    bucket->authority = xcalloc(len, sizeof(char));
     if (bucket->authority == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
     }
@@ -1492,7 +1492,7 @@ cb_bucket_hostname_get(VALUE self)
     bucket_t *bucket = DATA_PTR(self);
     if (bucket->handle) {
         if (bucket->hostname) {
-            free(bucket->hostname);
+            xfree(bucket->hostname);
             bucket->hostname = NULL;
         }
         bucket->hostname = strdup(libcouchbase_get_host(bucket->handle));
@@ -1528,7 +1528,7 @@ cb_bucket_authority_get(VALUE self)
     (void)cb_bucket_hostname_get(self);
     (void)cb_bucket_port_get(self);
     len = strlen(bucket->hostname) + 10;
-    bucket->authority = calloc(len, sizeof(char));
+    bucket->authority = xcalloc(len, sizeof(char));
     if (bucket->authority == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
     }
@@ -1691,7 +1691,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     k = unify_key(k);
     key = RSTRING_PTR(k);
     nkey = RSTRING_LEN(k);
-    ctx = calloc(1, sizeof(context_t));
+    ctx = xcalloc(1, sizeof(context_t));
     ctx->quiet = bucket->quiet;
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
@@ -1721,7 +1721,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
             (const void *)key, nkey, cas);
     exc = cb_check_error(err, "failed to schedule delete request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        xfree(ctx);
         rb_exc_raise(exc);
     }
     if (bucket->async) {
@@ -1732,7 +1732,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
             bucket->io->run_event_loop(bucket->io);
         }
         exc = ctx->exception;
-        free(ctx);
+        xfree(ctx);
         if (exc != Qnil) {
             rb_exc_raise(exc);
         }
@@ -1791,7 +1791,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     }
     bytes = RSTRING_PTR(v);
     nbytes = RSTRING_LEN(v);
-    ctx = calloc(1, sizeof(context_t));
+    ctx = xcalloc(1, sizeof(context_t));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -1807,7 +1807,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
             (const void *)key, nkey, bytes, nbytes, flags, exp, cas);
     exc = cb_check_error(err, "failed to schedule set request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        xfree(ctx);
         rb_exc_raise(exc);
     }
     if (bucket->async) {
@@ -1818,7 +1818,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
             bucket->io->run_event_loop(bucket->io);
         }
         exc = ctx->exception;
-        free(ctx);
+        xfree(ctx);
         if (exc != Qnil) {
             rb_exc_raise(exc);
         }
@@ -1851,7 +1851,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
     k = unify_key(k);
-    ctx = calloc(1, sizeof(context_t));
+    ctx = xcalloc(1, sizeof(context_t));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -1894,7 +1894,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
             (const void *)key, nkey, delta, exp, create, initial);
     exc = cb_check_error(err, "failed to schedule arithmetic request", k);
     if (exc != Qnil) {
-        free(ctx);
+        xfree(ctx);
         rb_exc_raise(exc);
     }
     if (bucket->async) {
@@ -1905,7 +1905,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
             bucket->io->run_event_loop(bucket->io);
         }
         exc = ctx->exception;
-        free(ctx);
+        xfree(ctx);
         if (exc != Qnil) {
             rb_exc_raise(exc);
         }
@@ -2197,9 +2197,9 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
     rb_funcall(args, id_flatten_bang, 0);
-    traits = calloc(1, sizeof(struct key_traits));
+    traits = xcalloc(1, sizeof(struct key_traits));
     nn = cb_args_scan_keys(RARRAY_LEN(args), args, bucket, traits);
-    ctx = calloc(1, sizeof(context_t));
+    ctx = xcalloc(1, sizeof(context_t));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2219,13 +2219,13 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     err = libcouchbase_mget(bucket->handle, (const void *)ctx,
             traits->nkeys, (const void * const *)traits->keys,
             traits->lens, (traits->explicit_ttl) ? traits->ttls : NULL);
-    free(traits->keys);
-    free(traits->lens);
-    free(traits->ttls);
-    free(traits);
+    xfree(traits->keys);
+    xfree(traits->lens);
+    xfree(traits->ttls);
+    xfree(traits);
     exc = cb_check_error(err, "failed to schedule get request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        xfree(ctx);
         rb_exc_raise(exc);
     }
     if (bucket->async) {
@@ -2237,7 +2237,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         }
         exc = ctx->exception;
         extended = ctx->extended;
-        free(ctx);
+        xfree(ctx);
         if (exc != Qnil) {
             rb_exc_raise(exc);
         }
@@ -2344,9 +2344,9 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
     rb_funcall(args, id_flatten_bang, 0);
-    traits = calloc(1, sizeof(struct key_traits));
+    traits = xcalloc(1, sizeof(struct key_traits));
     nn = cb_args_scan_keys(RARRAY_LEN(args), args, bucket, traits);
-    ctx = calloc(1, sizeof(context_t));
+    ctx = xcalloc(1, sizeof(context_t));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2361,12 +2361,12 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     err = libcouchbase_mtouch(bucket->handle, (const void *)ctx,
             traits->nkeys, (const void * const *)traits->keys,
             traits->lens, traits->ttls);
-    free(traits->keys);
-    free(traits->lens);
-    free(traits);
+    xfree(traits->keys);
+    xfree(traits->lens);
+    xfree(traits);
     exc = cb_check_error(err, "failed to schedule touch request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        xfree(ctx);
         rb_exc_raise(exc);
     }
     if (bucket->async) {
@@ -2377,7 +2377,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
             bucket->io->run_event_loop(bucket->io);
         }
         exc = ctx->exception;
-        free(ctx);
+        xfree(ctx);
         if (exc != Qnil) {
             rb_exc_raise(exc);
         }
@@ -2433,7 +2433,7 @@ cb_bucket_flush(VALUE self)
     if (!bucket->async && rb_block_given_p()) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    ctx = calloc(1, sizeof(context_t));
+    ctx = xcalloc(1, sizeof(context_t));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2452,7 +2452,7 @@ cb_bucket_flush(VALUE self)
     err = libcouchbase_flush(bucket->handle, (const void *)ctx);
     exc = cb_check_error(err, "failed to schedule flush request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        xfree(ctx);
         rb_exc_raise(exc);
     }
     if (bucket->async) {
@@ -2463,7 +2463,7 @@ cb_bucket_flush(VALUE self)
             bucket->io->run_event_loop(bucket->io);
         }
         exc = ctx->exception;
-        free(ctx);
+        xfree(ctx);
         if (exc != Qnil) {
             rb_exc_raise(exc);
         }
@@ -2511,7 +2511,7 @@ cb_bucket_version(VALUE self)
     if (!bucket->async && rb_block_given_p()) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    ctx = calloc(1, sizeof(context_t));
+    ctx = xcalloc(1, sizeof(context_t));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2530,7 +2530,7 @@ cb_bucket_version(VALUE self)
     err = libcouchbase_server_versions(bucket->handle, (const void *)ctx);
     exc = cb_check_error(err, "failed to schedule version request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        xfree(ctx);
         rb_exc_raise(exc);
     }
     if (bucket->async) {
@@ -2541,7 +2541,7 @@ cb_bucket_version(VALUE self)
             bucket->io->run_event_loop(bucket->io);
         }
         exc = ctx->exception;
-        free(ctx);
+        xfree(ctx);
         if (exc != Qnil) {
             rb_exc_raise(exc);
         }
@@ -2608,7 +2608,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
 
-    ctx = calloc(1, sizeof(context_t));
+    ctx = xcalloc(1, sizeof(context_t));
     if (ctx == NULL) {
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
@@ -2632,7 +2632,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
             key, nkey);
     exc = cb_check_error(err, "failed to schedule stat request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        xfree(ctx);
         rb_exc_raise(exc);
     }
     if (bucket->async) {
@@ -2643,7 +2643,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
             bucket->io->run_event_loop(bucket->io);
         }
         exc = ctx->exception;
-        free(ctx);
+        xfree(ctx);
         if (exc != Qnil) {
             rb_exc_raise(exc);
         }
