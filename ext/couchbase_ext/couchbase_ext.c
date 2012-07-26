@@ -64,6 +64,7 @@ typedef struct
     uint32_t timeout;
     VALUE exception;        /* error delivered by error_callback */
     VALUE on_error_proc;    /* is using to deliver errors in async mode */
+    VALUE object_space;
 } bucket_t;
 
 typedef struct
@@ -93,7 +94,6 @@ struct key_traits
 };
 
 static VALUE mCouchbase, mError, mJSON, mURI, mMarshal, cBucket, cResult;
-static VALUE object_space;
 
 static ID  sym_add,
            sym_append,
@@ -183,6 +183,18 @@ static VALUE eProtocolError;           /*LIBCOUCHBASE_PROTOCOL_ERROR = 0x15*/
 static VALUE eTimeoutError;            /*LIBCOUCHBASE_ETIMEDOUT = 0x16*/
 static VALUE eConnectError;            /*LIBCOUCHBASE_CONNECT_ERROR = 0x17*/
 static VALUE eBucketNotFoundError;     /*LIBCOUCHBASE_BUCKET_ENOENT = 0x18*/
+
+    static void
+cb_gc_protect(bucket_t *bucket, VALUE val)
+{
+    rb_hash_aset(bucket->object_space, val|1, val);
+}
+
+    static void
+cb_gc_unprotect(bucket_t *bucket, VALUE val)
+{
+    rb_hash_delete(bucket->object_space, val|1);
+}
 
     static VALUE
 cb_proc_call(VALUE recv, int argc, ...)
@@ -595,7 +607,7 @@ storage_callback(libcouchbase_t handle, const void *cookie,
 
     if (bucket->seqno == 0) {
         bucket->io->stop_event_loop(bucket->io);
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_gc_unprotect(bucket, ctx->proc);
     }
     (void)handle;
 }
@@ -634,7 +646,7 @@ delete_callback(libcouchbase_t handle, const void *cookie,
     }
     if (bucket->seqno == 0) {
         bucket->io->stop_event_loop(bucket->io);
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_gc_unprotect(bucket, ctx->proc);
     }
     (void)handle;
 }
@@ -703,7 +715,7 @@ get_callback(libcouchbase_t handle, const void *cookie,
 
     if (bucket->seqno == 0) {
         bucket->io->stop_event_loop(bucket->io);
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_gc_unprotect(bucket, ctx->proc);
     }
     (void)handle;
 }
@@ -745,7 +757,7 @@ flush_callback(libcouchbase_t handle, const void* cookie,
         bucket->seqno--;
         if (bucket->seqno == 0) {
             bucket->io->stop_event_loop(bucket->io);
-            rb_hash_delete(object_space, ctx->proc|1);
+            cb_gc_unprotect(bucket, ctx->proc);
         }
     }
 
@@ -790,7 +802,7 @@ version_callback(libcouchbase_t handle, const void *cookie,
         bucket->seqno--;
         if (bucket->seqno == 0) {
             bucket->io->stop_event_loop(bucket->io);
-            rb_hash_delete(object_space, ctx->proc|1);
+            cb_gc_unprotect(bucket, ctx->proc);
         }
     }
 
@@ -842,7 +854,7 @@ stat_callback(libcouchbase_t handle, const void* cookie,
         bucket->seqno--;
         if (bucket->seqno == 0) {
             bucket->io->stop_event_loop(bucket->io);
-            rb_hash_delete(object_space, ctx->proc|1);
+            cb_gc_unprotect(bucket, ctx->proc);
         }
     }
     (void)handle;
@@ -885,7 +897,7 @@ touch_callback(libcouchbase_t handle, const void *cookie,
     }
     if (bucket->seqno == 0) {
         bucket->io->stop_event_loop(bucket->io);
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_gc_unprotect(bucket, ctx->proc);
     }
     (void)handle;
 }
@@ -945,7 +957,7 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
     }
     if (bucket->seqno == 0) {
         bucket->io->stop_event_loop(bucket->io);
-        rb_hash_delete(object_space, ctx->proc|1);
+        cb_gc_unprotect(bucket, ctx->proc);
     }
     (void)handle;
 }
@@ -999,6 +1011,7 @@ cb_bucket_mark(void *ptr)
     if (bucket) {
         rb_gc_mark(bucket->exception);
         rb_gc_mark(bucket->on_error_proc);
+        rb_gc_mark(bucket->object_space);
     }
 }
 
@@ -1288,6 +1301,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->default_format = sym_document;
     bucket->on_error_proc = Qnil;
     bucket->timeout = 0;
+    bucket->object_space = rb_hash_new();
 
     do_scan_connection_options(bucket, argc, argv);
     do_connect(bucket);
@@ -1757,7 +1771,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
         }
     }
     ctx->proc = proc;
-    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    cb_gc_protect(bucket, ctx->proc);
     rv = rb_ary_new();
     ctx->rv = &rv;
     ctx->bucket = bucket;
@@ -1846,7 +1860,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
     ctx->rv = &rv;
     ctx->bucket = bucket;
     ctx->proc = proc;
-    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    cb_gc_protect(bucket, ctx->proc);
     ctx->exception = Qnil;
     seqno = bucket->seqno;
     bucket->seqno++;
@@ -1932,7 +1946,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     ctx->rv = &rv;
     ctx->bucket = bucket;
     ctx->proc = proc;
-    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    cb_gc_protect(bucket, ctx->proc);
     ctx->exception = Qnil;
     ctx->arithm = sign;
     seqno = bucket->seqno;
@@ -2253,7 +2267,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     mgat = traits->mgat;
     keys = traits->keys_ary;
     ctx->proc = proc;
-    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    cb_gc_protect(bucket, ctx->proc);
     ctx->bucket = bucket;
     ctx->extended = traits->extended;
     ctx->quiet = traits->quiet;
@@ -2398,7 +2412,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
         rb_raise(eNoMemoryError, "failed to allocate memory for context");
     }
     ctx->proc = proc;
-    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    cb_gc_protect(bucket, ctx->proc);
     ctx->bucket = bucket;
     rv = rb_hash_new();
     ctx->rv = &rv;
@@ -2493,7 +2507,7 @@ cb_bucket_flush(VALUE self)
     } else {
         ctx->proc = Qnil;
     }
-    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    cb_gc_protect(bucket, ctx->proc);
     seqno = bucket->seqno;
     bucket->seqno++;
     err = libcouchbase_flush(bucket->handle, (const void *)ctx);
@@ -2571,7 +2585,7 @@ cb_bucket_version(VALUE self)
     } else {
         ctx->proc = Qnil;
     }
-    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    cb_gc_protect(bucket, ctx->proc);
     seqno = bucket->seqno;
     bucket->seqno++;
     err = libcouchbase_server_versions(bucket->handle, (const void *)ctx);
@@ -2663,7 +2677,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     ctx->rv = &rv;
     ctx->bucket = bucket;
     ctx->proc = proc;
-    rb_hash_aset(object_space, ctx->proc|1, ctx->proc);
+    cb_gc_protect(bucket, ctx->proc);
     ctx->exception = Qnil;
     if (arg != Qnil) {
         arg = unify_key(arg);
@@ -3297,9 +3311,6 @@ Init_couchbase_ext(void)
      * This class in charge of all stuff connected to communication with
      * Couchbase. */
     cBucket = rb_define_class_under(mCouchbase, "Bucket", rb_cObject);
-    object_space = rb_hash_new();
-    /* @private Hack to avoid GC in some cases */
-    rb_define_const(cBucket, "OBJECT_SPACE", object_space);
 
     /* 0x03: Bitmask for flag bits responsible for format */
     rb_define_const(cBucket, "FMT_MASK", INT2FIX(FMT_MASK));
