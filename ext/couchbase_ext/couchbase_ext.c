@@ -61,7 +61,6 @@ struct bucket_st
     VALUE default_format;    /* should update +default_flags+ on change */
     uint32_t default_flags;
     time_t default_ttl;
-    hrtime_t blk_start;       /* timestamp when async block was started */
     uint32_t timeout;
     size_t threshold;       /* the number of bytes to trigger event loop, zero if don't care */
     size_t nbytes;          /* the number of bytes scheduled to be sent */
@@ -3314,18 +3313,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     static void
 do_loop(struct bucket_st *bucket)
 {
-    uint32_t old_tmo, new_tmo, diff;
-
-    old_tmo = libcouchbase_get_timeout(bucket->handle);
-    diff = (gethrtime() - bucket->blk_start) / 1000; /* in microseconds */
-    new_tmo = bucket->timeout += diff;
-    libcouchbase_set_timeout(bucket->handle, bucket->timeout);
     libcouchbase_wait(bucket->handle);
-    /* restore timeout if it wasn't changed */
-    if (bucket->timeout == new_tmo) {
-        libcouchbase_set_timeout(bucket->handle, old_tmo);
-    }
-    bucket->blk_start = gethrtime();
     bucket->nbytes = 0;
 }
 
@@ -3359,7 +3347,6 @@ do_run(VALUE *args)
         }
     }
     bucket->async = 1;
-    bucket->blk_start = gethrtime();
     cb_proc_call(proc, 1, self);
     do_loop(bucket);
     if (bucket->exception != Qnil) {
