@@ -142,6 +142,7 @@ static ID  sym_add,
            id_iv_node,
            id_iv_operation,
            id_iv_value,
+           id_dup,
            id_load,
            id_match,
            id_parse,
@@ -1208,15 +1209,8 @@ do_connect(bucket_t *bucket)
     }
 }
 
-/*
- * Create and initialize new Bucket.
- *
- * @return [Bucket] new instance
- *
- * @see Bucket#initialize
- */
     static VALUE
-cb_bucket_new(int argc, VALUE *argv, VALUE klass)
+cb_bucket_alloc(VALUE klass)
 {
     VALUE obj;
     bucket_t *bucket;
@@ -1224,7 +1218,6 @@ cb_bucket_new(int argc, VALUE *argv, VALUE klass)
     /* allocate new bucket struct and set it to zero */
     obj = Data_Make_Struct(klass, bucket_t, cb_bucket_mark, cb_bucket_free,
             bucket);
-    rb_obj_call_init(obj, argc, argv);
     return obj;
 }
 
@@ -1300,6 +1293,60 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     do_connect(bucket);
 
     return self;
+}
+
+/*
+ * Initialize copy
+ *
+ * Initializes copy of the object, used by {Couchbase::Bucket#dup}
+ *
+ * @param orig [Couchbase::Bucket] the source for copy
+ *
+ * @return [Couchbase::Bucket]
+ */
+static VALUE
+cb_bucket_init_copy(VALUE copy, VALUE orig)
+{
+    bucket_t *copy_b;
+    bucket_t *orig_b;
+
+    if (copy == orig)
+        return copy;
+
+    if (TYPE(orig) != T_DATA || TYPE(copy) != T_DATA ||
+            RDATA(orig)->dfree != (RUBY_DATA_FUNC)cb_bucket_free) {
+        rb_raise(rb_eTypeError, "wrong argument type");
+    }
+
+    copy_b = DATA_PTR(copy);
+    orig_b = DATA_PTR(orig);
+
+    copy_b->port = orig_b->port;
+    copy_b->authority = strdup(orig_b->authority);
+    copy_b->hostname = strdup(orig_b->hostname);
+    copy_b->pool = strdup(orig_b->pool);
+    copy_b->bucket = strdup(orig_b->bucket);
+    if (orig_b->username) {
+        copy_b->username = strdup(orig_b->username);
+    }
+    if (orig_b->password) {
+        copy_b->password = strdup(orig_b->password);
+    }
+    copy_b->async = orig_b->async;
+    copy_b->quiet = orig_b->quiet;
+    copy_b->seqno = orig_b->seqno;
+    copy_b->default_format = orig_b->default_format;
+    copy_b->default_flags = orig_b->default_flags;
+    copy_b->default_ttl = orig_b->default_ttl;
+    copy_b->timeout = orig_b->timeout;
+    copy_b->exception = Qnil;
+    if (orig_b->on_error_proc != Qnil) {
+        copy_b->on_error_proc = rb_funcall(orig_b->on_error_proc, id_dup, 0);
+    }
+
+    do_connect(copy_b);
+
+    return copy;
 }
 
 /*
@@ -3272,9 +3319,9 @@ Init_couchbase_ext(void)
      * http://dustin.github.com/2011/02/17/memcached-set.html */
     rb_define_const(cBucket, "FMT_PLAIN", INT2FIX(FMT_PLAIN));
 
-    rb_define_singleton_method(cBucket, "new", cb_bucket_new, -1);
-
+    rb_define_alloc_func(cBucket, cb_bucket_alloc);
     rb_define_method(cBucket, "initialize", cb_bucket_init, -1);
+    rb_define_method(cBucket, "initialize_copy", cb_bucket_init_copy, 1);
     rb_define_method(cBucket, "inspect", cb_bucket_inspect, 0);
 
     /* Document-method: seqno
@@ -3441,6 +3488,7 @@ Init_couchbase_ext(void)
     id_arity = rb_intern("arity");
     id_call = rb_intern("call");
     id_dump = rb_intern("dump");
+    id_dup = rb_intern("dup");
     id_flatten_bang = rb_intern("flatten!");
     id_has_key_p = rb_intern("has_key?");
     id_host = rb_intern("host");
