@@ -590,6 +590,7 @@ storage_callback(libcouchbase_t handle, const void *cookie,
         rb_ivar_set(exc, id_iv_operation, o);
         if (NIL_P(ctx->exception)) {
             ctx->exception = exc;
+            cb_gc_protect(bucket, ctx->exception);
         }
     }
     if (bucket->async) { /* asynchronous */
@@ -630,6 +631,7 @@ delete_callback(libcouchbase_t handle, const void *cookie,
             rb_ivar_set(exc, id_iv_operation, sym_delete);
             if (NIL_P(ctx->exception)) {
                 ctx->exception = exc;
+                cb_gc_protect(bucket, ctx->exception);
             }
         }
     }
@@ -671,26 +673,27 @@ get_callback(libcouchbase_t handle, const void *cookie,
             rb_ivar_set(exc, id_iv_operation, sym_get);
             if (NIL_P(ctx->exception)) {
                 ctx->exception = exc;
+                cb_gc_protect(bucket, ctx->exception);
             }
         }
     }
 
     f = ULONG2NUM(flags);
     c = ULL2NUM(cas);
+    v = Qnil;
     if (nbytes != 0) {
         v = decode_value(rb_str_new((const char*)bytes, nbytes), flags, ctx->force_format);
         if (v == Qundef) {
+            if (ctx->exception != Qnil) {
+                cb_gc_unprotect(bucket, ctx->exception);
+            }
             ctx->exception = rb_exc_new2(eValueFormatError, "unable to convert value");
             rb_ivar_set(ctx->exception, id_iv_operation, sym_get);
             rb_ivar_set(ctx->exception, id_iv_key, k);
-            v = Qnil;
+            cb_gc_protect(bucket, ctx->exception);
         }
-    } else {
-        if (flags_get_format(flags) == sym_plain) {
-            v = rb_str_new2("");
-        } else {
-            v = Qnil;
-        }
+    } else if (flags_get_format(flags) == sym_plain) {
+        v = rb_str_new2("");
     }
     if (bucket->async) { /* asynchronous */
         if (ctx->proc != Qnil) {
@@ -734,6 +737,7 @@ flush_callback(libcouchbase_t handle, const void* cookie,
         rb_ivar_set(exc, id_iv_operation, sym_flush);
         if (NIL_P(ctx->exception)) {
             ctx->exception = exc;
+            cb_gc_protect(bucket, ctx->exception);
         }
         success = Qfalse;
     }
@@ -779,6 +783,7 @@ version_callback(libcouchbase_t handle, const void *cookie,
         rb_ivar_set(exc, id_iv_operation, sym_flush);
         if (NIL_P(ctx->exception)) {
             ctx->exception = exc;
+            cb_gc_protect(bucket, ctx->exception);
         }
     }
 
@@ -825,6 +830,7 @@ stat_callback(libcouchbase_t handle, const void* cookie,
         rb_ivar_set(exc, id_iv_operation, sym_stats);
         if (NIL_P(ctx->exception)) {
             ctx->exception = exc;
+            cb_gc_protect(bucket, ctx->exception);
         }
     }
     if (authority) {
@@ -877,6 +883,7 @@ touch_callback(libcouchbase_t handle, const void *cookie,
             rb_ivar_set(exc, id_iv_operation, sym_touch);
             if (NIL_P(ctx->exception)) {
                 ctx->exception = exc;
+                cb_gc_protect(bucket, ctx->exception);
             }
         }
     }
@@ -933,6 +940,7 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
         }
         if (NIL_P(ctx->exception)) {
             ctx->exception = exc;
+            cb_gc_protect(bucket, ctx->exception);
         }
     }
     v = ULL2NUM(value);
@@ -1795,6 +1803,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
         exc = ctx->exception;
         xfree(ctx);
         if (exc != Qnil) {
+            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         return rv;
@@ -1881,6 +1890,7 @@ cb_bucket_store(libcouchbase_storage_t cmd, int argc, VALUE *argv, VALUE self)
         exc = ctx->exception;
         xfree(ctx);
         if (exc != Qnil) {
+            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         if (bucket->exception != Qnil) {
@@ -1968,6 +1978,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
         exc = ctx->exception;
         xfree(ctx);
         if (exc != Qnil) {
+            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         return rv;
@@ -2300,6 +2311,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         extended = ctx->extended;
         xfree(ctx);
         if (exc != Qnil) {
+            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         if (bucket->exception != Qnil) {
@@ -2440,6 +2452,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
         exc = ctx->exception;
         xfree(ctx);
         if (exc != Qnil) {
+            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         if (bucket->exception != Qnil) {
@@ -2526,6 +2539,7 @@ cb_bucket_flush(VALUE self)
         exc = ctx->exception;
         xfree(ctx);
         if (exc != Qnil) {
+            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         return rv;
@@ -2604,6 +2618,7 @@ cb_bucket_version(VALUE self)
         exc = ctx->exception;
         xfree(ctx);
         if (exc != Qnil) {
+            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         return rv;
@@ -2706,6 +2721,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
         exc = ctx->exception;
         xfree(ctx);
         if (exc != Qnil) {
+            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         if (bucket->exception != Qnil) {
