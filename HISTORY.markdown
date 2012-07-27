@@ -1,3 +1,11 @@
+## 1.1.3 / 2012-07-27
+
+* RCBC-59 Replicate flags in Bucket#cas operation
+* calloc -> xcalloc, free -> xfree
+* RCBC-64 Fix Couchbase::Bucket#dup
+* Make object_space GC protector per-bucket object
+* RCBC-60 Protect exceptions from GC
+
 ## 1.1.2 / 2012-06-05
 
 * Upgrade libcouchbase dependency up to 1.0.4
