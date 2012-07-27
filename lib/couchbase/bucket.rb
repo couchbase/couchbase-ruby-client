@@ -285,7 +285,7 @@ module Couchbase
         end
         if ok
           res = keys.map do |k, _|
-            Result.new(:key => k, :cas => acc[k][:cas][0])
+            Result.new(:key => k, :cas => acc[k][:cas][0], :operation => :observe_and_wait)
           end
           if async?
             options[:timer].cancel if options[:timer]
@@ -311,7 +311,7 @@ module Couchbase
             err.instance_variable_set("@operation", :observe_and_wait)
             if async?
               res = keys.map do |k, _|
-                Result.new(:key => k, :cas => acc[k][:cas][0])
+                Result.new(:key => k, :cas => acc[k][:cas][0], :operation => :observe_and_wait)
               end
               block.call(res)
             else
