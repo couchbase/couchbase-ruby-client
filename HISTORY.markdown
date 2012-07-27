@@ -1,3 +1,39 @@
+## 1.2.0.dp6 / 2012-07-28
+
+* Inherit StandardError instead RuntimeError for errors
+* Use renamed functions for view requests
+* Depend on yard-xml plugin to dump docs into single XML
+* No need to check for NULL before deallocating memory
+* RCBC-37 Bootstrapping using multiple nodes
+* More docs and examples on views (fixes RCBC-43)
+* RCBC-40 Fix Bucket#cas operation behaviour in async mode
+* RCBC-39 Allow to specify delta for incr/decr in options
+* Update README
+* Apply timeout value before connection
+* Clarify connection exceptions
+* Remove seqno kludge
+* rb_hash_delete() function could incorrectly detect block presence
+* Add example with in-URL credentials
+* RCBC-57 Expose timers API from libcouchbase
+* RCBC-50 Allow to read keys from replica
+* RCBC-6 Implement OBSERVE command
+* Expose number of replicas to the user
+* Notify about observe batch finish in async mode
+* Separate memory errors for client and server
+* Prefix error message from views with "SERVER: "
+* Remove timeout hack
+* RCBC-49 Bucket#observe_and_wait primitive
+* RCBC-47 Allow to skip username for protected buckets
+* Use allocators instead of singleton methods
+* Check RDATA()->dfree to ensure object type
+* Fix observe_and_wait in async mode
+* Fill 'operation' in observe_and_wait Result object
+* Fix extraction Hash with keys in observe_and_wait
+* RCBC-49 :observe option for storage functions
+* Fix timeout test
+* Mention couchbase.com in install errors
+* Make Bucket#observe_and_wait more 1.8.7 friendly
+
 ## 1.2.0.dp5 / 2012-06-15
 
 * Allow to force assembling result Hash for multi-get
