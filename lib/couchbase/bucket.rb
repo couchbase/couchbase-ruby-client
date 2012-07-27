@@ -84,12 +84,12 @@ module Couchbase
         block = Proc.new
         get(key) do |ret|
           val = block.call(ret) # get new value from caller
-          set(ret.key, val, options.merge(:cas => ret.cas), &block)
+          set(ret.key, val, options.merge(:cas => ret.cas, :flags => ret.flags), &block)
         end
       else
         val, flags, ver = get(key, :extended => true)
         val = yield(val) # get new value from caller
-        set(key, val, options.merge(:cas => ver))
+        set(key, val, options.merge(:cas => ver, :flags => flags))
       end
     end
     alias :compare_and_swap :cas
