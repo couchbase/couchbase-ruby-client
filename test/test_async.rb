@@ -226,13 +226,13 @@ class TestAsync < MiniTest::Unit::TestCase
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, "foo")
 
-    connection.timeout = 100  # 100 us
+    connection.timeout = 100_000  # 100_000 us
     connection.run do
       connection.get(uniq_id) do |ret|
         assert ret.success?
         assert_equal "foo", ret.value
       end
-      sleep(1.5)
+      sleep(1.5)  # 1_500_000 us
     end
   end
 
