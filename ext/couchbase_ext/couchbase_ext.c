@@ -4182,7 +4182,9 @@ cb_couch_request_free(void *ptr)
     struct couch_request_st *request = ptr;
     if (request) {
         request->running = 0;
-        if (TYPE(request->bucket_obj) == T_DATA && !request->completed) {
+        if (TYPE(request->bucket_obj) == T_DATA
+                && RDATA(request->bucket_obj)->dfree == (RUBY_DATA_FUNC)cb_bucket_free
+                && !request->completed) {
             libcouchbase_cancel_http_request(request->request);
         }
         xfree(request->path);
