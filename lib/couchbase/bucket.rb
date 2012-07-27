@@ -229,11 +229,15 @@ module Couchbase
       else
         key_cas = keys
       end
-      res = do_observe_and_wait(key_cas, options, &block) while res.nil?
-      if keys.size == 1 && (keys[0].is_a?(String) || keys[0].is_a?(Symbol))
-        return res[0]
+      if async?
+        do_observe_and_wait(key_cas, options, &block)
       else
-        return res
+        res = do_observe_and_wait(key_cas, options, &block) while res.nil?
+        if keys.size == 1 && (keys[0].is_a?(String) || keys[0].is_a?(Symbol))
+          return res[0]
+        else
+          return res
+        end
       end
     end
 
@@ -318,16 +322,19 @@ module Couchbase
         end
       end
       collect = lambda do |res|
-        if res.from_master?
-          acc[res.key][:cas][0] = res.cas
+        if res.completed?
+          check_condition.call if async?
         else
-          acc[res.key][:cas] << res.cas
+          if res.from_master?
+            acc[res.key][:cas][0] = res.cas
+          else
+            acc[res.key][:cas] << res.cas
+          end
+          acc[res.key][res.status] += 1
+          if res.status == :persisted
+            acc[res.key][:replicated] += 1
+          end
         end
-        acc[res.key][res.status] += 1
-        if res.status == :persisted
-          acc[res.key][:replicated] += 1
-        end
-        check_condition.call if async? && res.completed?
       end
       if async?
         observe(*(keys.keys), options, &collect)
