@@ -1529,6 +1529,9 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
             opts = Qnil;
         }
     }
+    if (bucket->password && bucket->username == NULL) {
+        bucket->username = strdup(bucket->bucket);
+    }
     len = strlen(bucket->hostname) + 10;
     if (bucket->default_observe_timeout < 2) {
         rb_raise(rb_eArgError, "default_observe_timeout is too low");
@@ -1642,7 +1645,9 @@ cb_bucket_alloc(VALUE klass)
  *     will be used for values by default. Note that changing format will
  *     amend flags. (see {Bucket#default_format})
  *   @option options [String] :username (nil) the user name to connect to the
- *     cluster. Used to authenticate on management API.
+ *     cluster. Used to authenticate on management API. The username could
+ *     be skipped for protected buckets, the bucket name will be used
+ *     instead.
  *   @option options [String] :password (nil) the password of the user.
  *   @option options [true, false] :quiet (false) the flag controlling if raising
  *     exception when the client executes operations on unexising keys. If it

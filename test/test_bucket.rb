@@ -224,4 +224,14 @@ class TestBucket < MiniTest::Unit::TestCase
     end
   end
 
+  def test_it_uses_bucket_name_as_username_if_username_is_empty
+    with_mock(:buckets_spec => 'protected:secret') do |mock|
+      connection = Couchbase.new(:hostname => mock.host,
+                                 :port => mock.port,
+                                 :bucket => 'protected',
+                                 :password => 'secret')
+      assert connection.connected?
+    end
+  end
+
 end
