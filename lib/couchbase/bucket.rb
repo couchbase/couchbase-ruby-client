@@ -221,13 +221,13 @@ module Couchbase
       if keys.size == 0
         raise ArgumentError, "at least one key is required"
       end
-      if keys.size != 1 || !keys[0].is_a?(Hash)
+      if keys.size == 1 && keys[0].is_a?(Hash)
+        key_cas = keys[0]
+      else
         key_cas = keys.flatten.reduce({}) do |h, kk|
           h[kk] = nil   # set CAS to nil
           h
         end
-      else
-        key_cas = keys
       end
       if async?
         do_observe_and_wait(key_cas, options, &block)
