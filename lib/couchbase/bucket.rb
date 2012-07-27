@@ -337,9 +337,9 @@ module Couchbase
         end
       end
       if async?
-        observe(*(keys.keys), options, &collect)
+        observe(keys.keys, options, &collect)
       else
-        observe(*(keys.keys), options).each(&collect)
+        observe(keys.keys, options).each(&collect)
         check_condition.call
       end
     end
