@@ -4018,17 +4018,8 @@ cb_timer_mark(void *ptr)
     }
 }
 
-/*
- * Create and initialize new Timer
- *
- * @since 1.2.0.dp6
- *
- * @return [Couchbase::Timer] new instance
- *
- * @see Couchbase::Timer#initialize
- */
     static VALUE
-cb_timer_new(int argc, VALUE *argv, VALUE klass)
+cb_timer_alloc(VALUE klass)
 {
     VALUE obj;
     struct timer_st *timer;
@@ -4036,7 +4027,6 @@ cb_timer_new(int argc, VALUE *argv, VALUE klass)
     /* allocate new bucket struct and set it to zero */
     obj = Data_Make_Struct(klass, struct timer_st, cb_timer_mark,
             cb_timer_free, timer);
-    rb_obj_call_init(obj, argc, argv);
     return obj;
 }
 
@@ -4210,17 +4200,8 @@ cb_couch_request_mark(void *ptr)
     }
 }
 
-/*
- * Create and initialize new CouchRequest
- *
- * @since 1.2.0
- *
- * @return [Bucket::CouchRequest] new instance
- *
- * @see Bucket::CouchRequest#initialize
- */
     static VALUE
-cb_couch_request_new(int argc, VALUE *argv, VALUE klass)
+cb_couch_request_alloc(VALUE klass)
 {
     VALUE obj;
     struct couch_request_st *request;
@@ -4228,7 +4209,6 @@ cb_couch_request_new(int argc, VALUE *argv, VALUE klass)
     /* allocate new bucket struct and set it to zero */
     obj = Data_Make_Struct(klass, struct couch_request_st, cb_couch_request_mark,
             cb_couch_request_free, request);
-    rb_obj_call_init(obj, argc, argv);
     return obj;
 }
 
@@ -4479,7 +4459,8 @@ cb_bucket_make_couch_request(int argc, VALUE *argv, VALUE self)
 
     args[0] = self;
     rb_scan_args(argc, argv, "11&", &args[1], &args[2], &args[3]);
-    return cb_couch_request_new(4, args, cCouchRequest);
+
+    return rb_class_new_instance(4, args, cCouchRequest);
 }
 
 /* Ruby Extension initializer */
@@ -5141,8 +5122,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "default_observe_timeout=", cb_bucket_default_observe_timeout_set, 1);
 
     cCouchRequest = rb_define_class_under(cBucket, "CouchRequest", rb_cObject);
-
-    rb_define_singleton_method(cCouchRequest, "new", cb_couch_request_new, -1);
+    rb_define_alloc_func(cCouchRequest, cb_couch_request_alloc);
 
     rb_define_method(cCouchRequest, "initialize", cb_couch_request_init, -1);
     rb_define_method(cCouchRequest, "inspect", cb_couch_request_inspect, 0);
@@ -5161,7 +5141,7 @@ Init_couchbase_ext(void)
     rb_define_alias(cCouchRequest, "chunked?", "chunked");
 
     cTimer = rb_define_class_under(mCouchbase, "Timer", rb_cObject);
-    rb_define_singleton_method(cTimer, "new", cb_timer_new, -1);
+    rb_define_alloc_func(cTimer, cb_timer_alloc);
     rb_define_method(cTimer, "initialize", cb_timer_init, -1);
     rb_define_method(cTimer, "inspect", cb_timer_inspect, 0);
     rb_define_method(cTimer, "cancel", cb_timer_cancel, 0);
