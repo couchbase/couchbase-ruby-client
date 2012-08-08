@@ -653,25 +653,21 @@ strip_key_prefix(struct bucket_st *bucket, VALUE key)
     static VALUE
 unify_key(struct bucket_st *bucket, VALUE key, int apply_prefix)
 {
-    VALUE ret;
+    VALUE ret = Qnil, tmp;
 
     if (bucket->key_prefix && apply_prefix) {
         ret = rb_str_dup(bucket->key_prefix_val);
-    } else {
-        ret = rb_str_new2("");
     }
     switch (TYPE(key)) {
         case T_STRING:
-            rb_str_concat(ret, key);
-            break;
+            return NIL_P(ret) ? key : rb_str_concat(ret, key);
         case T_SYMBOL:
-            rb_str_concat(ret, rb_str_new2(rb_id2name(SYM2ID(key))));
-            break;
+            tmp = rb_str_new2(rb_id2name(SYM2ID(key)));
+            return NIL_P(ret) ? tmp : rb_str_concat(ret, tmp);
         default:    /* call #to_str or raise error */
-            rb_str_concat(ret, StringValue(key));
-            break;
+            tmp = StringValue(key);
+            return NIL_P(ret) ? tmp : rb_str_concat(ret, tmp);
     }
-    return ret;
 }
 
     static int
