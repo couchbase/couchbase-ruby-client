@@ -21,10 +21,10 @@ module Couchbase
     class View < Base
       attr_reader :from, :reason
 
-      def initialize(from, reason)
+      def initialize(from, reason, prefix = "SERVER: ")
         @from = from
         @reason = reason
-        super("SERVER: #{from}: #{reason}")
+        super("#{prefix}#{from}: #{reason}")
       end
     end
   end
@@ -241,7 +241,7 @@ module Couchbase
       res = []
       request.on_body do |chunk|
         res << chunk
-        request.pause if chunk.value.nil?
+        request.pause if chunk.value.nil? || chunk.error
       end
       filter = ["/rows/", "/errors/"]
       filter << "/total_rows" unless block_given?
@@ -273,6 +273,14 @@ module Couchbase
       loop do
         # feed response received chunks to the parser
         while r = res.shift
+          if r.error
+            if @on_error
+              @on_error.call("http_error", r.error)
+              break
+            else
+              raise Error::View.new("http_error", r.error, nil)
+            end
+          end
           last_res = r
           parser << r.value
         end
