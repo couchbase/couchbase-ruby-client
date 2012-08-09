@@ -24,6 +24,15 @@
 #include <libcouchbase/couchbase.h>
 #include "couchbase_config.h"
 
+#ifdef HAVE_RUBY_ENCODING_H
+#include "ruby/encoding.h"
+#define STR_NEW(ptr, len) rb_external_str_new((ptr), (len))
+#define STR_NEW_CSTR(str) rb_external_str_new_cstr((str))
+#else
+#define STR_NEW(ptr, len) rb_str_new((ptr), (len))
+#define STR_NEW_CSTR(str) rb_str_new2((str))
+#endif
+
 #ifdef HAVE_STDARG_PROTOTYPES
 #include <stdarg.h>
 #define va_init_list(a,b) va_start(a,b)
@@ -34,9 +43,9 @@
 
 #define debug_object(OBJ) \
     rb_funcall(rb_stderr, rb_intern("print"), 1, rb_funcall(OBJ, rb_intern("object_id"), 0)); \
-    rb_funcall(rb_stderr, rb_intern("print"), 1, rb_str_new2(" ")); \
+    rb_funcall(rb_stderr, rb_intern("print"), 1, STR_NEW_CSTR(" ")); \
     rb_funcall(rb_stderr, rb_intern("print"), 1, rb_funcall(OBJ, rb_intern("class"), 0)); \
-    rb_funcall(rb_stderr, rb_intern("print"), 1, rb_str_new2(" ")); \
+    rb_funcall(rb_stderr, rb_intern("print"), 1, STR_NEW_CSTR(" ")); \
     rb_funcall(rb_stderr, rb_intern("puts"), 1, rb_funcall(OBJ, rb_intern("inspect"), 0));
 
 #define FMT_MASK        0x3
@@ -455,7 +464,7 @@ unify_key(VALUE key)
         case T_STRING:
             return key;
         case T_SYMBOL:
-            return rb_str_new2(rb_id2name(SYM2ID(key)));
+            return STR_NEW_CSTR(rb_id2name(SYM2ID(key)));
         default:    /* call #to_str or raise error */
             return StringValue(key);
     }
@@ -563,7 +572,7 @@ storage_callback(libcouchbase_t handle, const void *cookie,
 
     bucket->seqno--;
 
-    k = rb_str_new((const char*)key, nkey);
+    k = STR_NEW((const char*)key, nkey);
     c = cas > 0 ? ULL2NUM(cas) : Qnil;
     switch(operation) {
         case LIBCOUCHBASE_ADD:
@@ -624,7 +633,7 @@ delete_callback(libcouchbase_t handle, const void *cookie,
 
     bucket->seqno--;
 
-    k = rb_str_new((const char*)key, nkey);
+    k = STR_NEW((const char*)key, nkey);
     if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
         exc = cb_check_error(error, "failed to remove value", k);
         if (exc != Qnil) {
@@ -666,7 +675,7 @@ get_callback(libcouchbase_t handle, const void *cookie,
 
     bucket->seqno--;
 
-    k = rb_str_new((const char*)key, nkey);
+    k = STR_NEW((const char*)key, nkey);
     if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
         exc = cb_check_error(error, "failed to get value", k);
         if (exc != Qnil) {
@@ -682,7 +691,7 @@ get_callback(libcouchbase_t handle, const void *cookie,
     c = ULL2NUM(cas);
     v = Qnil;
     if (nbytes != 0) {
-        v = decode_value(rb_str_new((const char*)bytes, nbytes), flags, ctx->force_format);
+        v = decode_value(STR_NEW((const char*)bytes, nbytes), flags, ctx->force_format);
         if (v == Qundef) {
             if (ctx->exception != Qnil) {
                 cb_gc_unprotect(bucket, ctx->exception);
@@ -693,7 +702,7 @@ get_callback(libcouchbase_t handle, const void *cookie,
             cb_gc_protect(bucket, ctx->exception);
         }
     } else if (flags_get_format(flags) == sym_plain) {
-        v = rb_str_new2("");
+        v = STR_NEW_CSTR("");
     }
     if (bucket->async) { /* asynchronous */
         if (ctx->proc != Qnil) {
@@ -731,7 +740,7 @@ flush_callback(libcouchbase_t handle, const void* cookie,
     bucket_t *bucket = ctx->bucket;
     VALUE node, success = Qtrue, *rv = ctx->rv, exc, res;
 
-    node = authority ? rb_str_new2(authority) : Qnil;
+    node = authority ? STR_NEW_CSTR(authority) : Qnil;
     exc = cb_check_error(error, "failed to flush bucket", node);
     if (exc != Qnil) {
         rb_ivar_set(exc, id_iv_operation, sym_flush);
@@ -777,7 +786,7 @@ version_callback(libcouchbase_t handle, const void *cookie,
     bucket_t *bucket = ctx->bucket;
     VALUE node, v, *rv = ctx->rv, exc, res;
 
-    node = authority ? rb_str_new2(authority) : Qnil;
+    node = authority ? STR_NEW_CSTR(authority) : Qnil;
     exc = cb_check_error(error, "failed to get version", node);
     if (exc != Qnil) {
         rb_ivar_set(exc, id_iv_operation, sym_flush);
@@ -788,7 +797,7 @@ version_callback(libcouchbase_t handle, const void *cookie,
     }
 
     if (authority) {
-        v = rb_str_new((const char*)bytes, nbytes);
+        v = STR_NEW((const char*)bytes, nbytes);
         if (bucket->async) {    /* asynchronous */
             if (ctx->proc != Qnil) {
                 res = rb_class_new_instance(0, NULL, cResult);
@@ -824,7 +833,7 @@ stat_callback(libcouchbase_t handle, const void* cookie,
     bucket_t *bucket = ctx->bucket;
     VALUE stats, node, k, v, *rv = ctx->rv, exc = Qnil, res;
 
-    node = authority ? rb_str_new2(authority) : Qnil;
+    node = authority ? STR_NEW_CSTR(authority) : Qnil;
     exc = cb_check_error(error, "failed to fetch stats", node);
     if (exc != Qnil) {
         rb_ivar_set(exc, id_iv_operation, sym_stats);
@@ -834,8 +843,8 @@ stat_callback(libcouchbase_t handle, const void* cookie,
         }
     }
     if (authority) {
-        k = rb_str_new((const char*)key, nkey);
-        v = rb_str_new((const char*)bytes, nbytes);
+        k = STR_NEW((const char*)key, nkey);
+        v = STR_NEW((const char*)bytes, nbytes);
         if (bucket->async) {    /* asynchronous */
             if (ctx->proc != Qnil) {
                 res = rb_class_new_instance(0, NULL, cResult);
@@ -876,7 +885,7 @@ touch_callback(libcouchbase_t handle, const void *cookie,
     VALUE k, success, *rv = ctx->rv, exc = Qnil, res;
 
     bucket->seqno--;
-    k = rb_str_new((const char*)key, nkey);
+    k = STR_NEW((const char*)key, nkey);
     if (error != LIBCOUCHBASE_KEY_ENOENT || !ctx->quiet) {
         exc = cb_check_error(error, "failed to touch value", k);
         if (exc != Qnil) {
@@ -922,7 +931,7 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
 
     bucket->seqno--;
 
-    k = rb_str_new((const char*)key, nkey);
+    k = STR_NEW((const char*)key, nkey);
     c = cas > 0 ? ULL2NUM(cas) : Qnil;
     o = ctx->arithm > 0 ? sym_increment : sym_decrement;
     exc = cb_check_error(error, "failed to perform arithmetic operation", k);
@@ -1042,7 +1051,7 @@ do_scan_connection_options(bucket_t *bucket, int argc, VALUE *argv)
             uri_obj = rb_funcall(mURI, id_parse, 1, uri);
 
             arg = rb_funcall(uri_obj, id_scheme, 0);
-            if (arg == Qnil || rb_str_cmp(arg, rb_str_new2("http"))) {
+            if (arg == Qnil || rb_str_cmp(arg, STR_NEW_CSTR("http"))) {
                 rb_raise(rb_eArgError, "invalid URI: invalid scheme");
             }
 
@@ -1569,7 +1578,7 @@ cb_bucket_hostname_get(VALUE self)
             rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
         }
     }
-    return rb_str_new2(bucket->hostname);
+    return STR_NEW_CSTR(bucket->hostname);
 }
 
 /* Document-method: port
@@ -1602,7 +1611,7 @@ cb_bucket_authority_get(VALUE self)
         rb_raise(eNoMemoryError, "failed to allocate memory for Bucket");
     }
     snprintf(bucket->authority, len, "%s:%u", bucket->hostname, bucket->port);
-    return rb_str_new2(bucket->authority);
+    return STR_NEW_CSTR(bucket->authority);
 }
 
 /* Document-method: bucket
@@ -1612,7 +1621,7 @@ cb_bucket_authority_get(VALUE self)
 cb_bucket_bucket_get(VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
-    return rb_str_new2(bucket->bucket);
+    return STR_NEW_CSTR(bucket->bucket);
 }
 
 /* Document-method: pool
@@ -1622,7 +1631,7 @@ cb_bucket_bucket_get(VALUE self)
 cb_bucket_pool_get(VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
-    return rb_str_new2(bucket->pool);
+    return STR_NEW_CSTR(bucket->pool);
 }
 
 /* Document-method: username
@@ -1633,7 +1642,7 @@ cb_bucket_pool_get(VALUE self)
 cb_bucket_username_get(VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
-    return rb_str_new2(bucket->username);
+    return STR_NEW_CSTR(bucket->username);
 }
 
 /* Document-method: password
@@ -1643,7 +1652,7 @@ cb_bucket_username_get(VALUE self)
 cb_bucket_password_get(VALUE self)
 {
     bucket_t *bucket = DATA_PTR(self);
-    return rb_str_new2(bucket->password);
+    return STR_NEW_CSTR(bucket->password);
 }
 
 /* Document-method: url
