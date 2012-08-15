@@ -106,12 +106,11 @@ module Couchbase
       @data = data
       @key = data['key']
       @value = data['value']
-      @doc = data['doc']
-      @id = if @value.is_a?(Hash) && @value['_id']
-              @value['_id']
-            else
-              @data['id']
-            end
+      if data['doc']
+        @meta = data['doc']['meta']
+        @doc = data['doc']['json']
+      end
+      @id = data['id'] || @meta && @meta['id']
       @views = []
       if design_doc? && @doc.has_key?('views')
         @doc['views'].each do |name, _|
@@ -121,14 +120,6 @@ module Couchbase
               View.new(@bucket, "\#{@id}/_view/#{name}", params)
             end
           EOV
-        end
-      end
-      @meta = {}
-      if @doc
-        @doc.keys.each do |key|
-          if %w($flags $expiration $cas).include?(key)
-            @meta[key.sub(/^\$/, '')] = @doc.delete(key)
-          end
         end
       end
     end

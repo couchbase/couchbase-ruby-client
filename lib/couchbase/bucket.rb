@@ -100,14 +100,21 @@ module Couchbase
     #
     # @return [Hash]
     def design_docs
-      docs = all_docs(:startkey => "_design/", :endkey => "_design0", :include_docs => true)
+      req = make_http_request("/pools/default/buckets/#{bucket}/ddocs",
+                              :type => :management, :extended => true)
       docmap = {}
-      docs.each do |doc|
-        key = doc.id.sub(/^_design\//, '')
-        next if self.environment == :production && key =~ /dev_/
-        docmap[key] = doc
+      req.on_body do |body|
+        res = MultiJson.load(body.value)
+        res["rows"].each do |obj|
+          doc = ViewRow.wrap(self, obj)
+          key = doc.id.sub(/^_design\//, '')
+          next if self.environment == :production && key =~ /dev_/
+            docmap[key] = doc
+        end
+        yield(docmap) if block_given?
       end
-      docmap
+      req.continue
+      async? ? nil : docmap
     end
 
     # Fetch all documents from the bucket.
@@ -141,19 +148,31 @@ module Couchbase
               else
                 raise ArgumentError, "Document should be Hash, String or IO instance"
               end
-
-      if attrs['_id'].to_s !~ /^_design\//
-        raise ArgumentError, "'_id' key must be set and start with '_design/'."
-      end
+      rv = nil
+      id = attrs.delete('_id').to_s
       attrs['language'] ||= 'javascript'
-      req = make_couch_request(attrs['_id'],
-                               :body => MultiJson.dump(attrs),
-                               :method => :put)
-      res = MultiJson.load(req.perform)
-      if res['ok']
-        true
-      else
-        raise "Failed to save design document: #{res['error']}"
+      if id !~ /\A_design\//
+        rv = Result.new(:operation => :http_request,
+                        :key => id,
+                        :error => ArgumentError.new("'_id' key must be set and start with '_design/'."))
+        yield rv if block_given?
+        raise rv.error unless async?
+      end
+      req = make_http_request(id, :body => MultiJson.dump(attrs),
+                              :method => :put, :extended => true)
+      req.on_body do |res|
+        rv = res
+        val = MultiJson.load(res.value)
+        if block_given?
+          if res.success? && val['error']
+            res.error = Error::View.new("save_design_doc", val['error'])
+          end
+          yield(res)
+        end
+      end
+      req.continue
+      unless async?
+        rv.success? or raise res.error
       end
     end
 
@@ -170,14 +189,26 @@ module Couchbase
     # @return [true, false]
     def delete_design_doc(id, rev = nil)
       ddoc = design_docs[id.sub(/^_design\//, '')]
-      return nil unless ddoc
-      path = Utils.build_query(ddoc['_id'], :rev => rev || ddoc['_rev'])
-      req = make_couch_request(path, :method => :delete)
-      res = MultiJson.load(req.perform)
-      if res['ok']
-        true
-      else
-        raise "Failed to save design document: #{res['error']}"
+      unless ddoc
+        yield nil if block_given?
+        return nil
+      end
+      path = Utils.build_query(ddoc.id, :rev => rev || ddoc.meta['rev'])
+      req = make_http_request(path, :method => :delete, :extended => true)
+      rv = nil
+      req.on_body do |res|
+        rv = res
+        val = MultiJson.load(res.value)
+        if block_given?
+          if res.success? && val['error']
+            res.error = Error::View.new("delete_design_doc", val['error'])
+          end
+          yield(res)
+        end
+      end
+      req.continue
+      unless async?
+        rv.success? or raise res.error
       end
     end
 
