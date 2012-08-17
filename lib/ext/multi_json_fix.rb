@@ -38,7 +38,7 @@ if multi_json_engine.name =~ /JsonGem$/
 end
 
 # Patch for MultiJson versions < 1.3.3
-if MultiJson.respond_to?(:encode) && MultiJson.respond_to?(:encode) &&
+if MultiJson.respond_to?(:decode) && MultiJson.respond_to?(:encode) &&
   !MultiJson.respond_to?(:load) && !MultiJson.respond_to?(:dump)
   class << MultiJson
     alias :dump :encode
