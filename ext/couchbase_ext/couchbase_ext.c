@@ -75,7 +75,7 @@ struct bucket_st
     VALUE self;             /* the pointer to bucket representation in ruby land */
 };
 
-struct couch_request_st;
+struct http_request_st;
 struct context_st
 {
     struct bucket_st* bucket;
@@ -86,15 +86,17 @@ struct context_st
     VALUE observe_options;
     VALUE force_format;
     VALUE operation;
-    struct couch_request_st *request;
+    struct http_request_st *request;
     int quiet;
     int arithm;           /* incr: +1, decr: -1, other: 0 */
     size_t nqueries;
 };
 
-struct couch_request_st {
+struct http_request_st {
     struct bucket_st *bucket;
     VALUE bucket_obj;
+    VALUE type;
+    char *content_type;
     char *path;
     size_t npath;
     char *body;
@@ -147,7 +149,7 @@ static ID  sym_add,
            sym_bucket,
            sym_cas,
            sym_chunked,
-           sym_couch_request,
+           sym_content_type,
            sym_create,
            sym_decrement,
            sym_default_flags,
@@ -166,10 +168,12 @@ static ID  sym_add,
            sym_found,
            sym_get,
            sym_hostname,
+           sym_http_request,
            sym_increment,
            sym_initial,
            sym_key_prefix,
            sym_lock,
+           sym_management,
            sym_marshal,
            sym_method,
            sym_node_list,
@@ -195,8 +199,10 @@ static ID  sym_add,
            sym_timeout,
            sym_touch,
            sym_ttl,
+           sym_type,
            sym_username,
            sym_version,
+           sym_view,
            id_arity,
            id_call,
            id_delete,
@@ -1213,7 +1219,7 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
 }
 
     static void
-couch_complete_callback(libcouchbase_http_request_t request,
+http_complete_callback(libcouchbase_http_request_t request,
         libcouchbase_t handle,
         const void *cookie,
         libcouchbase_error_t error,
@@ -1230,7 +1236,7 @@ couch_complete_callback(libcouchbase_http_request_t request,
     ctx->request->completed = 1;
     k = rb_str_new((const char*)path, npath);
     ctx->exception = cb_check_error_with_status(error,
-            "failed to execute couch request", k, status);
+            "failed to execute HTTP request", k, status);
     if (ctx->exception != Qnil) {
         cb_gc_protect(bucket, ctx->exception);
     }
@@ -1239,7 +1245,7 @@ couch_complete_callback(libcouchbase_http_request_t request,
         if (ctx->extended) {
             res = rb_class_new_instance(0, NULL, cResult);
             rb_ivar_set(res, id_iv_error, ctx->exception);
-            rb_ivar_set(res, id_iv_operation, sym_couch_request);
+            rb_ivar_set(res, id_iv_operation, sym_http_request);
             rb_ivar_set(res, id_iv_key, k);
             rb_ivar_set(res, id_iv_value, v);
             rb_ivar_set(res, id_iv_completed, Qtrue);
@@ -1256,7 +1262,7 @@ couch_complete_callback(libcouchbase_http_request_t request,
 }
 
     static void
-couch_data_callback(libcouchbase_http_request_t request,
+http_data_callback(libcouchbase_http_request_t request,
         libcouchbase_t handle,
         const void *cookie,
         libcouchbase_error_t error,
@@ -1272,7 +1278,7 @@ couch_data_callback(libcouchbase_http_request_t request,
 
     k = rb_str_new((const char*)path, npath);
     ctx->exception = cb_check_error_with_status(error,
-            "failed to execute couch request", k, status);
+            "failed to execute HTTP request", k, status);
     v = nbytes ? rb_str_new((const char*)bytes, nbytes) : Qnil;
     if (ctx->exception != Qnil) {
         cb_gc_protect(bucket, ctx->exception);
@@ -1282,7 +1288,7 @@ couch_data_callback(libcouchbase_http_request_t request,
         if (ctx->extended) {
             res = rb_class_new_instance(0, NULL, cResult);
             rb_ivar_set(res, id_iv_error, ctx->exception);
-            rb_ivar_set(res, id_iv_operation, sym_couch_request);
+            rb_ivar_set(res, id_iv_operation, sym_http_request);
             rb_ivar_set(res, id_iv_key, k);
             rb_ivar_set(res, id_iv_value, v);
             rb_ivar_set(res, id_iv_completed, Qfalse);
@@ -1603,8 +1609,10 @@ do_connect(struct bucket_st *bucket)
     (void)libcouchbase_set_flush_callback(bucket->handle, flush_callback);
     (void)libcouchbase_set_arithmetic_callback(bucket->handle, arithmetic_callback);
     (void)libcouchbase_set_version_callback(bucket->handle, version_callback);
-    (void)libcouchbase_set_couch_complete_callback(bucket->handle, couch_complete_callback);
-    (void)libcouchbase_set_couch_data_callback(bucket->handle, couch_data_callback);
+    (void)libcouchbase_set_view_complete_callback(bucket->handle, http_complete_callback);
+    (void)libcouchbase_set_view_data_callback(bucket->handle, http_data_callback);
+    (void)libcouchbase_set_management_complete_callback(bucket->handle, http_complete_callback);
+    (void)libcouchbase_set_management_data_callback(bucket->handle, http_data_callback);
     (void)libcouchbase_set_observe_callback(bucket->handle, observe_callback);
 
     if (bucket->timeout > 0) {
@@ -4275,9 +4283,9 @@ cb_timer_init(int argc, VALUE *argv, VALUE self)
 }
 
     void
-cb_couch_request_free(void *ptr)
+cb_http_request_free(void *ptr)
 {
-    struct couch_request_st *request = ptr;
+    struct http_request_st *request = ptr;
     if (request) {
         request->running = 0;
         if (TYPE(request->bucket_obj) == T_DATA
@@ -4285,6 +4293,7 @@ cb_couch_request_free(void *ptr)
                 && !request->completed) {
             libcouchbase_cancel_http_request(request->request);
         }
+        xfree(request->content_type);
         xfree(request->path);
         xfree(request->body);
         xfree(request);
@@ -4292,23 +4301,23 @@ cb_couch_request_free(void *ptr)
 }
 
     void
-cb_couch_request_mark(void *ptr)
+cb_http_request_mark(void *ptr)
 {
-    struct couch_request_st *request = ptr;
+    struct http_request_st *request = ptr;
     if (request) {
         rb_gc_mark(request->on_body_callback);
     }
 }
 
     static VALUE
-cb_couch_request_alloc(VALUE klass)
+cb_http_request_alloc(VALUE klass)
 {
     VALUE obj;
-    struct couch_request_st *request;
+    struct http_request_st *request;
 
     /* allocate new bucket struct and set it to zero */
-    obj = Data_Make_Struct(klass, struct couch_request_st, cb_couch_request_mark,
-            cb_couch_request_free, request);
+    obj = Data_Make_Struct(klass, struct http_request_st, cb_http_request_mark,
+            cb_http_request_free, request);
     return obj;
 }
 
@@ -4321,10 +4330,10 @@ cb_couch_request_alloc(VALUE klass)
  * @return [String]
  */
     static VALUE
-cb_couch_request_inspect(VALUE self)
+cb_http_request_inspect(VALUE self)
 {
     VALUE str;
-    struct couch_request_st *req = DATA_PTR(self);
+    struct http_request_st *req = DATA_PTR(self);
     char buf[200];
 
     str = rb_str_buf_new2("#<");
@@ -4346,10 +4355,10 @@ cb_couch_request_inspect(VALUE self)
  * @return [Bucket::CouchRequest]
  */
     static VALUE
-cb_couch_request_init(int argc, VALUE *argv, VALUE self)
+cb_http_request_init(int argc, VALUE *argv, VALUE self)
 {
-    struct couch_request_st *request = DATA_PTR(self);
-    VALUE bucket, path, opts, on_body, mm, pp, body;
+    struct http_request_st *request = DATA_PTR(self);
+    VALUE bucket, path, opts, on_body, pp, arg;
     rb_scan_args(argc, argv, "22", &bucket, &pp, &opts, &on_body);
 
     if (NIL_P(on_body) && rb_block_given_p()) {
@@ -4367,27 +4376,44 @@ cb_couch_request_init(int argc, VALUE *argv, VALUE self)
     request->method = LIBCOUCHBASE_HTTP_METHOD_GET;
     request->extended = Qfalse;
     request->chunked = Qfalse;
+    request->type = LIBCOUCHBASE_HTTP_TYPE_VIEW;
+    request->content_type = strdup("application/json");
+
     if (opts != Qnil) {
         Check_Type(opts, T_HASH);
         request->extended = RTEST(rb_hash_aref(opts, sym_extended));
         request->chunked = RTEST(rb_hash_aref(opts, sym_chunked));
-        if ((mm = rb_hash_aref(opts, sym_method)) != Qnil) {
-            if (mm == sym_get) {
+        if ((arg = rb_hash_aref(opts, sym_type)) != Qnil) {
+            if (arg == sym_view) {
+                request->type = LIBCOUCHBASE_HTTP_TYPE_VIEW;
+            } else if (arg == sym_management) {
+                request->type = LIBCOUCHBASE_HTTP_TYPE_MANAGEMENT;
+            } else {
+                rb_raise(rb_eArgError, "unsupported request type");
+            }
+        }
+        if ((arg = rb_hash_aref(opts, sym_method)) != Qnil) {
+            if (arg == sym_get) {
                 request->method = LIBCOUCHBASE_HTTP_METHOD_GET;
-            } else if (mm == sym_post) {
+            } else if (arg == sym_post) {
                 request->method = LIBCOUCHBASE_HTTP_METHOD_POST;
-            } else if (mm == sym_put) {
+            } else if (arg == sym_put) {
                 request->method = LIBCOUCHBASE_HTTP_METHOD_PUT;
-            } else if (mm == sym_delete) {
+            } else if (arg == sym_delete) {
                 request->method = LIBCOUCHBASE_HTTP_METHOD_DELETE;
             } else {
                 rb_raise(rb_eArgError, "unsupported HTTP method");
             }
         }
-        if ((body = rb_hash_aref(opts, sym_body)) != Qnil) {
-            Check_Type(body, T_STRING);
-            request->body = strdup(RSTRING_PTR(body));
-            request->nbody = RSTRING_LEN(body);
+        if ((arg = rb_hash_aref(opts, sym_body)) != Qnil) {
+            Check_Type(arg, T_STRING);
+            request->body = strdup(RSTRING_PTR(arg));
+            request->nbody = RSTRING_LEN(arg);
+        }
+        if ((arg = rb_hash_aref(opts, sym_content_type)) != Qnil) {
+            Check_Type(arg, T_STRING);
+            xfree(request->content_type);
+            request->content_type = strdup(RSTRING_PTR(arg));
         }
     }
 
@@ -4400,9 +4426,9 @@ cb_couch_request_init(int argc, VALUE *argv, VALUE self)
  * @since 1.2.0
  */
     static VALUE
-cb_couch_request_on_body(VALUE self)
+cb_http_request_on_body(VALUE self)
 {
-    struct couch_request_st *request = DATA_PTR(self);
+    struct http_request_st *request = DATA_PTR(self);
     VALUE old = request->on_body_callback;
     if (rb_block_given_p()) {
         request->on_body_callback = rb_block_proc();
@@ -4416,9 +4442,9 @@ cb_couch_request_on_body(VALUE self)
  * @since 1.2.0
  */
     static VALUE
-cb_couch_request_perform(VALUE self)
+cb_http_request_perform(VALUE self)
 {
-    struct couch_request_st *req = DATA_PTR(self);
+    struct http_request_st *req = DATA_PTR(self);
     struct context_st *ctx;
     VALUE rv, exc;
     libcouchbase_error_t err;
@@ -4435,9 +4461,9 @@ cb_couch_request_perform(VALUE self)
     ctx->extended = req->extended;
     ctx->request = req;
 
-    req->request = libcouchbase_make_couch_request(bucket->handle, (const void *)ctx,
-            req->path, req->npath, req->body, req->nbody, req->method,
-            req->chunked, &err);
+    req->request = libcouchbase_make_http_request(bucket->handle, (const void *)ctx,
+            req->type, req->path, req->npath, req->body, req->nbody,
+            req->method, req->chunked, req->content_type, &err);
     exc = cb_check_error(err, "failed to schedule document request",
             rb_str_new(req->path, req->npath));
     if (exc != Qnil) {
@@ -4466,18 +4492,18 @@ cb_couch_request_perform(VALUE self)
 }
 
     static VALUE
-cb_couch_request_pause(VALUE self)
+cb_http_request_pause(VALUE self)
 {
-    struct couch_request_st *req = DATA_PTR(self);
+    struct http_request_st *req = DATA_PTR(self);
     req->bucket->io->stop_event_loop(req->bucket->io);
     return Qnil;
 }
 
     static VALUE
-cb_couch_request_continue(VALUE self)
+cb_http_request_continue(VALUE self)
 {
     VALUE exc, *rv;
-    struct couch_request_st *req = DATA_PTR(self);
+    struct http_request_st *req = DATA_PTR(self);
 
     if (req->running) {
         libcouchbase_wait(req->bucket->handle);
@@ -4492,7 +4518,7 @@ cb_couch_request_continue(VALUE self)
             return *rv;
         }
     } else {
-        cb_couch_request_perform(self);
+        cb_http_request_perform(self);
     }
     return Qnil;
 }
@@ -4504,9 +4530,9 @@ cb_couch_request_continue(VALUE self)
  * @return [String] the requested path
  */
     static VALUE
-cb_couch_request_path_get(VALUE self)
+cb_http_request_path_get(VALUE self)
 {
-    struct couch_request_st *req = DATA_PTR(self);
+    struct http_request_st *req = DATA_PTR(self);
     return rb_str_new2(req->path);
 }
 
@@ -4518,9 +4544,9 @@ cb_couch_request_path_get(VALUE self)
  *   yielding, +true+ if the client is ready to handle response in chunks.
  */
     static VALUE
-cb_couch_request_chunked_get(VALUE self)
+cb_http_request_chunked_get(VALUE self)
 {
-    struct couch_request_st *req = DATA_PTR(self);
+    struct http_request_st *req = DATA_PTR(self);
     return RTEST(req->chunked);
 }
 
@@ -4532,13 +4558,13 @@ cb_couch_request_chunked_get(VALUE self)
  *   and {Couchbase::Result} instance otherwise.
  */
     static VALUE
-cb_couch_request_extended_get(VALUE self)
+cb_http_request_extended_get(VALUE self)
 {
-    struct couch_request_st *req = DATA_PTR(self);
+    struct http_request_st *req = DATA_PTR(self);
     return RTEST(req->extended);
 }
 
-/* Document-method: make_couch_request(path, options = {})
+/* Document-method: make_http_request(path, options = {})
  *
  * @since 1.2.0
  *
@@ -4553,7 +4579,7 @@ cb_couch_request_extended_get(VALUE self)
  * @return [Couchbase::Bucket::CouchRequest]
  */
     static VALUE
-cb_bucket_make_couch_request(int argc, VALUE *argv, VALUE self)
+cb_bucket_make_http_request(int argc, VALUE *argv, VALUE self)
 {
     VALUE args[4]; /* bucket, path, options, block */
 
@@ -4961,7 +4987,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "decr", cb_bucket_decr, -1);
     rb_define_method(cBucket, "disconnect", cb_bucket_disconnect, 0);
     rb_define_method(cBucket, "reconnect", cb_bucket_reconnect, -1);
-    rb_define_method(cBucket, "make_couch_request", cb_bucket_make_couch_request, -1);
+    rb_define_method(cBucket, "make_http_request", cb_bucket_make_http_request, -1);
     rb_define_method(cBucket, "observe", cb_bucket_observe, -1);
 
     rb_define_alias(cBucket, "decrement", "decr");
@@ -5222,22 +5248,22 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "default_observe_timeout=", cb_bucket_default_observe_timeout_set, 1);
 
     cCouchRequest = rb_define_class_under(cBucket, "CouchRequest", rb_cObject);
-    rb_define_alloc_func(cCouchRequest, cb_couch_request_alloc);
+    rb_define_alloc_func(cCouchRequest, cb_http_request_alloc);
 
-    rb_define_method(cCouchRequest, "initialize", cb_couch_request_init, -1);
-    rb_define_method(cCouchRequest, "inspect", cb_couch_request_inspect, 0);
-    rb_define_method(cCouchRequest, "on_body", cb_couch_request_on_body, 0);
-    rb_define_method(cCouchRequest, "perform", cb_couch_request_perform, 0);
-    rb_define_method(cCouchRequest, "pause", cb_couch_request_pause, 0);
-    rb_define_method(cCouchRequest, "continue", cb_couch_request_continue, 0);
+    rb_define_method(cCouchRequest, "initialize", cb_http_request_init, -1);
+    rb_define_method(cCouchRequest, "inspect", cb_http_request_inspect, 0);
+    rb_define_method(cCouchRequest, "on_body", cb_http_request_on_body, 0);
+    rb_define_method(cCouchRequest, "perform", cb_http_request_perform, 0);
+    rb_define_method(cCouchRequest, "pause", cb_http_request_pause, 0);
+    rb_define_method(cCouchRequest, "continue", cb_http_request_continue, 0);
 
     /* rb_define_attr(cCouchRequest, "path", 1, 0); */
-    rb_define_method(cCouchRequest, "path", cb_couch_request_path_get, 0);
+    rb_define_method(cCouchRequest, "path", cb_http_request_path_get, 0);
     /* rb_define_attr(cCouchRequest, "extended", 1, 0); */
-    rb_define_method(cCouchRequest, "extended", cb_couch_request_extended_get, 0);
+    rb_define_method(cCouchRequest, "extended", cb_http_request_extended_get, 0);
     rb_define_alias(cCouchRequest, "extended?", "extended");
     /* rb_define_attr(cCouchRequest, "chunked", 1, 0); */
-    rb_define_method(cCouchRequest, "chunked", cb_couch_request_chunked_get, 0);
+    rb_define_method(cCouchRequest, "chunked", cb_http_request_chunked_get, 0);
     rb_define_alias(cCouchRequest, "chunked?", "chunked");
 
     cTimer = rb_define_class_under(mCouchbase, "Timer", rb_cObject);
@@ -5274,7 +5300,7 @@ Init_couchbase_ext(void)
     sym_bucket = ID2SYM(rb_intern("bucket"));
     sym_cas = ID2SYM(rb_intern("cas"));
     sym_chunked = ID2SYM(rb_intern("chunked"));
-    sym_couch_request = ID2SYM(rb_intern("couch_request"));
+    sym_content_type = ID2SYM(rb_intern("content_type"));
     sym_create = ID2SYM(rb_intern("create"));
     sym_decrement = ID2SYM(rb_intern("decrement"));
     sym_default_flags = ID2SYM(rb_intern("default_flags"));
@@ -5292,10 +5318,12 @@ Init_couchbase_ext(void)
     sym_found = ID2SYM(rb_intern("found"));
     sym_get = ID2SYM(rb_intern("get"));
     sym_hostname = ID2SYM(rb_intern("hostname"));
+    sym_http_request = ID2SYM(rb_intern("http_request"));
     sym_increment = ID2SYM(rb_intern("increment"));
     sym_initial = ID2SYM(rb_intern("initial"));
     sym_key_prefix = ID2SYM(rb_intern("key_prefix"));
     sym_lock = ID2SYM(rb_intern("lock"));
+    sym_management = ID2SYM(rb_intern("management"));
     sym_marshal = ID2SYM(rb_intern("marshal"));
     sym_method = ID2SYM(rb_intern("method"));
     sym_node_list = ID2SYM(rb_intern("node_list"));
@@ -5321,6 +5349,8 @@ Init_couchbase_ext(void)
     sym_timeout = ID2SYM(rb_intern("timeout"));
     sym_touch = ID2SYM(rb_intern("touch"));
     sym_ttl = ID2SYM(rb_intern("ttl"));
+    sym_type = ID2SYM(rb_intern("type"));
     sym_username = ID2SYM(rb_intern("username"));
     sym_version = ID2SYM(rb_intern("version"));
+    sym_view = ID2SYM(rb_intern("view"));
 }

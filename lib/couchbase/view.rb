@@ -231,13 +231,13 @@ module Couchbase
     #                                  :include_docs => true)
     def fetch(params = {})
       params = @params.merge(params)
-      options = {:chunked => true, :extended => true}
+      options = {:chunked => true, :extended => true, :type => :view}
       if body = params.delete(:body)
         body = MultiJson.dump(body) unless body.is_a?(String)
         options.update(:body => body, :method => params.delete(:method) || :post)
       end
       path = Utils.build_query(@endpoint, params)
-      request = @bucket.make_couch_request(path, options)
+      request = @bucket.make_http_request(path, options)
       res = []
       request.on_body do |chunk|
         res << chunk
