@@ -91,6 +91,13 @@ module Couchbase
     # @return [Array<View>]
     attr_accessor :views
 
+    # The list of spatial views defined or empty array
+    #
+    # @since 1.2.0
+    #
+    # @return [Array<View>]
+    attr_accessor :spatial
+
     # Initialize the document instance
     #
     # @since 1.2.0
@@ -112,14 +119,27 @@ module Couchbase
       end
       @id = data['id'] || @meta && @meta['id']
       @views = []
-      if design_doc? && @doc.has_key?('views')
-        @doc['views'].each do |name, _|
-          @views << name
-          self.instance_eval <<-EOV, __FILE__, __LINE__ + 1
-            def #{name}(params = {})
-              View.new(@bucket, "\#{@id}/_view/#{name}", params)
-            end
-          EOV
+      @spatial = []
+      if design_doc?
+        if @doc.has_key?('views')
+          @doc['views'].each do |name, _|
+            @views << name
+            self.instance_eval <<-EOV, __FILE__, __LINE__ + 1
+              def #{name}(params = {})
+                View.new(@bucket, "\#{@id}/_view/#{name}", params)
+              end
+            EOV
+          end
+        end
+        if @doc.has_key?('spatial')
+          @doc['spatial'].each do |name, _|
+            @spatial << name
+            self.instance_eval <<-EOV, __FILE__, __LINE__ + 1
+              def #{name}(params = {})
+                View.new(@bucket, "\#{@id}/_spatial/#{name}", params)
+              end
+            EOV
+          end
         end
       end
     end
