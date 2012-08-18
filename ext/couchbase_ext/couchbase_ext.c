@@ -86,6 +86,8 @@ struct context_st
     VALUE observe_options;
     VALUE force_format;
     VALUE operation;
+    VALUE headers_val;
+    int headers_built;
     struct http_request_st *request;
     int quiet;
     int arithm;           /* incr: +1, decr: -1, other: 0 */
@@ -216,6 +218,7 @@ static ID  sym_add,
            id_iv_error,
            id_iv_flags,
            id_iv_from_master,
+           id_iv_headers,
            id_iv_key,
            id_iv_node,
            id_iv_operation,
@@ -1219,6 +1222,37 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
 }
 
     static void
+cb_build_headers(struct context_st *ctx, const char * const *headers)
+{
+    if (!ctx->headers_built) {
+        VALUE key, val;
+        for (size_t ii = 1; *headers != NULL; ++ii, ++headers) {
+            if (ii % 2 == 0) {
+                val = rb_hash_aref(ctx->headers_val, key);
+                switch (TYPE(val)) {
+                    case T_NIL:
+                        rb_hash_aset(ctx->headers_val, key, rb_str_new2(*headers));
+                        break;
+                    case T_ARRAY:
+                        rb_ary_push(val, rb_str_new2(*headers));
+                        break;
+                    default:
+                        {
+                            VALUE ary = rb_ary_new();
+                            rb_ary_push(ary, val);
+                            rb_ary_push(ary, rb_str_new2(*headers));
+                            rb_hash_aset(ctx->headers_val, key, ary);
+                        }
+                }
+            } else {
+                key = rb_str_new2(*headers);
+            }
+        }
+        ctx->headers_built = 1;
+    }
+}
+
+    static void
 http_complete_callback(libcouchbase_http_request_t request,
         libcouchbase_t handle,
         const void *cookie,
@@ -1226,6 +1260,7 @@ http_complete_callback(libcouchbase_http_request_t request,
         libcouchbase_http_status_t status,
         const char *path,
         libcouchbase_size_t npath,
+        const char * const *headers,
         const void *bytes,
         libcouchbase_size_t nbytes)
 {
@@ -1241,21 +1276,26 @@ http_complete_callback(libcouchbase_http_request_t request,
         cb_gc_protect(bucket, ctx->exception);
     }
     v = nbytes ? rb_str_new((const char*)bytes, nbytes) : Qnil;
+    if (headers) {
+        cb_build_headers(ctx, headers);
+        cb_gc_unprotect(bucket, ctx->headers_val);
+    }
+    if (ctx->extended) {
+        res = rb_class_new_instance(0, NULL, cResult);
+        rb_ivar_set(res, id_iv_error, ctx->exception);
+        rb_ivar_set(res, id_iv_operation, sym_http_request);
+        rb_ivar_set(res, id_iv_key, k);
+        rb_ivar_set(res, id_iv_value, v);
+        rb_ivar_set(res, id_iv_completed, Qtrue);
+        rb_ivar_set(res, id_iv_headers, ctx->headers_val);
+    } else {
+        res = v;
+    }
     if (ctx->proc != Qnil) {
-        if (ctx->extended) {
-            res = rb_class_new_instance(0, NULL, cResult);
-            rb_ivar_set(res, id_iv_error, ctx->exception);
-            rb_ivar_set(res, id_iv_operation, sym_http_request);
-            rb_ivar_set(res, id_iv_key, k);
-            rb_ivar_set(res, id_iv_value, v);
-            rb_ivar_set(res, id_iv_completed, Qtrue);
-        } else {
-            res = v;
-        }
         cb_proc_call(ctx->proc, 1, res);
     }
     if (!bucket->async && ctx->exception == Qnil) {
-        *rv = v;
+        *rv = res;
     }
     (void)handle;
     (void)request;
@@ -1269,6 +1309,7 @@ http_data_callback(libcouchbase_http_request_t request,
         libcouchbase_http_status_t status,
         const char *path,
         libcouchbase_size_t npath,
+        const char * const *headers,
         const void *bytes,
         libcouchbase_size_t nbytes)
 {
@@ -1284,6 +1325,10 @@ http_data_callback(libcouchbase_http_request_t request,
         cb_gc_protect(bucket, ctx->exception);
         libcouchbase_cancel_http_request(request);
     }
+    if (headers) {
+        cb_build_headers(ctx, headers);
+        cb_gc_unprotect(bucket, ctx->headers_val);
+    }
     if (ctx->proc != Qnil) {
         if (ctx->extended) {
             res = rb_class_new_instance(0, NULL, cResult);
@@ -1292,6 +1337,7 @@ http_data_callback(libcouchbase_http_request_t request,
             rb_ivar_set(res, id_iv_key, k);
             rb_ivar_set(res, id_iv_value, v);
             rb_ivar_set(res, id_iv_completed, Qfalse);
+            rb_ivar_set(res, id_iv_headers, ctx->headers_val);
         } else {
             res = v;
         }
@@ -4104,6 +4150,12 @@ cb_result_inspect(VALUE self)
         rb_str_append(str, rb_inspect(attr));
     }
 
+    attr = rb_ivar_get(self, id_iv_headers);
+    if (RTEST(attr)) {
+        rb_str_buf_cat2(str, " headers=");
+        rb_str_append(str, rb_inspect(attr));
+    }
+
     rb_str_buf_cat2(str, ">");
 
     return str;
@@ -4460,6 +4512,8 @@ cb_http_request_perform(VALUE self)
     ctx->proc = rb_block_given_p() ? rb_block_proc() : req->on_body_callback;
     ctx->extended = req->extended;
     ctx->request = req;
+    ctx->headers_val = rb_hash_new();
+    cb_gc_protect(bucket, ctx->headers_val);
 
     req->request = libcouchbase_make_http_request(bucket->handle, (const void *)ctx,
             req->type, req->path, req->npath, req->body, req->nbody,
@@ -4880,6 +4934,16 @@ Init_couchbase_ext(void)
      */
     rb_define_attr(cResult, "node", 1, 0);
     id_iv_node = rb_intern("@node");
+    /* Document-method: headers
+     *
+     * @since 1.2.0
+     *
+     * HTTP headers
+     *
+     * @return [Hash]
+     */
+    rb_define_attr(cResult, "headers", 1, 0);
+    id_iv_headers = rb_intern("@headers");
     /* Document-method: completed
      * In {Bucket::CouchRequest} operations used to mark the final call
      * @return [Boolean] */
