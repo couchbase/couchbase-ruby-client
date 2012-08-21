@@ -24,6 +24,7 @@ module Couchbase
       return uri if params.nil? || params.empty?
       uri << "?"
       uri << params.map do |k, v|
+        next if !v && k.to_s == "group"
         if %w{key keys startkey endkey start_key end_key}.include?(k.to_s)
           v = MultiJson.dump(v)
         end
@@ -32,7 +33,7 @@ module Couchbase
         else
           "#{escape(k)}=#{escape(v)}"
         end
-      end.join("&")
+      end.compact.join("&")
     end
 
     def self.escape(s)
