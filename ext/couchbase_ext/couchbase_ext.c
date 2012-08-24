@@ -1323,7 +1323,7 @@ http_data_callback(libcouchbase_http_request_t request,
     v = nbytes ? rb_str_new((const char*)bytes, nbytes) : Qnil;
     if (ctx->exception != Qnil) {
         cb_gc_protect(bucket, ctx->exception);
-        libcouchbase_cancel_http_request(request);
+        libcouchbase_cancel_http_request(bucket->handle, request);
     }
     if (headers) {
         cb_build_headers(ctx, headers);
@@ -4343,7 +4343,7 @@ cb_http_request_free(void *ptr)
         if (TYPE(request->bucket_obj) == T_DATA
                 && RDATA(request->bucket_obj)->dfree == (RUBY_DATA_FUNC)cb_bucket_free
                 && !request->completed) {
-            libcouchbase_cancel_http_request(request->request);
+            libcouchbase_cancel_http_request(request->bucket->handle, request->request);
         }
         xfree(request->content_type);
         xfree(request->path);
