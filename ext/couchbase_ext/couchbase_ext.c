@@ -1225,9 +1225,12 @@ arithmetic_callback(libcouchbase_t handle, const void *cookie,
 cb_build_headers(struct context_st *ctx, const char * const *headers)
 {
     if (!ctx->headers_built) {
-        VALUE key, val;
+        VALUE key = Qnil, val;
         for (size_t ii = 1; *headers != NULL; ++ii, ++headers) {
             if (ii % 2 == 0) {
+                if (key == Qnil) {
+                    break;
+                }
                 val = rb_hash_aref(ctx->headers_val, key);
                 switch (TYPE(val)) {
                     case T_NIL:
