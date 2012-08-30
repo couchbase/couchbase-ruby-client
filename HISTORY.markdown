@@ -1,3 +1,9 @@
+## 1.1.4 / 2012-08-30
+
+* RCBC-70 return binary keys using Encoding.external value (thanks to Alex Leverington)
+* Switch to rbenv because RVM doesn't work with tclsh
+* [backport] RCBC-37 Bootstrapping using multiple nodes
+
 ## 1.1.3 / 2012-07-27
 
 * RCBC-59 Replicate flags in Bucket#cas operation
