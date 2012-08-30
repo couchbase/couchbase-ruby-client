@@ -72,4 +72,49 @@ class TestStore < MiniTest::Unit::TestCase
     end
   end
 
+  def test_simple_multi_delete
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => true)
+    connection.set(uniq_id(1) => "bar", uniq_id(2) => "foo")
+    res = connection.delete(uniq_id(1), uniq_id(2))
+    assert res.is_a?(Hash)
+    assert res[uniq_id(1)]
+    assert res[uniq_id(2)]
+  end
+
+  def test_simple_multi_delete_missing
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => true)
+    connection.set(uniq_id(1) => "bar", uniq_id(2) => "foo")
+    res = connection.delete(uniq_id(1), uniq_id(:missing), :quiet => true)
+    assert res.is_a?(Hash)
+    assert res[uniq_id(1)]
+    refute res[uniq_id(:missing)]
+  end
+
+  def test_multi_delete_with_cas_check
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => true)
+    cas = connection.set(uniq_id(1) => "bar", uniq_id(2) => "foo")
+    res = connection.delete(uniq_id(1) => cas[uniq_id(1)], uniq_id(2) => cas[uniq_id(2)])
+    assert res.is_a?(Hash)
+    assert res[uniq_id(1)]
+    assert res[uniq_id(2)]
+  end
+
+  def test_multi_delete_missing_with_cas_check
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => true)
+    cas = connection.set(uniq_id(1) => "bar", uniq_id(2) => "foo")
+    res = connection.delete(uniq_id(1) => cas[uniq_id(1)], uniq_id(:missing) => cas[uniq_id(2)])
+    assert res.is_a?(Hash)
+    assert res[uniq_id(1)]
+    refute res[uniq_id(:missing)]
+  end
+
+  def test_multi_delete_with_cas_check_mismatch
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => true)
+    cas = connection.set(uniq_id(1) => "bar", uniq_id(2) => "foo")
+
+    assert_raises(Couchbase::Error::KeyExists) do
+      connection.delete(uniq_id(1) => cas[uniq_id(1)] + 1,
+                        uniq_id(2) => cas[uniq_id(2)])
+    end
+  end
 end

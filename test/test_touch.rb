@@ -76,4 +76,22 @@ class TestTouch < MiniTest::Unit::TestCase
     end
   end
 
+  def test_missing_in_quiet_mode
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => true)
+    cas1 = connection.set(uniq_id(1), "foo1")
+    cas2 = connection.set(uniq_id(2), "foo2")
+
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.touch(uniq_id(:missing), :quiet => false)
+    end
+
+    val = connection.touch(uniq_id(:missing))
+    refute(val)
+
+    ret = connection.touch(uniq_id(1), uniq_id(:missing), uniq_id(2))
+    assert_equal true, ret[uniq_id(1)]
+    assert_equal false, ret[uniq_id(:missing)]
+    assert_equal true, ret[uniq_id(2)]
+  end
+
 end

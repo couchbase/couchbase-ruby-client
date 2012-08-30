@@ -16,6 +16,7 @@
 #
 
 require 'couchbase'
+require 'securerandom'
 require 'active_support/core_ext/array/extract_options'
 require 'active_support/cache'
 
@@ -287,8 +288,8 @@ module ActiveSupport
       # @since 1.2.0.dp5
       #
       # @return [Hash]
-      def stats(arg = nil)
-        @data.stats(arg)
+      def stats(*arg)
+        @data.stats(*arg)
       end
 
       protected

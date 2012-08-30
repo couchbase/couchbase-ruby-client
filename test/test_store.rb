@@ -194,4 +194,23 @@ class TestStore < MiniTest::Unit::TestCase
       EOC
     end
   end
+
+  def test_multi_store
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :plain)
+    connection.add(uniq_id(:a) => "bbb", uniq_id(:z) => "yyy")
+    assert_equal ["bbb", "yyy"], connection.get(uniq_id(:a), uniq_id(:z))
+
+    connection.prepend(uniq_id(:a) => "aaa", uniq_id(:z) => "xxx")
+    assert_equal ["aaabbb", "xxxyyy"], connection.get(uniq_id(:a), uniq_id(:z))
+
+    connection.append(uniq_id(:a) => "ccc", uniq_id(:z) => "zzz")
+    assert_equal ["aaabbbccc", "xxxyyyzzz"], connection.get(uniq_id(:a), uniq_id(:z))
+
+    connection.replace(uniq_id(:a) => "foo", uniq_id(:z) => "bar")
+    assert_equal ["foo", "bar"], connection.get(uniq_id(:a), uniq_id(:z))
+
+    res = connection.set(uniq_id(:a) => "bar", uniq_id(:z) => "foo")
+    assert_equal ["bar", "foo"], connection.get(uniq_id(:a), uniq_id(:z))
+    assert res.is_a?(Hash)
+  end
 end

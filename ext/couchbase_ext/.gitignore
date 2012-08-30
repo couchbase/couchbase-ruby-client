@@ -1,0 +1,4 @@
+*.log
+*.o
+Makefile
+couchbase_config.h

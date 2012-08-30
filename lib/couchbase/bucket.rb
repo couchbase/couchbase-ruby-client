@@ -240,8 +240,10 @@ module Couchbase
     # @option options [Fixnum] :persisted How many nodes should store the
     #   key on the disk.
     #
-    # @return [Couchbase::Result, Array<Couchbase::Result>] will return
-    #   single result object in case the keys argument is String or Symbol.
+    # @raise [Couchbase::Error::Timeout] if the given time is up
+    #
+    # @return [Fixnum, Hash<String, Fixnum>] will return CAS value just like
+    #   mutators or pairs key-cas in case of multiple keys.
     def observe_and_wait(*keys, &block)
       options = {:timeout => default_observe_timeout}
       options.update(keys.pop) if keys.size > 1 && keys.last.is_a?(Hash)
@@ -264,10 +266,12 @@ module Couchbase
         do_observe_and_wait(key_cas, options, &block)
       else
         res = do_observe_and_wait(key_cas, options, &block) while res.nil?
-        if keys.size == 1 && (keys[0].is_a?(String) || keys[0].is_a?(Symbol))
-          return res[0]
-        else
-          return res
+        unless async?
+          if keys.size == 1 && (keys[0].is_a?(String) || keys[0].is_a?(Symbol))
+            return res.values.first
+          else
+            return res
+          end
         end
       end
     end
@@ -315,14 +319,16 @@ module Couchbase
           true
         end
         if ok
-          res = keys.map do |k, _|
-            Result.new(:key => k, :cas => acc[k][:cas][0], :operation => :observe_and_wait)
-          end
           if async?
             options[:timer].cancel if options[:timer]
-            block.call(res)
+            keys.each do |k, _|
+              block.call(Result.new(:key => k,
+                                    :cas => acc[k][:cas][0],
+                                    :operation => :observe_and_wait))
+            end
+            return :async
           else
-            return res
+            return keys.inject({}){|res, (k, _)| res[k] = acc[k][:cas][0]; res}
           end
         else
           options[:timeout] /= 2
@@ -331,6 +337,7 @@ module Couchbase
               options[:timer] = create_timer(options[:timeout]) do
                 do_observe_and_wait(keys, options, &block)
               end
+              return :async
             else
               # do wait for timeout
               run { create_timer(options[:timeout]){} }
@@ -341,10 +348,13 @@ module Couchbase
             err = Couchbase::Error::Timeout.new("the observe request was timed out")
             err.instance_variable_set("@operation", :observe_and_wait)
             if async?
-              res = keys.map do |k, _|
-                Result.new(:key => k, :cas => acc[k][:cas][0], :operation => :observe_and_wait)
+              keys.each do |k, _|
+                block.call(Result.new(:key => k,
+                                      :cas => acc[k][:cas][0],
+                                      :operation => :observe_and_wait,
+                                      :error => err))
               end
-              block.call(res)
+              return :async
             else
               err.instance_variable_set("@key", keys.keys)
               raise err
@@ -352,25 +362,27 @@ module Couchbase
           end
         end
       end
-      collect = lambda do |res|
-        if res.completed?
-          check_condition.call if async?
-        else
-          if res.from_master?
-            acc[res.key][:cas][0] = res.cas
+      collect = lambda do |results|
+        results.each do |res|
+          if res.completed?
+            check_condition.call if async?
           else
-            acc[res.key][:cas] << res.cas
-          end
-          acc[res.key][res.status] += 1
-          if res.status == :persisted
-            acc[res.key][:replicated] += 1
+            if res.from_master?
+              acc[res.key][:cas][0] = res.cas
+            else
+              acc[res.key][:cas] << res.cas
+            end
+            acc[res.key][res.status] += 1
+            if res.status == :persisted
+              acc[res.key][:replicated] += 1
+            end
           end
         end
       end
       if async?
         observe(keys.keys, options, &collect)
       else
-        observe(keys.keys, options).each(&collect)
+        observe(keys.keys, options).each{|_, v| collect.call(v)}
         check_condition.call
       end
     end

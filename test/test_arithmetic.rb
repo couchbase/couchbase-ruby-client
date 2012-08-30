@@ -119,4 +119,21 @@ class TestArithmetic < MiniTest::Unit::TestCase
     assert_equal 22, val
   end
 
+  def test_multi_incr
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection.set(uniq_id(:foo) => 1, uniq_id(:bar) => 1)
+
+    assert_equal [2, 2],   connection.incr(uniq_id(:foo), uniq_id(:bar)).values.sort
+    assert_equal [12, 12], connection.incr(uniq_id(:foo), uniq_id(:bar), :delta => 10).values.sort
+    assert_equal [14, 15], connection.incr(uniq_id(:foo) => 2, uniq_id(:bar) => 3).values.sort
+  end
+
+  def test_multi_decr
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection.set(uniq_id(:foo) => 14, uniq_id(:bar) => 15)
+
+    assert_equal [12, 12], connection.decr(uniq_id(:foo) => 2, uniq_id(:bar) => 3).values.sort
+    assert_equal [2, 2],   connection.decr(uniq_id(:foo), uniq_id(:bar), :delta => 10).values.sort
+    assert_equal [1, 1],   connection.decr(uniq_id(:foo), uniq_id(:bar)).values.sort
+  end
 end

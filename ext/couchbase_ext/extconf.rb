@@ -105,7 +105,7 @@ if try_compile(<<-SRC)
 end
 
 
-have_library("couchbase", "libcouchbase_set_view_complete_callback", "libcouchbase/couchbase.h") or abort "You should install libcouchbase >= 1.1.0dp10. See http://www.couchbase.com/develop/ for more details"
+have_library("couchbase", "lcb_get", "libcouchbase/couchbase.h") or abort "You should install libcouchbase >= 2.0.0. See http://www.couchbase.com/develop/ for more details"
 have_header("mach/mach_time.h")
 have_header("stdint.h") or abort "Failed to locate stdint.h"
 have_header("sys/time.h")
