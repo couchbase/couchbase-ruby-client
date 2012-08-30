@@ -107,7 +107,7 @@ task :cross => ["lib/couchbase_ext.rb", "ports:libcouchbase"]
 
 desc "Package gem for windows"
 task "package:windows" => :package do
-  sh("env RUBY_CC_VERSION=1.8.7 rvm 1.8.7 do bundle exec rake cross compile")
-  sh("env RUBY_CC_VERSION=1.9.2 rvm 1.9.2 do bundle exec rake cross compile")
-  sh("env RUBY_CC_VERSION=1.8.7:1.9.2 rvm 1.9.2 do bundle exec rake cross native gem")
+  sh("env RUBY_CC_VERSION=1.8.7 RBENV_VERSION=1.8.7-p370 rbenv exec bundle exec rake cross compile")
+  sh("env RUBY_CC_VERSION=1.9.2 RBENV_VERSION=1.9.2-p320 rbenv exec bundle exec rake cross compile")
+  sh("env RUBY_CC_VERSION=1.8.7:1.9.2 RBENV_VERSION=1.9.2-p320 rbenv exec bundle exec rake cross native gem")
 end
