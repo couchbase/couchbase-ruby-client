@@ -97,4 +97,13 @@ class TestFormat < MiniTest::Unit::TestCase
     end
   end
 
+  def test_bignum_conversion
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :plain)
+    cas = 0xffff_ffff_ffff_ffff
+    assert cas.is_a?(Bignum)
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.delete(uniq_id => cas)
+    end
+  end
+
 end

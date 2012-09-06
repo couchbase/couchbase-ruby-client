@@ -149,7 +149,7 @@ cb_params_remove_init_item(struct params_st *params, lcb_size_t idx, VALUE key_o
 cb_params_remove_extract_keys_i(VALUE key, VALUE value, VALUE arg)
 {
     struct params_st *params = (struct params_st *)arg;
-    cb_params_remove_init_item(params, params->idx++, key, NUM2ULONG(value));
+    cb_params_remove_init_item(params, params->idx++, key, NUM2ULL(value));
     return ST_CONTINUE;
 }
 
