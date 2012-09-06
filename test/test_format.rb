@@ -46,31 +46,29 @@ class TestFormat < MiniTest::Unit::TestCase
   end
 
   def test_it_raises_error_for_document_format_when_neither_to_json_nor_to_s_defined
-    if (MultiJson.respond_to?(:engine) ? MultiJson.engine : MultiJson.adapter).name =~ /Yajl$/
-      orig_doc = SkinyClass.new("Twoflower", "The tourist")
-      refute orig_doc.respond_to?(:to_s)
-      refute orig_doc.respond_to?(:to_json)
+    orig_doc = SkinyClass.new("Twoflower", "The tourist")
+    refute orig_doc.respond_to?(:to_s)
+    refute orig_doc.respond_to?(:to_json)
 
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :document)
-      assert_raises(Couchbase::Error::ValueFormat) do
-        connection.set(uniq_id, orig_doc)
-      end
-
-      class << orig_doc
-        def to_json
-          MultiJson.dump(:name => name, :role => role)
-        end
-      end
-      connection.set(uniq_id, orig_doc) # OK
-
-      class << orig_doc
-        undef to_json
-        def to_s
-          MultiJson.dump(:name => name, :role => role)
-        end
-      end
-      connection.set(uniq_id, orig_doc) # OK
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :document)
+    assert_raises(Couchbase::Error::ValueFormat) do
+      connection.set(uniq_id, orig_doc)
     end
+
+    class << orig_doc
+      def to_json
+        JSON.dump(:name => name, :role => role)
+      end
+    end
+    connection.set(uniq_id, orig_doc) # OK
+
+    class << orig_doc
+      undef to_json
+      def to_s
+        JSON.dump(:name => name, :role => role)
+      end
+    end
+    connection.set(uniq_id, orig_doc) # OK
   end
 
   def test_it_could_dump_arbitrary_class_using_marshal_format

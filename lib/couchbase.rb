@@ -16,26 +16,16 @@
 #
 
 require 'couchbase/version'
-require 'multi_json'
-require 'ext/multi_json_fix'
-require 'yaji'
+require 'yajl/json_gem'
 require 'uri'
 require 'couchbase_ext'
-require 'couchbase/utils'
 require 'couchbase/bucket'
-require 'couchbase/view_row'
-require 'couchbase/view'
-require 'couchbase/result'
 
 # Couchbase ruby client
 module Couchbase
 
   class << self
     # The method +connect+ initializes new Bucket instance with all arguments passed.
-    #
-    # @since 1.0.0
-    #
-    # @see Bucket#initialize
     #
     # @example Use default values for all options
     #   Couchbase.connect
@@ -49,18 +39,13 @@ module Couchbase
     # @example Specify bucket credentials
     #   Couchbase.connect("http://localhost:8091/pools/default", :bucket => 'blog', :username => 'bucket', :password => 'secret')
     #
-    # @example Use URL notation
-    #   Couchbase.connect("http://bucket:secret@localhost:8091/pools/default/buckets/blog")
-    #
     # @return [Bucket] connection instance
     def connect(*options)
-      Bucket.new(*(options.flatten))
+      Bucket.new(*options)
     end
     alias :new :connect
 
     # Default connection options
-    #
-    # @since 1.1.0
     #
     # @example Using {Couchbase#connection_options} to change the bucket
     #   Couchbase.connection_options = {:bucket => 'blog'}
@@ -76,21 +61,15 @@ module Couchbase
 
     # The connection instance for current thread
     #
-    # @since 1.1.0
-    #
-    # @see Couchbase.connection_options
-    #
     # @example
     #   Couchbase.bucket.set("foo", "bar")
     #
     # @return [Bucket]
     def bucket
-      thread_storage[:bucket] ||= connect(connection_options)
+      thread_storage[:bucket] ||= connect(*connection_options)
     end
 
     # Set a connection instance for current thread
-    #
-    # @since 1.1.0
     #
     # @return [Bucket]
     def bucket=(connection)

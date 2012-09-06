@@ -36,7 +36,7 @@ class CouchbaseServer
       raise ArgumentError, "Check COUCHBASE_SERVER variable. It should be hostname:port"
     end
 
-    @config = MultiJson.load(open("http://#{@host}:#{@port}/pools/default"))
+    @config = Yajl::Parser.parse(open("http://#{@host}:#{@port}/pools/default"))
     @num_nodes = @config["nodes"].size
     @buckets_spec = params[:buckets_spec] || "default:"  # "default:,protected:secret,cache::memcache"
   end
@@ -50,11 +50,7 @@ class CouchbaseServer
                                  :username => name,
                                  :bucket => name,
                                  :password => password)
-      begin
-        connection.flush
-      rescue Couchbase::Error::NotSupported
-        # on recent server flush is disabled
-      end
+      connection.flush
     end
   end
   def stop; end

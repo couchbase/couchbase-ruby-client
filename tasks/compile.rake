@@ -57,6 +57,7 @@ end
 
 require 'rubygems/package_task'
 Gem::PackageTask.new(gemspec) do |pkg|
+  pkg.need_zip = true
   pkg.need_tar = true
 end
 
@@ -83,9 +84,19 @@ end
 namespace :ports do
   directory "ports"
 
-  task :libcouchbase => ["ports"] do
-    recipe = MiniPortile.new "libcouchbase", "1.1.0dp9"
-    recipe.files << "http://files.avsej.net.s3.amazonaws.com/libcouchbase-1.1.0dp9_37_ge010f0c.tar.gz"
+  task :libvbucket => ["ports"] do
+    recipe = MiniPortile.new "libvbucket", "1.8.0.3"
+    recipe.files << "http://packages.couchbase.com/clients/c/#{recipe.name}-#{recipe.version}.tar.gz"
+    recipe.configure_options.push("--disable-debug",
+                                  "--without-docs",
+                                  "--disable-dependency-tracking")
+    recipe.cook
+    recipe.activate
+  end
+
+  task :libcouchbase => [:libvbucket] do
+    recipe = MiniPortile.new "libcouchbase", "1.0.6"
+    recipe.files << "http://packages.couchbase.com/clients/c/#{recipe.name}-#{recipe.version}.tar.gz"
     recipe.configure_options.push("--disable-debug",
                                   "--disable-dependency-tracking",
                                   "--disable-couchbasemock",

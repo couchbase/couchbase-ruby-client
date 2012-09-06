@@ -82,10 +82,7 @@ class TestGet < MiniTest::Unit::TestCase
     assert_equal "foo1", results[uniq_id(1)]
     assert_equal "foo2", results[uniq_id(2)]
     sleep(2)
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id(1), uniq_id(2))
-    end
-    assert connection.get(uniq_id(1), uniq_id(2), :quiet => true).compact.empty?
+    assert connection.get(uniq_id(1), uniq_id(2)).compact.empty?
   end
 
   def test_multi_get_and_touch_extended
@@ -107,13 +104,11 @@ class TestGet < MiniTest::Unit::TestCase
     assert results.is_a?(Hash)
     assert_equal "foo1", results[uniq_id]
     sleep(2)
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id)
-    end
+    refute = connection.get(uniq_id)
   end
 
   def test_missing_in_quiet_mode
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => true)
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     cas1 = connection.set(uniq_id(1), "foo1")
     cas2 = connection.set(uniq_id(2), "foo2")
 
@@ -174,6 +169,7 @@ class TestGet < MiniTest::Unit::TestCase
       conn.get(uniq_id) {|ret| res << ret}
       handler = lambda {|ret| res << ret}
       conn.get(uniq_id, &handler)
+      assert_equal 3, conn.seqno
     end
 
     checks = lambda do
@@ -202,6 +198,7 @@ class TestGet < MiniTest::Unit::TestCase
     res = {}
     connection.run do |conn|
       conn.get(uniq_id(1), uniq_id(2)) {|ret| res[ret.key] = ret.value}
+      assert_equal 2, conn.seqno
     end
 
     assert res[uniq_id(1)]
@@ -234,15 +231,9 @@ class TestGet < MiniTest::Unit::TestCase
       missing.clear
       conn.get(uniq_id(:missing1), &get_handler)
       conn.get(uniq_id, uniq_id(:missing2), &get_handler)
+      assert 3, conn.seqno
     end
 
-    connection.run(&suite)
-    refute res.has_key?(uniq_id(:missing1))
-    refute res.has_key?(uniq_id(:missing2))
-    assert_equal [uniq_id(:missing1), uniq_id(:missing2)], missing.sort
-    assert_equal "foo", res[uniq_id]
-
-    connection.quiet = true
     connection.run(&suite)
     assert_equal "foo", res[uniq_id]
     assert res.has_key?(uniq_id(:missing1)) # handler was called with nil
@@ -250,6 +241,14 @@ class TestGet < MiniTest::Unit::TestCase
     assert res.has_key?(uniq_id(:missing2))
     refute res[uniq_id(:missing2)]
     assert_empty missing
+
+    connection.quiet = false
+
+    connection.run(&suite)
+    refute res.has_key?(uniq_id(:missing1))
+    refute res.has_key?(uniq_id(:missing2))
+    assert_equal [uniq_id(:missing1), uniq_id(:missing2)], missing.sort
+    assert_equal "foo", res[uniq_id]
   end
 
   def test_get_using_brackets
@@ -328,80 +327,4 @@ class TestGet < MiniTest::Unit::TestCase
     end
   end
 
-  # http://www.couchbase.com/issues/browse/RCBC-31
-  def test_consistent_behaviour_for_arrays
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-
-    cas = connection.set(uniq_id("foo"), "foo")
-    connection.set(uniq_id("bar"), "bar")
-
-    assert_equal "foo", connection.get(uniq_id("foo"))
-    assert_equal ["foo"], connection.get([uniq_id("foo")])
-    assert_equal ["foo", "bar"], connection.get([uniq_id("foo"), uniq_id("bar")])
-    assert_equal ["foo", "bar"], connection.get(uniq_id("foo"), uniq_id("bar"))
-    expected = {uniq_id("foo") => ["foo", 0x00, cas]}
-    assert_equal expected, connection.get([uniq_id("foo")], :extended => true)
-    assert_raises TypeError do
-      connection.get([uniq_id("foo"), uniq_id("bar")], [uniq_id("foo")])
-    end
-  end
-
-  def test_get_with_lock_trivial
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      connection.set(uniq_id, "foo")
-      assert_equal "foo", connection.get(uniq_id, :lock => 1)
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id, "bar")
-      end
-      sleep(2)
-      connection.set(uniq_id, "bar")
-    else
-      skip("implement GETL in CouchbaseMock.jar")
-    end
-  end
-
-  def test_multi_get_with_lock
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      connection.set(uniq_id(1), "foo1")
-      connection.set(uniq_id(2), "foo2")
-      assert_equal ["foo1", "foo2"], connection.get([uniq_id(1), uniq_id(2)], :lock => 1)
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id(1), "bar")
-      end
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id(2), "bar")
-      end
-    else
-      skip("implement GETL in CouchbaseMock.jar")
-    end
-  end
-
-  def test_multi_get_with_custom_locks
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      connection.set(uniq_id(1), "foo1")
-      connection.set(uniq_id(2), "foo2")
-      expected = {uniq_id(1) => "foo1", uniq_id(2) => "foo2"}
-      assert_equal expected, connection.get({uniq_id(1) => 1, uniq_id(2) => 2}, :lock => true)
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id(1), "foo")
-      end
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id(2), "foo")
-      end
-    else
-      skip("implement GETL in CouchbaseMock.jar")
-    end
-  end
-
-  def test_multi_get_result_hash_assembling
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    connection.set(uniq_id(1), "foo")
-    connection.set(uniq_id(2), "bar")
-
-    expected = {uniq_id(1) => "foo", uniq_id(2) => "bar"}
-    assert_equal expected, connection.get(uniq_id(1), uniq_id(2), :assemble_hash => true)
-  end
 end

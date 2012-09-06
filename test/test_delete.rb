@@ -31,20 +31,17 @@ class TestStore < MiniTest::Unit::TestCase
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, "bar")
     assert connection.delete(uniq_id)
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.delete(uniq_id)
-    end
+    refute connection.delete(uniq_id)
   end
 
   def test_delete_missing
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    refute connection.delete(uniq_id(:missing))
+    connection.quiet = false
     assert_raises(Couchbase::Error::NotFound) do
       connection.delete(uniq_id(:missing))
     end
     refute connection.delete(uniq_id(:missing), :quiet => true)
-    refute connection.quiet?
-    connection.quiet = true
-    refute connection.delete(uniq_id(:missing))
   end
 
   def test_delete_with_cas
@@ -61,15 +58,6 @@ class TestStore < MiniTest::Unit::TestCase
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     cas = connection.set(uniq_id, "bar")
     assert connection.delete(uniq_id, cas)
-  end
-
-  def test_delete_with_prefix
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :key_prefix => "prefix:")
-    connection.set(uniq_id(:foo), "bar")
-    assert connection.delete(uniq_id(:foo))
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id(:foo))
-    end
   end
 
 end

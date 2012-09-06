@@ -1,4 +1,4 @@
-# Couchbase Ruby Client [![Build Status](https://secure.travis-ci.org/couchbase/couchbase-ruby-client.png?branch=master)](http://travis-ci.org/couchbase/couchbase-ruby-client)
+# Couchbase Ruby Client [![Build Status](https://secure.travis-ci.org/avsej/couchbase-ruby-client.png?branch=master)](http://travis-ci.org/avsej/couchbase-ruby-client)
 
 This is the official client library for use with Couchbase Server.
 
@@ -18,15 +18,14 @@ libcouchbase doesn't take much effort.
 
     $ brew install libcouchbase
 
-The official homebrew repository contains only stable versions of
-libvbucket and libcouchbase, if you need preview, take a look at
-Couchbase's fork: https://github.com/couchbase/homebrew
+Or if [our pull requests][4] for isn't yet merged:
 
-    $ brew install https://raw.github.com/couchbase/homebrew/preview/Library/Formula/libcouchbase.rb
+    $ brew install https://github.com/avsej/homebrew/raw/libvbucket/Library/Formula/libvbucket.rb
+    $ brew install https://github.com/avsej/homebrew/raw/libcouchbase/Library/Formula/libcouchbase.rb
 
 ### Debian (Ubuntu)
 
-Add the appropriate line to `/etc/apt/sources.list.d/couchbase.list` for
+Add the appropriate line to /etc/apt/sources.list.d/couchbase.list for
 your OS release:
 
     # Ubuntu 11.10 Oneiric Ocelot (Debian unstable)
@@ -43,15 +42,6 @@ Then install them
 
     $ sudo apt-get update && sudo apt-get install libcouchbase-dev
 
-Again, if you need preview versions, just use another repositories in
-your `couchbase.list`
-
-    # Ubuntu 11.10 Oneiric Ocelot (Debian unstable)
-    deb http://packages.couchbase.com/preview/ubuntu oneiric oneiric/main
-
-    # Ubuntu 10.04 Lucid Lynx (Debian stable or testing)
-    deb http://packages.couchbase.com/preview/ubuntu lucid lucid/main
-
 ### Centos (Redhat and rpm-based systems)
 
 Add these lines to /etc/yum.repos.d/couchbase.repo using the correct architecture
@@ -62,22 +52,11 @@ Add these lines to /etc/yum.repos.d/couchbase.repo using the correct architectur
 
     [couchbase]
     name = Couchbase package repository
-    baseurl = http://packages.couchbase.com/rpm/5.5/x86_64
+    baseurl = http:///packages.couchbase.com/rpm/5.5/x86_64
 
 Then to install libcouchbase itself, run:
 
     $ sudo yum update && sudo yum install libcouchbase-devel
-
-We have preview repositories for RPMs too, use them if you need to try
-fresh version of couchbase gem:
-
-    [couchbase]
-    name = Couchbase package repository
-    baseurl = http://packages.couchbase.com/preview/rpm/5.5/i386
-
-    [couchbase]
-    name = Couchbase package repository
-    baseurl = http://packages.couchbase.com/preview/rpm/5.5/x86_64
 
 ### Windows
 
@@ -114,14 +93,6 @@ This is equivalent to following forms:
     c = Couchbase.connect(:pool => "default", :bucket => "default")
 
 The hash parameters take precedence on string URL.
-
-If you worry about state of your nodes or not sure what node is alive,
-you can pass the list of nodes and the library will iterate over it
-until finds the working one. From that moment it won't use **your**
-list, because node list from cluster config is more actual.
-
-    c = Couchbase.connect(:bucket => "mybucket",
-                          :node_list => ['example.com:8091', example.net'])
 
 There is also handy method `Couchbase.bucket` which uses thread local
 storage to keep the reference to default connection. You can set the
@@ -399,120 +370,6 @@ the key and stats as key-value pairs.
         },
       # ...
     }
-
-### Timers
-
-It is possible to create timers to implement general purpose timeouts.
-Note that timers are using microseconds for time intervals. For example,
-following examples increment the keys value five times with 0.5 second
-interval:
-
-    c.set("foo", 100)
-    n = 1
-    c.run do
-      c.create_periodic_timer(500000) do |tm|
-        c.incr("foo") do
-          if n == 5
-            tm.cancel
-          else
-            n += 1
-          end
-        end
-      end
-    end
-
-### Views (Map/Reduce queries)
-
-If you store structured data, they will be treated as documents and you
-can handle them in map/reduce function from Couchbase Views. For example,
-store a couple of posts using memcached API:
-
-    c['biking'] = {:title => 'Biking',
-                   :body => 'My biggest hobby is mountainbiking. The other day...',
-                   :date => '2009/01/30 18:04:11'}
-    c['bought-a-cat'] = {:title => 'Bought a Cat',
-                         :body => 'I went to the the pet store earlier and brought home a little kitty...',
-                         :date => '2009/01/30 20:04:11'}
-    c['hello-world'] = {:title => 'Hello World',
-                        :body => 'Well hello and welcome to my new blog...',
-                        :date => '2009/01/15 15:52:20'}
-    c.all_docs.count    #=> 3
-
-Now let's create design doc with sample view and save it in file
-'blog.json':
-
-    {
-      "_id": "_design/blog",
-      "language": "javascript",
-      "views": {
-        "recent_posts": {
-          "map": "function(doc){if(doc.date && doc.title){emit(doc.date, doc.title);}}"
-        }
-      }
-    }
-
-This design document could be loaded into the database like this (also you can
-pass the ruby Hash or String with JSON encoded document):
-
-    c.save_design_doc(File.open('blog.json'))
-
-To execute view you need to fetch it from design document `_design/blog`:
-
-    blog = c.design_docs['blog']
-    blog.views                    #=> ["recent_posts"]
-    blog.recent_posts             #=> [#<Couchbase::ViewRow:9855800 @id="hello-world" @key="2009/01/15 15:52:20" @value="Hello World" @doc=nil @meta={} @views=[]>, ...]
-
-Gem uses streaming parser to access view results so you can iterate them
-easily and if your code won't keep links to the documents GC might free
-them as soon as it decide they are unreachable, because parser doesn't
-store global JSON tree.
-
-    blog.recent_posts.each do |doc|
-      # do something
-      # with doc object
-      doc.key   # gives the key argument of the emit()
-      doc.value # gives the value argument of the emit()
-    end
-
-Load with documents
-
-    blog.recent_posts(:include_docs => true).each do |doc|
-      doc.doc       # gives the document which emitted the item
-      doc['date']   # gives the argument of the underlying document
-    end
-
-
-You can also use Enumerator to iterate view results
-
-    require 'date'
-    posts_by_date = Hash.new{|h,k| h[k] = []}
-    enum = c.all_docs(:include_docs => true).each  # request hasn't issued yet
-    enum.inject(posts_by_date) do |acc, doc|
-      acc[date] = Date.strptime(doc['date'], '%Y/%m/%d')
-      acc
-    end
-
-The Couchbase server could generate errors during view execution with
-`200 OK` and partial results. By default the library raises exception as
-soon as errors detected in the result stream, but you can define the
-callback `on_error` to intercept these errors and do something more
-useful.
-
-    view = blog.recent_posts(:include_docs => true)
-    logger = Logger.new(STDOUT)
-
-    view.on_error do |from, reason|
-      logger.warn("#{view.inspect} received the error '#{reason}' from #{from}")
-    end
-
-    posts = view.each do |doc|
-      # do something
-      # with doc object
-    end
-
-Note that errors object in view results usually goes *after* the rows,
-so you will likely receive a number of view results successfully before
-the error is detected.
 
 [1]: http://couchbase.com/issues/browse/RCBC
 [2]: http://freenode.net/irc_servers.shtml

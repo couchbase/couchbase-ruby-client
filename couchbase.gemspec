@@ -35,17 +35,13 @@ Gem::Specification.new do |s|
   s.extensions    = `git ls-files -- ext/**/extconf.rb`.split("\n")
   s.require_paths = ['lib']
 
-  s.add_runtime_dependency 'yaji', '~> 0.3.2'
-  s.add_runtime_dependency 'multi_json', '~> 1.0'
+  s.add_runtime_dependency 'yajl-ruby', '~> 1.1.0'
 
   s.add_development_dependency 'rake', '~> 0.8.7'
   s.add_development_dependency 'minitest'
   s.add_development_dependency 'rake-compiler', '>= 0.7.5'
   s.add_development_dependency 'rdiscount'
   s.add_development_dependency 'yard'
-  s.add_development_dependency 'yard-xml'
   s.add_development_dependency 'mini_portile'
-  s.add_development_dependency 'yajl-ruby', '~> 1.1.0'
   s.add_development_dependency RUBY_VERSION =~ /^1\.9/ ? 'debugger' : 'ruby-debug'
-  s.add_development_dependency 'active_support'
 end

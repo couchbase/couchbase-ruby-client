@@ -110,9 +110,7 @@ class TestAsync < MiniTest::Unit::TestCase
     assert success
     assert_equal "foo", val
     sleep(2)
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id)
-    end
+    refute connection.get(uniq_id)
   end
 
   def test_nested_async_delete_get
@@ -169,9 +167,7 @@ class TestAsync < MiniTest::Unit::TestCase
       end
     end
 
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id)
-    end
+    refute connection.get(uniq_id)
     res.keys.each do |key|
       assert res[key].is_a?(Numeric)
       assert connection.get(key)
@@ -226,23 +222,13 @@ class TestAsync < MiniTest::Unit::TestCase
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, "foo")
 
-    connection.timeout = 100_000  # 100_000 us
+    connection.timeout = 100  # 100 us
     connection.run do
       connection.get(uniq_id) do |ret|
         assert ret.success?
         assert_equal "foo", ret.value
       end
-      sleep(1.5)  # 1_500_000 us
-    end
-  end
-
-  def test_send_threshold
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-
-    sent = false
-    connection.run(:send_threshold => 100) do # 100 bytes
-      connection.set(uniq_id, "foo" * 100) {|r| sent = true}
-      assert sent
+      sleep(1.5)
     end
   end
 
