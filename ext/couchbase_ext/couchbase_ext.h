@@ -206,6 +206,7 @@ extern ID sym_timeout;
 extern ID sym_touch;
 extern ID sym_ttl;
 extern ID sym_type;
+extern ID sym_unlock;
 extern ID sym_username;
 extern ID sym_version;
 extern ID sym_view;
@@ -299,6 +300,8 @@ void version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const
 void http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp);
 void http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp);
 void observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_observe_resp_t *resp);
+void unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp);
+
 
 VALUE cb_bucket_alloc(VALUE klass);
 void cb_bucket_free(void *ptr);
@@ -317,6 +320,7 @@ VALUE cb_bucket_aset(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_get(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_incr(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_decr(int argc, VALUE *argv, VALUE self);
+VALUE cb_bucket_unlock(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_run(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_stop(VALUE self);
 VALUE cb_bucket_flush(int argc, VALUE *argv, VALUE self);
@@ -382,7 +386,8 @@ enum command_t {
     cmd_stats       = 0x06,
     cmd_flush       = 0x07,
     cmd_version     = 0x08,
-    cmd_observe     = 0x09
+    cmd_observe     = 0x09,
+    cmd_unlock     = 0x10
 };
 
 struct params_st
@@ -500,6 +505,16 @@ struct params_st
             const lcb_observe_cmd_t **ptr;
             unsigned int array : 1;
         } observe;
+        struct {
+            /* number of items */
+            size_t num;
+            /* array of the items */
+            lcb_unlock_cmd_t *items;
+            /* array of the pointers to the items */
+            const lcb_unlock_cmd_t **ptr;
+            unsigned int quiet : 1;
+            lcb_cas_t cas;
+        } unlock;
     } cmd;
     struct bucket_st *bucket;
     /* helper index for iterators */

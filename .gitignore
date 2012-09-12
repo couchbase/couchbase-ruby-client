@@ -1,6 +1,7 @@
 *.gem
 *.so
 .bundle
+.timestamp
 .yardoc
 Gemfile.lock
 core*

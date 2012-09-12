@@ -90,6 +90,7 @@ ID sym_timeout;
 ID sym_touch;
 ID sym_ttl;
 ID sym_type;
+ID sym_unlock;
 ID sym_username;
 ID sym_version;
 ID sym_view;
@@ -564,6 +565,7 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "version", cb_bucket_version, -1);
     rb_define_method(cBucket, "incr", cb_bucket_incr, -1);
     rb_define_method(cBucket, "decr", cb_bucket_decr, -1);
+    rb_define_method(cBucket, "unlock", cb_bucket_unlock, -1);
     rb_define_method(cBucket, "disconnect", cb_bucket_disconnect, 0);
     rb_define_method(cBucket, "reconnect", cb_bucket_reconnect, -1);
     rb_define_method(cBucket, "make_http_request", cb_bucket_make_http_request, -1);
@@ -929,6 +931,7 @@ Init_couchbase_ext(void)
     sym_touch = ID2SYM(rb_intern("touch"));
     sym_ttl = ID2SYM(rb_intern("ttl"));
     sym_type = ID2SYM(rb_intern("type"));
+    sym_unlock = ID2SYM(rb_intern("unlock"));
     sym_username = ID2SYM(rb_intern("username"));
     sym_version = ID2SYM(rb_intern("version"));
     sym_view = ID2SYM(rb_intern("view"));

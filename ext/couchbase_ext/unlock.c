@@ -18,7 +18,7 @@
 #include "couchbase_ext.h"
 
     void
-touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_touch_resp_t *resp)
+unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp)
 {
     struct context_st *ctx = (struct context_st *)cookie;
     struct bucket_st *bucket = ctx->bucket;
@@ -29,9 +29,9 @@ touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_to
     strip_key_prefix(bucket, key);
 
     if (error != LCB_KEY_ENOENT || !ctx->quiet) {
-        exc = cb_check_error(error, "failed to touch value", key);
+        exc = cb_check_error(error, "failed to unlock value", key);
         if (exc != Qnil) {
-            rb_ivar_set(exc, id_iv_operation, sym_touch);
+            rb_ivar_set(exc, id_iv_operation, sym_unlock);
             if (NIL_P(ctx->exception)) {
                 ctx->exception = cb_gc_protect(bucket, exc);
             }
@@ -42,7 +42,7 @@ touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_to
         if (ctx->proc != Qnil) {
             res = rb_class_new_instance(0, NULL, cResult);
             rb_ivar_set(res, id_iv_error, exc);
-            rb_ivar_set(res, id_iv_operation, sym_touch);
+            rb_ivar_set(res, id_iv_operation, sym_unlock);
             rb_ivar_set(res, id_iv_key, key);
             cb_proc_call(ctx->proc, 1, res);
         }
@@ -56,28 +56,20 @@ touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_to
 }
 
 /*
- * Update the expiry time of an item
+ * Unlock key
  *
- * @since 1.0.0
+ * @since 1.2.0
  *
- * The +touch+ method allow you to update the expiration time on a given
- * key. This can be useful for situations where you want to prevent an item
- * from expiring without resetting the associated value. For example, for a
- * session database you might want to keep the session alive in the database
- * each time the user accesses a web page without explicitly updating the
- * session value, keeping the user's session active and available.
+ * The +unlock+ method allow you to unlock key once locked by {Bucket#get}
+ * with +:lock+ option.
  *
- * @overload touch(key, options = {})
+ * @overload unlock(key, options = {})
  *   @param key [String, Symbol] Key used to reference the value.
  *   @param options [Hash] Options for operation.
- *   @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
- *     Values larger than 30*24*60*60 seconds (30 days) are interpreted as
- *     absolute times (from the epoch).
+ *   @option options [Fixnum] :cas The CAS value must match the current one
+ *     from the storage.
  *   @option options [true, false] :quiet (self.quiet) If set to +true+, the
  *     operation won't raise error for missing key, it will return +nil+.
- *
- *   @yieldparam ret [Result] the result of operation in asynchronous mode
- *     (valid attributes: +error+, +operation+, +key+).
  *
  *   @return [true, false] +true+ if the operation was successful and +false+
  *     otherwise.
@@ -86,42 +78,40 @@ touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_to
  *
  *   @raise [ArgumentError] when passing the block in synchronous mode
  *
- *   @example Touch value using +default_ttl+
- *     c.touch("foo")
+ *   @raise [Couchbase::Error::NotFound] if key(s) not found in the storage
  *
- *   @example Touch value using custom TTL (10 seconds)
- *     c.touch("foo", :ttl => 10)
+ *   @raise [Couchbase::Error::TemporaryFail] if either the key wasn't
+ *      locked or given CAS value doesn't match to actual in the storage
  *
- * @overload touch(keys)
+ *   @example Unlock the single key
+ *     val, _, cas = c.get("foo", :lock => true, :extended => true)
+ *     c.unlock("foo", :cas => cas)
+ *
+ * @overload unlock(keys)
  *   @param keys [Hash] The Hash where keys represent the keys in the
- *     database, values -- the expiry times for corresponding key. See
- *     description of +:ttl+ argument above for more information about TTL
- *     values.
+ *     database, values -- the CAS for corresponding key.
  *
  *   @yieldparam ret [Result] the result of operation for each key in
  *     asynchronous mode (valid attributes: +error+, +operation+, +key+).
  *
- *   @return [Hash] Mapping keys to result of touch operation (+true+ if the
+ *   @return [Hash] Mapping keys to result of unlock operation (+true+ if the
  *     operation was successful and +false+ otherwise)
  *
- *   @example Touch several values
- *     c.touch("foo" => 10, :bar => 20) #=> {"foo" => true, "bar" => true}
+ *   @example Unlock several keys
+ *     c.unlock("foo" => cas1, :bar => cas2) #=> {"foo" => true, "bar" => true}
  *
- *   @example Touch several values in async mode
+ *   @example Unlock several values in async mode
  *     c.run do
- *       c.touch("foo" => 10, :bar => 20) do |ret|
- *          ret.operation   #=> :touch
+ *       c.unlock("foo" => 10, :bar => 20) do |ret|
+ *          ret.operation   #=> :unlock
  *          ret.success?    #=> true
  *          ret.key         #=> "foo" and "bar" in separate calls
  *       end
  *     end
  *
- *   @example Touch single value
- *     c.touch("foo" => 10)             #=> true
- *
  */
    VALUE
-cb_bucket_touch(int argc, VALUE *argv, VALUE self)
+cb_bucket_unlock(int argc, VALUE *argv, VALUE self)
 {
     struct bucket_st *bucket = DATA_PTR(self);
     struct context_st *ctx;
@@ -138,7 +128,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     }
     rb_funcall(args, id_flatten_bang, 0);
     memset(&params, 0, sizeof(struct params_st));
-    params.type = cmd_touch;
+    params.type = cmd_unlock;
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
     ctx = xcalloc(1, sizeof(struct context_st));
@@ -150,12 +140,12 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     rv = rb_hash_new();
     ctx->rv = &rv;
     ctx->exception = Qnil;
-    ctx->quiet = params.cmd.touch.quiet;
-    ctx->nqueries = params.cmd.touch.num;
-    err = lcb_touch(bucket->handle, (const void *)ctx,
-            params.cmd.touch.num, params.cmd.touch.ptr);
+    ctx->quiet = params.cmd.unlock.quiet;
+    ctx->nqueries = params.cmd.unlock.num;
+    err = lcb_unlock(bucket->handle, (const void *)ctx,
+            params.cmd.unlock.num, params.cmd.unlock.ptr);
     cb_params_destroy(&params);
-    exc = cb_check_error(err, "failed to schedule touch request", Qnil);
+    exc = cb_check_error(err, "failed to schedule unlock request", Qnil);
     if (exc != Qnil) {
         xfree(ctx);
         rb_exc_raise(exc);
@@ -177,7 +167,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
         if (bucket->exception != Qnil) {
             rb_exc_raise(bucket->exception);
         }
-        if (params.cmd.touch.num > 1) {
+        if (params.cmd.unlock.num > 1) {
             return rv;  /* return as a hash {key => true, ...} */
         } else {
             VALUE vv = Qnil;

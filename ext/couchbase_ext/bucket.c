@@ -272,6 +272,7 @@ do_connect(struct bucket_st *bucket)
     (void)lcb_set_management_complete_callback(bucket->handle, http_complete_callback);
     (void)lcb_set_management_data_callback(bucket->handle, http_data_callback);
     (void)lcb_set_observe_callback(bucket->handle, observe_callback);
+    (void)lcb_set_unlock_callback(bucket->handle, unlock_callback);
 
     if (bucket->timeout > 0) {
         lcb_set_timeout(bucket->handle, bucket->timeout);

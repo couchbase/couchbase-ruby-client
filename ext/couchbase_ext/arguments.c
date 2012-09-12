@@ -714,6 +714,83 @@ cb_params_observe_parse_arguments(struct params_st *params, int argc, VALUE argv
 }
 
 
+/* UNLOCK */
+    static void
+cb_params_unlock_alloc(struct params_st *params, lcb_size_t size)
+{
+    lcb_size_t ii;
+
+    params->cmd.unlock.num = size;
+    params->cmd.unlock.items = xcalloc(size, sizeof(lcb_unlock_cmd_t));
+    if (params->cmd.unlock.items == NULL) {
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+    }
+    params->cmd.unlock.ptr = xcalloc(size, sizeof(lcb_unlock_cmd_t *));
+    if (params->cmd.unlock.ptr == NULL) {
+        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+    }
+    for (ii = 0; ii < size; ++ii) {
+        params->cmd.unlock.ptr[ii] = params->cmd.unlock.items + ii;
+    }
+}
+
+    static void
+cb_params_unlock_init_item(struct params_st *params, lcb_size_t idx, VALUE key_obj, lcb_cas_t cas)
+{
+    key_obj = unify_key(params->bucket, key_obj, 1);
+    params->cmd.unlock.items[idx].v.v0.key = RSTRING_PTR(key_obj);
+    params->cmd.unlock.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
+    params->cmd.unlock.items[idx].v.v0.cas = cas;
+    params->npayload += RSTRING_LEN(key_obj);
+}
+
+    static int
+cb_params_unlock_extract_keys_i(VALUE key, VALUE value, VALUE arg)
+{
+    struct params_st *params = (struct params_st *)arg;
+    cb_params_unlock_init_item(params, params->idx++, key, NUM2ULL(value));
+    return ST_CONTINUE;
+}
+
+    static void
+cb_params_unlock_parse_options(struct params_st *params, VALUE options)
+{
+    VALUE tmp;
+
+    if (NIL_P(options)) {
+        return;
+    }
+    tmp = rb_hash_aref(options, sym_cas);
+    if (tmp != Qnil) {
+        params->cmd.unlock.cas = NUM2ULL(tmp);
+    }
+    if (RTEST(rb_funcall(options, id_has_key_p, 1, sym_quiet))) {
+        params->cmd.unlock.quiet = RTEST(rb_hash_aref(options, sym_quiet));
+    }
+}
+
+    static void
+cb_params_unlock_parse_arguments(struct params_st *params, int argc, VALUE argv)
+{
+    if (argc == 1) {
+        VALUE keys = RARRAY_PTR(argv)[0];
+        switch(TYPE(keys)) {
+            case T_HASH:
+                /* key-cas pairs */
+                cb_params_unlock_alloc(params, RHASH_SIZE(keys));
+                rb_hash_foreach(keys, cb_params_unlock_extract_keys_i, (VALUE)params);
+                break;
+            default:
+                /* single key */
+                cb_params_unlock_alloc(params, 1);
+                cb_params_unlock_init_item(params, 0, keys, params->cmd.unlock.cas);
+        }
+    } else {
+        rb_raise(rb_eArgError, "must be either Hash or single key with cas option");
+    }
+}
+
+
 /* FLUSH */
     static void
 cb_params_flush_alloc(struct params_st *params)
@@ -784,6 +861,9 @@ cb_params_destroy(struct params_st *params)
             break;
         case cmd_observe:
             _release_data_for(observe);
+            break;
+        case cmd_unlock:
+            _release_data_for(unlock);
             break;
     }
 #undef _release_data_for
@@ -878,6 +958,19 @@ do_params_build(VALUE ptr)
             break;
         case cmd_observe:
             cb_params_observe_parse_arguments(params, argc, argv);
+            break;
+        case cmd_unlock:
+            params->cmd.unlock.quiet = params->bucket->quiet;
+            if (argc == 2) {
+                int type = TYPE(RARRAY_PTR(argv)[1]);
+                if (type == T_FIXNUM || type == T_BIGNUM) {
+                    /* allow form unlock("foo", 0xdeadbeef) */
+                    --argc;
+                    params->cmd.unlock.cas = NUM2ULL(rb_ary_pop(argv));
+                }
+            }
+            cb_params_unlock_parse_options(params, opts);
+            cb_params_unlock_parse_arguments(params, argc, argv);
             break;
     }
 
