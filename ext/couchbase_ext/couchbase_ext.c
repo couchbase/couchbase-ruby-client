@@ -157,6 +157,7 @@ VALUE eTimeoutError;            /* LCB_ETIMEDOUT = 0x16       */
 VALUE eConnectError;            /* LCB_CONNECT_ERROR = 0x17   */
 VALUE eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x18   */
 VALUE eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x19   */
+VALUE eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x20 */
 
 
 /* Ruby Extension initializer */
@@ -283,6 +284,12 @@ Init_couchbase_ext(void)
      * @since 1.0.0
      */
     eTmpFailError = rb_define_class_under(mError, "TemporaryFail", eBaseError);
+    /* Document-class: Couchbase::Error::ClientTemporaryFail
+     * Temporary failure (on Client)
+     *
+     * @since 1.2.0
+     */
+    eClientTmpFailError = rb_define_class_under(mError, "ClientTemporaryFail", eBaseError);
     /* Document-class: Couchbase::Error::TooBig
      * Object too big
      *
