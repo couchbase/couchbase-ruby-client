@@ -488,9 +488,11 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
  *
  * @overload reconnect(url, options = {})
  *  see {Bucket#initialize Bucket#initialize(url, options)}
+ *  @return [Couchbase::Bucket]
  *
  * @overload reconnect(options = {})
  *  see {Bucket#initialize Bucket#initialize(options)}
+ *  @return [Couchbase::Bucket]
  *
  *  @example reconnect with current parameters
  *    c.reconnect
@@ -815,7 +817,7 @@ cb_bucket_environment_get(VALUE self)
  *
  * The numbers of the replicas for each node in the cluster
  *
- * @returns [Fixnum]
+ * @return [Fixnum]
  */
     VALUE
 cb_bucket_num_replicas_get(VALUE self)
@@ -835,7 +837,7 @@ cb_bucket_num_replicas_get(VALUE self)
  * Get default timeout value for {Bucket#observe_and_wait} operation in
  * microseconds
  *
- * @returns [Fixnum]
+ * @return [Fixnum]
  */
     VALUE
 cb_bucket_default_observe_timeout_get(VALUE self)
@@ -851,7 +853,7 @@ cb_bucket_default_observe_timeout_get(VALUE self)
  * Set default timeout value for {Bucket#observe_and_wait} operation in
  * microseconds
  *
- * @returns [Fixnum]
+ * @return [Fixnum]
  */
     VALUE
 cb_bucket_default_observe_timeout_set(VALUE self, VALUE val)

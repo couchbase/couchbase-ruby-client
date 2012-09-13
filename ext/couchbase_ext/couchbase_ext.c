@@ -730,6 +730,8 @@ Init_couchbase_ext(void)
      * configuration.
      *
      * @since 1.0.0
+     *
+     * @return [String] the address of the cluster management interface
      */
     /* rb_define_attr(cBucket, "url", 1, 0); */
     rb_define_method(cBucket, "url", cb_bucket_url_get, 0);
@@ -740,6 +742,8 @@ Init_couchbase_ext(void)
      * @see Bucket#url
      *
      * @since 1.0.0
+     *
+     * @return [String] the host name of the management interface (default: "localhost")
      */
     /* rb_define_attr(cBucket, "hostname", 1, 0); */
     rb_define_method(cBucket, "hostname", cb_bucket_hostname_get, 0);
@@ -750,6 +754,8 @@ Init_couchbase_ext(void)
      * @see Bucket#url
      *
      * @since 1.0.0
+     *
+     * @return [Fixnum] the port number of the management interface (default: 8091)
      */
     /* rb_define_attr(cBucket, "port", 1, 0); */
     rb_define_method(cBucket, "port", cb_bucket_port_get, 0);
@@ -760,6 +766,8 @@ Init_couchbase_ext(void)
      * @see Bucket#url
      *
      * @since 1.0.0
+     *
+     * @return [String] host with port
      */
     /* rb_define_attr(cBucket, "authority", 1, 0); */
     rb_define_method(cBucket, "authority", cb_bucket_authority_get, 0);
@@ -770,6 +778,8 @@ Init_couchbase_ext(void)
      * @see Bucket#url
      *
      * @since 1.0.0
+     *
+     * @return [String] the bucket name
      */
     /* rb_define_attr(cBucket, "bucket", 1, 0); */
     rb_define_method(cBucket, "bucket", cb_bucket_bucket_get, 0);
@@ -781,6 +791,8 @@ Init_couchbase_ext(void)
      * @see Bucket#url
      *
      * @since 1.0.0
+     *
+     * @return [String] the pool name (usually "default")
      */
     /* rb_define_attr(cBucket, "pool", 1, 0); */
     rb_define_method(cBucket, "pool", cb_bucket_pool_get, 0);
@@ -791,6 +803,9 @@ Init_couchbase_ext(void)
      * @see Bucket#url
      *
      * @since 1.0.0
+     *
+     * @return [String] the username for protected buckets (usually matches
+     *   the bucket name)
      */
     /* rb_define_attr(cBucket, "username", 1, 0); */
     rb_define_method(cBucket, "username", cb_bucket_username_get, 0);
@@ -799,6 +814,8 @@ Init_couchbase_ext(void)
      * The password used to connect to the cluster
      *
      * @since 1.0.0
+     *
+     * @return [String] the password for protected buckets
      */
     /* rb_define_attr(cBucket, "password", 1, 0); */
     rb_define_method(cBucket, "password", cb_bucket_password_get, 0);
@@ -808,7 +825,7 @@ Init_couchbase_ext(void)
      *
      * @since 1.2.0
      *
-     * @returns [Symbol]
+     * @return [Symbol]
      */
     /* rb_define_attr(cBucket, "environment", 1, 0); */
     rb_define_method(cBucket, "environment", cb_bucket_environment_get, 0);
@@ -818,7 +835,7 @@ Init_couchbase_ext(void)
      *
      * The numbers of the replicas for each node in the cluster
      *
-     * @returns [Fixnum]
+     * @return [Fixnum]
      */
     /* rb_define_attr(cBucket, "num_replicas", 1, 0); */
     rb_define_method(cBucket, "num_replicas", cb_bucket_num_replicas_get, 0);
@@ -829,7 +846,7 @@ Init_couchbase_ext(void)
      * The default timeout value for {Bucket#observe_and_wait} operation in
      * microseconds
      *
-     * @returns [Fixnum]
+     * @return [Fixnum]
      */
     /* rb_define_attr(cBucket, "default_observe_timeout", 1, 1); */
     rb_define_method(cBucket, "default_observe_timeout", cb_bucket_default_observe_timeout_get, 0);

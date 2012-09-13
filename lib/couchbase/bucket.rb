@@ -212,10 +212,16 @@ module Couchbase
       end
     end
 
+    # Create and register one-shot timer
+    #
+    # @return [Couchbase::Timer]
     def create_timer(interval, &block)
       Timer.new(self, interval, &block)
     end
 
+    # Create and register periodic timer
+    #
+    # @return [Couchbase::Timer]
     def create_periodic_timer(interval, &block)
       Timer.new(self, interval, :periodic => true, &block)
     end

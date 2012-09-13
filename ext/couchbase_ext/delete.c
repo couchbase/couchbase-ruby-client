@@ -77,6 +77,9 @@ delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_r
  *   @raise [Couchbase::Error::KeyExists] on CAS mismatch
  *   @raise [Couchbase::Error::NotFound] if key is missing in verbose mode
  *
+ *   @return [true, false, Hash<String, Boolean>] the result of the
+ *     operation
+ *
  *   @example Delete the key in quiet mode (default)
  *     c.set("foo", "bar")
  *     c.delete("foo")        #=> true
