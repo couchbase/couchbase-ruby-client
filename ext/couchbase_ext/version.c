@@ -27,7 +27,7 @@ version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
     node = resp->v.v0.server_endpoint ? STR_NEW_CSTR(resp->v.v0.server_endpoint) : Qnil;
     exc = cb_check_error(error, "failed to get version", node);
     if (exc != Qnil) {
-        rb_ivar_set(exc, id_iv_operation, sym_flush);
+        rb_ivar_set(exc, id_iv_operation, sym_version);
         if (NIL_P(ctx->exception)) {
             ctx->exception = cb_gc_protect(bucket, exc);
         }
@@ -113,7 +113,7 @@ cb_bucket_version(int argc, VALUE *argv, VALUE self)
     ctx->bucket = bucket;
     ctx->exception = Qnil;
     ctx->proc = cb_gc_protect(bucket, proc);
-    ctx->nqueries = params.cmd.flush.num;
+    ctx->nqueries = params.cmd.version.num;
     err = lcb_server_versions(bucket->handle, (const void *)ctx,
             params.cmd.version.num, params.cmd.version.ptr);
     exc = cb_check_error(err, "failed to schedule version request", Qnil);

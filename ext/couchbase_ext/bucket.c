@@ -264,7 +264,6 @@ do_connect(struct bucket_st *bucket)
     (void)lcb_set_touch_callback(bucket->handle, touch_callback);
     (void)lcb_set_remove_callback(bucket->handle, delete_callback);
     (void)lcb_set_stat_callback(bucket->handle, stat_callback);
-    (void)lcb_set_flush_callback(bucket->handle, flush_callback);
     (void)lcb_set_arithmetic_callback(bucket->handle, arithmetic_callback);
     (void)lcb_set_version_callback(bucket->handle, version_callback);
     (void)lcb_set_view_complete_callback(bucket->handle, http_complete_callback);

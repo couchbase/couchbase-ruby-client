@@ -212,6 +212,44 @@ module Couchbase
       end
     end
 
+    # Delete contents of the bucket
+    #
+    # @see http://www.couchbase.com/docs/couchbase-manual-2.0/restapi-flushing-bucket.html
+    #
+    # @since 1.2.0.beta
+    #
+    # @yieldparam [Result] ret the object with +error+, +status+ and +operation+
+    #   attributes.
+    #
+    # @raise [Couchbase::Error::Protocol] in case of an error is
+    #   encountered. Check {Couchbase::Error::Base#status} for detailed code.
+    #
+    # @return [true] always return true (see raise section)
+    #
+    # @example Simple flush the bucket
+    #   c.flush    #=> true
+    #
+    # @example Asynchronous flush
+    #   c.run do
+    #     c.flush do |ret|
+    #       ret.operation   #=> :flush
+    #       ret.success?    #=> true
+    #       ret.status      #=> 200
+    #     end
+    #   end
+    def flush
+      req = make_http_request("/pools/default/buckets/#{bucket}/controller/doFlush",
+                              :type => :management, :method => :post, :extended => true)
+      res = nil
+      req.on_body do |r|
+        res = r
+        res.instance_variable_set("@operation", :flush)
+        yield(res) if block_given?
+      end
+      req.continue
+      true
+    end
+
     # Create and register one-shot timer
     #
     # @return [Couchbase::Timer]

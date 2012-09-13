@@ -169,7 +169,6 @@ extern ID sym_document;
 extern ID sym_environment;
 extern ID sym_extended;
 extern ID sym_flags;
-extern ID sym_flush;
 extern ID sym_format;
 extern ID sym_found;
 extern ID sym_get;
@@ -294,7 +293,6 @@ void get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb
 void touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_touch_resp_t *resp);
 void delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_remove_resp_t *resp);
 void stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_stat_resp_t *resp);
-void flush_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_flush_resp_t *resp);
 void arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_arithmetic_resp_t *resp);
 void version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_version_resp_t *resp);
 void http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp);
@@ -323,7 +321,6 @@ VALUE cb_bucket_decr(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_unlock(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_run(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_stop(VALUE self);
-VALUE cb_bucket_flush(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_version(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_disconnect(VALUE self);
 VALUE cb_bucket_reconnect(int argc, VALUE *argv, VALUE self);
@@ -384,7 +381,6 @@ enum command_t {
     cmd_get         = 0x04,
     cmd_arith       = 0x05,
     cmd_stats       = 0x06,
-    cmd_flush       = 0x07,
     cmd_version     = 0x08,
     cmd_observe     = 0x09,
     cmd_unlock     = 0x10
@@ -480,14 +476,6 @@ struct params_st
             const lcb_server_stats_cmd_t **ptr;
             unsigned int array : 1;
         } stats;
-        struct {
-            /* number of items */
-            size_t num;
-            /* array of the items */
-            lcb_flush_cmd_t *items;
-            /* array of the pointers to the items */
-            const lcb_flush_cmd_t **ptr;
-        } flush;
         struct {
             /* number of items */
             size_t num;

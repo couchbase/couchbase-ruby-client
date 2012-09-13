@@ -791,22 +791,6 @@ cb_params_unlock_parse_arguments(struct params_st *params, int argc, VALUE argv)
 }
 
 
-/* FLUSH */
-    static void
-cb_params_flush_alloc(struct params_st *params)
-{
-    params->cmd.flush.num = 1;
-    params->cmd.flush.items = xcalloc(1, sizeof(lcb_flush_cmd_t));
-    if (params->cmd.flush.items == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    params->cmd.flush.ptr = xcalloc(1, sizeof(lcb_flush_cmd_t *));
-    if (params->cmd.flush.ptr == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    params->cmd.flush.ptr[0] = params->cmd.flush.items;
-}
-
 /* VERSION */
     static void
 cb_params_version_alloc(struct params_st *params)
@@ -852,9 +836,6 @@ cb_params_destroy(struct params_st *params)
             break;
         case cmd_stats:
             _release_data_for(stats);
-            break;
-        case cmd_flush:
-            _release_data_for(flush);
             break;
         case cmd_version:
             _release_data_for(version);
@@ -949,9 +930,6 @@ do_params_build(VALUE ptr)
             break;
         case cmd_stats:
             cb_params_stats_parse_arguments(params, argc, argv);
-            break;
-        case cmd_flush:
-            cb_params_flush_alloc(params);
             break;
         case cmd_version:
             cb_params_version_alloc(params);

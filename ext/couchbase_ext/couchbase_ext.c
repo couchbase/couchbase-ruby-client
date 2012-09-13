@@ -53,7 +53,6 @@ ID sym_document;
 ID sym_environment;
 ID sym_extended;
 ID sym_flags;
-ID sym_flush;
 ID sym_format;
 ID sym_found;
 ID sym_get;
@@ -574,7 +573,6 @@ Init_couchbase_ext(void)
     rb_define_method(cBucket, "touch", cb_bucket_touch, -1);
     rb_define_method(cBucket, "delete", cb_bucket_delete, -1);
     rb_define_method(cBucket, "stats", cb_bucket_stats, -1);
-    rb_define_method(cBucket, "flush", cb_bucket_flush, -1);
     rb_define_method(cBucket, "version", cb_bucket_version, -1);
     rb_define_method(cBucket, "incr", cb_bucket_incr, -1);
     rb_define_method(cBucket, "decr", cb_bucket_decr, -1);
@@ -924,7 +922,6 @@ Init_couchbase_ext(void)
     sym_environment = ID2SYM(rb_intern("environment"));
     sym_extended = ID2SYM(rb_intern("extended"));
     sym_flags = ID2SYM(rb_intern("flags"));
-    sym_flush = ID2SYM(rb_intern("flush"));
     sym_format = ID2SYM(rb_intern("format"));
     sym_found = ID2SYM(rb_intern("found"));
     sym_get = ID2SYM(rb_intern("get"));
