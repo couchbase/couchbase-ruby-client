@@ -17,6 +17,8 @@
 #
 
 ENV['RC_ARCHS'] = '' if RUBY_PLATFORM =~ /darwin/
+# Unset RUBYOPT to avoid interferences
+ENV['RUBYOPT'] = nil
 
 require 'mkmf'
 
