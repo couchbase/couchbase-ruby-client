@@ -228,7 +228,6 @@ extern ID id_iv_key;
 extern ID id_iv_node;
 extern ID id_iv_operation;
 extern ID id_iv_status;
-extern ID id_iv_status;
 extern ID id_iv_time_to_persist;
 extern ID id_iv_time_to_replicate;
 extern ID id_iv_value;

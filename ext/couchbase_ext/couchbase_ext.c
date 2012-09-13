@@ -112,7 +112,6 @@ ID id_iv_key;
 ID id_iv_node;
 ID id_iv_operation;
 ID id_iv_status;
-ID id_iv_status;
 ID id_iv_time_to_persist;
 ID id_iv_time_to_replicate;
 ID id_iv_value;
@@ -372,6 +371,13 @@ Init_couchbase_ext(void)
      */
     rb_define_attr(eBaseError, "error", 1, 0);
     id_iv_error = rb_intern("@error");
+    /* Document-method: status
+     *
+     * @since 1.2.0.beta
+     *
+     * @return [Fixnum] The HTTP status code */
+    rb_define_attr(eBaseError, "status", 1, 0);
+    id_iv_status = rb_intern("@status");
     /* Document-method: key
      *
      * @since 1.0.0
