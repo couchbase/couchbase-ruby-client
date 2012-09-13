@@ -1086,6 +1086,7 @@ cb_bucket_disconnect(VALUE self)
         return Qtrue;
     } else {
         rb_raise(eConnectError, "closed connection");
+        return Qfalse;
     }
 }
 
