@@ -16,7 +16,19 @@
 # limitations under the License.
 #
 
-ENV['RC_ARCHS'] = '' if RUBY_PLATFORM =~ /darwin/
+require 'rbconfig'
+# This hack is more robust, because in bundler environment bundler touches
+# all constants from rbconfig.rb before loading any scripts. This is why
+# RC_ARCHS doesn't work under bundler on MacOS.
+if RUBY_PLATFORM =~ /darwin/
+  RbConfig::CONFIG["CFLAGS"].gsub!(RbConfig::ARCHFLAGS, '')
+  RbConfig::CONFIG["LDFLAGS"].gsub!(RbConfig::ARCHFLAGS, '')
+  RbConfig::CONFIG["LDSHARED"].gsub!(RbConfig::ARCHFLAGS, '')
+  RbConfig::CONFIG["LIBRUBY_LDSHARED"].gsub!(RbConfig::ARCHFLAGS, '')
+  RbConfig::CONFIG["configure_args"].gsub!(RbConfig::ARCHFLAGS, '')
+end
+
+
 # Unset RUBYOPT to avoid interferences
 ENV['RUBYOPT'] = nil
 
