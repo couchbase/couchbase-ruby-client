@@ -98,7 +98,7 @@ else
 end
 
 if COMMON_HEADERS !~ /"ruby\.h"/
-  COMMON_HEADERS << %(\n#include "ruby.h"\n)
+  (COMMON_HEADERS ||= "") << %(\n#include "ruby.h"\n)
 end
 
 if try_compile(<<-SRC)
