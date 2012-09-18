@@ -21,13 +21,14 @@ require 'rbconfig'
 # all constants from rbconfig.rb before loading any scripts. This is why
 # RC_ARCHS doesn't work under bundler on MacOS.
 if RUBY_PLATFORM =~ /darwin/
-  RbConfig::CONFIG["CFLAGS"].gsub!(RbConfig::ARCHFLAGS, '')
-  RbConfig::CONFIG["LDFLAGS"].gsub!(RbConfig::ARCHFLAGS, '')
-  RbConfig::CONFIG["LDSHARED"].gsub!(RbConfig::ARCHFLAGS, '')
-  RbConfig::CONFIG["LIBRUBY_LDSHARED"].gsub!(RbConfig::ARCHFLAGS, '')
-  RbConfig::CONFIG["configure_args"].gsub!(RbConfig::ARCHFLAGS, '')
+  [RbConfig::CONFIG, RbConfig::MAKEFILE_CONFIG].each do |cfg|
+    cfg["CFLAGS"].gsub!(RbConfig::ARCHFLAGS, '')
+    cfg["LDFLAGS"].gsub!(RbConfig::ARCHFLAGS, '')
+    cfg["LDSHARED"].gsub!(RbConfig::ARCHFLAGS, '')
+    cfg["LIBRUBY_LDSHARED"].gsub!(RbConfig::ARCHFLAGS, '')
+    cfg["configure_args"].gsub!(RbConfig::ARCHFLAGS, '')
+  end
 end
-
 
 # Unset RUBYOPT to avoid interferences
 ENV['RUBYOPT'] = nil
