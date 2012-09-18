@@ -1,3 +1,35 @@
+## 1.2.0.beta / 2012-09-18
+
+* RCBC-70 return binary keys using Encoding.external value (thanks to Alex Leverington)
+* Create new key object only if it is necessary
+* Switch to rbenv because RVM doesn't work with tclsh
+* [backport] RCBC-37 Bootstrapping using multiple nodes
+* React on HTTP level errors in view request
+* Fix typo: check for MultiJson.decode
+* Use unified HTTP function from the latest libcouchbase
+* Expose HTTP headers
+* Update views to meet latest server changes
+* Add support for spatial views
+* Use updated libcouchbase_cancel_http_request()
+* Workaround query issue on group=false&reduce=false
+* Update windows build
+* Bump version 1.1.4
+* Refactor the C extension
+* Fix CAS conversion for Bucket#delete method for 32-bit systems
+* RCBC-28 Implement Bucket#unlock
+* CCBC-98 Expose client temporary failure error
+* Fix warnings in doc generator and specify return values
+* Fix -Wreturn-type warning
+* Add attribute reader for Error::Base status code
+* Unset RUBYOPT to avoid issues with bundler
+* Ignore shared object on macos
+* RCBC-79 Use RESTful flush
+* Fix build under bundler on MacOS
+* RCBC-81 Protect against NoMethodError
+* Fixup MAKEFILE_CONFIG which is copy of the CONFIG
+* RCBC-81 Protect against NoMethodError
+* Update windows build
+
 ## 1.2.0.dp6 / 2012-07-28
 
 * Inherit StandardError instead RuntimeError for errors
