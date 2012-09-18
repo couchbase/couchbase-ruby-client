@@ -1,3 +1,7 @@
+## 1.1.5 / 2012-09-17
+
+* RCBC-81 Protect against NoMethodError
+
 ## 1.1.4 / 2012-08-30
 
 * RCBC-70 return binary keys using Encoding.external value (thanks to Alex Leverington)
