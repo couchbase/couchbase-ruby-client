@@ -24,9 +24,9 @@ def define(macro, value = nil)
   $defs.push("-D #{[macro.upcase, value].compact.join('=')}")
 end
 
-$CFLAGS  << " #{ENV["CFLAGS"]}"
-$LDFLAGS << " #{ENV["LDFLAGS"]}"
-$LIBS    << " #{ENV["LIBS"]}"
+($CFLAGS  ||= "") << " #{ENV["CFLAGS"]}"
+($LDFLAGS ||= "") << " #{ENV["LDFLAGS"]}"
+($LIBS    ||= "") << " #{ENV["LIBS"]}"
 
 $CFLAGS << ' -std=c99 -Wall -Wextra '
 if ENV['DEBUG']
@@ -83,7 +83,7 @@ else
 end
 
 if COMMON_HEADERS !~ /"ruby\.h"/
-  COMMON_HEADERS << %(\n#include "ruby.h"\n)
+  (COMMON_HEADERS ||= "") << %(\n#include "ruby.h"\n)
 end
 
 if try_compile(<<-SRC)
