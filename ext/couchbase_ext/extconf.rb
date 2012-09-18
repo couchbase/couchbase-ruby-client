@@ -38,9 +38,9 @@ def define(macro, value = nil)
   $defs.push("-D #{[macro.upcase, value].compact.join('=')}")
 end
 
-$CFLAGS  << " #{ENV["CFLAGS"]}"
-$LDFLAGS << " #{ENV["LDFLAGS"]}"
-$LIBS    << " #{ENV["LIBS"]}"
+($CFLAGS  ||= "") << " #{ENV["CFLAGS"]}"
+($LDFLAGS ||= "") << " #{ENV["LDFLAGS"]}"
+($LIBS    ||= "") << " #{ENV["LIBS"]}"
 
 $CFLAGS << ' -std=c99 -Wall -Wextra '
 if ENV['DEBUG']
