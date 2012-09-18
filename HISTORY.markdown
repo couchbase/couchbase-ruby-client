@@ -1,3 +1,7 @@
+## 1.2.0.z.beta / 2012-09-18
+
+* Fix version ordering by using ".z" prefix before .beta
+
 ## 1.2.0.beta / 2012-09-18
 
 * RCBC-70 return binary keys using Encoding.external value (thanks to Alex Leverington)
