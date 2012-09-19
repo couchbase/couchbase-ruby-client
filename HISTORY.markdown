@@ -1,3 +1,7 @@
+## 1.2.0.z.beta2 / 2012-09-19
+
+* RCBC-82 Fix extconf.rb for RVM/MacOS. (Not all rubies are fat on MacOS)
+
 ## 1.2.0.z.beta / 2012-09-18
 
 * Fix version ordering by using ".z" prefix before .beta
