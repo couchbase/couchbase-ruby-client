@@ -90,7 +90,7 @@ module Rack
       def with_lock(env, default = nil)
         @mutex.lock if env['rack.multithread']
         yield
-      rescue Couchbase::Error::Connect, Couchbase::Error::Timeout
+      rescue ::Couchbase::Error::Connect, ::Couchbase::Error::Timeout
         if $VERBOSE
           warn "#{self} is unable to find Couchbase server."
           warn $!.inspect
