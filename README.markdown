@@ -1,6 +1,13 @@
-# Couchbase Ruby Client [![Build Status](https://secure.travis-ci.org/couchbase/couchbase-ruby-client.png?branch=master)](http://travis-ci.org/couchbase/couchbase-ruby-client)
+# Couchbase Ruby Client
 
-This is the official client library for use with Couchbase Server.
+This is the official client library for use with Couchbase Server. There
+are related libraries available:
+
+* [couchbase-model][6] the ActiveModel implementation, git repository:
+  [https://github.com/couchbase/couchbase-ruby-model][7]
+
+* [em-couchbase][8] EventMachine friendly implementation of couchbase
+  client, git repository: [https://github.com/couchbase/couchbase-ruby-client-em][9]
 
 ## SUPPORT
 
@@ -519,3 +526,8 @@ the error is detected.
 [3]: http://www.couchbase.com/develop/c/current
 [4]: https://github.com/mxcl/homebrew/pulls/avsej
 [5]: http://code.google.com/p/memcached/wiki/BinaryProtocolRevamped
+[6]: https://rubygems.org/gems/couchbase-model
+[7]: https://github.com/couchbase/couchbase-ruby-model
+[8]: https://rubygems.org/gems/em-couchbase
+[9]: https://github.com/couchbase/couchbase-ruby-client-em
+
