@@ -266,10 +266,8 @@ do_connect(struct bucket_st *bucket)
     (void)lcb_set_stat_callback(bucket->handle, stat_callback);
     (void)lcb_set_arithmetic_callback(bucket->handle, arithmetic_callback);
     (void)lcb_set_version_callback(bucket->handle, version_callback);
-    (void)lcb_set_view_complete_callback(bucket->handle, http_complete_callback);
-    (void)lcb_set_view_data_callback(bucket->handle, http_data_callback);
-    (void)lcb_set_management_complete_callback(bucket->handle, http_complete_callback);
-    (void)lcb_set_management_data_callback(bucket->handle, http_data_callback);
+    (void)lcb_set_http_complete_callback(bucket->handle, http_complete_callback);
+    (void)lcb_set_http_data_callback(bucket->handle, http_data_callback);
     (void)lcb_set_observe_callback(bucket->handle, observe_callback);
     (void)lcb_set_unlock_callback(bucket->handle, unlock_callback);
 
