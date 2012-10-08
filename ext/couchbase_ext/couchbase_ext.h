@@ -23,6 +23,9 @@
 #endif
 
 #include "couchbase_config.h"
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 #ifndef HAVE_GETHRTIME
 typedef uint64_t hrtime_t;
 extern hrtime_t gethrtime(void);
