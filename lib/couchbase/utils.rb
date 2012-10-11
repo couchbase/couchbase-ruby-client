@@ -19,11 +19,8 @@ module Couchbase
 
   class Utils
 
-    def self.build_query(uri, params = nil)
-      uri = uri.dup
-      return uri if params.nil? || params.empty?
-      uri << "?"
-      uri << params.map do |k, v|
+    def self.encode_params(params)
+      params.map do |k, v|
         next if !v && k.to_s == "group"
         if %w{key keys startkey endkey start_key end_key}.include?(k.to_s)
           v = MultiJson.dump(v)
@@ -34,6 +31,12 @@ module Couchbase
           "#{escape(k)}=#{escape(v)}"
         end
       end.compact.join("&")
+    end
+
+    def self.build_query(uri, params = nil)
+      uri = uri.dup
+      return uri if params.nil? || params.empty?
+      uri << "?" << encode_params(params)
     end
 
     def self.escape(s)
