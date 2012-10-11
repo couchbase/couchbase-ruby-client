@@ -305,7 +305,7 @@ cb_http_request_perform(VALUE self)
 cb_http_request_pause(VALUE self)
 {
     struct http_request_st *req = DATA_PTR(self);
-    req->bucket->io->stop_event_loop(req->bucket->io);
+    lcb_breakout(req->bucket->handle);
     return Qnil;
 }
 

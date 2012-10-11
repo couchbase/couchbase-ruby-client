@@ -22,7 +22,7 @@ error_callback(lcb_t handle, lcb_error_t error, const char *errinfo)
 {
     struct bucket_st *bucket = (struct bucket_st *)lcb_get_cookie(handle);
 
-    bucket->io->stop_event_loop(bucket->io);
+    lcb_breakout(handle);
     bucket->exception = cb_check_error(error, errinfo, Qnil);
 }
 
@@ -1058,7 +1058,7 @@ cb_bucket_run(int argc, VALUE *argv, VALUE self)
 cb_bucket_stop(VALUE self)
 {
     struct bucket_st *bucket = DATA_PTR(self);
-    bucket->io->stop_event_loop(bucket->io);
+    lcb_breakout(bucket->handle);
     return Qnil;
 }
 
