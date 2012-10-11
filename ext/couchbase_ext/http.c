@@ -23,6 +23,7 @@ http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *coo
     struct context_st *ctx = (struct context_st *)cookie;
     struct bucket_st *bucket = ctx->bucket;
     VALUE *rv = ctx->rv, key, val, res;
+    lcb_http_status_t status;
 
     ctx->request->completed = 1;
     key = STR_NEW((const char*)resp->v.v0.path, resp->v.v0.npath);
@@ -32,6 +33,7 @@ http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *coo
         cb_gc_protect(bucket, ctx->exception);
     }
     val = resp->v.v0.nbytes ? STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;
+    status = resp->v.v0.status;
     if (resp->v.v0.headers) {
         cb_build_headers(ctx, resp->v.v0.headers);
         cb_gc_unprotect(bucket, ctx->headers_val);
@@ -39,6 +41,7 @@ http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *coo
     if (ctx->extended) {
         res = rb_class_new_instance(0, NULL, cResult);
         rb_ivar_set(res, id_iv_error, ctx->exception);
+        rb_ivar_set(res, id_iv_status, status ? INT2FIX(status) : Qnil);
         rb_ivar_set(res, id_iv_operation, sym_http_request);
         rb_ivar_set(res, id_iv_key, key);
         rb_ivar_set(res, id_iv_value, val);
@@ -63,11 +66,13 @@ http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie,
     struct context_st *ctx = (struct context_st *)cookie;
     struct bucket_st *bucket = ctx->bucket;
     VALUE key, val, res;
+    lcb_http_status_t status;
 
     key = STR_NEW((const char*)resp->v.v0.path, resp->v.v0.npath);
     ctx->exception = cb_check_error_with_status(error,
             "failed to execute HTTP request", key, resp->v.v0.status);
     val = resp->v.v0.nbytes ? STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;
+    status = resp->v.v0.status;
     if (ctx->exception != Qnil) {
         cb_gc_protect(bucket, ctx->exception);
         lcb_cancel_http_request(bucket->handle, request);
@@ -79,6 +84,7 @@ http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie,
         if (ctx->extended) {
             res = rb_class_new_instance(0, NULL, cResult);
             rb_ivar_set(res, id_iv_error, ctx->exception);
+            rb_ivar_set(res, id_iv_status, status ? INT2FIX(status) : Qnil);
             rb_ivar_set(res, id_iv_operation, sym_http_request);
             rb_ivar_set(res, id_iv_key, key);
             rb_ivar_set(res, id_iv_value, val);
