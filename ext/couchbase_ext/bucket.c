@@ -125,6 +125,14 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
             bucket->bucket = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
         }
         if (TYPE(opts) == T_HASH) {
+            arg = rb_hash_aref(opts, sym_type);
+            if (arg != Qnil) {
+                if (arg == sym_cluster) {
+                    bucket->type = LCB_TYPE_CLUSTER;
+                } else {
+                    bucket->type = LCB_TYPE_BUCKET;
+                }
+            }
             arg = rb_hash_aref(opts, sym_node_list);
             if (arg != Qnil) {
                 VALUE tt;
@@ -250,11 +258,13 @@ do_connect(struct bucket_st *bucket)
     }
 
     memset(&create_opts, 0, sizeof(struct lcb_create_st));
-    create_opts.v.v0.host = bucket->node_list ? bucket-> node_list : bucket->authority;
-    create_opts.v.v0.user = bucket->username;
-    create_opts.v.v0.passwd = bucket->password;
-    create_opts.v.v0.bucket = bucket->bucket;
-    create_opts.v.v0.io = bucket->io;
+    create_opts.version = 1;
+    create_opts.v.v1.type = bucket->type;
+    create_opts.v.v1.host = bucket->node_list ? bucket-> node_list : bucket->authority;
+    create_opts.v.v1.user = bucket->username;
+    create_opts.v.v1.passwd = bucket->password;
+    create_opts.v.v1.bucket = bucket->bucket;
+    create_opts.v.v1.io = bucket->io;
     err = lcb_create(&bucket->handle, &create_opts);
     if (err != LCB_SUCCESS) {
         rb_exc_raise(cb_check_error(err, "failed to create libcouchbase instance", Qnil));
@@ -393,6 +403,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
 
     bucket->self = self;
     bucket->exception = Qnil;
+    bucket->type = LCB_TYPE_BUCKET;
     bucket->hostname = strdup("localhost");
     bucket->port = 8091;
     bucket->pool = strdup("default");

@@ -41,6 +41,7 @@ ID sym_cas;
 ID sym_chunked;
 ID sym_content_type;
 ID sym_create;
+ID sym_cluster;
 ID sym_decrement;
 ID sym_default_flags;
 ID sym_default_format;
@@ -922,6 +923,7 @@ Init_couchbase_ext(void)
     sym_chunked = ID2SYM(rb_intern("chunked"));
     sym_content_type = ID2SYM(rb_intern("content_type"));
     sym_create = ID2SYM(rb_intern("create"));
+    sym_cluster = ID2SYM(rb_intern("cluster"));
     sym_decrement = ID2SYM(rb_intern("decrement"));
     sym_default_flags = ID2SYM(rb_intern("default_flags"));
     sym_default_format = ID2SYM(rb_intern("default_format"));

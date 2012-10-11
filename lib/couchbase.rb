@@ -26,6 +26,7 @@ require 'couchbase/bucket'
 require 'couchbase/view_row'
 require 'couchbase/view'
 require 'couchbase/result'
+require 'couchbase/cluster'
 
 # Couchbase ruby client
 module Couchbase

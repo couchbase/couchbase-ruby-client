@@ -68,6 +68,7 @@ extern hrtime_t gethrtime(void);
 struct bucket_st
 {
     lcb_t handle;
+    lcb_type_t type;
     struct lcb_io_opt_st *io;
     uint16_t port;
     char *authority;
@@ -158,6 +159,7 @@ extern ID sym_body;
 extern ID sym_bucket;
 extern ID sym_cas;
 extern ID sym_chunked;
+extern ID sym_cluster;
 extern ID sym_content_type;
 extern ID sym_create;
 extern ID sym_decrement;
