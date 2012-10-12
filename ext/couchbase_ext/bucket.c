@@ -34,6 +34,7 @@ cb_bucket_free(void *ptr)
     if (bucket) {
         if (bucket->handle) {
             lcb_destroy(bucket->handle);
+            lcb_destroy_io_ops(bucket->io);
         }
         xfree(bucket->authority);
         xfree(bucket->hostname);
@@ -239,6 +240,7 @@ do_connect(struct bucket_st *bucket)
 
     if (bucket->handle) {
         lcb_destroy(bucket->handle);
+        lcb_destroy_io_ops(bucket->io);
         bucket->handle = NULL;
         bucket->io = NULL;
     }
@@ -279,6 +281,7 @@ do_connect(struct bucket_st *bucket)
     err = lcb_connect(bucket->handle);
     if (err != LCB_SUCCESS) {
         lcb_destroy(bucket->handle);
+        lcb_destroy_io_ops(bucket->io);
         bucket->handle = NULL;
         bucket->io = NULL;
         rb_exc_raise(cb_check_error(err, "failed to connect libcouchbase instance to server", Qnil));
@@ -287,6 +290,7 @@ do_connect(struct bucket_st *bucket)
     lcb_wait(bucket->handle);
     if (bucket->exception != Qnil) {
         lcb_destroy(bucket->handle);
+        lcb_destroy_io_ops(bucket->io);
         bucket->handle = NULL;
         bucket->io = NULL;
         rb_exc_raise(bucket->exception);
@@ -1078,6 +1082,7 @@ cb_bucket_disconnect(VALUE self)
 
     if (bucket->handle) {
         lcb_destroy(bucket->handle);
+        lcb_destroy_io_ops(bucket->io);
         bucket->handle = NULL;
         bucket->io = NULL;
         return Qtrue;
