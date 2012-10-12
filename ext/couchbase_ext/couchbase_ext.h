@@ -275,6 +275,7 @@ extern VALUE eConnectError;            /* LCB_CONNECT_ERROR = 0x17   */
 extern VALUE eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x18   */
 extern VALUE eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x19   */
 extern VALUE eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x20 */
+extern VALUE eBadHandleError;          /* LCB_EBADHANDLE = 0x21      */
 
 void strip_key_prefix(struct bucket_st *bucket, VALUE key);
 VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);

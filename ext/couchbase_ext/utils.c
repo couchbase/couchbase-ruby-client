@@ -150,6 +150,12 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key,
         case LCB_CLIENT_ENOMEM:
             klass = eClientNoMemoryError;
             break;
+        case LCB_CLIENT_ETMPFAIL:
+            klass = eClientTmpFailError;
+            break;
+        case LCB_EBADHANDLE:
+            klass = eBadHandleError;
+            break;
         case LCB_ERROR:
             /* fall through */
         default:

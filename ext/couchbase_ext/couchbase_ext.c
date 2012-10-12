@@ -156,6 +156,7 @@ VALUE eConnectError;            /* LCB_CONNECT_ERROR = 0x17   */
 VALUE eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x18   */
 VALUE eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x19   */
 VALUE eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x20 */
+VALUE eBadHandleError;          /* LCB_EBADHANDLE = 0x21      */
 
 
 /* Ruby Extension initializer */
@@ -330,6 +331,14 @@ Init_couchbase_ext(void)
      * @since 1.1.0
      */
     eConnectError = rb_define_class_under(mError, "Connect", eBaseError);
+    /* Document-class: Couchbase::Error::BadHandle
+     * Invalid handle type.
+     *
+     * The requested operation isn't allowed for given type.
+     *
+     * @since 1.2.0
+     */
+    eBadHandleError = rb_define_class_under(mError, "BadHandle", eBaseError);
 
     /* Document-method: error
      *
@@ -362,7 +371,9 @@ Init_couchbase_ext(void)
      * 0x16 :: LCB_ETIMEDOUT (Operation timed out)
      * 0x17 :: LCB_CONNECT_ERROR (Connection failure)
      * 0x18 :: LCB_BUCKET_ENOENT (No such bucket)
-     * 0x18 :: LCB_CLIENT_ENOMEM (Out of memory on the client)
+     * 0x19 :: LCB_CLIENT_ENOMEM (Out of memory on the client)
+     * 0x20 :: LCB_CLIENT_ETMPFAIL (Temporary failure on the client)
+     * 0x21 :: LCB_EBADHANDLE (Invalid handle type)
      *
      * @since 1.0.0
      *
