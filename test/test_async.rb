@@ -154,27 +154,31 @@ class TestAsync < MiniTest::Unit::TestCase
   end
 
   def test_nested_async_flush_set
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    cas = connection.set(uniq_id, "foo")
-    res = {}
+    if @mock.real?
+      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+      cas = connection.set(uniq_id, "foo")
+      res = {}
 
-    connection.run do |conn|
-      conn.flush do |res1|
-        assert res1.success?
-        id = uniq_id(res1.node)
-        res[id] = false
-        conn.set(id, true) do |res2|
-          res[id] = res2.cas
+      connection.run do |conn|
+        conn.flush do |res1|
+          assert res1.success?
+          id = uniq_id(res1.node)
+          res[id] = false
+          conn.set(id, true) do |res2|
+            res[id] = res2.cas
+          end
         end
       end
-    end
 
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id)
-    end
-    res.keys.each do |key|
-      assert res[key].is_a?(Numeric)
-      assert connection.get(key)
+      assert_raises(Couchbase::Error::NotFound) do
+        connection.get(uniq_id)
+      end
+      res.keys.each do |key|
+        assert res[key].is_a?(Numeric)
+        assert connection.get(key)
+      end
+    else
+      skip("REST FLUSH isn't implemented in CouchbaseMock.jar yet")
     end
   end
 

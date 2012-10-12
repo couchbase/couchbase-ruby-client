@@ -238,6 +238,9 @@ module Couchbase
     #     end
     #   end
     def flush
+      if !async? && block_given?
+        raise ArgumentError, "synchronous mode doesn't support callbacks"
+      end
       req = make_http_request("/pools/default/buckets/#{bucket}/controller/doFlush",
                               :type => :management, :method => :post, :extended => true)
       res = nil
