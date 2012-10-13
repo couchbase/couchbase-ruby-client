@@ -1,3 +1,18 @@
+## 1.2.0.z.beta3 / 2012-10-12
+
+* Update view API
+* Mention couchbase-model and em-couchbase in README
+* Use global scope to find Error classes (thanks to @wr0ngway)
+* RCBC-87 Fix build error on macos
+* Use lcb_breakout()
+* Propogate status code for HTTP responses
+* Extract params encoding for easier reusage
+* Destory IO operations struct (fix memleak)
+* Don't try to convert error to number, it is exception object
+* Update error codes
+* Implement bucket create/delete operations
+* Fixup FLUSH tests
+
 ## 1.2.0.z.beta2 / 2012-09-19
 
 * RCBC-82 Fix extconf.rb for RVM/MacOS. (Not all rubies are fat on MacOS)
