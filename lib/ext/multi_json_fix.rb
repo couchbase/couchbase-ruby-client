@@ -24,6 +24,16 @@ if MultiJson.respond_to?(:engine)
 else
   multi_json_engine = MultiJson.send(:adapter)
 end
+
+# Patch for MultiJson versions < 1.3.3
+require 'multi_json/version'
+if Gem::Version.new(MultiJson::VERSION) < Gem::Version.new('1.3.3')
+  class << MultiJson
+    alias :dump :encode
+    alias :load :decode
+  end
+end
+
 if multi_json_engine.name =~ /JsonGem$/
   class << multi_json_engine
     alias _load_object load
@@ -34,14 +44,5 @@ if multi_json_engine.name =~ /JsonGem$/
         _load_object("[#{string}]", options)[0]
       end
     end
-  end
-end
-
-# Patch for MultiJson versions < 1.3.3
-if MultiJson.respond_to?(:decode) && MultiJson.respond_to?(:encode) &&
-  !MultiJson.respond_to?(:load) && !MultiJson.respond_to?(:dump)
-  class << MultiJson
-    alias :dump :encode
-    alias :load :decode
   end
 end
