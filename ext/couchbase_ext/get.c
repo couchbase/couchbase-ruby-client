@@ -42,16 +42,20 @@ get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_
     cas = ULL2NUM(resp->v.v0.cas);
     val = Qnil;
     if (resp->v.v0.nbytes != 0) {
-        val = decode_value(STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes),
-                resp->v.v0.flags, ctx->force_format);
-        if (val == Qundef) {
+        VALUE raw = STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes);
+        val = decode_value(raw, resp->v.v0.flags, ctx->force_format);
+        if (rb_obj_is_kind_of(val, rb_eStandardError)) {
+            VALUE exc_str = rb_funcall(val, id_to_s, 0);
+            VALUE msg = rb_sprintf("unable to convert value for key '%s': %s", RSTRING_PTR(key), RSTRING_PTR(exc_str));
             if (ctx->exception != Qnil) {
                 cb_gc_unprotect(bucket, ctx->exception);
             }
-            ctx->exception = rb_exc_new2(eValueFormatError, "unable to convert value");
+            ctx->exception = rb_exc_new3(eValueFormatError, msg);
             rb_ivar_set(ctx->exception, id_iv_operation, sym_get);
             rb_ivar_set(ctx->exception, id_iv_key, key);
+            rb_ivar_set(ctx->exception, id_iv_inner_exception, val);
             cb_gc_protect(bucket, ctx->exception);
+            val = raw;
         }
     } else if (flags_get_format(resp->v.v0.flags) == sym_plain) {
         val = STR_NEW_CSTR("");

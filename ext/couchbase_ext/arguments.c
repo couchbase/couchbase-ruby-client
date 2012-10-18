@@ -237,8 +237,12 @@ cb_params_store_init_item(struct params_st *params, lcb_size_t idx,
 {
     key_obj = unify_key(params->bucket, key_obj, 1);
     value_obj = encode_value(value_obj, params->cmd.store.flags);
-    if (value_obj == Qundef) {
-        rb_raise(eValueFormatError, "unable to convert value for key '%s'", RSTRING_PTR(key_obj));
+    if (rb_obj_is_kind_of(value_obj, rb_eStandardError)) {
+        VALUE exc_str = rb_funcall(value_obj, id_to_s, 0);
+        VALUE msg = rb_sprintf("unable to convert value for key '%s': %s", RSTRING_PTR(key_obj), RSTRING_PTR(exc_str));
+        VALUE exc = rb_exc_new3(eValueFormatError, msg);
+        rb_ivar_set(exc, id_iv_inner_exception, value_obj);
+        rb_exc_raise(exc);
     }
     params->cmd.store.items[idx].v.v0.datatype = params->cmd.store.datatype;
     params->cmd.store.items[idx].v.v0.operation = params->cmd.store.operation;

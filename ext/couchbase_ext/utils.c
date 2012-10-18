@@ -367,9 +367,10 @@ do_decode(VALUE *args)
 }
 
     static VALUE
-coding_failed(void)
+coding_failed(VALUE unused, VALUE exc)
 {
-    return Qundef;
+    (void)unused;
+    return exc;
 }
 
     VALUE
@@ -379,13 +380,8 @@ encode_value(VALUE val, uint32_t flags)
 
     args[0] = val;
     args[1] = (VALUE)flags;
-    /* FIXME re-raise proper exception */
     blob = rb_rescue(do_encode, (VALUE)args, coding_failed, 0);
-    /* it must be bytestring after all */
-    if (TYPE(blob) != T_STRING) {
-        return Qundef;
-    }
-    return blob;
+    return blob; /* bytestring or exception object */
 }
 
     VALUE
@@ -401,7 +397,7 @@ decode_value(VALUE blob, uint32_t flags, VALUE force_format)
     args[1] = (VALUE)flags;
     args[2] = (VALUE)force_format;
     val = rb_rescue(do_decode, (VALUE)args, coding_failed, 0);
-    return val;
+    return val; /* the value or exception object */
 }
 
     void

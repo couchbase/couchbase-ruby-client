@@ -108,6 +108,7 @@ ID id_iv_error;
 ID id_iv_flags;
 ID id_iv_from_master;
 ID id_iv_headers;
+ID id_iv_inner_exception;
 ID id_iv_key;
 ID id_iv_node;
 ID id_iv_operation;
@@ -410,6 +411,14 @@ Init_couchbase_ext(void)
      * @return [Symbol] the operation (+nil+ unless accessible) */
     rb_define_attr(eBaseError, "operation", 1, 0);
     id_iv_operation = rb_intern("@operation");
+    /* Document-method: inner_exception
+     *
+     * @since 1.2.0.beta4
+     *
+     * @return [Exception] the inner exception or +nil+. Some exceptions like
+     *      {Error::ValueFormat} wrap the original exception */
+    rb_define_attr(eBaseError, "inner_exception", 1, 0);
+    id_iv_inner_exception = rb_intern("@inner_exception");
 
     /* Document-class: Couchbase::Result
      *

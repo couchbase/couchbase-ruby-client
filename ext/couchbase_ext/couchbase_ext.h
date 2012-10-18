@@ -228,6 +228,7 @@ extern ID id_iv_error;
 extern ID id_iv_flags;
 extern ID id_iv_from_master;
 extern ID id_iv_headers;
+extern ID id_iv_inner_exception;
 extern ID id_iv_key;
 extern ID id_iv_node;
 extern ID id_iv_operation;
