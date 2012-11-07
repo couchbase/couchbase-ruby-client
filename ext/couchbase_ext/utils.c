@@ -114,8 +114,11 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key,
         case LCB_KEY_ENOENT:
             klass = eNotFoundError;
             break;
-        case LCB_LIBEVENT_ERROR:
-            klass = eLibeventError;
+        case LCB_DLOPEN_FAILED:
+            klass = eDlopenFailedError;
+            break;
+        case LCB_DLSYM_FAILED:
+            klass = eDlsymFailedError;
             break;
         case LCB_NETWORK_ERROR:
             klass = eNetworkError;
