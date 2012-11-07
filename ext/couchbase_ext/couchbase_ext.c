@@ -145,20 +145,21 @@ VALUE eLibcouchbaseError;       /* LCB_ERROR = 0x0a           */
 VALUE eTmpFailError;            /* LCB_ETMPFAIL = 0x0b        */
 VALUE eKeyExistsError;          /* LCB_KEY_EEXISTS = 0x0c     */
 VALUE eNotFoundError;           /* LCB_KEY_ENOENT = 0x0d      */
-VALUE eLibeventError;           /* LCB_LIBEVENT_ERROR = 0x0e  */
-VALUE eNetworkError;            /* LCB_NETWORK_ERROR = 0x0f   */
-VALUE eNotMyVbucketError;       /* LCB_NOT_MY_VBUCKET = 0x10  */
-VALUE eNotStoredError;          /* LCB_NOT_STORED = 0x11      */
-VALUE eNotSupportedError;       /* LCB_NOT_SUPPORTED = 0x12   */
-VALUE eUnknownCommandError;     /* LCB_UNKNOWN_COMMAND = 0x13 */
-VALUE eUnknownHostError;        /* LCB_UNKNOWN_HOST = 0x14    */
-VALUE eProtocolError;           /* LCB_PROTOCOL_ERROR = 0x15  */
-VALUE eTimeoutError;            /* LCB_ETIMEDOUT = 0x16       */
-VALUE eConnectError;            /* LCB_CONNECT_ERROR = 0x17   */
-VALUE eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x18   */
-VALUE eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x19   */
-VALUE eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x20 */
-VALUE eBadHandleError;          /* LCB_EBADHANDLE = 0x21      */
+VALUE eDlopenFailedError;       /* LCB_DLOPEN_FAILED = 0x0e   */
+VALUE eDlsymFailedError;        /* LCB_DLSYM_FAILED = 0x0f    */
+VALUE eNetworkError;            /* LCB_NETWORK_ERROR = 0x10   */
+VALUE eNotMyVbucketError;       /* LCB_NOT_MY_VBUCKET = 0x11  */
+VALUE eNotStoredError;          /* LCB_NOT_STORED = 0x12      */
+VALUE eNotSupportedError;       /* LCB_NOT_SUPPORTED = 0x13   */
+VALUE eUnknownCommandError;     /* LCB_UNKNOWN_COMMAND = 0x14 */
+VALUE eUnknownHostError;        /* LCB_UNKNOWN_HOST = 0x15    */
+VALUE eProtocolError;           /* LCB_PROTOCOL_ERROR = 0x16  */
+VALUE eTimeoutError;            /* LCB_ETIMEDOUT = 0x17       */
+VALUE eConnectError;            /* LCB_CONNECT_ERROR = 0x18   */
+VALUE eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x19   */
+VALUE eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x1a   */
+VALUE eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x1b */
+VALUE eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
 
 
 /* Ruby Extension initializer */
@@ -180,17 +181,24 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::Auth
      * Authentication error
      *
+     * You provided an invalid username/password combination.
+     *
      * @since 1.0.0
      */
     eAuthError = rb_define_class_under(mError, "Auth", eBaseError);
     /* Document-class: Couchbase::Error::BucketNotFound
-     * The given bucket not found in the cluster
+     * Bucket not found
+     *
+     * The requested bucket not found in the cluster
      *
      * @since 1.0.0
      */
     eBucketNotFoundError = rb_define_class_under(mError, "BucketNotFound", eBaseError);
     /* Document-class: Couchbase::Error::Busy
-     * The cluster is too busy now. Try again later
+     * The cluster is too busy
+     *
+     * The server is too busy to handle your request right now.
+     * please back off and try again at a later time.
      *
      * @since 1.0.0
      */
@@ -204,6 +212,9 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::Internal
      * Internal error
      *
+     * Internal error inside the library. You would have
+     * to destroy the instance and create a new one to recover.
+     *
      * @since 1.0.0
      */
     eInternalError = rb_define_class_under(mError, "Internal", eBaseError);
@@ -216,6 +227,8 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::KeyExists
      * Key already exists
      *
+     * The key already exists (with another CAS value)
+     *
      * @since 1.0.0
      */
     eKeyExistsError = rb_define_class_under(mError, "KeyExists", eBaseError);
@@ -225,20 +238,19 @@ Init_couchbase_ext(void)
      * @since 1.0.0
      */
     eLibcouchbaseError = rb_define_class_under(mError, "Libcouchbase", eBaseError);
-    /* Document-class: Couchbase::Error::Libevent
-     * Problem using libevent
-     *
-     * @since 1.0.0
-     */
-    eLibeventError = rb_define_class_under(mError, "Libevent", eBaseError);
     /* Document-class: Couchbase::Error::Network
      * Network error
+     *
+     * A network related problem occured (name lookup, read/write/connect
+     * etc)
      *
      * @since 1.0.0
      */
     eNetworkError = rb_define_class_under(mError, "Network", eBaseError);
     /* Document-class: Couchbase::Error::NoMemory
      * Out of memory error (on Server)
+     *
+     * The client ran out of memory
      *
      * @since 1.0.0
      */
@@ -258,11 +270,17 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::NotMyVbucket
      * The vbucket is not located on this server
      *
+     * The server who received the request is not responsible for the
+     * object anymore. (This happens during changes in the cluster
+     * topology)
+     *
      * @since 1.0.0
      */
     eNotMyVbucketError = rb_define_class_under(mError, "NotMyVbucket", eBaseError);
     /* Document-class: Couchbase::Error::NotStored
      * Not stored
+     *
+     * The object was not stored on the server
      *
      * @since 1.0.0
      */
@@ -270,17 +288,26 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::NotSupported
      * Not supported
      *
+     * The server doesn't support the requested command. This error differs
+     * from {Couchbase::Error::UnknownCommand} by that the server knows
+     * about the command, but for some reason decided to not support it.
+     *
      * @since 1.0.0
      */
     eNotSupportedError = rb_define_class_under(mError, "NotSupported", eBaseError);
     /* Document-class: Couchbase::Error::Range
      * Invalid range
      *
+     * An invalid range specified
+     *
      * @since 1.0.0
      */
     eRangeError = rb_define_class_under(mError, "Range", eBaseError);
     /* Document-class: Couchbase::Error::TemporaryFail
-     * Temporary failure. Try again later
+     * Temporary failure
+     *
+     * The server tried to perform the requested operation, but failed
+     * due to a temporary constraint. Retrying the operation may work.
      *
      * @since 1.0.0
      */
@@ -288,11 +315,16 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::ClientTemporaryFail
      * Temporary failure (on Client)
      *
+     * The client encountered a temporary error (retry might resolve
+     * the problem)
+     *
      * @since 1.2.0
      */
     eClientTmpFailError = rb_define_class_under(mError, "ClientTemporaryFail", eBaseError);
     /* Document-class: Couchbase::Error::TooBig
      * Object too big
+     *
+     * The sever reported that this object is too big
      *
      * @since 1.0.0
      */
@@ -300,11 +332,15 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::UnknownCommand
      * Unknown command
      *
+     * The server doesn't know what that command is.
+     *
      * @since 1.0.0
      */
     eUnknownCommandError = rb_define_class_under(mError, "UnknownCommand", eBaseError);
     /* Document-class: Couchbase::Error::UnknownHost
      * Unknown host
+     *
+     * The server failed to resolve the requested hostname
      *
      * @since 1.0.0
      */
@@ -318,11 +354,16 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::Protocol
      * Protocol error
      *
+     * There is something wrong with the datastream received from
+     * the server
+     *
      * @since 1.0.0
      */
     eProtocolError = rb_define_class_under(mError, "Protocol", eBaseError);
     /* Document-class: Couchbase::Error::Timeout
      * Timeout error
+     *
+     * The operation timed out
      *
      * @since 1.1.0
      */
@@ -342,6 +383,23 @@ Init_couchbase_ext(void)
      */
     eBadHandleError = rb_define_class_under(mError, "BadHandle", eBaseError);
 
+    /* Document-class: Couchbase::Error::DlopenFailed
+     * dlopen() failed
+     *
+     * Failed to open shared object
+     *
+     * @since 1.2.0
+     */
+    eDlopenFailedError = rb_define_class_under(mError, "DlopenFailed", eBaseError);
+
+    /* Document-class: Couchbase::Error::DlsymFailed
+     * dlsym() failed
+     *
+     * Failed to locate the requested symbol in the shared object
+     *
+     * @since 1.2.0
+     */
+    eDlsymFailedError = rb_define_class_under(mError, "DlsymFailed", eBaseError);
     /* Document-method: error
      *
      * The underlying libcouchbase library could return one of the following
@@ -353,29 +411,31 @@ Init_couchbase_ext(void)
      * 0x02 :: LCB_AUTH_ERROR (Authentication error)
      * 0x03 :: LCB_DELTA_BADVAL (Not a number)
      * 0x04 :: LCB_E2BIG (Object too big)
-     * 0x05 :: LCB_EBUSY (Too busy. Try again later)
+     * 0x05 :: LCB_EBUSY (Too busy)
      * 0x06 :: LCB_EINTERNAL (Internal error)
      * 0x07 :: LCB_EINVAL (Invalid arguments)
      * 0x08 :: LCB_ENOMEM (Out of memory)
      * 0x09 :: LCB_ERANGE (Invalid range)
      * 0x0a :: LCB_ERROR (Generic error)
-     * 0x0b :: LCB_ETMPFAIL (Temporary failure. Try again later)
+     * 0x0b :: LCB_ETMPFAIL (Temporary failure)
      * 0x0c :: LCB_KEY_EEXISTS (Key exists (with a different CAS value))
      * 0x0d :: LCB_KEY_ENOENT (No such key)
-     * 0x0e :: LCB_LIBEVENT_ERROR (Problem using libevent)
-     * 0x0f :: LCB_NETWORK_ERROR (Network error)
-     * 0x10 :: LCB_NOT_MY_VBUCKET (The vbucket is not located on this server)
-     * 0x11 :: LCB_NOT_STORED (Not stored)
-     * 0x12 :: LCB_NOT_SUPPORTED (Not supported)
-     * 0x13 :: LCB_UNKNOWN_COMMAND (Unknown command)
-     * 0x14 :: LCB_UNKNOWN_HOST (Unknown host)
-     * 0x15 :: LCB_PROTOCOL_ERROR (Protocol error)
-     * 0x16 :: LCB_ETIMEDOUT (Operation timed out)
-     * 0x17 :: LCB_CONNECT_ERROR (Connection failure)
-     * 0x18 :: LCB_BUCKET_ENOENT (No such bucket)
-     * 0x19 :: LCB_CLIENT_ENOMEM (Out of memory on the client)
-     * 0x20 :: LCB_CLIENT_ETMPFAIL (Temporary failure on the client)
-     * 0x21 :: LCB_EBADHANDLE (Invalid handle type)
+     * 0x0e :: LCB_DLOPEN_FAILED (Failed to open shared object)
+     * 0x0f :: LCB_DLSYM_FAILED (Failed to locate the requested symbol in shared object)
+     * 0x10 :: LCB_NETWORK_ERROR (Network error)
+     * 0x11 :: LCB_NOT_MY_VBUCKET (The vbucket is not located on this server)
+     * 0x12 :: LCB_NOT_STORED (Not stored)
+     * 0x13 :: LCB_NOT_SUPPORTED (Not supported)
+     * 0x14 :: LCB_UNKNOWN_COMMAND (Unknown command)
+     * 0x15 :: LCB_UNKNOWN_HOST (Unknown host)
+     * 0x16 :: LCB_PROTOCOL_ERROR (Protocol error)
+     * 0x17 :: LCB_ETIMEDOUT (Operation timed out)
+     * 0x18 :: LCB_CONNECT_ERROR (Connection failure)
+     * 0x19 :: LCB_BUCKET_ENOENT (No such bucket)
+     * 0x1a :: LCB_CLIENT_ENOMEM (Out of memory on the client)
+     * 0x1b :: LCB_CLIENT_ETMPFAIL (Temporary failure on the client)
+     * 0x1c :: LCB_EBADHANDLE (Invalid handle type)
+     *
      *
      * @since 1.0.0
      *

@@ -265,20 +265,21 @@ extern VALUE eLibcouchbaseError;       /* LCB_ERROR = 0x0a           */
 extern VALUE eTmpFailError;            /* LCB_ETMPFAIL = 0x0b        */
 extern VALUE eKeyExistsError;          /* LCB_KEY_EEXISTS = 0x0c     */
 extern VALUE eNotFoundError;           /* LCB_KEY_ENOENT = 0x0d      */
-extern VALUE eLibeventError;           /* LCB_LIBEVENT_ERROR = 0x0e  */
-extern VALUE eNetworkError;            /* LCB_NETWORK_ERROR = 0x0f   */
-extern VALUE eNotMyVbucketError;       /* LCB_NOT_MY_VBUCKET = 0x10  */
-extern VALUE eNotStoredError;          /* LCB_NOT_STORED = 0x11      */
-extern VALUE eNotSupportedError;       /* LCB_NOT_SUPPORTED = 0x12   */
-extern VALUE eUnknownCommandError;     /* LCB_UNKNOWN_COMMAND = 0x13 */
-extern VALUE eUnknownHostError;        /* LCB_UNKNOWN_HOST = 0x14    */
-extern VALUE eProtocolError;           /* LCB_PROTOCOL_ERROR = 0x15  */
-extern VALUE eTimeoutError;            /* LCB_ETIMEDOUT = 0x16       */
-extern VALUE eConnectError;            /* LCB_CONNECT_ERROR = 0x17   */
-extern VALUE eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x18   */
-extern VALUE eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x19   */
-extern VALUE eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x20 */
-extern VALUE eBadHandleError;          /* LCB_EBADHANDLE = 0x21      */
+extern VALUE eDlopenFailedError;       /* LCB_DLOPEN_FAILED = 0x0e   */
+extern VALUE eDlsymFailedError;        /* LCB_DLSYM_FAILED = 0x0f    */
+extern VALUE eNetworkError;            /* LCB_NETWORK_ERROR = 0x10   */
+extern VALUE eNotMyVbucketError;       /* LCB_NOT_MY_VBUCKET = 0x11  */
+extern VALUE eNotStoredError;          /* LCB_NOT_STORED = 0x12      */
+extern VALUE eNotSupportedError;       /* LCB_NOT_SUPPORTED = 0x13   */
+extern VALUE eUnknownCommandError;     /* LCB_UNKNOWN_COMMAND = 0x14 */
+extern VALUE eUnknownHostError;        /* LCB_UNKNOWN_HOST = 0x15    */
+extern VALUE eProtocolError;           /* LCB_PROTOCOL_ERROR = 0x16  */
+extern VALUE eTimeoutError;            /* LCB_ETIMEDOUT = 0x17       */
+extern VALUE eConnectError;            /* LCB_CONNECT_ERROR = 0x18   */
+extern VALUE eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x19   */
+extern VALUE eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x1a   */
+extern VALUE eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x1b */
+extern VALUE eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
 
 void strip_key_prefix(struct bucket_st *bucket, VALUE key);
 VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);
