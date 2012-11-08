@@ -71,7 +71,6 @@ class TestTouch < MiniTest::Unit::TestCase
       end
       ret = connection.unlock(uniq_id(1) => info[uniq_id(1)][2],
                               uniq_id(2) => info[uniq_id(2)][2])
-      puts ret.inspect
       assert ret[uniq_id(1)]
       assert ret[uniq_id(2)]
       connection.set(uniq_id(1), "bar")
