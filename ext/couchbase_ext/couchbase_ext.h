@@ -251,6 +251,7 @@ extern ID id_verify_observe_options;
 /* Errors */
 extern VALUE eBaseError;
 extern VALUE eValueFormatError;
+extern VALUE eHTTPError;
                                        /* LCB_SUCCESS = 0x00         */
                                        /* LCB_AUTH_CONTINUE = 0x01   */
 extern VALUE eAuthError;               /* LCB_AUTH_ERROR = 0x02      */

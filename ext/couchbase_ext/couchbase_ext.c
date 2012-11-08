@@ -131,6 +131,8 @@ ID id_verify_observe_options;
 /* Errors */
 VALUE eBaseError;
 VALUE eValueFormatError;
+VALUE eHTTPError;
+
                                 /* LCB_SUCCESS = 0x00         */
                                 /* LCB_AUTH_CONTINUE = 0x01   */
 VALUE eAuthError;               /* LCB_AUTH_ERROR = 0x02      */
@@ -400,6 +402,13 @@ Init_couchbase_ext(void)
      * @since 1.2.0
      */
     eDlsymFailedError = rb_define_class_under(mError, "DlsymFailed", eBaseError);
+
+    /* Document-class: Couchbase::Error::HTTP
+     * HTTP error with status code
+     *
+     * @since 1.2.0
+     */
+    eHTTPError = rb_define_class_under(mError, "HTTP", eBaseError);
     /* Document-method: error
      *
      * The underlying libcouchbase library could return one of the following

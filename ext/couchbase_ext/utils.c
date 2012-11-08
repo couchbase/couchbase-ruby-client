@@ -77,7 +77,8 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key,
     VALUE klass, exc, str;
     char buf[300];
 
-    if (rc == LCB_SUCCESS || rc == LCB_AUTH_CONTINUE) {
+    if ((rc == LCB_SUCCESS && (status == 0 || status / 100 == 2)) ||
+            rc == LCB_AUTH_CONTINUE) {
         return Qnil;
     }
     switch (rc) {
@@ -173,6 +174,7 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key,
     }
     if (status > 0) {
         const char *reason = NULL;
+        klass = eHTTPError;
         snprintf(buf, 300, "status=\"%d\"", status);
         rb_str_buf_cat2(str, buf);
         switch (status) {
