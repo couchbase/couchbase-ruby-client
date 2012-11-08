@@ -42,7 +42,8 @@ module Rack
       attr_reader :mutex, :pool
 
       DEFAULT_OPTIONS = Abstract::ID::DEFAULT_OPTIONS.merge(
-        :couchbase => {:default_format => :document, :key_prefix => 'rack:session:'})
+        :couchbase => {:quiet => true, :default_format => :document,
+                       :key_prefix => 'rack:session:'})
 
       def initialize(app, options = {})
         # Support old :expires option
