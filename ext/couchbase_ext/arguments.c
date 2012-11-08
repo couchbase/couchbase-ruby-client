@@ -244,6 +244,11 @@ cb_params_store_init_item(struct params_st *params, lcb_size_t idx,
         rb_ivar_set(exc, id_iv_inner_exception, value_obj);
         rb_exc_raise(exc);
     }
+    /* the value must be string after conversion */
+    if (TYPE(value_obj) != T_STRING) {
+        VALUE val = rb_any_to_s(value_obj);
+        rb_raise(eValueFormatError, "unable to convert value for key '%s' to string: %s", RSTRING_PTR(key_obj), RSTRING_PTR(val));
+    }
     params->cmd.store.items[idx].v.v0.datatype = params->cmd.store.datatype;
     params->cmd.store.items[idx].v.v0.operation = params->cmd.store.operation;
     params->cmd.store.items[idx].v.v0.key = RSTRING_PTR(key_obj);
