@@ -16,7 +16,7 @@ module ActionDispatch
     # Or remove this file and add following line to your `config/application.rb`:
     #
     #   require 'action_dispatch/middleware/session/couchbase_store'
-    #   config.session_storage = :couchbase_store
+    #   config.session_store :couchbase_store
     #
     # You can also pass additional options:
     #
@@ -25,7 +25,7 @@ module ActionDispatch
     #     :expire_after => 5.minutes,
     #     :couchbase => {:bucket => "sessions", :default_format => :marshal}
     #   }
-    #   config.session_storage = :couchbase_store, session_options
+    #   config.session_store :couchbase_store, session_options
     #
     # By default sessions will be serialized to JSON, to allow analyse them
     # using Map/Reduce.

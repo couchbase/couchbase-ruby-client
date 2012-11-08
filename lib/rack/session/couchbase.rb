@@ -76,7 +76,7 @@ module Rack
 
       def set_session(env, session_id, new_session, options)
         with_lock(env, false) do
-          @pool.set session_id, new_session, options
+          @pool.set(session_id, new_session, options)
           session_id
         end
       end
