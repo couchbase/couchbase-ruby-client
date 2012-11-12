@@ -106,6 +106,9 @@ module Couchbase
       req.on_body do |body|
         res = MultiJson.load(body.value)
         res["rows"].each do |obj|
+          if obj['doc']
+            obj['doc']['value'] = obj['doc'].delete('json')
+          end
           doc = ViewRow.wrap(self, obj)
           key = doc.id.sub(/^_design\//, '')
           next if self.environment == :production && key =~ /dev_/

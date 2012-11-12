@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+require 'base64'
+
 module Couchbase
 
   module Error
@@ -286,6 +288,14 @@ module Couchbase
                 'cas' => cas
               }
             }
+          elsif obj['doc']
+            # deserialize value
+            if val = obj['doc'].delete('json')
+              # JSON value has been serialized already
+              obj['doc']['value'] = val
+            elsif val = obj['doc'].delete('base64')
+              obj['doc']['value'] = Base64.decode64(val)
+            end
           end
           if block_given?
             yield @wrapper_class.wrap(@bucket, obj)

@@ -115,7 +115,7 @@ module Couchbase
       @value = data['value']
       if data['doc']
         @meta = data['doc']['meta']
-        @doc = data['doc']['json']
+        @doc = data['doc']['value']
       end
       @id = data['id'] || @meta && @meta['id']
       @views = []
