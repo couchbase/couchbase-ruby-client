@@ -142,8 +142,12 @@ module Couchbase
     #   the document and store them in {ViewRow#meta} hash.
     #
     # @param [Hash] params parameters for Couchbase query.
-    # @option params [true, false] :include_docs (false) Include the full
-    #   content of the documents in the return.
+    # @option params [true, false, :http] :include_docs (false) Include the
+    #   full content of the documents in the return. This option can force
+    #   document fetching in two different ways: embedding documents in HTTP
+    #   stream or query them using binary protocol. In first case you should
+    #   pass symbol +:http+ as an argument, for second case pass any ruby
+    #   truth value (like +true+).
     # @option params [true, false] :descending (false) Return the documents
     #   in descending by key order
     # @option params [String, Fixnum, Hash, Array] :key Return only
@@ -236,6 +240,18 @@ module Couchbase
         body = MultiJson.dump(body) unless body.is_a?(String)
         options.update(:body => body, :method => params.delete(:method) || :post)
       end
+      use_bin_protocol = false
+      case params[:include_docs]
+      when :http
+        # retrieve documents embedded into view response
+        params[:include_docs] = true
+      when nil, false
+        params.delete(:include_docs)
+      else
+        # retrieve documents using binary protocol
+        params.delete(:include_docs)
+        use_bin_protocol = true
+      end
       path = Utils.build_query(@endpoint, params)
       request = @bucket.make_http_request(path, options)
       res = []
@@ -260,6 +276,17 @@ module Couchbase
             raise Error::View.new(from, reason)
           end
         else
+          if use_bin_protocol
+            val, flags, cas = @bucket.get(obj['id'], :extended => true)
+            obj['doc'] = {
+              'value' => val,
+              'meta' => {
+                'id' => obj['id'],
+                'flags' => flags,
+                'cas' => cas
+              }
+            }
+          end
           if block_given?
             yield @wrapper_class.wrap(@bucket, obj)
           else
