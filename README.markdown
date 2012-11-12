@@ -443,7 +443,6 @@ store a couple of posts using memcached API:
     c['hello-world'] = {:title => 'Hello World',
                         :body => 'Well hello and welcome to my new blog...',
                         :date => '2009/01/15 15:52:20'}
-    c.all_docs.count    #=> 3
 
 Now let's create design doc with sample view and save it in file
 'blog.json':
@@ -493,7 +492,7 @@ You can also use Enumerator to iterate view results
 
     require 'date'
     posts_by_date = Hash.new{|h,k| h[k] = []}
-    enum = c.all_docs(:include_docs => true).each  # request hasn't issued yet
+    enum = c.recent_posts(:include_docs => true).each  # request hasn't issued yet
     enum.inject(posts_by_date) do |acc, doc|
       acc[date] = Date.strptime(doc['date'], '%Y/%m/%d')
       acc

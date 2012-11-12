@@ -120,17 +120,6 @@ module Couchbase
       async? ? nil : docmap
     end
 
-    # Fetch all documents from the bucket.
-    #
-    # @since 1.2.0
-    #
-    # @param [Hash] params Params for Couchbase +/_all_docs+ query
-    #
-    # @return [Couchbase::View] View object
-    def all_docs(params = {})
-      View.new(self, "_all_docs", params)
-    end
-
     # Update or create design doc with supplied views
     #
     # @since 1.2.0
