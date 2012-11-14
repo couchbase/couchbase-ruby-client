@@ -144,12 +144,14 @@ module Couchbase
     #   the document and store them in {ViewRow#meta} hash.
     #
     # @param [Hash] params parameters for Couchbase query.
-    # @option params [true, false, :http] :include_docs (false) Include the
-    #   full content of the documents in the return. This option can force
-    #   document fetching in two different ways: embedding documents in HTTP
-    #   stream or query them using binary protocol. In first case you should
-    #   pass symbol +:http+ as an argument, for second case pass any ruby
-    #   truth value (like +true+).
+    # @option params [true, false] :include_docs (false) Include the
+    #   full content of the documents in the return. Note that the document
+    #   is fetched from the in memory cache where it may have been changed
+    #   or even deleted. See also +:quiet+ parameter below to control error
+    #   reporting during fetch.
+    # @option params [true, false] :quiet (true) Do not raise error if
+    #   associated document not found in the memory. If the parameter +true+
+    #   will use +nil+ value instead.
     # @option params [true, false] :descending (false) Return the documents
     #   in descending by key order
     # @option params [String, Fixnum, Hash, Array] :key Return only
@@ -242,17 +244,10 @@ module Couchbase
         body = MultiJson.dump(body) unless body.is_a?(String)
         options.update(:body => body, :method => params.delete(:method) || :post)
       end
-      use_bin_protocol = false
-      case params[:include_docs]
-      when :http
-        # retrieve documents embedded into view response
-        params[:include_docs] = true
-      when nil, false
-        params.delete(:include_docs)
-      else
-        # retrieve documents using binary protocol
-        params.delete(:include_docs)
-        use_bin_protocol = true
+      include_docs = params.delete(:include_docs)
+      quiet = true
+      if params.has_key?(:quiet)
+        quiet = params.delete(:quiet)
       end
       path = Utils.build_query(@endpoint, params)
       request = @bucket.make_http_request(path, options)
@@ -278,8 +273,8 @@ module Couchbase
             raise Error::View.new(from, reason)
           end
         else
-          if use_bin_protocol
-            val, flags, cas = @bucket.get(obj['id'], :extended => true)
+          if include_docs
+            val, flags, cas = @bucket.get(obj['id'], :extended => true, :quiet => quiet)
             obj['doc'] = {
               'value' => val,
               'meta' => {
@@ -288,14 +283,6 @@ module Couchbase
                 'cas' => cas
               }
             }
-          elsif obj['doc']
-            # deserialize value
-            if val = obj['doc'].delete('json')
-              # JSON value has been serialized already
-              obj['doc']['value'] = val
-            elsif val = obj['doc'].delete('base64')
-              obj['doc']['value'] = Base64.decode64(val)
-            end
           end
           if block_given?
             yield @wrapper_class.wrap(@bucket, obj)
