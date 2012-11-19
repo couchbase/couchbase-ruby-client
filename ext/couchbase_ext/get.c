@@ -280,8 +280,10 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
             cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
-        if (bucket->exception != Qnil) {
-            rb_exc_raise(bucket->exception);
+        exc = bucket->exception;
+        if (exc != Qnil) {
+            bucket->exception = Qnil;
+            rb_exc_raise(exc);
         }
         if (params.cmd.get.gat || params.cmd.get.assemble_hash ||
                 (params.cmd.get.extended && (params.cmd.get.num > 1 || params.cmd.get.array))) {

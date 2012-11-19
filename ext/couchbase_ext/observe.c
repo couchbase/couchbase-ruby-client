@@ -160,8 +160,10 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
             cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
-        if (bucket->exception != Qnil) {
-            rb_exc_raise(bucket->exception);
+        exc = bucket->exception;
+        if (exc != Qnil) {
+            bucket->exception = Qnil;
+            rb_exc_raise(exc);
         }
         if (params.cmd.observe.num > 1 || params.cmd.observe.array) {
             return rv;  /* return as a hash {key => {}, ...} */

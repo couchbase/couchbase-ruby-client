@@ -164,8 +164,10 @@ cb_bucket_unlock(int argc, VALUE *argv, VALUE self)
         if (exc != Qnil) {
             rb_exc_raise(cb_gc_unprotect(bucket, exc));
         }
-        if (bucket->exception != Qnil) {
-            rb_exc_raise(bucket->exception);
+        exc = bucket->exception;
+        if (exc != Qnil) {
+            bucket->exception = Qnil;
+            rb_exc_raise(exc);
         }
         if (params.cmd.unlock.num > 1) {
             return rv;  /* return as a hash {key => true, ...} */

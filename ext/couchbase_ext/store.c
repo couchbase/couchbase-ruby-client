@@ -161,8 +161,10 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
             cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
-        if (bucket->exception != Qnil) {
-            rb_exc_raise(bucket->exception);
+        exc = bucket->exception;
+        if (exc != Qnil) {
+            bucket->exception = Qnil;
+            rb_exc_raise(exc);
         }
         if (RTEST(obs)) {
             cb_gc_unprotect(bucket, obs);
