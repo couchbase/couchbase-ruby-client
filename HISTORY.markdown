@@ -1,3 +1,24 @@
+## 1.2.0.z.beta4 / 2012-11-21
+
+* Do not hide ValueFormat reason
+* Adjust version check for MultiJson monkeypatch
+* Update error codes
+* Remove mentions of LCB_LIBEVENT_ERROR in utils.c
+* Add Makefile for easier build with repo layout
+* Check HTTP error code when building exception object
+* Remove debug output in tests
+* Make rack session store adapter quiet
+* RCBC-90 Update documentation about session store
+* Protect against non string values in :plain mode
+* RCBC-89 Fetch documents using binary protocol by default
+* Deserialize Base64 value from view
+* Remove all_docs mentions
+* RCBC-92 Use more portable version of rb_sprintf()
+* Do not expose docs embedded in HTTP response
+* RCBC-94 Reset global exception after usage
+* Fix number of arguments to Kernel#sprintf
+* Increase default connection timeout
+
 ## 1.2.0.z.beta3 / 2012-10-12
 
 * Update view API
