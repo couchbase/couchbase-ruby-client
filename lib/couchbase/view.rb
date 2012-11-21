@@ -52,7 +52,7 @@ module Couchbase
     def initialize(bucket, endpoint, params = {})
       @bucket = bucket
       @endpoint = endpoint
-      @params = params
+      @params = {:connection_timeout => 75_000}.merge(params)
       @wrapper_class = params.delete(:wrapper_class) || ViewRow
       unless @wrapper_class.respond_to?(:wrap)
         raise ArgumentError, "wrapper class should reposond to :wrap, check the options"
@@ -183,7 +183,7 @@ module Couchbase
     #               response stream.
     #   :stop::     Stop immediately when an error condition occurs. No
     #               further view information will be returned.
-    # @option params [Fixnum] :connection_timeout (60000) Timeout before the
+    # @option params [Fixnum] :connection_timeout (75000) Timeout before the
     #   view request is dropped (milliseconds)
     # @option params [true, false] :reduce (true) Use the reduction function
     # @option params [true, false] :group (false) Group the results using
