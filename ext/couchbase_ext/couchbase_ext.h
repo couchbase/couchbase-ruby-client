@@ -244,6 +244,7 @@ extern ID id_password;
 extern ID id_path;
 extern ID id_port;
 extern ID id_scheme;
+extern ID id_sprintf;
 extern ID id_to_s;
 extern ID id_user;
 extern ID id_verify_observe_options;

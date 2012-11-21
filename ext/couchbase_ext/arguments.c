@@ -239,7 +239,7 @@ cb_params_store_init_item(struct params_st *params, lcb_size_t idx,
     value_obj = encode_value(value_obj, params->cmd.store.flags);
     if (rb_obj_is_kind_of(value_obj, rb_eStandardError)) {
         VALUE exc_str = rb_funcall(value_obj, id_to_s, 0);
-        VALUE msg = rb_funcall(rb_mKernel, rb_intern("sprintf"), 2,
+        VALUE msg = rb_funcall(rb_mKernel, id_sprintf, 3,
                 rb_str_new2("unable to convert value for key '%s': %s"), key_obj, exc_str);
         VALUE exc = rb_exc_new3(eValueFormatError, msg);
         rb_ivar_set(exc, id_iv_inner_exception, value_obj);

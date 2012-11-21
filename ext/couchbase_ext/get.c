@@ -46,7 +46,7 @@ get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_
         val = decode_value(raw, resp->v.v0.flags, ctx->force_format);
         if (rb_obj_is_kind_of(val, rb_eStandardError)) {
             VALUE exc_str = rb_funcall(val, id_to_s, 0);
-            VALUE msg = rb_funcall(rb_mKernel, rb_intern("sprintf"), 2,
+            VALUE msg = rb_funcall(rb_mKernel, id_sprintf, 3,
                     rb_str_new2("unable to convert value for key '%s': %s"), key, exc_str);
             if (ctx->exception != Qnil) {
                 cb_gc_unprotect(bucket, ctx->exception);

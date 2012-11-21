@@ -124,6 +124,7 @@ ID id_password;
 ID id_path;
 ID id_port;
 ID id_scheme;
+ID id_sprintf;
 ID id_to_s;
 ID id_user;
 ID id_verify_observe_options;
@@ -988,6 +989,7 @@ Init_couchbase_ext(void)
     id_path = rb_intern("path");
     id_port = rb_intern("port");
     id_scheme = rb_intern("scheme");
+    id_sprintf = rb_intern("sprintf");
     id_to_s = rb_intern("to_s");
     id_user = rb_intern("user");
     id_verify_observe_options = rb_intern("verify_observe_options");
