@@ -38,7 +38,7 @@ if multi_json_engine.name =~ /JsonGem$/
   class << multi_json_engine
     alias _load_object load
     def load(string, options = {})
-      if string =~ /\A\s*[{\[]/
+      if !string.is_a?(String) || string =~ /\A\s*[{\[]/
         _load_object(string, options)
       else
         _load_object("[#{string}]", options)[0]
