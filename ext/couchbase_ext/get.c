@@ -18,20 +18,20 @@
 #include "couchbase_ext.h"
 
     void
-get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_resp_t *resp)
+cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_resp_t *resp)
 {
-    struct context_st *ctx = (struct context_st *)cookie;
-    struct bucket_st *bucket = ctx->bucket;
+    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
+    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE key, val, flags, cas, *rv = ctx->rv, exc = Qnil, res;
 
     ctx->nqueries--;
     key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
-    strip_key_prefix(bucket, key);
+    cb_strip_key_prefix(bucket, key);
 
     if (error != LCB_KEY_ENOENT || !ctx->quiet) {
         exc = cb_check_error(error, "failed to get value", key);
         if (exc != Qnil) {
-            rb_ivar_set(exc, id_iv_operation, sym_get);
+            rb_ivar_set(exc, cb_id_iv_operation, cb_sym_get);
             if (NIL_P(ctx->exception)) {
                 ctx->exception = cb_gc_protect(bucket, exc);
             }
@@ -43,33 +43,33 @@ get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_
     val = Qnil;
     if (resp->v.v0.nbytes != 0) {
         VALUE raw = STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes);
-        val = decode_value(raw, resp->v.v0.flags, ctx->force_format);
+        val = cb_decode_value(raw, resp->v.v0.flags, ctx->force_format);
         if (rb_obj_is_kind_of(val, rb_eStandardError)) {
-            VALUE exc_str = rb_funcall(val, id_to_s, 0);
-            VALUE msg = rb_funcall(rb_mKernel, id_sprintf, 3,
+            VALUE exc_str = rb_funcall(val, cb_id_to_s, 0);
+            VALUE msg = rb_funcall(rb_mKernel, cb_id_sprintf, 3,
                     rb_str_new2("unable to convert value for key '%s': %s"), key, exc_str);
             if (ctx->exception != Qnil) {
                 cb_gc_unprotect(bucket, ctx->exception);
             }
-            ctx->exception = rb_exc_new3(eValueFormatError, msg);
-            rb_ivar_set(ctx->exception, id_iv_operation, sym_get);
-            rb_ivar_set(ctx->exception, id_iv_key, key);
-            rb_ivar_set(ctx->exception, id_iv_inner_exception, val);
+            ctx->exception = rb_exc_new3(cb_eValueFormatError, msg);
+            rb_ivar_set(ctx->exception, cb_id_iv_operation, cb_sym_get);
+            rb_ivar_set(ctx->exception, cb_id_iv_key, key);
+            rb_ivar_set(ctx->exception, cb_id_iv_inner_exception, val);
             cb_gc_protect(bucket, ctx->exception);
             val = raw;
         }
-    } else if (flags_get_format(resp->v.v0.flags) == sym_plain) {
+    } else if (cb_flags_get_format(resp->v.v0.flags) == cb_sym_plain) {
         val = STR_NEW_CSTR("");
     }
     if (bucket->async) { /* asynchronous */
         if (ctx->proc != Qnil) {
-            res = rb_class_new_instance(0, NULL, cResult);
-            rb_ivar_set(res, id_iv_error, exc);
-            rb_ivar_set(res, id_iv_operation, sym_get);
-            rb_ivar_set(res, id_iv_key, key);
-            rb_ivar_set(res, id_iv_value, val);
-            rb_ivar_set(res, id_iv_flags, flags);
-            rb_ivar_set(res, id_iv_cas, cas);
+            res = rb_class_new_instance(0, NULL, cb_cResult);
+            rb_ivar_set(res, cb_id_iv_error, exc);
+            rb_ivar_set(res, cb_id_iv_operation, cb_sym_get);
+            rb_ivar_set(res, cb_id_iv_key, key);
+            rb_ivar_set(res, cb_id_iv_value, val);
+            rb_ivar_set(res, cb_id_iv_flags, flags);
+            rb_ivar_set(res, cb_id_iv_cas, cas);
             cb_proc_call(ctx->proc, 1, res);
         }
     } else {                /* synchronous */
@@ -219,28 +219,28 @@ get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_
     VALUE
 cb_bucket_get(int argc, VALUE *argv, VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
-    struct context_st *ctx;
+    struct cb_bucket_st *bucket = DATA_PTR(self);
+    struct cb_context_st *ctx;
     VALUE args, rv, proc, exc;
     size_t ii;
     lcb_error_t err = LCB_SUCCESS;
-    struct params_st params;
+    struct cb_params_st params;
 
     if (bucket->handle == NULL) {
-        rb_raise(eConnectError, "closed connection");
+        rb_raise(cb_eConnectError, "closed connection");
     }
     rb_scan_args(argc, argv, "0*&", &args, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    memset(&params, 0, sizeof(struct params_st));
-    params.type = cmd_get;
+    memset(&params, 0, sizeof(struct cb_params_st));
+    params.type = cb_cmd_get;
     params.bucket = bucket;
     params.cmd.get.keys_ary = cb_gc_protect(bucket, rb_ary_new());
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = xcalloc(1, sizeof(struct context_st));
+    ctx = xcalloc(1, sizeof(struct cb_context_st));
     if (ctx == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
     }
     ctx->extended = params.cmd.get.extended;
     ctx->quiet = params.cmd.get.quiet;
@@ -267,7 +267,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     }
     bucket->nbytes += params.npayload;
     if (bucket->async) {
-        maybe_do_loop(bucket);
+        cb_maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (ctx->nqueries > 0) {

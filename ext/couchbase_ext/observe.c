@@ -18,10 +18,10 @@
 #include "couchbase_ext.h"
 
     void
-observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_observe_resp_t *resp)
+cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_observe_resp_t *resp)
 {
-    struct context_st *ctx = (struct context_st *)cookie;
-    struct bucket_st *bucket = ctx->bucket;
+    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
+    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE key, res, *rv = ctx->rv;
 
     if (resp->v.v0.key) {
@@ -30,27 +30,27 @@ observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
         if (ctx->exception) {
             cb_gc_protect(bucket, ctx->exception);
         }
-        res = rb_class_new_instance(0, NULL, cResult);
-        rb_ivar_set(res, id_iv_completed, Qfalse);
-        rb_ivar_set(res, id_iv_error, ctx->exception);
-        rb_ivar_set(res, id_iv_operation, sym_observe);
-        rb_ivar_set(res, id_iv_key, key);
-        rb_ivar_set(res, id_iv_cas, ULL2NUM(resp->v.v0.cas));
-        rb_ivar_set(res, id_iv_from_master, resp->v.v0.from_master ? Qtrue : Qfalse);
-        rb_ivar_set(res, id_iv_time_to_persist, ULONG2NUM(resp->v.v0.ttp));
-        rb_ivar_set(res, id_iv_time_to_replicate, ULONG2NUM(resp->v.v0.ttr));
+        res = rb_class_new_instance(0, NULL, cb_cResult);
+        rb_ivar_set(res, cb_id_iv_completed, Qfalse);
+        rb_ivar_set(res, cb_id_iv_error, ctx->exception);
+        rb_ivar_set(res, cb_id_iv_operation, cb_sym_observe);
+        rb_ivar_set(res, cb_id_iv_key, key);
+        rb_ivar_set(res, cb_id_iv_cas, ULL2NUM(resp->v.v0.cas));
+        rb_ivar_set(res, cb_id_iv_from_master, resp->v.v0.from_master ? Qtrue : Qfalse);
+        rb_ivar_set(res, cb_id_iv_time_to_persist, ULONG2NUM(resp->v.v0.ttp));
+        rb_ivar_set(res, cb_id_iv_time_to_replicate, ULONG2NUM(resp->v.v0.ttr));
         switch (resp->v.v0.status) {
             case LCB_OBSERVE_FOUND:
-                rb_ivar_set(res, id_iv_status, sym_found);
+                rb_ivar_set(res, cb_id_iv_status, cb_sym_found);
                 break;
             case LCB_OBSERVE_PERSISTED:
-                rb_ivar_set(res, id_iv_status, sym_persisted);
+                rb_ivar_set(res, cb_id_iv_status, cb_sym_persisted);
                 break;
             case LCB_OBSERVE_NOT_FOUND:
-                rb_ivar_set(res, id_iv_status, sym_not_found);
+                rb_ivar_set(res, cb_id_iv_status, cb_sym_not_found);
                 break;
             default:
-                rb_ivar_set(res, id_iv_status, Qnil);
+                rb_ivar_set(res, cb_id_iv_status, Qnil);
         }
         if (bucket->async) { /* asynchronous */
             if (ctx->proc != Qnil) {
@@ -68,8 +68,8 @@ observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
         }
     } else {
         if (bucket->async && ctx->proc != Qnil) {
-            res = rb_class_new_instance(0, NULL, cResult);
-            rb_ivar_set(res, id_iv_completed, Qtrue);
+            res = rb_class_new_instance(0, NULL, cb_cResult);
+            rb_ivar_set(res, cb_id_iv_completed, Qtrue);
             cb_proc_call(ctx->proc, 1, res);
         }
         ctx->nqueries--;
@@ -110,26 +110,26 @@ observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
     VALUE
 cb_bucket_observe(int argc, VALUE *argv, VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
-    struct context_st *ctx;
+    struct cb_bucket_st *bucket = DATA_PTR(self);
+    struct cb_context_st *ctx;
     VALUE args, rv, proc, exc;
     lcb_error_t err;
-    struct params_st params;
+    struct cb_params_st params;
 
     if (bucket->handle == NULL) {
-        rb_raise(eConnectError, "closed connection");
+        rb_raise(cb_eConnectError, "closed connection");
     }
     rb_scan_args(argc, argv, "0*&", &args, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    memset(&params, 0, sizeof(struct params_st));
-    params.type = cmd_observe;
+    memset(&params, 0, sizeof(struct cb_params_st));
+    params.type = cb_cmd_observe;
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = xcalloc(1, sizeof(struct context_st));
+    ctx = xcalloc(1, sizeof(struct cb_context_st));
     if (ctx == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
     }
     ctx->proc = cb_gc_protect(bucket, proc);
     ctx->bucket = bucket;
@@ -147,7 +147,7 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
     }
     bucket->nbytes += params.npayload;
     if (bucket->async) {
-        maybe_do_loop(bucket);
+        cb_maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (ctx->nqueries > 0) {

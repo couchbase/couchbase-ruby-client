@@ -51,21 +51,21 @@ extern hrtime_t gethrtime(void);
 #define va_init_list(a,b) va_start(a)
 #endif
 
-#define debug_object(OBJ) \
+#define cb_debug_object(OBJ) \
     rb_funcall(rb_stderr, rb_intern("print"), 1, rb_funcall(OBJ, rb_intern("object_id"), 0)); \
     rb_funcall(rb_stderr, rb_intern("print"), 1, STR_NEW_CSTR(" ")); \
     rb_funcall(rb_stderr, rb_intern("print"), 1, rb_funcall(OBJ, rb_intern("class"), 0)); \
     rb_funcall(rb_stderr, rb_intern("print"), 1, STR_NEW_CSTR(" ")); \
     rb_funcall(rb_stderr, rb_intern("puts"), 1, rb_funcall(OBJ, rb_intern("inspect"), 0));
 
-#define FMT_MASK        0x3
-#define FMT_DOCUMENT    0x0
-#define FMT_MARSHAL     0x1
-#define FMT_PLAIN       0x2
+#define CB_FMT_MASK        0x3
+#define CB_FMT_DOCUMENT    0x0
+#define CB_FMT_MARSHAL     0x1
+#define CB_FMT_PLAIN       0x2
 
-#define PACKET_HEADER_SIZE 24
+#define CB_PACKET_HEADER_SIZE 24
 /* Structs */
-struct bucket_st
+struct cb_bucket_st
 {
     lcb_t handle;
     lcb_type_t type;
@@ -96,10 +96,10 @@ struct bucket_st
     VALUE self;             /* the pointer to bucket representation in ruby land */
 };
 
-struct http_request_st;
-struct context_st
+struct cb_http_request_st;
+struct cb_context_st
 {
-    struct bucket_st* bucket;
+    struct cb_bucket_st* bucket;
     int extended;
     VALUE proc;
     void *rv;
@@ -109,14 +109,14 @@ struct context_st
     VALUE operation;
     VALUE headers_val;
     int headers_built;
-    struct http_request_st *request;
+    struct cb_http_request_st *request;
     int quiet;
     int arith;           /* incr: +1, decr: -1, other: 0 */
     size_t nqueries;
 };
 
-struct http_request_st {
-    struct bucket_st *bucket;
+struct cb_http_request_st {
+    struct cb_bucket_st *bucket;
     VALUE bucket_obj;
     VALUE type;
     int extended;
@@ -124,13 +124,13 @@ struct http_request_st {
     int completed;
     lcb_http_request_t request;
     lcb_http_cmd_t cmd;
-    struct context_st *ctx;
+    struct cb_context_st *ctx;
     VALUE on_body_callback;
 };
 
-struct timer_st
+struct cb_timer_st
 {
-    struct bucket_st *bucket;
+    struct cb_bucket_st *bucket;
     int periodic;
     uint32_t usec;
     lcb_timer_t timer;
@@ -139,177 +139,176 @@ struct timer_st
 };
 
 /* Classes */
-extern VALUE cBucket;
-extern VALUE cCouchRequest;
-extern VALUE cResult;
-extern VALUE cTimer;
+extern VALUE cb_cBucket;
+extern VALUE cb_cCouchRequest;
+extern VALUE cb_cResult;
+extern VALUE cb_cTimer;
 
 /* Modules */
-extern VALUE mCouchbase;
-extern VALUE mError;
-extern VALUE mMarshal;
-extern VALUE mMultiJson;
-extern VALUE mURI;
+extern VALUE cb_mCouchbase;
+extern VALUE cb_mError;
+extern VALUE cb_mMarshal;
+extern VALUE cb_mMultiJson;
+extern VALUE cb_mURI;
 
 /* Symbols */
-extern ID sym_add;
-extern ID sym_append;
-extern ID sym_assemble_hash;
-extern ID sym_body;
-extern ID sym_bucket;
-extern ID sym_cas;
-extern ID sym_chunked;
-extern ID sym_cluster;
-extern ID sym_content_type;
-extern ID sym_create;
-extern ID sym_decrement;
-extern ID sym_default_flags;
-extern ID sym_default_format;
-extern ID sym_default_observe_timeout;
-extern ID sym_default_ttl;
-extern ID sym_delete;
-extern ID sym_delta;
-extern ID sym_development;
-extern ID sym_document;
-extern ID sym_environment;
-extern ID sym_extended;
-extern ID sym_flags;
-extern ID sym_format;
-extern ID sym_found;
-extern ID sym_get;
-extern ID sym_hostname;
-extern ID sym_http_request;
-extern ID sym_increment;
-extern ID sym_initial;
-extern ID sym_key_prefix;
-extern ID sym_lock;
-extern ID sym_management;
-extern ID sym_marshal;
-extern ID sym_method;
-extern ID sym_node_list;
-extern ID sym_not_found;
-extern ID sym_num_replicas;
-extern ID sym_observe;
-extern ID sym_password;
-extern ID sym_periodic;
-extern ID sym_persisted;
-extern ID sym_plain;
-extern ID sym_pool;
-extern ID sym_port;
-extern ID sym_post;
-extern ID sym_prepend;
-extern ID sym_production;
-extern ID sym_put;
-extern ID sym_quiet;
-extern ID sym_replace;
-extern ID sym_replica;
-extern ID sym_send_threshold;
-extern ID sym_set;
-extern ID sym_stats;
-extern ID sym_timeout;
-extern ID sym_touch;
-extern ID sym_ttl;
-extern ID sym_type;
-extern ID sym_unlock;
-extern ID sym_username;
-extern ID sym_version;
-extern ID sym_view;
-extern ID id_arity;
-extern ID id_call;
-extern ID id_delete;
-extern ID id_dump;
-extern ID id_dup;
-extern ID id_flatten_bang;
-extern ID id_has_key_p;
-extern ID id_host;
-extern ID id_iv_cas;
-extern ID id_iv_completed;
-extern ID id_iv_error;
-extern ID id_iv_flags;
-extern ID id_iv_from_master;
-extern ID id_iv_headers;
-extern ID id_iv_inner_exception;
-extern ID id_iv_key;
-extern ID id_iv_node;
-extern ID id_iv_operation;
-extern ID id_iv_status;
-extern ID id_iv_time_to_persist;
-extern ID id_iv_time_to_replicate;
-extern ID id_iv_value;
-extern ID id_load;
-extern ID id_match;
-extern ID id_observe_and_wait;
-extern ID id_parse;
-extern ID id_password;
-extern ID id_path;
-extern ID id_port;
-extern ID id_scheme;
-extern ID id_sprintf;
-extern ID id_to_s;
-extern ID id_user;
-extern ID id_verify_observe_options;
+extern ID cb_sym_add;
+extern ID cb_sym_append;
+extern ID cb_sym_assemble_hash;
+extern ID cb_sym_body;
+extern ID cb_sym_bucket;
+extern ID cb_sym_cas;
+extern ID cb_sym_chunked;
+extern ID cb_sym_cluster;
+extern ID cb_sym_content_type;
+extern ID cb_sym_create;
+extern ID cb_sym_decrement;
+extern ID cb_sym_default_flags;
+extern ID cb_sym_default_format;
+extern ID cb_sym_default_observe_timeout;
+extern ID cb_sym_default_ttl;
+extern ID cb_sym_delete;
+extern ID cb_sym_delta;
+extern ID cb_sym_development;
+extern ID cb_sym_document;
+extern ID cb_sym_environment;
+extern ID cb_sym_extended;
+extern ID cb_sym_flags;
+extern ID cb_sym_format;
+extern ID cb_sym_found;
+extern ID cb_sym_get;
+extern ID cb_sym_hostname;
+extern ID cb_sym_http_request;
+extern ID cb_sym_increment;
+extern ID cb_sym_initial;
+extern ID cb_sym_key_prefix;
+extern ID cb_sym_lock;
+extern ID cb_sym_management;
+extern ID cb_sym_marshal;
+extern ID cb_sym_method;
+extern ID cb_sym_node_list;
+extern ID cb_sym_not_found;
+extern ID cb_sym_num_replicas;
+extern ID cb_sym_observe;
+extern ID cb_sym_password;
+extern ID cb_sym_periodic;
+extern ID cb_sym_persisted;
+extern ID cb_sym_plain;
+extern ID cb_sym_pool;
+extern ID cb_sym_port;
+extern ID cb_sym_post;
+extern ID cb_sym_prepend;
+extern ID cb_sym_production;
+extern ID cb_sym_put;
+extern ID cb_sym_quiet;
+extern ID cb_sym_replace;
+extern ID cb_sym_replica;
+extern ID cb_sym_send_threshold;
+extern ID cb_sym_set;
+extern ID cb_sym_stats;
+extern ID cb_sym_timeout;
+extern ID cb_sym_touch;
+extern ID cb_sym_ttl;
+extern ID cb_sym_type;
+extern ID cb_sym_unlock;
+extern ID cb_sym_username;
+extern ID cb_sym_version;
+extern ID cb_sym_view;
+extern ID cb_id_arity;
+extern ID cb_id_call;
+extern ID cb_id_delete;
+extern ID cb_id_dump;
+extern ID cb_id_dup;
+extern ID cb_id_flatten_bang;
+extern ID cb_id_has_key_p;
+extern ID cb_id_host;
+extern ID cb_id_iv_cas;
+extern ID cb_id_iv_completed;
+extern ID cb_id_iv_error;
+extern ID cb_id_iv_flags;
+extern ID cb_id_iv_from_master;
+extern ID cb_id_iv_headers;
+extern ID cb_id_iv_inner_exception;
+extern ID cb_id_iv_key;
+extern ID cb_id_iv_node;
+extern ID cb_id_iv_operation;
+extern ID cb_id_iv_status;
+extern ID cb_id_iv_time_to_persist;
+extern ID cb_id_iv_time_to_replicate;
+extern ID cb_id_iv_value;
+extern ID cb_id_load;
+extern ID cb_id_match;
+extern ID cb_id_observe_and_wait;
+extern ID cb_id_parse;
+extern ID cb_id_password;
+extern ID cb_id_path;
+extern ID cb_id_port;
+extern ID cb_id_scheme;
+extern ID cb_id_sprintf;
+extern ID cb_id_to_s;
+extern ID cb_id_user;
+extern ID cb_id_verify_observe_options;
 
 /* Errors */
-extern VALUE eBaseError;
-extern VALUE eValueFormatError;
-extern VALUE eHTTPError;
+extern VALUE cb_eBaseError;
+extern VALUE cb_eValueFormatError;
+extern VALUE cb_eHTTPError;
                                        /* LCB_SUCCESS = 0x00         */
                                        /* LCB_AUTH_CONTINUE = 0x01   */
-extern VALUE eAuthError;               /* LCB_AUTH_ERROR = 0x02      */
-extern VALUE eDeltaBadvalError;        /* LCB_DELTA_BADVAL = 0x03    */
-extern VALUE eTooBigError;             /* LCB_E2BIG = 0x04           */
-extern VALUE eBusyError;               /* LCB_EBUSY = 0x05           */
-extern VALUE eInternalError;           /* LCB_EINTERNAL = 0x06       */
-extern VALUE eInvalidError;            /* LCB_EINVAL = 0x07          */
-extern VALUE eNoMemoryError;           /* LCB_ENOMEM = 0x08          */
-extern VALUE eRangeError;              /* LCB_ERANGE = 0x09          */
-extern VALUE eLibcouchbaseError;       /* LCB_ERROR = 0x0a           */
-extern VALUE eTmpFailError;            /* LCB_ETMPFAIL = 0x0b        */
-extern VALUE eKeyExistsError;          /* LCB_KEY_EEXISTS = 0x0c     */
-extern VALUE eNotFoundError;           /* LCB_KEY_ENOENT = 0x0d      */
-extern VALUE eDlopenFailedError;       /* LCB_DLOPEN_FAILED = 0x0e   */
-extern VALUE eDlsymFailedError;        /* LCB_DLSYM_FAILED = 0x0f    */
-extern VALUE eNetworkError;            /* LCB_NETWORK_ERROR = 0x10   */
-extern VALUE eNotMyVbucketError;       /* LCB_NOT_MY_VBUCKET = 0x11  */
-extern VALUE eNotStoredError;          /* LCB_NOT_STORED = 0x12      */
-extern VALUE eNotSupportedError;       /* LCB_NOT_SUPPORTED = 0x13   */
-extern VALUE eUnknownCommandError;     /* LCB_UNKNOWN_COMMAND = 0x14 */
-extern VALUE eUnknownHostError;        /* LCB_UNKNOWN_HOST = 0x15    */
-extern VALUE eProtocolError;           /* LCB_PROTOCOL_ERROR = 0x16  */
-extern VALUE eTimeoutError;            /* LCB_ETIMEDOUT = 0x17       */
-extern VALUE eConnectError;            /* LCB_CONNECT_ERROR = 0x18   */
-extern VALUE eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x19   */
-extern VALUE eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x1a   */
-extern VALUE eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x1b */
-extern VALUE eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
+extern VALUE cb_eAuthError;               /* LCB_AUTH_ERROR = 0x02      */
+extern VALUE cb_eDeltaBadvalError;        /* LCB_DELTA_BADVAL = 0x03    */
+extern VALUE cb_eTooBigError;             /* LCB_E2BIG = 0x04           */
+extern VALUE cb_eBusyError;               /* LCB_EBUSY = 0x05           */
+extern VALUE cb_eInternalError;           /* LCB_EINTERNAL = 0x06       */
+extern VALUE cb_eInvalidError;            /* LCB_EINVAL = 0x07          */
+extern VALUE cb_eNoMemoryError;           /* LCB_ENOMEM = 0x08          */
+extern VALUE cb_eRangeError;              /* LCB_ERANGE = 0x09          */
+extern VALUE cb_eLibcouchbaseError;       /* LCB_ERROR = 0x0a           */
+extern VALUE cb_eTmpFailError;            /* LCB_ETMPFAIL = 0x0b        */
+extern VALUE cb_eKeyExistsError;          /* LCB_KEY_EEXISTS = 0x0c     */
+extern VALUE cb_eNotFoundError;           /* LCB_KEY_ENOENT = 0x0d      */
+extern VALUE cb_eDlopenFailedError;       /* LCB_DLOPEN_FAILED = 0x0e   */
+extern VALUE cb_eDlsymFailedError;        /* LCB_DLSYM_FAILED = 0x0f    */
+extern VALUE cb_eNetworkError;            /* LCB_NETWORK_ERROR = 0x10   */
+extern VALUE cb_eNotMyVbucketError;       /* LCB_NOT_MY_VBUCKET = 0x11  */
+extern VALUE cb_eNotStoredError;          /* LCB_NOT_STORED = 0x12      */
+extern VALUE cb_eNotSupportedError;       /* LCB_NOT_SUPPORTED = 0x13   */
+extern VALUE cb_eUnknownCommandError;     /* LCB_UNKNOWN_COMMAND = 0x14 */
+extern VALUE cb_eUnknownHostError;        /* LCB_UNKNOWN_HOST = 0x15    */
+extern VALUE cb_eProtocolError;           /* LCB_PROTOCOL_ERROR = 0x16  */
+extern VALUE cb_eTimeoutError;            /* LCB_ETIMEDOUT = 0x17       */
+extern VALUE cb_eConnectError;            /* LCB_CONNECT_ERROR = 0x18   */
+extern VALUE cb_eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x19   */
+extern VALUE cb_eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x1a   */
+extern VALUE cb_eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x1b */
+extern VALUE cb_eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
 
-void strip_key_prefix(struct bucket_st *bucket, VALUE key);
+void cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key);
 VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);
 VALUE cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb_http_status_t status);
-VALUE cb_gc_protect(struct bucket_st *bucket, VALUE val);
-VALUE cb_gc_unprotect(struct bucket_st *bucket, VALUE val);
+VALUE cb_gc_protect(struct cb_bucket_st *bucket, VALUE val);
+VALUE cb_gc_unprotect(struct cb_bucket_st *bucket, VALUE val);
 VALUE cb_proc_call(VALUE recv, int argc, ...);
 int cb_first_value_i(VALUE key, VALUE value, VALUE arg);
-void cb_build_headers(struct context_st *ctx, const char * const *headers);
-void maybe_do_loop(struct bucket_st *bucket);
-VALUE unify_key(struct bucket_st *bucket, VALUE key, int apply_prefix);
-VALUE encode_value(VALUE val, uint32_t flags);
-VALUE decode_value(VALUE blob, uint32_t flags, VALUE force_format);
-uint32_t flags_set_format(uint32_t flags, ID format);
-ID flags_get_format(uint32_t flags);
+void cb_build_headers(struct cb_context_st *ctx, const char * const *headers);
+void cb_maybe_do_loop(struct cb_bucket_st *bucket);
+VALUE cb_unify_key(struct cb_bucket_st *bucket, VALUE key, int apply_prefix);
+VALUE cb_encode_value(VALUE val, uint32_t flags);
+VALUE cb_decode_value(VALUE blob, uint32_t flags, VALUE force_format);
+uint32_t cb_flags_set_format(uint32_t flags, ID format);
+ID cb_flags_get_format(uint32_t flags);
 
-void storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, lcb_error_t error, const lcb_store_resp_t *resp);
-void get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_resp_t *resp);
-void touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_touch_resp_t *resp);
-void delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_remove_resp_t *resp);
-void stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_stat_resp_t *resp);
-void arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_arithmetic_resp_t *resp);
-void version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_version_resp_t *resp);
-void http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp);
-void http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp);
-void observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_observe_resp_t *resp);
-void unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp);
-
+void cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, lcb_error_t error, const lcb_store_resp_t *resp);
+void cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_resp_t *resp);
+void cb_touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_touch_resp_t *resp);
+void cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_remove_resp_t *resp);
+void cb_stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_stat_resp_t *resp);
+void cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_arithmetic_resp_t *resp);
+void cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_version_resp_t *resp);
+void cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp);
+void cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp);
+void cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_observe_resp_t *resp);
+void cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp);
 
 VALUE cb_bucket_alloc(VALUE klass);
 void cb_bucket_free(void *ptr);
@@ -384,21 +383,21 @@ VALUE cb_timer_init(int argc, VALUE *argv, VALUE self);
 
 /* Method arguments */
 
-enum command_t {
-    cmd_touch       = 0x01,
-    cmd_remove      = 0x02,
-    cmd_store       = 0x03,
-    cmd_get         = 0x04,
-    cmd_arith       = 0x05,
-    cmd_stats       = 0x06,
-    cmd_version     = 0x08,
-    cmd_observe     = 0x09,
-    cmd_unlock     = 0x10
+enum cb_command_t {
+    cb_cmd_touch       = 0x01,
+    cb_cmd_remove      = 0x02,
+    cb_cmd_store       = 0x03,
+    cb_cmd_get         = 0x04,
+    cb_cmd_arith       = 0x05,
+    cb_cmd_stats       = 0x06,
+    cb_cmd_version     = 0x08,
+    cb_cmd_observe     = 0x09,
+    cb_cmd_unlock      = 0x10
 };
 
-struct params_st
+struct cb_params_st
 {
-    enum command_t type;
+    enum cb_command_t type;
     union {
         struct {
             /* number of items */
@@ -514,16 +513,15 @@ struct params_st
             lcb_cas_t cas;
         } unlock;
     } cmd;
-    struct bucket_st *bucket;
+    struct cb_bucket_st *bucket;
     /* helper index for iterators */
     size_t idx;
     /* the approximate size of the data to be sent */
     size_t npayload;
 };
 
-void cb_params_destroy(struct params_st *params);
-void cb_params_build(struct params_st *params, int argc, VALUE argv);
-
+void cb_params_destroy(struct cb_params_st *params);
+void cb_params_build(struct cb_params_st *params, int argc, VALUE argv);
 
 #endif
 

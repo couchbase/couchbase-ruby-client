@@ -20,7 +20,7 @@
     static void
 error_callback(lcb_t handle, lcb_error_t error, const char *errinfo)
 {
-    struct bucket_st *bucket = (struct bucket_st *)lcb_get_cookie(handle);
+    struct cb_bucket_st *bucket = (struct cb_bucket_st *)lcb_get_cookie(handle);
 
     lcb_breakout(handle);
     bucket->exception = cb_check_error(error, errinfo, Qnil);
@@ -29,7 +29,7 @@ error_callback(lcb_t handle, lcb_error_t error, const char *errinfo)
     void
 cb_bucket_free(void *ptr)
 {
-    struct bucket_st *bucket = ptr;
+    struct cb_bucket_st *bucket = ptr;
 
     if (bucket) {
         if (bucket->handle) {
@@ -50,7 +50,7 @@ cb_bucket_free(void *ptr)
     void
 cb_bucket_mark(void *ptr)
 {
-    struct bucket_st *bucket = ptr;
+    struct cb_bucket_st *bucket = ptr;
 
     if (bucket) {
         rb_gc_mark(bucket->exception);
@@ -61,7 +61,7 @@ cb_bucket_mark(void *ptr)
 }
 
     static void
-do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
+do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
 {
     VALUE uri, opts, arg;
     size_t len;
@@ -76,47 +76,47 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
             VALUE match, uri_obj, re;
 
             Check_Type(uri, T_STRING);
-            uri_obj = rb_funcall(mURI, id_parse, 1, uri);
+            uri_obj = rb_funcall(cb_mURI, cb_id_parse, 1, uri);
 
-            arg = rb_funcall(uri_obj, id_scheme, 0);
+            arg = rb_funcall(uri_obj, cb_id_scheme, 0);
             if (arg == Qnil || rb_str_cmp(arg, STR_NEW_CSTR("http"))) {
                 rb_raise(rb_eArgError, "invalid URI: invalid scheme");
             }
 
-            arg = rb_funcall(uri_obj, id_user, 0);
+            arg = rb_funcall(uri_obj, cb_id_user, 0);
             if (arg != Qnil) {
                 xfree(bucket->username);
                 bucket->username = strdup(RSTRING_PTR(arg));
                 if (bucket->username == NULL) {
-                    rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
+                    rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
                 }
             }
 
-            arg = rb_funcall(uri_obj, id_password, 0);
+            arg = rb_funcall(uri_obj, cb_id_password, 0);
             if (arg != Qnil) {
                 xfree(bucket->password);
                 bucket->password = strdup(RSTRING_PTR(arg));
                 if (bucket->password == NULL) {
-                    rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
+                    rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
                 }
             }
-            arg = rb_funcall(uri_obj, id_host, 0);
+            arg = rb_funcall(uri_obj, cb_id_host, 0);
             if (arg != Qnil) {
                 xfree(bucket->hostname);
                 bucket->hostname = strdup(RSTRING_PTR(arg));
                 if (bucket->hostname == NULL) {
-                    rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
+                    rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
                 }
             } else {
                 rb_raise(rb_eArgError, "invalid URI: missing hostname");
             }
 
-            arg = rb_funcall(uri_obj, id_port, 0);
+            arg = rb_funcall(uri_obj, cb_id_port, 0);
             bucket->port = NIL_P(arg) ? 8091 : (uint16_t)NUM2UINT(arg);
 
-            arg = rb_funcall(uri_obj, id_path, 0);
+            arg = rb_funcall(uri_obj, cb_id_path, 0);
             re = rb_reg_new(path_re, sizeof(path_re) - 1, 0);
-            match = rb_funcall(re, id_match, 1, arg);
+            match = rb_funcall(re, cb_id_match, 1, arg);
             arg = rb_reg_nth_match(2, match);
             xfree(bucket->pool);
             bucket->pool = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
@@ -125,15 +125,15 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
             bucket->bucket = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
         }
         if (TYPE(opts) == T_HASH) {
-            arg = rb_hash_aref(opts, sym_type);
+            arg = rb_hash_aref(opts, cb_sym_type);
             if (arg != Qnil) {
-                if (arg == sym_cluster) {
+                if (arg == cb_sym_cluster) {
                     bucket->type = LCB_TYPE_CLUSTER;
                 } else {
                     bucket->type = LCB_TYPE_BUCKET;
                 }
             }
-            arg = rb_hash_aref(opts, sym_node_list);
+            arg = rb_hash_aref(opts, cb_sym_node_list);
             if (arg != Qnil) {
                 VALUE tt;
                 xfree(bucket->node_list);
@@ -141,81 +141,81 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
                 tt = rb_ary_join(arg, STR_NEW_CSTR(";"));
                 bucket->node_list = strdup(StringValueCStr(tt));
             }
-            arg = rb_hash_aref(opts, sym_hostname);
+            arg = rb_hash_aref(opts, cb_sym_hostname);
             if (arg != Qnil) {
                 xfree(bucket->hostname);
                 bucket->hostname = strdup(StringValueCStr(arg));
             }
-            arg = rb_hash_aref(opts, sym_pool);
+            arg = rb_hash_aref(opts, cb_sym_pool);
             if (arg != Qnil) {
                 xfree(bucket->pool);
                 bucket->pool = strdup(StringValueCStr(arg));
             }
-            arg = rb_hash_aref(opts, sym_bucket);
+            arg = rb_hash_aref(opts, cb_sym_bucket);
             if (arg != Qnil) {
                 xfree(bucket->bucket);
                 bucket->bucket = strdup(StringValueCStr(arg));
             }
-            arg = rb_hash_aref(opts, sym_username);
+            arg = rb_hash_aref(opts, cb_sym_username);
             if (arg != Qnil) {
                 xfree(bucket->username);
                 bucket->username = strdup(StringValueCStr(arg));
             }
-            arg = rb_hash_aref(opts, sym_password);
+            arg = rb_hash_aref(opts, cb_sym_password);
             if (arg != Qnil) {
                 xfree(bucket->password);
                 bucket->password = strdup(StringValueCStr(arg));
             }
-            arg = rb_hash_aref(opts, sym_port);
+            arg = rb_hash_aref(opts, cb_sym_port);
             if (arg != Qnil) {
                 bucket->port = (uint16_t)NUM2UINT(arg);
             }
-            if (RTEST(rb_funcall(opts, id_has_key_p, 1, sym_quiet))) {
-                bucket->quiet = RTEST(rb_hash_aref(opts, sym_quiet));
+            if (RTEST(rb_funcall(opts, cb_id_has_key_p, 1, cb_sym_quiet))) {
+                bucket->quiet = RTEST(rb_hash_aref(opts, cb_sym_quiet));
             }
-            arg = rb_hash_aref(opts, sym_timeout);
+            arg = rb_hash_aref(opts, cb_sym_timeout);
             if (arg != Qnil) {
                 bucket->timeout = (uint32_t)NUM2ULONG(arg);
             }
-            arg = rb_hash_aref(opts, sym_default_ttl);
+            arg = rb_hash_aref(opts, cb_sym_default_ttl);
             if (arg != Qnil) {
                 bucket->default_ttl = (uint32_t)NUM2ULONG(arg);
             }
-            arg = rb_hash_aref(opts, sym_default_observe_timeout);
+            arg = rb_hash_aref(opts, cb_sym_default_observe_timeout);
             if (arg != Qnil) {
                 bucket->default_observe_timeout = (uint32_t)NUM2ULONG(arg);
             }
-            arg = rb_hash_aref(opts, sym_default_flags);
+            arg = rb_hash_aref(opts, cb_sym_default_flags);
             if (arg != Qnil) {
                 bucket->default_flags = (uint32_t)NUM2ULONG(arg);
             }
-            arg = rb_hash_aref(opts, sym_default_format);
+            arg = rb_hash_aref(opts, cb_sym_default_format);
             if (arg != Qnil) {
                 if (TYPE(arg) == T_FIXNUM) {
                     switch (FIX2INT(arg)) {
-                        case FMT_DOCUMENT:
-                            arg = sym_document;
+                        case CB_FMT_DOCUMENT:
+                            arg = cb_sym_document;
                             break;
-                        case FMT_MARSHAL:
-                            arg = sym_marshal;
+                        case CB_FMT_MARSHAL:
+                            arg = cb_sym_marshal;
                             break;
-                        case FMT_PLAIN:
-                            arg = sym_plain;
+                        case CB_FMT_PLAIN:
+                            arg = cb_sym_plain;
                             break;
                     }
                 }
-                if (arg == sym_document || arg == sym_marshal || arg == sym_plain) {
+                if (arg == cb_sym_document || arg == cb_sym_marshal || arg == cb_sym_plain) {
                     bucket->default_format = arg;
-                    bucket->default_flags = flags_set_format(bucket->default_flags, arg);
+                    bucket->default_flags = cb_flags_set_format(bucket->default_flags, arg);
                 }
             }
-            arg = rb_hash_aref(opts, sym_environment);
+            arg = rb_hash_aref(opts, cb_sym_environment);
             if (arg != Qnil) {
-                if (arg == sym_production || arg == sym_development) {
+                if (arg == cb_sym_production || arg == cb_sym_development) {
                     bucket->environment = arg;
                 }
             }
-            arg = rb_hash_aref(opts, sym_key_prefix);
+            arg = rb_hash_aref(opts, cb_sym_key_prefix);
             if (arg != Qnil) {
                 xfree(bucket->key_prefix);
                 bucket->key_prefix = strdup(StringValueCStr(arg));
@@ -235,13 +235,13 @@ do_scan_connection_options(struct bucket_st *bucket, int argc, VALUE *argv)
     xfree(bucket->authority);
     bucket->authority = xcalloc(len, sizeof(char));
     if (bucket->authority == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
     }
     snprintf(bucket->authority, len, "%s:%u", bucket->hostname, bucket->port);
 }
 
     static void
-do_connect(struct bucket_st *bucket)
+do_connect(struct cb_bucket_st *bucket)
 {
     lcb_error_t err;
     struct lcb_create_st create_opts;
@@ -271,17 +271,17 @@ do_connect(struct bucket_st *bucket)
     }
     lcb_set_cookie(bucket->handle, bucket);
     (void)lcb_set_error_callback(bucket->handle, error_callback);
-    (void)lcb_set_store_callback(bucket->handle, storage_callback);
-    (void)lcb_set_get_callback(bucket->handle, get_callback);
-    (void)lcb_set_touch_callback(bucket->handle, touch_callback);
-    (void)lcb_set_remove_callback(bucket->handle, delete_callback);
-    (void)lcb_set_stat_callback(bucket->handle, stat_callback);
-    (void)lcb_set_arithmetic_callback(bucket->handle, arithmetic_callback);
-    (void)lcb_set_version_callback(bucket->handle, version_callback);
-    (void)lcb_set_http_complete_callback(bucket->handle, http_complete_callback);
-    (void)lcb_set_http_data_callback(bucket->handle, http_data_callback);
-    (void)lcb_set_observe_callback(bucket->handle, observe_callback);
-    (void)lcb_set_unlock_callback(bucket->handle, unlock_callback);
+    (void)lcb_set_store_callback(bucket->handle, cb_storage_callback);
+    (void)lcb_set_get_callback(bucket->handle, cb_get_callback);
+    (void)lcb_set_touch_callback(bucket->handle, cb_touch_callback);
+    (void)lcb_set_remove_callback(bucket->handle, cb_delete_callback);
+    (void)lcb_set_stat_callback(bucket->handle, cb_stat_callback);
+    (void)lcb_set_arithmetic_callback(bucket->handle, cb_arithmetic_callback);
+    (void)lcb_set_version_callback(bucket->handle, cb_version_callback);
+    (void)lcb_set_http_complete_callback(bucket->handle, cb_http_complete_callback);
+    (void)lcb_set_http_data_callback(bucket->handle, cb_http_data_callback);
+    (void)lcb_set_observe_callback(bucket->handle, cb_observe_callback);
+    (void)lcb_set_unlock_callback(bucket->handle, cb_unlock_callback);
 
     if (bucket->timeout > 0) {
         lcb_set_timeout(bucket->handle, bucket->timeout);
@@ -311,10 +311,10 @@ do_connect(struct bucket_st *bucket)
 cb_bucket_alloc(VALUE klass)
 {
     VALUE obj;
-    struct bucket_st *bucket;
+    struct cb_bucket_st *bucket;
 
     /* allocate new bucket struct and set it to zero */
-    obj = Data_Make_Struct(klass, struct bucket_st, cb_bucket_mark, cb_bucket_free,
+    obj = Data_Make_Struct(klass, struct cb_bucket_st, cb_bucket_mark, cb_bucket_free,
             bucket);
     return obj;
 }
@@ -399,7 +399,7 @@ cb_bucket_alloc(VALUE klass)
     VALUE
 cb_bucket_init(int argc, VALUE *argv, VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
 
     bucket->self = self;
     bucket->exception = Qnil;
@@ -412,11 +412,11 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->quiet = 0;
     bucket->default_ttl = 0;
     bucket->default_flags = 0;
-    bucket->default_format = sym_document;
+    bucket->default_format = cb_sym_document;
     bucket->default_observe_timeout = 2500000;
     bucket->on_error_proc = Qnil;
     bucket->timeout = 0;
-    bucket->environment = sym_production;
+    bucket->environment = cb_sym_production;
     bucket->key_prefix = NULL;
     bucket->key_prefix_val = Qnil;
     bucket->node_list = NULL;
@@ -441,8 +441,8 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     VALUE
 cb_bucket_init_copy(VALUE copy, VALUE orig)
 {
-    struct bucket_st *copy_b;
-    struct bucket_st *orig_b;
+    struct cb_bucket_st *copy_b;
+    struct cb_bucket_st *orig_b;
 
     if (copy == orig)
         return copy;
@@ -479,10 +479,10 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->timeout = orig_b->timeout;
     copy_b->exception = Qnil;
     if (orig_b->on_error_proc != Qnil) {
-        copy_b->on_error_proc = rb_funcall(orig_b->on_error_proc, id_dup, 0);
+        copy_b->on_error_proc = rb_funcall(orig_b->on_error_proc, cb_id_dup, 0);
     }
     if (orig_b->key_prefix_val != Qnil) {
-        copy_b->key_prefix_val = rb_funcall(orig_b->key_prefix_val, id_dup, 0);
+        copy_b->key_prefix_val = rb_funcall(orig_b->key_prefix_val, cb_id_dup, 0);
     }
 
     do_connect(copy_b);
@@ -515,7 +515,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     VALUE
 cb_bucket_reconnect(int argc, VALUE *argv, VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
 
     do_scan_connection_options(bucket, argc, argv);
     do_connect(bucket);
@@ -533,7 +533,7 @@ cb_bucket_reconnect(int argc, VALUE *argv, VALUE self)
     VALUE
 cb_bucket_connected_p(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return bucket->handle ? Qtrue : Qfalse;
 }
 
@@ -561,21 +561,21 @@ cb_bucket_connected_p(VALUE self)
     VALUE
 cb_bucket_async_p(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return bucket->async ? Qtrue : Qfalse;
 }
 
     VALUE
 cb_bucket_quiet_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return bucket->quiet ? Qtrue : Qfalse;
 }
 
     VALUE
 cb_bucket_quiet_set(VALUE self, VALUE val)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     VALUE new;
 
     bucket->quiet = RTEST(val);
@@ -586,48 +586,48 @@ cb_bucket_quiet_set(VALUE self, VALUE val)
     VALUE
 cb_bucket_default_flags_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return ULONG2NUM(bucket->default_flags);
 }
 
     VALUE
 cb_bucket_default_flags_set(VALUE self, VALUE val)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
 
     bucket->default_flags = (uint32_t)NUM2ULONG(val);
-    bucket->default_format = flags_get_format(bucket->default_flags);
+    bucket->default_format = cb_flags_get_format(bucket->default_flags);
     return val;
 }
 
     VALUE
 cb_bucket_default_format_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return bucket->default_format;
 }
 
     VALUE
 cb_bucket_default_format_set(VALUE self, VALUE val)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
 
     if (TYPE(val) == T_FIXNUM) {
         switch (FIX2INT(val)) {
-            case FMT_DOCUMENT:
-                val = sym_document;
+            case CB_FMT_DOCUMENT:
+                val = cb_sym_document;
                 break;
-            case FMT_MARSHAL:
-                val = sym_marshal;
+            case CB_FMT_MARSHAL:
+                val = cb_sym_marshal;
                 break;
-            case FMT_PLAIN:
-                val = sym_plain;
+            case CB_FMT_PLAIN:
+                val = cb_sym_plain;
                 break;
         }
     }
-    if (val == sym_document || val == sym_marshal || val == sym_plain) {
+    if (val == cb_sym_document || val == cb_sym_marshal || val == cb_sym_plain) {
         bucket->default_format = val;
-        bucket->default_flags = flags_set_format(bucket->default_flags, val);
+        bucket->default_flags = cb_flags_set_format(bucket->default_flags, val);
     }
 
     return val;
@@ -636,9 +636,9 @@ cb_bucket_default_format_set(VALUE self, VALUE val)
     VALUE
 cb_bucket_on_error_set(VALUE self, VALUE val)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
 
-    if (rb_respond_to(val, id_call)) {
+    if (rb_respond_to(val, cb_id_call)) {
         bucket->on_error_proc = val;
     } else {
         bucket->on_error_proc = Qnil;
@@ -650,7 +650,7 @@ cb_bucket_on_error_set(VALUE self, VALUE val)
     VALUE
 cb_bucket_on_error_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
 
     if (rb_block_given_p()) {
         return cb_bucket_on_error_set(self, rb_block_proc());
@@ -662,14 +662,14 @@ cb_bucket_on_error_get(VALUE self)
     VALUE
 cb_bucket_timeout_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return ULONG2NUM(bucket->timeout);
 }
 
     VALUE
 cb_bucket_timeout_set(VALUE self, VALUE val)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     VALUE tmval;
 
     bucket->timeout = (uint32_t)NUM2ULONG(val);
@@ -682,14 +682,14 @@ cb_bucket_timeout_set(VALUE self, VALUE val)
     VALUE
 cb_bucket_key_prefix_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return bucket->key_prefix_val;
 }
 
     VALUE
 cb_bucket_key_prefix_set(VALUE self, VALUE val)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
 
     bucket->key_prefix = strdup(StringValueCStr(val));
     bucket->key_prefix_val = STR_NEW_CSTR(bucket->key_prefix);
@@ -706,12 +706,12 @@ cb_bucket_key_prefix_set(VALUE self, VALUE val)
     VALUE
 cb_bucket_hostname_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     if (bucket->handle) {
         xfree(bucket->hostname);
         bucket->hostname = strdup(lcb_get_host(bucket->handle));
         if (bucket->hostname == NULL) {
-            rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
+            rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
         }
     }
     return STR_NEW_CSTR(bucket->hostname);
@@ -726,7 +726,7 @@ cb_bucket_hostname_get(VALUE self)
     VALUE
 cb_bucket_port_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     if (bucket->handle) {
         bucket->port = atoi(lcb_get_port(bucket->handle));
     }
@@ -742,7 +742,7 @@ cb_bucket_port_get(VALUE self)
     VALUE
 cb_bucket_authority_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     size_t len;
 
     (void)cb_bucket_hostname_get(self);
@@ -750,7 +750,7 @@ cb_bucket_authority_get(VALUE self)
     len = strlen(bucket->hostname) + 10;
     bucket->authority = xcalloc(len, sizeof(char));
     if (bucket->authority == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for Bucket");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
     }
     snprintf(bucket->authority, len, "%s:%u", bucket->hostname, bucket->port);
     return STR_NEW_CSTR(bucket->authority);
@@ -765,7 +765,7 @@ cb_bucket_authority_get(VALUE self)
     VALUE
 cb_bucket_bucket_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return STR_NEW_CSTR(bucket->bucket);
 }
 
@@ -778,7 +778,7 @@ cb_bucket_bucket_get(VALUE self)
     VALUE
 cb_bucket_pool_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return STR_NEW_CSTR(bucket->pool);
 }
 
@@ -792,7 +792,7 @@ cb_bucket_pool_get(VALUE self)
     VALUE
 cb_bucket_username_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return STR_NEW_CSTR(bucket->username);
 }
 
@@ -805,7 +805,7 @@ cb_bucket_username_get(VALUE self)
     VALUE
 cb_bucket_password_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return STR_NEW_CSTR(bucket->password);
 }
 
@@ -820,7 +820,7 @@ cb_bucket_password_get(VALUE self)
     VALUE
 cb_bucket_environment_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return bucket->environment;
 }
 /* Document-method: num_replicas
@@ -834,7 +834,7 @@ cb_bucket_environment_get(VALUE self)
     VALUE
 cb_bucket_num_replicas_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     int32_t nr = lcb_get_num_replicas(bucket->handle);
     if (nr < 0) {
         return Qnil;
@@ -854,7 +854,7 @@ cb_bucket_num_replicas_get(VALUE self)
     VALUE
 cb_bucket_default_observe_timeout_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     return INT2FIX(bucket->default_observe_timeout);
 }
 
@@ -870,7 +870,7 @@ cb_bucket_default_observe_timeout_get(VALUE self)
     VALUE
 cb_bucket_default_observe_timeout_set(VALUE self, VALUE val)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     bucket->default_observe_timeout = FIX2INT(val);
     return val;
 }
@@ -883,7 +883,7 @@ cb_bucket_default_observe_timeout_set(VALUE self, VALUE val)
     VALUE
 cb_bucket_url_get(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     VALUE str;
 
     (void)cb_bucket_authority_get(self);
@@ -909,7 +909,7 @@ cb_bucket_url_get(VALUE self)
 cb_bucket_inspect(VALUE self)
 {
     VALUE str;
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     char buf[200];
 
     str = rb_str_buf_new2("#<");
@@ -941,14 +941,14 @@ cb_bucket_inspect(VALUE self)
 }
 
     static void
-do_loop(struct bucket_st *bucket)
+do_loop(struct cb_bucket_st *bucket)
 {
     lcb_wait(bucket->handle);
     bucket->nbytes = 0;
 }
 
     void
-maybe_do_loop(struct bucket_st *bucket)
+maybe_do_loop(struct cb_bucket_st *bucket)
 {
     if (bucket->threshold != 0 && bucket->nbytes > bucket->threshold) {
         do_loop(bucket);
@@ -959,19 +959,19 @@ maybe_do_loop(struct bucket_st *bucket)
 do_run(VALUE *args)
 {
     VALUE self = args[0], opts = args[1], proc = args[2], exc;
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
 
     if (bucket->handle == NULL) {
-        rb_raise(eConnectError, "closed connection");
+        rb_raise(cb_eConnectError, "closed connection");
     }
     if (bucket->async) {
-        rb_raise(eInvalidError, "nested #run");
+        rb_raise(cb_eInvalidError, "nested #run");
     }
     bucket->threshold = 0;
     if (opts != Qnil) {
         VALUE arg;
         Check_Type(opts, T_HASH);
-        arg = rb_hash_aref(opts, sym_send_threshold);
+        arg = rb_hash_aref(opts, cb_sym_send_threshold);
         if (arg != Qnil) {
             bucket->threshold = (uint32_t)NUM2ULONG(arg);
         }
@@ -991,7 +991,7 @@ do_run(VALUE *args)
 ensure_run(VALUE *args)
 {
     VALUE self = args[0];
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
 
     bucket->async = 0;
     return Qnil;
@@ -1072,7 +1072,7 @@ cb_bucket_run(int argc, VALUE *argv, VALUE self)
     VALUE
 cb_bucket_stop(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
     lcb_breakout(bucket->handle);
     return Qnil;
 }
@@ -1089,7 +1089,7 @@ cb_bucket_stop(VALUE self)
     VALUE
 cb_bucket_disconnect(VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
+    struct cb_bucket_st *bucket = DATA_PTR(self);
 
     if (bucket->handle) {
         lcb_destroy(bucket->handle);
@@ -1098,7 +1098,7 @@ cb_bucket_disconnect(VALUE self)
         bucket->io = NULL;
         return Qtrue;
     } else {
-        rb_raise(eConnectError, "closed connection");
+        rb_raise(cb_eConnectError, "closed connection");
         return Qfalse;
     }
 }

@@ -18,23 +18,23 @@
 #include "couchbase_ext.h"
 
     void
-arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_arithmetic_resp_t *resp)
+cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_arithmetic_resp_t *resp)
 {
-    struct context_st *ctx = (struct context_st *)cookie;
-    struct bucket_st *bucket = ctx->bucket;
+    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
+    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE cas, key, val, *rv = ctx->rv, exc, res;
     ID o;
 
     ctx->nqueries--;
     key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
-    strip_key_prefix(bucket, key);
+    cb_strip_key_prefix(bucket, key);
 
     cas = resp->v.v0.cas > 0 ? ULL2NUM(resp->v.v0.cas) : Qnil;
-    o = ctx->arith > 0 ? sym_increment : sym_decrement;
+    o = ctx->arith > 0 ? cb_sym_increment : cb_sym_decrement;
     exc = cb_check_error(error, "failed to perform arithmetic operation", key);
     if (exc != Qnil) {
-        rb_ivar_set(exc, id_iv_cas, cas);
-        rb_ivar_set(exc, id_iv_operation, o);
+        rb_ivar_set(exc, cb_id_iv_cas, cas);
+        rb_ivar_set(exc, cb_id_iv_operation, o);
         if (bucket->async) {
             if (bucket->on_error_proc != Qnil) {
                 cb_proc_call(bucket->on_error_proc, 3, o, key, exc);
@@ -51,12 +51,12 @@ arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
     val = ULL2NUM(resp->v.v0.value);
     if (bucket->async) {    /* asynchronous */
         if (ctx->proc != Qnil) {
-            res = rb_class_new_instance(0, NULL, cResult);
-            rb_ivar_set(res, id_iv_error, exc);
-            rb_ivar_set(res, id_iv_operation, o);
-            rb_ivar_set(res, id_iv_key, key);
-            rb_ivar_set(res, id_iv_value, val);
-            rb_ivar_set(res, id_iv_cas, cas);
+            res = rb_class_new_instance(0, NULL, cb_cResult);
+            rb_ivar_set(res, cb_id_iv_error, exc);
+            rb_ivar_set(res, cb_id_iv_operation, o);
+            rb_ivar_set(res, cb_id_iv_key, key);
+            rb_ivar_set(res, cb_id_iv_value, val);
+            rb_ivar_set(res, cb_id_iv_cas, cas);
             cb_proc_call(ctx->proc, 1, res);
         }
     } else {                /* synchronous */
@@ -77,27 +77,27 @@ arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
     static inline VALUE
 cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
-    struct context_st *ctx;
+    struct cb_bucket_st *bucket = DATA_PTR(self);
+    struct cb_context_st *ctx;
     VALUE args, rv, proc, exc;
     lcb_error_t err;
-    struct params_st params;
+    struct cb_params_st params;
 
     if (bucket->handle == NULL) {
-        rb_raise(eConnectError, "closed connection");
+        rb_raise(cb_eConnectError, "closed connection");
     }
     rb_scan_args(argc, argv, "0*&", &args, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    memset(&params, 0, sizeof(struct params_st));
-    params.type = cmd_arith;
+    memset(&params, 0, sizeof(struct cb_params_st));
+    params.type = cb_cmd_arith;
     params.bucket = bucket;
     params.cmd.arith.sign = sign;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = xcalloc(1, sizeof(struct context_st));
+    ctx = xcalloc(1, sizeof(struct cb_context_st));
     if (ctx == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
     }
     rv = rb_hash_new();
     ctx->rv = &rv;
@@ -115,7 +115,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     }
     bucket->nbytes += params.npayload;
     if (bucket->async) {
-        maybe_do_loop(bucket);
+        cb_maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (ctx->nqueries > 0) {

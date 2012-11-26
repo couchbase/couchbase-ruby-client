@@ -17,22 +17,21 @@
 
 #include "couchbase_ext.h"
 
-
 /* TOUCH */
 
     static void
-cb_params_touch_alloc(struct params_st *params, lcb_size_t size)
+cb_params_touch_alloc(struct cb_params_st *params, lcb_size_t size)
 {
     lcb_size_t ii;
 
     params->cmd.touch.num = size;
     params->cmd.touch.items = xcalloc(size, sizeof(lcb_touch_cmd_t));
     if (params->cmd.touch.items == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     params->cmd.touch.ptr = xcalloc(size, sizeof(lcb_touch_cmd_t *));
     if (params->cmd.touch.ptr == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     for (ii = 0; ii < size; ++ii) {
         params->cmd.touch.ptr[ii] = params->cmd.touch.items + ii;
@@ -40,9 +39,9 @@ cb_params_touch_alloc(struct params_st *params, lcb_size_t size)
 }
 
     static void
-cb_params_touch_init_item(struct params_st *params, lcb_size_t idx, VALUE key_obj, lcb_time_t exptime)
+cb_params_touch_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, lcb_time_t exptime)
 {
-    key_obj = unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(params->bucket, key_obj, 1);
     params->cmd.touch.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.touch.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
     params->cmd.touch.items[idx].v.v0.exptime = exptime;
@@ -52,30 +51,30 @@ cb_params_touch_init_item(struct params_st *params, lcb_size_t idx, VALUE key_ob
     static int
 cb_params_touch_extract_keys_i(VALUE key, VALUE value, VALUE arg)
 {
-    struct params_st *params = (struct params_st *)arg;
+    struct cb_params_st *params = (struct cb_params_st *)arg;
     cb_params_touch_init_item(params, params->idx++, key, NUM2ULONG(value));
     return ST_CONTINUE;
 }
 
     static void
-cb_params_touch_parse_options(struct params_st *params, VALUE options)
+cb_params_touch_parse_options(struct cb_params_st *params, VALUE options)
 {
     VALUE tmp;
 
     if (NIL_P(options)) {
         return;
     }
-    tmp = rb_hash_aref(options, sym_ttl);
+    tmp = rb_hash_aref(options, cb_sym_ttl);
     if (tmp != Qnil) {
         params->cmd.touch.ttl = NUM2ULONG(tmp);
     }
-    if (RTEST(rb_funcall(options, id_has_key_p, 1, sym_quiet))) {
-        params->cmd.touch.quiet = RTEST(rb_hash_aref(options, sym_quiet));
+    if (RTEST(rb_funcall(options, cb_id_has_key_p, 1, cb_sym_quiet))) {
+        params->cmd.touch.quiet = RTEST(rb_hash_aref(options, cb_sym_quiet));
     }
 }
 
     static void
-cb_params_touch_parse_arguments(struct params_st *params, int argc, VALUE argv)
+cb_params_touch_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
 {
     lcb_size_t ii;
 
@@ -117,18 +116,18 @@ cb_params_touch_parse_arguments(struct params_st *params, int argc, VALUE argv)
 /* REMOVE */
 
     static void
-cb_params_remove_alloc(struct params_st *params, lcb_size_t size)
+cb_params_remove_alloc(struct cb_params_st *params, lcb_size_t size)
 {
     lcb_size_t ii;
 
     params->cmd.remove.num = size;
     params->cmd.remove.items = xcalloc(size, sizeof(lcb_remove_cmd_t));
     if (params->cmd.remove.items == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     params->cmd.remove.ptr = xcalloc(size, sizeof(lcb_remove_cmd_t *));
     if (params->cmd.remove.ptr == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     for (ii = 0; ii < size; ++ii) {
         params->cmd.remove.ptr[ii] = params->cmd.remove.items + ii;
@@ -136,9 +135,9 @@ cb_params_remove_alloc(struct params_st *params, lcb_size_t size)
 }
 
     static void
-cb_params_remove_init_item(struct params_st *params, lcb_size_t idx, VALUE key_obj, lcb_cas_t cas)
+cb_params_remove_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, lcb_cas_t cas)
 {
-    key_obj = unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(params->bucket, key_obj, 1);
     params->cmd.remove.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.remove.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
     params->cmd.remove.items[idx].v.v0.cas = cas;
@@ -148,30 +147,30 @@ cb_params_remove_init_item(struct params_st *params, lcb_size_t idx, VALUE key_o
     static int
 cb_params_remove_extract_keys_i(VALUE key, VALUE value, VALUE arg)
 {
-    struct params_st *params = (struct params_st *)arg;
+    struct cb_params_st *params = (struct cb_params_st *)arg;
     cb_params_remove_init_item(params, params->idx++, key, NUM2ULL(value));
     return ST_CONTINUE;
 }
 
     static void
-cb_params_remove_parse_options(struct params_st *params, VALUE options)
+cb_params_remove_parse_options(struct cb_params_st *params, VALUE options)
 {
     VALUE tmp;
 
     if (NIL_P(options)) {
         return;
     }
-    if (RTEST(rb_funcall(options, id_has_key_p, 1, sym_quiet))) {
-        params->cmd.remove.quiet = RTEST(rb_hash_aref(options, sym_quiet));
+    if (RTEST(rb_funcall(options, cb_id_has_key_p, 1, cb_sym_quiet))) {
+        params->cmd.remove.quiet = RTEST(rb_hash_aref(options, cb_sym_quiet));
     }
-    tmp = rb_hash_aref(options, sym_cas);
+    tmp = rb_hash_aref(options, cb_sym_cas);
     if (tmp != Qnil) {
         params->cmd.remove.cas = NUM2ULL(tmp);
     }
 }
 
     static void
-cb_params_remove_parse_arguments(struct params_st *params, int argc, VALUE argv)
+cb_params_remove_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
 {
     lcb_size_t ii;
 
@@ -212,18 +211,18 @@ cb_params_remove_parse_arguments(struct params_st *params, int argc, VALUE argv)
 
 /* STORE */
     static void
-cb_params_store_alloc(struct params_st *params, lcb_size_t size)
+cb_params_store_alloc(struct cb_params_st *params, lcb_size_t size)
 {
     lcb_size_t ii;
 
     params->cmd.store.num = size;
     params->cmd.store.items = xcalloc(size, sizeof(lcb_store_cmd_t));
     if (params->cmd.store.items == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     params->cmd.store.ptr = xcalloc(size, sizeof(lcb_store_cmd_t *));
     if (params->cmd.store.ptr == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     for (ii = 0; ii < size; ++ii) {
         params->cmd.store.ptr[ii] = params->cmd.store.items + ii;
@@ -231,24 +230,24 @@ cb_params_store_alloc(struct params_st *params, lcb_size_t size)
 }
 
     static void
-cb_params_store_init_item(struct params_st *params, lcb_size_t idx,
+cb_params_store_init_item(struct cb_params_st *params, lcb_size_t idx,
         VALUE key_obj, VALUE value_obj, lcb_uint32_t flags, lcb_cas_t cas,
         lcb_time_t exptime)
 {
-    key_obj = unify_key(params->bucket, key_obj, 1);
-    value_obj = encode_value(value_obj, params->cmd.store.flags);
+    key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    value_obj = cb_encode_value(value_obj, params->cmd.store.flags);
     if (rb_obj_is_kind_of(value_obj, rb_eStandardError)) {
-        VALUE exc_str = rb_funcall(value_obj, id_to_s, 0);
-        VALUE msg = rb_funcall(rb_mKernel, id_sprintf, 3,
+        VALUE exc_str = rb_funcall(value_obj, cb_id_to_s, 0);
+        VALUE msg = rb_funcall(rb_mKernel, cb_id_sprintf, 3,
                 rb_str_new2("unable to convert value for key '%s': %s"), key_obj, exc_str);
-        VALUE exc = rb_exc_new3(eValueFormatError, msg);
-        rb_ivar_set(exc, id_iv_inner_exception, value_obj);
+        VALUE exc = rb_exc_new3(cb_eValueFormatError, msg);
+        rb_ivar_set(exc, cb_id_iv_inner_exception, value_obj);
         rb_exc_raise(exc);
     }
     /* the value must be string after conversion */
     if (TYPE(value_obj) != T_STRING) {
         VALUE val = rb_any_to_s(value_obj);
-        rb_raise(eValueFormatError, "unable to convert value for key '%s' to string: %s", RSTRING_PTR(key_obj), RSTRING_PTR(val));
+        rb_raise(cb_eValueFormatError, "unable to convert value for key '%s' to string: %s", RSTRING_PTR(key_obj), RSTRING_PTR(val));
     }
     params->cmd.store.items[idx].v.v0.datatype = params->cmd.store.datatype;
     params->cmd.store.items[idx].v.v0.operation = params->cmd.store.operation;
@@ -265,50 +264,50 @@ cb_params_store_init_item(struct params_st *params, lcb_size_t idx,
     static int
 cb_params_store_extract_keys_i(VALUE key, VALUE value, VALUE arg)
 {
-    struct params_st *params = (struct params_st *)arg;
+    struct cb_params_st *params = (struct cb_params_st *)arg;
     cb_params_store_init_item(params, params->idx++, key, value,
             params->cmd.store.flags, 0, params->cmd.store.ttl);
     return ST_CONTINUE;
 }
 
     static void
-cb_params_store_parse_options(struct params_st *params, VALUE options)
+cb_params_store_parse_options(struct cb_params_st *params, VALUE options)
 {
     VALUE tmp;
 
     if (NIL_P(options)) {
         return;
     }
-    tmp = rb_hash_aref(options, sym_flags);
+    tmp = rb_hash_aref(options, cb_sym_flags);
     if (tmp != Qnil) {
         params->cmd.store.flags = (lcb_uint32_t)NUM2ULONG(tmp);
     }
-    tmp = rb_hash_aref(options, sym_format);
+    tmp = rb_hash_aref(options, cb_sym_format);
     if (tmp != Qnil) { /* rewrite format bits */
-        params->cmd.store.flags = flags_set_format(params->cmd.store.flags, tmp);
+        params->cmd.store.flags = cb_flags_set_format(params->cmd.store.flags, tmp);
     }
-    tmp = rb_hash_aref(options, sym_ttl);
+    tmp = rb_hash_aref(options, cb_sym_ttl);
     if (tmp != Qnil) {
         params->cmd.store.ttl = NUM2ULONG(tmp);
     }
-    tmp = rb_hash_aref(options, sym_cas);
+    tmp = rb_hash_aref(options, cb_sym_cas);
     if (tmp != Qnil) {
         params->cmd.store.cas = NUM2ULL(tmp);
     }
-    tmp = rb_hash_aref(options, sym_observe);
+    tmp = rb_hash_aref(options, cb_sym_observe);
     if (tmp != Qnil) {
         Check_Type(tmp, T_HASH);
-        rb_funcall(params->bucket->self, id_verify_observe_options, 1, tmp);
+        rb_funcall(params->bucket->self, cb_id_verify_observe_options, 1, tmp);
         params->cmd.store.observe = tmp;
     }
-    if (flags_get_format(params->cmd.store.flags) == sym_document) {
+    if (cb_flags_get_format(params->cmd.store.flags) == cb_sym_document) {
         /* just amend datatype for now */
         params->cmd.store.datatype = 0x01;
     }
 }
 
     static void
-cb_params_store_parse_arguments(struct params_st *params, int argc, VALUE argv)
+cb_params_store_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
 {
     VALUE keys;
 
@@ -344,7 +343,7 @@ cb_params_store_parse_arguments(struct params_st *params, int argc, VALUE argv)
 
 /* GET */
     static void
-cb_params_get_alloc(struct params_st *params, lcb_size_t size)
+cb_params_get_alloc(struct cb_params_st *params, lcb_size_t size)
 {
     lcb_size_t ii;
 
@@ -352,11 +351,11 @@ cb_params_get_alloc(struct params_st *params, lcb_size_t size)
     if (params->cmd.get.replica) {
         params->cmd.get.items = xcalloc(size, sizeof(lcb_get_replica_cmd_t));
         if (params->cmd.get.items_gr == NULL) {
-            rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+            rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
         }
         params->cmd.get.ptr = xcalloc(size, sizeof(lcb_get_replica_cmd_t *));
         if (params->cmd.get.ptr_gr == NULL) {
-            rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+            rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
         }
         for (ii = 0; ii < size; ++ii) {
             params->cmd.get.ptr_gr[ii] = params->cmd.get.items_gr + ii;
@@ -364,11 +363,11 @@ cb_params_get_alloc(struct params_st *params, lcb_size_t size)
     } else {
         params->cmd.get.items = xcalloc(size, sizeof(lcb_get_cmd_t));
         if (params->cmd.get.items == NULL) {
-            rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+            rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
         }
         params->cmd.get.ptr = xcalloc(size, sizeof(lcb_get_cmd_t *));
         if (params->cmd.get.ptr == NULL) {
-            rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+            rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
         }
         for (ii = 0; ii < size; ++ii) {
             params->cmd.get.ptr[ii] = params->cmd.get.items + ii;
@@ -377,10 +376,10 @@ cb_params_get_alloc(struct params_st *params, lcb_size_t size)
 }
 
     static void
-cb_params_get_init_item(struct params_st *params, lcb_size_t idx,
+cb_params_get_init_item(struct cb_params_st *params, lcb_size_t idx,
         VALUE key_obj, lcb_time_t exptime)
 {
-    key_obj = unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(params->bucket, key_obj, 1);
     if (params->cmd.get.replica) {
         params->cmd.get.items_gr[idx].v.v0.key = RSTRING_PTR(key_obj);
         params->cmd.get.items_gr[idx].v.v0.nkey = RSTRING_LEN(key_obj);
@@ -397,37 +396,37 @@ cb_params_get_init_item(struct params_st *params, lcb_size_t idx,
     static int
 cb_params_get_extract_keys_i(VALUE key, VALUE value, VALUE arg)
 {
-    struct params_st *params = (struct params_st *)arg;
+    struct cb_params_st *params = (struct cb_params_st *)arg;
     rb_ary_push(params->cmd.get.keys_ary, key);
     cb_params_get_init_item(params, params->idx++, key, NUM2ULONG(value));
     return ST_CONTINUE;
 }
 
     static void
-cb_params_get_parse_options(struct params_st *params, VALUE options)
+cb_params_get_parse_options(struct cb_params_st *params, VALUE options)
 {
     VALUE tmp;
 
     if (NIL_P(options)) {
         return;
     }
-    params->cmd.get.replica = RTEST(rb_hash_aref(options, sym_replica));
-    params->cmd.get.extended = RTEST(rb_hash_aref(options, sym_extended));
-    params->cmd.get.assemble_hash = RTEST(rb_hash_aref(options, sym_assemble_hash));
-    if (RTEST(rb_funcall(options, id_has_key_p, 1, sym_quiet))) {
-        params->cmd.get.quiet = RTEST(rb_hash_aref(options, sym_quiet));
+    params->cmd.get.replica = RTEST(rb_hash_aref(options, cb_sym_replica));
+    params->cmd.get.extended = RTEST(rb_hash_aref(options, cb_sym_extended));
+    params->cmd.get.assemble_hash = RTEST(rb_hash_aref(options, cb_sym_assemble_hash));
+    if (RTEST(rb_funcall(options, cb_id_has_key_p, 1, cb_sym_quiet))) {
+        params->cmd.get.quiet = RTEST(rb_hash_aref(options, cb_sym_quiet));
     }
-    tmp = rb_hash_aref(options, sym_format);
+    tmp = rb_hash_aref(options, cb_sym_format);
     if (tmp != Qnil) {
         Check_Type(tmp, T_SYMBOL);
         params->cmd.get.forced_format = tmp;
     }
-    tmp = rb_hash_aref(options, sym_ttl);
+    tmp = rb_hash_aref(options, cb_sym_ttl);
     if (tmp != Qnil) {
         params->cmd.get.ttl = NUM2ULONG(tmp);
     }
     /* boolean or number of seconds to lock */
-    tmp = rb_hash_aref(options, sym_lock);
+    tmp = rb_hash_aref(options, cb_sym_lock);
     if (tmp != Qnil) {
         params->cmd.get.lock = RTEST(tmp);
         if (TYPE(tmp) == T_FIXNUM) {
@@ -437,7 +436,7 @@ cb_params_get_parse_options(struct params_st *params, VALUE options)
 }
 
     static void
-cb_params_get_parse_arguments(struct params_st *params, int argc, VALUE argv)
+cb_params_get_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
 {
     lcb_size_t ii;
 
@@ -484,18 +483,18 @@ cb_params_get_parse_arguments(struct params_st *params, int argc, VALUE argv)
 
 /* ARITH */
     static void
-cb_params_arith_alloc(struct params_st *params, lcb_size_t size)
+cb_params_arith_alloc(struct cb_params_st *params, lcb_size_t size)
 {
     lcb_size_t ii;
 
     params->cmd.arith.num = size;
     params->cmd.arith.items = xcalloc(size, sizeof(lcb_arithmetic_cmd_t));
     if (params->cmd.arith.items == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     params->cmd.arith.ptr = xcalloc(size, sizeof(lcb_arithmetic_cmd_t *));
     if (params->cmd.arith.ptr == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     for (ii = 0; ii < size; ++ii) {
         params->cmd.arith.ptr[ii] = params->cmd.arith.items + ii;
@@ -503,10 +502,10 @@ cb_params_arith_alloc(struct params_st *params, lcb_size_t size)
 }
 
     static void
-cb_params_arith_init_item(struct params_st *params, lcb_size_t idx,
+cb_params_arith_init_item(struct cb_params_st *params, lcb_size_t idx,
         VALUE key_obj, lcb_int64_t delta)
 {
-    key_obj = unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(params->bucket, key_obj, 1);
     params->cmd.arith.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.arith.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
     params->cmd.arith.items[idx].v.v0.delta = delta * params->cmd.arith.sign;
@@ -519,46 +518,46 @@ cb_params_arith_init_item(struct params_st *params, lcb_size_t idx,
     static int
 cb_params_arith_extract_keys_i(VALUE key, VALUE value, VALUE arg)
 {
-    struct params_st *params = (struct params_st *)arg;
+    struct cb_params_st *params = (struct cb_params_st *)arg;
     cb_params_arith_init_item(params, params->idx++, key, NUM2ULONG(value) & INT64_MAX);
     return ST_CONTINUE;
 }
 
     static void
-cb_params_arith_parse_options(struct params_st *params, VALUE options)
+cb_params_arith_parse_options(struct cb_params_st *params, VALUE options)
 {
     VALUE tmp;
 
     if (NIL_P(options)) {
         return;
     }
-    params->cmd.arith.create = RTEST(rb_hash_aref(options, sym_create));
-    params->cmd.arith.extended = RTEST(rb_hash_aref(options, sym_extended));
-    tmp = rb_hash_aref(options, sym_ttl);
+    params->cmd.arith.create = RTEST(rb_hash_aref(options, cb_sym_create));
+    params->cmd.arith.extended = RTEST(rb_hash_aref(options, cb_sym_extended));
+    tmp = rb_hash_aref(options, cb_sym_ttl);
     if (tmp != Qnil) {
         params->cmd.arith.ttl = NUM2ULONG(tmp);
     }
-    tmp = rb_hash_aref(options, sym_initial);
+    tmp = rb_hash_aref(options, cb_sym_initial);
     if (tmp != Qnil) {
         params->cmd.arith.initial = NUM2ULL(tmp);
         params->cmd.arith.create = 1;
     }
-    tmp = rb_hash_aref(options, sym_delta);
+    tmp = rb_hash_aref(options, cb_sym_delta);
     if (tmp != Qnil) {
         params->cmd.arith.delta = NUM2ULL(tmp) & INT64_MAX;
     }
-    tmp = rb_hash_aref(options, sym_format);
+    tmp = rb_hash_aref(options, cb_sym_format);
     if (tmp != Qnil) { /* rewrite format bits */
         params->cmd.arith.format = tmp;
     }
-    if (params->cmd.arith.format == sym_document) {
+    if (params->cmd.arith.format == cb_sym_document) {
         /* just amend datatype for now */
         params->cmd.arith.datatype = 0x01;
     }
 }
 
     static void
-cb_params_arith_parse_arguments(struct params_st *params, int argc, VALUE argv)
+cb_params_arith_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
 {
     lcb_size_t ii;
 
@@ -598,18 +597,18 @@ cb_params_arith_parse_arguments(struct params_st *params, int argc, VALUE argv)
 
 /* STATS */
     static void
-cb_params_stats_alloc(struct params_st *params, lcb_size_t size)
+cb_params_stats_alloc(struct cb_params_st *params, lcb_size_t size)
 {
     lcb_size_t ii;
 
     params->cmd.stats.num = size;
     params->cmd.stats.items = xcalloc(size, sizeof(lcb_server_stats_cmd_t));
     if (params->cmd.stats.items == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     params->cmd.stats.ptr = xcalloc(size, sizeof(lcb_server_stats_cmd_t *));
     if (params->cmd.stats.ptr == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     for (ii = 0; ii < size; ++ii) {
         params->cmd.stats.ptr[ii] = params->cmd.stats.items + ii;
@@ -617,17 +616,17 @@ cb_params_stats_alloc(struct params_st *params, lcb_size_t size)
 }
 
     static void
-cb_params_stats_init_item(struct params_st *params, lcb_size_t idx,
+cb_params_stats_init_item(struct cb_params_st *params, lcb_size_t idx,
         VALUE key_obj)
 {
-    key_obj = unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(params->bucket, key_obj, 1);
     params->cmd.stats.items[idx].v.v0.name = RSTRING_PTR(key_obj);
     params->cmd.stats.items[idx].v.v0.nname = RSTRING_LEN(key_obj);
     params->npayload += RSTRING_LEN(key_obj);
 }
 
     static void
-cb_params_stats_parse_arguments(struct params_st *params, int argc, VALUE argv)
+cb_params_stats_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
 {
     lcb_size_t ii;
 
@@ -663,18 +662,18 @@ cb_params_stats_parse_arguments(struct params_st *params, int argc, VALUE argv)
 /* REMOVE */
 
     static void
-cb_params_observe_alloc(struct params_st *params, lcb_size_t size)
+cb_params_observe_alloc(struct cb_params_st *params, lcb_size_t size)
 {
     lcb_size_t ii;
 
     params->cmd.observe.num = size;
     params->cmd.observe.items = xcalloc(size, sizeof(lcb_observe_cmd_t));
     if (params->cmd.observe.items == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     params->cmd.observe.ptr = xcalloc(size, sizeof(lcb_observe_cmd_t *));
     if (params->cmd.observe.ptr == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     for (ii = 0; ii < size; ++ii) {
         params->cmd.observe.ptr[ii] = params->cmd.observe.items + ii;
@@ -682,16 +681,16 @@ cb_params_observe_alloc(struct params_st *params, lcb_size_t size)
 }
 
     static void
-cb_params_observe_init_item(struct params_st *params, lcb_size_t idx, VALUE key_obj)
+cb_params_observe_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj)
 {
-    key_obj = unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(params->bucket, key_obj, 1);
     params->cmd.observe.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.observe.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
     params->npayload += RSTRING_LEN(key_obj);
 }
 
     static void
-cb_params_observe_parse_arguments(struct params_st *params, int argc, VALUE argv)
+cb_params_observe_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
 {
     lcb_size_t ii;
 
@@ -726,18 +725,18 @@ cb_params_observe_parse_arguments(struct params_st *params, int argc, VALUE argv
 
 /* UNLOCK */
     static void
-cb_params_unlock_alloc(struct params_st *params, lcb_size_t size)
+cb_params_unlock_alloc(struct cb_params_st *params, lcb_size_t size)
 {
     lcb_size_t ii;
 
     params->cmd.unlock.num = size;
     params->cmd.unlock.items = xcalloc(size, sizeof(lcb_unlock_cmd_t));
     if (params->cmd.unlock.items == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     params->cmd.unlock.ptr = xcalloc(size, sizeof(lcb_unlock_cmd_t *));
     if (params->cmd.unlock.ptr == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     for (ii = 0; ii < size; ++ii) {
         params->cmd.unlock.ptr[ii] = params->cmd.unlock.items + ii;
@@ -745,9 +744,9 @@ cb_params_unlock_alloc(struct params_st *params, lcb_size_t size)
 }
 
     static void
-cb_params_unlock_init_item(struct params_st *params, lcb_size_t idx, VALUE key_obj, lcb_cas_t cas)
+cb_params_unlock_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, lcb_cas_t cas)
 {
-    key_obj = unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(params->bucket, key_obj, 1);
     params->cmd.unlock.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.unlock.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
     params->cmd.unlock.items[idx].v.v0.cas = cas;
@@ -757,30 +756,30 @@ cb_params_unlock_init_item(struct params_st *params, lcb_size_t idx, VALUE key_o
     static int
 cb_params_unlock_extract_keys_i(VALUE key, VALUE value, VALUE arg)
 {
-    struct params_st *params = (struct params_st *)arg;
+    struct cb_params_st *params = (struct cb_params_st *)arg;
     cb_params_unlock_init_item(params, params->idx++, key, NUM2ULL(value));
     return ST_CONTINUE;
 }
 
     static void
-cb_params_unlock_parse_options(struct params_st *params, VALUE options)
+cb_params_unlock_parse_options(struct cb_params_st *params, VALUE options)
 {
     VALUE tmp;
 
     if (NIL_P(options)) {
         return;
     }
-    tmp = rb_hash_aref(options, sym_cas);
+    tmp = rb_hash_aref(options, cb_sym_cas);
     if (tmp != Qnil) {
         params->cmd.unlock.cas = NUM2ULL(tmp);
     }
-    if (RTEST(rb_funcall(options, id_has_key_p, 1, sym_quiet))) {
-        params->cmd.unlock.quiet = RTEST(rb_hash_aref(options, sym_quiet));
+    if (RTEST(rb_funcall(options, cb_id_has_key_p, 1, cb_sym_quiet))) {
+        params->cmd.unlock.quiet = RTEST(rb_hash_aref(options, cb_sym_quiet));
     }
 }
 
     static void
-cb_params_unlock_parse_arguments(struct params_st *params, int argc, VALUE argv)
+cb_params_unlock_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
 {
     if (argc == 1) {
         VALUE keys = RARRAY_PTR(argv)[0];
@@ -803,16 +802,16 @@ cb_params_unlock_parse_arguments(struct params_st *params, int argc, VALUE argv)
 
 /* VERSION */
     static void
-cb_params_version_alloc(struct params_st *params)
+cb_params_version_alloc(struct cb_params_st *params)
 {
     params->cmd.version.num = 1;
     params->cmd.version.items = xcalloc(1, sizeof(lcb_server_version_cmd_t));
     if (params->cmd.version.items == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     params->cmd.version.ptr = xcalloc(1, sizeof(lcb_server_version_cmd_t *));
     if (params->cmd.version.ptr == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for arguments");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
     }
     params->cmd.version.ptr[0] = params->cmd.version.items;
 }
@@ -820,40 +819,40 @@ cb_params_version_alloc(struct params_st *params)
 
 /* common stuff */
     void
-cb_params_destroy(struct params_st *params)
+cb_params_destroy(struct cb_params_st *params)
 {
 #define _release_data_for(type) \
     xfree(params->cmd.type.items); \
     xfree(params->cmd.type.ptr);
 
     switch (params->type) {
-        case cmd_get:
+        case cb_cmd_get:
             _release_data_for(get);
             xfree(params->cmd.get.items_gr);
             xfree(params->cmd.get.ptr_gr);
             break;
-        case cmd_touch:
+        case cb_cmd_touch:
             _release_data_for(touch);
             break;
-        case cmd_arith:
+        case cb_cmd_arith:
             _release_data_for(arith);
             break;
-        case cmd_remove:
+        case cb_cmd_remove:
             _release_data_for(remove);
             break;
-        case cmd_store:
+        case cb_cmd_store:
             _release_data_for(store);
             break;
-        case cmd_stats:
+        case cb_cmd_stats:
             _release_data_for(stats);
             break;
-        case cmd_version:
+        case cb_cmd_version:
             _release_data_for(version);
             break;
-        case cmd_observe:
+        case cb_cmd_observe:
             _release_data_for(observe);
             break;
-        case cmd_unlock:
+        case cb_cmd_unlock:
             _release_data_for(unlock);
             break;
     }
@@ -862,7 +861,7 @@ cb_params_destroy(struct params_st *params)
 
 struct build_params_st
 {
-    struct params_st *params;
+    struct cb_params_st *params;
     int argc;
     VALUE argv;
 };
@@ -873,7 +872,7 @@ do_params_build(VALUE ptr)
     VALUE opts;
     /* unpack arguments */
     struct build_params_st *p = (struct build_params_st *)ptr;
-    struct params_st *params = p->params;
+    struct cb_params_st *params = p->params;
     int argc = p->argc;
     VALUE argv = p->argv;
 
@@ -885,15 +884,15 @@ do_params_build(VALUE ptr)
         opts = Qnil;
     }
 
-    params->npayload = PACKET_HEADER_SIZE; /* size of packet header */
+    params->npayload = CB_PACKET_HEADER_SIZE; /* size of packet header */
     switch (params->type) {
-        case cmd_touch:
+        case cb_cmd_touch:
             params->cmd.touch.quiet = params->bucket->quiet;
             params->cmd.touch.ttl = params->bucket->default_ttl;
             cb_params_touch_parse_options(params, opts);
             cb_params_touch_parse_arguments(params, argc, argv);
             break;
-        case cmd_remove:
+        case cb_cmd_remove:
             params->cmd.remove.quiet = params->bucket->quiet;
             if (argc == 2) {
                 int type = TYPE(RARRAY_PTR(argv)[1]);
@@ -906,7 +905,7 @@ do_params_build(VALUE ptr)
             cb_params_remove_parse_options(params, opts);
             cb_params_remove_parse_arguments(params, argc, argv);
             break;
-        case cmd_store:
+        case cb_cmd_store:
             if (argc == 1 && opts != Qnil) {
                 /* put last hash back because it is the value */
                 rb_ary_push(argv, opts);
@@ -915,18 +914,18 @@ do_params_build(VALUE ptr)
             }
             params->cmd.store.datatype = 0x00;
             params->cmd.store.ttl = params->bucket->default_ttl;
-            params->cmd.store.flags = flags_set_format(params->bucket->default_flags,
+            params->cmd.store.flags = cb_flags_set_format(params->bucket->default_flags,
                     params->bucket->default_format);
             params->cmd.store.observe = Qnil;
             cb_params_store_parse_options(params, opts);
             cb_params_store_parse_arguments(params, argc, argv);
             break;
-        case cmd_get:
+        case cb_cmd_get:
             params->cmd.get.quiet = params->bucket->quiet;
             cb_params_get_parse_options(params, opts);
             cb_params_get_parse_arguments(params, argc, argv);
             break;
-        case cmd_arith:
+        case cb_cmd_arith:
             params->cmd.arith.delta = 1;
             params->cmd.arith.format = params->bucket->default_format;
             params->cmd.arith.ttl = params->bucket->default_ttl;
@@ -938,16 +937,16 @@ do_params_build(VALUE ptr)
             cb_params_arith_parse_options(params, opts);
             cb_params_arith_parse_arguments(params, argc, argv);
             break;
-        case cmd_stats:
+        case cb_cmd_stats:
             cb_params_stats_parse_arguments(params, argc, argv);
             break;
-        case cmd_version:
+        case cb_cmd_version:
             cb_params_version_alloc(params);
             break;
-        case cmd_observe:
+        case cb_cmd_observe:
             cb_params_observe_parse_arguments(params, argc, argv);
             break;
-        case cmd_unlock:
+        case cb_cmd_unlock:
             params->cmd.unlock.quiet = params->bucket->quiet;
             if (argc == 2) {
                 int type = TYPE(RARRAY_PTR(argv)[1]);
@@ -966,7 +965,7 @@ do_params_build(VALUE ptr)
 }
 
     void
-cb_params_build(struct params_st *params, int argc, VALUE argv)
+cb_params_build(struct cb_params_st *params, int argc, VALUE argv)
 {
     int fail = 0;
     struct build_params_st args;

@@ -20,11 +20,11 @@
     static VALUE
 storage_observe_callback(VALUE args, VALUE cookie)
 {
-    struct context_st *ctx = (struct context_st *)cookie;
+    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     VALUE res = rb_ary_shift(args);
 
     if (ctx->proc != Qnil) {
-        rb_ivar_set(res, id_iv_operation, ctx->operation);
+        rb_ivar_set(res, cb_id_iv_operation, ctx->operation);
         cb_proc_call(ctx->proc, 1, res);
     }
     if (!RTEST(ctx->observe_options)) {
@@ -37,40 +37,40 @@ storage_observe_callback(VALUE args, VALUE cookie)
 }
 
     void
-storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
+cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
         lcb_error_t error, const lcb_store_resp_t *resp)
 {
-    struct context_st *ctx = (struct context_st *)cookie;
-    struct bucket_st *bucket = ctx->bucket;
+    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
+    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE key, cas, *rv = ctx->rv, exc, res;
 
     key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
-    strip_key_prefix(bucket, key);
+    cb_strip_key_prefix(bucket, key);
 
     cas = resp->v.v0.cas > 0 ? ULL2NUM(resp->v.v0.cas) : Qnil;
     switch(operation) {
         case LCB_ADD:
-            ctx->operation = sym_add;
+            ctx->operation = cb_sym_add;
             break;
         case LCB_REPLACE:
-            ctx->operation = sym_replace;
+            ctx->operation = cb_sym_replace;
             break;
         case LCB_SET:
-            ctx->operation = sym_set;
+            ctx->operation = cb_sym_set;
             break;
         case LCB_APPEND:
-            ctx->operation = sym_append;
+            ctx->operation = cb_sym_append;
             break;
         case LCB_PREPEND:
-            ctx->operation = sym_prepend;
+            ctx->operation = cb_sym_prepend;
             break;
         default:
             ctx->operation = Qnil;
     }
     exc = cb_check_error(error, "failed to store value", key);
     if (exc != Qnil) {
-        rb_ivar_set(exc, id_iv_cas, cas);
-        rb_ivar_set(exc, id_iv_operation, ctx->operation);
+        rb_ivar_set(exc, cb_id_iv_cas, cas);
+        rb_ivar_set(exc, cb_id_iv_operation, ctx->operation);
         if (NIL_P(ctx->exception)) {
             ctx->exception = cb_gc_protect(bucket, exc);
         }
@@ -82,15 +82,15 @@ storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
             args[0] = rb_hash_new();
             rb_hash_aset(args[0], key, cas);
             args[1] = ctx->observe_options;
-            rb_block_call(bucket->self, id_observe_and_wait, 2, args,
+            rb_block_call(bucket->self, cb_id_observe_and_wait, 2, args,
                     storage_observe_callback, (VALUE)ctx);
             cb_gc_unprotect(bucket, ctx->observe_options);
         } else if (ctx->proc != Qnil) {
-            res = rb_class_new_instance(0, NULL, cResult);
-            rb_ivar_set(res, id_iv_error, exc);
-            rb_ivar_set(res, id_iv_key, key);
-            rb_ivar_set(res, id_iv_operation, ctx->operation);
-            rb_ivar_set(res, id_iv_cas, cas);
+            res = rb_class_new_instance(0, NULL, cb_cResult);
+            rb_ivar_set(res, cb_id_iv_error, exc);
+            rb_ivar_set(res, cb_id_iv_key, key);
+            rb_ivar_set(res, cb_id_iv_operation, ctx->operation);
+            rb_ivar_set(res, cb_id_iv_cas, cas);
             cb_proc_call(ctx->proc, 1, res);
         }
     } else {             /* synchronous */
@@ -109,27 +109,27 @@ storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
     static inline VALUE
 cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
-    struct context_st *ctx;
+    struct cb_bucket_st *bucket = DATA_PTR(self);
+    struct cb_context_st *ctx;
     VALUE args, rv, proc, exc, obs = Qnil;
     lcb_error_t err;
-    struct params_st params;
+    struct cb_params_st params;
 
     if (bucket->handle == NULL) {
-        rb_raise(eConnectError, "closed connection");
+        rb_raise(cb_eConnectError, "closed connection");
     }
     rb_scan_args(argc, argv, "0*&", &args, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    memset(&params, 0, sizeof(struct params_st));
-    params.type = cmd_store;
+    memset(&params, 0, sizeof(struct cb_params_st));
+    params.type = cb_cmd_store;
     params.bucket = bucket;
     params.cmd.store.operation = cmd;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = xcalloc(1, sizeof(struct context_st));
+    ctx = xcalloc(1, sizeof(struct cb_context_st));
     if (ctx == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
     }
     rv = rb_hash_new();
     ctx->rv = &rv;
@@ -148,7 +148,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
     }
     bucket->nbytes += params.npayload;
     if (bucket->async) {
-        maybe_do_loop(bucket);
+        cb_maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (ctx->nqueries > 0) {
@@ -168,7 +168,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
         }
         if (RTEST(obs)) {
             cb_gc_unprotect(bucket, obs);
-            return rb_funcall(bucket->self, id_observe_and_wait, 2, rv, obs);
+            return rb_funcall(bucket->self, cb_id_observe_and_wait, 2, rv, obs);
         }
         if (params.cmd.store.num > 1) {
             return rv;  /* return as a hash {key => cas, ...} */

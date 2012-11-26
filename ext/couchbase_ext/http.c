@@ -18,10 +18,10 @@
 #include "couchbase_ext.h"
 
     void
-http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp)
+cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp)
 {
-    struct context_st *ctx = (struct context_st *)cookie;
-    struct bucket_st *bucket = ctx->bucket;
+    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
+    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE *rv = ctx->rv, key, val, res;
     lcb_http_status_t status;
 
@@ -39,14 +39,14 @@ http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *coo
         cb_gc_unprotect(bucket, ctx->headers_val);
     }
     if (ctx->extended) {
-        res = rb_class_new_instance(0, NULL, cResult);
-        rb_ivar_set(res, id_iv_error, ctx->exception);
-        rb_ivar_set(res, id_iv_status, status ? INT2FIX(status) : Qnil);
-        rb_ivar_set(res, id_iv_operation, sym_http_request);
-        rb_ivar_set(res, id_iv_key, key);
-        rb_ivar_set(res, id_iv_value, val);
-        rb_ivar_set(res, id_iv_completed, Qtrue);
-        rb_ivar_set(res, id_iv_headers, ctx->headers_val);
+        res = rb_class_new_instance(0, NULL, cb_cResult);
+        rb_ivar_set(res, cb_id_iv_error, ctx->exception);
+        rb_ivar_set(res, cb_id_iv_status, status ? INT2FIX(status) : Qnil);
+        rb_ivar_set(res, cb_id_iv_operation, cb_sym_http_request);
+        rb_ivar_set(res, cb_id_iv_key, key);
+        rb_ivar_set(res, cb_id_iv_value, val);
+        rb_ivar_set(res, cb_id_iv_completed, Qtrue);
+        rb_ivar_set(res, cb_id_iv_headers, ctx->headers_val);
     } else {
         res = val;
     }
@@ -61,10 +61,10 @@ http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *coo
 }
 
     void
-http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp)
+cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp)
 {
-    struct context_st *ctx = (struct context_st *)cookie;
-    struct bucket_st *bucket = ctx->bucket;
+    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
+    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE key, val, res;
     lcb_http_status_t status;
 
@@ -82,14 +82,14 @@ http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie,
     }
     if (ctx->proc != Qnil) {
         if (ctx->extended) {
-            res = rb_class_new_instance(0, NULL, cResult);
-            rb_ivar_set(res, id_iv_error, ctx->exception);
-            rb_ivar_set(res, id_iv_status, status ? INT2FIX(status) : Qnil);
-            rb_ivar_set(res, id_iv_operation, sym_http_request);
-            rb_ivar_set(res, id_iv_key, key);
-            rb_ivar_set(res, id_iv_value, val);
-            rb_ivar_set(res, id_iv_completed, Qfalse);
-            rb_ivar_set(res, id_iv_headers, ctx->headers_val);
+            res = rb_class_new_instance(0, NULL, cb_cResult);
+            rb_ivar_set(res, cb_id_iv_error, ctx->exception);
+            rb_ivar_set(res, cb_id_iv_status, status ? INT2FIX(status) : Qnil);
+            rb_ivar_set(res, cb_id_iv_operation, cb_sym_http_request);
+            rb_ivar_set(res, cb_id_iv_key, key);
+            rb_ivar_set(res, cb_id_iv_value, val);
+            rb_ivar_set(res, cb_id_iv_completed, Qfalse);
+            rb_ivar_set(res, cb_id_iv_headers, ctx->headers_val);
         } else {
             res = val;
         }
@@ -101,7 +101,7 @@ http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie,
     void
 cb_http_request_free(void *ptr)
 {
-    struct http_request_st *request = ptr;
+    struct cb_http_request_st *request = ptr;
     if (request) {
         request->running = 0;
         if (TYPE(request->bucket_obj) == T_DATA
@@ -119,7 +119,7 @@ cb_http_request_free(void *ptr)
     void
 cb_http_request_mark(void *ptr)
 {
-    struct http_request_st *request = ptr;
+    struct cb_http_request_st *request = ptr;
     if (request) {
         rb_gc_mark(request->on_body_callback);
     }
@@ -129,10 +129,10 @@ cb_http_request_mark(void *ptr)
 cb_http_request_alloc(VALUE klass)
 {
     VALUE obj;
-    struct http_request_st *request;
+    struct cb_http_request_st *request;
 
     /* allocate new bucket struct and set it to zero */
-    obj = Data_Make_Struct(klass, struct http_request_st, cb_http_request_mark,
+    obj = Data_Make_Struct(klass, struct cb_http_request_st, cb_http_request_mark,
             cb_http_request_free, request);
     return obj;
 }
@@ -149,7 +149,7 @@ cb_http_request_alloc(VALUE klass)
 cb_http_request_inspect(VALUE self)
 {
     VALUE str;
-    struct http_request_st *req = DATA_PTR(self);
+    struct cb_http_request_st *req = DATA_PTR(self);
     char buf[200];
 
     str = rb_str_buf_new2("#<");
@@ -173,14 +173,14 @@ cb_http_request_inspect(VALUE self)
     VALUE
 cb_http_request_init(int argc, VALUE *argv, VALUE self)
 {
-    struct http_request_st *request = DATA_PTR(self);
+    struct cb_http_request_st *request = DATA_PTR(self);
     VALUE bucket, path, opts, on_body, pp, arg;
     rb_scan_args(argc, argv, "22", &bucket, &pp, &opts, &on_body);
 
     if (NIL_P(on_body) && rb_block_given_p()) {
         on_body = rb_block_proc();
     }
-    if (CLASS_OF(bucket) != cBucket) {
+    if (CLASS_OF(bucket) != cb_cBucket) {
         rb_raise(rb_eTypeError, "wrong argument type (expected Couchbase::Bucket)");
     }
     memset(&request->cmd, 0, sizeof(lcb_http_cmd_t));
@@ -197,36 +197,36 @@ cb_http_request_init(int argc, VALUE *argv, VALUE self)
 
     if (opts != Qnil) {
         Check_Type(opts, T_HASH);
-        request->extended = RTEST(rb_hash_aref(opts, sym_extended));
-        request->cmd.v.v0.chunked = RTEST(rb_hash_aref(opts, sym_chunked));
-        if ((arg = rb_hash_aref(opts, sym_type)) != Qnil) {
-            if (arg == sym_view) {
+        request->extended = RTEST(rb_hash_aref(opts, cb_sym_extended));
+        request->cmd.v.v0.chunked = RTEST(rb_hash_aref(opts, cb_sym_chunked));
+        if ((arg = rb_hash_aref(opts, cb_sym_type)) != Qnil) {
+            if (arg == cb_sym_view) {
                 request->type = LCB_HTTP_TYPE_VIEW;
-            } else if (arg == sym_management) {
+            } else if (arg == cb_sym_management) {
                 request->type = LCB_HTTP_TYPE_MANAGEMENT;
             } else {
                 rb_raise(rb_eArgError, "unsupported request type");
             }
         }
-        if ((arg = rb_hash_aref(opts, sym_method)) != Qnil) {
-            if (arg == sym_get) {
+        if ((arg = rb_hash_aref(opts, cb_sym_method)) != Qnil) {
+            if (arg == cb_sym_get) {
                 request->cmd.v.v0.method = LCB_HTTP_METHOD_GET;
-            } else if (arg == sym_post) {
+            } else if (arg == cb_sym_post) {
                 request->cmd.v.v0.method = LCB_HTTP_METHOD_POST;
-            } else if (arg == sym_put) {
+            } else if (arg == cb_sym_put) {
                 request->cmd.v.v0.method = LCB_HTTP_METHOD_PUT;
-            } else if (arg == sym_delete) {
+            } else if (arg == cb_sym_delete) {
                 request->cmd.v.v0.method = LCB_HTTP_METHOD_DELETE;
             } else {
                 rb_raise(rb_eArgError, "unsupported HTTP method");
             }
         }
-        if ((arg = rb_hash_aref(opts, sym_body)) != Qnil) {
+        if ((arg = rb_hash_aref(opts, cb_sym_body)) != Qnil) {
             Check_Type(arg, T_STRING);
             request->cmd.v.v0.body = strdup(RSTRING_PTR(arg));
             request->cmd.v.v0.nbody = RSTRING_LEN(arg);
         }
-        if ((arg = rb_hash_aref(opts, sym_content_type)) != Qnil) {
+        if ((arg = rb_hash_aref(opts, cb_sym_content_type)) != Qnil) {
             Check_Type(arg, T_STRING);
             xfree((char *)request->cmd.v.v0.content_type);
             request->cmd.v.v0.content_type = strdup(RSTRING_PTR(arg));
@@ -244,7 +244,7 @@ cb_http_request_init(int argc, VALUE *argv, VALUE self)
     VALUE
 cb_http_request_on_body(VALUE self)
 {
-    struct http_request_st *request = DATA_PTR(self);
+    struct cb_http_request_st *request = DATA_PTR(self);
     VALUE old = request->on_body_callback;
     if (rb_block_given_p()) {
         request->on_body_callback = rb_block_proc();
@@ -260,15 +260,15 @@ cb_http_request_on_body(VALUE self)
     VALUE
 cb_http_request_perform(VALUE self)
 {
-    struct http_request_st *req = DATA_PTR(self);
-    struct context_st *ctx;
+    struct cb_http_request_st *req = DATA_PTR(self);
+    struct cb_context_st *ctx;
     VALUE rv, exc;
     lcb_error_t err;
-    struct bucket_st *bucket;
+    struct cb_bucket_st *bucket;
 
-    ctx = xcalloc(1, sizeof(struct context_st));
+    ctx = xcalloc(1, sizeof(struct cb_context_st));
     if (ctx == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory");
     }
     rv = Qnil;
     ctx->rv = &rv;
@@ -310,7 +310,7 @@ cb_http_request_perform(VALUE self)
     VALUE
 cb_http_request_pause(VALUE self)
 {
-    struct http_request_st *req = DATA_PTR(self);
+    struct cb_http_request_st *req = DATA_PTR(self);
     lcb_breakout(req->bucket->handle);
     return Qnil;
 }
@@ -319,7 +319,7 @@ cb_http_request_pause(VALUE self)
 cb_http_request_continue(VALUE self)
 {
     VALUE exc, *rv;
-    struct http_request_st *req = DATA_PTR(self);
+    struct cb_http_request_st *req = DATA_PTR(self);
 
     if (req->running) {
         lcb_wait(req->bucket->handle);
@@ -348,7 +348,7 @@ cb_http_request_continue(VALUE self)
     VALUE
 cb_http_request_path_get(VALUE self)
 {
-    struct http_request_st *req = DATA_PTR(self);
+    struct cb_http_request_st *req = DATA_PTR(self);
     return STR_NEW_CSTR(req->cmd.v.v0.path);
 }
 
@@ -362,7 +362,7 @@ cb_http_request_path_get(VALUE self)
     VALUE
 cb_http_request_chunked_get(VALUE self)
 {
-    struct http_request_st *req = DATA_PTR(self);
+    struct cb_http_request_st *req = DATA_PTR(self);
     return req->cmd.v.v0.chunked ? Qtrue : Qfalse;
 }
 
@@ -376,7 +376,7 @@ cb_http_request_chunked_get(VALUE self)
     VALUE
 cb_http_request_extended_get(VALUE self)
 {
-    struct http_request_st *req = DATA_PTR(self);
+    struct cb_http_request_st *req = DATA_PTR(self);
     return req->extended ? Qtrue : Qfalse;
 }
 
@@ -402,7 +402,7 @@ cb_bucket_make_http_request(int argc, VALUE *argv, VALUE self)
     args[0] = self;
     rb_scan_args(argc, argv, "11&", &args[1], &args[2], &args[3]);
 
-    return rb_class_new_instance(4, args, cCouchRequest);
+    return rb_class_new_instance(4, args, cb_cCouchRequest);
 }
 
 

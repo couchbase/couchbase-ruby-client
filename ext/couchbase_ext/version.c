@@ -18,16 +18,16 @@
 #include "couchbase_ext.h"
 
     void
-version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_version_resp_t *resp)
+cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_version_resp_t *resp)
 {
-    struct context_st *ctx = (struct context_st *)cookie;
-    struct bucket_st *bucket = ctx->bucket;
+    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
+    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE node, val, *rv = ctx->rv, exc, res;
 
     node = resp->v.v0.server_endpoint ? STR_NEW_CSTR(resp->v.v0.server_endpoint) : Qnil;
     exc = cb_check_error(error, "failed to get version", node);
     if (exc != Qnil) {
-        rb_ivar_set(exc, id_iv_operation, sym_version);
+        rb_ivar_set(exc, cb_id_iv_operation, cb_sym_version);
         if (NIL_P(ctx->exception)) {
             ctx->exception = cb_gc_protect(bucket, exc);
         }
@@ -37,11 +37,11 @@ version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
         val = STR_NEW((const char*)resp->v.v0.vstring, resp->v.v0.nvstring);
         if (bucket->async) {    /* asynchronous */
             if (ctx->proc != Qnil) {
-                res = rb_class_new_instance(0, NULL, cResult);
-                rb_ivar_set(res, id_iv_error, exc);
-                rb_ivar_set(res, id_iv_operation, sym_version);
-                rb_ivar_set(res, id_iv_node, node);
-                rb_ivar_set(res, id_iv_value, val);
+                res = rb_class_new_instance(0, NULL, cb_cResult);
+                rb_ivar_set(res, cb_id_iv_error, exc);
+                rb_ivar_set(res, cb_id_iv_operation, cb_sym_version);
+                rb_ivar_set(res, cb_id_iv_node, node);
+                rb_ivar_set(res, cb_id_iv_value, val);
                 cb_proc_call(ctx->proc, 1, res);
             }
         } else {                /* synchronous */
@@ -87,26 +87,26 @@ version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
     VALUE
 cb_bucket_version(int argc, VALUE *argv, VALUE self)
 {
-    struct bucket_st *bucket = DATA_PTR(self);
-    struct context_st *ctx;
+    struct cb_bucket_st *bucket = DATA_PTR(self);
+    struct cb_context_st *ctx;
     VALUE rv, exc, args, proc;
     lcb_error_t err;
-    struct params_st params;
+    struct cb_params_st params;
 
     if (bucket->handle == NULL) {
-        rb_raise(eConnectError, "closed connection");
+        rb_raise(cb_eConnectError, "closed connection");
     }
     rb_scan_args(argc, argv, "0*&", &args, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    memset(&params, 0, sizeof(struct params_st));
-    params.type = cmd_version;
+    memset(&params, 0, sizeof(struct cb_params_st));
+    params.type = cb_cmd_version;
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = xcalloc(1, sizeof(struct context_st));
+    ctx = xcalloc(1, sizeof(struct cb_context_st));
     if (ctx == NULL) {
-        rb_raise(eClientNoMemoryError, "failed to allocate memory for context");
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
     }
     rv = rb_hash_new();
     ctx->rv = &rv;
@@ -124,7 +124,7 @@ cb_bucket_version(int argc, VALUE *argv, VALUE self)
     }
     bucket->nbytes += params.npayload;
     if (bucket->async) {
-        maybe_do_loop(bucket);
+        cb_maybe_do_loop(bucket);
         return Qnil;
     } else {
         if (ctx->nqueries > 0) {

@@ -26,7 +26,7 @@ cb_timer_free(void *ptr)
     void
 cb_timer_mark(void *ptr)
 {
-    struct timer_st *timer = ptr;
+    struct cb_timer_st *timer = ptr;
     if (timer) {
         rb_gc_mark(timer->callback);
     }
@@ -36,10 +36,10 @@ cb_timer_mark(void *ptr)
 cb_timer_alloc(VALUE klass)
 {
     VALUE obj;
-    struct timer_st *timer;
+    struct cb_timer_st *timer;
 
     /* allocate new bucket struct and set it to zero */
-    obj = Data_Make_Struct(klass, struct timer_st, cb_timer_mark,
+    obj = Data_Make_Struct(klass, struct cb_timer_st, cb_timer_mark,
             cb_timer_free, timer);
     return obj;
 }
@@ -56,7 +56,7 @@ cb_timer_alloc(VALUE klass)
 cb_timer_inspect(VALUE self)
 {
     VALUE str;
-    struct timer_st *tm = DATA_PTR(self);
+    struct cb_timer_st *tm = DATA_PTR(self);
     char buf[200];
 
     str = rb_str_buf_new2("#<");
@@ -97,7 +97,7 @@ cb_timer_inspect(VALUE self)
     VALUE
 cb_timer_cancel(VALUE self)
 {
-    struct timer_st *tm = DATA_PTR(self);
+    struct cb_timer_st *tm = DATA_PTR(self);
     lcb_timer_destroy(tm->bucket->handle, tm->timer);
     return self;
 }
@@ -105,7 +105,7 @@ cb_timer_cancel(VALUE self)
     static VALUE
 trigger_timer(VALUE timer)
 {
-    struct timer_st *tm = DATA_PTR(timer);
+    struct cb_timer_st *tm = DATA_PTR(timer);
     return cb_proc_call(tm->callback, 1, timer);
 }
 
@@ -113,7 +113,7 @@ trigger_timer(VALUE timer)
 timer_callback(lcb_timer_t timer, lcb_t instance,
         const void *cookie)
 {
-    struct timer_st *tm = (struct timer_st *)cookie;
+    struct cb_timer_st *tm = (struct cb_timer_st *)cookie;
     int error = 0;
 
     rb_protect(trigger_timer, tm->self, &error);
@@ -162,14 +162,14 @@ timer_callback(lcb_timer_t timer, lcb_t instance,
     VALUE
 cb_timer_init(int argc, VALUE *argv, VALUE self)
 {
-    struct timer_st *tm = DATA_PTR(self);
+    struct cb_timer_st *tm = DATA_PTR(self);
     VALUE bucket, opts, timeout, exc, cb;
     lcb_error_t err;
 
     rb_need_block();
     rb_scan_args(argc, argv, "21&", &bucket, &timeout, &opts, &cb);
 
-    if (CLASS_OF(bucket) != cBucket) {
+    if (CLASS_OF(bucket) != cb_cBucket) {
         rb_raise(rb_eTypeError, "wrong argument type (expected Couchbase::Bucket)");
     }
     tm->self = self;
@@ -178,7 +178,7 @@ cb_timer_init(int argc, VALUE *argv, VALUE self)
     tm->bucket = DATA_PTR(bucket);
     if (opts != Qnil) {
         Check_Type(opts, T_HASH);
-        tm->periodic = RTEST(rb_hash_aref(opts, sym_periodic));
+        tm->periodic = RTEST(rb_hash_aref(opts, cb_sym_periodic));
     }
     tm->timer = lcb_timer_create(tm->bucket->handle, tm, tm->usec,
             tm->periodic, timer_callback, &err);

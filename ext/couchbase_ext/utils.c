@@ -18,16 +18,16 @@
 #include "couchbase_ext.h"
 
     VALUE
-cb_gc_protect(struct bucket_st *bucket, VALUE val)
+cb_gc_protect(struct cb_bucket_st *bucket, VALUE val)
 {
     rb_hash_aset(bucket->object_space, val|1, val);
     return val;
 }
 
     VALUE
-cb_gc_unprotect(struct bucket_st *bucket, VALUE val)
+cb_gc_unprotect(struct cb_bucket_st *bucket, VALUE val)
 {
-    rb_funcall(bucket->object_space, id_delete, 1, val|1);
+    rb_funcall(bucket->object_space, cb_id_delete, 1, val|1);
     return val;
 }
 
@@ -39,7 +39,7 @@ cb_proc_call(VALUE recv, int argc, ...)
     int arity;
     int ii;
 
-    arity = FIX2INT(rb_funcall(recv, id_arity, 0));
+    arity = FIX2INT(rb_funcall(recv, cb_id_arity, 0));
     if (arity < 0) {
         arity = argc;
     }
@@ -57,13 +57,13 @@ cb_proc_call(VALUE recv, int argc, ...)
     } else {
         argv = NULL;
     }
-    return rb_funcall2(recv, id_call, arity, argv);
+    return rb_funcall2(recv, cb_id_call, arity, argv);
 }
 
 VALUE
 cb_hash_delete(VALUE hash, VALUE key)
 {
-    return rb_funcall(hash, id_delete, 1, key);
+    return rb_funcall(hash, cb_id_delete, 1, key);
 }
 
 /* Helper to convert return code from libcouchbase to meaningful exception.
@@ -83,87 +83,87 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key,
     }
     switch (rc) {
         case LCB_AUTH_ERROR:
-            klass = eAuthError;
+            klass = cb_eAuthError;
             break;
         case LCB_DELTA_BADVAL:
-            klass = eDeltaBadvalError;
+            klass = cb_eDeltaBadvalError;
             break;
         case LCB_E2BIG:
-            klass = eTooBigError;
+            klass = cb_eTooBigError;
             break;
         case LCB_EBUSY:
-            klass = eBusyError;
+            klass = cb_eBusyError;
             break;
         case LCB_EINTERNAL:
-            klass = eInternalError;
+            klass = cb_eInternalError;
             break;
         case LCB_EINVAL:
-            klass = eInvalidError;
+            klass = cb_eInvalidError;
             break;
         case LCB_ENOMEM:
-            klass = eNoMemoryError;
+            klass = cb_eNoMemoryError;
             break;
         case LCB_ERANGE:
-            klass = eRangeError;
+            klass = cb_eRangeError;
             break;
         case LCB_ETMPFAIL:
-            klass = eTmpFailError;
+            klass = cb_eTmpFailError;
             break;
         case LCB_KEY_EEXISTS:
-            klass = eKeyExistsError;
+            klass = cb_eKeyExistsError;
             break;
         case LCB_KEY_ENOENT:
-            klass = eNotFoundError;
+            klass = cb_eNotFoundError;
             break;
         case LCB_DLOPEN_FAILED:
-            klass = eDlopenFailedError;
+            klass = cb_eDlopenFailedError;
             break;
         case LCB_DLSYM_FAILED:
-            klass = eDlsymFailedError;
+            klass = cb_eDlsymFailedError;
             break;
         case LCB_NETWORK_ERROR:
-            klass = eNetworkError;
+            klass = cb_eNetworkError;
             break;
         case LCB_NOT_MY_VBUCKET:
-            klass = eNotMyVbucketError;
+            klass = cb_eNotMyVbucketError;
             break;
         case LCB_NOT_STORED:
-            klass = eNotStoredError;
+            klass = cb_eNotStoredError;
             break;
         case LCB_NOT_SUPPORTED:
-            klass = eNotSupportedError;
+            klass = cb_eNotSupportedError;
             break;
         case LCB_UNKNOWN_COMMAND:
-            klass = eUnknownCommandError;
+            klass = cb_eUnknownCommandError;
             break;
         case LCB_UNKNOWN_HOST:
-            klass = eUnknownHostError;
+            klass = cb_eUnknownHostError;
             break;
         case LCB_PROTOCOL_ERROR:
-            klass = eProtocolError;
+            klass = cb_eProtocolError;
             break;
         case LCB_ETIMEDOUT:
-            klass = eTimeoutError;
+            klass = cb_eTimeoutError;
             break;
         case LCB_CONNECT_ERROR:
-            klass = eConnectError;
+            klass = cb_eConnectError;
             break;
         case LCB_BUCKET_ENOENT:
-            klass = eBucketNotFoundError;
+            klass = cb_eBucketNotFoundError;
             break;
         case LCB_CLIENT_ENOMEM:
-            klass = eClientNoMemoryError;
+            klass = cb_eClientNoMemoryError;
             break;
         case LCB_CLIENT_ETMPFAIL:
-            klass = eClientTmpFailError;
+            klass = cb_eClientTmpFailError;
             break;
         case LCB_EBADHANDLE:
-            klass = eBadHandleError;
+            klass = cb_eBadHandleError;
             break;
         case LCB_ERROR:
             /* fall through */
         default:
-            klass = eLibcouchbaseError;
+            klass = cb_eLibcouchbaseError;
     }
 
     str = rb_str_buf_new2(msg ? msg : "");
@@ -174,7 +174,7 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key,
     }
     if (status > 0) {
         const char *reason = NULL;
-        klass = eHTTPError;
+        klass = cb_eHTTPError;
         snprintf(buf, 300, "status=\"%d\"", status);
         rb_str_buf_cat2(str, buf);
         switch (status) {
@@ -272,11 +272,11 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key,
     snprintf(buf, 300, "error=0x%02x)", rc);
     rb_str_buf_cat2(str, buf);
     exc = rb_exc_new3(klass, str);
-    rb_ivar_set(exc, id_iv_error, INT2FIX(rc));
-    rb_ivar_set(exc, id_iv_key, key);
-    rb_ivar_set(exc, id_iv_cas, Qnil);
-    rb_ivar_set(exc, id_iv_operation, Qnil);
-    rb_ivar_set(exc, id_iv_status, status ? INT2FIX(status) : Qnil);
+    rb_ivar_set(exc, cb_id_iv_error, INT2FIX(rc));
+    rb_ivar_set(exc, cb_id_iv_key, key);
+    rb_ivar_set(exc, cb_id_iv_cas, Qnil);
+    rb_ivar_set(exc, cb_id_iv_operation, Qnil);
+    rb_ivar_set(exc, cb_id_iv_status, status ? INT2FIX(status) : Qnil);
     return exc;
 }
 
@@ -290,14 +290,14 @@ cb_check_error(lcb_error_t rc, const char *msg, VALUE key)
     uint32_t
 flags_set_format(uint32_t flags, ID format)
 {
-    flags &= ~((uint32_t)FMT_MASK); /* clear format bits */
+    flags &= ~((uint32_t)CB_FMT_MASK); /* clear format bits */
 
-    if (format == sym_document) {
-        return flags | FMT_DOCUMENT;
-    } else if (format == sym_marshal) {
-        return flags | FMT_MARSHAL;
-    } else if (format == sym_plain) {
-        return flags | FMT_PLAIN;
+    if (format == cb_sym_document) {
+        return flags | CB_FMT_DOCUMENT;
+    } else if (format == cb_sym_marshal) {
+        return flags | CB_FMT_MARSHAL;
+    } else if (format == cb_sym_plain) {
+        return flags | CB_FMT_PLAIN;
     }
     return flags; /* document is the default */
 }
@@ -305,18 +305,18 @@ flags_set_format(uint32_t flags, ID format)
     ID
 flags_get_format(uint32_t flags)
 {
-    flags &= FMT_MASK; /* select format bits */
+    flags &= CB_FMT_MASK; /* select format bits */
 
     switch (flags) {
-        case FMT_DOCUMENT:
-            return sym_document;
-        case FMT_MARSHAL:
-            return sym_marshal;
-        case FMT_PLAIN:
+        case CB_FMT_DOCUMENT:
+            return cb_sym_document;
+        case CB_FMT_MARSHAL:
+            return cb_sym_marshal;
+        case CB_FMT_PLAIN:
             /* fall through */
         default:
             /* all other formats treated as plain */
-            return sym_plain;
+            return cb_sym_plain;
     }
 }
 
@@ -325,14 +325,14 @@ flags_get_format(uint32_t flags)
 do_encode(VALUE *args)
 {
     VALUE val = args[0];
-    uint32_t flags = ((uint32_t)args[1] & FMT_MASK);
+    uint32_t flags = ((uint32_t)args[1] & CB_FMT_MASK);
 
     switch (flags) {
-        case FMT_DOCUMENT:
-            return rb_funcall(mMultiJson, id_dump, 1, val);
-        case FMT_MARSHAL:
-            return rb_funcall(mMarshal, id_dump, 1, val);
-        case FMT_PLAIN:
+        case CB_FMT_DOCUMENT:
+            return rb_funcall(cb_mMultiJson, cb_id_dump, 1, val);
+        case CB_FMT_MARSHAL:
+            return rb_funcall(cb_mMarshal, cb_id_dump, 1, val);
+        case CB_FMT_PLAIN:
             /* fall through */
         default:
             /* all other formats treated as plain */
@@ -347,22 +347,22 @@ do_decode(VALUE *args)
     VALUE force_format = args[2];
 
     if (TYPE(force_format) == T_SYMBOL) {
-        if (force_format == sym_document) {
-            return rb_funcall(mMultiJson, id_load, 1, blob);
-        } else if (force_format == sym_marshal) {
-            return rb_funcall(mMarshal, id_load, 1, blob);
-        } else { /* sym_plain and any other symbol */
+        if (force_format == cb_sym_document) {
+            return rb_funcall(cb_mMultiJson, cb_id_load, 1, blob);
+        } else if (force_format == cb_sym_marshal) {
+            return rb_funcall(cb_mMarshal, cb_id_load, 1, blob);
+        } else { /* cb_sym_plain and any other cb_symbol */
             return blob;
         }
     } else {
-        uint32_t flags = ((uint32_t)args[1] & FMT_MASK);
+        uint32_t flags = ((uint32_t)args[1] & CB_FMT_MASK);
 
         switch (flags) {
-            case FMT_DOCUMENT:
-                return rb_funcall(mMultiJson, id_load, 1, blob);
-            case FMT_MARSHAL:
-                return rb_funcall(mMarshal, id_load, 1, blob);
-            case FMT_PLAIN:
+            case CB_FMT_DOCUMENT:
+                return rb_funcall(cb_mMultiJson, cb_id_load, 1, blob);
+            case CB_FMT_MARSHAL:
+                return rb_funcall(cb_mMarshal, cb_id_load, 1, blob);
+            case CB_FMT_PLAIN:
                 /* fall through */
             default:
                 /* all other formats treated as plain */
@@ -406,7 +406,7 @@ decode_value(VALUE blob, uint32_t flags, VALUE force_format)
 }
 
     void
-strip_key_prefix(struct bucket_st *bucket, VALUE key)
+strip_key_prefix(struct cb_bucket_st *bucket, VALUE key)
 {
     if (bucket->key_prefix) {
         rb_str_update(key, 0, RSTRING_LEN(bucket->key_prefix_val), STR_NEW_CSTR(""));
@@ -414,7 +414,7 @@ strip_key_prefix(struct bucket_st *bucket, VALUE key)
 }
 
     VALUE
-unify_key(struct bucket_st *bucket, VALUE key, int apply_prefix)
+unify_key(struct cb_bucket_st *bucket, VALUE key, int apply_prefix)
 {
     VALUE ret = Qnil, tmp;
 
@@ -434,7 +434,7 @@ unify_key(struct bucket_st *bucket, VALUE key, int apply_prefix)
 }
 
     void
-cb_build_headers(struct context_st *ctx, const char * const *headers)
+cb_build_headers(struct cb_context_st *ctx, const char * const *headers)
 {
     if (!ctx->headers_built) {
         VALUE key = Qnil, val;
