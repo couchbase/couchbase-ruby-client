@@ -83,6 +83,8 @@ struct cb_bucket_st
     uint32_t default_flags;
     time_t default_ttl;
     time_t default_observe_timeout;
+    lcb_uint64_t default_arith_create;  /* should the incr/decr create the key? if non-zero, will use arith_init */
+    lcb_uint64_t default_arith_init;    /* default initial value for incr/decr */
     uint32_t timeout;
     size_t threshold;       /* the number of bytes to trigger event loop, zero if don't care */
     size_t nbytes;          /* the number of bytes scheduled to be sent */
@@ -163,6 +165,7 @@ extern ID cb_sym_cluster;
 extern ID cb_sym_content_type;
 extern ID cb_sym_create;
 extern ID cb_sym_decrement;
+extern ID cb_sym_default_arithmetic_init;
 extern ID cb_sym_default_flags;
 extern ID cb_sym_default_format;
 extern ID cb_sym_default_observe_timeout;
@@ -361,6 +364,8 @@ VALUE cb_bucket_environment_get(VALUE self);
 VALUE cb_bucket_num_replicas_get(VALUE self);
 VALUE cb_bucket_default_observe_timeout_get(VALUE self);
 VALUE cb_bucket_default_observe_timeout_set(VALUE self, VALUE val);
+VALUE cb_bucket_default_arithmetic_init_get(VALUE self);
+VALUE cb_bucket_default_arithmetic_init_set(VALUE self, VALUE val);
 
 VALUE cb_http_request_alloc(VALUE klass);
 VALUE cb_http_request_init(int argc, VALUE *argv, VALUE self);

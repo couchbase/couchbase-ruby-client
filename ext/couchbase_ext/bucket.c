@@ -221,6 +221,13 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
                 bucket->key_prefix = strdup(StringValueCStr(arg));
                 bucket->key_prefix_val = STR_NEW_CSTR(bucket->key_prefix);
             }
+            arg = rb_hash_aref(opts, cb_sym_default_arithmetic_init);
+            if (arg != Qnil) {
+                bucket->default_arith_create = RTEST(arg);
+                if (TYPE(arg) == T_FIXNUM) {
+                    bucket->default_arith_init = NUM2ULL(arg);
+                }
+            }
         } else {
             opts = Qnil;
         }
@@ -372,6 +379,11 @@ cb_bucket_alloc(VALUE klass)
  *     returning back to the application.
  *   @option options [Fixnum] :timeout (2500000) the timeout for IO
  *     operations (in microseconds)
+ *   @option options [Fixnum, true] :default_arithmetic_init (0) the default
+ *     initial value for arithmetic operations. Setting this option to any
+ *     non positive number forces creation missing keys with given default
+ *     value. Setting it to +true+ will use zero as initial value. (see
+ *     {Bucket#incr} and {Bucket#decr}).
  *
  * @example Initialize connection using default options
  *   Couchbase.new
@@ -677,6 +689,27 @@ cb_bucket_timeout_set(VALUE self, VALUE val)
     tmval = ULONG2NUM(bucket->timeout);
 
     return tmval;
+}
+
+    VALUE
+cb_bucket_default_arithmetic_init_get(VALUE self)
+{
+    struct cb_bucket_st *bucket = DATA_PTR(self);
+    return ULL2NUM(bucket->default_arith_init);
+}
+
+    VALUE
+cb_bucket_default_arithmetic_init_set(VALUE self, VALUE val)
+{
+    struct cb_bucket_st *bucket = DATA_PTR(self);
+
+    bucket->default_arith_create = RTEST(val);
+    if (bucket->default_arith_create) {
+        bucket->default_arith_init = NUM2ULL(val);
+    } else {
+        bucket->default_arith_init = 0;
+    }
+    return ULL2NUM(bucket->default_arith_init);
 }
 
     VALUE

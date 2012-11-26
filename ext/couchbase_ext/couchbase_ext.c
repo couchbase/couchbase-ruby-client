@@ -43,6 +43,7 @@ ID cb_sym_content_type;
 ID cb_sym_create;
 ID cb_sym_cluster;
 ID cb_sym_decrement;
+ID cb_sym_default_arithmetic_init;
 ID cb_sym_default_flags;
 ID cb_sym_default_format;
 ID cb_sym_default_observe_timeout;
@@ -778,6 +779,20 @@ Init_couchbase_ext(void)
     rb_define_method(cb_cBucket, "timeout", cb_bucket_timeout_get, 0);
     rb_define_method(cb_cBucket, "timeout=", cb_bucket_timeout_set, 1);
 
+    /* Document-method: default_arithmetic_init
+     *
+     * @since 1.2.0
+     *
+     * @return [Fixnum, true] The initial value for arithmetic operations
+     *   {Bucket#incr} and {Bucket#decr}. Setting this attribute will force
+     *   aforementioned operations create keys unless they exists in the
+     *   bucket and will use given value. You can also just specify +true+
+     *   if you'd like just force key creation with zero default value.
+     */
+    /* rb_define_attr(cb_cBucket, "default_arithmetic_init", 1, 1); */
+    rb_define_method(cb_cBucket, "default_arithmetic_init", cb_bucket_default_arithmetic_init_get, 0);
+    rb_define_method(cb_cBucket, "default_arithmetic_init=", cb_bucket_default_arithmetic_init_set, 1);
+
     /* Document-method: key_prefix
      *
      * @since 1.2.0.dp5
@@ -1001,10 +1016,11 @@ Init_couchbase_ext(void)
     cb_sym_bucket = ID2SYM(rb_intern("bucket"));
     cb_sym_cas = ID2SYM(rb_intern("cas"));
     cb_sym_chunked = ID2SYM(rb_intern("chunked"));
+    cb_sym_cluster = ID2SYM(rb_intern("cluster"));
     cb_sym_content_type = ID2SYM(rb_intern("content_type"));
     cb_sym_create = ID2SYM(rb_intern("create"));
-    cb_sym_cluster = ID2SYM(rb_intern("cluster"));
     cb_sym_decrement = ID2SYM(rb_intern("decrement"));
+    cb_sym_default_arithmetic_init = ID2SYM(rb_intern("default_arithmetic_init"));
     cb_sym_default_flags = ID2SYM(rb_intern("default_flags"));
     cb_sym_default_format = ID2SYM(rb_intern("default_format"));
     cb_sym_default_ttl = ID2SYM(rb_intern("default_ttl"));

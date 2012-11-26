@@ -54,6 +54,43 @@ class TestArithmetic < MiniTest::Unit::TestCase
     end
   end
 
+  def test_it_allows_to_make_increments_less_verbose_by_forcing_create_by_default
+    connection = Couchbase.connect(:hostname => @mock.host, :port => @mock.port,
+                                   :default_arithmetic_init => true)
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id)
+    end
+    assert_equal 0, connection.incr(uniq_id), "return value"
+    assert_equal 0, connection.get(uniq_id), "via get command"
+  end
+
+  def test_it_allows_to_setup_initial_value_during_connection
+    connection = Couchbase.connect(:hostname => @mock.host, :port => @mock.port,
+                                   :default_arithmetic_init => 10)
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id)
+    end
+    assert_equal 10, connection.incr(uniq_id), "return value"
+    assert_equal 10, connection.get(uniq_id), "via get command"
+  end
+
+  def test_it_allows_to_change_default_initial_value_after_connection
+    connection = Couchbase.connect(:hostname => @mock.host, :port => @mock.port)
+
+    assert_equal 0, connection.default_arithmetic_init
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.incr(uniq_id)
+    end
+
+    connection.default_arithmetic_init = 10
+    assert_equal 10, connection.default_arithmetic_init
+    assert_raises(Couchbase::Error::NotFound) do
+      connection.get(uniq_id)
+    end
+    assert_equal 10, connection.incr(uniq_id), "return value"
+    assert_equal 10, connection.get(uniq_id), "via get command"
+  end
+
   def test_it_creates_missing_key_when_initial_value_specified
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 

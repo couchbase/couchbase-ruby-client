@@ -531,7 +531,10 @@ cb_params_arith_parse_options(struct cb_params_st *params, VALUE options)
     if (NIL_P(options)) {
         return;
     }
-    params->cmd.arith.create = RTEST(rb_hash_aref(options, cb_sym_create));
+    tmp = rb_hash_aref(options, cb_sym_create);
+    if (tmp != Qnil) {
+        params->cmd.arith.create = RTEST(tmp);
+    }
     params->cmd.arith.extended = RTEST(rb_hash_aref(options, cb_sym_extended));
     tmp = rb_hash_aref(options, cb_sym_ttl);
     if (tmp != Qnil) {
@@ -926,6 +929,8 @@ do_params_build(VALUE ptr)
             cb_params_get_parse_arguments(params, argc, argv);
             break;
         case cb_cmd_arith:
+            params->cmd.arith.create = params->bucket->default_arith_create;
+            params->cmd.arith.initial = params->bucket->default_arith_init;
             params->cmd.arith.delta = 1;
             params->cmd.arith.format = params->bucket->default_format;
             params->cmd.arith.ttl = params->bucket->default_ttl;
