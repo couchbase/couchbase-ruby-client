@@ -288,7 +288,7 @@ cb_check_error(lcb_error_t rc, const char *msg, VALUE key)
 
 
     uint32_t
-flags_set_format(uint32_t flags, ID format)
+cb_flags_set_format(uint32_t flags, ID format)
 {
     flags &= ~((uint32_t)CB_FMT_MASK); /* clear format bits */
 
@@ -303,7 +303,7 @@ flags_set_format(uint32_t flags, ID format)
 }
 
     ID
-flags_get_format(uint32_t flags)
+cb_flags_get_format(uint32_t flags)
 {
     flags &= CB_FMT_MASK; /* select format bits */
 
@@ -379,7 +379,7 @@ coding_failed(VALUE unused, VALUE exc)
 }
 
     VALUE
-encode_value(VALUE val, uint32_t flags)
+cb_encode_value(VALUE val, uint32_t flags)
 {
     VALUE blob, args[2];
 
@@ -390,7 +390,7 @@ encode_value(VALUE val, uint32_t flags)
 }
 
     VALUE
-decode_value(VALUE blob, uint32_t flags, VALUE force_format)
+cb_decode_value(VALUE blob, uint32_t flags, VALUE force_format)
 {
     VALUE val, args[3];
 
@@ -406,7 +406,7 @@ decode_value(VALUE blob, uint32_t flags, VALUE force_format)
 }
 
     void
-strip_key_prefix(struct cb_bucket_st *bucket, VALUE key)
+cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key)
 {
     if (bucket->key_prefix) {
         rb_str_update(key, 0, RSTRING_LEN(bucket->key_prefix_val), STR_NEW_CSTR(""));
@@ -414,7 +414,7 @@ strip_key_prefix(struct cb_bucket_st *bucket, VALUE key)
 }
 
     VALUE
-unify_key(struct cb_bucket_st *bucket, VALUE key, int apply_prefix)
+cb_unify_key(struct cb_bucket_st *bucket, VALUE key, int apply_prefix)
 {
     VALUE ret = Qnil, tmp;
 

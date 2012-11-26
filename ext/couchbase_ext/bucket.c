@@ -948,7 +948,7 @@ do_loop(struct cb_bucket_st *bucket)
 }
 
     void
-maybe_do_loop(struct cb_bucket_st *bucket)
+cb_maybe_do_loop(struct cb_bucket_st *bucket)
 {
     if (bucket->threshold != 0 && bucket->nbytes > bucket->threshold) {
         do_loop(bucket);
