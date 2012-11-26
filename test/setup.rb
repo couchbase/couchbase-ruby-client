@@ -168,4 +168,8 @@ class MiniTest::Unit::TestCase
   def uniq_id(*suffixes)
     [caller.first[/.*[` ](.*)'/, 1], suffixes].join("_")
   end
+
+  def after_teardown
+    GC.start
+  end
 end

@@ -70,6 +70,9 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
     }
     if (ctx->nqueries == 0) {
         cb_gc_unprotect(bucket, ctx->proc);
+        if (bucket->async) {
+            xfree(ctx);
+        }
     }
     (void)handle;
 }

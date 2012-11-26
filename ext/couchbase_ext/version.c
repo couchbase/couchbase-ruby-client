@@ -52,6 +52,9 @@ cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
     } else {
         ctx->nqueries--;
         cb_gc_unprotect(bucket, ctx->proc);
+        if (bucket->async) {
+            xfree(ctx);
+        }
     }
 
     (void)handle;

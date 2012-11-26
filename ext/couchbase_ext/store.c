@@ -21,6 +21,7 @@
 storage_observe_callback(VALUE args, VALUE cookie)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
+    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE res = rb_ary_shift(args);
 
     if (ctx->proc != Qnil) {
@@ -30,7 +31,10 @@ storage_observe_callback(VALUE args, VALUE cookie)
     if (!RTEST(ctx->observe_options)) {
         ctx->nqueries--;
         if (ctx->nqueries == 0) {
-            cb_gc_unprotect(ctx->bucket, ctx->proc);
+            cb_gc_unprotect(bucket, ctx->proc);
+            if (bucket->async) {
+                xfree(ctx);
+            }
         }
     }
     return Qnil;
@@ -101,6 +105,9 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
         ctx->nqueries--;
         if (ctx->nqueries == 0) {
             cb_gc_unprotect(bucket, ctx->proc);
+            if (bucket->async) {
+                xfree(ctx);
+            }
         }
     }
     (void)handle;

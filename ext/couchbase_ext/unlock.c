@@ -51,6 +51,9 @@ cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
     }
     if (ctx->nqueries == 0) {
         cb_gc_unprotect(bucket, ctx->proc);
+        if (bucket->async) {
+            xfree(ctx);
+        }
     }
     (void)handle;
 }

@@ -48,47 +48,54 @@ end
 
 Rake::Task['test'].prerequisites.unshift('test/CouchbaseMock.jar')
 
-desc "Run the test suite under Valgrind."
+common_flags = %w[
+  --tool=memcheck
+  --error-limit=no
+  --undef-value-errors=no
+  --leak-check=full
+  --show-reachable=yes
+  --num-callers=50
+  --track-fds=yes
+  --workaround-gcc296-bugs=yes
+  --leak-resolution=med
+  --max-stackframe=7304328
+  --partial-loads-ok=yes
+]
+
+desc "Run the test suite under Valgrind memcheck."
 task "test:valgrind" do
-  ENV['RUBY_PREFIX'] = [
-    "valgrind",
-    "--num-callers=50",
-    "--error-limit=no",
-    "--partial-loads-ok=yes",
-    "--undef-value-errors=no",
-    "--track-fds=yes",
-    "--leak-check=full",
-    "--leak-resolution=med",
-  ].join(' ')
+  ENV['RUBY_PREFIX'] = "valgrind #{common_flags.join(' ')}"
   Rake::Task['test'].invoke
 end
 
-desc "Run the test suite under Valgrind with memory-fill."
+desc "Run the test suite under Valgrind memcheck with memory-fill."
 task "test:valgrind:mem_fill" do
-  ENV['RUBY_PREFIX'] = [
-    "valgrind",
-    "--num-callers=50",
-    "--error-limit=no",
-    "--partial-loads-ok=yes",
-    "--undef-value-errors=no",
-    "--freelist-vol=100000000",
-    "--malloc-fill=6D",
-    "--free-fill=66",
-  ].join(' ')
+  local_flags = %w[
+    --malloc-fill=6D
+    --freelist-vol=100000000
+    --free-fill=66
+  ]
+  ENV['RUBY_PREFIX'] = "valgrind #{common_flags.join(' ')} #{local_flags.join(' ')}"
   Rake::Task['test'].invoke
 end
 
-desc "Run the test suite under Valgrind with memory-zero."
+desc "Run the test suite under Valgrind memcheck with memory-zero."
 task "test:valgrind:mem_zero" do
-  ENV['RUBY_PREFIX'] = [
-    "valgrind",
-    "--num-callers=50",
-    "--error-limit=no",
-    "--partial-loads-ok=yes",
-    "--undef-value-errors=no",
-    "--freelist-vol=100000000",
-    "--malloc-fill=00",
-    "--free-fill=00",
-  ].join(' ')
+  local_flags = %w[
+    --freelist-vol=100000000
+    --malloc-fill=00
+    --free-fill=00
+  ]
+  ENV['RUBY_PREFIX'] = "valgrind #{common_flags.join(' ')} #{local_flags.join(' ')}"
+  Rake::Task['test'].invoke
+end
+
+desc "Run the test suite under Valgrind massif."
+task "test:valgrind:massif" do
+  local_flags = %w[
+    --tool=massif
+    --time-unit=B
+  ]
+  ENV['RUBY_PREFIX'] = "valgrind #{local_flags.join(' ')}"
   Rake::Task['test'].invoke
 end
