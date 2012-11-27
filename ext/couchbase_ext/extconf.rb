@@ -119,9 +119,16 @@ if try_compile(<<-SRC)
   define("HAVE_STDARG_PROTOTYPES")
 end
 
-have_library("couchbase", "lcb_verify_compiler_setup", "libcouchbase/couchbase.h") or abort "You should install libcouchbase >= 2.0.0beta3. See http://www.couchbase.com/develop/ for more details"
+def die(message)
+  STDERR.puts "\n#{"*" * 70}"
+  STDERR.puts "#{message}"
+  STDERR.puts "#{"*" * 70}\n\n"
+  abort
+end
+
+have_library("couchbase", "lcb_verify_compiler_setup", "libcouchbase/couchbase.h") or die("You must install libcouchbase >= 2.0.0beta3. See http://www.couchbase.com/develop/ for more details")
 have_header("mach/mach_time.h")
-have_header("stdint.h") or abort "Failed to locate stdint.h"
+have_header("stdint.h") or die("Failed to locate stdint.h")
 have_header("sys/time.h")
 have_func("clock_gettime")
 have_func("gettimeofday")
