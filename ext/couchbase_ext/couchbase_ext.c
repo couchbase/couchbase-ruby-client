@@ -103,6 +103,7 @@ ID cb_id_dup;
 ID cb_id_flatten_bang;
 ID cb_id_has_key_p;
 ID cb_id_host;
+ID cb_id_iv_body;
 ID cb_id_iv_cas;
 ID cb_id_iv_completed;
 ID cb_id_iv_error;
@@ -121,6 +122,7 @@ ID cb_id_load;
 ID cb_id_match;
 ID cb_id_observe_and_wait;
 ID cb_id_parse;
+ID cb_id_parse_body_bang;
 ID cb_id_password;
 ID cb_id_path;
 ID cb_id_port;
@@ -411,6 +413,7 @@ Init_couchbase_ext(void)
      * @since 1.2.0
      */
     cb_eHTTPError = rb_define_class_under(cb_mError, "HTTP", cb_eBaseError);
+    cb_id_iv_body = rb_intern("@body");
     /* Document-method: error
      *
      * The underlying libcouchbase library could return one of the following
@@ -1000,6 +1003,7 @@ Init_couchbase_ext(void)
     cb_id_match = rb_intern("match");
     cb_id_observe_and_wait = rb_intern("observe_and_wait");
     cb_id_parse = rb_intern("parse");
+    cb_id_parse_body_bang = rb_intern("parse_body!");
     cb_id_password = rb_intern("password");
     cb_id_path = rb_intern("path");
     cb_id_port = rb_intern("port");

@@ -27,12 +27,16 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
 
     ctx->request->completed = 1;
     key = STR_NEW((const char*)resp->v.v0.path, resp->v.v0.npath);
+    val = resp->v.v0.nbytes ? STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;
     ctx->exception = cb_check_error_with_status(error,
             "failed to execute HTTP request", key, resp->v.v0.status);
     if (ctx->exception != Qnil) {
+        if (val != Qnil) {
+            rb_ivar_set(ctx->exception, cb_id_iv_body, val);
+        }
+        rb_funcall(ctx->exception, cb_id_parse_body_bang, 0);
         cb_gc_protect(bucket, ctx->exception);
     }
-    val = resp->v.v0.nbytes ? STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;
     status = resp->v.v0.status;
     if (resp->v.v0.headers) {
         cb_build_headers(ctx, resp->v.v0.headers);
@@ -69,13 +73,23 @@ cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cook
     lcb_http_status_t status;
 
     key = STR_NEW((const char*)resp->v.v0.path, resp->v.v0.npath);
-    ctx->exception = cb_check_error_with_status(error,
-            "failed to execute HTTP request", key, resp->v.v0.status);
     val = resp->v.v0.nbytes ? STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;
     status = resp->v.v0.status;
-    if (ctx->exception != Qnil) {
-        cb_gc_protect(bucket, ctx->exception);
-        lcb_cancel_http_request(bucket->handle, request);
+    if (NIL_P(ctx->exception)) {
+        ctx->exception = cb_check_error_with_status(error,
+                "failed to execute HTTP request", key, resp->v.v0.status);
+        if (ctx->exception != Qnil) {
+            VALUE body_str = rb_ivar_get(ctx->exception, cb_id_iv_body);
+            if (NIL_P(body_str)) {
+                cb_gc_protect(bucket, ctx->exception);
+                rb_ivar_set(ctx->exception, cb_id_iv_body, val);
+            } else {
+                rb_str_concat(body_str, val);
+            }
+            if (ctx->http_cancel_on_error) {
+                lcb_cancel_http_request(bucket->handle, request);
+            }
+        }
     }
     if (resp->v.v0.headers) {
         cb_build_headers(ctx, resp->v.v0.headers);

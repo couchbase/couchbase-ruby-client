@@ -29,6 +29,24 @@ module Couchbase
         super("#{prefix}#{from}: #{reason}")
       end
     end
+
+    class HTTP < Base
+      attr_reader :type, :reason
+
+      def parse_body!
+        if @body
+          hash = MultiJson.load(@body)
+          @type = hash["error"]
+          @reason = hash["reason"]
+        end
+      rescue MultiJson::DecodeError
+        @type = @reason = nil
+      end
+
+      def to_s
+        super.sub(/ \(/, ": #{@type}: #{@reason} (")
+      end
+    end
   end
 
   # This class implements Couchbase View execution

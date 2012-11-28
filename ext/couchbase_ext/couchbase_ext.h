@@ -114,6 +114,7 @@ struct cb_context_st
     struct cb_http_request_st *request;
     int quiet;
     int arith;           /* incr: +1, decr: -1, other: 0 */
+    int http_cancel_on_error;
     size_t nqueries;
 };
 
@@ -225,6 +226,7 @@ extern ID cb_id_dup;
 extern ID cb_id_flatten_bang;
 extern ID cb_id_has_key_p;
 extern ID cb_id_host;
+extern ID cb_id_iv_body;
 extern ID cb_id_iv_cas;
 extern ID cb_id_iv_completed;
 extern ID cb_id_iv_error;
@@ -243,6 +245,7 @@ extern ID cb_id_load;
 extern ID cb_id_match;
 extern ID cb_id_observe_and_wait;
 extern ID cb_id_parse;
+extern ID cb_id_parse_body_bang;
 extern ID cb_id_password;
 extern ID cb_id_path;
 extern ID cb_id_port;
