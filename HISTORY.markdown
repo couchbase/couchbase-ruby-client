@@ -1,3 +1,12 @@
+## 1.2.0.z.beta5 / 2012-11-29
+
+* Reduce probability name conflict: use "cb_" prefix
+* Fix function prefixes
+* Make error message about dependency more verbose
+* Allow to setup default initial value for INCR/DECR
+* Fix memory leaks: in async mode context wasn't freed
+* RCBC-95 Use response body to clarify Couchbase::Error::HTTP
+
 ## 1.2.0.z.beta4 / 2012-11-21
 
 * Do not hide ValueFormat reason
