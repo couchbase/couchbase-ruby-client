@@ -781,6 +781,7 @@ cb_bucket_authority_get(VALUE self)
     (void)cb_bucket_hostname_get(self);
     (void)cb_bucket_port_get(self);
     len = strlen(bucket->hostname) + 10;
+    free(bucket->authority);
     bucket->authority = calloc(len, sizeof(char));
     if (bucket->authority == NULL) {
         rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
