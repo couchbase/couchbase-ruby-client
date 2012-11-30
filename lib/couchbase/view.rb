@@ -312,7 +312,7 @@ module Couchbase
       # run event loop until the terminating chunk will be found
       # last_res variable keeps latest known chunk of the result
       last_res = nil
-      loop do
+      while true
         # feed response received chunks to the parser
         while r = res.shift
           if r.error

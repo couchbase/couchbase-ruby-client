@@ -58,7 +58,7 @@ module Rack
       end
 
       def generate_sid
-        loop do
+        while true
           sid = super
           break sid unless @pool.get(sid)
         end
