@@ -85,7 +85,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
     if (ctx->nqueries == 0) {
         cb_gc_unprotect(bucket, ctx->proc);
         if (bucket->async) {
-            xfree(ctx);
+            free(ctx);
         }
     }
     (void)handle;
@@ -241,7 +241,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     params.cmd.get.keys_ary = cb_gc_protect(bucket, rb_ary_new());
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = xcalloc(1, sizeof(struct cb_context_st));
+    ctx = calloc(1, sizeof(struct cb_context_st));
     if (ctx == NULL) {
         rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
     }
@@ -265,7 +265,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     cb_gc_unprotect(bucket, params.cmd.get.keys_ary);
     exc = cb_check_error(err, "failed to schedule get request", Qnil);
     if (exc != Qnil) {
-        xfree(ctx);
+        free(ctx);
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
@@ -278,7 +278,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
             lcb_wait(bucket->handle);
         }
         exc = ctx->exception;
-        xfree(ctx);
+        free(ctx);
         if (exc != Qnil) {
             cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);

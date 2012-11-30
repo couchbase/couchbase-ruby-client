@@ -123,11 +123,11 @@ cb_http_request_free(void *ptr)
                 && !request->completed) {
             lcb_cancel_http_request(request->bucket->handle, request->request);
         }
-        xfree((char *)request->cmd.v.v0.content_type);
-        xfree((char *)request->cmd.v.v0.path);
-        xfree((char *)request->cmd.v.v0.body);
-        xfree(request);
+        free((char *)request->cmd.v.v0.content_type);
+        free((char *)request->cmd.v.v0.path);
+        free((char *)request->cmd.v.v0.body);
     }
+    xfree(request);
 }
 
     void
@@ -242,7 +242,7 @@ cb_http_request_init(int argc, VALUE *argv, VALUE self)
         }
         if ((arg = rb_hash_aref(opts, cb_sym_content_type)) != Qnil) {
             Check_Type(arg, T_STRING);
-            xfree((char *)request->cmd.v.v0.content_type);
+            free((char *)request->cmd.v.v0.content_type);
             request->cmd.v.v0.content_type = strdup(RSTRING_PTR(arg));
         }
     }
@@ -280,7 +280,7 @@ cb_http_request_perform(VALUE self)
     lcb_error_t err;
     struct cb_bucket_st *bucket;
 
-    ctx = xcalloc(1, sizeof(struct cb_context_st));
+    ctx = calloc(1, sizeof(struct cb_context_st));
     if (ctx == NULL) {
         rb_raise(cb_eClientNoMemoryError, "failed to allocate memory");
     }
@@ -297,7 +297,7 @@ cb_http_request_perform(VALUE self)
     exc = cb_check_error(err, "failed to schedule document request",
             STR_NEW(req->cmd.v.v0.path, req->cmd.v.v0.npath));
     if (exc != Qnil) {
-        xfree(ctx);
+        free(ctx);
         rb_exc_raise(exc);
     }
     req->running = 1;
@@ -308,7 +308,7 @@ cb_http_request_perform(VALUE self)
         lcb_wait(bucket->handle);
         if (req->completed) {
             exc = ctx->exception;
-            xfree(ctx);
+            free(ctx);
             if (exc != Qnil) {
                 cb_gc_unprotect(bucket, exc);
                 rb_exc_raise(exc);
@@ -340,7 +340,7 @@ cb_http_request_continue(VALUE self)
         if (req->completed) {
             exc = req->ctx->exception;
             rv = req->ctx->rv;
-            xfree(req->ctx);
+            free(req->ctx);
             if (exc != Qnil) {
                 cb_gc_unprotect(req->bucket, exc);
                 rb_exc_raise(exc);

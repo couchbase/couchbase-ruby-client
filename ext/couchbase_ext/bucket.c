@@ -36,15 +36,15 @@ cb_bucket_free(void *ptr)
             lcb_destroy(bucket->handle);
             lcb_destroy_io_ops(bucket->io);
         }
-        xfree(bucket->authority);
-        xfree(bucket->hostname);
-        xfree(bucket->pool);
-        xfree(bucket->bucket);
-        xfree(bucket->username);
-        xfree(bucket->password);
-        xfree(bucket->key_prefix);
-        xfree(bucket);
+        free(bucket->authority);
+        free(bucket->hostname);
+        free(bucket->pool);
+        free(bucket->bucket);
+        free(bucket->username);
+        free(bucket->password);
+        free(bucket->key_prefix);
     }
+    xfree(bucket);
 }
 
     void
@@ -85,7 +85,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
 
             arg = rb_funcall(uri_obj, cb_id_user, 0);
             if (arg != Qnil) {
-                xfree(bucket->username);
+                free(bucket->username);
                 bucket->username = strdup(RSTRING_PTR(arg));
                 if (bucket->username == NULL) {
                     rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
@@ -94,7 +94,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
 
             arg = rb_funcall(uri_obj, cb_id_password, 0);
             if (arg != Qnil) {
-                xfree(bucket->password);
+                free(bucket->password);
                 bucket->password = strdup(RSTRING_PTR(arg));
                 if (bucket->password == NULL) {
                     rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
@@ -102,7 +102,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_funcall(uri_obj, cb_id_host, 0);
             if (arg != Qnil) {
-                xfree(bucket->hostname);
+                free(bucket->hostname);
                 bucket->hostname = strdup(RSTRING_PTR(arg));
                 if (bucket->hostname == NULL) {
                     rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
@@ -118,10 +118,10 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             re = rb_reg_new(path_re, sizeof(path_re) - 1, 0);
             match = rb_funcall(re, cb_id_match, 1, arg);
             arg = rb_reg_nth_match(2, match);
-            xfree(bucket->pool);
+            free(bucket->pool);
             bucket->pool = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
             arg = rb_reg_nth_match(4, match);
-            xfree(bucket->bucket);
+            free(bucket->bucket);
             bucket->bucket = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
         }
         if (TYPE(opts) == T_HASH) {
@@ -136,34 +136,34 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             arg = rb_hash_aref(opts, cb_sym_node_list);
             if (arg != Qnil) {
                 VALUE tt;
-                xfree(bucket->node_list);
+                free(bucket->node_list);
                 Check_Type(arg, T_ARRAY);
                 tt = rb_ary_join(arg, STR_NEW_CSTR(";"));
                 bucket->node_list = strdup(StringValueCStr(tt));
             }
             arg = rb_hash_aref(opts, cb_sym_hostname);
             if (arg != Qnil) {
-                xfree(bucket->hostname);
+                free(bucket->hostname);
                 bucket->hostname = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_pool);
             if (arg != Qnil) {
-                xfree(bucket->pool);
+                free(bucket->pool);
                 bucket->pool = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_bucket);
             if (arg != Qnil) {
-                xfree(bucket->bucket);
+                free(bucket->bucket);
                 bucket->bucket = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_username);
             if (arg != Qnil) {
-                xfree(bucket->username);
+                free(bucket->username);
                 bucket->username = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_password);
             if (arg != Qnil) {
-                xfree(bucket->password);
+                free(bucket->password);
                 bucket->password = strdup(StringValueCStr(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_port);
@@ -217,7 +217,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_key_prefix);
             if (arg != Qnil) {
-                xfree(bucket->key_prefix);
+                free(bucket->key_prefix);
                 bucket->key_prefix = strdup(StringValueCStr(arg));
                 bucket->key_prefix_val = STR_NEW_CSTR(bucket->key_prefix);
             }
@@ -239,8 +239,8 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
     if (bucket->default_observe_timeout < 2) {
         rb_raise(rb_eArgError, "default_observe_timeout is too low");
     }
-    xfree(bucket->authority);
-    bucket->authority = xcalloc(len, sizeof(char));
+    free(bucket->authority);
+    bucket->authority = calloc(len, sizeof(char));
     if (bucket->authority == NULL) {
         rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
     }
@@ -741,7 +741,7 @@ cb_bucket_hostname_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     if (bucket->handle) {
-        xfree(bucket->hostname);
+        free(bucket->hostname);
         bucket->hostname = strdup(lcb_get_host(bucket->handle));
         if (bucket->hostname == NULL) {
             rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
@@ -781,7 +781,7 @@ cb_bucket_authority_get(VALUE self)
     (void)cb_bucket_hostname_get(self);
     (void)cb_bucket_port_get(self);
     len = strlen(bucket->hostname) + 10;
-    bucket->authority = xcalloc(len, sizeof(char));
+    bucket->authority = calloc(len, sizeof(char));
     if (bucket->authority == NULL) {
         rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
     }

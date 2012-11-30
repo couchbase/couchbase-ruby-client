@@ -33,7 +33,7 @@ storage_observe_callback(VALUE args, VALUE cookie)
         if (ctx->nqueries == 0) {
             cb_gc_unprotect(bucket, ctx->proc);
             if (bucket->async) {
-                xfree(ctx);
+                free(ctx);
             }
         }
     }
@@ -106,7 +106,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
         if (ctx->nqueries == 0) {
             cb_gc_unprotect(bucket, ctx->proc);
             if (bucket->async) {
-                xfree(ctx);
+                free(ctx);
             }
         }
     }
@@ -134,7 +134,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     params.cmd.store.operation = cmd;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = xcalloc(1, sizeof(struct cb_context_st));
+    ctx = calloc(1, sizeof(struct cb_context_st));
     if (ctx == NULL) {
         rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
     }
@@ -150,7 +150,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule set request", Qnil);
     if (exc != Qnil) {
-        xfree(ctx);
+        free(ctx);
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
@@ -163,7 +163,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
             lcb_wait(bucket->handle);
         }
         exc = ctx->exception;
-        xfree(ctx);
+        free(ctx);
         if (exc != Qnil) {
             cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);

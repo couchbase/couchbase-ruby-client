@@ -71,7 +71,7 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
     if (ctx->nqueries == 0) {
         cb_gc_unprotect(bucket, ctx->proc);
         if (bucket->async) {
-            xfree(ctx);
+            free(ctx);
         }
     }
     (void)handle;
@@ -98,7 +98,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     params.cmd.arith.sign = sign;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = xcalloc(1, sizeof(struct cb_context_st));
+    ctx = calloc(1, sizeof(struct cb_context_st));
     if (ctx == NULL) {
         rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
     }
@@ -113,7 +113,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule arithmetic request", Qnil);
     if (exc != Qnil) {
-        xfree(ctx);
+        free(ctx);
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
@@ -126,7 +126,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
             lcb_wait(bucket->handle);
         }
         exc = ctx->exception;
-        xfree(ctx);
+        free(ctx);
         if (exc != Qnil) {
             cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
