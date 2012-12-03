@@ -895,11 +895,11 @@ cb_bucket_url_get(VALUE self)
 
     (void)cb_bucket_authority_get(self);
     str = rb_str_buf_new2("http://");
-    rb_str_buf_cat2(str, RSTRING_PTR(bucket->authority));
+    rb_str_append(str, bucket->authority);
     rb_str_buf_cat2(str, "/pools/");
-    rb_str_buf_cat2(str, RSTRING_PTR(bucket->pool));
+    rb_str_append(str, bucket->pool);
     rb_str_buf_cat2(str, "/buckets/");
-    rb_str_buf_cat2(str, RSTRING_PTR(bucket->bucket));
+    rb_str_append(str, bucket->bucket);
     rb_str_buf_cat2(str, "/");
     return str;
 }
@@ -925,11 +925,11 @@ cb_bucket_inspect(VALUE self)
     (void)cb_bucket_authority_get(self);
     rb_str_buf_cat2(str, buf);
     rb_str_buf_cat2(str, "http://");
-    rb_str_buf_cat2(str, RSTRING_PTR(bucket->authority));
+    rb_str_append(str, bucket->authority);
     rb_str_buf_cat2(str, "/pools/");
-    rb_str_buf_cat2(str, RSTRING_PTR(bucket->pool));
+    rb_str_append(str, bucket->pool);
     rb_str_buf_cat2(str, "/buckets/");
-    rb_str_buf_cat2(str, RSTRING_PTR(bucket->bucket));
+    rb_str_append(str, bucket->bucket);
     rb_str_buf_cat2(str, "/");
     snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s, connected=%s, timeout=%u",
             rb_id2name(SYM2ID(bucket->default_format)),
