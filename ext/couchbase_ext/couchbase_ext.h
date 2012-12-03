@@ -75,8 +75,8 @@ struct cb_bucket_st
     VALUE hostname;
     VALUE pool;
     VALUE bucket;
-    char *username;
-    char *password;
+    VALUE username;
+    VALUE password;
     int async;
     int quiet;
     VALUE default_format;    /* should update +default_flags+ on change */

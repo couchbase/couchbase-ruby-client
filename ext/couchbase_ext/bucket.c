@@ -36,8 +36,6 @@ cb_bucket_free(void *ptr)
             lcb_destroy(bucket->handle);
             lcb_destroy_io_ops(bucket->io);
         }
-        free(bucket->username);
-        free(bucket->password);
         free(bucket->key_prefix);
     }
     xfree(bucket);
@@ -53,6 +51,8 @@ cb_bucket_mark(void *ptr)
         rb_gc_mark(bucket->hostname);
         rb_gc_mark(bucket->pool);
         rb_gc_mark(bucket->bucket);
+        rb_gc_mark(bucket->username);
+        rb_gc_mark(bucket->password);
         rb_gc_mark(bucket->exception);
         rb_gc_mark(bucket->on_error_proc);
         rb_gc_mark(bucket->key_prefix_val);
@@ -85,20 +85,12 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
 
             arg = rb_funcall(uri_obj, cb_id_user, 0);
             if (arg != Qnil) {
-                free(bucket->username);
-                bucket->username = strdup(RSTRING_PTR(arg));
-                if (bucket->username == NULL) {
-                    rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
-                }
+                bucket->username = rb_str_dup_frozen(StringValue(arg));
             }
 
             arg = rb_funcall(uri_obj, cb_id_password, 0);
             if (arg != Qnil) {
-                free(bucket->password);
-                bucket->password = strdup(RSTRING_PTR(arg));
-                if (bucket->password == NULL) {
-                    rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
-                }
+                bucket->password = rb_str_dup_frozen(StringValue(arg));
             }
             arg = rb_funcall(uri_obj, cb_id_host, 0);
             if (arg != Qnil) {
@@ -151,13 +143,11 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_username);
             if (arg != Qnil) {
-                free(bucket->username);
-                bucket->username = strdup(StringValueCStr(arg));
+                bucket->username = rb_str_dup_frozen(StringValue(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_password);
             if (arg != Qnil) {
-                free(bucket->password);
-                bucket->password = strdup(StringValueCStr(arg));
+                bucket->password = rb_str_dup_frozen(StringValue(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_port);
             if (arg != Qnil) {
@@ -225,8 +215,8 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             opts = Qnil;
         }
     }
-    if (bucket->password && bucket->username == NULL) {
-        bucket->username = strdup(RSTRING_PTR(bucket->bucket));
+    if (RTEST(bucket->password) && !RTEST(bucket->username)) {
+        bucket->username = bucket->bucket;
     }
     if (bucket->default_observe_timeout < 2) {
         rb_raise(rb_eArgError, "default_observe_timeout is too low");
@@ -258,8 +248,8 @@ do_connect(struct cb_bucket_st *bucket)
     create_opts.version = 1;
     create_opts.v.v1.type = bucket->type;
     create_opts.v.v1.host = bucket->node_list ? bucket-> node_list : RSTRING_PTR(bucket->authority);
-    create_opts.v.v1.user = bucket->username;
-    create_opts.v.v1.passwd = bucket->password;
+    create_opts.v.v1.user = RTEST(bucket->username) ? RSTRING_PTR(bucket->username) : NULL;
+    create_opts.v.v1.passwd = RTEST(bucket->username) ? RSTRING_PTR(bucket->password) : NULL;
     create_opts.v.v1.bucket = RSTRING_PTR(bucket->bucket);
     create_opts.v.v1.io = bucket->io;
     err = lcb_create(&bucket->handle, &create_opts);
@@ -412,6 +402,8 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     rb_str_freeze(bucket->pool);
     bucket->bucket = rb_str_new2("default");
     rb_str_freeze(bucket->bucket);
+    bucket->username = Qnil;
+    bucket->password = Qnil;
     bucket->async = 0;
     bucket->quiet = 0;
     bucket->default_ttl = 0;
@@ -465,12 +457,8 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->hostname = orig_b->hostname;
     copy_b->pool = orig_b->pool;
     copy_b->bucket = orig_b->bucket;
-    if (orig_b->username) {
-        copy_b->username = strdup(orig_b->username);
-    }
-    if (orig_b->password) {
-        copy_b->password = strdup(orig_b->password);
-    }
+    copy_b->username = orig_b->username;
+    copy_b->password = orig_b->password;
     if (orig_b->key_prefix) {
         copy_b->key_prefix = strdup(orig_b->key_prefix);
     }
@@ -822,7 +810,7 @@ cb_bucket_pool_get(VALUE self)
 cb_bucket_username_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
-    return STR_NEW_CSTR(bucket->username);
+    return bucket->username;
 }
 
 /* Document-method: password
@@ -835,7 +823,7 @@ cb_bucket_username_get(VALUE self)
 cb_bucket_password_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
-    return STR_NEW_CSTR(bucket->password);
+    return bucket->password;
 }
 
 /* Document-method: environment
