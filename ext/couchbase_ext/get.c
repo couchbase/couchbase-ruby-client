@@ -59,7 +59,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
             val = raw;
         }
     } else if (cb_flags_get_format(resp->v.v0.flags) == cb_sym_plain) {
-        val = STR_NEW_CSTR("");
+        val = cb_vStrEmpty;
     }
     if (bucket->async) { /* asynchronous */
         if (ctx->proc != Qnil) {

@@ -288,6 +288,10 @@ extern VALUE cb_eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x1a   */
 extern VALUE cb_eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x1b */
 extern VALUE cb_eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
 
+/* Default Strings */
+extern VALUE cb_vStrDefault;
+extern VALUE cb_vStrEmpty;
+
 void cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key);
 VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);
 VALUE cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb_http_status_t status);
