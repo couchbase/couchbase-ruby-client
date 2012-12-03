@@ -36,7 +36,6 @@ cb_bucket_free(void *ptr)
             lcb_destroy(bucket->handle);
             lcb_destroy_io_ops(bucket->io);
         }
-        free(bucket->key_prefix);
     }
     xfree(bucket);
 }
@@ -198,9 +197,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_key_prefix);
             if (arg != Qnil) {
-                free(bucket->key_prefix);
-                bucket->key_prefix = strdup(StringValueCStr(arg));
-                bucket->key_prefix_val = STR_NEW_CSTR(bucket->key_prefix);
+                bucket->key_prefix_val = rb_str_dup_frozen(StringValue(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_default_arithmetic_init);
             if (arg != Qnil) {
@@ -411,7 +408,6 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->on_error_proc = Qnil;
     bucket->timeout = 0;
     bucket->environment = cb_sym_production;
-    bucket->key_prefix = NULL;
     bucket->key_prefix_val = Qnil;
     bucket->node_list = Qnil;
     bucket->object_space = rb_hash_new();
@@ -456,9 +452,6 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->bucket = orig_b->bucket;
     copy_b->username = orig_b->username;
     copy_b->password = orig_b->password;
-    if (orig_b->key_prefix) {
-        copy_b->key_prefix = strdup(orig_b->key_prefix);
-    }
     copy_b->async = orig_b->async;
     copy_b->quiet = orig_b->quiet;
     copy_b->default_format = orig_b->default_format;
@@ -470,9 +463,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     if (orig_b->on_error_proc != Qnil) {
         copy_b->on_error_proc = rb_funcall(orig_b->on_error_proc, cb_id_dup, 0);
     }
-    if (orig_b->key_prefix_val != Qnil) {
-        copy_b->key_prefix_val = rb_funcall(orig_b->key_prefix_val, cb_id_dup, 0);
-    }
+    copy_b->key_prefix_val = orig_b->key_prefix_val;
 
     do_connect(copy_b);
 
@@ -701,8 +692,7 @@ cb_bucket_key_prefix_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
 
-    bucket->key_prefix = strdup(StringValueCStr(val));
-    bucket->key_prefix_val = STR_NEW_CSTR(bucket->key_prefix);
+    bucket->key_prefix_val = rb_str_dup_frozen(StringValue(val));
 
     return bucket->key_prefix_val;
 }
@@ -945,7 +935,7 @@ cb_bucket_inspect(VALUE self)
             bucket->handle ? "true" : "false",
             bucket->timeout);
     rb_str_buf_cat2(str, buf);
-    if (bucket->key_prefix) {
+    if (RTEST(bucket->key_prefix_val)) {
         rb_str_buf_cat2(str, ", key_prefix=");
         rb_str_append(str, rb_inspect(bucket->key_prefix_val));
     }
