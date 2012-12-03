@@ -91,7 +91,6 @@ struct cb_bucket_st
     VALUE exception;        /* error delivered by error_callback */
     VALUE on_error_proc;    /* is using to deliver errors in async mode */
     VALUE environment;      /* sym_development or sym_production */
-    char *key_prefix;
     VALUE key_prefix_val;
     char *node_list;
     VALUE object_space;

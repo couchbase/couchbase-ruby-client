@@ -408,7 +408,7 @@ cb_decode_value(VALUE blob, uint32_t flags, VALUE force_format)
     void
 cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key)
 {
-    if (bucket->key_prefix) {
+    if (RTEST(bucket->key_prefix_val)) {
         rb_str_update(key, 0, RSTRING_LEN(bucket->key_prefix_val), STR_NEW_CSTR(""));
     }
 }
@@ -418,7 +418,7 @@ cb_unify_key(struct cb_bucket_st *bucket, VALUE key, int apply_prefix)
 {
     VALUE ret = Qnil, tmp;
 
-    if (bucket->key_prefix && apply_prefix) {
+    if (RTEST(bucket->key_prefix_val) && apply_prefix) {
         ret = rb_str_dup(bucket->key_prefix_val);
     }
     switch (TYPE(key)) {
