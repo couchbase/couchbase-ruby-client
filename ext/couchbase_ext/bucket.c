@@ -105,10 +105,10 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             re = rb_reg_new(path_re, sizeof(path_re) - 1, 0);
             match = rb_funcall(re, cb_id_match, 1, arg);
             arg = rb_reg_nth_match(2, match);
-            bucket->pool = NIL_P(arg) ? STR_NEW_CSTR("default") : rb_str_dup_frozen(StringValue(arg));
+            bucket->pool = NIL_P(arg) ? cb_vStrDefault : rb_str_dup_frozen(StringValue(arg));
             rb_str_freeze(bucket->pool);
             arg = rb_reg_nth_match(4, match);
-            bucket->bucket = NIL_P(arg) ? STR_NEW_CSTR("default") : rb_str_dup_frozen(StringValue(arg));
+            bucket->bucket = NIL_P(arg) ? cb_vStrDefault : rb_str_dup_frozen(StringValue(arg));
             rb_str_freeze(bucket->bucket);
         }
         if (TYPE(opts) == T_HASH) {
@@ -395,9 +395,9 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->type = LCB_TYPE_BUCKET;
     bucket->hostname = rb_str_new2("localhost");
     bucket->port = 8091;
-    bucket->pool = rb_str_new2("default");
+    bucket->pool = cb_vStrDefault;
     rb_str_freeze(bucket->pool);
-    bucket->bucket = rb_str_new2("default");
+    bucket->bucket = cb_vStrDefault;
     rb_str_freeze(bucket->bucket);
     bucket->username = Qnil;
     bucket->password = Qnil;

@@ -409,7 +409,7 @@ cb_decode_value(VALUE blob, uint32_t flags, VALUE force_format)
 cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key)
 {
     if (RTEST(bucket->key_prefix_val)) {
-        rb_str_update(key, 0, RSTRING_LEN(bucket->key_prefix_val), STR_NEW_CSTR(""));
+        rb_str_update(key, 0, RSTRING_LEN(bucket->key_prefix_val), cb_vStrEmpty);
     }
 }
 
