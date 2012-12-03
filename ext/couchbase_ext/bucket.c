@@ -37,7 +37,6 @@ cb_bucket_free(void *ptr)
             lcb_destroy_io_ops(bucket->io);
         }
         free(bucket->pool);
-        free(bucket->bucket);
         free(bucket->username);
         free(bucket->password);
         free(bucket->key_prefix);
@@ -53,6 +52,7 @@ cb_bucket_mark(void *ptr)
     if (bucket) {
         rb_gc_mark(bucket->authority);
         rb_gc_mark(bucket->hostname);
+        rb_gc_mark(bucket->bucket);
         rb_gc_mark(bucket->exception);
         rb_gc_mark(bucket->on_error_proc);
         rb_gc_mark(bucket->key_prefix_val);
@@ -117,8 +117,8 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             free(bucket->pool);
             bucket->pool = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
             arg = rb_reg_nth_match(4, match);
-            free(bucket->bucket);
-            bucket->bucket = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
+            bucket->bucket = NIL_P(arg) ? STR_NEW_CSTR("default") : rb_str_dup_frozen(StringValue(arg));
+            rb_str_freeze(bucket->bucket);
         }
         if (TYPE(opts) == T_HASH) {
             arg = rb_hash_aref(opts, cb_sym_type);
@@ -148,8 +148,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_bucket);
             if (arg != Qnil) {
-                free(bucket->bucket);
-                bucket->bucket = strdup(StringValueCStr(arg));
+                bucket->bucket = rb_str_dup_frozen(StringValue(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_username);
             if (arg != Qnil) {
@@ -228,7 +227,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
         }
     }
     if (bucket->password && bucket->username == NULL) {
-        bucket->username = strdup(bucket->bucket);
+        bucket->username = strdup(RSTRING_PTR(bucket->bucket));
     }
     if (bucket->default_observe_timeout < 2) {
         rb_raise(rb_eArgError, "default_observe_timeout is too low");
@@ -262,7 +261,7 @@ do_connect(struct cb_bucket_st *bucket)
     create_opts.v.v1.host = bucket->node_list ? bucket-> node_list : RSTRING_PTR(bucket->authority);
     create_opts.v.v1.user = bucket->username;
     create_opts.v.v1.passwd = bucket->password;
-    create_opts.v.v1.bucket = bucket->bucket;
+    create_opts.v.v1.bucket = RSTRING_PTR(bucket->bucket);
     create_opts.v.v1.io = bucket->io;
     err = lcb_create(&bucket->handle, &create_opts);
     if (err != LCB_SUCCESS) {
@@ -411,7 +410,8 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->hostname = rb_str_new2("localhost");
     bucket->port = 8091;
     bucket->pool = strdup("default");
-    bucket->bucket = strdup("default");
+    bucket->bucket = rb_str_new2("default");
+    rb_str_freeze(bucket->bucket);
     bucket->async = 0;
     bucket->quiet = 0;
     bucket->default_ttl = 0;
@@ -464,7 +464,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->authority = orig_b->authority;
     copy_b->hostname = orig_b->hostname;
     copy_b->pool = strdup(orig_b->pool);
-    copy_b->bucket = strdup(orig_b->bucket);
+    copy_b->bucket = orig_b->bucket;
     if (orig_b->username) {
         copy_b->username = strdup(orig_b->username);
     }
@@ -795,7 +795,7 @@ cb_bucket_authority_get(VALUE self)
 cb_bucket_bucket_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
-    return STR_NEW_CSTR(bucket->bucket);
+    return bucket->bucket;
 }
 
 /* Document-method: pool
@@ -921,7 +921,7 @@ cb_bucket_url_get(VALUE self)
     rb_str_buf_cat2(str, "/pools/");
     rb_str_buf_cat2(str, bucket->pool);
     rb_str_buf_cat2(str, "/buckets/");
-    rb_str_buf_cat2(str, bucket->bucket);
+    rb_str_buf_cat2(str, RSTRING_PTR(bucket->bucket));
     rb_str_buf_cat2(str, "/");
     return str;
 }
@@ -951,7 +951,7 @@ cb_bucket_inspect(VALUE self)
     rb_str_buf_cat2(str, "/pools/");
     rb_str_buf_cat2(str, bucket->pool);
     rb_str_buf_cat2(str, "/buckets/");
-    rb_str_buf_cat2(str, bucket->bucket);
+    rb_str_buf_cat2(str, RSTRING_PTR(bucket->bucket));
     rb_str_buf_cat2(str, "/");
     snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s, connected=%s, timeout=%u",
             rb_id2name(SYM2ID(bucket->default_format)),

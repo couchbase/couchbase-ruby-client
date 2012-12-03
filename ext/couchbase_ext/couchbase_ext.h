@@ -74,7 +74,7 @@ struct cb_bucket_st
     VALUE authority;
     VALUE hostname;
     char *pool;
-    char *bucket;
+    VALUE bucket;
     char *username;
     char *password;
     int async;
