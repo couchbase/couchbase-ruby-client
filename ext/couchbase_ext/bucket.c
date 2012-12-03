@@ -36,7 +36,6 @@ cb_bucket_free(void *ptr)
             lcb_destroy(bucket->handle);
             lcb_destroy_io_ops(bucket->io);
         }
-        free(bucket->pool);
         free(bucket->username);
         free(bucket->password);
         free(bucket->key_prefix);
@@ -52,6 +51,7 @@ cb_bucket_mark(void *ptr)
     if (bucket) {
         rb_gc_mark(bucket->authority);
         rb_gc_mark(bucket->hostname);
+        rb_gc_mark(bucket->pool);
         rb_gc_mark(bucket->bucket);
         rb_gc_mark(bucket->exception);
         rb_gc_mark(bucket->on_error_proc);
@@ -114,8 +114,8 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             re = rb_reg_new(path_re, sizeof(path_re) - 1, 0);
             match = rb_funcall(re, cb_id_match, 1, arg);
             arg = rb_reg_nth_match(2, match);
-            free(bucket->pool);
-            bucket->pool = strdup(NIL_P(arg) ? "default" : RSTRING_PTR(arg));
+            bucket->pool = NIL_P(arg) ? STR_NEW_CSTR("default") : rb_str_dup_frozen(StringValue(arg));
+            rb_str_freeze(bucket->pool);
             arg = rb_reg_nth_match(4, match);
             bucket->bucket = NIL_P(arg) ? STR_NEW_CSTR("default") : rb_str_dup_frozen(StringValue(arg));
             rb_str_freeze(bucket->bucket);
@@ -143,8 +143,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_pool);
             if (arg != Qnil) {
-                free(bucket->pool);
-                bucket->pool = strdup(StringValueCStr(arg));
+                bucket->pool = rb_str_dup_frozen(StringValue(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_bucket);
             if (arg != Qnil) {
@@ -409,7 +408,8 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->type = LCB_TYPE_BUCKET;
     bucket->hostname = rb_str_new2("localhost");
     bucket->port = 8091;
-    bucket->pool = strdup("default");
+    bucket->pool = rb_str_new2("default");
+    rb_str_freeze(bucket->pool);
     bucket->bucket = rb_str_new2("default");
     rb_str_freeze(bucket->bucket);
     bucket->async = 0;
@@ -463,7 +463,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->port = orig_b->port;
     copy_b->authority = orig_b->authority;
     copy_b->hostname = orig_b->hostname;
-    copy_b->pool = strdup(orig_b->pool);
+    copy_b->pool = orig_b->pool;
     copy_b->bucket = orig_b->bucket;
     if (orig_b->username) {
         copy_b->username = strdup(orig_b->username);
@@ -808,7 +808,7 @@ cb_bucket_bucket_get(VALUE self)
 cb_bucket_pool_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
-    return STR_NEW_CSTR(bucket->pool);
+    return bucket->pool;
 }
 
 /* Document-method: username
@@ -919,7 +919,7 @@ cb_bucket_url_get(VALUE self)
     str = rb_str_buf_new2("http://");
     rb_str_buf_cat2(str, RSTRING_PTR(bucket->authority));
     rb_str_buf_cat2(str, "/pools/");
-    rb_str_buf_cat2(str, bucket->pool);
+    rb_str_buf_cat2(str, RSTRING_PTR(bucket->pool));
     rb_str_buf_cat2(str, "/buckets/");
     rb_str_buf_cat2(str, RSTRING_PTR(bucket->bucket));
     rb_str_buf_cat2(str, "/");
@@ -949,7 +949,7 @@ cb_bucket_inspect(VALUE self)
     rb_str_buf_cat2(str, "http://");
     rb_str_buf_cat2(str, RSTRING_PTR(bucket->authority));
     rb_str_buf_cat2(str, "/pools/");
-    rb_str_buf_cat2(str, bucket->pool);
+    rb_str_buf_cat2(str, RSTRING_PTR(bucket->pool));
     rb_str_buf_cat2(str, "/buckets/");
     rb_str_buf_cat2(str, RSTRING_PTR(bucket->bucket));
     rb_str_buf_cat2(str, "/");

@@ -73,7 +73,7 @@ struct cb_bucket_st
     uint16_t port;
     VALUE authority;
     VALUE hostname;
-    char *pool;
+    VALUE pool;
     VALUE bucket;
     char *username;
     char *password;
