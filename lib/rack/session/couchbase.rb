@@ -33,16 +33,19 @@ module Rack
     #
     #   require 'rack/session/couchbase'
     #   use Rack::Session::Couchbase, :expire_after => 5.minutes,
-    #     :couchbase => {:bucket => "sessions", :default_format => :marshal}
+    #     :couchbase => {:bucket => "sessions", :default_format => :document}
     #
-    # By default sessions will be serialized to JSON, to allow analyse them
-    # using Map/Reduce.
+    # By default sessions will be serialized using Marshal class. But
+    # you can store them as JSON (+:default_format => :document+), to
+    # allow analyse them using Map/Reduce. In this case you should
+    # care about serialization of all custom objects like
+    # ActionDispatch::Flash::FlashHash
     #
     class Couchbase < Abstract::ID
       attr_reader :mutex, :pool
 
       DEFAULT_OPTIONS = Abstract::ID::DEFAULT_OPTIONS.merge(
-        :couchbase => {:quiet => true, :default_format => :document,
+        :couchbase => {:quiet => true, :default_format => :marshal,
                        :key_prefix => 'rack:session:'})
 
       def initialize(app, options = {})
