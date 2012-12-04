@@ -93,7 +93,7 @@ struct cb_bucket_st
     VALUE environment;      /* sym_development or sym_production */
     char *key_prefix;
     VALUE key_prefix_val;
-    char *node_list;
+    VALUE node_list;
     VALUE object_space;
     VALUE self;             /* the pointer to bucket representation in ruby land */
 };
