@@ -51,6 +51,10 @@ extern hrtime_t gethrtime(void);
 #define va_init_list(a,b) va_start(a)
 #endif
 
+#ifndef HAVE_RB_HASH_LOOKUP2
+VALUE rb_hash_lookup2(VALUE, VALUE, VALUE);
+#endif
+
 #define cb_debug_object(OBJ) \
     rb_funcall(rb_stderr, rb_intern("print"), 1, rb_funcall(OBJ, rb_intern("object_id"), 0)); \
     rb_funcall(rb_stderr, rb_intern("print"), 1, STR_NEW_CSTR(" ")); \

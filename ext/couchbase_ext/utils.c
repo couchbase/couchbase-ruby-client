@@ -476,3 +476,14 @@ cb_first_value_i(VALUE key, VALUE value, VALUE arg)
     (void)key;
     return ST_STOP;
 }
+
+#ifndef HAVE_RB_HASH_LOOKUP2
+    VALUE
+rb_hash_lookup2(VALUE hash, VALUE key, VALUE dflt)
+{
+    if (RTEST(rb_funcall2(hash, cb_id_has_key_p, 1, &key))) {
+        dflt = rb_hash_aref(hash, key);
+    }
+    return dflt;
+}
+#endif
