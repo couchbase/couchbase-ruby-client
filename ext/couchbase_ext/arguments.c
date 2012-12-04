@@ -19,23 +19,37 @@
 
 /* TOUCH */
 
+#define _alloc_data_for_s(type, _type, size, items, ptr) do {\
+    lcb_size_t ii; \
+    \
+    params->cmd.type.num = size; \
+    params->cmd.type.items = calloc(size, sizeof(_type)); \
+    if (params->cmd.type.items == NULL) { \
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments"); \
+    } \
+    params->cmd.type.ptr = calloc(size, sizeof(_type *)); \
+    if (params->cmd.type.ptr == NULL) { \
+        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments"); \
+    } \
+    for (ii = 0; ii < size; ++ii) { \
+        params->cmd.type.ptr[ii] = params->cmd.type.items + ii; \
+    } \
+} while(0)
+
+#define _alloc_data_for(type, _type) _alloc_data_for_s(type, _type, size, items, ptr)
+
+
+#define _release_data_for_s(type, items, ptr) \
+    free(params->cmd.type.items); \
+    free(params->cmd.type.ptr);
+
+#define _release_data_for(type) _release_data_for_s(type, items, ptr)
+
+
     static void
 cb_params_touch_alloc(struct cb_params_st *params, lcb_size_t size)
 {
-    lcb_size_t ii;
-
-    params->cmd.touch.num = size;
-    params->cmd.touch.items = calloc(size, sizeof(lcb_touch_cmd_t));
-    if (params->cmd.touch.items == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    params->cmd.touch.ptr = calloc(size, sizeof(lcb_touch_cmd_t *));
-    if (params->cmd.touch.ptr == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    for (ii = 0; ii < size; ++ii) {
-        params->cmd.touch.ptr[ii] = params->cmd.touch.items + ii;
-    }
+    _alloc_data_for(touch, lcb_touch_cmd_t);
 }
 
     static void
@@ -118,20 +132,7 @@ cb_params_touch_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
     static void
 cb_params_remove_alloc(struct cb_params_st *params, lcb_size_t size)
 {
-    lcb_size_t ii;
-
-    params->cmd.remove.num = size;
-    params->cmd.remove.items = calloc(size, sizeof(lcb_remove_cmd_t));
-    if (params->cmd.remove.items == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    params->cmd.remove.ptr = calloc(size, sizeof(lcb_remove_cmd_t *));
-    if (params->cmd.remove.ptr == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    for (ii = 0; ii < size; ++ii) {
-        params->cmd.remove.ptr[ii] = params->cmd.remove.items + ii;
-    }
+    _alloc_data_for(remove, lcb_remove_cmd_t);
 }
 
     static void
@@ -213,20 +214,7 @@ cb_params_remove_parse_arguments(struct cb_params_st *params, int argc, VALUE ar
     static void
 cb_params_store_alloc(struct cb_params_st *params, lcb_size_t size)
 {
-    lcb_size_t ii;
-
-    params->cmd.store.num = size;
-    params->cmd.store.items = calloc(size, sizeof(lcb_store_cmd_t));
-    if (params->cmd.store.items == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    params->cmd.store.ptr = calloc(size, sizeof(lcb_store_cmd_t *));
-    if (params->cmd.store.ptr == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    for (ii = 0; ii < size; ++ii) {
-        params->cmd.store.ptr[ii] = params->cmd.store.items + ii;
-    }
+    _alloc_data_for(store, lcb_store_cmd_t);
 }
 
     static void
@@ -345,33 +333,10 @@ cb_params_store_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
     static void
 cb_params_get_alloc(struct cb_params_st *params, lcb_size_t size)
 {
-    lcb_size_t ii;
-
-    params->cmd.get.num = size;
     if (params->cmd.get.replica) {
-        params->cmd.get.items_gr = calloc(size, sizeof(lcb_get_replica_cmd_t));
-        if (params->cmd.get.items_gr == NULL) {
-            rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-        }
-        params->cmd.get.ptr = calloc(size, sizeof(lcb_get_replica_cmd_t *));
-        if (params->cmd.get.ptr_gr == NULL) {
-            rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-        }
-        for (ii = 0; ii < size; ++ii) {
-            params->cmd.get.ptr_gr[ii] = params->cmd.get.items_gr + ii;
-        }
+        _alloc_data_for_s(get, lcb_get_replica_cmd_t, size, items_gr, ptr_gr);
     } else {
-        params->cmd.get.items = calloc(size, sizeof(lcb_get_cmd_t));
-        if (params->cmd.get.items == NULL) {
-            rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-        }
-        params->cmd.get.ptr = calloc(size, sizeof(lcb_get_cmd_t *));
-        if (params->cmd.get.ptr == NULL) {
-            rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-        }
-        for (ii = 0; ii < size; ++ii) {
-            params->cmd.get.ptr[ii] = params->cmd.get.items + ii;
-        }
+        _alloc_data_for(get, lcb_get_cmd_t);
     }
 }
 
@@ -485,20 +450,7 @@ cb_params_get_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
     static void
 cb_params_arith_alloc(struct cb_params_st *params, lcb_size_t size)
 {
-    lcb_size_t ii;
-
-    params->cmd.arith.num = size;
-    params->cmd.arith.items = calloc(size, sizeof(lcb_arithmetic_cmd_t));
-    if (params->cmd.arith.items == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    params->cmd.arith.ptr = calloc(size, sizeof(lcb_arithmetic_cmd_t *));
-    if (params->cmd.arith.ptr == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    for (ii = 0; ii < size; ++ii) {
-        params->cmd.arith.ptr[ii] = params->cmd.arith.items + ii;
-    }
+    _alloc_data_for(arith, lcb_arithmetic_cmd_t);
 }
 
     static void
@@ -602,20 +554,7 @@ cb_params_arith_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
     static void
 cb_params_stats_alloc(struct cb_params_st *params, lcb_size_t size)
 {
-    lcb_size_t ii;
-
-    params->cmd.stats.num = size;
-    params->cmd.stats.items = calloc(size, sizeof(lcb_server_stats_cmd_t));
-    if (params->cmd.stats.items == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    params->cmd.stats.ptr = calloc(size, sizeof(lcb_server_stats_cmd_t *));
-    if (params->cmd.stats.ptr == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    for (ii = 0; ii < size; ++ii) {
-        params->cmd.stats.ptr[ii] = params->cmd.stats.items + ii;
-    }
+    _alloc_data_for(stats, lcb_server_stats_cmd_t);
 }
 
     static void
@@ -667,20 +606,7 @@ cb_params_stats_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
     static void
 cb_params_observe_alloc(struct cb_params_st *params, lcb_size_t size)
 {
-    lcb_size_t ii;
-
-    params->cmd.observe.num = size;
-    params->cmd.observe.items = calloc(size, sizeof(lcb_observe_cmd_t));
-    if (params->cmd.observe.items == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    params->cmd.observe.ptr = calloc(size, sizeof(lcb_observe_cmd_t *));
-    if (params->cmd.observe.ptr == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    for (ii = 0; ii < size; ++ii) {
-        params->cmd.observe.ptr[ii] = params->cmd.observe.items + ii;
-    }
+    _alloc_data_for(observe, lcb_observe_cmd_t);
 }
 
     static void
@@ -730,20 +656,7 @@ cb_params_observe_parse_arguments(struct cb_params_st *params, int argc, VALUE a
     static void
 cb_params_unlock_alloc(struct cb_params_st *params, lcb_size_t size)
 {
-    lcb_size_t ii;
-
-    params->cmd.unlock.num = size;
-    params->cmd.unlock.items = calloc(size, sizeof(lcb_unlock_cmd_t));
-    if (params->cmd.unlock.items == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    params->cmd.unlock.ptr = calloc(size, sizeof(lcb_unlock_cmd_t *));
-    if (params->cmd.unlock.ptr == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    for (ii = 0; ii < size; ++ii) {
-        params->cmd.unlock.ptr[ii] = params->cmd.unlock.items + ii;
-    }
+    _alloc_data_for(unlock, lcb_unlock_cmd_t);
 }
 
     static void
@@ -808,15 +721,7 @@ cb_params_unlock_parse_arguments(struct cb_params_st *params, int argc, VALUE ar
 cb_params_version_alloc(struct cb_params_st *params)
 {
     params->cmd.version.num = 1;
-    params->cmd.version.items = calloc(1, sizeof(lcb_server_version_cmd_t));
-    if (params->cmd.version.items == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    params->cmd.version.ptr = calloc(1, sizeof(lcb_server_version_cmd_t *));
-    if (params->cmd.version.ptr == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
-    }
-    params->cmd.version.ptr[0] = params->cmd.version.items;
+    _alloc_data_for_s(version, lcb_server_version_cmd_t, 1, items, ptr);
 }
 
 
@@ -824,15 +729,10 @@ cb_params_version_alloc(struct cb_params_st *params)
     void
 cb_params_destroy(struct cb_params_st *params)
 {
-#define _release_data_for(type) \
-    free(params->cmd.type.items); \
-    free(params->cmd.type.ptr);
-
     switch (params->type) {
         case cb_cmd_get:
             _release_data_for(get);
-            free(params->cmd.get.items_gr);
-            free(params->cmd.get.ptr_gr);
+            _release_data_for_s(get, items_gr, ptr_gr);
             break;
         case cb_cmd_touch:
             _release_data_for(touch);
@@ -859,7 +759,6 @@ cb_params_destroy(struct cb_params_st *params)
             _release_data_for(unlock);
             break;
     }
-#undef _release_data_for
 }
 
 struct build_params_st
