@@ -51,6 +51,10 @@ extern hrtime_t gethrtime(void);
 #define va_init_list(a,b) va_start(a)
 #endif
 
+#ifndef HAVE_RB_HASH_LOOKUP2
+VALUE rb_hash_lookup2(VALUE, VALUE, VALUE);
+#endif
+
 #define cb_debug_object(OBJ) \
     rb_funcall(rb_stderr, rb_intern("print"), 1, rb_funcall(OBJ, rb_intern("object_id"), 0)); \
     rb_funcall(rb_stderr, rb_intern("print"), 1, STR_NEW_CSTR(" ")); \
@@ -71,12 +75,12 @@ struct cb_bucket_st
     lcb_type_t type;
     struct lcb_io_opt_st *io;
     uint16_t port;
-    char *authority;
-    char *hostname;
-    char *pool;
-    char *bucket;
-    char *username;
-    char *password;
+    VALUE authority;
+    VALUE hostname;
+    VALUE pool;
+    VALUE bucket;
+    VALUE username;
+    VALUE password;
     int async;
     int quiet;
     VALUE default_format;    /* should update +default_flags+ on change */
@@ -91,9 +95,8 @@ struct cb_bucket_st
     VALUE exception;        /* error delivered by error_callback */
     VALUE on_error_proc;    /* is using to deliver errors in async mode */
     VALUE environment;      /* sym_development or sym_production */
-    char *key_prefix;
     VALUE key_prefix_val;
-    char *node_list;
+    VALUE node_list;
     VALUE object_space;
     VALUE self;             /* the pointer to bucket representation in ruby land */
 };
@@ -288,6 +291,10 @@ extern VALUE cb_eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x19   */
 extern VALUE cb_eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x1a   */
 extern VALUE cb_eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x1b */
 extern VALUE cb_eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
+
+/* Default Strings */
+extern VALUE cb_vStrDefault;
+extern VALUE cb_vStrEmpty;
 
 void cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key);
 VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);

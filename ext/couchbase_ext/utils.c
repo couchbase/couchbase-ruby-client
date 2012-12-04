@@ -408,8 +408,8 @@ cb_decode_value(VALUE blob, uint32_t flags, VALUE force_format)
     void
 cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key)
 {
-    if (bucket->key_prefix) {
-        rb_str_update(key, 0, RSTRING_LEN(bucket->key_prefix_val), STR_NEW_CSTR(""));
+    if (RTEST(bucket->key_prefix_val)) {
+        rb_str_update(key, 0, RSTRING_LEN(bucket->key_prefix_val), cb_vStrEmpty);
     }
 }
 
@@ -418,7 +418,7 @@ cb_unify_key(struct cb_bucket_st *bucket, VALUE key, int apply_prefix)
 {
     VALUE ret = Qnil, tmp;
 
-    if (bucket->key_prefix && apply_prefix) {
+    if (RTEST(bucket->key_prefix_val) && apply_prefix) {
         ret = rb_str_dup(bucket->key_prefix_val);
     }
     switch (TYPE(key)) {
@@ -476,3 +476,14 @@ cb_first_value_i(VALUE key, VALUE value, VALUE arg)
     (void)key;
     return ST_STOP;
 }
+
+#ifndef HAVE_RB_HASH_LOOKUP2
+    VALUE
+rb_hash_lookup2(VALUE hash, VALUE key, VALUE dflt)
+{
+    if (RTEST(rb_funcall2(hash, cb_id_has_key_p, 1, &key))) {
+        dflt = rb_hash_aref(hash, key);
+    }
+    return dflt;
+}
+#endif

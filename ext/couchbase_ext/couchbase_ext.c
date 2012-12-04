@@ -167,11 +167,15 @@ VALUE cb_eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x1a   */
 VALUE cb_eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x1b */
 VALUE cb_eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
 
+/* Default Strings */
+VALUE cb_vStrDefault;
+VALUE cb_vStrEmpty;
 
 /* Ruby Extension initializer */
     void
 Init_couchbase_ext(void)
 {
+    VALUE str;
     cb_mMultiJson = rb_const_get(rb_cObject, rb_intern("MultiJson"));
     cb_mURI = rb_const_get(rb_cObject, rb_intern("URI"));
     cb_mMarshal = rb_const_get(rb_cObject, rb_intern("Marshal"));
@@ -1075,4 +1079,11 @@ Init_couchbase_ext(void)
     cb_sym_username = ID2SYM(rb_intern("username"));
     cb_sym_version = ID2SYM(rb_intern("version"));
     cb_sym_view = ID2SYM(rb_intern("view"));
+
+    cb_vStrDefault = str = STR_NEW_CSTR("default");
+    rb_str_freeze(cb_vStrDefault);
+    rb_const_set(cb_mCouchbase, rb_intern("_STR_DEFAULT"), str);
+    cb_vStrEmpty = str = STR_NEW_CSTR("");
+    rb_str_freeze(cb_vStrEmpty);
+    rb_const_set(cb_mCouchbase, rb_intern("_STR_EMPTY"), str);
 }
