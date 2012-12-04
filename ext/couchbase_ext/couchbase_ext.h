@@ -71,8 +71,8 @@ struct cb_bucket_st
     lcb_type_t type;
     struct lcb_io_opt_st *io;
     uint16_t port;
-    char *authority;
-    char *hostname;
+    VALUE authority;
+    VALUE hostname;
     char *pool;
     char *bucket;
     char *username;

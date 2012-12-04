@@ -36,8 +36,6 @@ cb_bucket_free(void *ptr)
             lcb_destroy(bucket->handle);
             lcb_destroy_io_ops(bucket->io);
         }
-        free(bucket->authority);
-        free(bucket->hostname);
         free(bucket->pool);
         free(bucket->bucket);
         free(bucket->username);
@@ -53,6 +51,8 @@ cb_bucket_mark(void *ptr)
     struct cb_bucket_st *bucket = ptr;
 
     if (bucket) {
+        rb_gc_mark(bucket->authority);
+        rb_gc_mark(bucket->hostname);
         rb_gc_mark(bucket->exception);
         rb_gc_mark(bucket->on_error_proc);
         rb_gc_mark(bucket->key_prefix_val);
@@ -64,7 +64,7 @@ cb_bucket_mark(void *ptr)
 do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
 {
     VALUE uri, opts, arg;
-    size_t len;
+    char port_s[8];
 
     if (rb_scan_args(argc, argv, "02", &uri, &opts) > 0) {
         if (TYPE(uri) == T_HASH && argc == 1) {
@@ -102,11 +102,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_funcall(uri_obj, cb_id_host, 0);
             if (arg != Qnil) {
-                free(bucket->hostname);
-                bucket->hostname = strdup(RSTRING_PTR(arg));
-                if (bucket->hostname == NULL) {
-                    rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
-                }
+                bucket->hostname = rb_str_dup_frozen(StringValue(arg));
             } else {
                 rb_raise(rb_eArgError, "invalid URI: missing hostname");
             }
@@ -143,8 +139,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_hostname);
             if (arg != Qnil) {
-                free(bucket->hostname);
-                bucket->hostname = strdup(StringValueCStr(arg));
+                bucket->hostname = rb_str_dup_frozen(StringValue(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_pool);
             if (arg != Qnil) {
@@ -235,16 +230,13 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
     if (bucket->password && bucket->username == NULL) {
         bucket->username = strdup(bucket->bucket);
     }
-    len = strlen(bucket->hostname) + 10;
     if (bucket->default_observe_timeout < 2) {
         rb_raise(rb_eArgError, "default_observe_timeout is too low");
     }
-    free(bucket->authority);
-    bucket->authority = calloc(len, sizeof(char));
-    if (bucket->authority == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
-    }
-    snprintf(bucket->authority, len, "%s:%u", bucket->hostname, bucket->port);
+    snprintf(port_s, sizeof(port_s), ":%u", bucket->port);
+    bucket->authority = rb_str_dup(bucket->hostname);
+    rb_str_cat2(bucket->authority, port_s);
+    rb_str_freeze(bucket->authority);
 }
 
     static void
@@ -267,7 +259,7 @@ do_connect(struct cb_bucket_st *bucket)
     memset(&create_opts, 0, sizeof(struct lcb_create_st));
     create_opts.version = 1;
     create_opts.v.v1.type = bucket->type;
-    create_opts.v.v1.host = bucket->node_list ? bucket-> node_list : bucket->authority;
+    create_opts.v.v1.host = bucket->node_list ? bucket-> node_list : RSTRING_PTR(bucket->authority);
     create_opts.v.v1.user = bucket->username;
     create_opts.v.v1.passwd = bucket->password;
     create_opts.v.v1.bucket = bucket->bucket;
@@ -416,7 +408,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->self = self;
     bucket->exception = Qnil;
     bucket->type = LCB_TYPE_BUCKET;
-    bucket->hostname = strdup("localhost");
+    bucket->hostname = rb_str_new2("localhost");
     bucket->port = 8091;
     bucket->pool = strdup("default");
     bucket->bucket = strdup("default");
@@ -469,8 +461,8 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
 
     copy_b->self = copy_b->self;
     copy_b->port = orig_b->port;
-    copy_b->authority = strdup(orig_b->authority);
-    copy_b->hostname = strdup(orig_b->hostname);
+    copy_b->authority = orig_b->authority;
+    copy_b->hostname = orig_b->hostname;
     copy_b->pool = strdup(orig_b->pool);
     copy_b->bucket = strdup(orig_b->bucket);
     if (orig_b->username) {
@@ -740,14 +732,16 @@ cb_bucket_key_prefix_set(VALUE self, VALUE val)
 cb_bucket_hostname_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
+
     if (bucket->handle) {
-        free(bucket->hostname);
-        bucket->hostname = strdup(lcb_get_host(bucket->handle));
-        if (bucket->hostname == NULL) {
-            rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
+        const char * host = lcb_get_host(bucket->handle);
+        unsigned long len = RSTRING_LEN(bucket->hostname);
+        if (len != strlen(host) || strncmp(RSTRING_PTR(bucket->hostname), host, len) != 0) {
+            bucket->hostname = STR_NEW_CSTR(host);
+            rb_str_freeze(bucket->hostname);
         }
     }
-    return STR_NEW_CSTR(bucket->hostname);
+    return bucket->hostname;
 }
 
 /* Document-method: port
@@ -776,18 +770,19 @@ cb_bucket_port_get(VALUE self)
 cb_bucket_authority_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
-    size_t len;
+    VALUE old_hostname = bucket->hostname;
+    uint16_t old_port = bucket->port;
+    VALUE hostname = cb_bucket_hostname_get(self);
+    cb_bucket_port_get(self);
 
-    (void)cb_bucket_hostname_get(self);
-    (void)cb_bucket_port_get(self);
-    len = strlen(bucket->hostname) + 10;
-    free(bucket->authority);
-    bucket->authority = calloc(len, sizeof(char));
-    if (bucket->authority == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for Bucket");
+    if (hostname != old_hostname || bucket->port != old_port) {
+        char port_s[8];
+        snprintf(port_s, sizeof(port_s), ":%u", bucket->port);
+        bucket->authority = rb_str_dup(hostname);
+        rb_str_cat2(bucket->authority, port_s);
+        rb_str_freeze(bucket->authority);
     }
-    snprintf(bucket->authority, len, "%s:%u", bucket->hostname, bucket->port);
-    return STR_NEW_CSTR(bucket->authority);
+    return bucket->authority;
 }
 
 /* Document-method: bucket
@@ -922,7 +917,7 @@ cb_bucket_url_get(VALUE self)
 
     (void)cb_bucket_authority_get(self);
     str = rb_str_buf_new2("http://");
-    rb_str_buf_cat2(str, bucket->authority);
+    rb_str_buf_cat2(str, RSTRING_PTR(bucket->authority));
     rb_str_buf_cat2(str, "/pools/");
     rb_str_buf_cat2(str, bucket->pool);
     rb_str_buf_cat2(str, "/buckets/");
@@ -952,7 +947,7 @@ cb_bucket_inspect(VALUE self)
     (void)cb_bucket_authority_get(self);
     rb_str_buf_cat2(str, buf);
     rb_str_buf_cat2(str, "http://");
-    rb_str_buf_cat2(str, bucket->authority);
+    rb_str_buf_cat2(str, RSTRING_PTR(bucket->authority));
     rb_str_buf_cat2(str, "/pools/");
     rb_str_buf_cat2(str, bucket->pool);
     rb_str_buf_cat2(str, "/buckets/");
