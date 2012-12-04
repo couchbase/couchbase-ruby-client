@@ -122,11 +122,9 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_node_list);
             if (arg != Qnil) {
-                VALUE tt;
-                free(bucket->node_list);
                 Check_Type(arg, T_ARRAY);
-                tt = rb_ary_join(arg, STR_NEW_CSTR(";"));
-                bucket->node_list = strdup(StringValueCStr(tt));
+                bucket->node_list = rb_ary_join(arg, STR_NEW_CSTR(";"));
+                rb_str_freeze(bucket->node_list);
             }
             arg = rb_hash_aref(opts, cb_sym_hostname);
             if (arg != Qnil) {
@@ -244,7 +242,7 @@ do_connect(struct cb_bucket_st *bucket)
     memset(&create_opts, 0, sizeof(struct lcb_create_st));
     create_opts.version = 1;
     create_opts.v.v1.type = bucket->type;
-    create_opts.v.v1.host = bucket->node_list ? bucket-> node_list : RSTRING_PTR(bucket->authority);
+    create_opts.v.v1.host = RTEST(bucket->node_list) ? RSTRING_PTR(bucket-> node_list) : RSTRING_PTR(bucket->authority);
     create_opts.v.v1.user = RTEST(bucket->username) ? RSTRING_PTR(bucket->username) : NULL;
     create_opts.v.v1.passwd = RTEST(bucket->username) ? RSTRING_PTR(bucket->password) : NULL;
     create_opts.v.v1.bucket = RSTRING_PTR(bucket->bucket);
@@ -411,9 +409,8 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->timeout = 0;
     bucket->environment = cb_sym_production;
     bucket->key_prefix_val = Qnil;
-    bucket->node_list = NULL;
+    bucket->node_list = Qnil;
     bucket->object_space = rb_hash_new();
-    bucket->node_list = NULL;
 
     do_scan_connection_options(bucket, argc, argv);
     do_connect(bucket);
