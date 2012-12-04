@@ -82,8 +82,9 @@ cb_params_touch_parse_options(struct cb_params_st *params, VALUE options)
     if (tmp != Qnil) {
         params->cmd.touch.ttl = NUM2ULONG(tmp);
     }
-    if (RTEST(rb_funcall(options, cb_id_has_key_p, 1, cb_sym_quiet))) {
-        params->cmd.touch.quiet = RTEST(rb_hash_aref(options, cb_sym_quiet));
+    tmp = rb_hash_lookup2(options, cb_sym_quiet, Qundef);
+    if (tmp != Qundef) {
+        params->cmd.touch.quiet = RTEST(tmp);
     }
 }
 
@@ -161,8 +162,9 @@ cb_params_remove_parse_options(struct cb_params_st *params, VALUE options)
     if (NIL_P(options)) {
         return;
     }
-    if (RTEST(rb_funcall(options, cb_id_has_key_p, 1, cb_sym_quiet))) {
-        params->cmd.remove.quiet = RTEST(rb_hash_aref(options, cb_sym_quiet));
+    tmp = rb_hash_lookup2(options, cb_sym_quiet, Qundef);
+    if (tmp != Qundef) {
+        params->cmd.remove.quiet = RTEST(tmp);
     }
     tmp = rb_hash_aref(options, cb_sym_cas);
     if (tmp != Qnil) {
@@ -378,8 +380,9 @@ cb_params_get_parse_options(struct cb_params_st *params, VALUE options)
     params->cmd.get.replica = RTEST(rb_hash_aref(options, cb_sym_replica));
     params->cmd.get.extended = RTEST(rb_hash_aref(options, cb_sym_extended));
     params->cmd.get.assemble_hash = RTEST(rb_hash_aref(options, cb_sym_assemble_hash));
-    if (RTEST(rb_funcall(options, cb_id_has_key_p, 1, cb_sym_quiet))) {
-        params->cmd.get.quiet = RTEST(rb_hash_aref(options, cb_sym_quiet));
+    tmp = rb_hash_lookup2(options, cb_sym_quiet, Qundef);
+    if (tmp != Qundef) {
+        params->cmd.get.quiet = RTEST(tmp);
     }
     tmp = rb_hash_aref(options, cb_sym_format);
     if (tmp != Qnil) {
@@ -689,8 +692,9 @@ cb_params_unlock_parse_options(struct cb_params_st *params, VALUE options)
     if (tmp != Qnil) {
         params->cmd.unlock.cas = NUM2ULL(tmp);
     }
-    if (RTEST(rb_funcall(options, cb_id_has_key_p, 1, cb_sym_quiet))) {
-        params->cmd.unlock.quiet = RTEST(rb_hash_aref(options, cb_sym_quiet));
+    tmp = rb_hash_lookup2(options, cb_sym_quiet, Qundef);
+    if (tmp != Qundef) {
+        params->cmd.unlock.quiet = RTEST(tmp);
     }
 }
 

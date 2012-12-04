@@ -150,8 +150,9 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             if (arg != Qnil) {
                 bucket->port = (uint16_t)NUM2UINT(arg);
             }
-            if (RTEST(rb_funcall(opts, cb_id_has_key_p, 1, cb_sym_quiet))) {
-                bucket->quiet = RTEST(rb_hash_aref(opts, cb_sym_quiet));
+            arg = rb_hash_lookup2(opts, cb_sym_quiet, Qundef);
+            if (arg != Qundef) {
+                bucket->quiet = RTEST(arg);
             }
             arg = rb_hash_aref(opts, cb_sym_timeout);
             if (arg != Qnil) {
