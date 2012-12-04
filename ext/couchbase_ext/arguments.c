@@ -349,7 +349,7 @@ cb_params_get_alloc(struct cb_params_st *params, lcb_size_t size)
 
     params->cmd.get.num = size;
     if (params->cmd.get.replica) {
-        params->cmd.get.items = calloc(size, sizeof(lcb_get_replica_cmd_t));
+        params->cmd.get.items_gr = calloc(size, sizeof(lcb_get_replica_cmd_t));
         if (params->cmd.get.items_gr == NULL) {
             rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for arguments");
         }
