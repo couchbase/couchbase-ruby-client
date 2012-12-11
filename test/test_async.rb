@@ -161,7 +161,7 @@ class TestAsync < MiniTest::Unit::TestCase
 
       connection.run do |conn|
         conn.flush do |res1|
-          assert res1.success?
+          assert res1.success?, "Expected: successful status code.\nActual: #{res1.error.inspect}"
           id = uniq_id(res1.node)
           res[id] = false
           conn.set(id, true) do |res2|

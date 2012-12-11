@@ -114,8 +114,9 @@ cb_proc_call(struct cb_bucket_st *bucket, VALUE recv, int argc, ...)
     params.mid = cb_id_call;
     params.argc = arity;
     params.argv = argv;
-    return rb_rescue(do_func_call, (VALUE)&params,
-            func_call_failed, (VALUE)&params);
+    return rb_rescue2(do_func_call, (VALUE)&params,
+            func_call_failed, (VALUE)&params,
+            rb_eException, (VALUE)0);
 }
 
 VALUE

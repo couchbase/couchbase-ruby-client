@@ -44,7 +44,11 @@ module Couchbase
       end
 
       def to_s
-        super.sub(/ \(/, ": #{@type}: #{@reason} (")
+        str = super
+        if @type || @reason
+          str.sub(/ \(/, ": #{[@type, @reason].compact.join(": ")} (")
+        end
+        str
       end
     end
   end
