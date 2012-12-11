@@ -55,6 +55,7 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
     }
     if (ctx->proc != Qnil) {
         cb_proc_call(bucket, ctx->proc, 1, res);
+        cb_gc_unprotect(bucket, ctx->proc);
     }
     if (!bucket->async && ctx->exception == Qnil) {
         *rv = res;
