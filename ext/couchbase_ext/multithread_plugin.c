@@ -791,6 +791,15 @@ loop_select_cleanup(VALUE argp)
 #define POLLOUT_SET (POLLOUT | POLLHUP | POLLERR)
 
 #ifndef HAVE_PPOLL
+#if SIZEOF_TIME_T == SIZEOF_LONG
+typedef unsigned long unsigned_time_t;
+#elif SIZEOF_TIME_T == SIZEOF_INT
+typedef unsigned int unsigned_time_t;
+#elif SIZEOF_TIME_T == SIZEOF_LONG_LONG
+typedef unsigned LONG_LONG unsigned_time_t;
+#else
+# error cannot find integer type which size is same as time_t.
+#endif
 #define TIMET_MAX (~(time_t)0 <= 0 ? (time_t)((~(unsigned_time_t)0) >> 1) : (time_t)(~(unsigned_time_t)0))
     static int
 ppoll(struct pollfd *fds, nfds_t nfds,
