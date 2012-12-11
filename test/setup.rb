@@ -166,7 +166,10 @@ class MiniTest::Unit::TestCase
   end
 
   def uniq_id(*suffixes)
-    [caller.first[/.*[` ](.*)'/, 1], suffixes].join("_")
+    test_id = [caller.first[/.*[` ](.*)'/, 1], suffixes].compact.join("_")
+    @ids ||= {}
+    @ids[test_id] ||= Time.now.to_f
+    [test_id, @ids[test_id]].join("_")
   end
 
   def after_teardown
