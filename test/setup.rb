@@ -55,7 +55,7 @@ class CouchbaseServer
       rescue Couchbase::Error::NotSupported
         # on recent server flush is disabled
       end
-    end
+    end if ENV['COUCHBASE_FLUSH_BUCKETS']
   end
   def stop; end
 end
