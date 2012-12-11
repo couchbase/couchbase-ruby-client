@@ -26,7 +26,7 @@ storage_observe_callback(VALUE args, VALUE cookie)
 
     if (ctx->proc != Qnil) {
         rb_ivar_set(res, cb_id_iv_operation, ctx->operation);
-        cb_proc_call(ctx->proc, 1, res);
+        cb_proc_call(bucket, ctx->proc, 1, res);
     }
     if (!RTEST(ctx->observe_options)) {
         ctx->nqueries--;
@@ -75,9 +75,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
     if (exc != Qnil) {
         rb_ivar_set(exc, cb_id_iv_cas, cas);
         rb_ivar_set(exc, cb_id_iv_operation, ctx->operation);
-        if (NIL_P(ctx->exception)) {
-            ctx->exception = cb_gc_protect(bucket, exc);
-        }
+        ctx->exception = cb_gc_protect(bucket, exc);
     }
 
     if (bucket->async) { /* asynchronous */
@@ -95,7 +93,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
             rb_ivar_set(res, cb_id_iv_key, key);
             rb_ivar_set(res, cb_id_iv_operation, ctx->operation);
             rb_ivar_set(res, cb_id_iv_cas, cas);
-            cb_proc_call(ctx->proc, 1, res);
+            cb_proc_call(bucket, ctx->proc, 1, res);
         }
     } else {             /* synchronous */
         rb_hash_aset(*rv, key, cas);

@@ -301,7 +301,7 @@ VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);
 VALUE cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb_http_status_t status);
 VALUE cb_gc_protect(struct cb_bucket_st *bucket, VALUE val);
 VALUE cb_gc_unprotect(struct cb_bucket_st *bucket, VALUE val);
-VALUE cb_proc_call(VALUE recv, int argc, ...);
+VALUE cb_proc_call(struct cb_bucket_st *bucket, VALUE recv, int argc, ...);
 int cb_first_value_i(VALUE key, VALUE value, VALUE arg);
 void cb_build_headers(struct cb_context_st *ctx, const char * const *headers);
 void cb_maybe_do_loop(struct cb_bucket_st *bucket);
@@ -310,6 +310,8 @@ VALUE cb_encode_value(VALUE val, uint32_t flags);
 VALUE cb_decode_value(VALUE blob, uint32_t flags, VALUE force_format);
 uint32_t cb_flags_set_format(uint32_t flags, ID format);
 ID cb_flags_get_format(uint32_t flags);
+void cb_async_error_notify(struct cb_bucket_st *bucket, VALUE exc);
+
 
 void cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, lcb_error_t error, const lcb_store_resp_t *resp);
 void cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_resp_t *resp);

@@ -124,7 +124,7 @@ class TestAsync < MiniTest::Unit::TestCase
     connection.run do |conn|
       conn.delete(uniq_id, :cas => cas) do |res1|
         success = res1.success?
-        conn.get(uniq_id) do |res2|
+        conn.get(uniq_id, :quiet => true) do |res2|
           val = res2.value
         end
       end

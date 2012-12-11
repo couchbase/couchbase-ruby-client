@@ -32,9 +32,7 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
         exc = cb_check_error(error, "failed to remove value", key);
         if (exc != Qnil) {
             rb_ivar_set(exc, cb_id_iv_operation, cb_sym_delete);
-            if (NIL_P(ctx->exception)) {
-                ctx->exception = cb_gc_protect(bucket, exc);
-            }
+            ctx->exception = cb_gc_protect(bucket, exc);
         }
     }
     if (bucket->async) {    /* asynchronous */
@@ -43,7 +41,7 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
             rb_ivar_set(res, cb_id_iv_error, exc);
             rb_ivar_set(res, cb_id_iv_operation, cb_sym_delete);
             rb_ivar_set(res, cb_id_iv_key, key);
-            cb_proc_call(ctx->proc, 1, res);
+            cb_proc_call(bucket, ctx->proc, 1, res);
         }
     } else {                /* synchronous */
         rb_hash_aset(*rv, key, (error == LCB_SUCCESS) ? Qtrue : Qfalse);

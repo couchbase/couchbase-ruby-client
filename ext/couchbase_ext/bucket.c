@@ -982,7 +982,7 @@ do_run(VALUE *args)
         }
     }
     bucket->async = 1;
-    cb_proc_call(proc, 1, self);
+    cb_proc_call(bucket, proc, 1, self);
     do_loop(bucket);
     if (bucket->exception != Qnil) {
         exc = bucket->exception;

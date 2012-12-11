@@ -22,20 +22,19 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE *rv = ctx->rv, key, val, res;
+    VALUE *rv = ctx->rv, key, val, res, exc;
     lcb_http_status_t status;
 
     ctx->request->completed = 1;
     key = STR_NEW((const char*)resp->v.v0.path, resp->v.v0.npath);
     val = resp->v.v0.nbytes ? STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;
-    ctx->exception = cb_check_error_with_status(error,
-            "failed to execute HTTP request", key, resp->v.v0.status);
-    if (ctx->exception != Qnil) {
+    exc = cb_check_error_with_status(error, "failed to execute HTTP request", key, resp->v.v0.status);
+    if (exc != Qnil) {
         if (val != Qnil) {
-            rb_ivar_set(ctx->exception, cb_id_iv_body, val);
+            rb_ivar_set(exc, cb_id_iv_body, val);
         }
-        rb_funcall(ctx->exception, cb_id_parse_body_bang, 0);
-        cb_gc_protect(bucket, ctx->exception);
+        rb_funcall(exc, cb_id_parse_body_bang, 0);
+        ctx->exception = cb_gc_protect(bucket, exc);
     }
     status = resp->v.v0.status;
     if (resp->v.v0.headers) {
@@ -55,7 +54,7 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
         res = val;
     }
     if (ctx->proc != Qnil) {
-        cb_proc_call(ctx->proc, 1, res);
+        cb_proc_call(bucket, ctx->proc, 1, res);
     }
     if (!bucket->async && ctx->exception == Qnil) {
         *rv = res;
@@ -107,7 +106,7 @@ cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cook
         } else {
             res = val;
         }
-        cb_proc_call(ctx->proc, 1, res);
+        cb_proc_call(bucket, ctx->proc, 1, res);
     }
     (void)handle;
 }

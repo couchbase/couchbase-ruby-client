@@ -35,18 +35,7 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
     if (exc != Qnil) {
         rb_ivar_set(exc, cb_id_iv_cas, cas);
         rb_ivar_set(exc, cb_id_iv_operation, o);
-        if (bucket->async) {
-            if (bucket->on_error_proc != Qnil) {
-                cb_proc_call(bucket->on_error_proc, 3, o, key, exc);
-            } else {
-                if (NIL_P(bucket->exception)) {
-                    bucket->exception = exc;
-                }
-            }
-        }
-        if (NIL_P(ctx->exception)) {
-            ctx->exception = cb_gc_protect(bucket, exc);
-        }
+        ctx->exception = cb_gc_protect(bucket, exc);
     }
     val = ULL2NUM(resp->v.v0.value);
     if (bucket->async) {    /* asynchronous */
@@ -57,7 +46,7 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
             rb_ivar_set(res, cb_id_iv_key, key);
             rb_ivar_set(res, cb_id_iv_value, val);
             rb_ivar_set(res, cb_id_iv_cas, cas);
-            cb_proc_call(ctx->proc, 1, res);
+            cb_proc_call(bucket, ctx->proc, 1, res);
         }
     } else {                /* synchronous */
         if (NIL_P(exc)) {

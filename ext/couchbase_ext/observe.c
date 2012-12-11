@@ -22,13 +22,13 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE key, res, *rv = ctx->rv;
+    VALUE key, res, *rv = ctx->rv, exc;
 
     if (resp->v.v0.key) {
         key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
-        ctx->exception = cb_check_error(error, "failed to execute observe request", key);
-        if (ctx->exception) {
-            cb_gc_protect(bucket, ctx->exception);
+        exc = cb_check_error(error, "failed to execute observe request", key);
+        if (exc != Qnil) {
+            ctx->exception = cb_gc_protect(bucket, exc);
         }
         res = rb_class_new_instance(0, NULL, cb_cResult);
         rb_ivar_set(res, cb_id_iv_completed, Qfalse);
@@ -54,7 +54,7 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
         }
         if (bucket->async) { /* asynchronous */
             if (ctx->proc != Qnil) {
-                cb_proc_call(ctx->proc, 1, res);
+                cb_proc_call(bucket, ctx->proc, 1, res);
             }
         } else {             /* synchronous */
             if (NIL_P(ctx->exception)) {
@@ -70,7 +70,7 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
         if (bucket->async && ctx->proc != Qnil) {
             res = rb_class_new_instance(0, NULL, cb_cResult);
             rb_ivar_set(res, cb_id_iv_completed, Qtrue);
-            cb_proc_call(ctx->proc, 1, res);
+            cb_proc_call(bucket, ctx->proc, 1, res);
         }
         ctx->nqueries--;
         cb_gc_unprotect(bucket, ctx->proc);

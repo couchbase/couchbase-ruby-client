@@ -28,9 +28,7 @@ cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
     exc = cb_check_error(error, "failed to get version", node);
     if (exc != Qnil) {
         rb_ivar_set(exc, cb_id_iv_operation, cb_sym_version);
-        if (NIL_P(ctx->exception)) {
-            ctx->exception = cb_gc_protect(bucket, exc);
-        }
+        ctx->exception = cb_gc_protect(bucket, exc);
     }
 
     if (node != Qnil) {
@@ -42,7 +40,7 @@ cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
                 rb_ivar_set(res, cb_id_iv_operation, cb_sym_version);
                 rb_ivar_set(res, cb_id_iv_node, node);
                 rb_ivar_set(res, cb_id_iv_value, val);
-                cb_proc_call(ctx->proc, 1, res);
+                cb_proc_call(bucket, ctx->proc, 1, res);
             }
         } else {                /* synchronous */
             if (NIL_P(exc)) {

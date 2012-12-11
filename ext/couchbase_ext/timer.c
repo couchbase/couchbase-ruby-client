@@ -106,7 +106,7 @@ cb_timer_cancel(VALUE self)
 trigger_timer(VALUE timer)
 {
     struct cb_timer_st *tm = DATA_PTR(timer);
-    return cb_proc_call(tm->callback, 1, timer);
+    return cb_proc_call(tm->bucket, tm->callback, 1, timer);
 }
 
     static void

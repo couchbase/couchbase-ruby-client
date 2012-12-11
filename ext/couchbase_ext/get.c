@@ -32,9 +32,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
         exc = cb_check_error(error, "failed to get value", key);
         if (exc != Qnil) {
             rb_ivar_set(exc, cb_id_iv_operation, cb_sym_get);
-            if (NIL_P(ctx->exception)) {
-                ctx->exception = cb_gc_protect(bucket, exc);
-            }
+            ctx->exception = cb_gc_protect(bucket, exc);
         }
     }
 
@@ -70,7 +68,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
             rb_ivar_set(res, cb_id_iv_value, val);
             rb_ivar_set(res, cb_id_iv_flags, flags);
             rb_ivar_set(res, cb_id_iv_cas, cas);
-            cb_proc_call(ctx->proc, 1, res);
+            cb_proc_call(bucket, ctx->proc, 1, res);
         }
     } else {                /* synchronous */
         if (NIL_P(exc) && error != LCB_KEY_ENOENT) {

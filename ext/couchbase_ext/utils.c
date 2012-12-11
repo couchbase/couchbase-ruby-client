@@ -31,13 +31,65 @@ cb_gc_unprotect(struct cb_bucket_st *bucket, VALUE val)
     return val;
 }
 
+struct proc_params_st
+{
+    struct cb_bucket_st *bucket;
+    VALUE recv;
+    ID mid;
+    int argc;
+    VALUE *argv;
+    VALUE exc;
+};
+
+    static VALUE
+do_async_error_notify(VALUE ptr)
+{
+    struct proc_params_st *p = (struct proc_params_st *)ptr;
+    return rb_funcall(p->bucket->on_error_proc, cb_id_call, 1, p->exc);
+}
+
+    void
+cb_async_error_notify(struct cb_bucket_st *bucket, VALUE exc)
+{
+    if (bucket->on_error_proc != Qnil) {
+        struct proc_params_st params;
+        int fail;
+        params.bucket = bucket;
+        params.exc = exc;
+        rb_protect(do_async_error_notify, (VALUE)&params, &fail);
+        if (fail) {
+            rb_warning("Couchbase::Bucket#on_error shouldn't raise exceptions");
+        }
+    } else {
+        if (NIL_P(bucket->exception)) {
+            bucket->exception = exc;
+        }
+    }
+}
+
+    static VALUE
+func_call_failed(VALUE ptr, VALUE exc)
+{
+    struct proc_params_st *p = (struct proc_params_st *)ptr;
+    cb_async_error_notify(p->bucket, exc);
+    return Qnil;
+}
+
+    static VALUE
+do_func_call(VALUE ptr)
+{
+    struct proc_params_st *p = (struct proc_params_st *)ptr;
+    return rb_funcall2(p->recv, p->mid, p->argc, p->argv);
+}
+
     VALUE
-cb_proc_call(VALUE recv, int argc, ...)
+cb_proc_call(struct cb_bucket_st *bucket, VALUE recv, int argc, ...)
 {
     VALUE *argv;
     va_list ar;
     int arity;
     int ii;
+    struct proc_params_st params;
 
     arity = FIX2INT(rb_funcall(recv, cb_id_arity, 0));
     if (arity < 0) {
@@ -57,7 +109,13 @@ cb_proc_call(VALUE recv, int argc, ...)
     } else {
         argv = NULL;
     }
-    return rb_funcall2(recv, cb_id_call, arity, argv);
+    params.bucket = bucket;
+    params.recv = recv;
+    params.mid = cb_id_call;
+    params.argc = arity;
+    params.argv = argv;
+    return rb_rescue(do_func_call, (VALUE)&params,
+            func_call_failed, (VALUE)&params);
 }
 
 VALUE
