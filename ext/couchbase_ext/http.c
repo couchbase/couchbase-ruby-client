@@ -291,6 +291,7 @@ cb_http_request_perform(VALUE self)
     ctx->extended = req->extended;
     ctx->request = req;
     ctx->headers_val = cb_gc_protect(bucket, rb_hash_new());
+    ctx->exception = Qnil;
 
     err = lcb_make_http_request(bucket->handle, (const void *)ctx,
             req->type, &req->cmd, &req->request);
