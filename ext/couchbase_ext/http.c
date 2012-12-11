@@ -286,7 +286,7 @@ cb_http_request_perform(VALUE self)
     rv = Qnil;
     ctx->rv = &rv;
     ctx->bucket = bucket = req->bucket;
-    ctx->proc = rb_block_given_p() ? rb_block_proc() : req->on_body_callback;
+    ctx->proc = rb_block_given_p() ? cb_gc_protect(bucket, rb_block_proc()) : req->on_body_callback;
     ctx->extended = req->extended;
     ctx->request = req;
     ctx->headers_val = cb_gc_protect(bucket, rb_hash_new());
