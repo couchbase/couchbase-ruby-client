@@ -235,7 +235,21 @@ do_connect(struct cb_bucket_st *bucket)
         bucket->handle = NULL;
         bucket->io = NULL;
     }
+
+#ifndef _WIN32
+    {
+        struct lcb_create_io_ops_st ciops;
+        memset(&ciops, 0, sizeof(ciops));
+        ciops.version = 1;
+        ciops.v.v1.sofile = NULL;
+        ciops.v.v1.symbol = "cb_create_ruby_mt_io_opts";
+        ciops.v.v1.cookie = NULL;
+
+        err = lcb_create_io_ops(&bucket->io, &ciops);
+    }
+#else
     err = lcb_create_io_ops(&bucket->io, NULL);
+#endif
     if (err != LCB_SUCCESS) {
         rb_exc_raise(cb_check_error(err, "failed to create IO instance", Qnil));
     }
