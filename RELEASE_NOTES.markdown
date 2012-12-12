@@ -3,7 +3,9 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
-## 1.2.0 (UNRELEASED)
+## 1.2.0 (2012-12-12)
+
+ 30 files changed, 2079 insertions(+), 662 deletions(-)
 
 * Specialized io plugin for releasing Ruby GVL (thanks to
   Sokolov Yura aka funny_falcon).

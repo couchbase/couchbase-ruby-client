@@ -17,5 +17,5 @@
 
 # Couchbase ruby client
 module Couchbase
-  VERSION = "1.2.0.z.beta5"
+  VERSION = "1.2.0"
 end
