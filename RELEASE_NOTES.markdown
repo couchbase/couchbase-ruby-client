@@ -65,17 +65,24 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * Adjust version check for MultiJson monkeypatch (8098da1)
 
-* Do not hide ValueFormat reason
+* Do not hide ValueFormat reason. It is accessible using
+  Couchbase::Error::Value#inner_exception.
 
 ## 1.2.0.z.beta3 (2012-10-16)
 
  18 files changed, 241 insertions(+), 57 deletions(-)
 
-* RCBC-52 Implement bucket create/delete operations
+* RCBC-52 Implement bucket create/delete operations. Examples:
 
-* Propogate status code for HTTP responses
+         conn = Couchbase::Cluster.new(:hostname => "localhost",
+                  :username => "Administrator", :password => "secret")
+         conn.create_bucket("my_protected_bucket",
+                  :ram_quota => 500, # megabytes
+                  :sasl_password => "s3cr3tBuck3t")
 
-* RCBC-87 Fix build error on macos
+* Propagate status code for HTTP responses
+
+* RCBC-87 Fix build error on Mac OS X
 
 * Use global scope to find Error classes (thanks to @wr0ngway)
 
@@ -87,13 +94,16 @@ bugfixes. Do not forget to update this doc in every important patch.
 
  3 files changed, 6 insertions(+), 2 deletions(-)
 
-* RCBC-82 Not all rubies are fat on MacOS. Fixes build there
+* RCBC-82 Not all rubies are fat on Mac OS X. Fixes build there
 
 ## 1.2.0.z.beta  (2012-09-18)
 
  2 files changed, 5 insertions(+), 1 deletion(-)
 
-* Fix version ordering by using ".z" prefix before .beta
+* Fix version ordering by using ".z" prefix before .beta. The problem
+  is that DP (Developer Preview) should have lower precedence than
+  Beta, but alphabetially ".beta" orders before ".dp". This is why
+  further Beta versions have ".z".
 
 ## 1.2.0.beta (2012-09-18)
 
@@ -112,13 +122,21 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * RCBC-28 Implement Bucket#unlock
 
+         # Unlock the single key
+         val, _, cas = c.get("foo", :lock => true, :extended => true)
+         c.unlock("foo", :cas => cas)
+
+         # Unlock several keys
+         c.unlock("foo" => cas1, :bar => cas2)
+         #=> {"foo" => true, "bar" => true}
+
 * Fix CAS conversion for Bucket#delete method for 32-bit systems
 
 ## 1.1.5 (2012-09-17)
 
  3 files changed, 9 insertions(+), 5 deletions(-)
 
-* RCBC-81 Fixed installing issue on MacOS.
+* RCBC-81 Fixed installing issue on Mac OS X.
 
 ## 1.1.4 (2012-08-30)
 
@@ -127,7 +145,7 @@ bugfixes. Do not forget to update this doc in every important patch.
 * RCBC-37 Allow to pass intial list of nodes which will allow to
   iterate addresses until alive node will be found.
 
-      Couchbase.connect(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
+         Couchbase.connect(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
 
 * RCBC-70 Fixed UTF-8 in the keys. Original discussion
   https://groups.google.com/d/topic/couchbase/bya0lSf9uGE/discussion
@@ -141,9 +159,23 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * Expose number of replicas to the user
 
-* RCBC-6 Implement OBSERVE command
+* RCBC-6 Implement Bucket#observe command to query durable state.
+  Examples:
 
-* RCBC-49 :observe option for storage functions
+         # Query state of single key
+         c.observe("foo")
+         #=> [#<Couchbase::Result:0x00000001650df0 ...>, ...]
+
+         # Query state of multiple keys
+         keys = ["foo", "bar"]
+         stats = c.observe(keys)
+         stats.size   #=> 2
+         stats["foo"] #=> [#<Couchbase::Result:0x00000001650df0 ...>, ...]
+
+* RCBC-49 Storage functions with durability requirements
+
+        # Ensure that the key will be persisted at least on the one node
+        c.set("foo", "bar", :observe => {:persisted => 1})
 
 * RCBC-50 Allow to read keys from replica
 
@@ -163,27 +195,27 @@ bugfixes. Do not forget to update this doc in every important patch.
   the next store operation was successful. Example, append JSON
   encoded value asynchronously:
 
-      c.default_format = :document
-      c.set("foo", {"bar" => 1})
-      c.run do
-        c.cas("foo") do |val|
-          case val.operation
-          when :get
-            val["baz"] = 2
-            val
-          when :set
-            # verify all is ok
-            puts "error: #{ret.error.inspect}" unless ret.success?
+        c.default_format = :document
+        c.set("foo", {"bar" => 1})
+        c.run do
+          c.cas("foo") do |val|
+            case val.operation
+            when :get
+              val["baz"] = 2
+              val
+            when :set
+              # verify all is ok
+              puts "error: #{ret.error.inspect}" unless ret.success?
+            end
           end
         end
-      end
-      c.get("foo")      #=> {"bar" => 1, "baz" => 2}
+        c.get("foo")      #=> {"bar" => 1, "baz" => 2}
 
 * RCBC-43 More docs and examples on views
 
 * RCBC-37 Bootstrapping using multiple nodes
 
-    Couchbase.connect(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
+        Couchbase.connect(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
 
 * Inherit StandardError instead RuntimeError for errors
 
@@ -193,42 +225,42 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * Integrate with Rack and Rails session store
 
-      # rack
-      require 'rack/session/couchbase'
-      use Rack::Session::Couchbase
+        # rack
+        require 'rack/session/couchbase'
+        use Rack::Session::Couchbase
 
-      # rails
-      require 'action_dispatch/middleware/session/couchbase_store'
-      AppName::Application.config.session_store :couchbase_store
+        # rails
+        require 'action_dispatch/middleware/session/couchbase_store'
+        AppName::Application.config.session_store :couchbase_store
 
 * Implement cache store adapter for Rails
 
-      cache_options = {
-        :bucket => 'protected',
-        :username => 'protected',
-        :password => 'secret',
-        :expires_in => 30.seconds
-      }
-      config.cache_store = :couchbase_store, cache_options
+        cache_options = {
+          :bucket => 'protected',
+          :username => 'protected',
+          :password => 'secret',
+          :expires_in => 30.seconds
+        }
+        config.cache_store = :couchbase_store, cache_options
 
 * Implement key prefix (simple namespacing)
 
-    Couchbase.connect(:key_prefix => "prefix:")
+        Couchbase.connect(:key_prefix => "prefix:")
 
 * Allow to force assembling result Hash for multi-get
 
-      connection.get("foo", "bar")
-      #=> [1, 2]
-      connection.get("foo", "bar", :assemble_hash => true)
-      #=> {"foo" => 1, "bar" => 2}
+        connection.get("foo", "bar")
+        #=> [1, 2]
+        connection.get("foo", "bar", :assemble_hash => true)
+        #=> {"foo" => 1, "bar" => 2}
 
 ## 1.2.0.dp4 (2012-06-07)
 
  4 files changed, 34 insertions(+), 19 deletions(-)
 
-* Update replace documentation: it accepts :cas option
+* Update Bucket#replace documentation: it accepts :cas option
 
-* RCBC-36 Fix segfault. Ocassional segfault when accessing the
+* RCBC-36 Fix segfault. Occasional segfault when accessing the
   results of a View. https://gist.github.com/2883925
 
 ## 1.2.0.dp3 (2012-06-06)
@@ -237,8 +269,9 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * Fix for multi_json < 1.3.3
 
-* Break out from event loop for non-chunked responses (fix creating
-  design create)
+* Break out from event loop for non-chunked responses. View results
+  are chunked by default, so there no problems, but other requests
+  like Bucket#save_design_doc() were "locking" awaiting forever.
 
 ## 1.2.0.dp2 (2012-06-06)
 
@@ -250,9 +283,9 @@ bugfixes. Do not forget to update this doc in every important patch.
   I have n items to return. If there happens to be only one item it
   will be treated differently than if there happens to be 2 items.
 
-      get(["foo"])  #=> ["bar"]
-      get("foo")    #=> "bar"
-      get(["x"], :extended => true) #=> {"x"=>["xval", 0, 18336939621176836096]}
+        get(["foo"])  #=> ["bar"]
+        get("foo")    #=> "bar"
+        get(["x"], :extended => true) #=> {"x"=>["xval", 0, 18336939621176836096]}
 
 * Use monotonic high resolution clock
 
@@ -270,13 +303,24 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * Allow to block and wait for part of the requests
 
-* Fix view iterator. It doesn't lock event loop anymore
+* Fixed view iterator. It doesn't lock event loop anymore This used to
+  cause "locks", memory leaks or even segmentation fault.
 
 * Define views only if "views" key presented
 
 * Require yajl as development dependency
 
-* Implement get with lock operation
+* RCBC-76 Implement get with lock operation. Examples:
+
+        # Get and lock key using default timeout
+        c.get("foo", :lock => true)
+
+        # Determine lock timeout parameters
+        c.stats.values_at("ep_getl_default_timeout", "ep_getl_max_timeout")
+        #=> [{"127.0.0.2:11210"=>"15"}, {"127.0.0.1:11210"=>"30"}]
+
+        # Get and lock key using custom timeout
+        c.get("foo", :lock => 3)
 
 * Update documentation
 
@@ -289,15 +333,15 @@ bugfixes. Do not forget to update this doc in every important patch.
   function, which copy the internals and initializes new connection.
 
 * RCBC-59 The flags might be reset if caller will use
-  Couchbase::Bucket#cas operation. Here is IRB session demostrating
+  Couchbase::Bucket#cas operation. Here is IRB session demonstrating
   the issue:
 
-      irb> Couchbase.bucket.set("foo", "bar", :flags => 0x100)
-      17982951084586893312
-      irb> Couchbase.bucket.cas("foo") { "baz" }
-      1712422461213442048
-      irb> Couchbase.bucket.get("foo", :extended => true)
-      ["baz", 0, 1712422461213442048]
+        irb> Couchbase.bucket.set("foo", "bar", :flags => 0x100)
+        17982951084586893312
+        irb> Couchbase.bucket.cas("foo") { "baz" }
+        1712422461213442048
+        irb> Couchbase.bucket.get("foo", :extended => true)
+        ["baz", 0, 1712422461213442048]
 
 
 * RCBC-60 Make object_space GC protector per-bucket object. Previous
@@ -321,9 +365,17 @@ bugfixes. Do not forget to update this doc in every important patch.
 
  19 files changed, 1606 insertions(+), 93 deletions(-)
 
-* Properly handle hashes as Couchbase.connection_options
+* Properly handle hashes as Couchbase.connection_options. Fixed a bug
+  when 'Couchbase.connection_options' for "default" connection, when
+  there are several arguments to pass to the connect() function when
+  establishing thread local connection as below:
 
-* Implement views
+        Couchbase.connection_options = {:port => 9000, :bucket => 'myapp'}
+
+* Implement views. Couchbase Server Views are accessible using the
+  view APIs. Please refer to
+  http://www.couchbase.com/docs/couchbase-manual-2.0/couchbase-views.html
+  for getting started with views.
 
 * Use verbose mode by default throwing exceptions on NOT_FOUND errors.
   This means that quiet attribute is false now on new connections.
@@ -357,8 +409,8 @@ bugfixes. Do not forget to update this doc in every important patch.
   connections when running in multi-thread environment. Each thread
   has its own connection reference.
 
-* The direct dependency on libevent and sasl has been removed. Now the
-  library doesn't require libevent headers installed.
+* The direct dependency on libevent and libsasl has been removed. Now
+  the library doesn't require libevent headers installed.
 
 * The disconnect and reconnect interfaces are implemented which
   provide routines for explicit resource management. Connections were
@@ -371,10 +423,10 @@ bugfixes. Do not forget to update this doc in every important patch.
   below. No timeout will occur unless there is a problem with the
   connection.
 
-      connection.run do
-        connection.get("foo") {|ret| puts "got foo = #{ret.value}"}
-        sleep(5)
-      end
+        connection.run do
+          connection.get("foo") {|ret| puts "got foo = #{ret.value}"}
+          sleep(5)
+        end
 
 * It is not required to install libcouchbase or libvbucket on windows.
 
@@ -385,7 +437,7 @@ bugfixes. Do not forget to update this doc in every important patch.
 * Based on the time out fix (CCBC-20), clients will be notified when
   the connection was dropped or host isn't available.
 
-## 1.0.0 (2012-03-01)
+## 1.0.0 (2012-01-23)
 
  50 files changed, 4696 insertions(+), 2647 deletions(-)
 
@@ -416,8 +468,6 @@ bugfixes. Do not forget to update this doc in every important patch.
 * Added benchmarks, couchbase vs. memcached vs. dalli
 
 * Implement asynchronous protocol
-
-* Implement basic commands
 
 ## 0.9.8 (2011-12-16)
 
@@ -457,7 +507,7 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * Update README. Make it more human-friendly
 
-* Removed depency on will_paginate in development mode
+* Removed dependency on will_paginate in development mode
 
 ## 0.9.4 (2011-08-01)
 
@@ -508,6 +558,6 @@ bugfixes. Do not forget to update this doc in every important patch.
 
  19 files changed, 1174 insertions(+)
 
-* Initial public release. It suppors most of the binary protocol
+* Initial public release. It supports most of the binary protocol
   commands through memcached gem and also is able to listen to bucket
   configuration and make View requests.
