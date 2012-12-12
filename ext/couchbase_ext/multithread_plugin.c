@@ -789,45 +789,33 @@ loop_select_cleanup(VALUE argp)
 /* code influenced by ruby's source and cool.io */
 #define POLLIN_SET (POLLIN | POLLHUP | POLLERR)
 #define POLLOUT_SET (POLLOUT | POLLHUP | POLLERR)
+#define HRTIME_INFINITY ((hrtime_t)~0)
 
-#ifndef HAVE_PPOLL
-#if SIZEOF_TIME_T == SIZEOF_LONG
-typedef unsigned long unsigned_time_t;
-#elif SIZEOF_TIME_T == SIZEOF_INT
-typedef unsigned int unsigned_time_t;
-#elif SIZEOF_TIME_T == SIZEOF_LONG_LONG
-typedef unsigned LONG_LONG unsigned_time_t;
-#else
-# error cannot find integer type which size is same as time_t.
-#endif
-#define TIMET_MAX (~(time_t)0 <= 0 ? (time_t)((~(unsigned_time_t)0) >> 1) : (time_t)(~(unsigned_time_t)0))
+#ifdef HAVE_PPOLL
     static int
-ppoll(struct pollfd *fds, nfds_t nfds,
-        const struct timespec *ts, const sigset_t *sigmask)
+xpoll(struct pollfd *fds, nfds_t nfds, hrtime_t timeout)
 {
-    int timeout_ms;
-
-    if (ts) {
-        int tmp, tmp2;
-
-        if (ts->tv_sec > TIMET_MAX/1000) {
-            timeout_ms = -1;
-        } else {
-            tmp = ts->tv_sec * 1000;
-            tmp2 = (ts->tv_nsec + 999999) / (1000 * 1000);
-            if (TIMET_MAX - tmp < tmp2) {
-                timeout_ms = -1;
-            } else {
-                timeout_ms = tmp + tmp2;
-            }
-        }
-    } else {
-        timeout_ms = -1;
+    if (timeout != HRTIME_INFINITY) {
+        struct timespec ts;
+        ts.tv_sec = (long)(timeout / (1000 * 1000 * 1000));
+        ts.tv_nsec = (long)(timeout % (1000 * 1000 * 1000));
+        return ppoll(fds, nfds, &ts, NULL);
     }
-
-    (void)sigmask;
-
-    return poll(fds, nfds, timeout_ms);
+    return ppoll(fds, nfds, NULL, NULL);
+}
+#else
+#define TIMEOUT_MAX ((hrtime_t)(((unsigned int)~0) >> 1))
+    static int
+xpoll(struct pollfd *fds, nfds_t nfds, hrtime_t timeout)
+{
+    int ts = -1;
+    if (timeout != HRTIME_INFINITY) {
+        timeout = (timeout + 999999) / (1000 * 1000);
+        if (timeout <= TIMEOUT_MAX) {
+            ts = (int)timeout;
+        }
+    }
+    return poll(fds, nfds, ts);
 }
 #endif
 
@@ -836,7 +824,7 @@ struct poll_args {
     rb_mt_loop *loop;
     struct pollfd *fds;
     nfds_t nfd;
-    struct timespec *ts;
+    hrtime_t ts;
     int result;
     int lerrno;
 };
@@ -846,7 +834,7 @@ struct poll_args {
 loop_blocking_poll(void *argp)
 {
     lp_arg *args = argp;
-    args->result = ppoll(args->fds, args->nfd, args->ts, NULL);
+    args->result = xpoll(args->fds, args->nfd, args->ts);
     if (args->result < 0) args->lerrno = errno;
     return Qnil;
 }
@@ -857,7 +845,6 @@ loop_run_poll(VALUE argp)
 {
     lp_arg *args = (struct poll_args *)argp;
     rb_mt_loop *loop = args->loop;
-    struct timespec ts;
     hrtime_t now, next_time;
 
     if (loop->events.count) {
@@ -880,17 +867,9 @@ retry:
     next_time = timers_minimum(&loop->timers);
     if (next_time) {
         now = gethrtime();
-        if (next_time <= now) {
-            ts.tv_sec = 0;
-            ts.tv_nsec = 0;
-        } else {
-            hrtime_t hrto = next_time - now;
-            ts.tv_sec = (long)(hrto / 1000000000);
-            ts.tv_nsec = (long)(hrto % 1000000000);
-        }
-        args->ts = &ts;
+        args->ts = next_time <= now ? 0 : next_time - now;
     } else {
-        args->ts = NULL;
+        args->ts = HRTIME_INFINITY;
     }
 
 #ifdef HAVE_RB_THREAD_BLOCKING_REGION
@@ -898,21 +877,19 @@ retry:
 #else
     if (rb_thread_alone()) {
         TRAP_BEG;
-        args->result = ppoll(args->fds, args->nfd, args->ts, NULL);
+        args->result = xpoll(args->fds, args->nfd, args->ts);
         if (args->result < 0) args->lerrno = errno;
         TRAP_END;
     } else {
-        struct timespec mini_pause;
-        int exact = 0;
-        mini_pause.tv_sec = 0;
         /* 5 millisecond pause */
-        mini_pause.tv_nsec = 5000000;
-        if (args->ts && ts.tv_sec == 0 && ts.tv_nsec < 5000000) {
-            mini_pause.tv_nsec = ts.tv_nsec;
+        hrtime_t mini_pause = 5000000;
+        int exact = 0;
+        if (args->ts != HRTIME_INFINITY && args->ts < mini_pause) {
+            mini_pause = args->ts;
             exact = 1;
         }
         TRAP_BEG;
-        args->result = ppoll(args->fds, args->nfd, &mini_pause, NULL);
+        args->result = xpoll(args->fds, args->nfd, mini_pause);
         if (args->result < 0) args->lerrno = errno;
         TRAP_END;
         if (args->result == 0 && !exact) {
