@@ -127,7 +127,7 @@ bugfixes. Do not forget to update this doc in every important patch.
 * RCBC-37 Allow to pass intial list of nodes which will allow to
   iterate addresses until alive node will be found.
 
-    Couchbase.connect(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
+      Couchbase.connect(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
 
 * RCBC-70 Fixed UTF-8 in the keys. Original discussion
   https://groups.google.com/d/topic/couchbase/bya0lSf9uGE/discussion
@@ -163,21 +163,21 @@ bugfixes. Do not forget to update this doc in every important patch.
   the next store operation was successful. Example, append JSON
   encoded value asynchronously:
 
-    c.default_format = :document
-    c.set("foo", {"bar" => 1})
-    c.run do
-      c.cas("foo") do |val|
-        case val.operation
-        when :get
-          val["baz"] = 2
-          val
-        when :set
-          # verify all is ok
-          puts "error: #{ret.error.inspect}" unless ret.success?
+      c.default_format = :document
+      c.set("foo", {"bar" => 1})
+      c.run do
+        c.cas("foo") do |val|
+          case val.operation
+          when :get
+            val["baz"] = 2
+            val
+          when :set
+            # verify all is ok
+            puts "error: #{ret.error.inspect}" unless ret.success?
+          end
         end
       end
-    end
-    c.get("foo")      #=> {"bar" => 1, "baz" => 2}
+      c.get("foo")      #=> {"bar" => 1, "baz" => 2}
 
 * RCBC-43 More docs and examples on views
 
@@ -193,23 +193,23 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * Integrate with Rack and Rails session store
 
-    # rack
-    require 'rack/session/couchbase'
-    use Rack::Session::Couchbase
+      # rack
+      require 'rack/session/couchbase'
+      use Rack::Session::Couchbase
 
-    # rails
-    require 'action_dispatch/middleware/session/couchbase_store'
-    AppName::Application.config.session_store :couchbase_store
+      # rails
+      require 'action_dispatch/middleware/session/couchbase_store'
+      AppName::Application.config.session_store :couchbase_store
 
 * Implement cache store adapter for Rails
 
-    cache_options = {
-      :bucket => 'protected',
-      :username => 'protected',
-      :password => 'secret',
-      :expires_in => 30.seconds
-    }
-    config.cache_store = :couchbase_store, cache_options
+      cache_options = {
+        :bucket => 'protected',
+        :username => 'protected',
+        :password => 'secret',
+        :expires_in => 30.seconds
+      }
+      config.cache_store = :couchbase_store, cache_options
 
 * Implement key prefix (simple namespacing)
 
@@ -217,10 +217,10 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * Allow to force assembling result Hash for multi-get
 
-    connection.get("foo", "bar")
-    #=> [1, 2]
-    connection.get("foo", "bar", :assemble_hash => true)
-    #=> {"foo" => 1, "bar" => 2}
+      connection.get("foo", "bar")
+      #=> [1, 2]
+      connection.get("foo", "bar", :assemble_hash => true)
+      #=> {"foo" => 1, "bar" => 2}
 
 ## 1.2.0.dp4 (2012-06-07)
 
@@ -250,9 +250,9 @@ bugfixes. Do not forget to update this doc in every important patch.
   I have n items to return. If there happens to be only one item it
   will be treated differently than if there happens to be 2 items.
 
-    get(["foo"])  #=> ["bar"]
-    get("foo")    #=> "bar"
-    get(["x"], :extended => true) #=> {"x"=>["xval", 0, 18336939621176836096]}
+      get(["foo"])  #=> ["bar"]
+      get("foo")    #=> "bar"
+      get(["x"], :extended => true) #=> {"x"=>["xval", 0, 18336939621176836096]}
 
 * Use monotonic high resolution clock
 
@@ -292,12 +292,12 @@ bugfixes. Do not forget to update this doc in every important patch.
   Couchbase::Bucket#cas operation. Here is IRB session demostrating
   the issue:
 
-    irb>Couchbase.bucket.set("foo", "bar", :flags => 0x100)
-    17982951084586893312
-    irb> Couchbase.bucket.cas("foo") { "baz" }
-    1712422461213442048
-    irb> Couchbase.bucket.get("foo", :extended => true)
-    ["baz", 0, 1712422461213442048]
+      irb> Couchbase.bucket.set("foo", "bar", :flags => 0x100)
+      17982951084586893312
+      irb> Couchbase.bucket.cas("foo") { "baz" }
+      1712422461213442048
+      irb> Couchbase.bucket.get("foo", :extended => true)
+      ["baz", 0, 1712422461213442048]
 
 
 * RCBC-60 Make object_space GC protector per-bucket object. Previous
@@ -371,10 +371,10 @@ bugfixes. Do not forget to update this doc in every important patch.
   below. No timeout will occur unless there is a problem with the
   connection.
 
-    connection.run do
-      connection.get("foo") {|ret| puts "got foo = #{ret.value}"}
-      sleep(5)
-    end
+      connection.run do
+        connection.get("foo") {|ret| puts "got foo = #{ret.value}"}
+        sleep(5)
+      end
 
 * It is not required to install libcouchbase or libvbucket on windows.
 
@@ -417,7 +417,7 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * Implement asynchronous protocol
 
-* e36c2e7 Implement basic commands
+* Implement basic commands
 
 ## 0.9.8 (2011-12-16)
 
