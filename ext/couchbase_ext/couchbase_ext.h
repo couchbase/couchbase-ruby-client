@@ -55,12 +55,16 @@ extern hrtime_t gethrtime(void);
 VALUE rb_hash_lookup2(VALUE, VALUE, VALUE);
 #endif
 
-#define cb_debug_object(OBJ) \
-    rb_funcall(rb_stderr, rb_intern("print"), 1, rb_funcall(OBJ, rb_intern("object_id"), 0)); \
-    rb_funcall(rb_stderr, rb_intern("print"), 1, STR_NEW_CSTR(" ")); \
-    rb_funcall(rb_stderr, rb_intern("print"), 1, rb_funcall(OBJ, rb_intern("class"), 0)); \
-    rb_funcall(rb_stderr, rb_intern("print"), 1, STR_NEW_CSTR(" ")); \
-    rb_funcall(rb_stderr, rb_intern("puts"), 1, rb_funcall(OBJ, rb_intern("inspect"), 0));
+#define cb_debug_object(OBJ) do { \
+    VALUE debug_args[6] = { \
+        rb_funcall(OBJ, rb_intern("object_id"), 0), \
+        STR_NEW_CSTR(" "), \
+        rb_funcall(OBJ, rb_intern("class"), 0), \
+        STR_NEW_CSTR(" "), \
+        rb_funcall(OBJ, rb_intern("inspect"), 0), \
+        STR_NEW_CSTR("\n") }; \
+    rb_funcall2(rb_stderr, rb_intern("print"), 6, debug_args); \
+} while(0)
 
 #define CB_FMT_MASK        0x3
 #define CB_FMT_DOCUMENT    0x0
