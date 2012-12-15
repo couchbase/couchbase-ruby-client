@@ -132,12 +132,13 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     params.cmd.store.operation = cmd;
     cb_params_build(&params, RARRAY_LEN(args), args);
+    obs = params.cmd.store.observe;
     ctx = cb_context_alloc(bucket);
     if (!bucket->async) {
         ctx->rv = rb_hash_new();
+        ctx->observe_options = obs;
     }
     ctx->proc = proc;
-    ctx->observe_options = obs;
     ctx->nqueries = params.cmd.store.num;
     err = lcb_store(bucket->handle, (const void *)ctx,
             params.cmd.store.num, params.cmd.store.ptr);
