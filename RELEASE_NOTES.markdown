@@ -3,6 +3,11 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.2.1 (UNRELEASED)
+
+* [major] RCBC-101 Persistence constraints wasn't passed to mutation
+  methods, so they haven't been applied properly.
+
 ## 1.2.0 (2012-12-12)
 
  30 files changed, 2079 insertions(+), 662 deletions(-)

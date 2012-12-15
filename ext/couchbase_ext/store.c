@@ -142,6 +142,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
     ctx->proc = cb_gc_protect(bucket, proc);
     ctx->observe_options = cb_gc_protect(bucket, obs);
     ctx->exception = Qnil;
+    obs = params.cmd.store.observe;
     ctx->nqueries = params.cmd.store.num;
     err = lcb_store(bucket->handle, (const void *)ctx,
             params.cmd.store.num, params.cmd.store.ptr);
