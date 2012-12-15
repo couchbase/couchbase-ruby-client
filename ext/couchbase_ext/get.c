@@ -233,7 +233,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     memset(&params, 0, sizeof(struct cb_params_st));
     params.type = cb_cmd_get;
     params.bucket = bucket;
-    params.cmd.get.keys_ary = cb_gc_protect(bucket, rb_ary_new());
+    params.cmd.get.keys_ary = rb_ary_new();
     cb_params_build(&params, RARRAY_LEN(args), args);
     ctx = cb_context_alloc(bucket);
     ctx->extended = params.cmd.get.extended;
@@ -252,7 +252,6 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
                 params.cmd.get.num, params.cmd.get.ptr);
     }
     cb_params_destroy(&params);
-    cb_gc_unprotect(bucket, params.cmd.get.keys_ary);
     exc = cb_check_error(err, "failed to schedule get request", Qnil);
     if (exc != Qnil) {
         cb_context_free(ctx);

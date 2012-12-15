@@ -299,8 +299,6 @@ extern VALUE cb_vStrEmpty;
 void cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key);
 VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);
 VALUE cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb_http_status_t status);
-VALUE cb_gc_protect(struct cb_bucket_st *bucket, VALUE val);
-VALUE cb_gc_unprotect(struct cb_bucket_st *bucket, VALUE val);
 void cb_gc_protect_ptr(struct cb_bucket_st *bucket, void *ptr, VALUE val);
 void cb_gc_unprotect_ptr(struct cb_bucket_st *bucket, void *ptr);
 VALUE cb_proc_call(struct cb_bucket_st *bucket, VALUE recv, int argc, ...);

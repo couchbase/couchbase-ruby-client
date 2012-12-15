@@ -17,20 +17,6 @@
 
 #include "couchbase_ext.h"
 
-    VALUE
-cb_gc_protect(struct cb_bucket_st *bucket, VALUE val)
-{
-    st_insert(bucket->object_space, (st_index_t)val, (st_data_t)val);
-    return val;
-}
-
-    VALUE
-cb_gc_unprotect(struct cb_bucket_st *bucket, VALUE val)
-{
-    st_delete(bucket->object_space, (st_index_t*)&val, NULL);
-    return val;
-}
-
     void
 cb_gc_protect_ptr(struct cb_bucket_st *bucket, void *ptr, VALUE val)
 {
