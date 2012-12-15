@@ -20,15 +20,27 @@
     VALUE
 cb_gc_protect(struct cb_bucket_st *bucket, VALUE val)
 {
-    rb_hash_aset(bucket->object_space, val|1, val);
+    st_insert(bucket->object_space, (st_index_t)val, (st_data_t)val);
     return val;
 }
 
     VALUE
 cb_gc_unprotect(struct cb_bucket_st *bucket, VALUE val)
 {
-    rb_funcall(bucket->object_space, cb_id_delete, 1, val|1);
+    st_delete(bucket->object_space, (st_index_t*)&val, NULL);
     return val;
+}
+
+    void
+cb_gc_protect_ptr(struct cb_bucket_st *bucket, void *ptr, VALUE val)
+{
+    st_insert(bucket->object_space, (st_index_t)ptr, (st_data_t)val);
+}
+
+    void
+cb_gc_unprotect_ptr(struct cb_bucket_st *bucket, void *ptr)
+{
+    st_delete(bucket->object_space, (st_index_t*)&ptr, NULL);
 }
 
 struct proc_params_st

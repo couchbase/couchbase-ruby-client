@@ -22,7 +22,7 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE cas, key, val, *rv = ctx->rv, exc, res;
+    VALUE cas, key, val, exc, res;
     ID o;
 
     ctx->nqueries--;
@@ -35,7 +35,7 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
     if (exc != Qnil) {
         rb_ivar_set(exc, cb_id_iv_cas, cas);
         rb_ivar_set(exc, cb_id_iv_operation, o);
-        ctx->exception = cb_gc_protect(bucket, exc);
+        ctx->exception = exc;
     }
     val = ULL2NUM(resp->v.v0.value);
     if (bucket->async) {    /* asynchronous */
@@ -51,16 +51,16 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
     } else {                /* synchronous */
         if (NIL_P(exc)) {
             if (ctx->extended) {
-                rb_hash_aset(*rv, key, rb_ary_new3(2, val, cas));
+                rb_hash_aset(ctx->rv, key, rb_ary_new3(2, val, cas));
             } else {
-                rb_hash_aset(*rv, key, val);
+                rb_hash_aset(ctx->rv, key, val);
             }
         }
     }
     if (ctx->nqueries == 0) {
-        cb_gc_unprotect(bucket, ctx->proc);
+        ctx->proc = Qnil;
         if (bucket->async) {
-            free(ctx);
+            cb_context_free(ctx);
         }
     }
     (void)handle;
@@ -87,22 +87,18 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     params.cmd.arith.sign = sign;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = calloc(1, sizeof(struct cb_context_st));
-    if (ctx == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
+    ctx = cb_context_alloc(bucket);
+    if (!bucket->async) {
+        ctx->rv = rb_hash_new();
     }
-    rv = rb_hash_new();
-    ctx->rv = &rv;
-    ctx->bucket = bucket;
-    ctx->proc = cb_gc_protect(bucket, proc);
-    ctx->exception = Qnil;
+    ctx->proc = proc;
     ctx->nqueries = params.cmd.arith.num;
     err = lcb_arithmetic(bucket->handle, (const void *)ctx,
             params.cmd.arith.num, params.cmd.arith.ptr);
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule arithmetic request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        cb_context_free(ctx);
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
@@ -115,9 +111,9 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
             lcb_wait(bucket->handle);
         }
         exc = ctx->exception;
-        free(ctx);
+        rv = ctx->rv;
+        cb_context_free(ctx);
         if (exc != Qnil) {
-            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         if (params.cmd.store.num > 1) {

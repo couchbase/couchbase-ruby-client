@@ -22,13 +22,13 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE key, res, *rv = ctx->rv, exc;
+    VALUE key, res, exc;
 
     if (resp->v.v0.key) {
         key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
         exc = cb_check_error(error, "failed to execute observe request", key);
         if (exc != Qnil) {
-            ctx->exception = cb_gc_protect(bucket, exc);
+            ctx->exception = exc;
         }
         res = rb_class_new_instance(0, NULL, cb_cResult);
         rb_ivar_set(res, cb_id_iv_completed, Qfalse);
@@ -58,10 +58,10 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
             }
         } else {             /* synchronous */
             if (NIL_P(ctx->exception)) {
-                VALUE stats = rb_hash_aref(*rv, key);
+                VALUE stats = rb_hash_aref(ctx->rv, key);
                 if (NIL_P(stats)) {
                     stats = rb_ary_new();
-                    rb_hash_aset(*rv, key, stats);
+                    rb_hash_aset(ctx->rv, key, stats);
                 }
                 rb_ary_push(stats, res);
             }
@@ -73,9 +73,9 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
             cb_proc_call(bucket, ctx->proc, 1, res);
         }
         ctx->nqueries--;
-        cb_gc_unprotect(bucket, ctx->proc);
+        ctx->proc = Qnil;
         if (bucket->async) {
-            free(ctx);
+            cb_context_free(ctx);
         }
     }
     (void)handle;
@@ -130,22 +130,18 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
     params.type = cb_cmd_observe;
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = calloc(1, sizeof(struct cb_context_st));
-    if (ctx == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
+    ctx = cb_context_alloc(bucket);
+    ctx->proc = proc;
+    if (!bucket->async) {
+        ctx->rv = rb_hash_new();
     }
-    ctx->proc = cb_gc_protect(bucket, proc);
-    ctx->bucket = bucket;
-    rv = rb_hash_new();
-    ctx->rv = &rv;
-    ctx->exception = Qnil;
     ctx->nqueries = params.cmd.observe.num;
     err = lcb_observe(bucket->handle, (const void *)ctx,
             params.cmd.observe.num, params.cmd.observe.ptr);
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule observe request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        cb_context_free(ctx);
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
@@ -158,9 +154,9 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
             lcb_wait(bucket->handle);
         }
         exc = ctx->exception;
-        free(ctx);
+        rv = ctx->rv;
+        cb_context_free(ctx);
         if (exc != Qnil) {
-            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         exc = bucket->exception;

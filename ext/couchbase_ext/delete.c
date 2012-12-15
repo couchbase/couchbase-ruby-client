@@ -22,7 +22,7 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE key, *rv = ctx->rv, exc = Qnil, res;
+    VALUE key, exc = Qnil, res;
 
     ctx->nqueries--;
     key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
@@ -32,7 +32,7 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
         exc = cb_check_error(error, "failed to remove value", key);
         if (exc != Qnil) {
             rb_ivar_set(exc, cb_id_iv_operation, cb_sym_delete);
-            ctx->exception = cb_gc_protect(bucket, exc);
+            ctx->exception = exc;
         }
     }
     if (bucket->async) {    /* asynchronous */
@@ -44,12 +44,12 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
             cb_proc_call(bucket, ctx->proc, 1, res);
         }
     } else {                /* synchronous */
-        rb_hash_aset(*rv, key, (error == LCB_SUCCESS) ? Qtrue : Qfalse);
+        rb_hash_aset(ctx->rv, key, (error == LCB_SUCCESS) ? Qtrue : Qfalse);
     }
     if (ctx->nqueries == 0) {
-        cb_gc_unprotect(bucket, ctx->proc);
+        ctx->proc = Qnil;
         if (bucket->async) {
-            free(ctx);
+            cb_context_free(ctx);
         }
     }
     (void)handle;
@@ -120,23 +120,19 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
 
-    ctx = calloc(1, sizeof(struct cb_context_st));
-    if (ctx == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
-    }
+    ctx = cb_context_alloc(bucket);
     ctx->quiet = params.cmd.remove.quiet;
-    ctx->proc = cb_gc_protect(bucket, proc);
-    rv = rb_hash_new();
-    ctx->rv = &rv;
-    ctx->bucket = bucket;
-    ctx->exception = Qnil;
+    ctx->proc = proc;
+    if (!bucket->async) {
+        ctx->rv = rb_hash_new();
+    }
     ctx->nqueries = params.cmd.remove.num;
     err = lcb_remove(bucket->handle, (const void *)ctx,
             params.cmd.remove.num, params.cmd.remove.ptr);
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule delete request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        cb_context_free(ctx);
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
@@ -149,9 +145,10 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
             lcb_wait(bucket->handle);
         }
         exc = ctx->exception;
-        free(ctx);
+        rv = ctx->rv;
+        cb_context_free(ctx);
         if (exc != Qnil) {
-            rb_exc_raise(cb_gc_unprotect(bucket, exc));
+            rb_exc_raise(exc);
         }
         exc = bucket->exception;
         if (exc != Qnil) {

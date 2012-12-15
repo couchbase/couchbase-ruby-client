@@ -22,13 +22,13 @@ cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE node, val, *rv = ctx->rv, exc, res;
+    VALUE node, val, exc, res;
 
     node = resp->v.v0.server_endpoint ? STR_NEW_CSTR(resp->v.v0.server_endpoint) : Qnil;
     exc = cb_check_error(error, "failed to get version", node);
     if (exc != Qnil) {
         rb_ivar_set(exc, cb_id_iv_operation, cb_sym_version);
-        ctx->exception = cb_gc_protect(bucket, exc);
+        ctx->exception = exc;
     }
 
     if (node != Qnil) {
@@ -44,14 +44,14 @@ cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
             }
         } else {                /* synchronous */
             if (NIL_P(exc)) {
-                rb_hash_aset(*rv, node, val);
+                rb_hash_aset(ctx->rv, node, val);
             }
         }
     } else {
         ctx->nqueries--;
-        cb_gc_unprotect(bucket, ctx->proc);
+        ctx->proc = Qnil;
         if (bucket->async) {
-            free(ctx);
+            cb_context_free(ctx);
         }
     }
 
@@ -105,22 +105,18 @@ cb_bucket_version(int argc, VALUE *argv, VALUE self)
     params.type = cb_cmd_version;
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = calloc(1, sizeof(struct cb_context_st));
-    if (ctx == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
+    ctx = cb_context_alloc(bucket);
+    if (!bucket->async) {
+        ctx->rv = rb_hash_new();
     }
-    rv = rb_hash_new();
-    ctx->rv = &rv;
-    ctx->bucket = bucket;
-    ctx->exception = Qnil;
-    ctx->proc = cb_gc_protect(bucket, proc);
+    ctx->proc = proc;
     ctx->nqueries = params.cmd.version.num;
     err = lcb_server_versions(bucket->handle, (const void *)ctx,
             params.cmd.version.num, params.cmd.version.ptr);
     exc = cb_check_error(err, "failed to schedule version request", Qnil);
     cb_params_destroy(&params);
     if (exc != Qnil) {
-        free(ctx);
+        cb_context_free(ctx);
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
@@ -133,9 +129,9 @@ cb_bucket_version(int argc, VALUE *argv, VALUE self)
             lcb_wait(bucket->handle);
         }
         exc = ctx->exception;
-        free(ctx);
+        rv = ctx->rv;
+        cb_context_free(ctx);
         if (exc != Qnil) {
-            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         exc = bucket->exception;

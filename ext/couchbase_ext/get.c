@@ -22,7 +22,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE key, val, flags, cas, *rv = ctx->rv, exc = Qnil, res;
+    VALUE key, val, flags, cas, exc = Qnil, res;
 
     ctx->nqueries--;
     key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
@@ -32,7 +32,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
         exc = cb_check_error(error, "failed to get value", key);
         if (exc != Qnil) {
             rb_ivar_set(exc, cb_id_iv_operation, cb_sym_get);
-            ctx->exception = cb_gc_protect(bucket, exc);
+            ctx->exception = exc;
         }
     }
 
@@ -46,14 +46,10 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
             VALUE exc_str = rb_funcall(val, cb_id_to_s, 0);
             VALUE msg = rb_funcall(rb_mKernel, cb_id_sprintf, 3,
                     rb_str_new2("unable to convert value for key '%s': %s"), key, exc_str);
-            if (ctx->exception != Qnil) {
-                cb_gc_unprotect(bucket, ctx->exception);
-            }
             ctx->exception = rb_exc_new3(cb_eValueFormatError, msg);
             rb_ivar_set(ctx->exception, cb_id_iv_operation, cb_sym_get);
             rb_ivar_set(ctx->exception, cb_id_iv_key, key);
             rb_ivar_set(ctx->exception, cb_id_iv_inner_exception, val);
-            cb_gc_protect(bucket, ctx->exception);
             val = raw;
         }
     } else if (cb_flags_get_format(resp->v.v0.flags) == cb_sym_plain) {
@@ -73,17 +69,17 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
     } else {                /* synchronous */
         if (NIL_P(exc) && error != LCB_KEY_ENOENT) {
             if (ctx->extended) {
-                rb_hash_aset(*rv, key, rb_ary_new3(3, val, flags, cas));
+                rb_hash_aset(ctx->rv, key, rb_ary_new3(3, val, flags, cas));
             } else {
-                rb_hash_aset(*rv, key, val);
+                rb_hash_aset(ctx->rv, key, val);
             }
         }
     }
 
     if (ctx->nqueries == 0) {
-        cb_gc_unprotect(bucket, ctx->proc);
+        ctx->proc = Qnil;
         if (bucket->async) {
-            free(ctx);
+            cb_context_free(ctx);
         }
     }
     (void)handle;
@@ -239,18 +235,14 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     params.cmd.get.keys_ary = cb_gc_protect(bucket, rb_ary_new());
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = calloc(1, sizeof(struct cb_context_st));
-    if (ctx == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
-    }
+    ctx = cb_context_alloc(bucket);
     ctx->extended = params.cmd.get.extended;
     ctx->quiet = params.cmd.get.quiet;
     ctx->force_format = params.cmd.get.forced_format;
-    ctx->proc = cb_gc_protect(bucket, proc);
-    ctx->bucket = bucket;
-    rv = rb_hash_new();
-    ctx->rv = &rv;
-    ctx->exception = Qnil;
+    ctx->proc = proc;
+    if (!bucket->async) {
+        ctx->rv = rb_hash_new();
+    }
     ctx->nqueries = params.cmd.get.num;
     if (params.cmd.get.replica) {
         err = lcb_get_replica(bucket->handle, (const void *)ctx,
@@ -263,7 +255,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     cb_gc_unprotect(bucket, params.cmd.get.keys_ary);
     exc = cb_check_error(err, "failed to schedule get request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        cb_context_free(ctx);
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
@@ -276,9 +268,9 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
             lcb_wait(bucket->handle);
         }
         exc = ctx->exception;
-        free(ctx);
+        rv = ctx->rv;
+        cb_context_free(ctx);
         if (exc != Qnil) {
-            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         exc = bucket->exception;

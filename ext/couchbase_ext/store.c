@@ -31,9 +31,9 @@ storage_observe_callback(VALUE args, VALUE cookie)
     if (!RTEST(ctx->observe_options)) {
         ctx->nqueries--;
         if (ctx->nqueries == 0) {
-            cb_gc_unprotect(bucket, ctx->proc);
+            ctx->proc = Qnil;
             if (bucket->async) {
-                free(ctx);
+                cb_context_free(ctx);
             }
         }
     }
@@ -46,7 +46,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE key, cas, *rv = ctx->rv, exc, res;
+    VALUE key, cas, exc, res;
 
     key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
     cb_strip_key_prefix(bucket, key);
@@ -75,7 +75,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
     if (exc != Qnil) {
         rb_ivar_set(exc, cb_id_iv_cas, cas);
         rb_ivar_set(exc, cb_id_iv_operation, ctx->operation);
-        ctx->exception = cb_gc_protect(bucket, exc);
+        ctx->exception = exc;
     }
 
     if (bucket->async) { /* asynchronous */
@@ -86,7 +86,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
             args[1] = ctx->observe_options;
             rb_block_call(bucket->self, cb_id_observe_and_wait, 2, args,
                     storage_observe_callback, (VALUE)ctx);
-            cb_gc_unprotect(bucket, ctx->observe_options);
+            ctx->observe_options = Qnil;
         } else if (ctx->proc != Qnil) {
             res = rb_class_new_instance(0, NULL, cb_cResult);
             rb_ivar_set(res, cb_id_iv_error, exc);
@@ -96,15 +96,15 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
             cb_proc_call(bucket, ctx->proc, 1, res);
         }
     } else {             /* synchronous */
-        rb_hash_aset(*rv, key, cas);
+        rb_hash_aset(ctx->rv, key, cas);
     }
 
     if (!RTEST(ctx->observe_options)) {
         ctx->nqueries--;
         if (ctx->nqueries == 0) {
-            cb_gc_unprotect(bucket, ctx->proc);
+            ctx->proc = Qnil;
             if (bucket->async) {
-                free(ctx);
+                cb_context_free(ctx);
             }
         }
     }
@@ -132,23 +132,19 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     params.cmd.store.operation = cmd;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = calloc(1, sizeof(struct cb_context_st));
-    if (ctx == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
+    ctx = cb_context_alloc(bucket);
+    if (!bucket->async) {
+        ctx->rv = rb_hash_new();
     }
-    rv = rb_hash_new();
-    ctx->rv = &rv;
-    ctx->bucket = bucket;
-    ctx->proc = cb_gc_protect(bucket, proc);
-    ctx->observe_options = cb_gc_protect(bucket, obs);
-    ctx->exception = Qnil;
+    ctx->proc = proc;
+    ctx->observe_options = obs;
     ctx->nqueries = params.cmd.store.num;
     err = lcb_store(bucket->handle, (const void *)ctx,
             params.cmd.store.num, params.cmd.store.ptr);
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule set request", Qnil);
     if (exc != Qnil) {
-        free(ctx);
+        cb_context_free(ctx);
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
@@ -161,9 +157,9 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
             lcb_wait(bucket->handle);
         }
         exc = ctx->exception;
-        free(ctx);
+        rv = ctx->rv;
+        cb_context_free(ctx);
         if (exc != Qnil) {
-            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         exc = bucket->exception;
@@ -172,7 +168,6 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
             rb_exc_raise(exc);
         }
         if (RTEST(obs)) {
-            cb_gc_unprotect(bucket, obs);
             return rb_funcall(bucket->self, cb_id_observe_and_wait, 2, rv, obs);
         }
         if (params.cmd.store.num > 1) {

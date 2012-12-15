@@ -22,7 +22,7 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE *rv = ctx->rv, key, val, res, exc;
+    VALUE key, val, res, exc;
     lcb_http_status_t status;
 
     ctx->request->completed = 1;
@@ -34,12 +34,12 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
             rb_ivar_set(exc, cb_id_iv_body, val);
         }
         rb_funcall(exc, cb_id_parse_body_bang, 0);
-        ctx->exception = cb_gc_protect(bucket, exc);
+        ctx->exception = exc;
     }
     status = resp->v.v0.status;
     if (resp->v.v0.headers) {
         cb_build_headers(ctx, resp->v.v0.headers);
-        cb_gc_unprotect(bucket, ctx->headers_val);
+        ctx->headers_val = Qnil;
     }
     if (ctx->extended) {
         res = rb_class_new_instance(0, NULL, cb_cResult);
@@ -55,10 +55,10 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
     }
     if (ctx->proc != Qnil) {
         cb_proc_call(bucket, ctx->proc, 1, res);
-        cb_gc_unprotect(bucket, ctx->proc);
+        ctx->proc = Qnil;
     }
     if (!bucket->async && ctx->exception == Qnil) {
-        *rv = res;
+        ctx->rv = res;
     }
     (void)handle;
     (void)request;
@@ -81,7 +81,6 @@ cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cook
         if (ctx->exception != Qnil) {
             VALUE body_str = rb_ivar_get(ctx->exception, cb_id_iv_body);
             if (NIL_P(body_str)) {
-                cb_gc_protect(bucket, ctx->exception);
                 rb_ivar_set(ctx->exception, cb_id_iv_body, val);
             } else {
                 rb_str_concat(body_str, val);
@@ -278,27 +277,24 @@ cb_http_request_perform(VALUE self)
     struct cb_context_st *ctx;
     VALUE rv, exc;
     lcb_error_t err;
-    struct cb_bucket_st *bucket;
+    struct cb_bucket_st *bucket = req->bucket;
 
-    ctx = calloc(1, sizeof(struct cb_context_st));
+    ctx = cb_context_alloc(bucket);
     if (ctx == NULL) {
         rb_raise(cb_eClientNoMemoryError, "failed to allocate memory");
     }
-    rv = Qnil;
-    ctx->rv = &rv;
-    ctx->bucket = bucket = req->bucket;
-    ctx->proc = rb_block_given_p() ? cb_gc_protect(bucket, rb_block_proc()) : req->on_body_callback;
+    ctx->rv = Qnil;
+    ctx->proc = rb_block_given_p() ? rb_block_proc() : req->on_body_callback;
     ctx->extended = req->extended;
     ctx->request = req;
-    ctx->headers_val = cb_gc_protect(bucket, rb_hash_new());
-    ctx->exception = Qnil;
+    ctx->headers_val = rb_hash_new();
 
     err = lcb_make_http_request(bucket->handle, (const void *)ctx,
             req->type, &req->cmd, &req->request);
     exc = cb_check_error(err, "failed to schedule document request",
             STR_NEW(req->cmd.v.v0.path, req->cmd.v.v0.npath));
     if (exc != Qnil) {
-        free(ctx);
+        cb_context_free(ctx);
         rb_exc_raise(exc);
     }
     req->running = 1;
@@ -308,10 +304,10 @@ cb_http_request_perform(VALUE self)
     } else {
         lcb_wait(bucket->handle);
         if (req->completed) {
+            rv = ctx->rv;
             exc = ctx->exception;
-            free(ctx);
+            cb_context_free(ctx);
             if (exc != Qnil) {
-                cb_gc_unprotect(bucket, exc);
                 rb_exc_raise(exc);
             }
             return rv;
@@ -333,7 +329,7 @@ cb_http_request_pause(VALUE self)
     VALUE
 cb_http_request_continue(VALUE self)
 {
-    VALUE exc, *rv;
+    VALUE exc, rv;
     struct cb_http_request_st *req = DATA_PTR(self);
 
     if (req->running) {
@@ -341,12 +337,11 @@ cb_http_request_continue(VALUE self)
         if (req->completed) {
             exc = req->ctx->exception;
             rv = req->ctx->rv;
-            free(req->ctx);
+            cb_context_free(req->ctx);
             if (exc != Qnil) {
-                cb_gc_unprotect(req->bucket, exc);
                 rb_exc_raise(exc);
             }
-            return *rv;
+            return rv;
         }
     } else {
         cb_http_request_perform(self);

@@ -22,13 +22,13 @@ cb_stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE stats, node, key, val, *rv = ctx->rv, exc = Qnil, res;
+    VALUE stats, node, key, val, exc = Qnil, res;
 
     node = resp->v.v0.server_endpoint ? STR_NEW_CSTR(resp->v.v0.server_endpoint) : Qnil;
     exc = cb_check_error(error, "failed to fetch stats", node);
     if (exc != Qnil) {
         rb_ivar_set(exc, cb_id_iv_operation, cb_sym_stats);
-        ctx->exception = cb_gc_protect(bucket, exc);
+        ctx->exception = exc;
     }
     if (node != Qnil) {
         key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
@@ -45,18 +45,18 @@ cb_stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
             }
         } else {                /* synchronous */
             if (NIL_P(exc)) {
-                stats = rb_hash_aref(*rv, key);
+                stats = rb_hash_aref(ctx->rv, key);
                 if (NIL_P(stats)) {
                     stats = rb_hash_new();
-                    rb_hash_aset(*rv, key, stats);
+                    rb_hash_aset(ctx->rv, key, stats);
                 }
                 rb_hash_aset(stats, node, val);
             }
         }
     } else {
-        cb_gc_unprotect(bucket, ctx->proc);
+        ctx->proc = Qnil;
         if (bucket->async) {
-            free(ctx);
+            cb_context_free(ctx);
         }
     }
     (void)handle;
@@ -124,22 +124,18 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     params.type = cb_cmd_stats;
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = calloc(1, sizeof(struct cb_context_st));
-    if (ctx == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
+    ctx = cb_context_alloc(bucket);
+    if (!bucket->async) {
+        ctx->rv = rb_hash_new();
     }
-    rv = rb_hash_new();
-    ctx->rv = &rv;
-    ctx->bucket = bucket;
-    ctx->proc = cb_gc_protect(bucket, proc);
-    ctx->exception = Qnil;
+    ctx->proc = proc;
     ctx->nqueries = params.cmd.stats.num;
     err = lcb_server_stats(bucket->handle, (const void *)ctx,
             params.cmd.stats.num, params.cmd.stats.ptr);
     exc = cb_check_error(err, "failed to schedule stat request", Qnil);
     cb_params_destroy(&params);
     if (exc != Qnil) {
-        free(ctx);
+        cb_context_free(ctx);
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
@@ -152,9 +148,9 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
             lcb_wait(bucket->handle);
         }
         exc = ctx->exception;
-        free(ctx);
+        rv = ctx->rv;
+        cb_context_free(ctx);
         if (exc != Qnil) {
-            cb_gc_unprotect(bucket, exc);
             rb_exc_raise(exc);
         }
         exc = bucket->exception;

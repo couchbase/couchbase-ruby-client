@@ -97,7 +97,7 @@ struct cb_bucket_st
     VALUE environment;      /* sym_development or sym_production */
     VALUE key_prefix_val;
     VALUE node_list;
-    VALUE object_space;
+    st_table *object_space;
     VALUE self;             /* the pointer to bucket representation in ruby land */
 };
 
@@ -107,7 +107,7 @@ struct cb_context_st
     struct cb_bucket_st* bucket;
     int extended;
     VALUE proc;
-    void *rv;
+    VALUE rv;
     VALUE exception;
     VALUE observe_options;
     VALUE force_format;
@@ -301,6 +301,8 @@ VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);
 VALUE cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb_http_status_t status);
 VALUE cb_gc_protect(struct cb_bucket_st *bucket, VALUE val);
 VALUE cb_gc_unprotect(struct cb_bucket_st *bucket, VALUE val);
+void cb_gc_protect_ptr(struct cb_bucket_st *bucket, void *ptr, VALUE val);
+void cb_gc_unprotect_ptr(struct cb_bucket_st *bucket, void *ptr);
 VALUE cb_proc_call(struct cb_bucket_st *bucket, VALUE recv, int argc, ...);
 int cb_first_value_i(VALUE key, VALUE value, VALUE arg);
 void cb_build_headers(struct cb_context_st *ctx, const char * const *headers);
@@ -324,6 +326,9 @@ void cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const v
 void cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp);
 void cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_observe_resp_t *resp);
 void cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp);
+
+struct cb_context_st *cb_context_alloc(struct cb_bucket_st *bucket);
+void cb_context_free(struct cb_context_st *ctx);
 
 VALUE cb_bucket_alloc(VALUE klass);
 void cb_bucket_free(void *ptr);

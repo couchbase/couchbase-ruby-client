@@ -37,6 +37,7 @@ cb_bucket_free(void *ptr)
             lcb_destroy_io_ops(bucket->io);
         }
     }
+    st_free_table(bucket->object_space);
     xfree(bucket);
 }
 
@@ -55,7 +56,7 @@ cb_bucket_mark(void *ptr)
         rb_gc_mark(bucket->exception);
         rb_gc_mark(bucket->on_error_proc);
         rb_gc_mark(bucket->key_prefix_val);
-        rb_gc_mark(bucket->object_space);
+        rb_mark_tbl(bucket->object_space);
     }
 }
 
@@ -425,7 +426,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->environment = cb_sym_production;
     bucket->key_prefix_val = Qnil;
     bucket->node_list = Qnil;
-    bucket->object_space = rb_hash_new();
+    bucket->object_space = st_init_numtable();
 
     do_scan_connection_options(bucket, argc, argv);
     do_connect(bucket);
