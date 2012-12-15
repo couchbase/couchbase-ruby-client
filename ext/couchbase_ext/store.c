@@ -169,7 +169,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
             rb_exc_raise(exc);
         }
         if (RTEST(obs)) {
-            return rb_funcall(bucket->self, cb_id_observe_and_wait, 2, rv, obs);
+            rv = rb_funcall(bucket->self, cb_id_observe_and_wait, 2, rv, obs);
         }
         if (params.cmd.store.num > 1) {
             return rv;  /* return as a hash {key => cas, ...} */

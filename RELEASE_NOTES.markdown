@@ -8,6 +8,11 @@ bugfixes. Do not forget to update this doc in every important patch.
 * [major] RCBC-101 Persistence constraints wasn't passed to mutation
   methods, so they haven't been applied properly.
 
+* [major] RCBC-102 Inconsistent return values in case of storage
+  functions with persistence constraints. It always return a Hash like
+  in case of multi-set, even if there is only one document is being
+  set.
+
 ## 1.2.0 (2012-12-12)
 
  30 files changed, 2079 insertions(+), 662 deletions(-)
