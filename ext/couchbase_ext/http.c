@@ -280,9 +280,6 @@ cb_http_request_perform(VALUE self)
     struct cb_bucket_st *bucket = req->bucket;
 
     ctx = cb_context_alloc(bucket);
-    if (ctx == NULL) {
-        rb_raise(cb_eClientNoMemoryError, "failed to allocate memory");
-    }
     ctx->rv = Qnil;
     ctx->proc = rb_block_given_p() ? rb_block_proc() : req->on_body_callback;
     ctx->extended = req->extended;
