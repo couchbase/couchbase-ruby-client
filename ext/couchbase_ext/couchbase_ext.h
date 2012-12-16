@@ -54,6 +54,9 @@ extern hrtime_t gethrtime(void);
 #ifndef HAVE_RB_HASH_LOOKUP2
 VALUE rb_hash_lookup2(VALUE, VALUE, VALUE);
 #endif
+#ifndef HAVE_TYPE_ST_INDEX_T
+typedef st_data_t st_index_t;
+#endif
 
 #define cb_debug_object(OBJ) do { \
     VALUE debug_args[6] = { \
