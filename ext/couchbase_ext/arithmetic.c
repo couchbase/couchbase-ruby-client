@@ -87,12 +87,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     params.cmd.arith.sign = sign;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = cb_context_alloc(bucket);
-    if (!bucket->async) {
-        ctx->rv = rb_hash_new();
-    }
-    ctx->proc = proc;
-    ctx->nqueries = params.cmd.arith.num;
+    ctx = cb_context_alloc_common(bucket, proc, params.cmd.arith.num);
     err = lcb_arithmetic(bucket->handle, (const void *)ctx,
             params.cmd.arith.num, params.cmd.arith.ptr);
     cb_params_destroy(&params);

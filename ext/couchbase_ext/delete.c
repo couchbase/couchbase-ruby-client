@@ -120,13 +120,8 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
 
-    ctx = cb_context_alloc(bucket);
+    ctx = cb_context_alloc_common(bucket, proc, params.cmd.remove.num);
     ctx->quiet = params.cmd.remove.quiet;
-    ctx->proc = proc;
-    if (!bucket->async) {
-        ctx->rv = rb_hash_new();
-    }
-    ctx->nqueries = params.cmd.remove.num;
     err = lcb_remove(bucket->handle, (const void *)ctx,
             params.cmd.remove.num, params.cmd.remove.ptr);
     cb_params_destroy(&params);

@@ -235,15 +235,10 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     params.cmd.get.keys_ary = rb_ary_new();
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = cb_context_alloc(bucket);
+    ctx = cb_context_alloc_common(bucket, proc, params.cmd.get.num);
     ctx->extended = params.cmd.get.extended;
     ctx->quiet = params.cmd.get.quiet;
     ctx->force_format = params.cmd.get.forced_format;
-    ctx->proc = proc;
-    if (!bucket->async) {
-        ctx->rv = rb_hash_new();
-    }
-    ctx->nqueries = params.cmd.get.num;
     if (params.cmd.get.replica) {
         err = lcb_get_replica(bucket->handle, (const void *)ctx,
                 params.cmd.get.num, params.cmd.get.ptr_gr);

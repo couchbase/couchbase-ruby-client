@@ -124,12 +124,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     params.type = cb_cmd_stats;
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = cb_context_alloc(bucket);
-    if (!bucket->async) {
-        ctx->rv = rb_hash_new();
-    }
-    ctx->proc = proc;
-    ctx->nqueries = params.cmd.stats.num;
+    ctx = cb_context_alloc_common(bucket, proc, params.cmd.stats.num);
     err = lcb_server_stats(bucket->handle, (const void *)ctx,
             params.cmd.stats.num, params.cmd.stats.ptr);
     exc = cb_check_error(err, "failed to schedule stat request", Qnil);

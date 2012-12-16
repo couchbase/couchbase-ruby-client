@@ -130,12 +130,7 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
     params.type = cb_cmd_observe;
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = cb_context_alloc(bucket);
-    ctx->proc = proc;
-    if (!bucket->async) {
-        ctx->rv = rb_hash_new();
-    }
-    ctx->nqueries = params.cmd.observe.num;
+    ctx = cb_context_alloc_common(bucket, proc, params.cmd.observe.num);
     err = lcb_observe(bucket->handle, (const void *)ctx,
             params.cmd.observe.num, params.cmd.observe.ptr);
     cb_params_destroy(&params);

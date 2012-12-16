@@ -105,12 +105,7 @@ cb_bucket_version(int argc, VALUE *argv, VALUE self)
     params.type = cb_cmd_version;
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = cb_context_alloc(bucket);
-    if (!bucket->async) {
-        ctx->rv = rb_hash_new();
-    }
-    ctx->proc = proc;
-    ctx->nqueries = params.cmd.version.num;
+    ctx = cb_context_alloc_common(bucket, proc, params.cmd.version.num);
     err = lcb_server_versions(bucket->handle, (const void *)ctx,
             params.cmd.version.num, params.cmd.version.ptr);
     exc = cb_check_error(err, "failed to schedule version request", Qnil);

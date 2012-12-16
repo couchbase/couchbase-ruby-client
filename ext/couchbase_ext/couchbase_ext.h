@@ -330,6 +330,7 @@ void cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, co
 void cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp);
 
 struct cb_context_st *cb_context_alloc(struct cb_bucket_st *bucket);
+struct cb_context_st *cb_context_alloc_common(struct cb_bucket_st *bucket, VALUE proc, size_t nqueries);
 void cb_context_free(struct cb_context_st *ctx);
 
 VALUE cb_bucket_alloc(VALUE klass);

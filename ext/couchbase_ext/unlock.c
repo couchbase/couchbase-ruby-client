@@ -132,13 +132,8 @@ cb_bucket_unlock(int argc, VALUE *argv, VALUE self)
     params.type = cb_cmd_unlock;
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = cb_context_alloc(bucket);
-    ctx->proc = proc;
-    if (!bucket->async) {
-        ctx->rv = rb_hash_new();
-    }
+    ctx = cb_context_alloc_common(bucket, proc, params.cmd.unlock.num);
     ctx->quiet = params.cmd.unlock.quiet;
-    ctx->nqueries = params.cmd.unlock.num;
     err = lcb_unlock(bucket->handle, (const void *)ctx,
             params.cmd.unlock.num, params.cmd.unlock.ptr);
     cb_params_destroy(&params);

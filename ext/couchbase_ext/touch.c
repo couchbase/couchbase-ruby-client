@@ -142,13 +142,8 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     params.type = cb_cmd_touch;
     params.bucket = bucket;
     cb_params_build(&params, RARRAY_LEN(args), args);
-    ctx = cb_context_alloc(bucket);
-    ctx->proc = proc;
-    if (!bucket->async) {
-        ctx->rv = rb_hash_new();
-    }
+    ctx = cb_context_alloc_common(bucket, proc, params.cmd.touch.num);
     ctx->quiet = params.cmd.touch.quiet;
-    ctx->nqueries = params.cmd.touch.num;
     err = lcb_touch(bucket->handle, (const void *)ctx,
             params.cmd.touch.num, params.cmd.touch.ptr);
     cb_params_destroy(&params);
