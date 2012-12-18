@@ -28,7 +28,7 @@
     VALUE
 cb_result_success_p(VALUE self)
 {
-    return RTEST(rb_ivar_get(self, cb_id_iv_error)) ? Qfalse : Qtrue;
+    return RTEST(rb_attr_get(self, cb_id_iv_error)) ? Qfalse : Qtrue;
 }
 
 /*
@@ -49,67 +49,67 @@ cb_result_inspect(VALUE self)
     snprintf(buf, 100, ":%p", (void *)self);
     rb_str_buf_cat2(str, buf);
 
-    attr = rb_ivar_get(self, cb_id_iv_operation);
+    attr = rb_attr_get(self, cb_id_iv_operation);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " operation=");
         rb_str_append(str, rb_inspect(attr));
     }
 
-    attr = rb_ivar_get(self, cb_id_iv_error);
+    attr = rb_attr_get(self, cb_id_iv_error);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " error=");
         rb_str_append(str, rb_inspect(attr));
     }
 
-    attr = rb_ivar_get(self, cb_id_iv_key);
+    attr = rb_attr_get(self, cb_id_iv_key);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " key=");
         rb_str_append(str, rb_inspect(attr));
     }
 
-    attr = rb_ivar_get(self, cb_id_iv_status);
+    attr = rb_attr_get(self, cb_id_iv_status);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " status=");
         rb_str_append(str, rb_inspect(attr));
     }
 
-    attr = rb_ivar_get(self, cb_id_iv_cas);
+    attr = rb_attr_get(self, cb_id_iv_cas);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " cas=");
         rb_str_append(str, rb_inspect(attr));
     }
 
-    attr = rb_ivar_get(self, cb_id_iv_flags);
+    attr = rb_attr_get(self, cb_id_iv_flags);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " flags=0x");
         rb_str_append(str, rb_funcall(attr, cb_id_to_s, 1, INT2FIX(16)));
     }
 
-    attr = rb_ivar_get(self, cb_id_iv_node);
+    attr = rb_attr_get(self, cb_id_iv_node);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " node=");
         rb_str_append(str, rb_inspect(attr));
     }
 
-    attr = rb_ivar_get(self, cb_id_iv_from_master);
+    attr = rb_attr_get(self, cb_id_iv_from_master);
     if (attr != Qnil) {
         rb_str_buf_cat2(str, " from_master=");
         rb_str_append(str, rb_inspect(attr));
     }
 
-    attr = rb_ivar_get(self, cb_id_iv_time_to_persist);
+    attr = rb_attr_get(self, cb_id_iv_time_to_persist);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " time_to_persist=");
         rb_str_append(str, rb_inspect(attr));
     }
 
-    attr = rb_ivar_get(self, cb_id_iv_time_to_replicate);
+    attr = rb_attr_get(self, cb_id_iv_time_to_replicate);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " time_to_replicate=");
         rb_str_append(str, rb_inspect(attr));
     }
 
-    attr = rb_ivar_get(self, cb_id_iv_headers);
+    attr = rb_attr_get(self, cb_id_iv_headers);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " headers=");
         rb_str_append(str, rb_inspect(attr));
