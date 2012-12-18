@@ -109,7 +109,7 @@ module Couchbase
           if obj['doc']
             obj['doc']['value'] = obj['doc'].delete('json')
           end
-          doc = ViewRow.wrap(self, obj)
+          doc = DesignDoc.wrap(self, obj)
           key = doc.id.sub(/^_design\//, '')
           next if self.environment == :production && key =~ /dev_/
             docmap[key] = doc
