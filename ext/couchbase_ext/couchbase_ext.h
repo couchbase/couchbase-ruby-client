@@ -105,6 +105,7 @@ struct cb_bucket_st
     VALUE key_prefix_val;
     VALUE node_list;
     st_table *object_space;
+    char destroying;
     VALUE self;             /* the pointer to bucket representation in ruby land */
 };
 

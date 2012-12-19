@@ -25,6 +25,10 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
     VALUE key, val, res, exc;
     lcb_http_status_t status;
 
+    if (bucket->destroying) {
+        return;
+    }
+
     ctx->request->completed = 1;
     key = STR_NEW((const char*)resp->v.v0.path, resp->v.v0.npath);
     val = resp->v.v0.nbytes ? STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;

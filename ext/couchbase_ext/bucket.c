@@ -32,6 +32,7 @@ cb_bucket_free(void *ptr)
     struct cb_bucket_st *bucket = ptr;
 
     if (bucket) {
+        bucket->destroying = 1;
         if (bucket->handle) {
             lcb_destroy(bucket->handle);
             lcb_destroy_io_ops(bucket->io);
@@ -425,6 +426,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->key_prefix_val = Qnil;
     bucket->node_list = Qnil;
     bucket->object_space = st_init_numtable();
+    bucket->destroying = 0;
 
     do_scan_connection_options(bucket, argc, argv);
     do_connect(bucket);
@@ -479,6 +481,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     }
     copy_b->key_prefix_val = orig_b->key_prefix_val;
     copy_b->object_space = st_init_numtable();
+    copy_b->destroying = 0;
 
     do_connect(copy_b);
 
