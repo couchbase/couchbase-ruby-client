@@ -36,9 +36,9 @@ cb_bucket_free(void *ptr)
             lcb_destroy(bucket->handle);
             lcb_destroy_io_ops(bucket->io);
         }
+        st_free_table(bucket->object_space);
+        xfree(bucket);
     }
-    st_free_table(bucket->object_space);
-    xfree(bucket);
 }
 
     void
@@ -410,9 +410,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->hostname = rb_str_new2("localhost");
     bucket->port = 8091;
     bucket->pool = cb_vStrDefault;
-    rb_str_freeze(bucket->pool);
     bucket->bucket = cb_vStrDefault;
-    rb_str_freeze(bucket->bucket);
     bucket->username = Qnil;
     bucket->password = Qnil;
     bucket->async = 0;
@@ -480,6 +478,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
         copy_b->on_error_proc = rb_funcall(orig_b->on_error_proc, cb_id_dup, 0);
     }
     copy_b->key_prefix_val = orig_b->key_prefix_val;
+    copy_b->object_space = st_init_numtable();
 
     do_connect(copy_b);
 
