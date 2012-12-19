@@ -24,6 +24,7 @@ module Couchbase
   #
   # @see http://www.couchbase.com/docs/couchbase-manual-2.0/couchbase-views-datastore.html
   class ViewRow
+    include Constants
 
     # Undefine as much methods as we can to free names for views
     instance_methods.each do |m|
@@ -95,13 +96,14 @@ module Couchbase
     def initialize(bucket, data)
       @bucket = bucket
       @data = data
-      @key = data['key']
-      @value = data['value']
-      if data['doc']
-        @meta = data['doc']['meta']
-        @doc = data['doc']['value']
+      @key = data[S_KEY]
+      @value = data[S_VALUE]
+      if data[S_DOC]
+        @meta = data[S_DOC][S_META]
+        @doc = data[S_DOC][S_VALUE]
       end
-      @id = data['id'] || @meta && @meta['id']
+      @id = data[S_ID] || @meta && @meta[S_ID]
+      @last = data.delete(S_IS_LAST) || false
     end
 
     # Wraps data hash into ViewRow instance
@@ -156,6 +158,15 @@ module Couchbase
     # @return [Object] the value
     def []=(key, value)
       @doc[key] = value
+    end
+
+    # Signals if this row is last in a stream
+    #
+    # @since 1.2.1
+    #
+    # @return [true, false] +true+ if this row is last in a stream
+    def last?
+      @last
     end
 
     def inspect
