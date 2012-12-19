@@ -303,6 +303,7 @@ extern VALUE cb_eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
 /* Default Strings */
 extern VALUE cb_vStrDefault;
 extern VALUE cb_vStrEmpty;
+extern VALUE cb_vStrLocalhost;
 
 void cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key);
 VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);

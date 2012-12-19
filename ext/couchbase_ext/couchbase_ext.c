@@ -170,11 +170,23 @@ VALUE cb_eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
 /* Default Strings */
 VALUE cb_vStrDefault;
 VALUE cb_vStrEmpty;
+VALUE cb_vStrLocalhost;
+
+    static VALUE
+cb_intern_string(VALUE ar, const char *str)
+{
+    VALUE tmp = STR_NEW_CSTR(str);
+    rb_str_freeze(tmp);
+    rb_ary_push(ar, tmp);
+    return tmp;
+}
 
 /* Ruby Extension initializer */
     void
 Init_couchbase_ext(void)
 {
+    VALUE interned;
+
     cb_mMultiJson = rb_const_get(rb_cObject, rb_intern("MultiJson"));
     cb_mURI = rb_const_get(rb_cObject, rb_intern("URI"));
     cb_mMarshal = rb_const_get(rb_cObject, rb_intern("Marshal"));
@@ -1079,10 +1091,9 @@ Init_couchbase_ext(void)
     cb_sym_version = ID2SYM(rb_intern("version"));
     cb_sym_view = ID2SYM(rb_intern("view"));
 
-    cb_vStrDefault = STR_NEW_CSTR("default");
-    rb_str_freeze(cb_vStrDefault);
-    rb_const_set(cb_mCouchbase, rb_intern("_STR_DEFAULT"), cb_vStrDefault);
-    cb_vStrEmpty = STR_NEW_CSTR("");
-    rb_str_freeze(cb_vStrEmpty);
-    rb_const_set(cb_mCouchbase, rb_intern("_STR_EMPTY"), cb_vStrEmpty);
+    interned = rb_ary_new();
+    rb_const_set(cb_mCouchbase, rb_intern("_INTERNED"), interned);
+    cb_vStrDefault = cb_intern_string(interned, "default");
+    cb_vStrEmpty = cb_intern_string(interned, "");
+    cb_vStrLocalhost = cb_intern_string(interned, "localhost");
 }

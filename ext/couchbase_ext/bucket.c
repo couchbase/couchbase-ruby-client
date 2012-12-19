@@ -408,7 +408,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->self = self;
     bucket->exception = Qnil;
     bucket->type = LCB_TYPE_BUCKET;
-    bucket->hostname = rb_str_new2("localhost");
+    bucket->hostname = cb_vStrLocalhost;
     bucket->port = 8091;
     bucket->pool = cb_vStrDefault;
     bucket->bucket = cb_vStrDefault;
