@@ -59,6 +59,10 @@ module Couchbase
   class View
     include Enumerable
 
+    class ArrayWithTotalRows < Array # :nodoc:
+      attr_accessor :total_rows
+    end
+
     attr_reader :params
 
     # Set up view endpoint and optional params
@@ -281,12 +285,12 @@ module Couchbase
       filter = ["/rows/", "/errors/"]
       filter << "/total_rows" unless block_given?
       parser = YAJI::Parser.new(:filter => filter, :with_path => true)
-      docs = []
+      docs = ArrayWithTotalRows.new unless block_given?
       parser.on_object do |path, obj|
         case path
         when "/total_rows"
           # if total_rows key present, save it and take next object
-          docs.instance_eval("def total_rows; #{obj}; end")
+          docs.total_rows = obj
         when "/errors/"
           from, reason = obj["from"], obj["reason"]
           if @on_error
