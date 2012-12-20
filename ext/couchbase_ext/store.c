@@ -116,22 +116,22 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE args, rv, proc, exc, obs = Qnil;
+    VALUE rv, proc, exc, obs = Qnil;
     lcb_error_t err;
     struct cb_params_st params;
 
     if (bucket->handle == NULL) {
         rb_raise(cb_eConnectError, "closed connection");
     }
-    rb_scan_args(argc, argv, "0*&", &args, &proc);
+    memset(&params, 0, sizeof(struct cb_params_st));
+    rb_scan_args(argc, argv, "0*&", &params.args, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    memset(&params, 0, sizeof(struct cb_params_st));
     params.type = cb_cmd_store;
     params.bucket = bucket;
     params.cmd.store.operation = cmd;
-    cb_params_build(&params, RARRAY_LEN(args), args);
+    cb_params_build(&params);
     obs = params.cmd.store.observe;
     ctx = cb_context_alloc(bucket);
     if (!bucket->async) {

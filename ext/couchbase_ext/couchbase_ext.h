@@ -549,10 +549,11 @@ struct cb_params_st
     /* the approximate size of the data to be sent */
     size_t npayload;
     VALUE ensurance;
+    VALUE args;
 };
 
 void cb_params_destroy(struct cb_params_st *params);
-void cb_params_build(struct cb_params_st *params, int argc, VALUE argv);
+void cb_params_build(struct cb_params_st *params);
 
 LIBCOUCHBASE_API
 lcb_error_t cb_create_ruby_mt_io_opts(int version, lcb_io_opt_t *io, void *arg);

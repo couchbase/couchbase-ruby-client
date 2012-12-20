@@ -744,6 +744,7 @@ cb_params_destroy(struct cb_params_st *params)
 {
     rb_ary_clear(params->ensurance);
     params->ensurance = Qfalse;
+    params->args = Qfalse;
     switch (params->type) {
         case cb_cmd_get:
             _release_data_for(get);
@@ -776,22 +777,14 @@ cb_params_destroy(struct cb_params_st *params)
     }
 }
 
-struct build_params_st
-{
-    struct cb_params_st *params;
-    int argc;
-    VALUE argv;
-};
-
     static VALUE
 do_params_build(VALUE ptr)
 {
     VALUE opts;
     /* unpack arguments */
-    struct build_params_st *p = (struct build_params_st *)ptr;
-    struct cb_params_st *params = p->params;
-    int argc = p->argc;
-    VALUE argv = p->argv;
+    struct cb_params_st *params = (struct cb_params_st*)ptr;
+    int argc = RARRAY_LEN(params->args);
+    VALUE argv = params->args;
 
     /* extract options */
     if (argc > 1 && TYPE(RARRAY_PTR(argv)[argc-1]) == T_HASH) {
@@ -884,16 +877,12 @@ do_params_build(VALUE ptr)
 }
 
     void
-cb_params_build(struct cb_params_st *params, int argc, VALUE argv)
+cb_params_build(struct cb_params_st *params)
 {
     int fail = 0;
-    struct build_params_st args;
     params->ensurance = rb_ary_new();
 
-    args.params = params;
-    args.argc = argc;
-    args.argv = argv;
-    rb_protect(do_params_build, (VALUE)&args, &fail);
+    rb_protect(do_params_build, (VALUE)params, &fail);
     if (fail) {
         cb_params_destroy(params);
         /* raise exception from protected block */

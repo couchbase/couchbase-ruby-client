@@ -218,7 +218,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE args, rv, proc, exc;
+    VALUE rv, proc, exc;
     size_t ii;
     lcb_error_t err = LCB_SUCCESS;
     struct cb_params_st params;
@@ -226,15 +226,15 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     if (bucket->handle == NULL) {
         rb_raise(cb_eConnectError, "closed connection");
     }
-    rb_scan_args(argc, argv, "0*&", &args, &proc);
+    memset(&params, 0, sizeof(struct cb_params_st));
+    rb_scan_args(argc, argv, "0*&", &params.args, &proc);
     if (!bucket->async && proc != Qnil) {
         rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
     }
-    memset(&params, 0, sizeof(struct cb_params_st));
     params.type = cb_cmd_get;
     params.bucket = bucket;
     params.cmd.get.keys_ary = rb_ary_new();
-    cb_params_build(&params, RARRAY_LEN(args), args);
+    cb_params_build(&params);
     ctx = cb_context_alloc_common(bucket, proc, params.cmd.get.num);
     ctx->extended = params.cmd.get.extended;
     ctx->quiet = params.cmd.get.quiet;
