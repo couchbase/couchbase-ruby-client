@@ -548,6 +548,7 @@ struct cb_params_st
     size_t idx;
     /* the approximate size of the data to be sent */
     size_t npayload;
+    VALUE ensurance;
 };
 
 void cb_params_destroy(struct cb_params_st *params);

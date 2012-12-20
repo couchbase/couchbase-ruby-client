@@ -13,8 +13,11 @@ bugfixes. Do not forget to update this doc in every important patch.
   in case of multi-set, even if there is only one document is being
   set.
 
-* [major] Bucket#design_docs will return a Hash with DesignDoc
+* [minor] Bucket#design_docs will return a Hash with DesignDoc
   instances as a values.
+
+* [critical] RCBC-104 Data corruption on intensive store operations.
+  The issue could also lead to segfaults.
 
 ## 1.2.0 (2012-12-12)
 

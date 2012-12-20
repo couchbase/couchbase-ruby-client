@@ -56,6 +56,7 @@ cb_params_touch_alloc(struct cb_params_st *params, lcb_size_t size)
 cb_params_touch_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, lcb_time_t exptime)
 {
     key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    rb_ary_push(params->ensurance, key_obj);
     params->cmd.touch.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.touch.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
     params->cmd.touch.items[idx].v.v0.exptime = exptime;
@@ -140,6 +141,7 @@ cb_params_remove_alloc(struct cb_params_st *params, lcb_size_t size)
 cb_params_remove_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, lcb_cas_t cas)
 {
     key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    rb_ary_push(params->ensurance, key_obj);
     params->cmd.remove.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.remove.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
     params->cmd.remove.items[idx].v.v0.cas = cas;
@@ -239,6 +241,8 @@ cb_params_store_init_item(struct cb_params_st *params, lcb_size_t idx,
         VALUE val = rb_any_to_s(value_obj);
         rb_raise(cb_eValueFormatError, "unable to convert value for key '%s' to string: %s", RSTRING_PTR(key_obj), RSTRING_PTR(val));
     }
+    rb_ary_push(params->ensurance, key_obj);
+    rb_ary_push(params->ensurance, value_obj);
     params->cmd.store.items[idx].v.v0.datatype = params->cmd.store.datatype;
     params->cmd.store.items[idx].v.v0.operation = params->cmd.store.operation;
     params->cmd.store.items[idx].v.v0.key = RSTRING_PTR(key_obj);
@@ -347,6 +351,7 @@ cb_params_get_init_item(struct cb_params_st *params, lcb_size_t idx,
         VALUE key_obj, lcb_time_t exptime)
 {
     key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    rb_ary_push(params->ensurance, key_obj);
     if (params->cmd.get.replica) {
         params->cmd.get.items_gr[idx].v.v0.key = RSTRING_PTR(key_obj);
         params->cmd.get.items_gr[idx].v.v0.nkey = RSTRING_LEN(key_obj);
@@ -461,6 +466,7 @@ cb_params_arith_init_item(struct cb_params_st *params, lcb_size_t idx,
         VALUE key_obj, lcb_int64_t delta)
 {
     key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    rb_ary_push(params->ensurance, key_obj);
     params->cmd.arith.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.arith.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
     params->cmd.arith.items[idx].v.v0.delta = delta * params->cmd.arith.sign;
@@ -565,6 +571,7 @@ cb_params_stats_init_item(struct cb_params_st *params, lcb_size_t idx,
         VALUE key_obj)
 {
     key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    rb_ary_push(params->ensurance, key_obj);
     params->cmd.stats.items[idx].v.v0.name = RSTRING_PTR(key_obj);
     params->cmd.stats.items[idx].v.v0.nname = RSTRING_LEN(key_obj);
     params->npayload += RSTRING_LEN(key_obj);
@@ -616,6 +623,7 @@ cb_params_observe_alloc(struct cb_params_st *params, lcb_size_t size)
 cb_params_observe_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj)
 {
     key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    rb_ary_push(params->ensurance, key_obj);
     params->cmd.observe.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.observe.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
     params->npayload += RSTRING_LEN(key_obj);
@@ -666,6 +674,7 @@ cb_params_unlock_alloc(struct cb_params_st *params, lcb_size_t size)
 cb_params_unlock_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, lcb_cas_t cas)
 {
     key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    rb_ary_push(params->ensurance, key_obj);
     params->cmd.unlock.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.unlock.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
     params->cmd.unlock.items[idx].v.v0.cas = cas;
@@ -733,6 +742,8 @@ cb_params_version_alloc(struct cb_params_st *params)
     void
 cb_params_destroy(struct cb_params_st *params)
 {
+    rb_ary_clear(params->ensurance);
+    params->ensurance = Qfalse;
     switch (params->type) {
         case cb_cmd_get:
             _release_data_for(get);
@@ -877,6 +888,7 @@ cb_params_build(struct cb_params_st *params, int argc, VALUE argv)
 {
     int fail = 0;
     struct build_params_st args;
+    params->ensurance = rb_ary_new();
 
     args.params = params;
     args.argc = argc;
