@@ -125,7 +125,6 @@ struct cb_context_st
     struct cb_http_request_st *request;
     int quiet;
     int arith;           /* incr: +1, decr: -1, other: 0 */
-    int http_cancel_on_error;
     size_t nqueries;
 };
 

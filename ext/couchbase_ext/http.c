@@ -32,12 +32,17 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
     ctx->request->completed = 1;
     key = STR_NEW((const char*)resp->v.v0.path, resp->v.v0.npath);
     val = resp->v.v0.nbytes ? STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;
-    exc = cb_check_error_with_status(error, "failed to execute HTTP request", key, resp->v.v0.status);
-    if (exc != Qnil) {
-        if (val != Qnil) {
+    exc = ctx->exception;
+    if (!RTEST(exc)) {
+        exc = cb_check_error_with_status(error, "failed to execute HTTP request", key, resp->v.v0.status);
+        if (exc != Qnil && val != Qnil) {
             rb_ivar_set(exc, cb_id_iv_body, val);
         }
-        rb_funcall(exc, cb_id_parse_body_bang, 0);
+    }
+    if (RTEST(exc)) {
+        if (rb_obj_is_kind_of(exc, cb_eHTTPError)) {
+            rb_funcall(exc, cb_id_parse_body_bang, 0);
+        }
         ctx->exception = exc;
     }
     status = resp->v.v0.status;
@@ -89,9 +94,7 @@ cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cook
             } else {
                 rb_str_concat(body_str, val);
             }
-            if (ctx->http_cancel_on_error) {
-                lcb_cancel_http_request(bucket->handle, request);
-            }
+            return;
         }
     }
     if (resp->v.v0.headers) {
@@ -100,7 +103,7 @@ cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cook
     if (ctx->proc != Qnil) {
         if (ctx->extended) {
             res = rb_class_new_instance(0, NULL, cb_cResult);
-            rb_ivar_set(res, cb_id_iv_error, ctx->exception);
+            rb_ivar_set(res, cb_id_iv_error, Qnil);
             rb_ivar_set(res, cb_id_iv_status, status ? INT2FIX(status) : Qnil);
             rb_ivar_set(res, cb_id_iv_operation, cb_sym_http_request);
             rb_ivar_set(res, cb_id_iv_key, key);
@@ -113,6 +116,7 @@ cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cook
         cb_proc_call(bucket, ctx->proc, 1, res);
     }
     (void)handle;
+    (void)request;
 }
 
     void
