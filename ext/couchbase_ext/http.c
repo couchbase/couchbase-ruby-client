@@ -304,7 +304,7 @@ cb_http_request_perform(VALUE self)
     exc = cb_check_error(err, "failed to schedule document request",
             STR_NEW(req->cmd.v.v0.path, req->cmd.v.v0.npath));
     if (exc != Qnil) {
-        cb_context_free(ctx);
+        lcb_cancel_http_request(bucket->handle, req->request);
         rb_exc_raise(exc);
     }
     req->running = 1;
