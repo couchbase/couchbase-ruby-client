@@ -304,10 +304,11 @@ extern VALUE cb_vStrDefault;
 extern VALUE cb_vStrEmpty;
 extern VALUE cb_vStrLocalhost;
 
+typedef void (*mark_f)(void *, struct cb_bucket_st*);
 void cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key);
 VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);
 VALUE cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb_http_status_t status);
-void cb_gc_protect_ptr(struct cb_bucket_st *bucket, void *ptr, VALUE val);
+void cb_gc_protect_ptr(struct cb_bucket_st *bucket, void *ptr, mark_f mark_func);
 void cb_gc_unprotect_ptr(struct cb_bucket_st *bucket, void *ptr);
 VALUE cb_proc_call(struct cb_bucket_st *bucket, VALUE recv, int argc, ...);
 int cb_first_value_i(VALUE key, VALUE value, VALUE arg);

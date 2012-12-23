@@ -18,9 +18,9 @@
 #include "couchbase_ext.h"
 
     void
-cb_gc_protect_ptr(struct cb_bucket_st *bucket, void *ptr, VALUE val)
+cb_gc_protect_ptr(struct cb_bucket_st *bucket, void *ptr, mark_f mark_func)
 {
-    st_insert(bucket->object_space, (st_index_t)ptr, (st_data_t)val);
+    st_insert(bucket->object_space, (st_index_t)ptr, (st_data_t)mark_func);
 }
 
     void

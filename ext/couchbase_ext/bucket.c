@@ -42,6 +42,13 @@ cb_bucket_free(void *ptr)
     }
 }
 
+    static int
+cb_bucket_mark_object_i(st_index_t key, st_data_t value, st_data_t arg)
+{
+    ((mark_f)value)((void*)key, (struct cb_bucket_st*)arg);
+    return ST_CONTINUE;
+}
+
     void
 cb_bucket_mark(void *ptr)
 {
@@ -57,7 +64,7 @@ cb_bucket_mark(void *ptr)
         rb_gc_mark(bucket->exception);
         rb_gc_mark(bucket->on_error_proc);
         rb_gc_mark(bucket->key_prefix_val);
-        rb_mark_tbl(bucket->object_space);
+        st_foreach(bucket->object_space, cb_bucket_mark_object_i, (st_data_t)bucket);
     }
 }
 

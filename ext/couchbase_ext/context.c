@@ -18,30 +18,27 @@
 #include "couchbase_ext.h"
 
     static void
-cb_context_mark(void *p)
+cb_context_mark(void *p, struct cb_bucket_st* bucket)
 {
-    if (p) {
-        struct cb_context_st *ctx = p;
-        rb_gc_mark(ctx->proc);
-        rb_gc_mark(ctx->rv);
-        rb_gc_mark(ctx->exception);
-        rb_gc_mark(ctx->observe_options);
-        rb_gc_mark(ctx->force_format);
-        rb_gc_mark(ctx->operation);
-        rb_gc_mark(ctx->headers_val);
-    }
+    struct cb_context_st *ctx = p;
+    rb_gc_mark(ctx->proc);
+    rb_gc_mark(ctx->rv);
+    rb_gc_mark(ctx->exception);
+    rb_gc_mark(ctx->observe_options);
+    rb_gc_mark(ctx->force_format);
+    rb_gc_mark(ctx->operation);
+    rb_gc_mark(ctx->headers_val);
+    (void)bucket;
 }
 
     struct cb_context_st *
 cb_context_alloc(struct cb_bucket_st* bucket)
 {
-    VALUE obj;
     struct cb_context_st *ctx = calloc(1, sizeof(*ctx));
     if (ctx == NULL) {
         rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for context");
     }
-    obj = Data_Wrap_Struct(rb_cObject, cb_context_mark, 0, ctx);
-    cb_gc_protect_ptr(bucket, ctx, obj);
+    cb_gc_protect_ptr(bucket, ctx, cb_context_mark);
     ctx->bucket = bucket;
     ctx->exception = Qnil;
     return ctx;
