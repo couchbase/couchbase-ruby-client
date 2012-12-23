@@ -13,6 +13,9 @@ bugfixes. Do not forget to update this doc in every important patch.
   in case of multi-set, even if there is only one document is being
   set.
 
+* [minor] Improve internal structures of multi-threaded IO plugin to
+  protect it from memory leaks when Fiber object is being forgotten.
+
 ## 1.2.0 (2012-12-12)
 
  30 files changed, 2079 insertions(+), 662 deletions(-)

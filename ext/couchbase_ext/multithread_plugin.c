@@ -690,6 +690,22 @@ typedef struct loop_select_arg {
     rb_fdset_t in, out;
 } ls_arg;
 
+    static void
+ls_arg_free(void *p) {
+    ls_arg *args = p;
+    if (args) {
+        rb_fd_term(&args->in);
+        rb_fd_term(&args->out);
+        xfree(args);
+    }
+}
+
+    static VALUE
+ls_arg_alloc(ls_arg **args)
+{
+    return Data_Make_Struct(rb_cObject, ls_arg, 0, ls_arg_free, *args);
+}
+
     static VALUE
 loop_run_select(VALUE argp)
 {
@@ -776,10 +792,12 @@ loop_run_select(VALUE argp)
     static VALUE
 loop_select_cleanup(VALUE argp)
 {
-    ls_arg *args = (ls_arg*) argp;
-    rb_fd_term(&args->in);
-    rb_fd_term(&args->out);
-    callbacks_clean(&args->loop->callbacks);
+    ls_arg *args = DATA_PTR(argp);
+    if (args) {
+        callbacks_clean(&args->loop->callbacks);
+        ls_arg_free(args);
+        DATA_PTR(argp) = 0;
+    }
     return Qnil;
 }
 /* loop select implementaion end */
@@ -841,6 +859,24 @@ struct poll_args {
     int lerrno;
 };
 
+    static void
+lp_arg_free(void *p)
+{
+    lp_arg *args = p;
+    if (args) {
+        if (args->fds) {
+            free(args->fds);
+        }
+        xfree(args);
+    }
+}
+
+    static VALUE
+lp_arg_alloc(lp_arg **args)
+{
+    return Data_Make_Struct(rb_cObject, lp_arg, 0, lp_arg_free, *args);
+}
+
 #ifdef HAVE_RB_THREAD_BLOCKING_REGION
     static VALUE
 loop_blocking_poll(void *argp)
@@ -855,7 +891,7 @@ loop_blocking_poll(void *argp)
     static VALUE
 loop_run_poll(VALUE argp)
 {
-    lp_arg *args = (struct poll_args *)argp;
+    lp_arg *args = (lp_arg*)argp;
     rb_mt_loop *loop = args->loop;
     struct timespec ts;
     hrtime_t now, next_time;
@@ -984,11 +1020,12 @@ retry:
     static VALUE
 loop_poll_cleanup(VALUE argp)
 {
-    lp_arg *args = (struct poll_args *)argp;
-    if (args->fds) {
-        free(args->fds);
+    lp_arg *args = DATA_PTR(argp);
+    if (args) {
+        callbacks_clean(&args->loop->callbacks);
+        lp_arg_free(args);
+        DATA_PTR(argp) = 0;
     }
-    callbacks_clean(&args->loop->callbacks);
     return Qnil;
 }
 #endif
@@ -1006,17 +1043,17 @@ loop_run(rb_mt_loop *loop)
         lcb_socket_t max = events_max_fd(&loop->events);
         int use_poll = max >= 128;
         if (use_poll) {
-            lp_arg args;
-            memset(&args, 0, sizeof(args));
-            args.loop = loop;
-            rb_ensure(loop_run_poll, (VALUE)&args, loop_poll_cleanup, (VALUE)&args);
+            lp_arg *args;
+            VALUE argp = lp_arg_alloc(&args);
+            args->loop = loop;
+            rb_ensure(loop_run_poll, (VALUE)args, loop_poll_cleanup, argp);
         } else
 #endif
         {
-            ls_arg args;
-            memset(&args, 0, sizeof(args));
-            args.loop = loop;
-            rb_ensure(loop_run_select, (VALUE)&args, loop_select_cleanup, (VALUE)&args);
+            ls_arg *args;
+            VALUE argp = ls_arg_alloc(&args);
+            args->loop = loop;
+            rb_ensure(loop_run_select, (VALUE)args, loop_select_cleanup, argp);
         }
     }
 }
