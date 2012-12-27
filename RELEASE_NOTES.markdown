@@ -5,127 +5,127 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 ## 1.2.1 (UNRELEASED)
 
-* [major] RCBC-101 Persistence constraints wasn't passed to mutation
-  methods, so they haven't been applied properly.
+* [major] RCBC-101 Persistence constraints were not passed to mutation
+  methods, so they were not applied properly.
 
 * [major] RCBC-102 Inconsistent return values in case of storage
-  functions with persistence constraints. It always return a Hash like
+  functions with persistence constraints. It always returns a Hash
   in case of multi-set, even if there is only one document is being
   set.
 
 * [minor] Improve internal structures of multi-threaded IO plugin to
-  protect it from memory leaks when Fiber object is being forgotten.
+  protect it from memory leaks when the Fiber object is forgotten.
 
 ## 1.2.0 (2012-12-12)
 
  30 files changed, 2079 insertions(+), 662 deletions(-)
 
-* Specialized io plugin for releasing Ruby GVL (thanks to
+* New specialized io plugin for releasing Ruby GVL (thanks to
   Sokolov Yura aka funny_falcon).
 
-  * Ruby 1.9.x uses global lock for ensuring integrity, and blocking
+  * Ruby 1.9.x uses a global lock for ensuring integrity, and blocking
     calls should be called inside rb_thread_blocking_region to allow
-    other threads to be runned.
+    other threads to be run.
 
-  * Ruby 1.8.7 have only green threads, so that rb_thread_schedule
+  * Ruby 1.8.7 has only green threads, so rb_thread_schedule
     should be called manually.
 
-* RCBC-42 Catch exceptions from ruby callbacks
+* RCBC-42 Catch exceptions from ruby callbacks.
 
-* RCBC-99 read out the StringIO contents in json gem monkey patch
+* RCBC-99 read out the StringIO contents in json gem monkey patch.
 
-* Use marshal serializer by default for session store
+* Use marshal serializer by default for session store.
 
-* Remove debugger development dependency
+* Remove debugger development dependency.
 
-* Fix memory leaks and performance improvements
+* Fix memory leaks and performance improvements.
 
 ## 1.2.0.z.beta5 (2012-11-29)
 
  25 files changed, 1419 insertions(+), 1230 deletions(-)
 
-* RCBC-95 Use response body to clarify Couchbase::Error::HTTP
+* RCBC-95 Use response body to clarify Couchbase::Error::HTTP.
 
-* Fix memory leaks: in async mode context wasn't freed
+* Fix memory leaks: in async mode context wasn't freed.
 
-* Allow to setup default initial value for INCR/DECR on per connection
-  level.
+* Allow caller to setup default initial value for INCR/DECR on per
+  connection level.
 
-* Make error message about libcouchbase dependency more verbose
+* Make error message about libcouchbase dependency more verbose.
 
 ## 1.2.0.z.beta4 (2012-11-21)
 
  27 files changed, 311 insertions(+), 123 deletions(-)
 
-* Increase default connection timeout for Views up to 75 seconds
+* Increase default connection timeout for Views up to 75 seconds.
 
-* RCBC-94 Reset global exception after usage
+* RCBC-94 Reset global exception after usage.
 
 * RCBC-89 Do not expose docs embedded in HTTP response. Use binary
   protocol for it.
 
 * Remove all_docs mentions. It isn't recommended to use it because of
-  performance issues
+  performance and support concerns.
 
 * Protect against non string values in :plain mode. Will raise error
   if the value given isn't a string.
 
-* RCBC-90 Update documentation about session store
+* RCBC-90 Update documentation about session store.
 
-* Make rack session store adapter quiet
+* Make rack session store adapter quiet.
 
-* Update to recent libcouchbase API
+* Update to recent libcouchbase API.
 
-* Adjust version check for MultiJson monkeypatch (8098da1)
+* Adjust version check for MultiJson monkeypatch (8098da1).
 
-* Do not hide ValueFormat reason
+* Do not hide ValueFormat reason.
 
 ## 1.2.0.z.beta3 (2012-10-16)
 
  18 files changed, 241 insertions(+), 57 deletions(-)
 
-* RCBC-52 Implement bucket create/delete operations
+* RCBC-52 Implement bucket create/delete operations.
 
-* Propogate status code for HTTP responses
+* Propogate status code for HTTP responses.
 
-* RCBC-87 Fix build error on macos
+* RCBC-87 Fix build error on macos.
 
-* Use global scope to find Error classes (thanks to @wr0ngway)
+* Use global scope to find Error classes (thanks to @wr0ngway).
 
-* Fix memory leaks
+* Fix memory leaks.
 
-* Update to recent libcouchbase API
+* Update to recent libcouchbase API.
 
 ## 1.2.0.z.beta2 (2012-09-21)
 
  3 files changed, 6 insertions(+), 2 deletions(-)
 
-* RCBC-82 Not all rubies are fat on MacOS. Fixes build there
+* RCBC-82 Not all rubies are fat on MacOS. Fixes build.
 
 ## 1.2.0.z.beta  (2012-09-18)
 
  2 files changed, 5 insertions(+), 1 deletion(-)
 
-* Fix version ordering by using ".z" prefix before .beta
+* Fix version ordering by using ".z" prefix before .beta.
 
 ## 1.2.0.beta (2012-09-18)
 
  51 files changed, 9301 insertions(+), 3364 deletions(-)
 
 * RCBC-81 Protect against NoMethodError in extconf.rb. Fixes
-  gem installation
+  gem installation.
 
-* RCBC-79 Use RESTful flush
+* RCBC-79 Use RESTful flush.
 
-* Various build fixes
+* Various build fixes.
 
-* Add attribute reader for Error::Base status code
+* Add attribute reader for Error::Base status code.
 
-* CCBC-98 Expose client temporary failure error
+* CCBC-98 Expose client temporary failure error.
 
-* RCBC-28 Implement Bucket#unlock
+* RCBC-28 Implement Bucket#unlock.
 
-* Fix CAS conversion for Bucket#delete method for 32-bit systems
+* Fix CAS conversion for Bucket#delete method for 32-bit systems.
 
 ## 1.1.5 (2012-09-17)
 
@@ -137,10 +137,10 @@ bugfixes. Do not forget to update this doc in every important patch.
 
  5 files changed, 64 insertions(+), 30 deletions(-)
 
-* RCBC-37 Allow to pass intial list of nodes which will allow to
-  iterate addresses until alive node will be found.
+* RCBC-37 Allow app to pass intial list of nodes which will let client
+  iterate addresses until an alive node is found.
 
-    Couchbase.connect(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
+    Couchbase.connect(:node_list => ['node1.example.com:8091', 'node2.example.org:8091', 'node3.example.com:8091'])
 
 * RCBC-70 Fixed UTF-8 in the keys. Original discussion
   https://groups.google.com/d/topic/couchbase/bya0lSf9uGE/discussion
@@ -152,23 +152,23 @@ bugfixes. Do not forget to update this doc in every important patch.
 * RCBC-47 Allow to skip username for protected buckets. The will use
   bucket name for credentials.
 
-* Expose number of replicas to the user
+* Expose the number of replicas to the user.
 
-* RCBC-6 Implement OBSERVE command
+* RCBC-6 Implement OBSERVE command.
 
-* RCBC-49 :observe option for storage functions
+* RCBC-49 :observe option for storage functions.
 
-* RCBC-50 Allow to read keys from replica
+* RCBC-50 Allow to read keys from replica.
 
-* RCBC-57 Expose timers API from libcouchbase
+* RCBC-57 Expose timers API from libcouchbase.
 
-* RCBC-59 Replicate flags in Bucket#cas operation
+* RCBC-59 Replicate flags in Bucket#cas operation.
 
 * Apply timeout value before connection. Currently libcouchbase shares
   timeouts for connection and IO operations. This patch allows to
-  setup timeout on the instantiating the connection.
+  setup a timeout when instantiating the connection.
 
-* RCBC-39 Allow to specify delta for incr/decr in options
+* RCBC-39 Allow to specify delta for incr/decr in options.
 
 * RCBC-40 Fix Bucket#cas operation behaviour in async mode. The
   callback of the Bucket#cas method is triggered only once, when it
@@ -192,9 +192,9 @@ bugfixes. Do not forget to update this doc in every important patch.
     end
     c.get("foo")      #=> {"bar" => 1, "baz" => 2}
 
-* RCBC-43 More docs and examples on views
+* RCBC-43 More docs and examples on views.
 
-* RCBC-37 Bootstrapping using multiple nodes
+* RCBC-37 Bootstrapping using multiple nodes.
 
     Couchbase.connect(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
 
@@ -204,7 +204,7 @@ bugfixes. Do not forget to update this doc in every important patch.
 
  12 files changed, 939 insertions(+), 20 deletions(-)
 
-* Integrate with Rack and Rails session store
+* Integrate with Rack and Rails session store.
 
     # rack
     require 'rack/session/couchbase'
@@ -214,7 +214,7 @@ bugfixes. Do not forget to update this doc in every important patch.
     require 'action_dispatch/middleware/session/couchbase_store'
     AppName::Application.config.session_store :couchbase_store
 
-* Implement cache store adapter for Rails
+* Implement cache store adapter for Rails.
 
     cache_options = {
       :bucket => 'protected',
@@ -224,11 +224,11 @@ bugfixes. Do not forget to update this doc in every important patch.
     }
     config.cache_store = :couchbase_store, cache_options
 
-* Implement key prefix (simple namespacing)
+* Implement key prefix (simple namespacing).
 
     Couchbase.connect(:key_prefix => "prefix:")
 
-* Allow to force assembling result Hash for multi-get
+* Allow to force assembling result Hash for multi-get.
 
     connection.get("foo", "bar")
     #=> [1, 2]
@@ -239,7 +239,7 @@ bugfixes. Do not forget to update this doc in every important patch.
 
  4 files changed, 34 insertions(+), 19 deletions(-)
 
-* Update replace documentation: it accepts :cas option
+* Update replace documentation: it accepts :cas option.
 
 * RCBC-36 Fix segfault. Ocassional segfault when accessing the
   results of a View. https://gist.github.com/2883925
@@ -248,10 +248,10 @@ bugfixes. Do not forget to update this doc in every important patch.
 
  4 files changed, 22 insertions(+), 4 deletions(-)
 
-* Fix for multi_json < 1.3.3
+* Fix for multi_json < 1.3.3.
 
 * Break out from event loop for non-chunked responses (fix creating
-  design create)
+  design create).
 
 ## 1.2.0.dp2 (2012-06-06)
 
@@ -267,11 +267,11 @@ bugfixes. Do not forget to update this doc in every important patch.
     get("foo")    #=> "bar"
     get(["x"], :extended => true) #=> {"x"=>["xval", 0, 18336939621176836096]}
 
-* Use monotonic high resolution clock
+* Use monotonic high resolution clock.
 
-* Implement threshold for outgoing commands
+* Implement threshold for outgoing commands.
 
-* Allow to stop event loop from ruby
+* Allow event loop to be stopped from ruby.
 
 * RCBC-35 Fix the View parameters escaping. More info at
   https://gist.github.com/2775050
@@ -281,17 +281,17 @@ bugfixes. Do not forget to update this doc in every important patch.
   various gems. The most compatible way to use yajl is to call
   Yajl::Parser and Yajl::Encoder directly.
 
-* Allow to block and wait for part of the requests
+* Allow block and wait for part of the request.
 
-* Fix view iterator. It doesn't lock event loop anymore
+* Fix view iterator to not lock the event loop anymore.
 
-* Define views only if "views" key presented
+* Define views only if "views" key presented.
 
-* Require yajl as development dependency
+* Require yajl as development dependency.
 
-* Implement get with lock operation
+* Implement get with lock operation.
 
-* Update documentation
+* Update documentation.
 
 ## 1.1.3 (2012-07-27)
 
@@ -424,28 +424,28 @@ bugfixes. Do not forget to update this doc in every important patch.
   * marshal
   * plain
 
-* Removed Views support
+* Removed Views support.
 
 * Added benchmarks, couchbase vs. memcached vs. dalli
 
-* Implement asynchronous protocol
+* Implement asynchronous protocol.
 
-* e36c2e7 Implement basic commands
+* e36c2e7 Implement basic commands.
 
 ## 0.9.8 (2011-12-16)
 
  3 files changed, 8 insertions(+), 3 deletions(-)
 
 * RCBC-10 Always specify credentials for non-default buckets. It was
-  impossible to store data in non-default buckets
+  impossible to store data in non-default buckets.
 
 ## 0.9.7 (2011-10-05)
 
  7 files changed, 31 insertions(+), 19 deletions(-)
 
-* Fix design doc removing
+* Fix design doc removal.
 
-* Fix 'set' method signature: add missing options argument
+* Fix 'set' method signature: add missing options argument.
 
 * Rename gem to 'couchbase' for easy of use. The github project still
   is 'couchbase-ruby-client'
@@ -468,29 +468,29 @@ bugfixes. Do not forget to update this doc in every important patch.
 
  4 files changed, 59 insertions(+), 28 deletions(-)
 
-* Update README. Make it more human-friendly
+* Update README. Make it more human-friendly.
 
-* Removed depency on will_paginate in development mode
+* Removed depency on will_paginate in development mode.
 
 ## 0.9.4 (2011-08-01)
 
  24 files changed, 1240 insertions(+), 78 deletions(-)
 
-* Use streaming json parser to iterate over view results
+* Use streaming json parser to iterate over view results.
 
-* Update memcached gem dependency to v1.3
+* Update memcached gem dependency to v1.3.
 
-* Proxy TOUCH command to memcached client
+* Proxy TOUCH command to memcached client.
 
-* Fix minor bugs in RestClient and Document classes
+* Fix minor bugs in RestClient and Document classes.
 
 * Disable CouchDB API for nodes without 'couchApiBase' key provided.
 
-* Fix bug with unicode parsing in config listener
+* Fix bug with unicode parsing in config listener.
 
 * 61f394e RCBC-5 Add Dave's test case: ensure memcached client
   initialized. Fixes Timeout error on connecting to membase with
-  Couchbase.new on Ruby 1.8.7
+  Couchbase.new on Ruby 1.8.7.
 
 ## 0.9.3 (2011-07-29)
 
@@ -499,23 +499,23 @@ bugfixes. Do not forget to update this doc in every important patch.
 * Use Latch (via Mutex and ConditionVariable) to wait until initial
   setup will be finished.
 
-* Update prefix for development views (from '$dev_' to 'dev_')
+* Update prefix for development views (from '$dev_' to 'dev_').
 
 ## 0.9.2 (2011-07-28)
 
  5 files changed, 31 insertions(+), 20 deletions(-)
 
-* Use zero TTL by default to store records forever
+* Use zero TTL by default to store records forever.
 
-* Update documentation
+* Update documentation.
 
-* Wait until configuration is done
+* Wait until configuration is done.
 
 ## 0.9.1 (2011-07-25)
 
  3 files changed, 5 insertions(+), 2 deletions(-)
 
-* Minor bugfix for RestClient initialization
+* Minor bugfix for RestClient initialization.
 
 ## 0.9.0 (2011-07-25)
 
