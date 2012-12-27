@@ -47,8 +47,9 @@ module Couchbase
         str = super
         if @type || @reason
           str.sub(/ \(/, ": #{[@type, @reason].compact.join(": ")} (")
+        else
+          str
         end
-        str
       end
     end
   end
