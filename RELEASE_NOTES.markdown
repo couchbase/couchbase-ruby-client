@@ -3,7 +3,7 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
-## 1.2.1 (UNRELEASED)
+## 1.2.1 (2012-12-28)
 
 * [major] RCBC-101 Persistence constraints were not passed to mutation
   methods, so they were not applied properly.
