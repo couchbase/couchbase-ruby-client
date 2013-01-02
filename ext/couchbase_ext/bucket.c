@@ -216,6 +216,19 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
                     bucket->default_arith_init = NUM2ULL(arg);
                 }
             }
+            arg = rb_hash_aref(opts, cb_sym_engine);
+            if (arg != Qnil) {
+                if (arg == cb_sym_default) {
+                    bucket->engine = cb_sym_default;
+                } else if (arg == cb_sym_libev) {
+                    bucket->engine = cb_sym_libev;
+                } else if (arg == cb_sym_libevent) {
+                    bucket->engine = cb_sym_libevent;
+                } else {
+                    VALUE ins = rb_funcall(arg, rb_intern("inspect"), 0);
+                    rb_raise(rb_eArgError, "Couchbase: unknown engine %s", RSTRING_PTR(ins));
+                }
+            }
         } else {
             opts = Qnil;
         }
@@ -245,22 +258,29 @@ do_connect(struct cb_bucket_st *bucket)
         bucket->io = NULL;
     }
 
-#ifndef _WIN32
     {
         struct lcb_create_io_ops_st ciops;
         memset(&ciops, 0, sizeof(ciops));
-        ciops.version = 1;
-        ciops.v.v1.sofile = NULL;
-        ciops.v.v1.symbol = "cb_create_ruby_mt_io_opts";
-        ciops.v.v1.cookie = NULL;
+        ciops.version = 0;
 
-        err = lcb_create_io_ops(&bucket->io, &ciops);
-    }
+        if (bucket->engine == cb_sym_libevent) {
+            ciops.v.v0.type = LCB_IO_OPS_LIBEVENT;
+        } else if (bucket->engine == cb_sym_libev) {
+            ciops.v.v0.type = LCB_IO_OPS_LIBEV;
+        } else {
+#ifdef _WIN32
+            ciops.v.v0.type = LCB_IO_OPS_DEFAULT;
 #else
-    err = lcb_create_io_ops(&bucket->io, NULL);
+            ciops.version = 1;
+            ciops.v.v1.sofile = NULL;
+            ciops.v.v1.symbol = "cb_create_ruby_mt_io_opts";
+            ciops.v.v1.cookie = NULL;
 #endif
-    if (err != LCB_SUCCESS) {
-        rb_exc_raise(cb_check_error(err, "failed to create IO instance", Qnil));
+        }
+        err = lcb_create_io_ops(&bucket->io, &ciops);
+        if (err != LCB_SUCCESS) {
+            rb_exc_raise(cb_check_error(err, "failed to create IO instance", Qnil));
+        }
     }
 
     memset(&create_opts, 0, sizeof(struct lcb_create_st));
@@ -383,6 +403,11 @@ cb_bucket_alloc(VALUE klass)
  *     non positive number forces creation missing keys with given default
  *     value. Setting it to +true+ will use zero as initial value. (see
  *     {Bucket#incr} and {Bucket#decr}).
+ *   @option options [Symbol] :engine (:default) the IO engine to use
+ *     Currently following engines are supported:
+ *     :default  :: Built-in engine (multi-thread friendly)
+ *     :libevent :: libevent IO plugin from libcouchbase (optional)
+ *     :libev    :: libev IO plugin from libcouchbase (optional)
  *
  * @example Initialize connection using default options
  *   Couchbase.new
@@ -421,6 +446,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->bucket = cb_vStrDefault;
     bucket->username = Qnil;
     bucket->password = Qnil;
+    bucket->engine = cb_sym_default;
     bucket->async = 0;
     bucket->quiet = 0;
     bucket->default_ttl = 0;
@@ -475,6 +501,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->bucket = orig_b->bucket;
     copy_b->username = orig_b->username;
     copy_b->password = orig_b->password;
+    copy_b->engine = orig_b->engine;
     copy_b->async = orig_b->async;
     copy_b->quiet = orig_b->quiet;
     copy_b->default_format = orig_b->default_format;
