@@ -250,4 +250,67 @@ class TestAsync < MiniTest::Unit::TestCase
     end
   end
 
+  def test_asynchronous_connection
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :async => true)
+    refute connection.connected?, "new asynchronous connection must be disconnected"
+    connection.on_connect do |res|
+      assert res.success?, "on_connect called with error #{res.error.inspect}"
+      assert_same connection, res.bucket
+    end
+    connection.run {}
+    assert connection.connected?, "it should be connected after first run"
+  end
+
+  def test_it_calls_callback_immediately_if_connected_sync
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    assert connection.connected?, "connection wasn't established in sync mode"
+    called = false
+    connection.on_connect do |res|
+      assert res.success?, "on_connect called with error #{res.error.inspect}"
+      called = true
+    end
+    assert called, "the callback hasn't been called on set"
+    called = false
+    connection.on_connect do |res|
+      assert res.success?, "on_connect called with error #{res.error.inspect}"
+      called = true
+    end
+    refute called, "the callback must not be called on subsequent sets"
+  end
+
+  def test_it_calls_callback_immediately_if_connected_async
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :async => true)
+    refute connection.connected?, "new asynchronous connection must be disconnected"
+    called = false
+    connection.run {}
+    assert connection.connected?, "the connection must be established"
+    connection.run do
+      connection.on_connect do |res|
+        assert res.success?, "on_connect called with error #{res.error.inspect}"
+        called = true
+      end
+    end
+    assert called, "the callback hasn't been called on set"
+    called = false
+    connection.run do
+      connection.on_connect do |res|
+        assert res.success?, "on_connect called with error #{res.error.inspect}"
+        called = true
+      end
+    end
+    refute called, "the callback must not be called on subsequent sets"
+  end
+
+  def test_it_returns_error_if_user_start_work_on_disconnected_instance_outside_on_connect_callback
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :async => true)
+    refute connection.connected?, "new asynchronous connection must be disconnected"
+    error = nil
+    connection.on_error do |ex|
+      error = ex
+    end
+    connection.run do |c|
+      c.set("foo", "bar")
+    end
+    assert_instance_of(Couchbase::Error::Connect, error)
+  end
 end

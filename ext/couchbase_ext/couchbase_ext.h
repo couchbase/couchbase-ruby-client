@@ -91,6 +91,9 @@ struct cb_bucket_st
     VALUE engine;
     int async;
     int quiet;
+    uint8_t connected;       /* non-zero if instance has been connected. it is possible to defer connection with :async option */
+    uint8_t running;         /* non-zero if event loop is running */
+    uint8_t trigger_connect_cb_on_set; /* if non-zero, the on_connect callback will be triggered immediately after set */
     VALUE default_format;    /* should update +default_flags+ on change */
     uint32_t default_flags;
     time_t default_ttl;
@@ -102,6 +105,7 @@ struct cb_bucket_st
     size_t nbytes;          /* the number of bytes scheduled to be sent */
     VALUE exception;        /* error delivered by error_callback */
     VALUE on_error_proc;    /* is using to deliver errors in async mode */
+    VALUE on_connect_proc;  /* used to notify that instance ready to handle requests in async mode */
     VALUE environment;      /* sym_development or sym_production */
     VALUE key_prefix_val;
     VALUE node_list;
@@ -169,11 +173,13 @@ extern VALUE cb_mURI;
 extern ID cb_sym_add;
 extern ID cb_sym_append;
 extern ID cb_sym_assemble_hash;
+extern ID cb_sym_async;
 extern ID cb_sym_body;
 extern ID cb_sym_bucket;
 extern ID cb_sym_cas;
 extern ID cb_sym_chunked;
 extern ID cb_sym_cluster;
+extern ID cb_sym_connect;
 extern ID cb_sym_content_type;
 extern ID cb_sym_create;
 extern ID cb_sym_decrement;
@@ -235,6 +241,7 @@ extern ID cb_sym_version;
 extern ID cb_sym_view;
 extern ID cb_id_arity;
 extern ID cb_id_call;
+extern ID cb_id_create_timer;
 extern ID cb_id_delete;
 extern ID cb_id_dump;
 extern ID cb_id_dup;
@@ -313,6 +320,7 @@ typedef void (*mark_f)(void *, struct cb_bucket_st*);
 void cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key);
 VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);
 VALUE cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb_http_status_t status);
+int cb_bucket_connected_bang(struct cb_bucket_st *bucket, VALUE operation);
 void cb_gc_protect_ptr(struct cb_bucket_st *bucket, void *ptr, mark_f mark_func);
 void cb_gc_unprotect_ptr(struct cb_bucket_st *bucket, void *ptr);
 VALUE cb_proc_call(struct cb_bucket_st *bucket, VALUE recv, int argc, ...);
@@ -378,6 +386,8 @@ VALUE cb_bucket_default_format_get(VALUE self);
 VALUE cb_bucket_default_format_set(VALUE self, VALUE val);
 VALUE cb_bucket_on_error_set(VALUE self, VALUE val);
 VALUE cb_bucket_on_error_get(VALUE self);
+VALUE cb_bucket_on_connect_set(VALUE self, VALUE val);
+VALUE cb_bucket_on_connect_get(VALUE self);
 VALUE cb_bucket_timeout_get(VALUE self);
 VALUE cb_bucket_timeout_set(VALUE self, VALUE val);
 VALUE cb_bucket_key_prefix_get(VALUE self);

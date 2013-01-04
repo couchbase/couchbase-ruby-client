@@ -22,6 +22,20 @@ bugfixes. Do not forget to update this doc in every important patch.
            end
          end
 
+* [major] Allow to use Bucket instance in completely asynchronous
+  environment like this, without blocking on connect:
+
+         conn = Couchbase.new(:async => true)
+         conn.run do
+           conn.on_connect do |res|
+             if res.success?
+               #
+               # schedule async requests
+               #
+             end
+           end
+         end
+
 ## 1.2.1 (2012-12-28)
 
 * [major] RCBC-101 Persistence constraints wasn't passed to mutation

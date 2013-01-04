@@ -65,6 +65,23 @@ cb_async_error_notify(struct cb_bucket_st *bucket, VALUE exc)
     }
 }
 
+    int
+cb_bucket_connected_bang(struct cb_bucket_st *bucket, VALUE operation)
+{
+    if (bucket->handle == NULL || !bucket->connected) {
+        VALUE exc = rb_exc_new2(cb_eConnectError, "not connected to the server");
+        rb_ivar_set(exc, cb_id_iv_operation, operation);
+        rb_ivar_set(exc, cb_id_iv_value, bucket->self);
+        if (bucket->async) {
+            cb_async_error_notify(bucket, exc);
+        } else {
+            rb_exc_raise(exc);
+        }
+        return 0;
+    }
+    return 1;
+}
+
     static VALUE
 func_call_failed(VALUE ptr, VALUE exc)
 {

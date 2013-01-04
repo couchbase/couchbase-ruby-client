@@ -40,6 +40,25 @@ storage_observe_callback(VALUE args, VALUE cookie)
     return Qnil;
 }
 
+    VALUE
+storage_opcode_to_sym(lcb_storage_t operation)
+{
+    switch(operation) {
+        case LCB_ADD:
+            return cb_sym_add;
+        case LCB_REPLACE:
+            return cb_sym_replace;
+        case LCB_SET:
+            return cb_sym_set;
+        case LCB_APPEND:
+            return cb_sym_append;
+        case LCB_PREPEND:
+            return cb_sym_prepend;
+        default:
+            return Qnil;
+    }
+}
+
     void
 cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
         lcb_error_t error, const lcb_store_resp_t *resp)
@@ -52,25 +71,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
     cb_strip_key_prefix(bucket, key);
 
     cas = resp->v.v0.cas > 0 ? ULL2NUM(resp->v.v0.cas) : Qnil;
-    switch(operation) {
-        case LCB_ADD:
-            ctx->operation = cb_sym_add;
-            break;
-        case LCB_REPLACE:
-            ctx->operation = cb_sym_replace;
-            break;
-        case LCB_SET:
-            ctx->operation = cb_sym_set;
-            break;
-        case LCB_APPEND:
-            ctx->operation = cb_sym_append;
-            break;
-        case LCB_PREPEND:
-            ctx->operation = cb_sym_prepend;
-            break;
-        default:
-            ctx->operation = Qnil;
-    }
+    ctx->operation = storage_opcode_to_sym(operation);
     exc = cb_check_error(error, "failed to store value", key);
     if (exc != Qnil) {
         rb_ivar_set(exc, cb_id_iv_cas, cas);
@@ -120,8 +121,8 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
     lcb_error_t err;
     struct cb_params_st params;
 
-    if (bucket->handle == NULL) {
-        rb_raise(cb_eConnectError, "closed connection");
+    if (!cb_bucket_connected_bang(bucket, storage_opcode_to_sym(cmd))) {
+        return Qnil;
     }
     memset(&params, 0, sizeof(struct cb_params_st));
     rb_scan_args(argc, argv, "0*&", &params.args, &proc);

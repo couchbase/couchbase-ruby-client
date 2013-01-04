@@ -130,9 +130,10 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     lcb_error_t err;
     struct cb_params_st params;
 
-    if (bucket->handle == NULL) {
-        rb_raise(cb_eConnectError, "closed connection");
+    if (!cb_bucket_connected_bang(bucket, cb_sym_touch)) {
+        return Qnil;
     }
+
     memset(&params, 0, sizeof(struct cb_params_st));
     rb_scan_args(argc, argv, "0*&", &params.args, &proc);
     if (!bucket->async && proc != Qnil) {

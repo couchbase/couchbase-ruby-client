@@ -292,8 +292,8 @@ cb_http_request_perform(VALUE self)
     lcb_error_t err;
     struct cb_bucket_st *bucket = req->bucket;
 
-    if (bucket->handle == NULL) {
-        rb_raise(cb_eConnectError, "closed connection");
+    if (!cb_bucket_connected_bang(bucket, cb_sym_http_request)) {
+        return Qnil;
     }
 
     ctx = cb_context_alloc(bucket);
