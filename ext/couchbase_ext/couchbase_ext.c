@@ -521,6 +521,7 @@ Init_couchbase_ext(void)
      */
     cb_cResult = rb_define_class_under(cb_mCouchbase, "Result", rb_cObject);
     rb_define_method(cb_cResult, "inspect", cb_result_inspect, 0);
+    rb_define_method(cb_cResult, "to_s", cb_result_inspect, 0);
     rb_define_method(cb_cResult, "success?", cb_result_success_p, 0);
     /* Document-method: operation
      *
