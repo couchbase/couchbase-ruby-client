@@ -14,6 +14,14 @@ bugfixes. Do not forget to update this doc in every important patch.
 * [major] RCBC-118 Alias #total_rows as #total_entries on view result
   set to match documentation.
 
+* [minor] View#fetch_all - async method for fetching all records
+
+         conn.run do
+           doc.recent_posts.fetch_all do |posts|
+             do_something_with_all_posts(posts)
+           end
+         end
+
 ## 1.2.1 (2012-12-28)
 
 * [major] RCBC-101 Persistence constraints wasn't passed to mutation

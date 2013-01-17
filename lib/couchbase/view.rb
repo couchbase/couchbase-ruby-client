@@ -374,6 +374,30 @@ module Couchbase
       end
     end
 
+    # Method for fetching asynchronously all rows and passing array to callback
+    #
+    # Parameters are same as for {View#fetch} method, but callback is called for whole set for
+    # rows instead of one by each.
+    #
+    # @example
+    #   con.run do
+    #     doc.recent_posts.fetch_all do |posts|
+    #       do_something_with_all_posts(posts)
+    #     end
+    #   end
+    def fetch_all(params = {}, &block)
+      return fetch(params) unless @bucket.async?
+      raise ArgumentError, "Block needed for fetch_all in async mode" unless block
+
+      all = []
+      fetch(params) do |row|
+        all << row
+        if row.last?
+          @bucket.create_timer(0) { block.call(all) }
+        end
+      end
+    end
+
 
     # Returns a string containing a human-readable representation of the {View}
     #
