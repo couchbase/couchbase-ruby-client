@@ -16,25 +16,53 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * [minor] View#fetch_all - async method for fetching all records
 
-         conn.run do
-           doc.recent_posts.fetch_all do |posts|
-             do_something_with_all_posts(posts)
-           end
-         end
+        conn.run do
+          doc.recent_posts.fetch_all do |posts|
+            do_something_with_all_posts(posts)
+          end
+        end
 
 * [major] Allow to use Bucket instance in completely asynchronous
   environment like this, without blocking on connect:
 
-         conn = Couchbase.new(:async => true)
-         conn.run do
-           conn.on_connect do |res|
-             if res.success?
-               #
-               # schedule async requests
-               #
-             end
-           end
-         end
+        conn = Couchbase.new(:async => true)
+        conn.run do
+          conn.on_connect do |res|
+            if res.success?
+              #
+              # schedule async requests
+              #
+            end
+          end
+        end
+
+* [major] RCBC-27 EventMachine plugin to integrate with EventMachine
+  library. Note that the plugin is experimental at this stage.
+  Example:
+
+        require 'eventmachine'
+        require 'couchbase'
+
+        EM.epoll = true  if EM.epoll?
+        EM.kqueue = true  if EM.kqueue?
+        EM.run do
+          con = Couchbase.connect(:engine => :eventmachine, :async => true)
+          con.on_connect do |res|
+            puts "connected: #{res.inspect}"
+            if res.success?
+              con.set("emfoo", "bar") do |res|
+                puts "set: #{res.inspect}"
+                con.get("emfoo") do |res|
+                  puts "get: #{res.inspect}"
+                  EM.stop
+                end
+              end
+            else
+              EM.stop
+            end
+          end
+        end
+
 
 ## 1.2.1 (2012-12-28)
 
@@ -120,11 +148,11 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * RCBC-52 Implement bucket create/delete operations. Examples:
 
-         conn = Couchbase::Cluster.new(:hostname => "localhost",
-                  :username => "Administrator", :password => "secret")
-         conn.create_bucket("my_protected_bucket",
-                  :ram_quota => 500, # megabytes
-                  :sasl_password => "s3cr3tBuck3t")
+        conn = Couchbase::Cluster.new(:hostname => "localhost",
+                 :username => "Administrator", :password => "secret")
+        conn.create_bucket("my_protected_bucket",
+                 :ram_quota => 500, # megabytes
+                 :sasl_password => "s3cr3tBuck3t")
 
 * Propagate status code for HTTP responses
 
@@ -168,13 +196,13 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * RCBC-28 Implement Bucket#unlock
 
-         # Unlock the single key
-         val, _, cas = c.get("foo", :lock => true, :extended => true)
-         c.unlock("foo", :cas => cas)
+        # Unlock the single key
+        val, _, cas = c.get("foo", :lock => true, :extended => true)
+        c.unlock("foo", :cas => cas)
 
-         # Unlock several keys
-         c.unlock("foo" => cas1, :bar => cas2)
-         #=> {"foo" => true, "bar" => true}
+        # Unlock several keys
+        c.unlock("foo" => cas1, :bar => cas2)
+        #=> {"foo" => true, "bar" => true}
 
 * Fix CAS conversion for Bucket#delete method for 32-bit systems
 
@@ -191,7 +219,7 @@ bugfixes. Do not forget to update this doc in every important patch.
 * RCBC-37 Allow to pass intial list of nodes which will allow to
   iterate addresses until alive node will be found.
 
-         Couchbase.connect(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
+        Couchbase.connect(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
 
 * RCBC-70 Fixed UTF-8 in the keys. Original discussion
   https://groups.google.com/d/topic/couchbase/bya0lSf9uGE/discussion
@@ -208,15 +236,15 @@ bugfixes. Do not forget to update this doc in every important patch.
 * RCBC-6 Implement Bucket#observe command to query durable state.
   Examples:
 
-         # Query state of single key
-         c.observe("foo")
-         #=> [#<Couchbase::Result:0x00000001650df0 ...>, ...]
+        # Query state of single key
+        c.observe("foo")
+        #=> [#<Couchbase::Result:0x00000001650df0 ...>, ...]
 
-         # Query state of multiple keys
-         keys = ["foo", "bar"]
-         stats = c.observe(keys)
-         stats.size   #=> 2
-         stats["foo"] #=> [#<Couchbase::Result:0x00000001650df0 ...>, ...]
+        # Query state of multiple keys
+        keys = ["foo", "bar"]
+        stats = c.observe(keys)
+        stats.size   #=> 2
+        stats["foo"] #=> [#<Couchbase::Result:0x00000001650df0 ...>, ...]
 
 * RCBC-49 Storage functions with durability requirements
 

@@ -44,4 +44,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'mini_portile'
   s.add_development_dependency 'yajl-ruby', '~> 1.1.0'
   s.add_development_dependency 'active_support'
+  s.add_development_dependency 'eventmachine'
 end

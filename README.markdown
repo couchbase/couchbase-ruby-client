@@ -6,9 +6,6 @@ are related libraries available:
 * [couchbase-model][6] the ActiveModel implementation, git repository:
   [https://github.com/couchbase/couchbase-ruby-model][7]
 
-* [em-couchbase][8] EventMachine friendly implementation of couchbase
-  client, git repository: [https://github.com/couchbase/couchbase-ruby-client-em][9]
-
 ## SUPPORT
 
 If you found an issue, please file it in our [JIRA][1]. Also you are
@@ -520,6 +517,54 @@ Note that errors object in view results usually goes *after* the rows,
 so you will likely receive a number of view results successfully before
 the error is detected.
 
+## Engines
+
+As far as couchbase gem uses [libcouchbase][8] as the backend, you can
+choose from several asynchronous IO options:
+
+* `:default` this one is used by default and implemented as the part
+  of the ruby extensions (this mean you don't need any dependencies
+  apart from libcouchbase2-core and libcouchbase-dev to build and use
+  it). This engine honours ruby GVL, so when it comes to waiting for
+  IO operations from kernel it release the GVL allowing interpreter to
+  run your code. This technique isn't available on windows, but down't
+  worry `:default` engine still accessible and will pick up statically
+  linked on that platform `:libevent` engine.
+
+* `:libev` and `:libevent`, these two engines require installed
+  libcouchbase2-libev and libcouchbase2-libevent packages
+  correspondingly. Currently they aren't so friendly to GVL but still
+  useful.
+
+* `:eventmachine` engine. From version 1.2.2 it is possible to use
+  great [EventMachine][9] library as underlying IO backend and
+  integrate couchbase gem to your current asynchronous application.
+  This engine will be only accessible on the MRI ruby 1.9+. Checkout
+  simple example of usage:
+
+        require 'eventmachine'
+        require 'couchbase'
+
+        EM.epoll = true  if EM.epoll?
+        EM.kqueue = true  if EM.kqueue?
+        EM.run do
+          con = Couchbase.connect :engine => :eventmachine, :async => true
+          con.on_connect do |res|
+            puts "connected: #{res.inspect}"
+            if res.success?
+              con.set("emfoo", "bar") do |res|
+                puts "set: #{res.inspect}"
+                con.get("emfoo") do |res|
+                  puts "get: #{res.inspect}"
+                  EM.stop
+                end
+              end
+            else
+              EM.stop
+            end
+          end
+        end
+
 [1]: http://couchbase.com/issues/browse/RCBC
 [2]: http://freenode.net/irc_servers.shtml
 [3]: http://www.couchbase.com/develop/c/current
@@ -527,6 +572,6 @@ the error is detected.
 [5]: http://code.google.com/p/memcached/wiki/BinaryProtocolRevamped
 [6]: https://rubygems.org/gems/couchbase-model
 [7]: https://github.com/couchbase/couchbase-ruby-model
-[8]: https://rubygems.org/gems/em-couchbase
-[9]: https://github.com/couchbase/couchbase-ruby-client-em
+[8]: http://www.couchbase.com/develop/c/current
+[9]: http://rubygems.org/gems/eventmachine
 
