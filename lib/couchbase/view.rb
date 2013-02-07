@@ -63,6 +63,7 @@ module Couchbase
 
     class ArrayWithTotalRows < Array # :nodoc:
       attr_accessor :total_rows
+      alias total_entries total_rows
     end
 
     class AsyncHelper # :nodoc:

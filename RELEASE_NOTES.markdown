@@ -3,7 +3,18 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
-## 1.2.1 (UNRELEASED)
+## UNRELEASED
+
+* [minor] Bucket#design_docs will return a Hash with DesignDoc
+  instances as a values.
+
+* [critical] RCBC-104 Data corruption on intensive store operations.
+  The issue could also lead to segfaults.
+
+* [major] RCBC-118 Alias #total_rows as #total_entries on view result
+  set to match documentation.
+
+## 1.2.1 (2012-12-28)
 
 * [major] RCBC-101 Persistence constraints wasn't passed to mutation
   methods, so they haven't been applied properly.
@@ -13,11 +24,8 @@ bugfixes. Do not forget to update this doc in every important patch.
   in case of multi-set, even if there is only one document is being
   set.
 
-* [minor] Bucket#design_docs will return a Hash with DesignDoc
-  instances as a values.
-
-* [critical] RCBC-104 Data corruption on intensive store operations.
-  The issue could also lead to segfaults.
+* [minor] Improve internal structures of multi-threaded IO plugin to
+  protect it from memory leaks when the Fiber object is forgotten.
 
 ## 1.2.0 (2012-12-12)
 
