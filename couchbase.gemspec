@@ -38,7 +38,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'yaji', '~> 0.3.2'
   s.add_runtime_dependency 'multi_json', '~> 1.0'
 
-  s.add_development_dependency 'rake', '~> 0.8.7'
+  s.add_development_dependency 'rake'
   s.add_development_dependency 'minitest'
   s.add_development_dependency 'rake-compiler', '>= 0.7.5'
   s.add_development_dependency 'mini_portile'
