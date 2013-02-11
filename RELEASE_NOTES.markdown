@@ -3,7 +3,7 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
-## UNRELEASED
+## 1.2.2 (2013-02-11)
 
 * [minor] Bucket#design_docs will return a Hash with DesignDoc
   instances as a values.
