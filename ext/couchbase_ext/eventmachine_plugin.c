@@ -17,6 +17,7 @@
 
 #include "couchbase_ext.h"
 
+#ifndef _WIN32
 #ifdef BUILD_EVENTMACHINE_PLUGIN
 
 #include <errno.h>
@@ -447,4 +448,5 @@ cb_create_ruby_em_io_opts(int version, lcb_io_opt_t *io, void *arg)
     return LCB_SUCCESS;
 }
 
+#endif
 #endif

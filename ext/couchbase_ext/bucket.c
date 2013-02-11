@@ -253,6 +253,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             if (arg != Qnil) {
                 if (arg == cb_sym_default) {
                     bucket->engine = cb_sym_default;
+#ifndef _WIN32
                 } else if (arg == cb_sym_libev) {
                     bucket->engine = cb_sym_libev;
                 } else if (arg == cb_sym_libevent) {
@@ -260,6 +261,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
 #ifdef BUILD_EVENTMACHINE_PLUGIN
                 } else if (arg == cb_sym_eventmachine) {
                     bucket->engine = cb_sym_eventmachine;
+#endif
 #endif
                 } else {
                     VALUE ins = rb_funcall(arg, rb_intern("inspect"), 0);
