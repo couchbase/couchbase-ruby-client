@@ -16,6 +16,9 @@
  */
 
 #include "couchbase_ext.h"
+
+#ifndef HAVE_GETHRTIME
+
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
@@ -122,3 +125,5 @@ hrtime_t gethrtime(void)
 #error "I don't know how to build a highres clock..."
 #endif
 }
+
+#endif
