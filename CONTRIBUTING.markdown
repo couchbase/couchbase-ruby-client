@@ -55,7 +55,7 @@ gerrit registration steps above and clone the source repository
 
 Install [`commit-msg` hook][2]:
 
-    ~/couchbase-ruby-client % scp -p -P 29418 YOURNAME@review.example.com:hooks/commit-msg .git/hooks/
+    ~/couchbase-ruby-client % scp -p -P 29418 YOURNAME@review.couchbase.org:hooks/commit-msg .git/hooks/
 
 Make your changes and upload them for review:
 
