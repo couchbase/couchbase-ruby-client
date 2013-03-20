@@ -73,7 +73,18 @@ module Couchbase
 
     # @private the thread local storage
     def thread_storage
-      Thread.current[:couchbase] ||= {}
+      Thread.current[:couchbase] ||= { :pid => Process.pid }
+    end
+
+    # @private resets thread local storage if process ids don't match
+    # see 13.3.1: http://www.modrails.com/documentation/Users%20guide%20Apache.html
+    def verify_connection!
+      reset_thread_storage! if thread_storage[:pid] != Process.pid
+    end
+
+    # @private resets thread local storage
+    def reset_thread_storage!
+      Thread.current[:couchbase] = nil
     end
 
     # The connection instance for current thread
@@ -87,6 +98,7 @@ module Couchbase
     #
     # @return [Bucket]
     def bucket
+      verify_connection!
       thread_storage[:bucket] ||= connect(connection_options)
     end
 
@@ -96,6 +108,7 @@ module Couchbase
     #
     # @return [Bucket]
     def bucket=(connection)
+      verify_connection!
       thread_storage[:bucket] = connection
     end
 
