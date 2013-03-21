@@ -280,6 +280,29 @@ class TestCouchbaseRailsCacheStore < MiniTest::Unit::TestCase
     assert_equal({:key => uniq_id, :amount => 1, :create => true}, decrement.payload)
   end
 
+  # Inspiration: https://github.com/mperham/dalli/blob/master/test/test_dalli.rb#L416
+  def test_it_is_threadsafe
+    workers = []
+
+    # Have a bunch of threads perform a bunch of operations at the same time.
+    # Verify the result of each operation to ensure the request and response
+    # are not intermingled between threads.
+    10.times do
+      workers << Thread.new do
+        100.times do
+          store.write('a', 9)
+          store.write('b', 11)
+          assert_equal 9, store.read('a')
+          assert_equal({ 'a' => 9, 'b' => 11 }, store.read_multi('a', 'b'))
+          assert_equal 11, store.read('b')
+          assert_equal %w(a b), store.read_multi('a', 'b', 'c').keys.sort
+        end
+      end
+    end
+
+    workers.each { |w| w.join }
+  end
+
   private
 
   def collect_notifications
