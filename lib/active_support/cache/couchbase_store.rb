@@ -19,6 +19,7 @@ require 'couchbase'
 require 'securerandom'
 require 'active_support/core_ext/array/extract_options'
 require 'active_support/cache'
+require 'monitor'
 
 module ActiveSupport
   module Cache
@@ -56,6 +57,7 @@ module ActiveSupport
         options[:key_prefix] ||= options.delete(:namespace)
         args.push(options)
         @data = ::Couchbase::Bucket.new(*args)
+        @lock = Monitor.new
       end
 
       # Fetches data from the cache, using the given key.
@@ -182,7 +184,9 @@ module ActiveSupport
           options[:format] = :plain
         end
         instrument(:read_multi, names, options) do
-          @data.get(names, options)
+          @lock.synchronize do
+            @data.get(names, options)
+          end
         end
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
@@ -243,7 +247,9 @@ module ActiveSupport
         options[:create] = true
         instrument(:increment, name, options) do |payload|
           payload[:amount] = amount if payload
-          @data.incr(name, amount, options)
+          @lock.synchronize do
+            @data.incr(name, amount, options)
+          end
         end
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
@@ -275,7 +281,9 @@ module ActiveSupport
         options[:create] = true
         instrument(:decrement, name, options) do |payload|
           payload[:amount] = amount if payload
-          @data.decr(name, amount, options)
+          @lock.synchronize do
+            @data.decr(name, amount, options)
+          end
         end
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
@@ -289,14 +297,18 @@ module ActiveSupport
       #
       # @return [Hash]
       def stats(*arg)
-        @data.stats(*arg)
+        @lock.synchronize do
+          @data.stats(*arg)
+        end
       end
 
       protected
 
       # Read an entry from the cache.
       def read_entry(key, options) # :nodoc:
-        @data.get(key, options)
+        @lock.synchronize do
+          @data.get(key, options)
+        end
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
         raise if @raise_errors
@@ -313,7 +325,9 @@ module ActiveSupport
         if ttl = options.delete(:expires_in)
           options[:ttl] ||= ttl
         end
-        @data.send(method, key, value, options)
+        @lock.synchronize do
+          @data.send(method, key, value, options)
+        end
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
         raise if @raise_errors
@@ -322,7 +336,9 @@ module ActiveSupport
 
       # Delete an entry from the cache.
       def delete_entry(key, options) # :nodoc:
-        @data.delete(key, options)
+        @lock.synchronize do
+          @data.delete(key, options)
+        end
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
         raise if @raise_errors
