@@ -235,7 +235,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
  *     c.set("foo", {"bar" => "baz}, :format => :document)
  *
  *   @example Use hash-like syntax to store the value
- *     c.set["foo"] = {"bar" => "baz}
+ *     c["foo"] = {"bar" => "baz}
  *
  *   @example Use extended hash-like syntax
  *     c["foo", {:flags => 0x1000, :format => :plain}] = "bar"
