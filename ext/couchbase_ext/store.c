@@ -228,6 +228,22 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
  *   @example Store the key which will be expired in 2 seconds using relative TTL.
  *     c.set("foo", "bar", :ttl => 2)
  *
+ *   @example Perform multi-set operation. It takes a Hash store its keys/values into the bucket
+ *     c.set("foo1" => "bar1", "foo2" => "bar2")
+ *     #=> {"foo1" => cas1, "foo2" => cas2}
+ *
+ *   @example More advanced multi-set using asynchronous mode
+ *     c.run do
+ *       # fire and forget
+ *       c.set("foo1", "bar1", :ttl => 10)
+ *       # receive result into the callback
+ *       c.set("foo2", "bar2", :ttl => 10) do |ret|
+ *         if ret.success?
+ *           puts ret.cas
+ *         end
+ *       end
+ *     end
+ *
  *   @example Store the key which will be expired in 2 seconds using absolute TTL.
  *     c.set("foo", "bar", :ttl => Time.now.to_i + 2)
  *
