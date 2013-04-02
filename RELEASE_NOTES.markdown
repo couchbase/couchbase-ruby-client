@@ -3,6 +3,14 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.2.3 (2013-04-02)
+
+* [major] Make ActiveSupport::Cache::CouchbaseStore threadsafe
+
+* [minor] Check for gethrtime. Needed for solaris/smartos
+
+* [minor] Update documentation bits regarding SET operations
+
 ## 1.2.2 (2013-02-11)
 
 * [minor] Bucket#design_docs will return a Hash with DesignDoc
