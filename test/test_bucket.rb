@@ -128,7 +128,7 @@ class TestBucket < MiniTest::Unit::TestCase
     end
   end
 
-  def test_it_unable_to_connect_to_protected_buckets_with_wrond_credentials
+  def test_it_unable_to_connect_to_protected_buckets_with_wrong_credentials
     with_mock(:buckets_spec => 'protected:secret') do |mock|
       assert_raises Couchbase::Error::Auth do
         Couchbase.new(:hostname => mock.host,

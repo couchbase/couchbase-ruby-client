@@ -201,7 +201,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
  *   @option options [Symbol] :format (self.default_format) The
  *     representation for storing the value in the bucket. For more info see
  *     {Bucket#default_format}.
- *   @option options [Fixnum] :cas The CAS value for an object. This value
+ *   @option options [Fixnum] :cas The CAS value for an object. This value is
  *     created on the server and is guaranteed to be unique for each value of
  *     a given key. This value is used to provide simple optimistic
  *     concurrency control when multiple clients or threads try to update an

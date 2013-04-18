@@ -96,8 +96,8 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *   @param keys [String, Symbol, Array] One or several keys to fetch
  *   @param options [Hash] Options for operation.
  *   @option options [true, false] :extended (false) If set to +true+, the
- *     operation will return tuple +[value, flags, cas]+, otherwise (by
- *     default) it returns just value.
+ *     operation will return a tuple +[value, flags, cas]+, otherwise (by
+ *     default) it returns just the value.
  *   @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
  *     Values larger than 30*24*60*60 seconds (30 days) are interpreted as
  *     absolute times (from the epoch).
@@ -128,7 +128,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *     +cas+).
  *
  *   @return [Object, Array, Hash] the value(s) (or tuples in extended mode)
- *     assiciated with the key.
+ *     associated with the key.
  *
  *   @raise [Couchbase::Error::NotFound] if the key is missing in the
  *     bucket.
@@ -137,7 +137,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *
  *   @raise [ArgumentError] when passing the block in synchronous mode
  *
- *   @example Get single value in quite mode (the default)
+ *   @example Get single value in quiet mode (the default)
  *     c.get("foo")     #=> the associated value or nil
  *
  *   @example Use alternative hash-like syntax
@@ -199,7 +199,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *   @param options [Hash] Options for operation. (see options definition
  *     above)
  *
- *   @return [Hash] the values (or tuples in extended mode) assiciated with
+ *   @return [Hash] the values (or tuples in extended mode) associated with
  *     the keys.
  *
  *   @example Get and touch multiple keys

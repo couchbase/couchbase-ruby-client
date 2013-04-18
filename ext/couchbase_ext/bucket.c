@@ -448,7 +448,7 @@ cb_bucket_alloc(VALUE klass)
  *     instead.
  *   @option options [String] :password (nil) the password of the user.
  *   @option options [true, false] :quiet (false) the flag controlling if raising
- *     exception when the client executes operations on unexising keys. If it
+ *     exception when the client executes operations on non-existent keys. If it
  *     is +true+ it will raise {Couchbase::Error::NotFound} exceptions. The
  *     default behaviour is to return +nil+ value silently (might be useful in
  *     Rails cache).
@@ -494,8 +494,8 @@ cb_bucket_alloc(VALUE klass)
  * @example Use list of nodes, in case some nodes might be dead
  *   Couchbase.new(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
  *
- * @raise [Couchbase::Error::BucketNotFound] if there no such bucket to
- *   connect
+ * @raise [Couchbase::Error::BucketNotFound] if there is no such bucket to
+ *   connect to
  *
  * @raise [Couchbase::Error::Connect] if the socket wasn't accessible
  *   (doesn't accept connections or doesn't respond in time)

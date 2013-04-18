@@ -285,8 +285,6 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::NoMemory
      * Out of memory error (on Server)
      *
-     * The client ran out of memory
-     *
      * @since 1.0.0
      */
     cb_eNoMemoryError = rb_define_class_under(cb_mError, "NoMemory", cb_eBaseError);
