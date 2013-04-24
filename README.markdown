@@ -387,18 +387,22 @@ The result is represented as a hash with the server node address as
 the key and stats as key-value pairs.
 
     {
-      "172.16.16.76:12008"=>
+      "threads"=>
         {
-          "threads"=>"4",
-          "connection_structures"=>"22",
-          "ep_max_txn_size"=>"10000",
+          "172.16.16.76:12008"=>"4",
+          "172.16.16.76:12000"=>"4",
           # ...
         },
-      "172.16.16.76:12000"=>
+      "connection_structures"=>
         {
-          "threads"=>"4",
-          "connection_structures"=>"447",
-          "ep_max_txn_size"=>"10000",
+          "172.16.16.76:12008"=>"22",
+          "172.16.16.76:12000"=>"447",
+          # ...
+        },
+      "ep_max_txn_size"=>
+        {
+          "172.16.16.76:12008"=>"1000",
+          "172.16.16.76:12000"=>"1000",
           # ...
         },
       # ...
