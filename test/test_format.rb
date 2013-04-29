@@ -78,7 +78,7 @@ class TestFormat < MiniTest::Unit::TestCase
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, orig_doc, :format => :marshal)
     doc, flags, cas = connection.get(uniq_id, :extended => true)
-    assert_equal 0x01, flags & 0x11
+    assert_equal Couchbase::Bucket::FMT_MARSHAL, flags & Couchbase::Bucket::FMT_MASK
     assert doc.is_a?(ArbitraryClass)
     assert_equal 'Twoflower', doc.name
     assert_equal 'The tourist', doc.role
