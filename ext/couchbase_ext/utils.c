@@ -360,89 +360,33 @@ cb_check_error(lcb_error_t rc, const char *msg, VALUE key)
     return cb_check_error_with_status(rc, msg, key, 0);
 }
 
-
-    uint32_t
-cb_flags_set_format(uint32_t flags, ID format)
-{
-    flags &= ~((uint32_t)CB_FMT_MASK); /* clear format bits */
-
-    if (format == cb_sym_document) {
-        return flags | CB_FMT_DOCUMENT;
-    } else if (format == cb_sym_marshal) {
-        return flags | CB_FMT_MARSHAL;
-    } else if (format == cb_sym_plain) {
-        return flags | CB_FMT_PLAIN;
-    }
-    return flags; /* document is the default */
-}
-
-    ID
-cb_flags_get_format(uint32_t flags)
-{
-    flags &= CB_FMT_MASK; /* select format bits */
-
-    switch (flags) {
-        case CB_FMT_DOCUMENT:
-            return cb_sym_document;
-        case CB_FMT_MARSHAL:
-            return cb_sym_marshal;
-        case CB_FMT_PLAIN:
-            /* fall through */
-        default:
-            /* all other formats treated as plain */
-            return cb_sym_plain;
-    }
-}
-
-
     static VALUE
 do_encode(VALUE *args)
 {
     VALUE val = args[0];
-    uint32_t flags = ((uint32_t)args[1] & CB_FMT_MASK);
+    uint32_t *flags = (uint32_t *)args[1];
+    VALUE transcoder = args[2];
+    VALUE options = args[3];
+    VALUE ret;
 
-    switch (flags) {
-        case CB_FMT_DOCUMENT:
-            return rb_funcall(cb_mMultiJson, cb_id_dump, 1, val);
-        case CB_FMT_MARSHAL:
-            return rb_funcall(cb_mMarshal, cb_id_dump, 1, val);
-        case CB_FMT_PLAIN:
-            /* fall through */
-        default:
-            /* all other formats treated as plain */
-            return val;
+    ret = rb_funcall(transcoder, cb_id_dump, 3, val, ULONG2NUM(*flags), options);
+    Check_Type(ret, T_ARRAY);
+    if (RARRAY_LEN(ret) != 2) {
+        rb_raise(rb_eArgError, "#dump method of transcoder should return two items");
     }
+    *flags = NUM2ULONG(RARRAY_PTR(ret)[1]);
+    return RARRAY_PTR(ret)[0];
 }
 
     static VALUE
 do_decode(VALUE *args)
 {
     VALUE blob = args[0];
-    VALUE force_format = args[2];
+    VALUE transcoder = args[2];
+    VALUE flags = args[1];
+    VALUE options = args[3];
 
-    if (TYPE(force_format) == T_SYMBOL) {
-        if (force_format == cb_sym_document) {
-            return rb_funcall(cb_mMultiJson, cb_id_load, 1, blob);
-        } else if (force_format == cb_sym_marshal) {
-            return rb_funcall(cb_mMarshal, cb_id_load, 1, blob);
-        } else { /* cb_sym_plain and any other cb_symbol */
-            return blob;
-        }
-    } else {
-        uint32_t flags = ((uint32_t)args[1] & CB_FMT_MASK);
-
-        switch (flags) {
-            case CB_FMT_DOCUMENT:
-                return rb_funcall(cb_mMultiJson, cb_id_load, 1, blob);
-            case CB_FMT_MARSHAL:
-                return rb_funcall(cb_mMarshal, cb_id_load, 1, blob);
-            case CB_FMT_PLAIN:
-                /* fall through */
-            default:
-                /* all other formats treated as plain */
-                return blob;
-        }
-    }
+    return rb_funcall(transcoder, cb_id_load, 3, blob, ULONG2NUM(flags), options);
 }
 
     static VALUE
@@ -453,20 +397,27 @@ coding_failed(VALUE unused, VALUE exc)
 }
 
     VALUE
-cb_encode_value(VALUE val, uint32_t flags)
+cb_encode_value(VALUE transcoder, VALUE val, uint32_t *flags, VALUE options)
 {
-    VALUE blob, args[2];
+    VALUE args[4];
 
     args[0] = val;
     args[1] = (VALUE)flags;
-    blob = rb_rescue(do_encode, (VALUE)args, coding_failed, 0);
-    return blob; /* bytestring or exception object */
+    args[2] = transcoder;
+    args[3] = options;
+
+    /* if nil, just pass value through */
+    if (NIL_P(args[2])) {
+        return val;
+    }
+    /* bytestring or exception object */
+    return rb_rescue(do_encode, (VALUE)args, coding_failed, 0);
 }
 
     VALUE
-cb_decode_value(VALUE blob, uint32_t flags, VALUE force_format)
+cb_decode_value(VALUE transcoder, VALUE blob, uint32_t flags, VALUE options)
 {
-    VALUE val, args[3];
+    VALUE args[4];
 
     /* first it must be bytestring */
     if (TYPE(blob) != T_STRING) {
@@ -474,9 +425,15 @@ cb_decode_value(VALUE blob, uint32_t flags, VALUE force_format)
     }
     args[0] = blob;
     args[1] = (VALUE)flags;
-    args[2] = (VALUE)force_format;
-    val = rb_rescue(do_decode, (VALUE)args, coding_failed, 0);
-    return val; /* the value or exception object */
+    args[2] = transcoder;
+    args[3] = options;
+
+    /* if nil, just pass blob through */
+    if (NIL_P(args[2])) {
+        return blob;
+    }
+    /* the value or exception object */
+    return rb_rescue(do_decode, (VALUE)args, coding_failed, 0);
 }
 
     void

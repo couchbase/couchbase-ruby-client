@@ -228,12 +228,18 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
                             break;
                     }
                 }
-                if (arg == cb_sym_document || arg == cb_sym_marshal || arg == cb_sym_plain) {
-                    bucket->default_format = arg;
-                    bucket->default_flags = cb_flags_set_format(bucket->default_flags, arg);
+                if (arg == cb_sym_document) {
+                    cb_bucket_transcoder_set(bucket->self, cb_mDocument);
+                } else if (arg == cb_sym_marshal) {
+                    cb_bucket_transcoder_set(bucket->self, cb_mMarshal);
+                } else if (arg == cb_sym_plain) {
+                    cb_bucket_transcoder_set(bucket->self, cb_mPlain);
                 }
             }
-            arg = rb_hash_aref(opts, cb_sym_environment);
+            arg = rb_hash_lookup2(opts, cb_sym_transcoder, Qundef);
+            if (arg != Qundef) {
+                cb_bucket_transcoder_set(bucket->self, arg);
+            }
             if (arg != Qnil) {
                 if (arg == cb_sym_production || arg == cb_sym_development) {
                     bucket->environment = arg;
@@ -270,6 +276,13 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
                 }
             }
             bucket->async = RTEST(rb_hash_aref(opts, cb_sym_async));
+            arg = rb_hash_aref(opts, cb_sym_transcoder);
+            if (arg != Qnil) {
+                bucket->default_arith_create = RTEST(arg);
+                if (TYPE(arg) == T_FIXNUM) {
+                    bucket->default_arith_init = NUM2ULL(arg);
+                }
+            }
         } else {
             opts = Qnil;
         }
@@ -507,7 +520,6 @@ cb_bucket_alloc(VALUE klass)
 cb_bucket_init(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
-
     bucket->self = self;
     bucket->exception = Qnil;
     bucket->type = LCB_TYPE_BUCKET;
@@ -522,7 +534,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->quiet = 0;
     bucket->default_ttl = 0;
     bucket->default_flags = 0;
-    bucket->default_format = cb_sym_document;
+    cb_bucket_transcoder_set(self, cb_mDocument);
     bucket->default_observe_timeout = 2500000;
     bucket->on_error_proc = Qnil;
     bucket->on_connect_proc = Qnil;
@@ -579,7 +591,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->engine = orig_b->engine;
     copy_b->async = orig_b->async;
     copy_b->quiet = orig_b->quiet;
-    copy_b->default_format = orig_b->default_format;
+    copy_b->transcoder = orig_b->transcoder;
     copy_b->default_flags = orig_b->default_flags;
     copy_b->default_ttl = orig_b->default_ttl;
     copy_b->environment = orig_b->environment;
@@ -708,22 +720,47 @@ cb_bucket_default_flags_set(VALUE self, VALUE val)
     struct cb_bucket_st *bucket = DATA_PTR(self);
 
     bucket->default_flags = (uint32_t)NUM2ULONG(val);
-    bucket->default_format = cb_flags_get_format(bucket->default_flags);
     return val;
+}
+
+    VALUE
+cb_bucket_transcoder_get(VALUE self)
+{
+    struct cb_bucket_st *bucket = DATA_PTR(self);
+    return bucket->transcoder;
+}
+
+    VALUE
+cb_bucket_transcoder_set(VALUE self, VALUE val)
+{
+    struct cb_bucket_st *bucket = DATA_PTR(self);
+
+    if (val != Qnil && !rb_respond_to(val, cb_id_dump) && !rb_respond_to(val, cb_id_load)) {
+        rb_raise(rb_eArgError, "transcoder must respond to dump and load methods");
+    }
+    bucket->transcoder = val;
+
+    return bucket->transcoder;
 }
 
     VALUE
 cb_bucket_default_format_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
-    return bucket->default_format;
+
+    if (bucket->transcoder == cb_mDocument) {
+        return cb_sym_document;
+    } else if (bucket->transcoder == cb_mMarshal) {
+        return cb_sym_marshal;
+    } else if (bucket->transcoder == cb_mPlain) {
+        return cb_sym_plain;
+    }
+    return Qnil;
 }
 
     VALUE
 cb_bucket_default_format_set(VALUE self, VALUE val)
 {
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-
     if (TYPE(val) == T_FIXNUM) {
         rb_warn("numeric argument to #default_format option is deprecated, use symbol");
         switch (FIX2INT(val)) {
@@ -738,9 +775,14 @@ cb_bucket_default_format_set(VALUE self, VALUE val)
                 break;
         }
     }
-    if (val == cb_sym_document || val == cb_sym_marshal || val == cb_sym_plain) {
-        bucket->default_format = val;
-        bucket->default_flags = cb_flags_set_format(bucket->default_flags, val);
+    if (val == cb_sym_document) {
+        cb_bucket_transcoder_set(self, cb_mDocument);
+    } else if (val == cb_sym_marshal) {
+        cb_bucket_transcoder_set(self, cb_mMarshal);
+    } else if (val == cb_sym_plain) {
+        cb_bucket_transcoder_set(self, cb_mPlain);
+    } else {
+        rb_raise(rb_eArgError, "unknown format");
     }
 
     return val;
@@ -1105,9 +1147,9 @@ cb_bucket_inspect(VALUE self)
     rb_str_append(str, bucket->pool);
     rb_str_buf_cat2(str, "/buckets/");
     rb_str_append(str, bucket->bucket);
-    rb_str_buf_cat2(str, "/");
-    snprintf(buf, 150, "\" default_format=:%s, default_flags=0x%x, quiet=%s, connected=%s, timeout=%u",
-            rb_id2name(SYM2ID(bucket->default_format)),
+    rb_str_buf_cat2(str, "/\" transcoder=");
+    rb_str_append(str, rb_inspect(bucket->transcoder));
+    snprintf(buf, 150, ", default_flags=0x%x, quiet=%s, connected=%s, timeout=%u",
             bucket->default_flags,
             bucket->quiet ? "true" : "false",
             (bucket->handle && bucket->connected) ? "true" : "false",

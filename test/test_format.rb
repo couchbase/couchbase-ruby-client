@@ -106,4 +106,54 @@ class TestFormat < MiniTest::Unit::TestCase
     end
   end
 
+  def test_it_allows_to_turn_off_transcoder
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :transcoder => nil)
+    connection.set(uniq_id, "value", :flags => 0xffff_ffff)
+    doc, flags, _ = connection.get(uniq_id, :extended => true)
+    assert_equal "value", doc
+    assert_equal 0xffff_ffff, flags
+  end
+
+  require 'zlib'
+  # This class wraps any other transcoder and performs compression
+  # using zlib
+  class ZlibTranscoder
+    FMT_ZLIB = 0x04
+
+    def initialize(base)
+      @base = base
+    end
+
+    def dump(obj, flags, options = {})
+      obj, flags = @base.dump(obj, flags, options)
+      z = Zlib::Deflate.new(Zlib::BEST_SPEED)
+      buffer = z.deflate(obj, Zlib::FINISH)
+      z.close
+      [buffer, flags|FMT_ZLIB]
+    end
+
+    def load(blob, flags, options = {})
+      # decompress value only if Zlib flag set
+      if (flags & FMT_ZLIB) == FMT_ZLIB
+        z = Zlib::Inflate.new
+        blob = z.inflate(blob)
+        z.finish
+        z.close
+      end
+      @base.load(blob, flags, options)
+    end
+  end
+
+  def test_it_can_use_custom_transcoder
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection.transcoder = ZlibTranscoder.new(Couchbase::Transcoder::Document)
+    connection.set(uniq_id, {"foo" => "bar"})
+    doc, flags, _ = connection.get(uniq_id, :extended => true)
+    assert_equal({"foo" => "bar"}, doc)
+    assert_equal(ZlibTranscoder::FMT_ZLIB|Couchbase::Bucket::FMT_DOCUMENT, flags)
+    connection.transcoder = nil
+    doc = connection.get(uniq_id)
+    assert_equal "x\x01\xABVJ\xCB\xCFW\xB2RJJ,R\xAA\x05\0\x1Dz\x044", doc
+  end
+
 end

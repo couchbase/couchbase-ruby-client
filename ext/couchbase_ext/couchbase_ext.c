@@ -27,8 +27,10 @@ VALUE cb_cTimer;
 /* Modules */
 VALUE cb_mCouchbase;
 VALUE cb_mError;
+VALUE cb_mTranscoder;
+VALUE cb_mDocument;
+VALUE cb_mPlain;
 VALUE cb_mMarshal;
-VALUE cb_mMultiJson;
 VALUE cb_mURI;
 VALUE em_m;
 
@@ -62,6 +64,7 @@ ID cb_sym_eventmachine;
 ID cb_sym_extended;
 ID cb_sym_flags;
 ID cb_sym_format;
+ID cb_sym_forced;
 ID cb_sym_found;
 ID cb_sym_get;
 ID cb_sym_hostname;
@@ -97,6 +100,7 @@ ID cb_sym_set;
 ID cb_sym_stats;
 ID cb_sym_timeout;
 ID cb_sym_touch;
+ID cb_sym_transcoder;
 ID cb_sym_ttl;
 ID cb_sym_type;
 ID cb_sym_unlock;
@@ -201,10 +205,12 @@ Init_couchbase_ext(void)
     /* just a holder for EventMachine module */
     em_m = 0;
 
-    cb_mMultiJson = rb_const_get(rb_cObject, rb_intern("MultiJson"));
     cb_mURI = rb_const_get(rb_cObject, rb_intern("URI"));
-    cb_mMarshal = rb_const_get(rb_cObject, rb_intern("Marshal"));
     cb_mCouchbase = rb_define_module("Couchbase");
+    cb_mTranscoder = rb_const_get(cb_mCouchbase, rb_intern("Transcoder"));
+    cb_mDocument = rb_const_get(cb_mTranscoder, rb_intern("Document"));
+    cb_mMarshal = rb_const_get(cb_mTranscoder, rb_intern("Marshal"));
+    cb_mPlain = rb_const_get(cb_mTranscoder, rb_intern("Plain"));
 
     cb_mError = rb_define_module_under(cb_mCouchbase, "Error");
     /* Document-class: Couchbase::Error::Base
@@ -759,6 +765,50 @@ Init_couchbase_ext(void)
     rb_define_method(cb_cBucket, "default_flags", cb_bucket_default_flags_get, 0);
     rb_define_method(cb_cBucket, "default_flags=", cb_bucket_default_flags_set, 1);
 
+    /* Document-method: transcoder
+     * Set data transcoder for the current connection
+     *
+     * @since 1.2.4
+     *
+     * It is possible to define custom transcoder to handle all value
+     * transformation, for example, if you need to adopt legacy
+     * application. The transcoder should respond to two methods:
+     * +dump+ and +load+. They are accepting the data itself, the
+     * flags field, and the options hash from the library.
+     *
+     *  @example Simple data transcoder, which use Zlib to compress documents
+     *    class ZlibTranscoder
+     *      FMT_ZLIB = 0x04
+     *
+     *      def initialize(base)
+     *        @base = base
+     *      end
+     *
+     *      def dump(obj, flags, options = {})
+     *        obj, flags = @base.dump(obj, flags, options)
+     *        z = Zlib::Deflate.new(Zlib::BEST_SPEED)
+     *        buffer = z.deflate(obj, Zlib::FINISH)
+     *        z.close
+     *        [buffer, flags|FMT_ZLIB]
+     *      end
+     *
+     *      def load(blob, flags, options = {})
+     *        # decompress value only if Zlib flag set
+     *        if (flags & FMT_ZLIB) == FMT_ZLIB
+     *          z = Zlib::Inflate.new
+     *          blob = z.inflate(blob)
+     *          z.finish
+     *          z.close
+     *        end
+     *        @base.load(blob, flags, options)
+     *      end
+     *    end
+     *
+     * @return [Object] the data transcoder */
+    /* rb_define_attr(cb_cBucket, "transcoder", 1, 1); */
+    rb_define_method(cb_cBucket, "transcoder", cb_bucket_transcoder_get, 0);
+    rb_define_method(cb_cBucket, "transcoder=", cb_bucket_transcoder_set, 1);
+
     /* Document-method: default_format
      * Default format for new values.
      *
@@ -1128,6 +1178,7 @@ Init_couchbase_ext(void)
     cb_sym_extended = ID2SYM(rb_intern("extended"));
     cb_sym_flags = ID2SYM(rb_intern("flags"));
     cb_sym_format = ID2SYM(rb_intern("format"));
+    cb_sym_forced = ID2SYM(rb_intern("forced"));
     cb_sym_found = ID2SYM(rb_intern("found"));
     cb_sym_get = ID2SYM(rb_intern("get"));
     cb_sym_hostname = ID2SYM(rb_intern("hostname"));
@@ -1163,6 +1214,7 @@ Init_couchbase_ext(void)
     cb_sym_stats = ID2SYM(rb_intern("stats"));
     cb_sym_timeout = ID2SYM(rb_intern("timeout"));
     cb_sym_touch = ID2SYM(rb_intern("touch"));
+    cb_sym_transcoder = ID2SYM(rb_intern("transcoder"));
     cb_sym_ttl = ID2SYM(rb_intern("ttl"));
     cb_sym_type = ID2SYM(rb_intern("type"));
     cb_sym_unlock = ID2SYM(rb_intern("unlock"));

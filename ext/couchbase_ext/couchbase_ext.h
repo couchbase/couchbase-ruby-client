@@ -97,7 +97,7 @@ struct cb_bucket_st
     uint8_t connected;       /* non-zero if instance has been connected. it is possible to defer connection with :async option */
     uint8_t running;         /* non-zero if event loop is running */
     uint8_t trigger_connect_cb_on_set; /* if non-zero, the on_connect callback will be triggered immediately after set */
-    VALUE default_format;    /* should update +default_flags+ on change */
+    VALUE transcoder;
     uint32_t default_flags;
     time_t default_ttl;
     time_t default_observe_timeout;
@@ -127,7 +127,8 @@ struct cb_context_st
     VALUE rv;
     VALUE exception;
     VALUE observe_options;
-    VALUE force_format;
+    VALUE transcoder;
+    VALUE transcoder_opts;
     VALUE operation;
     VALUE headers_val;
     int headers_built;
@@ -169,8 +170,10 @@ extern VALUE cb_cTimer;
 /* Modules */
 extern VALUE cb_mCouchbase;
 extern VALUE cb_mError;
+extern VALUE cb_mTranscoder;
+extern VALUE cb_mDocument;
+extern VALUE cb_mPlain;
 extern VALUE cb_mMarshal;
-extern VALUE cb_mMultiJson;
 extern VALUE cb_mURI;
 extern VALUE em_m;
 
@@ -203,6 +206,7 @@ extern ID cb_sym_environment;
 extern ID cb_sym_eventmachine;
 extern ID cb_sym_extended;
 extern ID cb_sym_flags;
+extern ID cb_sym_forced;
 extern ID cb_sym_format;
 extern ID cb_sym_found;
 extern ID cb_sym_get;
@@ -239,6 +243,7 @@ extern ID cb_sym_set;
 extern ID cb_sym_stats;
 extern ID cb_sym_timeout;
 extern ID cb_sym_touch;
+extern ID cb_sym_transcoder;
 extern ID cb_sym_ttl;
 extern ID cb_sym_type;
 extern ID cb_sym_unlock;
@@ -336,10 +341,8 @@ int cb_first_value_i(VALUE key, VALUE value, VALUE arg);
 void cb_build_headers(struct cb_context_st *ctx, const char * const *headers);
 void cb_maybe_do_loop(struct cb_bucket_st *bucket);
 VALUE cb_unify_key(struct cb_bucket_st *bucket, VALUE key, int apply_prefix);
-VALUE cb_encode_value(VALUE val, uint32_t flags);
-VALUE cb_decode_value(VALUE blob, uint32_t flags, VALUE force_format);
-uint32_t cb_flags_set_format(uint32_t flags, ID format);
-ID cb_flags_get_format(uint32_t flags);
+VALUE cb_encode_value(VALUE transcoder, VALUE val, uint32_t *flags, VALUE options);
+VALUE cb_decode_value(VALUE transcoder, VALUE blob, uint32_t flags, VALUE options);
 void cb_async_error_notify(struct cb_bucket_st *bucket, VALUE exc);
 
 
@@ -388,6 +391,8 @@ VALUE cb_bucket_connected_p(VALUE self);
 VALUE cb_bucket_async_p(VALUE self);
 VALUE cb_bucket_quiet_get(VALUE self);
 VALUE cb_bucket_quiet_set(VALUE self, VALUE val);
+VALUE cb_bucket_transcoder_get(VALUE self);
+VALUE cb_bucket_transcoder_set(VALUE self, VALUE val);
 VALUE cb_bucket_default_flags_get(VALUE self);
 VALUE cb_bucket_default_flags_set(VALUE self, VALUE val);
 VALUE cb_bucket_default_format_get(VALUE self);
@@ -488,6 +493,8 @@ struct cb_params_st
             lcb_cas_t cas;
             lcb_datatype_t datatype;
             VALUE observe;
+            VALUE transcoder;
+            VALUE transcoder_opts;
         } store;
         struct {
             /* number of items */
@@ -509,7 +516,8 @@ struct cb_params_st
             /* arguments given in form of hash key-ttl to "get and touch" */
             unsigned int gat : 1;
             lcb_time_t ttl;
-            VALUE forced_format;
+            VALUE transcoder;
+            VALUE transcoder_opts;
             VALUE keys_ary;
         } get;
         struct {
@@ -526,7 +534,8 @@ struct cb_params_st
             lcb_uint64_t initial;
             lcb_uint64_t delta;
             int sign;
-            VALUE format;
+            VALUE transcoder;
+            VALUE transcoder_opts;
             lcb_datatype_t datatype;
         } arith;
         struct {

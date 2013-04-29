@@ -25,7 +25,8 @@ cb_context_mark(void *p, struct cb_bucket_st* bucket)
     rb_gc_mark(ctx->rv);
     rb_gc_mark(ctx->exception);
     rb_gc_mark(ctx->observe_options);
-    rb_gc_mark(ctx->force_format);
+    rb_gc_mark(ctx->transcoder);
+    rb_gc_mark(ctx->transcoder_opts);
     rb_gc_mark(ctx->operation);
     rb_gc_mark(ctx->headers_val);
     (void)bucket;

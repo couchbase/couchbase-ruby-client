@@ -16,10 +16,9 @@
 #
 
 require 'couchbase/version'
-require 'multi_json'
-require 'ext/multi_json_fix'
 require 'yaji'
 require 'uri'
+require 'couchbase/transcoder'
 require 'couchbase_ext'
 require 'couchbase/constants'
 require 'couchbase/utils'

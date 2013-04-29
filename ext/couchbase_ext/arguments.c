@@ -17,8 +17,6 @@
 
 #include "couchbase_ext.h"
 
-/* TOUCH */
-
 #define _alloc_data_for_s(type, _type, size, items, ptr) do {\
     lcb_size_t ii; \
     \
@@ -45,6 +43,40 @@
 
 #define _release_data_for(type) _release_data_for_s(type, items, ptr)
 
+    static VALUE
+get_transcoder(struct cb_bucket_st *bucket, VALUE override, int compat, VALUE opts)
+{
+    VALUE ret = Qundef;
+
+    /* override with symbol */
+    if (TYPE(override) == T_SYMBOL) {
+        if (override == cb_sym_document) {
+            ret = cb_mDocument;
+        } else if (override == cb_sym_marshal) {
+            ret = cb_mMarshal;
+        } else if (override == cb_sym_plain) {
+            ret = cb_mPlain;
+        }
+    } else if (!compat) {
+        /* override with transcoder */
+        if (rb_respond_to(override, cb_id_dump)
+                && rb_respond_to(override, cb_id_load)) {
+            ret = override;
+        }
+        /* nil is also valid */
+        if (NIL_P(override)) {
+            ret = Qnil;
+        }
+    }
+    if (ret == Qundef) {
+        return bucket->transcoder;
+    } else {
+        rb_hash_aset(opts, cb_sym_forced, Qtrue);
+        return ret;
+    }
+}
+
+/* TOUCH */
 
     static void
 cb_params_touch_alloc(struct cb_params_st *params, lcb_size_t size)
@@ -227,11 +259,11 @@ cb_params_store_init_item(struct cb_params_st *params, lcb_size_t idx,
         lcb_time_t exptime)
 {
     key_obj = cb_unify_key(params->bucket, key_obj, 1);
-    value_obj = cb_encode_value(value_obj, params->cmd.store.flags);
+    value_obj = cb_encode_value(params->cmd.store.transcoder, value_obj, &flags, params->cmd.store.transcoder_opts);
     if (rb_obj_is_kind_of(value_obj, rb_eStandardError)) {
         VALUE exc_str = rb_funcall(value_obj, cb_id_to_s, 0);
         VALUE msg = rb_funcall(rb_mKernel, cb_id_sprintf, 3,
-                rb_str_new2("unable to convert value for key '%s': %s"), key_obj, exc_str);
+                rb_str_new2("unable to convert value for key \"%s\": %s"), key_obj, exc_str);
         VALUE exc = rb_exc_new3(cb_eValueFormatError, msg);
         rb_ivar_set(exc, cb_id_iv_inner_exception, value_obj);
         rb_exc_raise(exc);
@@ -239,7 +271,7 @@ cb_params_store_init_item(struct cb_params_st *params, lcb_size_t idx,
     /* the value must be string after conversion */
     if (TYPE(value_obj) != T_STRING) {
         VALUE val = rb_any_to_s(value_obj);
-        rb_raise(cb_eValueFormatError, "unable to convert value for key '%s' to string: %s", RSTRING_PTR(key_obj), RSTRING_PTR(val));
+        rb_raise(cb_eValueFormatError, "unable to convert value for key \"%s\" to string: %s", RSTRING_PTR(key_obj), RSTRING_PTR(val));
     }
     rb_ary_push(params->ensurance, key_obj);
     rb_ary_push(params->ensurance, value_obj);
@@ -276,10 +308,6 @@ cb_params_store_parse_options(struct cb_params_st *params, VALUE options)
     if (tmp != Qnil) {
         params->cmd.store.flags = (lcb_uint32_t)NUM2ULONG(tmp);
     }
-    tmp = rb_hash_aref(options, cb_sym_format);
-    if (tmp != Qnil) { /* rewrite format bits */
-        params->cmd.store.flags = cb_flags_set_format(params->cmd.store.flags, tmp);
-    }
     tmp = rb_hash_aref(options, cb_sym_ttl);
     if (tmp != Qnil) {
         params->cmd.store.ttl = NUM2ULONG(tmp);
@@ -294,9 +322,15 @@ cb_params_store_parse_options(struct cb_params_st *params, VALUE options)
         rb_funcall(params->bucket->self, cb_id_verify_observe_options, 1, tmp);
         params->cmd.store.observe = tmp;
     }
-    if (cb_flags_get_format(params->cmd.store.flags) == cb_sym_document) {
-        /* just amend datatype for now */
-        params->cmd.store.datatype = 0x01;
+    tmp = rb_hash_aref(options, cb_sym_format);
+    if (tmp != Qnil) {
+        params->cmd.store.transcoder = get_transcoder(params->bucket,
+                tmp, 1, params->cmd.store.transcoder_opts);
+    }
+    tmp = rb_hash_lookup2(options, cb_sym_transcoder, Qundef);
+    if (tmp != Qundef) {
+        params->cmd.store.transcoder = get_transcoder(params->bucket,
+                tmp, 0, params->cmd.store.transcoder_opts);
     }
 }
 
@@ -391,8 +425,13 @@ cb_params_get_parse_options(struct cb_params_st *params, VALUE options)
     }
     tmp = rb_hash_aref(options, cb_sym_format);
     if (tmp != Qnil) {
-        Check_Type(tmp, T_SYMBOL);
-        params->cmd.get.forced_format = tmp;
+        params->cmd.get.transcoder = get_transcoder(params->bucket,
+                tmp, 1, params->cmd.get.transcoder_opts);
+    }
+    tmp = rb_hash_lookup2(options, cb_sym_transcoder, Qundef);
+    if (tmp != Qundef) {
+        params->cmd.get.transcoder = get_transcoder(params->bucket,
+                tmp, 0, params->cmd.get.transcoder_opts);
     }
     tmp = rb_hash_aref(options, cb_sym_ttl);
     if (tmp != Qnil) {
@@ -511,12 +550,14 @@ cb_params_arith_parse_options(struct cb_params_st *params, VALUE options)
         params->cmd.arith.delta = NUM2ULL(tmp) & INT64_MAX;
     }
     tmp = rb_hash_aref(options, cb_sym_format);
-    if (tmp != Qnil) { /* rewrite format bits */
-        params->cmd.arith.format = tmp;
+    if (tmp != Qnil) {
+        params->cmd.arith.transcoder = get_transcoder(params->bucket,
+                tmp, 1, params->cmd.arith.transcoder_opts);
     }
-    if (params->cmd.arith.format == cb_sym_document) {
-        /* just amend datatype for now */
-        params->cmd.arith.datatype = 0x01;
+    tmp = rb_hash_lookup2(options, cb_sym_transcoder, Qundef);
+    if (tmp != Qundef) {
+        params->cmd.arith.transcoder = get_transcoder(params->bucket,
+                tmp, 0, params->cmd.arith.transcoder_opts);
     }
 }
 
@@ -824,22 +865,26 @@ do_params_build(VALUE ptr)
             }
             params->cmd.store.datatype = 0x00;
             params->cmd.store.ttl = params->bucket->default_ttl;
-            params->cmd.store.flags = cb_flags_set_format(params->bucket->default_flags,
-                    params->bucket->default_format);
+            params->cmd.store.flags = params->bucket->default_flags;
             params->cmd.store.observe = Qnil;
+            params->cmd.store.transcoder = params->bucket->transcoder;
+            params->cmd.store.transcoder_opts = rb_hash_new();
             cb_params_store_parse_options(params, opts);
             cb_params_store_parse_arguments(params, argc, argv);
             break;
         case cb_cmd_get:
             params->cmd.get.quiet = params->bucket->quiet;
+            params->cmd.get.transcoder = params->bucket->transcoder;
+            params->cmd.get.transcoder_opts = rb_hash_new();
             cb_params_get_parse_options(params, opts);
             cb_params_get_parse_arguments(params, argc, argv);
             break;
         case cb_cmd_arith:
+            params->cmd.arith.transcoder = params->bucket->transcoder;
+            params->cmd.arith.transcoder_opts = rb_hash_new();
             params->cmd.arith.create = params->bucket->default_arith_create;
             params->cmd.arith.initial = params->bucket->default_arith_init;
             params->cmd.arith.delta = 1;
-            params->cmd.arith.format = params->bucket->default_format;
             params->cmd.arith.ttl = params->bucket->default_ttl;
             if (argc == 2 && TYPE(RARRAY_PTR(argv)[1]) == T_FIXNUM) {
                 /* allow form incr("foo", 1) */
