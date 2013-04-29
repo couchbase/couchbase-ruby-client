@@ -787,11 +787,11 @@ Init_couchbase_ext(void)
      *   your ruby object with standard <tt>Marshal.dump</tt> and
      *   <tt>Marhal.load</tt> methods.
      *
-     * @example Selecting plain format using cb_symbol
-     *   connection.format = :document
+     * @example Selecting 'plain' format using symbol
+     *   connection.default_format = :plain
      *
-     * @example Selecting plain format using Fixnum constant
-     *   connection.format = Couchbase::Bucket::FMT_PLAIN
+     * @example Selecting plain format using Fixnum constant (deprecated)
+     *   connection.default_format = Couchbase::Bucket::FMT_PLAIN
      *
      * @note Amending default_format will also change #default_flags value
      *

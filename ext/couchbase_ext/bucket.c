@@ -215,6 +215,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             arg = rb_hash_aref(opts, cb_sym_default_format);
             if (arg != Qnil) {
                 if (TYPE(arg) == T_FIXNUM) {
+                    rb_warn("numeric argument to :default_format option is deprecated, use symbol");
                     switch (FIX2INT(arg)) {
                         case CB_FMT_DOCUMENT:
                             arg = cb_sym_document;
@@ -724,6 +725,7 @@ cb_bucket_default_format_set(VALUE self, VALUE val)
     struct cb_bucket_st *bucket = DATA_PTR(self);
 
     if (TYPE(val) == T_FIXNUM) {
+        rb_warn("numeric argument to #default_format option is deprecated, use symbol");
         switch (FIX2INT(val)) {
             case CB_FMT_DOCUMENT:
                 val = cb_sym_document;
