@@ -57,9 +57,10 @@ module ActiveSupport
         options[:key_prefix] ||= options.delete(:namespace)
         options[:connection_pool] ||= options.delete(:connection_pool)
         args.push(options)
+        
         if options[:connection_pool]
-          require 'connection_pool'
-          @data = ConnectionPool.new { ::Couchbase::Bucket.new(*args) }
+          require 'couchbase/connection_pool'
+          @data = ::Couchbase::ConnectionPool.new(options[:connection_pool], *args)
         else
           @data = ::Couchbase::Bucket.new(*args)
           @data.extend(Threadsafe)
@@ -402,48 +403,6 @@ module ActiveSupport
 
         def init_threadsafe
           @lock = Monitor.new
-        end
-      end
-
-      class ConnectionPool
-        def initialize(pool_size, &block)
-          @pool = ::ConnectionPool.new(:size => pool_size) { block }
-        end
-
-        def get(key, options)
-          @pool.with do |data|
-            data.get(key, options)
-          end
-        end
-
-        def send(method, key, value, options)
-          @pool.with do |data|
-            data.send(method, key, value, options)
-          end
-        end
-
-        def delete(key, options)
-          @pool.with do |data|
-            data.delete(key, options)
-          end
-        end
-
-        def incr(name, amount, options)
-          @pool.with do |data|
-            data.incr(name, amount, options)
-          end
-        end
-
-        def decr(name, amount, options)
-          @pool.with do |data|
-            data.incr(name, amount, options)
-          end
-        end
-
-        def stats(*arg)
-          @pool.with do |data|
-            data.stats(*arg)
-          end
         end
       end
     end
