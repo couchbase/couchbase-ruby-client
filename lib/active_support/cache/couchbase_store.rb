@@ -55,9 +55,15 @@ module ActiveSupport
         options[:default_ttl] ||= options.delete(:expires_in)
         options[:default_format] ||= :marshal
         options[:key_prefix] ||= options.delete(:namespace)
+        options[:connection_pool] ||= options.delete(:connection_pool)
         args.push(options)
-        @data = ::Couchbase::Bucket.new(*args)
-        @lock = Monitor.new
+
+        if options[:connection_pool]
+          @data = ::Couchbase::ConnectionPool.new(options[:connection_pool], *args)
+        else
+          @data = ::Couchbase::Bucket.new(*args)
+          @data.extend(Threadsafe)
+        end
       end
 
       # Fetches data from the cache, using the given key.
@@ -184,9 +190,7 @@ module ActiveSupport
           options[:format] = :plain
         end
         instrument(:read_multi, names, options) do
-          @lock.synchronize do
-            @data.get(names, options)
-          end
+          @data.get(names, options)
         end
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
@@ -247,9 +251,7 @@ module ActiveSupport
         options[:create] = true
         instrument(:increment, name, options) do |payload|
           payload[:amount] = amount if payload
-          @lock.synchronize do
-            @data.incr(name, amount, options)
-          end
+          @data.incr(name, amount, options)
         end
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
@@ -281,9 +283,7 @@ module ActiveSupport
         options[:create] = true
         instrument(:decrement, name, options) do |payload|
           payload[:amount] = amount if payload
-          @lock.synchronize do
-            @data.decr(name, amount, options)
-          end
+          @data.decr(name, amount, options)
         end
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
@@ -297,18 +297,14 @@ module ActiveSupport
       #
       # @return [Hash]
       def stats(*arg)
-        @lock.synchronize do
-          @data.stats(*arg)
-        end
+        @data.stats(*arg)
       end
 
       protected
 
       # Read an entry from the cache.
       def read_entry(key, options) # :nodoc:
-        @lock.synchronize do
-          @data.get(key, options)
-        end
+        @data.get(key, options)
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
         raise if @raise_errors
@@ -325,9 +321,7 @@ module ActiveSupport
         if ttl = options.delete(:expires_in)
           options[:ttl] ||= ttl
         end
-        @lock.synchronize do
-          @data.send(method, key, value, options)
-        end
+        @data.send(method, key, value, options)
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
         raise if @raise_errors
@@ -336,9 +330,7 @@ module ActiveSupport
 
       # Delete an entry from the cache.
       def delete_entry(key, options) # :nodoc:
-        @lock.synchronize do
-          @data.delete(key, options)
-        end
+        @data.delete(key, options)
       rescue ::Couchbase::Error::Base => e
         logger.error("#{e.class}: #{e.message}") if logger
         raise if @raise_errors
@@ -367,6 +359,51 @@ module ActiveSupport
         key.respond_to?(:to_param) ? key.to_param : key
       end
 
+      module Threadsafe
+        def self.extended(obj)
+          obj.init_threadsafe
+        end
+
+        def get(*)
+          @lock.synchronize do
+            super
+          end
+        end
+
+        def send(*)
+          @lock.synchronize do
+            super
+          end
+        end
+
+        def delete(*)
+          @lock.synchronize do
+            super
+          end
+        end
+
+        def incr(*)
+          @lock.synchronize do
+            super
+          end
+        end
+
+        def decr(*)
+          @lock.synchronize do
+            super
+          end
+        end
+
+        def stats(*)
+          @lock.synchronize do
+            super
+          end
+        end
+
+        def init_threadsafe
+          @lock = Monitor.new
+        end
+      end
     end
   end
 end

@@ -3,6 +3,12 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## UNRELEASED
+
+* [major] RCBC-46 implement Couchbase::ConnectionPool to allow
+  applications (and ActiveSupport::Cache::CouchbaseStore) use it in
+  multi-threaded environment
+
 ## 1.2.3 (2013-04-02)
 
 * [major] Make ActiveSupport::Cache::CouchbaseStore threadsafe
