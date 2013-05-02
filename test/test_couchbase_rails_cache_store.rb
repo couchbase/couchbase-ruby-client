@@ -37,6 +37,12 @@ class TestCouchbaseRailsCacheStore < MiniTest::Unit::TestCase
                                                         :port => @mock.port)
   end
 
+  def pool_store
+    @pool_store ||= ActiveSupport::Cache::CouchbaseStore.new(:hostname => @mock.host,
+                                                             :port => @mock.port,
+                                                             :connection_pool => 5)
+  end
+
   def test_it_supported_methods
     supported_methods = store.public_methods(false).map(&:to_sym)
     assert supported_methods.include?(:fetch)
@@ -295,6 +301,25 @@ class TestCouchbaseRailsCacheStore < MiniTest::Unit::TestCase
           assert_equal({ 'a' => 9, 'b' => 11 }, store.read_multi('a', 'b'))
           assert_equal 11, store.read('b')
           assert_equal %w(a b), store.read_multi('a', 'b', 'c').keys.sort
+        end
+      end
+    end
+
+    workers.each { |w| w.join }
+  end
+
+  def test_it_can_use_connection_pool_for_thread_safety
+    workers = []
+
+    10.times do
+      workers << Thread.new do
+        100.times do
+          pool_store.write('a', 9)
+          pool_store.write('b', 11)
+          assert_equal 9, pool_store.read('a')
+          assert_equal({ 'a' => 9, 'b' => 11 }, pool_store.read_multi('a', 'b'))
+          assert_equal 11, pool_store.read('b')
+          assert_equal %w(a b), pool_store.read_multi('a', 'b', 'c').keys.sort
         end
       end
     end
