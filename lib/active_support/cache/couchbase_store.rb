@@ -59,7 +59,6 @@ module ActiveSupport
         args.push(options)
         
         if options[:connection_pool]
-          require 'couchbase/connection_pool'
           @data = ::Couchbase::ConnectionPool.new(options[:connection_pool], *args)
         else
           @data = ::Couchbase::Bucket.new(*args)

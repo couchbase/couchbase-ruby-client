@@ -16,7 +16,7 @@
 #
 
 require 'connection_pool'
-require 'pry'
+
 module Couchbase
   class ConnectionPool
 
@@ -24,46 +24,31 @@ module Couchbase
       @pool = ::ConnectionPool.new(:size => pool_size) { ::Couchbase::Bucket.new(*args) }
     end
 
-    def get(key, options = {})
-      @pool.with do |data|
-        data.get(key, options)
-      end
+    def with
+      yield @pool.checkout
+    ensure
+      @pool.checkin
     end
 
-    def set(key, value, options = {})
-      @pool.with do |data|
-        data.set(key, value, options)
-      end
+    def respond_to?(id, *args)
+      super || @pool.with { |c| c.respond_to?(id, *args) }
     end
 
-    def add(key, value, options = {})
-      @pool.with do |data|
-        data.add(key, value, options)
-      end
+    def method_missing(name, *args, &block)
+      define_proxy_method(name)
+      send(name, *args, &block)
     end
 
-    def delete(key, options = {})
-      @pool.with do |data|
-        data.delete(key, options)
-      end
-    end
+    protected
 
-    def incr(name, amount, options = {})
-      @pool.with do |data|
-        data.incr(name, amount, options)
-      end
-    end
-
-    def decr(name, amount, options = {})
-      @pool.with do |data|
-        data.decr(name, amount, options)
-      end
-    end
-
-    def stats(*arg)
-      @pool.with do |data|
-        data.stats(*arg)
-      end
+    def define_proxy_method(name)
+      self.class.class_eval <<-RUBY
+        def #{name}(*args, &block)
+          @pool.with do |connection|
+            connection.send(#{name.inspect}, *args, &block)
+          end
+        end
+      RUBY
     end
   end
 end
