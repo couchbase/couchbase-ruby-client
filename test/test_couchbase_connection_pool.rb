@@ -18,7 +18,7 @@
 require File.join(File.dirname(__FILE__), 'setup')
 require 'couchbase/connection_pool'
 
-class TestCouchbaseRailsCacheStore < MiniTest::Unit::TestCase
+class TestCouchbaseConnectionPool < MiniTest::Unit::TestCase
 
   def setup
     @mock = start_mock
