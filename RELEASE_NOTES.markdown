@@ -3,7 +3,7 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
-## UNRELEASED
+## 1.3.0 (2014-05-07)
 
 * [major] RCBC-46 implement Couchbase::ConnectionPool to allow
   applications (and ActiveSupport::Cache::CouchbaseStore) use it in
@@ -11,6 +11,16 @@ bugfixes. Do not forget to update this doc in every important patch.
 
 * [major] Introduce Transcoders. This mechanism is more flexible, and
   similar to how other clients encode values.
+
+* [minor] Deprecate numeric argument to 'default_format'. Instead
+  of this style:
+
+        Couchbase.connect(:default_format => Couchbase::Bucket::FMT_MARSHAL)
+
+  Symbol notation or explicit transcoder entity should be used
+
+        Couchbase.connect(:default_format => :marshal)
+        Couchbase.connect(:transcoder => Couchbase::Transcoder::Marshal)
 
 ## 1.2.3 (2013-04-02)
 

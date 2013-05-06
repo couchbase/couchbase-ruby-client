@@ -84,7 +84,7 @@ namespace :ports do
   directory "ports"
 
   task :libcouchbase => ["ports"] do
-    recipe = MiniPortile.new "libcouchbase", "2.0.3"
+    recipe = MiniPortile.new "libcouchbase", "2.0.6"
     recipe.files << "http://packages.couchbase.com/clients/c/libcouchbase-#{recipe.version}.tar.gz"
     recipe.configure_options.push("--disable-debug",
                                   "--disable-dependency-tracking",
