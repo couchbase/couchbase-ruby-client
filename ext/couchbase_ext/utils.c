@@ -68,7 +68,8 @@ cb_async_error_notify(struct cb_bucket_st *bucket, VALUE exc)
     int
 cb_bucket_connected_bang(struct cb_bucket_st *bucket, VALUE operation)
 {
-    if (bucket->handle == NULL || !bucket->connected) {
+    if (bucket->type == LCB_TYPE_BUCKET &&
+            (bucket->handle == NULL || !bucket->connected)) {
         VALUE exc = rb_exc_new2(cb_eConnectError, "not connected to the server");
         rb_ivar_set(exc, cb_id_iv_operation, operation);
         rb_ivar_set(exc, cb_id_iv_value, bucket->self);

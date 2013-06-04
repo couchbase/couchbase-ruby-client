@@ -3,6 +3,11 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## UNRELEASED
+
+* [major] RCBC-131 Couchbase::Cluster instance shouldn't require
+  persistent connection.
+
 ## 1.3.0 (2014-05-07)
 
 * [major] RCBC-46 implement Couchbase::ConnectionPool to allow
