@@ -36,8 +36,13 @@ module Couchbase
       def parse_body!
         if @body
           hash = MultiJson.load(@body)
-          @type = hash["error"]
-          @reason = hash["reason"]
+          if hash["errors"]
+            @type = :invalid_arguments
+            @reason = hash["errors"].values.join(" ")
+          else
+            @type = hash["error"]
+            @reason = hash["reason"]
+          end
         end
       rescue MultiJson::DecodeError
         @type = @reason = nil
