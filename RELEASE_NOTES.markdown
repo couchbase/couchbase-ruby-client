@@ -3,12 +3,15 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
-## UNRELEASED
+## 1.3.1 (2013-06-05)
 
 * [major] RCBC-131 Couchbase::Cluster instance shouldn't require
   persistent connection.
 
-## 1.3.0 (2014-05-07)
+* Fix compatibility with multi_json 1.7.5. They removed VERSION
+  constant
+
+## 1.3.0 (2013-05-07)
 
 * [major] RCBC-46 implement Couchbase::ConnectionPool to allow
   applications (and ActiveSupport::Cache::CouchbaseStore) use it in
