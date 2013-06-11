@@ -32,7 +32,9 @@ require 'couchbase/cluster'
 # Couchbase ruby client
 module Couchbase
 
-  autoload(:ConnectionPool, 'couchbase/connection_pool')
+  if RUBY_VERSION.to_f >= 1.9
+    autoload(:ConnectionPool, 'couchbase/connection_pool')
+  end
 
   class << self
     # The method +connect+ initializes new Bucket instance with all arguments passed.

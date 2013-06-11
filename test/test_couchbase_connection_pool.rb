@@ -15,59 +15,63 @@
 # limitations under the License.
 #
 
-require File.join(File.dirname(__FILE__), 'setup')
-require 'couchbase/connection_pool'
+if RUBY_VERSION.to_f >= 1.9
 
-class TestCouchbaseConnectionPool < MiniTest::Unit::TestCase
+  require File.join(File.dirname(__FILE__), 'setup')
+  require 'couchbase/connection_pool'
 
-  def setup
-    @mock = start_mock
-    @pool = ::Couchbase::ConnectionPool.new(5, :hostname => @mock.host, :port => @mock.port)
-  end
+  class TestCouchbaseConnectionPool < MiniTest::Unit::TestCase
 
-  def teardown
-    stop_mock(@mock)
-  end
+    def setup
+      @mock = start_mock
+      @pool = ::Couchbase::ConnectionPool.new(5, :hostname => @mock.host, :port => @mock.port)
+    end
 
-  def test_basic_multithreaded_usage
-    @pool.set('foo', 'bar')
+    def teardown
+      stop_mock(@mock)
+    end
 
-    threads = []
-    15.times do
-      threads << Thread.new do
-        @pool.get('foo')
+    def test_basic_multithreaded_usage
+      @pool.set('foo', 'bar')
+
+      threads = []
+      15.times do
+        threads << Thread.new do
+          @pool.get('foo')
+        end
+      end
+
+      result = threads.map(&:value)
+      result.each do |val|
+        assert_equal 'bar', val
       end
     end
 
-    result = threads.map(&:value)
-    result.each do |val|
-      assert_equal 'bar', val
+    def test_set_and_get
+      @pool.set('fiz', 'buzz')
+      assert_equal 'buzz', @pool.get('fiz')
     end
-  end
 
-  def test_set_and_get
-    @pool.set('fiz', 'buzz')
-    assert_equal 'buzz', @pool.get('fiz')
-  end
-
-  def test_set_and_delete
-    @pool.set('baz', 'bar')
-    @pool.delete('baz')
-    assert_raises Couchbase::Error::NotFound do
-      @pool.get('baz')
+    def test_set_and_delete
+      @pool.set('baz', 'bar')
+      @pool.delete('baz')
+      assert_raises Couchbase::Error::NotFound do
+        @pool.get('baz')
+      end
     end
-  end
 
-  def test_incr
-    @pool.set('counter', 0)
-    @pool.incr('counter', 1)
-    assert_equal 1, @pool.get('counter')
-  end
+    def test_incr
+      @pool.set('counter', 0)
+      @pool.incr('counter', 1)
+      assert_equal 1, @pool.get('counter')
+    end
 
-  def test_decr
-    @pool.set('counter', 1)
-    @pool.decr('counter', 1)
-    assert_equal 0, @pool.get('counter')
+    def test_decr
+      @pool.set('counter', 1)
+      @pool.decr('counter', 1)
+      assert_equal 0, @pool.get('counter')
+    end
+
   end
 
 end

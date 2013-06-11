@@ -59,8 +59,13 @@ module ActiveSupport
         args.push(options)
 
         if options[:connection_pool]
-          @data = ::Couchbase::ConnectionPool.new(options[:connection_pool], *args)
-        else
+          if RUBY_VERSION.to_f < 1.9
+            warn "connection_pool gem doesn't support ruby < 1.9"
+          else
+            @data = ::Couchbase::ConnectionPool.new(options[:connection_pool], *args)
+          end
+        end
+        unless @data
           @data = ::Couchbase::Bucket.new(*args)
           @data.extend(Threadsafe)
         end
