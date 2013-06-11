@@ -18,7 +18,7 @@
 require File.join(File.dirname(__FILE__), 'setup')
 require 'digest/md5'
 
-class TestErrors < MiniTest::Unit::TestCase
+class TestErrors < MiniTest::Test
 
   def setup
     @mock = start_mock

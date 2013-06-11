@@ -18,7 +18,7 @@
 require File.join(File.dirname(__FILE__), 'setup')
 require 'eventmachine'
 
-class TestEventmachine < MiniTest::Unit::TestCase
+class TestEventmachine < MiniTest::Test
 
   def setup
     @mock = start_mock

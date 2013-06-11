@@ -132,7 +132,7 @@ class CouchbaseMock
   end
 end
 
-class MiniTest::Unit::TestCase
+class MiniTest::Test
 
   def start_mock(params = {})
     mock = nil

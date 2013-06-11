@@ -20,7 +20,7 @@ if RUBY_VERSION.to_f >= 1.9
   require File.join(File.dirname(__FILE__), 'setup')
   require 'couchbase/connection_pool'
 
-  class TestCouchbaseConnectionPool < MiniTest::Unit::TestCase
+  class TestCouchbaseConnectionPool < MiniTest::Test
 
     def setup
       @mock = start_mock

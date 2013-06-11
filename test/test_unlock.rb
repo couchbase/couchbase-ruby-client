@@ -17,7 +17,7 @@
 
 require File.join(File.dirname(__FILE__), 'setup')
 
-class TestTouch < MiniTest::Unit::TestCase
+class TestTouch < MiniTest::Test
 
   def setup
     @mock = start_mock

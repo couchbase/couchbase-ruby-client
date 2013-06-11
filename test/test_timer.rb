@@ -17,7 +17,7 @@
 
 require File.join(File.dirname(__FILE__), 'setup')
 
-class TestTimer < MiniTest::Unit::TestCase
+class TestTimer < MiniTest::Test
 
   def setup
     @mock = start_mock

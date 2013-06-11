@@ -40,7 +40,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'connection_pool', '~> 1.0.0'
 
   s.add_development_dependency 'rake'
-  s.add_development_dependency 'minitest'
+  s.add_development_dependency 'minitest', '~> 5.0.4'
   s.add_development_dependency 'rake-compiler', '>= 0.7.5'
   s.add_development_dependency 'mini_portile'
   s.add_development_dependency 'yajl-ruby', '~> 1.1.0'

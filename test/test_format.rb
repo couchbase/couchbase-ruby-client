@@ -17,7 +17,7 @@
 
 require File.join(File.dirname(__FILE__), 'setup')
 
-class TestFormat < MiniTest::Unit::TestCase
+class TestFormat < MiniTest::Test
 
   ArbitraryClass = Struct.new(:name, :role)
   class SkinyClass < Struct.new(:name, :role)

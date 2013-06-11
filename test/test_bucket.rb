@@ -17,7 +17,7 @@
 
 require File.join(File.dirname(__FILE__), 'setup')
 
-class TestBucket < MiniTest::Unit::TestCase
+class TestBucket < MiniTest::Test
 
   def test_it_substitute_default_parts_to_url
 #   with_mock(:host => 'localhost', :port => 8091, :buckets_spec => 'default,foo') do |mock|

@@ -17,7 +17,7 @@
 
 require File.join(File.dirname(__FILE__), 'setup')
 
-class TestVersion < MiniTest::Unit::TestCase
+class TestVersion < MiniTest::Test
 
   def setup
     @mock = start_mock

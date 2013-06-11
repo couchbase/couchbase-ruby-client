@@ -18,7 +18,7 @@
 require File.join(File.dirname(__FILE__), 'setup')
 require 'minitest/mock'
 
-class TestCouchbase < MiniTest::Unit::TestCase
+class TestCouchbase < MiniTest::Test
 
   def teardown
     Couchbase.reset_thread_storage!
