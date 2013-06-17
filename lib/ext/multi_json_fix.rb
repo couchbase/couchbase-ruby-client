@@ -31,7 +31,7 @@ version = begin
             MultiJson::VERSION
           rescue NameError
             MultiJson::Version.to_s
-          end
+          end.dup # because Gem::Version modifies it
 if Gem::Version.new(version) < Gem::Version.new('1.3.3')
   class << MultiJson
     alias :dump :encode
