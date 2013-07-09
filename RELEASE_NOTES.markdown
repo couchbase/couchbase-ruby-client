@@ -3,7 +3,7 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
-## 1.3.2 (UNRELEASED)
+## 1.3.2 (2013-07-10)
 
 * [major] RCBC-133 Allow application to select the strategy of reading
   from replica nodes. **This version requires libcouchbase >= 2.0.7.**

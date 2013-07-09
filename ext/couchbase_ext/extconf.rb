@@ -138,6 +138,7 @@ unless try_compile(<<-SRC)
   die("You must install libcouchbase >= 2.0.7\nSee http://www.couchbase.com/communities/c/ for more details")
 end
 
+have_library("couchbase", "lcb_verify_compiler_setup", "libcouchbase/couchbase.h") # just to add -lcouchbase properly
 have_header("mach/mach_time.h")
 have_header("stdint.h") or die("Failed to locate stdint.h")
 have_header("sys/time.h")
