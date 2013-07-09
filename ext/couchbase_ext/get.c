@@ -125,11 +125,11 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *     or in case of "get and touch" multimple keys.
  *   @option options [true, false, :all, :first, Fixnum] :replica
  *     (false) Read key from replica node. Options +:ttl+ and +:lock+
- *     are not compatible with +:replica+. Value +true+ is synonym to
+ *     are not compatible with +:replica+. Value +true+ is a synonym to
  *     +:first+, which means sequentially iterate over all replicas
  *     and return first successful response, skipping all failures.
  *     It is also possible to query all replicas in parallel using
- *     +:all+ option, or pass a replica index, starting from zero.
+ *     the +:all+ option, or pass a replica index, starting from zero.
  *
  *   @yieldparam ret [Result] the result of operation in asynchronous mode
  *     (valid attributes: +error+, +operation+, +key+, +value+, +flags+,
