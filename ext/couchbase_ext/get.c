@@ -64,7 +64,15 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
     } else {                /* synchronous */
         if (NIL_P(exc) && error != LCB_KEY_ENOENT) {
             if (ctx->extended) {
-                rb_hash_aset(ctx->rv, key, rb_ary_new3(3, val, flags, cas));
+                val = rb_ary_new3(3, val, flags, cas);
+            }
+            if (ctx->all_replicas) {
+                VALUE ary = rb_hash_aref(ctx->rv, key);
+                if (NIL_P(ary)) {
+                    ary = rb_ary_new();
+                    rb_hash_aset(ctx->rv, key, ary);
+                }
+                rb_ary_push(ary, val);
             } else {
                 rb_hash_aset(ctx->rv, key, val);
             }
@@ -115,8 +123,13 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *   @option options [true, false] :assemble_hash (false) Assemble Hash for
  *     results. Hash assembled automatically if +:extended+ option is true
  *     or in case of "get and touch" multimple keys.
- *   @option options [true, false] :replica (false) Read key from replica
- *     node. Options +:ttl+ and +:lock+ are not compatible with +:replica+.
+ *   @option options [true, false, :all, :first, Fixnum] :replica
+ *     (false) Read key from replica node. Options +:ttl+ and +:lock+
+ *     are not compatible with +:replica+. Value +true+ is synonym to
+ *     +:first+, which means sequentially iterate over all replicas
+ *     and return first successful response, skipping all failures.
+ *     It is also possible to query all replicas in parallel using
+ *     +:all+ option, or pass a replica index, starting from zero.
  *
  *   @yieldparam ret [Result] the result of operation in asynchronous mode
  *     (valid attributes: +error+, +operation+, +key+, +value+, +flags+,
@@ -236,7 +249,11 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     ctx->quiet = params.cmd.get.quiet;
     ctx->transcoder = params.cmd.get.transcoder;
     ctx->transcoder_opts = params.cmd.get.transcoder_opts;
-    if (params.cmd.get.replica) {
+    if (RTEST(params.cmd.get.replica)) {
+        if (params.cmd.get.replica == cb_sym_all) {
+            ctx->nqueries = lcb_get_num_replicas(bucket->handle);
+            ctx->all_replicas = 1;
+        }
         err = lcb_get_replica(bucket->handle, (const void *)ctx,
                 params.cmd.get.num, params.cmd.get.ptr_gr);
     } else {

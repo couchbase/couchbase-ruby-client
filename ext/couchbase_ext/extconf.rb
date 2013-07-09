@@ -121,12 +121,23 @@ end
 
 def die(message)
   STDERR.puts "\n#{"*" * 70}"
-  STDERR.puts "#{message}"
+  STDERR.puts "#{message.gsub(/^/, "* ")}"
   STDERR.puts "#{"*" * 70}\n\n"
   abort
 end
 
-have_library("couchbase", "lcb_verify_compiler_setup", "libcouchbase/couchbase.h") or die("You must install libcouchbase >= 2.0.0beta3. See http://www.couchbase.com/develop/ for more details")
+unless try_compile(<<-SRC)
+  #include <libcouchbase/couchbase.h>
+
+  int main() {
+    lcb_get_replica_cmd_t cmd;
+    cmd.v.v1.strategy = 42;
+    return 0;
+  }
+  SRC
+  die("You must install libcouchbase >= 2.0.7\nSee http://www.couchbase.com/communities/c/ for more details")
+end
+
 have_header("mach/mach_time.h")
 have_header("stdint.h") or die("Failed to locate stdint.h")
 have_header("sys/time.h")

@@ -373,7 +373,7 @@ cb_params_store_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
     static void
 cb_params_get_alloc(struct cb_params_st *params, lcb_size_t size)
 {
-    if (params->cmd.get.replica) {
+    if (RTEST(params->cmd.get.replica)) {
         _alloc_data_for_s(get, lcb_get_replica_cmd_t, size, items_gr, ptr_gr);
     } else {
         _alloc_data_for(get, lcb_get_cmd_t);
@@ -386,9 +386,18 @@ cb_params_get_init_item(struct cb_params_st *params, lcb_size_t idx,
 {
     key_obj = cb_unify_key(params->bucket, key_obj, 1);
     rb_ary_push(params->ensurance, key_obj);
-    if (params->cmd.get.replica) {
-        params->cmd.get.items_gr[idx].v.v0.key = RSTRING_PTR(key_obj);
-        params->cmd.get.items_gr[idx].v.v0.nkey = RSTRING_LEN(key_obj);
+    if (RTEST(params->cmd.get.replica)) {
+        params->cmd.get.items_gr[idx].version = 1;
+        params->cmd.get.items_gr[idx].v.v1.key = RSTRING_PTR(key_obj);
+        params->cmd.get.items_gr[idx].v.v1.nkey = RSTRING_LEN(key_obj);
+        if (params->cmd.get.replica == cb_sym_first || params->cmd.get.replica == Qtrue) {
+            params->cmd.get.items_gr[idx].v.v1.strategy = LCB_REPLICA_FIRST;
+        } else if (params->cmd.get.replica == cb_sym_all) {
+            params->cmd.get.items_gr[idx].v.v1.strategy = LCB_REPLICA_ALL;
+        } else {
+            params->cmd.get.items_gr[idx].v.v1.strategy = LCB_REPLICA_SELECT;
+            params->cmd.get.items_gr[idx].v.v1.index = FIX2INT(params->cmd.get.replica);
+        }
     } else {
         params->cmd.get.items[idx].v.v0.key = RSTRING_PTR(key_obj);
         params->cmd.get.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
@@ -416,7 +425,17 @@ cb_params_get_parse_options(struct cb_params_st *params, VALUE options)
     if (NIL_P(options)) {
         return;
     }
-    params->cmd.get.replica = RTEST(rb_hash_aref(options, cb_sym_replica));
+    tmp = rb_hash_aref(options, cb_sym_replica);
+    if (tmp == Qtrue || tmp == cb_sym_all || tmp == cb_sym_first) {
+        params->cmd.get.replica = tmp;
+    } else if (TYPE(tmp) == T_FIXNUM) {
+        int nr = NUM2INT(tmp);
+        int max = lcb_get_num_replicas(params->bucket->handle);
+        if (nr < 0 || nr >= max) {
+            rb_raise(rb_eArgError, "replica index should be in interval 0...%d", max);
+        }
+        params->cmd.get.replica = tmp;
+    }
     params->cmd.get.extended = RTEST(rb_hash_aref(options, cb_sym_extended));
     params->cmd.get.assemble_hash = RTEST(rb_hash_aref(options, cb_sym_assemble_hash));
     tmp = rb_hash_lookup2(options, cb_sym_quiet, Qundef);
@@ -876,6 +895,7 @@ do_params_build(VALUE ptr)
             params->cmd.get.quiet = params->bucket->quiet;
             params->cmd.get.transcoder = params->bucket->transcoder;
             params->cmd.get.transcoder_opts = rb_hash_new();
+            params->cmd.get.replica = Qfalse;
             cb_params_get_parse_options(params, opts);
             cb_params_get_parse_arguments(params, argc, argv);
             break;

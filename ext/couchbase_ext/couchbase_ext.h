@@ -135,6 +135,7 @@ struct cb_context_st
     struct cb_http_request_st *request;
     int quiet;
     int arith;           /* incr: +1, decr: -1, other: 0 */
+    int all_replicas;    /* handle multiple responses from get_replica if non-zero */
     size_t nqueries;
 };
 
@@ -179,6 +180,7 @@ extern VALUE em_m;
 
 /* Symbols */
 extern ID cb_sym_add;
+extern ID cb_sym_all;
 extern ID cb_sym_append;
 extern ID cb_sym_assemble_hash;
 extern ID cb_sym_async;
@@ -205,6 +207,7 @@ extern ID cb_sym_engine;
 extern ID cb_sym_environment;
 extern ID cb_sym_eventmachine;
 extern ID cb_sym_extended;
+extern ID cb_sym_first;
 extern ID cb_sym_flags;
 extern ID cb_sym_forced;
 extern ID cb_sym_format;
@@ -509,13 +512,13 @@ struct cb_params_st
             const lcb_get_replica_cmd_t **ptr_gr;
             unsigned int array : 1;
             unsigned int lock : 1;
-            unsigned int replica : 1;
             unsigned int assemble_hash : 1;
             unsigned int extended : 1;
             unsigned int quiet : 1;
             /* arguments given in form of hash key-ttl to "get and touch" */
             unsigned int gat : 1;
             lcb_time_t ttl;
+            VALUE replica;
             VALUE transcoder;
             VALUE transcoder_opts;
             VALUE keys_ary;

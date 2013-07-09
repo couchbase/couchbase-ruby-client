@@ -3,6 +3,54 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3.2 (UNRELEASED)
+
+* [major] RCBC-133 Allow application to select the strategy of reading
+  from replica nodes. **This version requires libcouchbase >= 2.0.7.**
+  Now three strategies are available:
+
+    * `:first` - synonym to `true`, previous behaviour now the
+      default. It means that the library will sequentially iterate
+      over all replicas in the configuration supplied by the cluster
+      and will return as soon as it finds a successful response, or
+      report an error.
+
+            c.get("foo", :replica => true)
+            c.get("foo", :replica => :first)
+            #=> "bar"
+            c.get("foo", :replica => :first, :extended => true)
+            #=> ["bar", 0, 11218368683493556224]
+
+    * `:all` - query all replicas in parallel. In this case the method
+      will return the array of the values on the all replica nodes without
+      a particular order. Also if the key isn't on the node, it will be
+      skipped in the result array.
+
+            c.get("foo", :replica => :all)
+            #=> ["bar", "bar", "bar"]
+            c.get("foo", :replica => :all, :extended => true)
+            #=> [["bar", 0, 11218368683493556224],
+            #    ["bar", 0, 11218368683493556224],
+            #    ["bar", 0, 11218368683493556224]]
+
+    * `Fixnum` - you can also select specific replica node by its
+      index in the cluster configuration. It should be in interval
+      `0...c.num_replicas`
+
+            0...c.num_replicas
+            #=> 0...3
+            c.get("foo", :replica => 1)
+            #=> "bar"
+            c.get("foo", :replica => 42)
+            #=> ArgumentError: replica index should be in interval 0...3
+
+  Note that applications should not assume the order of the
+  replicas indicates more recent data is at a lower index number.
+  It is up to the application to determine which version of a
+  document/item it may wish to use in the case of retrieving data
+  from a replica.
+
+
 ## 1.3.1 (2013-06-05)
 
 * [major] RCBC-131 Couchbase::Cluster instance shouldn't require

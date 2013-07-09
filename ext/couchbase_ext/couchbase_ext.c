@@ -36,6 +36,7 @@ VALUE em_m;
 
 /* Symbols */
 ID cb_sym_add;
+ID cb_sym_all;
 ID cb_sym_append;
 ID cb_sym_assemble_hash;
 ID cb_sym_async;
@@ -62,9 +63,10 @@ ID cb_sym_engine;
 ID cb_sym_environment;
 ID cb_sym_eventmachine;
 ID cb_sym_extended;
+ID cb_sym_first;
 ID cb_sym_flags;
-ID cb_sym_format;
 ID cb_sym_forced;
+ID cb_sym_format;
 ID cb_sym_found;
 ID cb_sym_get;
 ID cb_sym_hostname;
@@ -1151,6 +1153,7 @@ Init_couchbase_ext(void)
     cb_id_verify_observe_options = rb_intern("verify_observe_options");
 
     cb_sym_add = ID2SYM(rb_intern("add"));
+    cb_sym_all = ID2SYM(rb_intern("all"));
     cb_sym_append = ID2SYM(rb_intern("append"));
     cb_sym_assemble_hash = ID2SYM(rb_intern("assemble_hash"));
     cb_sym_async = ID2SYM(rb_intern("async"));
@@ -1176,9 +1179,10 @@ Init_couchbase_ext(void)
     cb_sym_environment = ID2SYM(rb_intern("environment"));
     cb_sym_eventmachine = ID2SYM(rb_intern("eventmachine"));
     cb_sym_extended = ID2SYM(rb_intern("extended"));
+    cb_sym_first = ID2SYM(rb_intern("first"));
     cb_sym_flags = ID2SYM(rb_intern("flags"));
-    cb_sym_format = ID2SYM(rb_intern("format"));
     cb_sym_forced = ID2SYM(rb_intern("forced"));
+    cb_sym_format = ID2SYM(rb_intern("format"));
     cb_sym_found = ID2SYM(rb_intern("found"));
     cb_sym_get = ID2SYM(rb_intern("get"));
     cb_sym_hostname = ID2SYM(rb_intern("hostname"));
