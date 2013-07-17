@@ -291,11 +291,14 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
             return rv;  /* return as a hash {key => [value, flags, cas], ...} */
         }
         if (params.cmd.get.num > 1 || params.cmd.get.array) {
-            VALUE *keys_ptr, ret;
+            VALUE keys, ret;
             ret = rb_ary_new();
-            keys_ptr = RARRAY_PTR(params.cmd.get.keys_ary);
+            /* make sure ret is guarded so not invisible in a register
+             * when stack scanning */
+            RB_GC_GUARD(ret);
+            keys = params.cmd.get.keys_ary;
             for (ii = 0; ii < params.cmd.get.num; ++ii) {
-                rb_ary_push(ret, rb_hash_aref(rv, keys_ptr[ii]));
+                rb_ary_push(ret, rb_hash_aref(rv, rb_ary_entry(keys, ii)));
             }
             return ret;  /* return as an array [value1, value2, ...] */
         } else {

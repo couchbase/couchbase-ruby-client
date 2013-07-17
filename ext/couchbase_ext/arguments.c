@@ -130,14 +130,14 @@ cb_params_touch_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
         rb_raise(rb_eArgError, "must be at least one key");
     }
     if (argc == 1) {
-        VALUE keys = RARRAY_PTR(argv)[0];
+        VALUE keys = rb_ary_entry(argv, 0);
         switch(TYPE(keys)) {
             case T_ARRAY:
                 /* array of keys as a first argument */
                 params->cmd.touch.array = 1;
                 cb_params_touch_alloc(params, RARRAY_LEN(keys));
                 for (ii = 0; ii < params->cmd.touch.num; ++ii) {
-                    cb_params_touch_init_item(params, ii, RARRAY_PTR(keys)[ii], params->cmd.touch.ttl);
+                    cb_params_touch_init_item(params, ii, rb_ary_entry(keys, ii), params->cmd.touch.ttl);
                 }
                 break;
             case T_HASH:
@@ -155,7 +155,7 @@ cb_params_touch_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
         /* just list of arguments */
         cb_params_touch_alloc(params, argc);
         for (ii = 0; ii < params->cmd.touch.num; ++ii) {
-            cb_params_touch_init_item(params, ii, RARRAY_PTR(argv)[ii], params->cmd.touch.ttl);
+            cb_params_touch_init_item(params, ii, rb_ary_entry(argv, ii), params->cmd.touch.ttl);
         }
     }
 }
@@ -215,14 +215,14 @@ cb_params_remove_parse_arguments(struct cb_params_st *params, int argc, VALUE ar
         rb_raise(rb_eArgError, "must be at least one key");
     }
     if (argc == 1) {
-        VALUE keys = RARRAY_PTR(argv)[0];
+        VALUE keys = rb_ary_entry(argv, 0);
         switch(TYPE(keys)) {
             case T_ARRAY:
                 /* array of keys as a first argument */
                 params->cmd.remove.array = 1;
                 cb_params_remove_alloc(params, RARRAY_LEN(keys));
                 for (ii = 0; ii < params->cmd.remove.num; ++ii) {
-                    cb_params_remove_init_item(params, ii, RARRAY_PTR(keys)[ii], params->cmd.remove.cas);
+                    cb_params_remove_init_item(params, ii, rb_ary_entry(keys, ii), params->cmd.remove.cas);
                 }
                 break;
             case T_HASH:
@@ -240,7 +240,7 @@ cb_params_remove_parse_arguments(struct cb_params_st *params, int argc, VALUE ar
         /* just list of arguments */
         cb_params_remove_alloc(params, argc);
         for (ii = 0; ii < params->cmd.remove.num; ++ii) {
-            cb_params_remove_init_item(params, ii, RARRAY_PTR(argv)[ii], params->cmd.remove.cas);
+            cb_params_remove_init_item(params, ii, rb_ary_entry(argv, ii), params->cmd.remove.cas);
         }
     }
 }
@@ -344,7 +344,7 @@ cb_params_store_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
     }
     switch (argc) {
         case 1:
-            keys = RARRAY_PTR(argv)[0];
+            keys = rb_ary_entry(argv, 0);
             switch(TYPE(keys)) {
                 case T_HASH:
                     /* key-value pairs */
@@ -360,7 +360,7 @@ cb_params_store_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
         case 2:
             /* just key and value */
             cb_params_store_alloc(params, 1);
-            cb_params_store_init_item(params, 0, RARRAY_PTR(argv)[0], RARRAY_PTR(argv)[1],
+            cb_params_store_init_item(params, 0, rb_ary_entry(argv, 0), rb_ary_entry(argv, 1),
                     params->cmd.store.flags, params->cmd.store.cas, params->cmd.store.ttl);
             break;
         default:
@@ -475,15 +475,15 @@ cb_params_get_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
         rb_raise(rb_eArgError, "must be at least one key");
     }
     if (argc == 1) {
-        VALUE keys = RARRAY_PTR(argv)[0];
+        VALUE keys = rb_ary_entry(argv, 0);
         switch(TYPE(keys)) {
             case T_ARRAY:
                 /* array of keys as a first argument */
                 params->cmd.get.array = 1;
                 cb_params_get_alloc(params, RARRAY_LEN(keys));
                 for (ii = 0; ii < params->cmd.get.num; ++ii) {
-                    rb_ary_push(params->cmd.get.keys_ary, RARRAY_PTR(keys)[ii]);
-                    cb_params_get_init_item(params, ii, RARRAY_PTR(keys)[ii], params->cmd.get.ttl);
+                    rb_ary_push(params->cmd.get.keys_ary, rb_ary_entry(keys, ii));
+                    cb_params_get_init_item(params, ii, rb_ary_entry(keys, ii), params->cmd.get.ttl);
                 }
                 break;
             case T_HASH:
@@ -505,8 +505,8 @@ cb_params_get_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
         /* just list of arguments */
         cb_params_get_alloc(params, argc);
         for (ii = 0; ii < params->cmd.get.num; ++ii) {
-            rb_ary_push(params->cmd.get.keys_ary, RARRAY_PTR(argv)[ii]);
-            cb_params_get_init_item(params, ii, RARRAY_PTR(argv)[ii], params->cmd.get.ttl);
+            rb_ary_push(params->cmd.get.keys_ary, rb_ary_entry(argv, ii));
+            cb_params_get_init_item(params, ii, rb_ary_entry(argv, ii), params->cmd.get.ttl);
         }
     }
 }
@@ -589,14 +589,14 @@ cb_params_arith_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
         rb_raise(rb_eArgError, "must be at least one key");
     }
     if (argc == 1) {
-        VALUE keys = RARRAY_PTR(argv)[0];
+        VALUE keys = rb_ary_entry(argv, 0);
         switch(TYPE(keys)) {
             case T_ARRAY:
                 /* array of keys as a first argument */
                 params->cmd.arith.array = 1;
                 cb_params_arith_alloc(params, RARRAY_LEN(keys));
                 for (ii = 0; ii < params->cmd.arith.num; ++ii) {
-                    cb_params_arith_init_item(params, ii, RARRAY_PTR(keys)[ii], params->cmd.arith.delta);
+                    cb_params_arith_init_item(params, ii, rb_ary_entry(keys, ii), params->cmd.arith.delta);
                 }
                 break;
             case T_HASH:
@@ -613,7 +613,7 @@ cb_params_arith_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
         /* just list of arguments */
         cb_params_arith_alloc(params, argc);
         for (ii = 0; ii < params->cmd.arith.num; ++ii) {
-            cb_params_arith_init_item(params, ii, RARRAY_PTR(argv)[ii], params->cmd.arith.delta);
+            cb_params_arith_init_item(params, ii, rb_ary_entry(argv, ii), params->cmd.arith.delta);
         }
     }
 }
@@ -643,14 +643,14 @@ cb_params_stats_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
     lcb_size_t ii;
 
     if (argc == 1) {
-        VALUE keys = RARRAY_PTR(argv)[0];
+        VALUE keys = rb_ary_entry(argv, 0);
         switch(TYPE(keys)) {
             case T_ARRAY:
                 /* array of keys as a first argument */
                 params->cmd.stats.array = 1;
                 cb_params_stats_alloc(params, RARRAY_LEN(keys));
                 for (ii = 0; ii < params->cmd.stats.num; ++ii) {
-                    cb_params_stats_init_item(params, ii, RARRAY_PTR(keys)[ii]);
+                    cb_params_stats_init_item(params, ii, rb_ary_entry(keys, ii));
                 }
                 break;
             default:
@@ -665,7 +665,7 @@ cb_params_stats_parse_arguments(struct cb_params_st *params, int argc, VALUE arg
         /* just list of arguments */
         cb_params_stats_alloc(params, argc);
         for (ii = 0; ii < params->cmd.stats.num; ++ii) {
-            cb_params_stats_init_item(params, ii, RARRAY_PTR(argv)[ii]);
+            cb_params_stats_init_item(params, ii, rb_ary_entry(argv, ii));
         }
     }
 }
@@ -698,14 +698,14 @@ cb_params_observe_parse_arguments(struct cb_params_st *params, int argc, VALUE a
         rb_raise(rb_eArgError, "must be at least one key");
     }
     if (argc == 1) {
-        VALUE keys = RARRAY_PTR(argv)[0];
+        VALUE keys = rb_ary_entry(argv, 0);
         switch(TYPE(keys)) {
             case T_ARRAY:
                 /* array of keys as a first argument */
                 params->cmd.observe.array = 1;
                 cb_params_observe_alloc(params, RARRAY_LEN(keys));
                 for (ii = 0; ii < params->cmd.observe.num; ++ii) {
-                    cb_params_observe_init_item(params, ii, RARRAY_PTR(keys)[ii]);
+                    cb_params_observe_init_item(params, ii, rb_ary_entry(keys, ii));
                 }
                 break;
             default:
@@ -717,7 +717,7 @@ cb_params_observe_parse_arguments(struct cb_params_st *params, int argc, VALUE a
         /* just list of arguments */
         cb_params_observe_alloc(params, argc);
         for (ii = 0; ii < params->cmd.observe.num; ++ii) {
-            cb_params_observe_init_item(params, ii, RARRAY_PTR(argv)[ii]);
+            cb_params_observe_init_item(params, ii, rb_ary_entry(argv, ii));
         }
     }
 }
@@ -771,7 +771,7 @@ cb_params_unlock_parse_options(struct cb_params_st *params, VALUE options)
 cb_params_unlock_parse_arguments(struct cb_params_st *params, int argc, VALUE argv)
 {
     if (argc == 1) {
-        VALUE keys = RARRAY_PTR(argv)[0];
+        VALUE keys = rb_ary_entry(argv, 0);
         switch(TYPE(keys)) {
             case T_HASH:
                 /* key-cas pairs */
@@ -847,7 +847,7 @@ do_params_build(VALUE ptr)
     VALUE argv = params->args;
 
     /* extract options */
-    if (argc > 1 && TYPE(RARRAY_PTR(argv)[argc-1]) == T_HASH) {
+    if (argc > 1 && TYPE(rb_ary_entry(argv, argc-1)) == T_HASH) {
         opts = rb_ary_pop(argv);
         --argc;
     } else {
@@ -865,7 +865,7 @@ do_params_build(VALUE ptr)
         case cb_cmd_remove:
             params->cmd.remove.quiet = params->bucket->quiet;
             if (argc == 2) {
-                int type = TYPE(RARRAY_PTR(argv)[1]);
+                int type = TYPE(rb_ary_entry(argv, 1));
                 if (type == T_FIXNUM || type == T_BIGNUM) {
                     /* allow form delete("foo", 0xdeadbeef) */
                     --argc;
@@ -906,7 +906,7 @@ do_params_build(VALUE ptr)
             params->cmd.arith.initial = params->bucket->default_arith_init;
             params->cmd.arith.delta = 1;
             params->cmd.arith.ttl = params->bucket->default_ttl;
-            if (argc == 2 && TYPE(RARRAY_PTR(argv)[1]) == T_FIXNUM) {
+            if (argc == 2 && TYPE(rb_ary_entry(argv, 1)) == T_FIXNUM) {
                 /* allow form incr("foo", 1) */
                 --argc;
                 params->cmd.arith.delta = NUM2ULL(rb_ary_pop(argv)) & INT64_MAX;
@@ -926,7 +926,7 @@ do_params_build(VALUE ptr)
         case cb_cmd_unlock:
             params->cmd.unlock.quiet = params->bucket->quiet;
             if (argc == 2) {
-                int type = TYPE(RARRAY_PTR(argv)[1]);
+                int type = TYPE(rb_ary_entry(argv, 1));
                 if (type == T_FIXNUM || type == T_BIGNUM) {
                     /* allow form unlock("foo", 0xdeadbeef) */
                     --argc;
