@@ -375,8 +375,8 @@ do_encode(VALUE *args)
     if (RARRAY_LEN(ret) != 2) {
         rb_raise(rb_eArgError, "#dump method of transcoder should return two items");
     }
-    *flags = NUM2ULONG(RARRAY_PTR(ret)[1]);
-    return RARRAY_PTR(ret)[0];
+    *flags = NUM2ULONG(rb_ary_entry(ret, 1));
+    return rb_ary_entry(ret, 0);
 }
 
     static VALUE
