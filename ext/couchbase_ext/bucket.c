@@ -360,6 +360,7 @@ do_connect(struct cb_bucket_st *bucket)
     create_opts.v.v1.io = bucket->io;
     err = lcb_create(&bucket->handle, &create_opts);
     if (err != LCB_SUCCESS) {
+        bucket->handle = NULL;
         rb_exc_raise(cb_check_error(err, "failed to create libcouchbase instance", Qnil));
     }
     lcb_set_cookie(bucket->handle, bucket);

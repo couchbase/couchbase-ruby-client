@@ -234,4 +234,11 @@ class TestBucket < MiniTest::Test
     end
   end
 
+  def test_it_doesnt_try_to_destroy_handle_in_case_of_lcb_create_failure
+    assert_raises(Couchbase::Error::InvalidHostFormat) do
+      Couchbase.connect(:hostname => "foobar:baz")
+    end
+    GC.start # make sure it won't touch handle in finalizer
+  end
+
 end
