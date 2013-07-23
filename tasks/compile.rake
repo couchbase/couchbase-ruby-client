@@ -90,6 +90,7 @@ namespace :ports do
                                   "--disable-dependency-tracking",
                                   "--disable-couchbasemock",
                                   "--disable-cxx",
+                                  "--disable-plugins",
                                   "--disable-examples",
                                   "--disable-tools")
     recipe.cook
