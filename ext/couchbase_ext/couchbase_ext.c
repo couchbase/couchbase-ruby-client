@@ -183,6 +183,10 @@ VALUE cb_eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x19   */
 VALUE cb_eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x1a   */
 VALUE cb_eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x1b */
 VALUE cb_eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
+VALUE cb_eServerBug;               /* LCB_SERVER_BUG = 0x1d      */
+VALUE cb_ePluginVersionMismatch;   /* LCB_PLUGIN_VERSION_MISMATCH = 0x1e */
+VALUE cb_eInvalidHostFormat;       /* LCB_INVALID_HOST_FORMAT = 0x1f     */
+VALUE cb_eInvalidChar;             /* LCB_INVALID_CHAR = 0x20            */
 
 /* Default Strings */
 VALUE cb_vStrDefault;
@@ -436,11 +440,51 @@ Init_couchbase_ext(void)
     /* Document-class: Couchbase::Error::DlsymFailed
      * dlsym() failed
      *
-     * Failed to locate the requested cb_symbol in the shared object
+     * Failed to locate the requested symbol in the shared object
      *
      * @since 1.2.0
      */
     cb_eDlsymFailedError = rb_define_class_under(cb_mError, "DlsymFailed", cb_eBaseError);
+
+    /* Document-class: Couchbase::Error::ServerBug
+     * Server Bug
+     *
+     * Unexpected usage of the server protocol, like unexpected
+     * response. If you've received this error code, please record your
+     * steps and file the issue at:
+     *
+     *   http://www.couchbase.com/issues/browse/MB
+     *
+     * @since 1.3.3
+     */
+    cb_eServerBug = rb_define_class_under(cb_mError, "ServerBug", cb_eBaseError);
+
+    /* Document-class: Couchbase::Error::PluginVersionMismatch
+     * Plugin Version Mismatch
+     *
+     * Libcouchbase cannot load the plugin because of version mismatch
+     *
+     * @since 1.3.3
+     */
+    cb_ePluginVersionMismatch = rb_define_class_under(cb_mError, "PluginVersionMismatch", cb_eBaseError);
+
+    /* Document-class: Couchbase::Error::InvalidHostFormat
+     * Invalid Host Format
+     *
+     * The bootstrap hosts list use an invalid/unsupported format
+     *
+     * @since 1.3.3
+     */
+    cb_eInvalidHostFormat = rb_define_class_under(cb_mError, "InvalidHostFormat", cb_eBaseError);
+
+    /* Document-class: Couchbase::Error::InvalidChar
+     * Invalid Character
+     *
+     * Invalid character used in the path component of an URL
+     *
+     * @since 1.3.3
+     */
+    cb_eInvalidChar = rb_define_class_under(cb_mError, "InvalidChar", cb_eBaseError);
 
     /* Document-class: Couchbase::Error::HTTP
      * HTTP error with status code
@@ -484,7 +528,10 @@ Init_couchbase_ext(void)
      * 0x1a :: LCB_CLIENT_ENOMEM (Out of memory on the client)
      * 0x1b :: LCB_CLIENT_ETMPFAIL (Temporary failure on the client)
      * 0x1c :: LCB_EBADHANDLE (Invalid handle type)
-     *
+     * 0x1d :: LCB_SERVER_BUG (Server bug)
+     * 0x1e :: LCB_PLUGIN_VERSION_MISMATCH (Plugin version mismatch)
+     * 0x1f :: LCB_INVALID_HOST_FORMAT (Invalid host format)
+     * 0x20 :: LCB_INVALID_CHAR (Invalid character)
      *
      * @since 1.0.0
      *

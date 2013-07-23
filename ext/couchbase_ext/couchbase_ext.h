@@ -326,6 +326,10 @@ extern VALUE cb_eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x19   */
 extern VALUE cb_eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x1a   */
 extern VALUE cb_eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x1b */
 extern VALUE cb_eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
+extern VALUE cb_eServerBug;               /* LCB_SERVER_BUG = 0x1d      */
+extern VALUE cb_ePluginVersionMismatch;   /* LCB_PLUGIN_VERSION_MISMATCH = 0x1e */
+extern VALUE cb_eInvalidHostFormat;       /* LCB_INVALID_HOST_FORMAT = 0x1f     */
+extern VALUE cb_eInvalidChar;             /* LCB_INVALID_CHAR = 0x20            */
 
 /* Default Strings */
 extern VALUE cb_vStrDefault;

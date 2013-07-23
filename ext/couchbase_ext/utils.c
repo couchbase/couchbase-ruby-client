@@ -235,6 +235,18 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key,
         case LCB_EBADHANDLE:
             klass = cb_eBadHandleError;
             break;
+        case LCB_SERVER_BUG:
+            klass = cb_eServerBug;
+            break;
+        case LCB_PLUGIN_VERSION_MISMATCH:
+            klass = cb_ePluginVersionMismatch;
+            break;
+        case LCB_INVALID_HOST_FORMAT:
+            klass = cb_eInvalidHostFormat;
+            break;
+        case LCB_INVALID_CHAR:
+            klass = cb_eInvalidChar;
+            break;
         case LCB_ERROR:
             /* fall through */
         default:
