@@ -97,7 +97,9 @@ cb_bucket_mark(void *ptr)
         rb_gc_mark(bucket->on_error_proc);
         rb_gc_mark(bucket->on_connect_proc);
         rb_gc_mark(bucket->key_prefix_val);
-        st_foreach(bucket->object_space, cb_bucket_mark_object_i, (st_data_t)bucket);
+        if (bucket->object_space) {
+            st_foreach(bucket->object_space, cb_bucket_mark_object_i, (st_data_t)bucket);
+        }
     }
 }
 
