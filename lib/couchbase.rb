@@ -77,7 +77,7 @@ module Couchbase
 
     # @private the thread local storage
     def thread_storage
-      Thread.current[:couchbase] ||= { :pid => Process.pid }
+      Thread.current[:couchbase] ||= { :pid => Process.pid, :bucket => {} }
     end
 
     # @private resets thread local storage if process ids don't match
@@ -101,9 +101,10 @@ module Couchbase
     #   Couchbase.bucket.set("foo", "bar")
     #
     # @return [Bucket]
-    def bucket
+    def bucket(name = nil)
       verify_connection!
-      thread_storage[:bucket] ||= connect(connection_options)
+      name ||= @connection_options && @connection_options[:bucket] || "default"
+      thread_storage[:bucket][name] ||= connect(connection_options)
     end
 
     # Set a connection instance for current thread
@@ -111,10 +112,12 @@ module Couchbase
     # @since 1.1.0
     #
     # @return [Bucket]
-    def bucket=(connection)
+    def bucket=(connection, name = nil)
       verify_connection!
-      thread_storage[:bucket] = connection
+      name ||= @connection_options && @connection_options[:bucket] || "default"
+      thread_storage[:bucket][name] = connection
     end
+    alias set_bucket bucket=
 
   end
 
