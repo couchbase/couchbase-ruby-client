@@ -19,4 +19,4 @@ rvm:
 
 notifications:
   email:
-    - sdk_dev@couchbase.com
+    - sergey@couchbase.com
