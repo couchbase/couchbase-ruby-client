@@ -22,6 +22,10 @@
 #include <st.h>
 #endif
 
+#ifdef HAVE_RUBY_THREAD_H
+#include <ruby/thread.h>
+#endif
+
 #include "couchbase_config.h"
 #ifdef HAVE_RB_FIBER_YIELD
 #define BUILD_EVENTMACHINE_PLUGIN

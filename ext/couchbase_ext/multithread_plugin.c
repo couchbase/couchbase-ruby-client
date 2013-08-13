@@ -725,7 +725,7 @@ lp_arg_alloc(lp_arg **args)
     return Data_Make_Struct(rb_cObject, lp_arg, 0, lp_arg_free, *args);
 }
 
-#ifdef HAVE_RB_THREAD_BLOCKING_REGION
+#if defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
     static VALUE
 loop_blocking_poll(void *argp)
 {
@@ -768,7 +768,10 @@ retry:
         args->ts = HRTIME_INFINITY;
     }
 
-#ifdef HAVE_RB_THREAD_BLOCKING_REGION
+
+#if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
+    rb_thread_call_without_gvl((void *(*)(void*))loop_blocking_poll, args, RUBY_UBF_IO, 0);
+#elif defined(HAVE_RB_THREAD_BLOCKING_REGION)
     rb_thread_blocking_region(loop_blocking_poll, args, RUBY_UBF_PROCESS, NULL);
 #else
     if (rb_thread_alone()) {
