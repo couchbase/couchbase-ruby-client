@@ -130,12 +130,13 @@ unless try_compile(<<-SRC)
   #include <libcouchbase/couchbase.h>
 
   int main() {
-    lcb_get_replica_cmd_t cmd;
-    cmd.v.v1.strategy = 42;
+    struct lcb_create_io_ops_st iops;
+    iops.version = 0;
+    iops.v.v0.type = LCB_IO_OPS_SELECT;
     return 0;
   }
   SRC
-  die("You must install libcouchbase >= 2.0.7\nSee http://www.couchbase.com/communities/c/ for more details")
+  die("You must install libcouchbase >= 2.1\nSee http://www.couchbase.com/communities/c/ for more details")
 end
 
 have_library("couchbase", "lcb_verify_compiler_setup", "libcouchbase/couchbase.h") # just to add -lcouchbase properly

@@ -260,7 +260,12 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             if (arg != Qnil) {
                 if (arg == cb_sym_default) {
                     bucket->engine = cb_sym_default;
-#ifndef _WIN32
+                } else if (arg == cb_sym_select) {
+                    bucket->engine = cb_sym_select;
+#ifdef _WIN32
+                } else if (arg == cb_sym_iocp) {
+                    bucket->engine = cb_sym_iocp;
+#else
                 } else if (arg == cb_sym_libev) {
                     bucket->engine = cb_sym_libev;
                 } else if (arg == cb_sym_libevent) {
@@ -327,6 +332,12 @@ do_connect(struct cb_bucket_st *bucket)
 
         if (bucket->engine == cb_sym_libevent) {
             ciops.v.v0.type = LCB_IO_OPS_LIBEVENT;
+        } else if (bucket->engine == cb_sym_select) {
+            ciops.v.v0.type = LCB_IO_OPS_SELECT;
+#ifdef _WIN32
+        } else if (bucket->engine == cb_sym_iocp) {
+            ciops.v.v0.type = LCB_IO_OPS_IOCP;
+#endif
         } else if (bucket->engine == cb_sym_libev) {
             ciops.v.v0.type = LCB_IO_OPS_LIBEV;
         } else if (bucket->engine == cb_sym_eventmachine) {
@@ -475,6 +486,8 @@ cb_bucket_alloc(VALUE klass)
  *   @option options [Symbol] :engine (:default) the IO engine to use
  *     Currently following engines are supported:
  *     :default      :: Built-in engine (multi-thread friendly)
+ *     :select       :: select(2) IO plugin from libcouchbase
+ *     :iocp         :: "I/O Completion Ports" plugin from libcouchbase (windows only)
  *     :libevent     :: libevent IO plugin from libcouchbase (optional)
  *     :libev        :: libev IO plugin from libcouchbase (optional)
  *     :eventmachine :: EventMachine plugin (builtin, but requires EM gem and ruby 1.9+)
