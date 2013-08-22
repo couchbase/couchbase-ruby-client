@@ -202,6 +202,13 @@ cb_intern_string(VALUE ar, const char *str)
     return tmp;
 }
 
+    static VALUE
+cb_libcouchbase_version(VALUE self)
+{
+    const char *ver = lcb_get_version(NULL);
+    return STR_NEW_CSTR(ver);
+}
+
 /* Ruby Extension initializer */
     void
 Init_couchbase_ext(void)
@@ -213,6 +220,15 @@ Init_couchbase_ext(void)
 
     cb_mURI = rb_const_get(rb_cObject, rb_intern("URI"));
     cb_mCouchbase = rb_define_module("Couchbase");
+    /* Document-method: libcouchbase_version
+     *
+     * @since 1.3.3
+     *
+     * Version of the libcouchbase library currently loaded
+     * @return [String]
+     */
+    rb_define_singleton_method(cb_mCouchbase, "libcouchbase_version", cb_libcouchbase_version, 0);
+
     cb_mTranscoder = rb_const_get(cb_mCouchbase, rb_intern("Transcoder"));
     cb_mDocument = rb_const_get(cb_mTranscoder, rb_intern("Document"));
     cb_mMarshal = rb_const_get(cb_mTranscoder, rb_intern("Marshal"));
