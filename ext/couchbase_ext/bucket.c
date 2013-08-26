@@ -355,7 +355,7 @@ do_connect(struct cb_bucket_st *bucket)
     create_opts.v.v1.type = bucket->type;
     create_opts.v.v1.host = RTEST(bucket->node_list) ? RSTRING_PTR(bucket-> node_list) : RSTRING_PTR(bucket->authority);
     create_opts.v.v1.user = RTEST(bucket->username) ? RSTRING_PTR(bucket->username) : NULL;
-    create_opts.v.v1.passwd = RTEST(bucket->username) ? RSTRING_PTR(bucket->password) : NULL;
+    create_opts.v.v1.passwd = RTEST(bucket->password) ? RSTRING_PTR(bucket->password) : NULL;
     create_opts.v.v1.bucket = RSTRING_PTR(bucket->bucket);
     create_opts.v.v1.io = bucket->io;
     err = lcb_create(&bucket->handle, &create_opts);
