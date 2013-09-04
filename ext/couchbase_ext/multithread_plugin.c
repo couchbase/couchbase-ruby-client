@@ -433,6 +433,7 @@ callbacks_push(rb_mt_callbacks *callbacks, rb_mt_event *event)
         callbacks->capa = new_capa;
         callbacks->events = new_events;
     }
+    event->loop_index = callbacks->count;
     callbacks->events[callbacks->count] = event;
     callbacks->count++;
 }
@@ -457,6 +458,8 @@ callbacks_run(rb_mt_callbacks *callbacks)
     for(i = 0; i < callbacks->count; i++) {
         rb_mt_event *cb = callbacks->events[i];
         if (cb) {
+            cb->loop_index = -1;
+            callbacks->events[i] = NULL;
             cb->handler(cb->socket, cb->actual_flags, cb->cb_data);
         }
     }
