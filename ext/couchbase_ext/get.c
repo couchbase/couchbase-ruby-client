@@ -36,19 +36,23 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
         }
     }
 
-    flags = ULONG2NUM(resp->v.v0.flags);
-    cas = ULL2NUM(resp->v.v0.cas);
-    raw = STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes);
-    val = cb_decode_value(ctx->transcoder, raw, resp->v.v0.flags, ctx->transcoder_opts);
-    if (rb_obj_is_kind_of(val, rb_eStandardError)) {
-        VALUE exc_str = rb_funcall(val, cb_id_to_s, 0);
-        VALUE msg = rb_funcall(rb_mKernel, cb_id_sprintf, 3,
-                rb_str_new2("unable to convert value for key \"%s\": %s"), key, exc_str);
-        ctx->exception = rb_exc_new3(cb_eValueFormatError, msg);
-        rb_ivar_set(ctx->exception, cb_id_iv_operation, cb_sym_get);
-        rb_ivar_set(ctx->exception, cb_id_iv_key, key);
-        rb_ivar_set(ctx->exception, cb_id_iv_inner_exception, val);
-        val = Qnil;
+    if (error == LCB_SUCCESS) {
+        flags = ULONG2NUM(resp->v.v0.flags);
+        cas = ULL2NUM(resp->v.v0.cas);
+        raw = STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes);
+        val = cb_decode_value(ctx->transcoder, raw, resp->v.v0.flags, ctx->transcoder_opts);
+        if (rb_obj_is_kind_of(val, rb_eStandardError)) {
+            VALUE exc_str = rb_funcall(val, cb_id_to_s, 0);
+            VALUE msg = rb_funcall(rb_mKernel, cb_id_sprintf, 3,
+                    rb_str_new2("unable to convert value for key \"%s\": %s"), key, exc_str);
+            ctx->exception = rb_exc_new3(cb_eValueFormatError, msg);
+            rb_ivar_set(ctx->exception, cb_id_iv_operation, cb_sym_get);
+            rb_ivar_set(ctx->exception, cb_id_iv_key, key);
+            rb_ivar_set(ctx->exception, cb_id_iv_inner_exception, val);
+            val = Qnil;
+        }
+    } else {
+        val = flags = cas = Qnil;
     }
     if (bucket->async) { /* asynchronous */
         if (ctx->proc != Qnil) {
