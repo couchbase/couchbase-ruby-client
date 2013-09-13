@@ -122,6 +122,12 @@ class TestBucket < MiniTest::Test
         Couchbase.new(:hostname => mock.host,
                       :port => mock.port,
                       :bucket => 'default',
+                      :password => 'wrong_password')
+      end
+      assert_raises Couchbase::Error::InvalidUsername do
+        Couchbase.new(:hostname => mock.host,
+                      :port => mock.port,
+                      :bucket => 'default',
                       :username => 'wrong.username',
                       :password => 'wrong_password')
       end
@@ -130,7 +136,7 @@ class TestBucket < MiniTest::Test
 
   def test_it_unable_to_connect_to_protected_buckets_with_wrong_credentials
     with_mock(:buckets_spec => 'protected:secret') do |mock|
-      assert_raises Couchbase::Error::Auth do
+      assert_raises Couchbase::Error::InvalidUsername do
         Couchbase.new(:hostname => mock.host,
                       :port => mock.port,
                       :bucket => 'protected',
