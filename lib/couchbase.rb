@@ -100,10 +100,32 @@ module Couchbase
     # @example
     #   Couchbase.bucket.set("foo", "bar")
     #
+    # @example Set connection options using Hash
+    #   Couchbase.connection_options = {:node_list => ["example.com:8091"]}
+    #   Couchbase.bucket("slot1").set("foo", "bar")
+    #   Couchbase.bucket("slot1").bucket #=> "default"
+    #   Couchbase.connection_options[:bucket] = "test"
+    #   Couchbase.bucket("slot2").bucket #=> "test"
+    #
+    # @example Set connection options using URI
+    #   Couchbase.connection_options = "http://example.com:8091/pools"
+    #   Couchbase.bucket("slot1").set("foo", "bar")
+    #   Couchbase.bucket("slot1").bucket #=> "default"
+    #   Couchbase.connection_options = "http://example.com:8091/pools/buckets/test"
+    #   Couchbase.bucket("slot2").bucket #=> "test"
+    #
     # @return [Bucket]
     def bucket(name = nil)
       verify_connection!
-      name ||= @connection_options && @connection_options[:bucket] || "default"
+      name ||= case @connection_options
+               when Hash
+                 @connection_options[:bucket]
+               when String
+                 path = URI.parse(@connection_options).path
+                 path[%r(^(/pools/([A-Za-z0-9_.-]+)(/buckets/([A-Za-z0-9_.-]+))?)?), 3] || "default"
+               else
+                 "default"
+               end
       thread_storage[:bucket][name] ||= connect(connection_options)
     end
 
