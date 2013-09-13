@@ -336,6 +336,13 @@ extern VALUE cb_eServerBug;               /* LCB_SERVER_BUG = 0x1d      */
 extern VALUE cb_ePluginVersionMismatch;   /* LCB_PLUGIN_VERSION_MISMATCH = 0x1e */
 extern VALUE cb_eInvalidHostFormat;       /* LCB_INVALID_HOST_FORMAT = 0x1f     */
 extern VALUE cb_eInvalidChar;             /* LCB_INVALID_CHAR = 0x20            */
+extern VALUE cb_eDurabilityTooMany;       /* LCB_DURABILITY_ETOOMANY = 0x21 */
+extern VALUE cb_eDuplicateCommands;       /* LCB_DUPLICATE_COMMANDS = 0x22 */
+extern VALUE cb_eNoMatchingServer;        /* LCB_NO_MATCHING_SERVER = 0x23 */
+extern VALUE cb_eBadEnvironment;          /* LCB_BAD_ENVIRONMENT = 0x24 */
+extern VALUE cb_eBusy;                    /* LCB_BUSY = 0x25 */
+extern VALUE cb_eInvalidUsername;         /* LCB_INVALID_USERNAME = 0x26 */
+
 
 /* Default Strings */
 extern VALUE cb_vStrDefault;

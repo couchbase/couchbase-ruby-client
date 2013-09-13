@@ -3,6 +3,56 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3.3 (2013-09-12)
+
+* [major] RCBC-134 Allow application to use several connections with
+  thread-local singleton.
+
+* [major] RCBC-135 Fixed invalid memory access which was detected by
+  using 'GC.stress = true' in tests.
+
+* [major] RCBC-141 Initialize event indexes correctly. The plugin
+  didn't trace event callbacks, which might lead to invalid memory
+  access during rebalance, where libcouchbase creates/removes a lot of
+  events because of a fast-changing topology.
+
+* [major] RCBC-137 Add selection options for new IO engines: select
+  and iocp.
+
+* [major] When setting the username field, check for password
+  presence. Fixes segmentation fault in this code:
+
+        Couchbase.connect(:username => "default", :bucket => "default")
+
+* [minor] Allow to determine the version of libcouchbase:
+
+        Couchbase.libcouchbase_version
+
+* [major] RCBC-136 Build shared object for ruby 2.0 on windows. Also
+  fixes build script when using latest rake and rake-compiler.
+
+* [minor] Fix deprecation warning on ruby 2.x. On newer versions it
+  should use `rb_thread_call_without_gvl()`.
+
+        ext/couchbase_ext/multithread_plugin.c: In function ‘loop_run_poll’:
+        ext/couchbase_ext/multithread_plugin.c:772:5: warning: ‘rb_thread_blocking_region’ is deprecated (declared at .../2.0.0-p247-dbg/include/ruby-2.0.0/ruby/intern.h:839) [-Wdeprecated-declarations]
+             rb_thread_blocking_region(loop_blocking_poll, args, RUBY_UBF_PROCESS, NULL);
+
+* [major] Do not try to compile with plugins for Windows platform.
+
+* [major] Force handle to be NULL on `lcb_create()` failure.
+  `lcb_create()` can leave garbage in the pointer even if the call
+  itself failed.  This behaviour could lead to illegal memory access
+  on GC.
+
+* [minor] Remove usage of `RARRAY_PTR` in favor of `rb_ary_entry`.
+  This improves performance significantly on Rubinius and also
+  improves compatibility with future CRuby 2.1 which introduces
+  generational garbage collection. This results in these arrays not
+  having to be rescanned in Rubinius and not marked as shady in
+  RBGCENC in CRuby 2.1.
+  For more discussion, also see: https://bugs.ruby-lang.org/issues/8399
+
 ## 1.3.2 (2013-07-10)
 
 * [major] RCBC-133 Allow application to select the strategy of reading

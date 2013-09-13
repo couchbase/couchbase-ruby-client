@@ -189,6 +189,12 @@ VALUE cb_eServerBug;               /* LCB_SERVER_BUG = 0x1d      */
 VALUE cb_ePluginVersionMismatch;   /* LCB_PLUGIN_VERSION_MISMATCH = 0x1e */
 VALUE cb_eInvalidHostFormat;       /* LCB_INVALID_HOST_FORMAT = 0x1f     */
 VALUE cb_eInvalidChar;             /* LCB_INVALID_CHAR = 0x20            */
+VALUE cb_eDurabilityTooMany;       /* LCB_DURABILITY_ETOOMANY = 0x21 */
+VALUE cb_eDuplicateCommands;       /* LCB_DUPLICATE_COMMANDS = 0x22 */
+VALUE cb_eNoMatchingServer;        /* LCB_NO_MATCHING_SERVER = 0x23 */
+VALUE cb_eBadEnvironment;          /* LCB_BAD_ENVIRONMENT = 0x24 */
+VALUE cb_eBusy;                    /* LCB_BUSY = 0x25 */
+VALUE cb_eInvalidUsername;         /* LCB_INVALID_USERNAME = 0x26 */
 
 /* Default Strings */
 VALUE cb_vStrDefault;
@@ -208,6 +214,7 @@ cb_intern_string(VALUE ar, const char *str)
 cb_libcouchbase_version(VALUE self)
 {
     const char *ver = lcb_get_version(NULL);
+    (void)self;
     return STR_NEW_CSTR(ver);
 }
 
@@ -503,6 +510,62 @@ Init_couchbase_ext(void)
      * @since 1.3.3
      */
     cb_eInvalidChar = rb_define_class_under(cb_mError, "InvalidChar", cb_eBaseError);
+
+    /* Document-class: Couchbase::Error::DurabilityTooMany
+     * Too Many Nodes
+     *
+     * Too many nodes were requested for the observe criteria
+     *
+     * @since 1.3.3
+     */
+    cb_eDurabilityTooMany = rb_define_class_under(cb_mError, "DurabilityTooMany", cb_eBaseError);
+
+    /* Document-class: Couchbase::Error::DuplicateCommands
+     * Duplicate Commands
+     *
+     * The same key was passed multiple times in a command list
+     *
+     * @since 1.3.3
+     */
+    cb_eDuplicateCommands = rb_define_class_under(cb_mError, "DuplicateCommands", cb_eBaseError);
+
+    /* Document-class: Couchbase::Error::NoMatchingServer
+     * No Matching Server
+     *
+     * The config says that there is no server yet at that
+     * position (-1 in the cluster topology map)
+     *
+     * @since 1.3.3
+     */
+    cb_eNoMatchingServer = rb_define_class_under(cb_mError, "NoMatchingServer", cb_eBaseError);
+
+    /* Document-class: Couchbase::Error::BadEnvironment
+     * Busy
+     *
+     * An operation has not yet completed
+     *
+     * @since 1.3.3
+     */
+    cb_eBadEnvironment = rb_define_class_under(cb_mError, "BadEnvironment", cb_eBaseError);
+
+    /* Document-class: Couchbase::Error::Busy
+     * Invalid Character
+     *
+     * Invalid character used in the path component of an URL
+     *
+     * @since 1.3.3
+     */
+    cb_eBusy = rb_define_class_under(cb_mError, "Busy", cb_eBaseError);
+
+    /* Document-class: Couchbase::Error::InvalidUsername
+     * Invalid Username
+     *
+     * Administrator account must not be used to access the data
+     * in the bucket
+     *
+     * @since 1.3.3
+     */
+    cb_eInvalidUsername = rb_define_class_under(cb_mError, "InvalidUsername", cb_eBaseError);
 
     /* Document-class: Couchbase::Error::HTTP
      * HTTP error with status code

@@ -128,15 +128,14 @@ end
 
 unless try_compile(<<-SRC)
   #include <libcouchbase/couchbase.h>
+  #include <stdio.h>
 
   int main() {
-    struct lcb_create_io_ops_st iops;
-    iops.version = 0;
-    iops.v.v0.type = LCB_IO_OPS_SELECT;
+    printf("User not found: %d\\n", LCB_INVALID_USERNAME);
     return 0;
   }
   SRC
-  die("You must install libcouchbase >= 2.1\nSee http://www.couchbase.com/communities/c/ for more details")
+  die("You must install libcouchbase >= 2.1.3\nSee http://www.couchbase.com/communities/c/ for more details")
 end
 
 have_library("couchbase", "lcb_verify_compiler_setup", "libcouchbase/couchbase.h") # just to add -lcouchbase properly

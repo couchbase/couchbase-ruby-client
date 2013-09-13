@@ -114,6 +114,15 @@ module Couchbase
     #   Couchbase.connection_options = "http://example.com:8091/pools/buckets/test"
     #   Couchbase.bucket("slot2").bucket #=> "test"
     #
+    # @example Use named slots to keep a connection
+    #   Couchbase.connection_options = {
+    #     :node_list => ["example.com", "example.org"],
+    #     :bucket => "users"
+    #   }
+    #   Couchbase.bucket("users").set("john", {"balance" => 0})
+    #   Couchbase.connection_options[:bucket] = "orders"
+    #   Couchbase.bucket("other").set("john:1", {"products" => [42, 66]})
+    #
     # @return [Bucket]
     def bucket(name = nil)
       verify_connection!

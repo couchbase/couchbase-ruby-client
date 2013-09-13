@@ -247,6 +247,24 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key,
         case LCB_INVALID_CHAR:
             klass = cb_eInvalidChar;
             break;
+        case LCB_DURABILITY_ETOOMANY:
+            klass = cb_eDurabilityTooMany;
+            break;
+        case LCB_DUPLICATE_COMMANDS:
+            klass = cb_eDuplicateCommands;
+            break;
+        case LCB_NO_MATCHING_SERVER:
+            klass = cb_eBadEnvironment;
+            break;
+        case LCB_BAD_ENVIRONMENT:
+            klass = cb_eBadEnvironment;
+            break;
+        case LCB_BUSY:
+            klass = cb_eBusyError;
+            break;
+        case LCB_INVALID_USERNAME:
+            klass = cb_eInvalidUsername;
+            break;
         case LCB_ERROR:
             /* fall through */
         default:
