@@ -338,7 +338,7 @@ do_connect(struct cb_bucket_st *bucket)
             ciops.v.v0.type = LCB_IO_OPS_SELECT;
 #ifdef _WIN32
         } else if (bucket->engine == cb_sym_iocp) {
-            ciops.v.v0.type = LCB_IO_OPS_IOCP;
+            ciops.v.v0.type = LCB_IO_OPS_WINIOCP;
 #endif
         } else if (bucket->engine == cb_sym_libev) {
             ciops.v.v0.type = LCB_IO_OPS_LIBEV;
