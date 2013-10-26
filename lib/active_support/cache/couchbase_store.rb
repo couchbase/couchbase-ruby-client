@@ -55,6 +55,7 @@ module ActiveSupport
         options[:default_ttl] ||= options.delete(:expires_in)
         options[:default_format] ||= :marshal
         options[:key_prefix] ||= options.delete(:namespace)
+        @key_prefix = options[:key_prefix]
         options[:connection_pool] ||= options.delete(:connection_pool)
         args.push(options)
 
@@ -348,7 +349,7 @@ module ActiveSupport
       # object responds to +cache_key+. Otherwise, to_param method will be
       # called. If the key is a Hash, then keys will be sorted alphabetically.
       def expanded_key(key) # :nodoc:
-        return key.cache_key.to_s if key.respond_to?(:cache_key)
+        return validate_key(key.cache_key.to_s) if key.respond_to?(:cache_key)
 
         case key
         when Array
@@ -361,7 +362,22 @@ module ActiveSupport
           key = key.sort_by { |k,_| k.to_s }.collect{|k,v| "#{k}=#{v}"}
         end
 
-        key.respond_to?(:to_param) ? key.to_param : key
+        validate_key(key.respond_to?(:to_param) ? key.to_param : key)
+      end
+
+      def validate_key(key)
+        if key_with_prefix(key).length > 250
+          key = "#{key[0, max_length_before_prefix]}:md5:#{Digest::MD5.hexdigest(key)}"
+        end
+        return key
+      end
+
+      def key_with_prefix(key)
+        (ns = @key_prefix) ? "#{ns}#{key}" : key
+      end
+
+      def max_length_before_prefix
+        @max_length_before_prefix ||= 212 - (@key_prefix || '').size
       end
 
       module Threadsafe
