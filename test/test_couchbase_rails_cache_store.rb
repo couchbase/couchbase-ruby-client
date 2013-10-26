@@ -43,6 +43,12 @@ class TestCouchbaseRailsCacheStore < MiniTest::Test
                                                              :connection_pool => 5)
   end
 
+  def prefixed_store
+    @prefixed_store ||= ActiveSupport::Cache::CouchbaseStore.new(:hostname => @mock.host,
+                                                                 :port => @mock.port,
+                                                                 :namespace => 'v1')
+  end
+
   def test_it_supported_methods
     supported_methods = store.public_methods(false).map(&:to_sym)
     assert supported_methods.include?(:fetch)
@@ -325,6 +331,20 @@ class TestCouchbaseRailsCacheStore < MiniTest::Test
     end
 
     workers.each { |w| w.join }
+  end
+
+  # These tests are only relevant against a real server,
+  # CouchbaseMock seems to accept long keys.
+  def test_it_can_handle_keys_longer_than_250_characters
+    long_key = 'a' * 260
+    assert store.write(long_key, 123)
+    assert_equal 123, store.read(long_key)
+  end
+
+  def test_it_can_handle_keys_longer_than_250_characters_with_a_prefix
+    long_key = 'a' * 249
+    assert prefixed_store.write(long_key, 123)
+    assert_equal 123, prefixed_store.read(long_key)
   end
 
   private
