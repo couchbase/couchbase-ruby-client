@@ -30,6 +30,35 @@ version_router = lambda do |t|
   end
 end
 
+class Platform
+  attr_reader :name, :host, :versions
+
+  def initialize(params)
+    @name = params[:name]
+    @host = params[:host]
+    @versions = params[:versions]
+  end
+
+  def each_version
+    @versions.each do |v|
+      yield(v, v[/\d\.\d\.\d/])
+    end
+  end
+
+  def short_versions
+    res = []
+    each_version do |long, short|
+      res << short
+    end
+    res
+  end
+end
+
+CROSS_PLATFORMS = [
+  Platform.new(:name => 'x64-mingw32', :host => 'x86_64-w64-mingw32', :versions => %w(1.9.3-p482 2.0.0-p343)),
+  Platform.new(:name => 'x86-mingw32', :host => 'i686-w64-mingw32', :versions => %w(1.8.7-p374 1.9.3-p482 2.0.0-p343)),
+]
+
 # Setup compile tasks.  Configuration can be passed via ENV.
 # Example:
 #  rake compile with_libcouchbase_include=/opt/couchbase/include
@@ -41,13 +70,14 @@ end
 #
 Rake::ExtensionTask.new("couchbase_ext", gemspec) do |ext|
   ext.cross_compile = true
-  ext.cross_platform = ENV['HOST'] || "i386-mingw32"
+  ext.cross_platform = ENV['TARGET']
   if ENV['RUBY_CC_VERSION']
     ext.lib_dir = "lib/couchbase"
   end
   ext.cross_compiling do |spec|
     spec.files.delete("lib/couchbase/couchbase_ext.so")
-    spec.files.push("lib/couchbase_ext.rb", Dir["lib/couchbase/1.{8,9}/couchbase_ext.so"])
+    spec.files.push("lib/couchbase_ext.rb", Dir["lib/couchbase/*/couchbase_ext.so"])
+    spec.files.push(Dir["lib/couchbase/*/couchbase_ext.so"])
     file "#{ext.tmp_dir}/#{ext.cross_platform}/stage/lib/couchbase_ext.rb", &version_router
   end
 
@@ -66,19 +96,13 @@ end
 
 require 'rubygems/package_task'
 Gem::PackageTask.new(gemspec) do |pkg|
-  pkg.need_tar = true
+  pkg.need_tar = pkg.need_zip = false
 end
 
 require 'mini_portile'
 require 'rake/extensioncompiler'
 
 class MiniPortile
-  alias :initialize_with_default_host :initialize
-  def initialize(name, version)
-    initialize_with_default_host(name, version)
-    @host = ENV['HOST'] || Rake::ExtensionCompiler.mingw_host
-  end
-
   alias :cook_without_checkpoint :cook
   def cook
     checkpoint = "ports/.#{name}-#{version}-#{host}.installed"
@@ -89,13 +113,30 @@ class MiniPortile
   end
 end
 
-namespace :ports do
-  directory "ports"
+file "lib/couchbase_ext.rb", &version_router
 
-  task :libcouchbase => ["ports"] do
-    recipe = MiniPortile.new "libcouchbase", "2.1.3"
+desc "Package gem for windows"
+task "package:windows" => ["package", "lib/couchbase_ext.rb"] do
+  vars = [
+    'CC',
+    'CFLAGS',
+    'CPATH',
+    'CPP',
+    'CPPFLAGS',
+    'LDFLAGS',
+    'LIBRARY_PATH',
+    'PATH'
+  ].reduce({}) do |h, v|
+    h[v] = ENV[v]
+    h
+  end
+  CROSS_PLATFORMS.each do |platform|
+    ENV['TARGET'] = platform.name
+    rm_rf("tmp/ ports/")
+    mkdir_p("ports")
+    recipe = MiniPortile.new("libcouchbase", "2.1.3")
+    recipe.host = platform.host
     recipe.files << "http://packages.couchbase.com/clients/c/libcouchbase-#{recipe.version}.tar.gz"
-
     recipe.configure_options.push("--disable-debug",
                                   "--disable-dependency-tracking",
                                   "--disable-couchbasemock",
@@ -105,16 +146,12 @@ namespace :ports do
                                   "--disable-tools")
     recipe.cook
     recipe.activate
+    platform.each_version do |long, short|
+      sh("env RUBY_CC_VERSION=#{short} RBENV_VERSION=#{long} rbenv exec rake cross compile")
+    end
+    vars.each do |k, v|
+      ENV[k] = v
+    end
+    sh("env RUBY_CC_VERSION=#{platform.short_versions.join(":")} RBENV_VERSION=1.9.3-p482 rbenv exec rake cross native gem")
   end
-end
-
-file "lib/couchbase_ext.rb", &version_router
-task :cross => ["lib/couchbase_ext.rb", "ports:libcouchbase"]
-
-desc "Package gem for windows"
-task "package:windows" => :package do
-  sh("env RUBY_CC_VERSION=1.8.7 RBENV_VERSION=1.8.7-p370 rbenv exec bundle exec rake cross compile")
-  sh("env RUBY_CC_VERSION=1.9.2 RBENV_VERSION=1.9.2-p320 rbenv exec bundle exec rake cross compile")
-  sh("env RUBY_CC_VERSION=2.0.0 RBENV_VERSION=2.0.0-p247 rbenv exec bundle exec rake cross compile")
-  sh("env RUBY_CC_VERSION=1.8.7:1.9.2:2.0.0 RBENV_VERSION=1.9.2-p320 rbenv exec bundle exec rake cross native gem")
 end

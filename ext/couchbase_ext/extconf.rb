@@ -46,7 +46,11 @@ end
 $CFLAGS << ' -std=c99 -Wall -Wextra '
 if ENV['DEBUG']
   $CFLAGS << ' -O0 -ggdb3 -pedantic '
+else
+  $CFLAGS << ' -O2'
+  $LDFLAGS << ' -Wl,--strip-debug' if RbConfig::CONFIG['target_os'] =~ /mingw32/
 end
+
 
 if RbConfig::CONFIG['target_os'] =~ /mingw32/
   dir_config("libcouchbase")
@@ -97,6 +101,7 @@ else
   dir_config("libcouchbase", HEADER_DIRS, LIB_DIRS)
 end
 
+
 if COMMON_HEADERS !~ /"ruby\.h"/
   (COMMON_HEADERS ||= "") << %(\n#include "ruby.h"\n)
 end
@@ -126,6 +131,8 @@ def die(message)
   abort
 end
 
+install_notice = "You must install libcouchbase >= 2.1.3\nSee http://www.couchbase.com/communities/c/ for more details"
+
 unless try_compile(<<-SRC)
   #include <libcouchbase/couchbase.h>
   #include <stdio.h>
@@ -135,10 +142,11 @@ unless try_compile(<<-SRC)
     return 0;
   }
   SRC
-  die("You must install libcouchbase >= 2.1.3\nSee http://www.couchbase.com/communities/c/ for more details")
+  die(install_notice)
 end
 
-have_library("couchbase", "lcb_verify_compiler_setup", "libcouchbase/couchbase.h") # just to add -lcouchbase properly
+# just to add -lcouchbase properly
+have_library("couchbase", "lcb_verify_compiler_setup", "libcouchbase/couchbase.h") or die(install_notice)
 have_header("mach/mach_time.h")
 have_header("stdint.h") or die("Failed to locate stdint.h")
 have_header("sys/time.h")
