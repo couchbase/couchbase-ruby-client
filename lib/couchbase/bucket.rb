@@ -35,12 +35,23 @@ module Couchbase
     #
     # @see http://couchbase.com/docs/memcached-api/memcached-api-protocol-text_cas.html
     #
+    # Setting the +:retry+ option to a positive number will cause this method
+    # to rescue the {Couchbase::Error::KeyExists} error that happens when
+    # an update collision is detected, and automatically get a fresh copy
+    # of the value and retry the block. This will repeat as long as there
+    # continues to be conflicts, up to the maximum number of retries specified.
+    # For asynchronous mode, this means the block will be yielded once for
+    # the initial {Bucket#get}, once for the final {Bucket#set} (successful
+    # or last failure), and zero or more additional {Bucket#get} retries
+    # in between, up to the maximum allowed by the +:retry+ option.
+    #
     # @param [String, Symbol] key
     #
     # @param [Hash] options the options for "swap" part
     # @option options [Fixnum] :ttl (self.default_ttl) the time to live of this key
     # @option options [Symbol] :format (self.default_format) format of the value
     # @option options [Fixnum] :flags (self.default_flags) flags for this key
+    # @option options [Fixnum] :retry (0) maximum number of times to autmatically retry upon update collision
     #
     # @yieldparam [Object, Result] value old value in synchronous mode and
     #   +Result+ object in asynchronous mode.
@@ -80,16 +91,32 @@ module Couchbase
     #
     # @return [Fixnum] the CAS of new value
     def cas(key, options = {})
+      retries_remaining = options.delete(:retry) || 0
       if async?
         block = Proc.new
         get(key) do |ret|
           val = block.call(ret) # get new value from caller
-          set(ret.key, val, options.merge(:cas => ret.cas, :flags => ret.flags), &block)
+          set(ret.key, val, options.merge(:cas => ret.cas, :flags => ret.flags)) do |set_ret|
+            if set_ret.error.is_a?(Couchbase::Error::KeyExists) && (retries_remaining > 0)
+              cas(key, options.merge(:retry => retries_remaining - 1), &block)
+            else
+              block.call(set_ret)
+            end
+          end
         end
       else
-        val, flags, ver = get(key, :extended => true)
-        val = yield(val) # get new value from caller
-        set(key, val, options.merge(:cas => ver, :flags => flags))
+        begin
+          val, flags, ver = get(key, :extended => true)
+          val = yield(val) # get new value from caller
+          set(key, val, options.merge(:cas => ver, :flags => flags))
+        rescue Couchbase::Error::KeyExists
+          if retries_remaining > 0
+            retries_remaining -= 1
+            retry
+          else
+            raise
+          end
+        end
       end
     end
     alias :compare_and_swap :cas
