@@ -42,11 +42,19 @@ module Couchbase
     #   bucket. Possible values are "memcached" and "couchbase".
     # @option options [Fixnum] :ram_quota (100) The RAM quota in megabytes.
     # @option options [Fixnum] :replica_number (1) The number of replicas of
-    #   each document
+    #   each document. Minimum 0, maximum 3.
     # @option options [String] :auth_type ("sasl") The authentication type.
     #   Possible values are "sasl" and "none". Note you should specify free
     #   port for "none"
     # @option options [Fixnum] :proxy_port The port for moxi
+    # @option options [true, false] :replica_index (true) Disable or
+    #   enable indexes for bucket replicas
+    # @option options [true, false] :flush_enabled (false) Enables the
+    #   'flush all' functionality on the specified bucket.
+    # @option options [true, false] :parallel_db_and_view_compaction (false)
+    #   Indicates whether database and view files on disk can be
+    #   compacted simultaneously
+    #
     def create_bucket(name, options = {})
       defaults = {
         :type => "couchbase",
@@ -54,7 +62,10 @@ module Couchbase
         :replica_number => 1,
         :auth_type => "sasl",
         :sasl_password => "",
-        :proxy_port => nil
+        :proxy_port => nil,
+        :flush_enabled => false,
+        :replica_index => true,
+        :parallel_db_and_view_compaction => false
       }
       options = defaults.merge(options)
       params = {"name" => name}
@@ -64,6 +75,9 @@ module Couchbase
       params["authType"] = options[:auth_type]
       params["saslPassword"] = options[:sasl_password]
       params["proxyPort"] = options[:proxy_port]
+      params["flushEnabled"] = !!options[:flush_enabled]
+      params["replicaIndex"] = !!options[:replica_index]
+      params["parallelDBAndViewCompaction"] = !!options[:parallel_db_and_view_compaction]
       payload = Utils.encode_params(params.reject!{|k, v| v.nil?})
       request = @connection.make_http_request("/pools/default/buckets",
                                               :content_type => "application/x-www-form-urlencoded",
