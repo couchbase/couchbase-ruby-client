@@ -173,4 +173,13 @@ class TestArithmetic < MiniTest::Test
     assert_equal [2, 2],   connection.decr(uniq_id(:foo), uniq_id(:bar), :delta => 10).values.sort
     assert_equal [1, 1],   connection.decr(uniq_id(:foo), uniq_id(:bar)).values.sort
   end
+
+  def test_it_returns_cas_value_in_extended_mode
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    orig_cas = connection.set(uniq_id(:foo), 1)
+    val, cas = connection.incr(uniq_id(:foo), :extended => true)
+    assert_equal 2, val
+    assert cas.is_a?(Numeric), "CAS should be numeric value: #{cas.inspect}"
+    refute_equal orig_cas, cas
+  end
 end

@@ -89,6 +89,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     params.cmd.arith.sign = sign;
     cb_params_build(&params);
     ctx = cb_context_alloc_common(bucket, proc, params.cmd.arith.num);
+    ctx->extended = params.cmd.arith.extended;
     err = lcb_arithmetic(bucket->handle, (const void *)ctx,
             params.cmd.arith.num, params.cmd.arith.ptr);
     cb_params_destroy(&params);
