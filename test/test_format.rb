@@ -153,7 +153,12 @@ class TestFormat < MiniTest::Test
     assert_equal(ZlibTranscoder::FMT_ZLIB|Couchbase::Bucket::FMT_DOCUMENT, flags)
     connection.transcoder = nil
     doc = connection.get(uniq_id)
-    assert_equal "x\x01\xABVJ\xCB\xCFW\xB2RJJ,R\xAA\x05\0\x1Dz\x044", doc
+    case RUBY_VERSION
+    when /^1\.8/
+      assert_equal "x\x01\xABVJ\xCB\xCFW\xB2RJJ,R\xAA\x05\0\x1Dz\x044", doc
+    else
+      assert_equal "x\u0001\xABVJ\xCB\xCFW\xB2RJJ,R\xAA\u0005\u0000\u001Dz\u00044", doc
+    end
   end
 
 end
