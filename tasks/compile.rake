@@ -54,9 +54,10 @@ class Platform
   end
 end
 
+recent = "2.0.0-p353"
 CROSS_PLATFORMS = [
-  Platform.new(:name => 'x64-mingw32', :host => 'x86_64-w64-mingw32', :versions => %w(1.9.3-p482 2.0.0-p343)),
-  Platform.new(:name => 'x86-mingw32', :host => 'i686-w64-mingw32', :versions => %w(1.8.7-p374 1.9.3-p482 2.0.0-p343)),
+  Platform.new(:name => 'x64-mingw32', :host => 'x86_64-w64-mingw32', :versions => %w(1.9.3-p484 2.0.0-p353 2.1.0)),
+  Platform.new(:name => 'x86-mingw32', :host => 'i686-w64-mingw32', :versions => %w(1.8.7-p374 1.9.3-p484 2.0.0-p353 2.1.0)),
 ]
 
 # Setup compile tasks.  Configuration can be passed via ENV.
@@ -134,7 +135,7 @@ task "package:windows" => ["package", "lib/couchbase_ext.rb"] do
     ENV['TARGET'] = platform.name
     rm_rf("tmp/ ports/")
     mkdir_p("ports")
-    recipe = MiniPortile.new("libcouchbase", "2.1.3")
+    recipe = MiniPortile.new("libcouchbase", "2.2.0_30_gc87bec4")
     recipe.host = platform.host
     recipe.files << "http://packages.couchbase.com/clients/c/libcouchbase-#{recipe.version}.tar.gz"
     recipe.configure_options.push("--disable-debug",
@@ -152,6 +153,6 @@ task "package:windows" => ["package", "lib/couchbase_ext.rb"] do
     vars.each do |k, v|
       ENV[k] = v
     end
-    sh("env RUBY_CC_VERSION=#{platform.short_versions.join(":")} RBENV_VERSION=1.9.3-p482 rbenv exec rake cross native gem")
+    sh("env RUBY_CC_VERSION=#{platform.short_versions.join(":")} RBENV_VERSION=#{recent} rbenv exec rake cross native gem")
   end
 end
