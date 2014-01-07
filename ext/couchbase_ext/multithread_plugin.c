@@ -550,7 +550,7 @@ typedef fd_set rb_fdset_t;
 
 typedef struct loop_select_arg {
     rb_mt_loop *loop;
-    rb_fdset_t in, out;
+    rb_fdset_t in, out, exc;
 } ls_arg;
 
     static void
@@ -574,7 +574,7 @@ loop_run_select(VALUE argp)
 {
     ls_arg *args = (ls_arg*) argp;
     rb_mt_loop *loop = args->loop;
-    rb_fdset_t *in = NULL, *out = NULL;
+    rb_fdset_t *in = NULL, *out = NULL, *exc = NULL;
     struct timeval timeout;
     struct timeval *timeoutp = NULL;
     int result, max = 0;
@@ -598,21 +598,26 @@ loop_run_select(VALUE argp)
         uint32_t i;
         rb_fd_init(&args->in);
         rb_fd_init(&args->out);
+        rb_fd_init(&args->exc);
         for(i = 0; i < loop->events.count; i++) {
             rb_mt_socket_list *list = &loop->events.sockets[i];
-            if (list->flags & LCB_READ_EVENT) {
-                in = &args->in;
-                rb_fd_set(list->socket, in);
-            }
-            if (list->flags & LCB_WRITE_EVENT) {
-                out = &args->out;
-                rb_fd_set(list->socket, out);
+            if (list->flags != 0) {
+                if (list->flags & LCB_READ_EVENT) {
+                    in = &args->in;
+                    rb_fd_set(list->socket, in);
+                }
+                if (list->flags & LCB_WRITE_EVENT) {
+                    out = &args->out;
+                    rb_fd_set(list->socket, out);
+                }
+                exc = &args->exc;
+                rb_fd_set(list->socket, exc);
             }
         }
         max = events_max_fd(&loop->events) + 1;
     }
 
-    result = rb_thread_fd_select(max, in, out, NULL, timeoutp);
+    result = rb_thread_fd_select(max, in, out, exc, timeoutp);
 
     if (result < 0) {
         rb_sys_fail("rb_thread_fd_select");
@@ -634,6 +639,10 @@ loop_run_select(VALUE argp)
             }
             if (out && rb_fd_isset(list->socket, out)) {
                 flags |= LCB_WRITE_EVENT;
+                result--;
+            }
+            if (exc && rb_fd_isset(list->socket, exc)) {
+                flags = LCB_ERROR_EVENT | LCB_WRITE_EVENT;
                 result--;
             }
             if (flags) {
