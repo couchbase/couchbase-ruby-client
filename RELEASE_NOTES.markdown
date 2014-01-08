@@ -3,6 +3,32 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3.4 (2014-01-08)
+
+* [major] Build 64-bit versions of the extensions for Windows
+  platform. Also support ruby 2.0 and 2.1.
+
+* [minor] Update hacking section in README
+
+* [minor] Fix gemspec warnings regarding versions of the dependencies.
+  Now it honours semantic versioning and doesn't use strict versions.
+
+* [major] RCBC-151 Return CAS in extended mode for incr/decr
+
+* [minor] RCBC-150 Update list of options on `Cluster.create_bucket`.
+  Added new options: `:replica_index`, `:flush_enabled`,
+  `:parallel_db_and_view_compaction`.
+
+* [major] Allow retries on Couchbase::Bucket#cas collisions.  Now it
+  takes a `:retry` Fixnum option that specifies the maximum number of
+  times the method should retry the entire get/update/set operation
+  when a `Couchbase::Error::KeyExists` error is encountered due to a
+  concurrent update from another writer between its `#get` and `#set`
+  calls.
+
+* [major] MD5 and truncate ActiveSupport::Cache keys that are longer
+  than 250 characters.
+
 ## 1.3.3 (2013-09-12)
 
 * [major] RCBC-134 Allow application to use several connections with
