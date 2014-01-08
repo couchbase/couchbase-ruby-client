@@ -569,6 +569,69 @@ choose from several asynchronous IO options:
           end
         end
 
+## HACKING
+
+Clone the repository. For starters, you can use github mirror, but
+make sure you have read and understand [CONTRIBUTING.markdown][10] if
+you are going to send us patches.
+
+    $ git clone git://github.com/couchbase/couchbase-ruby-client.git
+    $ cd couchbase-ruby-client
+
+Install all development dependencies. You can use any ruby version
+since 1.8.7, but make sure your changes work at least on major
+releases (1.8.7, 1.9.3, 2.0.0 and 2.1.0 at the moment):
+
+    $ gem install bundler
+    $ bundle install
+
+Don't forget to write the tests. You can find examples in the `tests/`
+directory. To run tests with a mock just compile extension and run the
+`test` task, it will download a test mock of couchbase cluster as a
+part of the process (the mock is generally slower, but easier to
+setup):
+
+    $ rake compile test
+
+If you have real Couchbase server installed somewhere, you can pass
+its address using environment variable `COUCHBASE_SERVER` like this:
+
+    $ COUCHBASE_SERVER=localhost:8091 rake compile test
+
+And finally, you can package the gem with your awesome changes. For
+UNIX-like systems a regular source-based package will be enough, so the
+command below will produce `pkg/couchbase-VERSION.gem`, where
+`VERSION` is the current version from file `lib/couchbase/version.rb`:
+
+    $ rake package
+
+The Windows operating system usually doesn't have a build environment
+installed. This is why we are cross-compiling blobs for Windows from
+UNIX-like boxes. To do it you need to install mingw and the
+[rake-compiler][11] and then build a variety of ruby versions currently
+supported on Windows. An example config looks like this:
+
+    $ rake-compiler update-config
+    Updating /home/avsej/.rake-compiler/config.yml
+    Found Ruby version 1.8.7 for platform i386-mingw32 (/home/avsej/.rake-compiler/ruby/i686-w64-mingw32/ruby-1.8.7-p374/lib/ruby/1.8/i386-mingw32/rbconfig.rb)
+    Found Ruby version 1.9.3 for platform i386-mingw32 (/home/avsej/.rake-compiler/ruby/i686-w64-mingw32/ruby-1.9.3-p448/lib/ruby/1.9.1/i386-mingw32/rbconfig.rb)
+    Found Ruby version 2.0.0 for platform i386-mingw32 (/home/avsej/.rake-compiler/ruby/i686-w64-mingw32/ruby-2.0.0-p247/lib/ruby/2.0.0/i386-mingw32/rbconfig.rb)
+    Found Ruby version 2.1.0 for platform i386-mingw32 (/home/avsej/.rake-compiler/ruby/i686-w64-mingw32/ruby-2.1.0/lib/ruby/2.1.0/i386-mingw32/rbconfig.rb)
+    Found Ruby version 1.9.3 for platform x64-mingw32 (/home/avsej/.rake-compiler/ruby/x86_64-w64-mingw32/ruby-1.9.3-p448/lib/ruby/1.9.1/x64-mingw32/rbconfig.rb)
+    Found Ruby version 2.0.0 for platform x64-mingw32 (/home/avsej/.rake-compiler/ruby/x86_64-w64-mingw32/ruby-2.0.0-p247/lib/ruby/2.0.0/x64-mingw32/rbconfig.rb)
+    Found Ruby version 2.1.0 for platform x64-mingw32 (/home/avsej/.rake-compiler/ruby/x86_64-w64-mingw32/ruby-2.1.0/lib/ruby/2.1.0/x64-mingw32/rbconfig.rb)
+
+Before you build, check relevant ruby and libcouchbase versions in
+`tasks/compile.rake`. After that you can run the `package:windows`
+task and you will find all artifacts in `pkg/` directory:
+
+    $ rake package:windows
+    $ ls -1 pkg/*.gem
+    pkg/couchbase-1.3.4.gem
+    pkg/couchbase-1.3.4-x64-mingw32.gem
+    pkg/couchbase-1.3.4-x86-mingw32.gem
+
+
 [1]: http://couchbase.com/issues/browse/RCBC
 [2]: http://freenode.net/irc_servers.shtml
 [3]: http://www.couchbase.com/develop/c/current
@@ -578,4 +641,6 @@ choose from several asynchronous IO options:
 [7]: https://github.com/couchbase/couchbase-ruby-model
 [8]: http://www.couchbase.com/develop/c/current
 [9]: http://rubygems.org/gems/eventmachine
+[10]: https://github.com/couchbase/couchbase-ruby-client/blob/master/CONTRIBUTING.markdown
+[11]: https://github.com/luislavena/rake-compiler
 
