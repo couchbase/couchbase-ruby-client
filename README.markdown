@@ -8,10 +8,11 @@ are related libraries available:
 
 ## SUPPORT
 
-If you found an issue, please file it in our [JIRA][1]. Also you are
-always welcome on `#libcouchbase` channel at [freenode.net IRC servers][2].
+If you find an issue, please file it in our [JIRA][1]. Also you are
+always welcome on the `#libcouchbase` channel at [freenode.net IRC servers][2].
 
-Documentation: [http://rdoc.info/gems/couchbase](http://rdoc.info/gems/couchbase)
+Documentation: [http://docs.couchbase.com/couchbase-sdk-ruby-1.3/](http://docs.couchbase.com/couchbase-sdk-ruby-1.3/)
+API Documentation: [http://www.couchbase.com/autodocs/](http://www.couchbase.com/autodocs/)
 
 ## INSTALL
 
@@ -39,7 +40,7 @@ your OS release:
     # Ubuntu 10.04 Lucid Lynx (Debian stable or testing)
     deb http://packages.couchbase.com/ubuntu lucid lucid/main
 
-Import Couchbase PGP key:
+Import the Couchbase PGP key:
 
     wget -O- http://packages.couchbase.com/ubuntu/couchbase.key | sudo apt-key add -
 
@@ -47,7 +48,7 @@ Then install them
 
     $ sudo apt-get update && sudo apt-get install libcouchbase-dev
 
-Again, if you need preview versions, just use another repositories in
+Again, if you need a preview of a future version, just use another repository in
 your `couchbase.list`
 
     # Ubuntu 11.10 Oneiric Ocelot (Debian unstable)
@@ -72,8 +73,8 @@ Then to install libcouchbase itself, run:
 
     $ sudo yum update && sudo yum install libcouchbase-devel
 
-We have preview repositories for RPMs too, use them if you need to try
-fresh version of couchbase gem:
+We have preview repositories for RPMs too, use them if you want to try
+the latest version of libcouchbase:
 
     [couchbase]
     name = Couchbase package repository
@@ -85,8 +86,8 @@ fresh version of couchbase gem:
 
 ### Windows
 
-There no additional dependencies for Windows systems. The gem carry
-prebuilt binary for it.
+There are no additional dependencies for Windows systems. The gem carries
+a prebuilt binary for it.
 
 ### Couchbase gem
 
@@ -96,12 +97,12 @@ Now install the couchbase gem itself
 
 ## USAGE
 
-First of all you need to load library:
+First, you need to load the library:
 
     require 'couchbase'
 
-There are several ways to establish new connection to Couchbase Server.
-By default it uses the `http://localhost:8091/pools/default/buckets/default`
+There are several ways to establish a new connection to Couchbase Server.
+By default it uses `http://localhost:8091/pools/default/buckets/default`
 as the endpoint. The client will automatically adjust configuration when
 the cluster will rebalance its nodes when nodes are added or deleted
 therefore this client is "smart".
@@ -122,13 +123,13 @@ The hash parameters take precedence on string URL.
 If you worry about state of your nodes or not sure what node is alive,
 you can pass the list of nodes and the library will iterate over it
 until finds the working one. From that moment it won't use **your**
-list, because node list from cluster config is more actual.
+list, because node list from cluster config carries more detail.
 
     c = Couchbase.connect(:bucket => "mybucket",
                           :node_list => ['example.com:8091', example.net'])
 
-There is also handy method `Couchbase.bucket` which uses thread local
-storage to keep the reference to default connection. You can set the
+There is also a handy method `Couchbase.bucket` which uses thread local
+storage to keep a reference to a connection. You can set the
 connection options via `Couchbase.connection_options`:
 
     Couchbase.connection_options = {:bucket => 'blog'}
@@ -137,9 +138,9 @@ connection options via `Couchbase.connection_options`:
 
 The library supports both synchronous and asynchronous mode. In
 asynchronous mode all operations will return control to caller
-without blocking current thread. You can pass the block to method and it
+without blocking current thread. You can pass a block to the method and it
 will be called with result when the operation will be completed. You
-need to run event loop when you scheduled your operations:
+need to run the event loop once you've scheduled your operations:
 
     c = Couchbase.connect
     c.run do |conn|
@@ -155,7 +156,7 @@ The handlers could be nested
       end
     end
 
-The asynchronous callback receives instance of `Couchbase::Result` which
+The asynchronous callback receives an instance of `Couchbase::Result` which
 responds to several methods to figure out what was happened:
 
   * `success?`. Returns `true` if operation succed.
@@ -171,7 +172,7 @@ responds to several methods to figure out what was happened:
 
   * `cas`. The CAS version tag.
 
-  * `node`. Node address. It is used in flush and stats commands.
+  * `node`. Node address. This is used in the flush and stats commands.
 
   * `operation`. The symbol, representing an operation.
 
@@ -186,14 +187,14 @@ used. It can be set in following fashions:
     handler = lambda {|opcode, key, exc| }
     c.on_error = handler
 
-By default connection uses `:quiet` mode. This mean it won't raise
-exceptions when the given key is not exists:
+By default connections use `:quiet` mode. This mean it won't raise
+exceptions when the given key does not exist:
 
     c.get("missing-key")            #=> nil
 
 It could be useful when you are trying to make you code a bit efficient
 by avoiding exception handling. (See `#add` and `#replace` operations).
-You can turn on these exception by passing `:quiet => false` when you
+You can turn on these exceptions by passing `:quiet => false` when you
 are instantiating the connection or change corresponding attribute:
 
     c.quiet = false
@@ -278,7 +279,7 @@ Hash-like syntax
 
 ### Add
 
-Add command will fail if the key already exists. It accepts the same
+The add command will fail if the key already exists. It accepts the same
 options as set command above.
 
     c.add("foo", "bar")
@@ -338,8 +339,10 @@ Couchbase::Error::DeltaBadval if the delta or value is not a number.
     c.incr("missing2", :create => true)     #=> 0
     c.incr("missing2", :create => true)     #=> 1
 
-Note that it isn't the same as increment/decrement in ruby, which is
-performed on client side with following `set` operation:
+Note that it isn't the same as increment/decrement in ruby. A
+Couchbase increment is atomic on a distributed system.  The
+Ruby incement could ovewrite intermediate values with multiple
+clients, as shown with following `set` operation:
 
     c["foo"] = 10
     c["foo"] -= 20                  #=> -10
@@ -469,9 +472,9 @@ To execute view you need to fetch it from design document `_design/blog`:
     blog.views                    #=> ["recent_posts"]
     blog.recent_posts             #=> [#<Couchbase::ViewRow:9855800 @id="hello-world" @key="2009/01/15 15:52:20" @value="Hello World" @doc=nil @meta={} @views=[]>, ...]
 
-Gem uses streaming parser to access view results so you can iterate them
-easily and if your code won't keep links to the documents GC might free
-them as soon as it decide they are unreachable, because parser doesn't
+The gem uses a streaming parser to access view results so you can iterate them
+easily. If your code doesn't keep links to the documents the GC might free
+them as soon as it decides they are unreachable, because the parser doesn't
 store global JSON tree.
 
     blog.recent_posts.each do |doc|
@@ -499,7 +502,7 @@ You can also use Enumerator to iterate view results
       acc
     end
 
-The Couchbase server could generate errors during view execution with
+Couchbase Server could generate errors during view execution with
 `200 OK` and partial results. By default the library raises exception as
 soon as errors detected in the result stream, but you can define the
 callback `on_error` to intercept these errors and do something more
