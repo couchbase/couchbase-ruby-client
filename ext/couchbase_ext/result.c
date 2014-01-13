@@ -62,7 +62,7 @@ cb_result_inspect(VALUE self)
     }
 
     attr = rb_attr_get(self, cb_id_iv_value);
-    if (RTEST(attr) && rb_obj_is_kind_of(attr, cb_cBucket)) {
+    if (RTEST(attr) && RTEST(rb_obj_is_kind_of(attr, cb_cBucket))) {
         rb_str_buf_cat2(str, " bucket="); /* value also accessible using alias #bucket */
         rb_str_append(str, rb_inspect(attr));
     }

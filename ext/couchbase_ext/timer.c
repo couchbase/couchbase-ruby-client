@@ -169,7 +169,7 @@ cb_timer_init(int argc, VALUE *argv, VALUE self)
     rb_need_block();
     rb_scan_args(argc, argv, "21&", &bucket, &timeout, &opts, &cb);
 
-    if (CLASS_OF(bucket) != cb_cBucket) {
+    if (!RTEST(rb_obj_is_kind_of(bucket, cb_cBucket))) {
         rb_raise(rb_eTypeError, "wrong argument type (expected Couchbase::Bucket)");
     }
     tm->self = self;

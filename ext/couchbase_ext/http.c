@@ -206,7 +206,7 @@ cb_http_request_init(int argc, VALUE *argv, VALUE self)
     if (NIL_P(on_body) && rb_block_given_p()) {
         on_body = rb_block_proc();
     }
-    if (CLASS_OF(bucket) != cb_cBucket) {
+    if (!RTEST(rb_obj_is_kind_of(bucket, cb_cBucket))) {
         rb_raise(rb_eTypeError, "wrong argument type (expected Couchbase::Bucket)");
     }
     memset(&request->cmd, 0, sizeof(lcb_http_cmd_t));
