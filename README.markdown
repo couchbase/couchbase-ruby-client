@@ -9,10 +9,10 @@ are related libraries available:
 ## SUPPORT
 
 If you find an issue, please file it in our [JIRA][1]. Also you are
-always welcome on the `#libcouchbase` channel at [freenode.net IRC servers][2].
+always welcome on the `#libcouchbase` channel at [freenode.net IRC
+servers][2]. Checkout [library overview][overview] and [API
+documentation][api].
 
-Documentation: [http://docs.couchbase.com/couchbase-sdk-ruby-1.3/](http://docs.couchbase.com/couchbase-sdk-ruby-1.3/)
-API Documentation: [http://www.couchbase.com/autodocs/](http://www.couchbase.com/autodocs/)
 
 ## INSTALL
 
@@ -635,6 +635,8 @@ task and you will find all artifacts in `pkg/` directory:
     pkg/couchbase-1.3.4-x86-mingw32.gem
 
 
+[api]: http://www.couchbase.com/autodocs/couchbase-ruby-client-1.3.4/index.html
+[overview]: http://docs.couchbase.com/couchbase-sdk-ruby-1.3/index.html
 [1]: http://couchbase.com/issues/browse/RCBC
 [2]: http://freenode.net/irc_servers.shtml
 [3]: http://www.couchbase.com/develop/c/current
