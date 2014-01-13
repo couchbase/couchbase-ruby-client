@@ -95,6 +95,9 @@ Now install the couchbase gem itself
 
     $ gem install couchbase
 
+The library verified with all major ruby versions: 1.8.7, 1.9.3, 2.0,
+2.1.
+
 ## USAGE
 
 First, you need to load the library:
