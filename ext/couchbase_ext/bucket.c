@@ -69,7 +69,9 @@ cb_bucket_free(void *ptr)
             lcb_destroy(bucket->handle);
             lcb_destroy_io_ops(bucket->io);
         }
-        st_free_table(bucket->object_space);
+        if (bucket->object_space) {
+            st_free_table(bucket->object_space);
+        }
         xfree(bucket);
     }
 }
