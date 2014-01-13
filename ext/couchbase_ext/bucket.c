@@ -244,6 +244,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             if (arg != Qundef) {
                 cb_bucket_transcoder_set(bucket->self, arg);
             }
+            arg = rb_hash_aref(opts, cb_sym_environment);
             if (arg != Qnil) {
                 if (arg == cb_sym_production || arg == cb_sym_development) {
                     bucket->environment = arg;

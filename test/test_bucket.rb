@@ -247,4 +247,30 @@ class TestBucket < MiniTest::Test
     GC.start # make sure it won't touch handle in finalizer
   end
 
+  def test_it_accepts_environment_option
+    with_mock do |mock|
+      connection = Couchbase.new(:hostname => mock.host,
+                                 :port => mock.port,
+                                 :environment => :development)
+      assert_equal :development, connection.environment
+    end
+  end
+
+  def test_it_defaults_to_production_environment
+    with_mock do |mock|
+      connection = Couchbase.new(:hostname => mock.host,
+                                 :port => mock.port)
+      assert_equal :production, connection.environment
+    end
+  end
+
+  def test_it_uses_default_environment_if_unknown_was_specified
+    with_mock do |mock|
+      connection = Couchbase.new(:hostname => mock.host,
+                                 :port => mock.port,
+                                 :environment => :foobar)
+      assert_equal :production, connection.environment
+    end
+  end
+
 end
