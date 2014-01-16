@@ -136,10 +136,9 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
  * provided at the protocol level. This simplifies what would otherwise be a
  * two-stage get and set operation.
  *
- * @note that server values stored and transmitted as unsigned numbers,
- *   therefore if you try to store negative number and then increment or
- *   decrement it will cause overflow. (see "Integer overflow" example
- *   below)
+ * @note that server treats values as unsigned numbers, therefore if
+ * you try to store negative number and then increment or decrement it
+ * will cause overflow. (see "Integer overflow" example below)
  *
  * @overload incr(key, delta = 1, options = {})
  *   @param key [String, Symbol] Key used to reference the value.
@@ -194,6 +193,16 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
  *     c.set("foo", -100)
  *     c.get("foo")           #=> -100
  *     c.incr("foo")          #=> 18446744073709551517
+ *     # but it might look like working
+ *     c.set("foo", -2)
+ *     c.get("foo")           #=> -2
+ *     c.incr("foo", 2)       #=> 0
+ *     # on server:
+ *     #    // UINT64_MAX is 18446744073709551615
+ *     #    uint64_t num = atoll("-2");
+ *     #    // num is 18446744073709551614
+ *     #    num += 2
+ *     #    // num is 0
  *
  *   @example Asynchronous invocation
  *     c.run do
