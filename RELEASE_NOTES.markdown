@@ -3,6 +3,24 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3.5 (2014-02-05)
+
+* [major] RCBC-159, RCBC-152 Honor the :environment constructor argument
+
+* [major] Allow inheritance from `Couchbase::Bucket`. It wasn't
+  possible to create a view with subclass of the `Couchbase::Bucket`.
+
+* [major] Ensure that an exception raised early will not prevent the
+  finalizer from being called in the underlying client being constructed.
+  One example situation where this could occur:
+
+        class Couchbase::Bucket
+          def initialize(*args)
+            raise "something wrong"
+            super
+          end
+        end
+
 ## 1.3.4 (2014-01-08)
 
 * [major] Build 64-bit versions of the extensions for Windows
