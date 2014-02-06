@@ -627,6 +627,17 @@ supported on Windows. An example config looks like this:
     Found Ruby version 2.0.0 for platform x64-mingw32 (/home/avsej/.rake-compiler/ruby/x86_64-w64-mingw32/ruby-2.0.0-p247/lib/ruby/2.0.0/x64-mingw32/rbconfig.rb)
     Found Ruby version 2.1.0 for platform x64-mingw32 (/home/avsej/.rake-compiler/ruby/x86_64-w64-mingw32/ruby-2.1.0/lib/ruby/2.1.0/x64-mingw32/rbconfig.rb)
 
+To install all versions needed for `rake package:windows` use these
+commands:
+
+    $ rake-compiler cross-ruby HOST=i386-mingw32 VERSION=1.8.7-p374
+    $ rake-compiler cross-ruby HOST=i386-mingw32 VERSION=1.9.3-p448
+    $ rake-compiler cross-ruby HOST=i386-mingw32 VERSION=2.0.0-p247
+    $ rake-compiler cross-ruby HOST=i386-mingw32 VERSION=2.1.0
+    $ rake-compiler cross-ruby HOST=x64-mingw32 VERSION=1.9.3-p448
+    $ rake-compiler cross-ruby HOST=x64-mingw32 VERSION=2.0.0-p247
+    $ rake-compiler cross-ruby HOST=x64-mingw32 VERSION=2.1.0
+
 Before you build, check relevant ruby and libcouchbase versions in
 `tasks/compile.rake`. After that you can run the `package:windows`
 task and you will find all artifacts in `pkg/` directory:
