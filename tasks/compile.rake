@@ -131,6 +131,8 @@ task "package:windows" => ["package", "lib/couchbase_ext.rb"] do
     h[v] = ENV[v]
     h
   end
+  ENV['LDFLAGS'] = '-static-libgcc'
+
   CROSS_PLATFORMS.each do |platform|
     ENV['TARGET'] = platform.name
     rm_rf("tmp/ ports/")

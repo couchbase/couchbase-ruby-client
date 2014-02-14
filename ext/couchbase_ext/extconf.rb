@@ -53,6 +53,7 @@ end
 
 
 if RbConfig::CONFIG['target_os'] =~ /mingw32/
+  $LDFLAGS << ' -static-libgcc'
   dir_config("libcouchbase")
 else
   LIBDIR = RbConfig::CONFIG['libdir']
