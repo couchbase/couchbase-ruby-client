@@ -3,6 +3,11 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3.6 (2014-02-17)
+
+* [major] Fix linkage issue which blocks library installation on
+  windows.
+
 ## 1.3.5 (2014-02-05)
 
 * [major] RCBC-159, RCBC-152 Honor the :environment constructor argument
