@@ -254,7 +254,7 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key,
             klass = cb_eDuplicateCommands;
             break;
         case LCB_NO_MATCHING_SERVER:
-            klass = cb_eBadEnvironment;
+            klass = cb_eNoMatchingServer;
             break;
         case LCB_BAD_ENVIRONMENT:
             klass = cb_eBadEnvironment;
