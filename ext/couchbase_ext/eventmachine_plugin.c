@@ -51,6 +51,8 @@ struct rb_em_event {
     lcb_uint32_t usec;
     short canceled;
     short current_flags;
+    short in_read_handler;
+    short deferred_write_reset;
     VALUE self;
     rb_em_loop *loop;
 };
@@ -140,7 +142,9 @@ rb_em_socket_notify_readable(VALUE self)
 
     if (RTEST(event)) {
         Data_Get_Struct(event, rb_em_event, ev);
+        ev->in_read_handler = 1;
         rb_em_event_run_callback(ev, LCB_READ_EVENT);
+        ev->in_read_handler = 0;
     } else {
         rb_funcall_0(self, cb_id_detach);
     }
@@ -157,6 +161,10 @@ rb_em_socket_notify_writable(VALUE self)
     if (RTEST(event)) {
         Data_Get_Struct(event, rb_em_event, ev);
         rb_em_event_run_callback(ev, LCB_WRITE_EVENT);
+        if (ev->deferred_write_reset) {
+            ev->deferred_write_reset = 0;
+            rb_funcall_1(ev->holder, cb_id_set_notify_writable, Qfalse);
+        }
     } else {
         rb_funcall_0(self, cb_id_detach);
     }
@@ -278,8 +286,12 @@ lcb_io_update_event(struct lcb_io_opt_st *iops,
     ev->handler = handler;
 
     rb_funcall_1(ev->holder, cb_id_set_notify_readable, (flags & LCB_READ_EVENT) ? Qtrue : Qfalse);
-    rb_funcall_1(ev->holder, cb_id_set_notify_writable, (flags & LCB_WRITE_EVENT) ? Qtrue : Qfalse);
-
+    /* it is safe to reset WRITE event only from WRITE handler */
+    if (ev->in_read_handler && (flags & LCB_WRITE_EVENT) == 0 && RTEST(rb_funcall_0(ev->holder, cb_id_notify_writable_p))) {
+        ev->deferred_write_reset = 1;
+    } else {
+        rb_funcall_1(ev->holder, cb_id_set_notify_writable, (flags & LCB_WRITE_EVENT) ? Qtrue : Qfalse);
+    }
     (void)iops;
     return 0;
 }

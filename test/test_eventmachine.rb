@@ -17,6 +17,7 @@
 
 require File.join(File.dirname(__FILE__), 'setup')
 require 'eventmachine'
+require 'em-synchrony'
 
 class TestEventmachine < MiniTest::Test
 
@@ -65,6 +66,13 @@ class TestEventmachine < MiniTest::Test
       end
     end
 
+    def test_integration_with_em_synchrony
+      EM.epoll
+      EM.synchrony do
+        Couchbase::Bucket.new(:engine => :eventmachine, bucket: "default", :node_list => ["localhost:8091"])
+        EventMachine.stop
+      end
+    end
   end
 
 end
