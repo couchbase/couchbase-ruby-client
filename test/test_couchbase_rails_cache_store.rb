@@ -92,13 +92,10 @@ class TestCouchbaseRailsCacheStore < MiniTest::Test
 
   def test_it_reads_raw_data
     store.write uniq_id, @foo
-    expected = case RUBY_VERSION
-               when /^2\.0/
-                 "\x04\bU:\x0FOpenStruct{\x06:\fpayloadI\"\bfoo\x06:\x06ET"
-               when /^1\.9/
-                 "\x04\bU:\x0FOpenStruct{\x06:\fpayloadI\"\bfoo\x06:\x06EF"
-               else
+    expected = if RUBY_VERSION =~ /^1\.8/
                  "\004\bU:\017OpenStruct{\006:\fpayload\"\bfoo"
+               else
+                 "\x04\bU:\x0FOpenStruct{\x06:\fpayloadI\"\bfoo\x06:\x06ET"
                end
     assert_equal expected, store.read(uniq_id, :raw => true)
   end
