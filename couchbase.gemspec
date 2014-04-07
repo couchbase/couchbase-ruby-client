@@ -44,7 +44,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'rake-compiler', '~> 0.7', '>= 0.7.5'
   s.add_development_dependency 'mini_portile', '~> 0.5', '>= 0.5.2'
   s.add_development_dependency 'yajl-ruby', '~> 1.1', '>= 1.1.0'
-  s.add_development_dependency 'active_support'
+  s.add_development_dependency 'activesupport'
   s.add_development_dependency 'eventmachine'
   s.add_development_dependency 'em-synchrony'
 end
