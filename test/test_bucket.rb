@@ -273,4 +273,16 @@ class TestBucket < MiniTest::Test
     end
   end
 
+  def test_it_can_duplicate_the_connection_creating_new_one
+    with_mock do |mock|
+      connection = Couchbase.new(:hostname => mock.host,
+                                 :port => mock.port)
+      double = connection.dup
+      assert_equal double.hostname, connection.hostname
+      assert_equal double.port, connection.port
+      connection.disconnect
+      refute connection.connected?, "original connection should be closed"
+      assert double.connected?, "duplicate connection should be alive"
+    end
+  end
 end

@@ -589,7 +589,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b = DATA_PTR(copy);
     orig_b = DATA_PTR(orig);
 
-    copy_b->self = copy_b->self;
+    copy_b->self = copy;
     copy_b->port = orig_b->port;
     copy_b->authority = orig_b->authority;
     copy_b->hostname = orig_b->hostname;
