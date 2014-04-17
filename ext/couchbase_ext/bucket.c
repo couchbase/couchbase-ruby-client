@@ -99,6 +99,8 @@ cb_bucket_mark(void *ptr)
         rb_gc_mark(bucket->on_error_proc);
         rb_gc_mark(bucket->on_connect_proc);
         rb_gc_mark(bucket->key_prefix_val);
+        rb_gc_mark(bucket->node_list);
+        rb_gc_mark(bucket->bootstrap_transports);
         if (bucket->object_space) {
             st_foreach(bucket->object_space, cb_bucket_mark_object_i, (st_data_t)bucket);
         }
@@ -171,6 +173,11 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
                 Check_Type(arg, T_ARRAY);
                 bucket->node_list = rb_ary_join(arg, STR_NEW_CSTR(";"));
                 rb_str_freeze(bucket->node_list);
+            }
+            arg = rb_hash_aref(opts, cb_sym_bootstrap_transports);
+            if (arg != Qnil) {
+                Check_Type(arg, T_ARRAY);
+                bucket->bootstrap_transports = arg;
             }
             arg = rb_hash_aref(opts, cb_sym_hostname);
             if (arg != Qnil) {
@@ -325,6 +332,11 @@ do_connect(struct cb_bucket_st *bucket)
 {
     lcb_error_t err;
     struct lcb_create_st create_opts;
+    lcb_config_transport_t transports[3] = {
+        LCB_CONFIG_TRANSPORT_HTTP,
+        LCB_CONFIG_TRANSPORT_LIST_END,
+        LCB_CONFIG_TRANSPORT_LIST_END
+    };
 
     if (bucket->handle) {
         cb_bucket_disconnect(bucket->self);
@@ -367,13 +379,28 @@ do_connect(struct cb_bucket_st *bucket)
     }
 
     memset(&create_opts, 0, sizeof(struct lcb_create_st));
-    create_opts.version = 1;
-    create_opts.v.v1.type = bucket->type;
-    create_opts.v.v1.host = RTEST(bucket->node_list) ? RSTRING_PTR(bucket-> node_list) : RSTRING_PTR(bucket->authority);
-    create_opts.v.v1.user = RTEST(bucket->username) ? RSTRING_PTR(bucket->username) : NULL;
-    create_opts.v.v1.passwd = RTEST(bucket->password) ? RSTRING_PTR(bucket->password) : NULL;
-    create_opts.v.v1.bucket = RSTRING_PTR(bucket->bucket);
-    create_opts.v.v1.io = bucket->io;
+    create_opts.version = 2;
+    create_opts.v.v2.type = bucket->type;
+    create_opts.v.v2.host = RTEST(bucket->node_list) ? RSTRING_PTR(bucket-> node_list) : RSTRING_PTR(bucket->authority);
+    create_opts.v.v2.user = RTEST(bucket->username) ? RSTRING_PTR(bucket->username) : NULL;
+    create_opts.v.v2.passwd = RTEST(bucket->password) ? RSTRING_PTR(bucket->password) : NULL;
+    create_opts.v.v2.bucket = RSTRING_PTR(bucket->bucket);
+    create_opts.v.v2.io = bucket->io;
+    if (RTEST(bucket->bootstrap_transports) && RARRAY_LEN(bucket->bootstrap_transports) > 0) {
+        int i;
+        for (i = 0; i < 2 && i < RARRAY_LEN(bucket->bootstrap_transports); ++i) {
+            VALUE transport_sym = rb_ary_entry(bucket->bootstrap_transports, i);
+            if (transport_sym == cb_sym_cccp) {
+                transports[i] = LCB_CONFIG_TRANSPORT_CCCP;
+            } else if (transport_sym == cb_sym_http) {
+                transports[i] = LCB_CONFIG_TRANSPORT_HTTP;
+            } else {
+                transports[i] = LCB_CONFIG_TRANSPORT_LIST_END;
+                break;
+            }
+        }
+    }
+    create_opts.v.v2.transports = transports;
     err = lcb_create(&bucket->handle, &create_opts);
     if (err != LCB_SUCCESS) {
         bucket->handle = NULL;
@@ -501,6 +528,17 @@ cb_bucket_alloc(VALUE klass)
  *     IO interaction will be occured only when {Couchbase::Bucket#run}
  *     called. See {Couchbase::Bucket#on_connect} to hook your code
  *     after the instance will be connected.
+ *   @option options [Array] :bootstrap_transports (nil) the list of
+ *     bootrap transport mechanisms the library should try during
+ *     initial connection and also when cluster changes its
+ *     topology. When +nil+ passed it will fallback to best accessible
+ *     option. The order of the array elements does not matter at the
+ *     momemnt. Currently following values are supported:
+ *     :http :: Previous default protocol, which involves open HTTP stream
+ *     :cccp :: Cluster Configutration Carrier Publication: new binary
+ *              protocol for efficient delivery of cluster
+ *              configuration changes to the clients. Read more at
+ *              http://www.couchbase.com/wiki/display/couchbase/Cluster+Configuration+Carrier+Publication
  *
  * @example Initialize connection using default options
  *   Couchbase.new
@@ -551,6 +589,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->environment = cb_sym_production;
     bucket->key_prefix_val = Qnil;
     bucket->node_list = Qnil;
+    bucket->bootstrap_transports = Qnil;
     bucket->object_space = st_init_numtable();
     bucket->destroying = 0;
     bucket->connected = 0;
@@ -612,6 +651,15 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     }
     if (orig_b->on_connect_proc != Qnil) {
         copy_b->on_connect_proc = rb_funcall(orig_b->on_connect_proc, cb_id_dup, 0);
+    }
+    if (orig_b->key_prefix_val != Qnil) {
+        copy_b->key_prefix_val = rb_funcall(orig_b->key_prefix_val, cb_id_dup, 0);
+    }
+    if (orig_b->node_list != Qnil) {
+        copy_b->node_list = rb_funcall(orig_b->node_list, cb_id_dup, 0);
+    }
+    if (orig_b->bootstrap_transports != Qnil) {
+        copy_b->bootstrap_transports = rb_funcall(orig_b->bootstrap_transports, cb_id_dup, 0);
     }
     copy_b->key_prefix_val = orig_b->key_prefix_val;
     copy_b->object_space = st_init_numtable();
@@ -1164,6 +1212,22 @@ cb_bucket_inspect(VALUE self)
             (bucket->handle && bucket->connected) ? "true" : "false",
             bucket->timeout);
     rb_str_buf_cat2(str, buf);
+    if (bucket->handle && bucket->connected) {
+        lcb_config_transport_t type;
+        rb_str_buf_cat2(str, ", bootstrap_transport=");
+        lcb_cntl(bucket->handle, LCB_CNTL_GET, LCB_CNTL_CONFIG_TRANSPORT, &type);
+        switch (type) {
+        case LCB_CONFIG_TRANSPORT_HTTP:
+            rb_str_buf_cat2(str, ":http");
+            break;
+        case LCB_CONFIG_TRANSPORT_CCCP:
+            rb_str_buf_cat2(str, ":cccp");
+            break;
+        default:
+            rb_str_buf_cat2(str, "<unknown>");
+            break;
+        }
+    }
     if (RTEST(bucket->key_prefix_val)) {
         rb_str_buf_cat2(str, ", key_prefix=");
         rb_str_append(str, rb_inspect(bucket->key_prefix_val));

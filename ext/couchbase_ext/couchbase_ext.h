@@ -116,6 +116,7 @@ struct cb_bucket_st
     VALUE environment;      /* sym_development or sym_production */
     VALUE key_prefix_val;
     VALUE node_list;
+    VALUE bootstrap_transports;
     st_table *object_space;
     char destroying;
     char async_disconnect_hook_set;
@@ -189,8 +190,10 @@ extern ID cb_sym_append;
 extern ID cb_sym_assemble_hash;
 extern ID cb_sym_async;
 extern ID cb_sym_body;
+extern ID cb_sym_bootstrap_transports;
 extern ID cb_sym_bucket;
 extern ID cb_sym_cas;
+extern ID cb_sym_cccp;
 extern ID cb_sym_chunked;
 extern ID cb_sym_cluster;
 extern ID cb_sym_connect;
@@ -218,6 +221,7 @@ extern ID cb_sym_format;
 extern ID cb_sym_found;
 extern ID cb_sym_get;
 extern ID cb_sym_hostname;
+extern ID cb_sym_http;
 extern ID cb_sym_http_request;
 extern ID cb_sym_increment;
 extern ID cb_sym_initial;
