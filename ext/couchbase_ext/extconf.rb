@@ -132,14 +132,14 @@ def die(message)
   abort
 end
 
-install_notice = "You must install libcouchbase >= 2.1.3\nSee http://www.couchbase.com/communities/c/ for more details"
+install_notice = "You must install libcouchbase >= 2.3.0\nSee http://www.couchbase.com/communities/c/ for more details"
 
 unless try_compile(<<-SRC)
   #include <libcouchbase/couchbase.h>
   #include <stdio.h>
 
   int main() {
-    printf("User not found: %d\\n", LCB_INVALID_USERNAME);
+    printf("CCCP transport flag is: %d\\n", LCB_CONFIG_TRANSPORT_CCCP);
     return 0;
   }
   SRC

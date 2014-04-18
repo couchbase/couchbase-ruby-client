@@ -3,6 +3,59 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3.7 (2014-04-18)
+
+* [major] Allow the selection of bootstrap providers. Since libcouchbase
+  2.3.0 there is a new bootstrapping transport available: Cluster
+  Configuration Carrier Publication (CCCP). It is more efficient way
+  to keep cluster configuration up to date using Carrier Publication
+  instead of HTTP connection.
+
+        nodes = ["example.com", "example.org"]
+        Couchbase.connect(node_list: nodes, bootstrap_transports: [:cccp, :http])
+
+  Read more about it here:
+  http://www.couchbase.com/wiki/display/couchbase/Cluster+Configuration+Carrier+Publication
+
+* [major] RCBC-168 An experimental DNS SRV helper for connection
+  constructor. The DNS SRV records need to be configured on a reachable
+  DNS server. An example configuration could look like the following
+  (note that the service ids might change):
+
+        _cbmcd._tcp.example.com.  0  IN  SRV  20  0  11210 node2.example.com.
+        _cbmcd._tcp.example.com.  0  IN  SRV  10  0  11210 node1.example.com.
+        _cbmcd._tcp.example.com.  0  IN  SRV  30  0  11210 node3.example.com.
+
+        _cbhttp._tcp.example.com.  0  IN  SRV  20  0  8091 node2.example.com.
+        _cbhttp._tcp.example.com.  0  IN  SRV  10  0  8091 node1.example.com.
+        _cbhttp._tcp.example.com.  0  IN  SRV  30  0  8091 node3.example.com.
+
+  Now if "example.com" is passed in as the argument, the three nodes
+  configured will be parsed and put in the returned URI list. Note
+  that the priority is respected (in this example, node1 will be the
+  first one in the list, followed by node2 and node3). As of now,
+  weighting is not supported. This is how it could be used to
+  bootstrap the connection:
+
+        transport = :http
+        nodes = Couchbase::DNS.locate('example.com', transport)
+        if nodes.empty?
+          nodes = ["example.com:8091"]
+        end
+        Couchbase.connect(node_list: nodes, bootstrap_transports: [transport])
+
+  NOTE: This is experiemental and subject to change at any time. Watch
+  the release notes for changes in future releases.
+
+* [major] RCBC-166 Fix a crash with eventmachine. In eventmachine event
+  handlers are separated and run seprately and in the following order:
+  [READ, WRITE]. So it was possible to cancel WRITE event handler from
+  the READ handler which cause crash when the reactor run it in next
+  turn.
+
+* [minor] Fixed a typo which doesn't allow to use bundler in the project
+  directory.
+
 ## 1.3.6 (2014-02-17)
 
 * [major] Fix linkage issue which blocks library installation on
