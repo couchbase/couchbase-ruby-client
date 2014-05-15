@@ -69,10 +69,10 @@ class TestEventmachine < MiniTest::Test
     def test_integration_with_em_synchrony
       EM.epoll
       EM.synchrony do
-        Couchbase::Bucket.new(:engine => :eventmachine, bucket: "default", :node_list => ["localhost:8091"])
+        Couchbase::Bucket.new(engine: :eventmachine, bucket: 'default',
+          node_list: ["#{@mock.host}:#{@mock.port}"])
         EventMachine.stop
       end
     end
   end
-
 end
