@@ -37,7 +37,7 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency 'yaji', '~> 0.3', '>= 0.3.2'
   s.add_runtime_dependency 'multi_json', '~> 1.0'
-  s.add_runtime_dependency 'connection_pool', '~> 1.0', '>= 1.0.0'
+  s.add_runtime_dependency 'connection_pool', '<= 3.0.0', '>= 1.0.0'
 
   s.add_development_dependency 'rake'
   s.add_development_dependency 'minitest', '~> 5.0', '>= 5.0.4'
