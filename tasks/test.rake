@@ -19,7 +19,7 @@ require 'rake/testtask'
 require 'rake/clean'
 
 rule 'test/CouchbaseMock.jar' do |task|
-  jar_path = "0.5-SNAPSHOT/CouchbaseMock-0.5-20120726.220757-19.jar"
+  jar_path = "0.8-SNAPSHOT/CouchbaseMock-0.8-20140621.030439-1.jar"
   sh %{wget -q -O test/CouchbaseMock.jar http://files.couchbase.com/maven2/org/couchbase/mock/CouchbaseMock/#{jar_path}}
 end
 
