@@ -272,6 +272,13 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key,
     }
 
     str = rb_str_buf_new2(msg ? msg : "");
+    if (msg) {
+        str = rb_str_buf_new2(msg);
+        rb_str_buf_cat2(str, ", ");
+    } else {
+        str = rb_str_buf_new2("");
+    }
+    rb_str_buf_cat2(str, lcb_strerror(NULL, rc));
     rb_str_buf_cat2(str, " (");
     if (key != Qnil) {
         snprintf(buf, 300, "key=\"%s\", ", RSTRING_PTR(key));

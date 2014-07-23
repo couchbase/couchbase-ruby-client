@@ -36,12 +36,12 @@ trigger_on_connect_callback(VALUE self)
 }
 
     static void
-error_callback(lcb_t handle, lcb_error_t error, const char *errinfo)
+bootstrap_callback(lcb_t handle, lcb_error_t error)
 {
     struct cb_bucket_st *bucket = (struct cb_bucket_st *)lcb_get_cookie(handle);
 
     lcb_breakout(handle);
-    bucket->exception = cb_check_error(error, errinfo, Qnil);
+    bucket->exception = cb_check_error(error, "bootstrap error", Qnil);
     if (bucket->async && !bucket->connected) {
         (void)trigger_on_connect_callback(bucket->self);
     }
@@ -407,7 +407,7 @@ do_connect(struct cb_bucket_st *bucket)
         rb_exc_raise(cb_check_error(err, "failed to create libcouchbase instance", Qnil));
     }
     lcb_set_cookie(bucket->handle, bucket);
-    (void)lcb_set_error_callback(bucket->handle, error_callback);
+    (void)lcb_set_bootstrap_callback(bucket->handle, bootstrap_callback);
     (void)lcb_set_store_callback(bucket->handle, cb_storage_callback);
     (void)lcb_set_get_callback(bucket->handle, cb_get_callback);
     (void)lcb_set_touch_callback(bucket->handle, cb_touch_callback);
@@ -421,11 +421,8 @@ do_connect(struct cb_bucket_st *bucket)
     (void)lcb_set_unlock_callback(bucket->handle, cb_unlock_callback);
     (void)lcb_set_configuration_callback(bucket->handle, configuration_callback);
 
-    if (bucket->timeout > 0) {
-        lcb_set_timeout(bucket->handle, bucket->timeout);
-    } else {
-        bucket->timeout = lcb_get_timeout(bucket->handle);
-    }
+    lcb_cntl(bucket->handle, (bucket->timeout > 0) ? LCB_CNTL_SET : LCB_CNTL_GET,
+             LCB_CNTL_OP_TIMEOUT, &bucket->timeout);
     err = lcb_connect(bucket->handle);
     if (err != LCB_SUCCESS) {
         cb_bucket_disconnect(bucket->self);
@@ -930,7 +927,7 @@ cb_bucket_timeout_set(VALUE self, VALUE val)
     VALUE tmval;
 
     bucket->timeout = (uint32_t)NUM2ULONG(val);
-    lcb_set_timeout(bucket->handle, bucket->timeout);
+    lcb_cntl(bucket->handle, LCB_CNTL_SET, LCB_CNTL_OP_TIMEOUT, &bucket->timeout);
     tmval = ULONG2NUM(bucket->timeout);
 
     return tmval;
@@ -984,10 +981,15 @@ cb_bucket_key_prefix_set(VALUE self, VALUE val)
 cb_bucket_hostname_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
-
     if (bucket->handle) {
-        const char * host = lcb_get_host(bucket->handle);
-        unsigned long len = RSTRING_LEN(bucket->hostname);
+        const char *host;
+        char *colon;
+        unsigned long len;
+        host = lcb_get_node(bucket->handle, LCB_NODE_HTCONFIG | LCB_NODE_NEVERNULL, 0);
+        if (host != NULL && (colon = strstr(host, ":"))  != NULL) {
+            *colon = '\0';
+        }
+        len = RSTRING_LEN(bucket->hostname);
         if (len != strlen(host) || strncmp(RSTRING_PTR(bucket->hostname), host, len) != 0) {
             bucket->hostname = STR_NEW_CSTR(host);
             rb_str_freeze(bucket->hostname);
@@ -1007,7 +1009,12 @@ cb_bucket_port_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     if (bucket->handle) {
-        bucket->port = atoi(lcb_get_port(bucket->handle));
+        const char *port;
+        port = lcb_get_node(bucket->handle, LCB_NODE_HTCONFIG | LCB_NODE_NEVERNULL, 0);
+        if (port && (port = strstr(port, ":"))) {
+            port++;
+        }
+        bucket->port = atoi(port);
     }
     return UINT2NUM(bucket->port);
 }
@@ -1433,5 +1440,3 @@ cb_bucket_disconnect(VALUE self)
         return Qfalse;
     }
 }
-
-

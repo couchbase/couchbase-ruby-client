@@ -645,4 +645,3 @@ rb_funcall_2(VALUE self, ID method, VALUE arg1, VALUE arg2)
 }
 
 #endif
-
