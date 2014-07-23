@@ -38,7 +38,20 @@ typedef uint64_t hrtime_t;
 extern hrtime_t gethrtime(void);
 #endif
 
-#include <stdint.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET -1
+#endif
+
 #include <libcouchbase/couchbase.h>
 
 #ifdef HAVE_RUBY_ENCODING_H

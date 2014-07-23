@@ -17,7 +17,6 @@
 
 #include "couchbase_ext.h"
 
-
 #ifndef _WIN32
 
 #ifndef HAVE_RB_THREAD_BLOCKING_REGION
@@ -27,6 +26,8 @@
 #ifdef HAVE_POLL
 #include <poll.h>
 #endif
+
+#include <libcouchbase/bsdio-inl.c>
 
 /* events sorted array */
 typedef struct rb_mt_event rb_mt_event;
@@ -1058,13 +1059,7 @@ cb_create_ruby_mt_io_opts(int version, lcb_io_opt_t *io, void *arg)
     /* consider that struct isn't allocated by the library,
      * `need_cleanup' flag might be set in lcb_create() */
     ret->v.v0.need_cleanup = 0;
-    ret->v.v0.recv = cb_io_recv;
-    ret->v.v0.send = cb_io_send;
-    ret->v.v0.recvv = cb_io_recvv;
-    ret->v.v0.sendv = cb_io_sendv;
-    ret->v.v0.socket = cb_io_socket;
-    ret->v.v0.close = cb_io_close;
-    ret->v.v0.connect = cb_io_connect;
+    wire_lcb_bsd_impl(ret);
     ret->v.v0.delete_event = lcb_io_delete_event;
     ret->v.v0.destroy_event = lcb_io_destroy_event;
     ret->v.v0.create_event = lcb_io_create_event;
