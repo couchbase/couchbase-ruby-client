@@ -649,7 +649,7 @@ task and you will find all artifacts in `pkg/` directory:
     pkg/couchbase-1.3.4-x86-mingw32.gem
 
 
-[api]: http://www.couchbase.com/autodocs/couchbase-ruby-client-1.3.4/index.html
+[api]: http://www.couchbase.com/autodocs/couchbase-ruby-client-latest/index.html
 [overview]: http://docs.couchbase.com/couchbase-sdk-ruby-1.3/index.html
 [1]: http://couchbase.com/issues/browse/RCBC
 [2]: http://freenode.net/irc_servers.shtml
@@ -662,4 +662,3 @@ task and you will find all artifacts in `pkg/` directory:
 [9]: http://rubygems.org/gems/eventmachine
 [10]: https://github.com/couchbase/couchbase-ruby-client/blob/master/CONTRIBUTING.markdown
 [11]: https://github.com/luislavena/rake-compiler
-
