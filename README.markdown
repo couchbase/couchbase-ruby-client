@@ -29,6 +29,25 @@ Couchbase's fork: https://github.com/couchbase/homebrew
 
     $ brew install https://raw.github.com/couchbase/homebrew/preview/Library/Formula/libcouchbase.rb
 
+If you are experience issues with installing using system ruby, you
+might try to use [rbenv][rbenv], and install couchbase there. Here are
+the steps:
+
+    $ brew install rbenv ruby-build
+
+Add the following line to the end of your .bashrc:
+
+    if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
+
+Then install ruby and make it global:
+
+    $ rbenv install 2.1.2
+    $ rbenv global 2.1.2
+
+Now you are ready to install and use couchbase ruby gem as usual:
+
+    $ gem install couchbase
+
 ### Debian (Ubuntu)
 
 Add the appropriate line to `/etc/apt/sources.list.d/couchbase.list` for
@@ -662,3 +681,4 @@ task and you will find all artifacts in `pkg/` directory:
 [9]: http://rubygems.org/gems/eventmachine
 [10]: https://github.com/couchbase/couchbase-ruby-client/blob/master/CONTRIBUTING.markdown
 [11]: https://github.com/luislavena/rake-compiler
+[rbenv]: https://github.com/sstephenson/rbenv#homebrew-on-mac-os-x
