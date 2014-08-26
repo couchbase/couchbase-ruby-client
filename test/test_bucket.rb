@@ -76,7 +76,7 @@ class TestBucket < MiniTest::Test
 
   def test_it_raises_network_error_if_server_not_found
     refute(`netstat -tnl` =~ /12345/)
-    assert_raises Couchbase::Error::Connect do
+    assert_raises Couchbase::Error::Network do
       Couchbase.new(:port => 12345)
     end
   end
@@ -123,7 +123,7 @@ class TestBucket < MiniTest::Test
                       :port => mock.port,
                       :bucket => 'default',
                       :password => 'wrong_password')
-      end
+      end if mock.real?
       assert_raises Couchbase::Error::InvalidUsername do
         Couchbase.new(:hostname => mock.host,
                       :port => mock.port,
