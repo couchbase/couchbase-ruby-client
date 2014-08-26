@@ -3,11 +3,15 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3.9 (2014-08-26)
+
+* [major] Updates regarding libcouchbase 2.4.0. Deprecations cleanup
+
 ## 1.3.8 (2014-06-11)
 
 * [major] RCBC-176 Known Issue: When the couchbase client is used in
   an 'em-synchrony' context, it is possible that connection errors may
-  not be propagated to the client. This leads to runtime assertion in 
+  not be propagated to the client. This leads to runtime assertion in
   eventmachine.
 
 * [minor] Update runtime (connection_pool) and build (libcouchbase)

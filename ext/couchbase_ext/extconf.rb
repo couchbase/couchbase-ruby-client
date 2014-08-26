@@ -132,7 +132,7 @@ def die(message)
   abort
 end
 
-install_notice = "You must install libcouchbase >= 2.3.0\nSee http://www.couchbase.com/communities/c/ for more details"
+install_notice = "You must install libcouchbase >= 2.4.0\nSee http://www.couchbase.com/communities/c/ for more details"
 
 unless try_compile(<<-SRC)
   #include <libcouchbase/couchbase.h>
@@ -146,8 +146,32 @@ unless try_compile(<<-SRC)
   die(install_notice)
 end
 
+unless 'foo()'.respond_to?(:funcall_style)
+  class String
+    def funcall_style
+      /\)\z/ =~ self ? dup : "#{self}()"
+    end
+  end
+
+  def try_func(func, libs, headers = nil, &b)
+    headers = cpp_include(headers)
+    try_link(<<"SRC", libs, &b) or try_link(<<"SRC", libs, &b)
+#{COMMON_HEADERS}
+#{headers}
+/*top*/
+int main() { return 0; }
+int t() { void ((*volatile p)()); p = (void ((*)()))#{func}; return 0; }
+SRC
+#{headers}
+/*top*/
+int main() { return 0; }
+int t() { #{func.funcall_style}; return 0; }
+SRC
+  end
+end
+
 # just to add -lcouchbase properly
-have_library("couchbase", "lcb_verify_compiler_setup", "libcouchbase/couchbase.h") or die(install_notice)
+have_library("couchbase", "lcb_set_bootstrap_callback(NULL, NULL)", "libcouchbase/couchbase.h") or die(install_notice)
 have_header("mach/mach_time.h")
 have_header("stdint.h") or die("Failed to locate stdint.h")
 have_header("sys/time.h")
