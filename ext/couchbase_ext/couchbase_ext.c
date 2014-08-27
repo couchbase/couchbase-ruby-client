@@ -71,6 +71,7 @@ ID cb_sym_forced;
 ID cb_sym_format;
 ID cb_sym_found;
 ID cb_sym_get;
+ID cb_sym_host;
 ID cb_sym_hostname;
 ID cb_sym_http;
 ID cb_sym_http_request;
@@ -1318,6 +1319,7 @@ Init_couchbase_ext(void)
     cb_sym_format = ID2SYM(rb_intern("format"));
     cb_sym_found = ID2SYM(rb_intern("found"));
     cb_sym_get = ID2SYM(rb_intern("get"));
+    cb_sym_host = ID2SYM(rb_intern("host"));
     cb_sym_hostname = ID2SYM(rb_intern("hostname"));
     cb_sym_http = ID2SYM(rb_intern("http"));
     cb_sym_http_request = ID2SYM(rb_intern("http_request"));

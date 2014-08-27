@@ -233,6 +233,7 @@ extern ID cb_sym_forced;
 extern ID cb_sym_format;
 extern ID cb_sym_found;
 extern ID cb_sym_get;
+extern ID cb_sym_host;
 extern ID cb_sym_hostname;
 extern ID cb_sym_http;
 extern ID cb_sym_http_request;

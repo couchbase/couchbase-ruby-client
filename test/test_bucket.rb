@@ -285,4 +285,15 @@ class TestBucket < MiniTest::Test
       assert double.connected?, "duplicate connection should be alive"
     end
   end
+
+  def test_it_accepts_both_hostname_and_host_options
+    with_mock do |mock|
+      connection = Couchbase.new(:hostname => mock.host, :port => mock.port)
+      assert_equal mock.host, connection.hostname
+
+      connection = Couchbase.new(:host => mock.host, :port => mock.port)
+      assert_equal mock.host, connection.hostname
+    end
+  end
+
 end

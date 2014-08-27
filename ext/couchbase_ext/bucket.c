@@ -182,6 +182,11 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             arg = rb_hash_aref(opts, cb_sym_hostname);
             if (arg != Qnil) {
                 bucket->hostname = rb_str_dup_frozen(StringValue(arg));
+            } else {
+                arg = rb_hash_aref(opts, cb_sym_host);
+                if (arg != Qnil) {
+                    bucket->hostname = rb_str_dup_frozen(StringValue(arg));
+                }
             }
             arg = rb_hash_aref(opts, cb_sym_pool);
             if (arg != Qnil) {
@@ -476,8 +481,8 @@ cb_bucket_alloc(VALUE klass)
  *     to. If specified it takes precedence over +:host+ option. The list
  *     must be array of strings in form of host names or host names with
  *     ports (in first case port 8091 will be used, see examples).
- *   @option options [String] :host ("localhost") the hostname or IP address
- *     of the node
+ *   @option options [String] :hostname ("localhost") the hostname or
+ *     IP address of the node
  *   @option options [Fixnum] :port (8091) the port of the managemenent API
  *   @option options [String] :pool ("default") the pool name
  *   @option options [String] :bucket ("default") the bucket name
