@@ -29,9 +29,19 @@ Couchbase's fork: https://github.com/couchbase/homebrew
 
     $ brew install https://raw.github.com/couchbase/homebrew/preview/Library/Formula/libcouchbase.rb
 
-If you are experience issues with installing using system ruby, you
-might try to use [rbenv][rbenv], and install couchbase there. Here are
-the steps:
+If you are experiencing issues with installing using the OS included
+ruby, the most likely reason is that architecture of libcouchbase and
+your ruby do not match (e.g. one component is fat binary while another
+is not). The best fix depends on the details of the components. If you
+are using the system ruby on Mac OS X (which contains both 32-bit and
+64-bit code), you need to install libcouchbase using the `--universal`
+option:
+
+    $ brew install --universal libcouchbase
+
+Another approach might be to try to use [rbenv][rbenv], install 64-bit
+only ruby and compile couchbase ruby gem there there. Here are the
+steps:
 
     $ brew install rbenv ruby-build
 
@@ -44,7 +54,7 @@ Then install ruby and make it global:
     $ rbenv install 2.1.2
     $ rbenv global 2.1.2
 
-Now you are ready to install and use couchbase ruby gem as usual:
+Now you are ready to install and use the couchbase ruby gem:
 
     $ gem install couchbase
 

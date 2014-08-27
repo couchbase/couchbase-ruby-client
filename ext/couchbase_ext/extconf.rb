@@ -82,7 +82,7 @@ else
   ]
 
   # For people using homebrew
-  brew_prefix = `brew --prefix libevent 2> /dev/null`.chomp
+  brew_prefix = `brew --prefix libcouchbase 2> /dev/null`.chomp
   unless brew_prefix.empty?
     LIB_DIRS.unshift File.join(brew_prefix, 'lib')
     HEADER_DIRS.unshift File.join(brew_prefix, 'include')
