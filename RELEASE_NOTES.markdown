@@ -3,6 +3,14 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3.10 (2014-09-30)
+
+* [major] Updates regarding libcouchbase 2.4.2. Bundle "bsdio-inl.c"
+  which is not part of libcouchbase distribution anymore. This fixes
+  installation recent ruby gem versions with libcouchbase 2.4.2.
+
+* [minor] Allow both `:hostname` and `:host` options to constructor
+
 ## 1.3.9 (2014-08-26)
 
 * [major] Updates regarding libcouchbase 2.4.0. Deprecations cleanup
