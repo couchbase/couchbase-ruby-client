@@ -27,7 +27,7 @@
 #include <poll.h>
 #endif
 
-#include <libcouchbase/bsdio-inl.c>
+#include "bsdio-inl.c"
 
 /* events sorted array */
 typedef struct rb_mt_event rb_mt_event;

@@ -20,7 +20,7 @@
 #ifndef _WIN32
 #ifdef BUILD_EVENTMACHINE_PLUGIN
 
-#include <libcouchbase/bsdio-inl.c>
+#include "bsdio-inl.c"
 
 VALUE cb_mEm;
 VALUE cb_cEmSocket;
