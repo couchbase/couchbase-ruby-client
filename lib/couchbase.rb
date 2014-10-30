@@ -16,10 +16,11 @@
 #
 
 require 'couchbase/version'
+require 'multi_json'
 
 if RUBY_ENGINE == 'jruby'
   require 'java'
-  require 'jruby-client-1.0.0-SNAPSHOT-all.jar'
+  require 'jruby-client-1.0.0-dp1-all.jar'
   require 'com/couchbase/client/jruby/couchbase'
 else
   puts <<EOM
