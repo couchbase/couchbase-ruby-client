@@ -17,5 +17,5 @@
 
 desc 'Start an irb session and load the library.'
 task :console do
-  exec "irb -I lib -rcouchbase"
+  exec "#{RUBY_ENGINE} -S irb -I lib -rcouchbase"
 end

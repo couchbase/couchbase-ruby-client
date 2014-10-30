@@ -1,6 +1,0 @@
-source :rubygems
-
-gem "memcached", "~> 1.3.6"
-gem "kgio", "~> 2.7.2"
-gem "dalli", "~> 1.1.4"
-gem "yajl-ruby", "~> 1.1.0"
