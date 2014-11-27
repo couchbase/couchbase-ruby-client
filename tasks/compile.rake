@@ -16,7 +16,7 @@
 #
 
 gem 'rake-compiler', '>= 0.7.5'
-require "rake/extensiontask"
+require 'rake/extensiontask'
 
 def gemspec
   @clean_gemspec ||= eval(File.read(File.expand_path('../../couchbase.gemspec', __FILE__)))
@@ -47,17 +47,17 @@ class Platform
 
   def short_versions
     res = []
-    each_version do |long, short|
+    each_version do |_long, short|
       res << short
     end
     res
   end
 end
 
-recent = "2.0.0-p353"
+recent = '2.0.0-p353'
 CROSS_PLATFORMS = [
   Platform.new(:name => 'x64-mingw32', :host => 'x86_64-w64-mingw32', :versions => %w(1.9.3-p484 2.0.0-p353 2.1.0)),
-  Platform.new(:name => 'x86-mingw32', :host => 'i686-w64-mingw32', :versions => %w(1.8.7-p374 1.9.3-p484 2.0.0-p353 2.1.0)),
+  Platform.new(:name => 'x86-mingw32', :host => 'i686-w64-mingw32', :versions => %w(1.8.7-p374 1.9.3-p484 2.0.0-p353 2.1.0))
 ]
 
 # Setup compile tasks.  Configuration can be passed via ENV.
@@ -69,16 +69,16 @@ CROSS_PLATFORMS = [
 #
 #  rake compile with_libcouchbase_dir=/opt/couchbase
 #
-Rake::ExtensionTask.new("couchbase_ext", gemspec) do |ext|
+Rake::ExtensionTask.new('couchbase_ext', gemspec) do |ext|
   ext.cross_compile = true
   ext.cross_platform = ENV['TARGET']
   if ENV['RUBY_CC_VERSION']
-    ext.lib_dir = "lib/couchbase"
+    ext.lib_dir = 'lib/couchbase'
   end
   ext.cross_compiling do |spec|
-    spec.files.delete("lib/couchbase/couchbase_ext.so")
-    spec.files.push("lib/couchbase_ext.rb", Dir["lib/couchbase/*/couchbase_ext.so"])
-    spec.files.push(Dir["lib/couchbase/*/couchbase_ext.so"])
+    spec.files.delete('lib/couchbase/couchbase_ext.so')
+    spec.files.push('lib/couchbase_ext.rb', Dir['lib/couchbase/*/couchbase_ext.so'])
+    spec.files.push(Dir['lib/couchbase/*/couchbase_ext.so'])
     file "#{ext.tmp_dir}/#{ext.cross_platform}/stage/lib/couchbase_ext.rb", &version_router
   end
 
@@ -86,7 +86,7 @@ Rake::ExtensionTask.new("couchbase_ext", gemspec) do |ext|
 
   ENV.each do |key, val|
     next unless key =~ /\Awith_(\w+)\z/i
-    opt = $1.downcase.tr('_', '-')
+    opt = Regexp.last_match[1].downcase.tr('_', '-')
     if File.directory?(path = File.expand_path(val))
       ext.config_options << "--with-#{opt}=#{path}"
     else
@@ -104,30 +104,30 @@ require 'mini_portile'
 require 'rake/extensioncompiler'
 
 class MiniPortile
-  alias :cook_without_checkpoint :cook
+  alias_method :cook_without_checkpoint, :cook
   def cook
     checkpoint = "ports/.#{name}-#{version}-#{host}.installed"
-    unless File.exist?(checkpoint)
-      cook_without_checkpoint
-      FileUtils.touch(checkpoint)
-    end
+    return if File.exist?(checkpoint)
+    cook_without_checkpoint
+    FileUtils.touch(checkpoint)
+  end
+
+  def configure
+    return if configured?
+
+    md5_file = File.join(tmp_path, 'configure.md5')
+    digest   = Digest::MD5.hexdigest(computed_options)
+    File.open(md5_file, 'w') { |f| f.write digest }
+
+    execute('configure', %(perl cmake/configure #{computed_options}))
   end
 end
 
-file "lib/couchbase_ext.rb", &version_router
+file 'lib/couchbase_ext.rb', &version_router
 
-desc "Package gem for windows"
-task "package:windows" => ["package", "lib/couchbase_ext.rb"] do
-  vars = [
-    'CC',
-    'CFLAGS',
-    'CPATH',
-    'CPP',
-    'CPPFLAGS',
-    'LDFLAGS',
-    'LIBRARY_PATH',
-    'PATH'
-  ].reduce({}) do |h, v|
+desc 'Package gem for windows'
+task 'package:windows' => ['package', 'lib/couchbase_ext.rb'] do
+  vars = %w(CC CFLAGS CPATH CPP CPPFLAGS LDFLAGS LIBRARY_PATH PATH).each_with_object({}) do |v, h|
     h[v] = ENV[v]
     h
   end
@@ -135,19 +135,14 @@ task "package:windows" => ["package", "lib/couchbase_ext.rb"] do
 
   CROSS_PLATFORMS.each do |platform|
     ENV['TARGET'] = platform.name
-    rm_rf("tmp/ ports/")
-    mkdir_p("ports")
-    recipe = MiniPortile.new("libcouchbase", "2.4.0_21_g879b4cd")
+    rm_rf('tmp/ ports/')
+    mkdir_p('ports')
+    recipe = MiniPortile.new('libcouchbase', '2.4.4_39_gc94b4ab')
     recipe.host = platform.host
     recipe.files << "http://packages.couchbase.com/clients/c/libcouchbase-#{recipe.version}.tar.gz"
-    recipe.configure_options.push("--disable-debug",
-                                  "--disable-dependency-tracking",
-                                  "--disable-couchbasemock",
-                                  "--enable-ssl=no",
-                                  "--disable-cxx",
-                                  "--disable-plugins",
-                                  "--disable-examples",
-                                  "--disable-tools")
+    recipe.configure_options.push('--disable-cxx',
+                                  '--disable-tests',
+                                  '--enable-static')
     recipe.cook
     recipe.activate
     platform.each_version do |long, short|
@@ -156,6 +151,6 @@ task "package:windows" => ["package", "lib/couchbase_ext.rb"] do
     vars.each do |k, v|
       ENV[k] = v
     end
-    sh("env RUBY_CC_VERSION=#{platform.short_versions.join(":")} RBENV_VERSION=#{recent} rbenv exec rake cross native gem")
+    sh("env RUBY_CC_VERSION=#{platform.short_versions.join(':')} RBENV_VERSION=#{recent} rbenv exec rake cross native gem")
   end
 end
