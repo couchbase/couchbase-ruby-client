@@ -20,8 +20,6 @@
 #ifndef _WIN32
 #ifdef BUILD_EVENTMACHINE_PLUGIN
 
-#include "libcouchbase/bsdio-inl.c"
-
 VALUE cb_mEm;
 VALUE cb_cEmSocket;
 VALUE em_cPeriodicTimer;
@@ -411,6 +409,7 @@ lcb_destroy_io_opts(struct lcb_io_opt_st *iops)
     LIBCOUCHBASE_API lcb_error_t
 cb_create_ruby_em_io_opts(int version, lcb_io_opt_t *io, void *arg)
 {
+    lcb_bsd_procs procs;
     struct lcb_io_opt_st *ret;
     rb_em_loop *loop;
     struct cb_bucket_st *bucket = arg;
@@ -433,7 +432,14 @@ cb_create_ruby_em_io_opts(int version, lcb_io_opt_t *io, void *arg)
     /* consider that struct isn't allocated by the library,
      * `need_cleanup' flag might be set in lcb_create() */
     ret->v.v0.need_cleanup = 0;
-    wire_lcb_bsd_impl(ret);
+    lcb_iops_wire_bsd_impl2(&procs, 0);
+    ret->v.v0.recv = procs.recv;
+    ret->v.v0.recvv = procs.recvv;
+    ret->v.v0.send = procs.send;
+    ret->v.v0.sendv = procs.sendv;
+    ret->v.v0.socket = procs.socket0;
+    ret->v.v0.connect = procs.connect0;
+    ret->v.v0.close = procs.close;
     ret->v.v0.delete_event = lcb_io_delete_event;
     ret->v.v0.destroy_event = lcb_io_destroy_event;
     ret->v.v0.create_event = lcb_io_create_event;

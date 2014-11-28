@@ -22,11 +22,11 @@ require 'rbconfig'
 # RC_ARCHS doesn't work under bundler on MacOS.
 if RUBY_PLATFORM =~ /darwin/ && defined?(RbConfig::ARCHFLAGS)
   [RbConfig::CONFIG, RbConfig::MAKEFILE_CONFIG].each do |cfg|
-    cfg["CFLAGS"].gsub!(RbConfig::ARCHFLAGS, '')
-    cfg["LDFLAGS"].gsub!(RbConfig::ARCHFLAGS, '')
-    cfg["LDSHARED"].gsub!(RbConfig::ARCHFLAGS, '')
-    cfg["LIBRUBY_LDSHARED"].gsub!(RbConfig::ARCHFLAGS, '')
-    cfg["configure_args"].gsub!(RbConfig::ARCHFLAGS, '')
+    cfg['CFLAGS'].gsub!(RbConfig::ARCHFLAGS, '')
+    cfg['LDFLAGS'].gsub!(RbConfig::ARCHFLAGS, '')
+    cfg['LDSHARED'].gsub!(RbConfig::ARCHFLAGS, '')
+    cfg['LIBRUBY_LDSHARED'].gsub!(RbConfig::ARCHFLAGS, '')
+    cfg['configure_args'].gsub!(RbConfig::ARCHFLAGS, '')
   end
 end
 
@@ -39,9 +39,9 @@ def define(macro, value = nil)
   $defs.push("-D #{[macro.upcase, value].compact.join('=')}")
 end
 
-($CFLAGS  ||= "") << " #{ENV["CFLAGS"]}"
-($LDFLAGS ||= "") << " #{ENV["LDFLAGS"]}"
-($LIBS    ||= "") << " #{ENV["LIBS"]}"
+($CFLAGS  ||= '') << " #{ENV['CFLAGS']}"
+($LDFLAGS ||= '') << " #{ENV['LDFLAGS']}"
+($LIBS    ||= '') << " #{ENV['LIBS']}"
 
 $CFLAGS << ' -std=c99 -Wall -Wextra '
 if ENV['DEBUG']
@@ -51,10 +51,9 @@ else
   $LDFLAGS << ' -Wl,--strip-debug' if RbConfig::CONFIG['target_os'] =~ /mingw32/
 end
 
-
 if RbConfig::CONFIG['target_os'] =~ /mingw32/
   $LDFLAGS << ' -static-libgcc'
-  dir_config("libcouchbase")
+  dir_config('libcouchbase')
 else
   LIBDIR = RbConfig::CONFIG['libdir']
   INCLUDEDIR = RbConfig::CONFIG['includedir']
@@ -88,8 +87,8 @@ else
     HEADER_DIRS.unshift File.join(brew_prefix, 'include')
   end
 
-  HEADER_DIRS.delete_if{|d| !File.exists?(d)}
-  LIB_DIRS.delete_if{|d| !File.exists?(d)}
+  HEADER_DIRS.delete_if { |d| !File.exist?(d) }
+  LIB_DIRS.delete_if { |d| !File.exist?(d) }
 
   # it will find the libcouchbase likely. you can specify its path otherwise
   #
@@ -99,12 +98,11 @@ else
   #
   #   ruby extconf.rb [--with-libcouchbase-dir=<dir>]
   #
-  dir_config("libcouchbase", HEADER_DIRS, LIB_DIRS)
+  dir_config('libcouchbase', HEADER_DIRS, LIB_DIRS)
 end
 
-
 if COMMON_HEADERS !~ /"ruby\.h"/
-  (COMMON_HEADERS ||= "") << %(\n#include "ruby.h"\n)
+  (COMMON_HEADERS ||= '') << %(\n#include "ruby.h"\n)
 end
 
 if try_compile(<<-SRC)
@@ -122,13 +120,13 @@ if try_compile(<<-SRC)
     return 0;
   }
   SRC
-  define("HAVE_STDARG_PROTOTYPES")
+  define('HAVE_STDARG_PROTOTYPES')
 end
 
 def die(message)
-  STDERR.puts "\n#{"*" * 70}"
-  STDERR.puts "#{message.gsub(/^/, "* ")}"
-  STDERR.puts "#{"*" * 70}\n\n"
+  STDERR.puts "\n#{'*' * 70}"
+  STDERR.puts "#{message.gsub(/^/, '* ')}"
+  STDERR.puts "#{'*' * 70}\n\n"
   abort
 end
 
@@ -171,26 +169,26 @@ SRC
 end
 
 # just to add -lcouchbase properly
-have_library("couchbase", "lcb_set_bootstrap_callback(NULL, NULL)", "libcouchbase/couchbase.h") or die(install_notice)
-have_header("mach/mach_time.h")
-have_header("stdint.h") or die("Failed to locate stdint.h")
-have_header("sys/time.h")
-have_header("fcntl.h")
-have_header("sys/socket.h")
-have_header("errno.h")
+have_library('couchbase', 'lcb_iops_wire_bsd_impl2(NULL, 0)', 'libcouchbase/couchbase.h') || die(install_notice)
+have_header('mach/mach_time.h')
+have_header('stdint.h') || die('Failed to locate stdint.h')
+have_header('sys/time.h')
+have_header('fcntl.h')
+have_header('sys/socket.h')
+have_header('errno.h')
 
-have_type("st_index_t")
-have_func("clock_gettime")
-have_func("gettimeofday")
-have_func("QueryPerformanceCounter")
-have_func("gethrtime")
-have_func("rb_hash_lookup2")
-have_func("rb_thread_fd_select")
-have_func("rb_thread_blocking_region")
-have_func("rb_thread_call_without_gvl")
-have_func("poll", "poll.h")
-have_func("ppoll", "poll.h")
-have_func("rb_fiber_yield")
-define("_GNU_SOURCE")
-create_header("couchbase_config.h")
-create_makefile("couchbase_ext")
+have_type('st_index_t')
+have_func('clock_gettime')
+have_func('gettimeofday')
+have_func('QueryPerformanceCounter')
+have_func('gethrtime')
+have_func('rb_hash_lookup2')
+have_func('rb_thread_fd_select')
+have_func('rb_thread_blocking_region')
+have_func('rb_thread_call_without_gvl')
+have_func('poll', 'poll.h')
+have_func('ppoll', 'poll.h')
+have_func('rb_fiber_yield')
+define('_GNU_SOURCE')
+create_header('couchbase_config.h')
+create_makefile('couchbase_ext')
