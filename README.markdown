@@ -17,110 +17,8 @@ documentation][api].
 ## INSTALL
 
 This gem depends [libcouchbase][3]. In most cases installing
-libcouchbase doesn't take much effort.
-
-### MacOS (Homebrew)
-
-    $ brew install libcouchbase
-
-The official homebrew repository contains only stable versions of
-libvbucket and libcouchbase, if you need preview, take a look at
-Couchbase's fork: https://github.com/couchbase/homebrew
-
-    $ brew install https://raw.github.com/couchbase/homebrew/preview/Library/Formula/libcouchbase.rb
-
-If you are experiencing issues with installing using the OS included
-ruby, the most likely reason is that architecture of libcouchbase and
-your ruby do not match (e.g. one component is fat binary while another
-is not). The best fix depends on the details of the components. If you
-are using the system ruby on Mac OS X (which contains both 32-bit and
-64-bit code), you need to install libcouchbase using the `--universal`
-option:
-
-    $ brew install --universal libcouchbase
-
-Another approach might be to try to use [rbenv][rbenv], install 64-bit
-only ruby and compile couchbase ruby gem there there. Here are the
-steps:
-
-    $ brew install rbenv ruby-build
-
-Add the following line to the end of your .bashrc:
-
-    if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
-
-Then install ruby and make it global:
-
-    $ rbenv install 2.1.2
-    $ rbenv global 2.1.2
-
-Now you are ready to install and use the couchbase ruby gem:
-
-    $ gem install couchbase
-
-### Debian (Ubuntu)
-
-Add the appropriate line to `/etc/apt/sources.list.d/couchbase.list` for
-your OS release:
-
-    # Ubuntu 11.10 Oneiric Ocelot (Debian unstable)
-    deb http://packages.couchbase.com/ubuntu oneiric oneiric/main
-
-    # Ubuntu 10.04 Lucid Lynx (Debian stable or testing)
-    deb http://packages.couchbase.com/ubuntu lucid lucid/main
-
-Import the Couchbase PGP key:
-
-    wget -O- http://packages.couchbase.com/ubuntu/couchbase.key | sudo apt-key add -
-
-Then install them
-
-    $ sudo apt-get update && sudo apt-get install libcouchbase-dev
-
-Again, if you need a preview of a future version, just use another repository in
-your `couchbase.list`
-
-    # Ubuntu 11.10 Oneiric Ocelot (Debian unstable)
-    deb http://packages.couchbase.com/preview/ubuntu oneiric oneiric/main
-
-    # Ubuntu 10.04 Lucid Lynx (Debian stable or testing)
-    deb http://packages.couchbase.com/preview/ubuntu lucid lucid/main
-
-### Centos (Redhat and rpm-based systems)
-
-Add these lines to /etc/yum.repos.d/couchbase.repo using the correct architecture
-
-    [couchbase]
-    name = Couchbase package repository
-    baseurl = http://packages.couchbase.com/rpm/5.5/i386
-
-    [couchbase]
-    name = Couchbase package repository
-    baseurl = http://packages.couchbase.com/rpm/5.5/x86_64
-
-Then to install libcouchbase itself, run:
-
-    $ sudo yum update && sudo yum install libcouchbase-devel
-
-We have preview repositories for RPMs too, use them if you want to try
-the latest version of libcouchbase:
-
-    [couchbase]
-    name = Couchbase package repository
-    baseurl = http://packages.couchbase.com/preview/rpm/5.5/i386
-
-    [couchbase]
-    name = Couchbase package repository
-    baseurl = http://packages.couchbase.com/preview/rpm/5.5/x86_64
-
-### Windows
-
-There are no additional dependencies for Windows systems. The gem carries
-a prebuilt binary for it.
-
-### Couchbase gem
-
-Now install the couchbase gem itself
+libcouchbase doesn't take much effort. After that you can install the
+couchbase gem itself:
 
     $ gem install couchbase
 
@@ -682,7 +580,7 @@ task and you will find all artifacts in `pkg/` directory:
 [overview]: http://docs.couchbase.com/couchbase-sdk-ruby-1.3/index.html
 [1]: http://couchbase.com/issues/browse/RCBC
 [2]: http://freenode.net/irc_servers.shtml
-[3]: http://www.couchbase.com/develop/c/current
+[3]: http://docs.couchbase.com/developer/c-2.4/download-install.html
 [4]: https://github.com/mxcl/homebrew/pulls/avsej
 [5]: http://code.google.com/p/memcached/wiki/BinaryProtocolRevamped
 [6]: https://rubygems.org/gems/couchbase-model
