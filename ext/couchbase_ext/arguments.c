@@ -285,6 +285,17 @@ cb_params_store_init_item(struct cb_params_st *params, lcb_size_t idx,
     params->cmd.store.items[idx].v.v0.cas = cas;
     params->cmd.store.items[idx].v.v0.exptime = exptime;
     params->npayload += RSTRING_LEN(key_obj) + RSTRING_LEN(value_obj) + sizeof(flags) + sizeof(exptime);
+    switch (params->cmd.store.operation) {
+    case LCB_ADD:
+        params->cmd.store.items[idx].v.v0.cas = 0;
+        break;
+    case LCB_PREPEND:
+    case LCB_APPEND:
+        params->cmd.store.items[idx].v.v0.flags = 0;
+        break;
+    default:
+        break;
+    }
 }
 
     static int
@@ -890,6 +901,17 @@ do_params_build(VALUE ptr)
             params->cmd.store.transcoder_opts = rb_hash_new();
             cb_params_store_parse_options(params, opts);
             cb_params_store_parse_arguments(params, argc, argv);
+            switch (params->cmd.store.operation) {
+            case LCB_ADD:
+                params->cmd.store.cas = 0;
+                break;
+            case LCB_PREPEND:
+            case LCB_APPEND:
+                params->cmd.store.flags = 0;
+                break;
+            default:
+                break;
+            }
             break;
         case cb_cmd_get:
             params->cmd.get.quiet = params->bucket->quiet;

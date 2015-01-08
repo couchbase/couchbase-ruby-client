@@ -3,6 +3,13 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3.11 (2015-01-08)
+
+* [minor] Update crossbuild system to use cmake for libcouchbase
+
+* [minor] Update to libcouchbase 2.4.5 and wire IO functions at
+  runtime
+
 ## 1.3.10 (2014-09-30)
 
 * [major] Updates regarding libcouchbase 2.4.2. Bundle "bsdio-inl.c"
