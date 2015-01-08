@@ -137,7 +137,7 @@ task 'package:windows' => ['package', 'lib/couchbase_ext.rb'] do
     ENV['TARGET'] = platform.name
     rm_rf('tmp/ ports/')
     mkdir_p('ports')
-    recipe = MiniPortile.new('libcouchbase', '2.4.4_39_gc94b4ab')
+    recipe = MiniPortile.new('libcouchbase', '2.4.5')
     recipe.host = platform.host
     recipe.files << "http://packages.couchbase.com/clients/c/libcouchbase-#{recipe.version}.tar.gz"
     recipe.configure_options.push('--disable-cxx',
