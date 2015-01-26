@@ -213,4 +213,12 @@ class TestStore < MiniTest::Test
     assert_equal ["bar", "foo"], connection.get(uniq_id(:a), uniq_id(:z))
     assert res.is_a?(Hash)
   end
+
+  def test_append_format
+    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    assert_equal :document, connection.default_format
+    connection.set(uniq_id, 'bar', :format => :plain)
+    connection.append(uniq_id, 'baz', :format => :plain)
+    assert_equal 'barbaz', connection.get(uniq_id)
+  end
 end
