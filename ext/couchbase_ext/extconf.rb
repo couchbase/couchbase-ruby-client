@@ -130,7 +130,7 @@ def die(message)
   abort
 end
 
-install_notice = "You must install libcouchbase >= 2.4.0\nSee http://www.couchbase.com/communities/c/ for more details"
+install_notice = "You must install libcouchbase >= 2.4.5\nSee http://www.couchbase.com/communities/c/ for more details"
 
 unless try_compile(<<-SRC)
   #include <libcouchbase/couchbase.h>
