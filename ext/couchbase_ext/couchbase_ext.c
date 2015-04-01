@@ -32,6 +32,7 @@ VALUE cb_mDocument;
 VALUE cb_mPlain;
 VALUE cb_mMarshal;
 VALUE cb_mURI;
+VALUE cb_mMultiJson;
 VALUE em_m;
 
 /* Symbols */
@@ -102,6 +103,8 @@ ID cb_sym_put;
 ID cb_sym_quiet;
 ID cb_sym_replace;
 ID cb_sym_replica;
+ID cb_sym_rows;
+ID cb_sym_meta;
 ID cb_sym_select;
 ID cb_sym_send_threshold;
 ID cb_sym_set;
@@ -132,6 +135,7 @@ ID cb_id_iv_error;
 ID cb_id_iv_flags;
 ID cb_id_iv_from_master;
 ID cb_id_iv_headers;
+ID cb_id_iv_meta;
 ID cb_id_iv_inner_exception;
 ID cb_id_iv_key;
 ID cb_id_iv_node;
@@ -159,6 +163,7 @@ ID cb_id_verify_observe_options;
 VALUE cb_eBaseError;
 VALUE cb_eValueFormatError;
 VALUE cb_eHTTPError;
+VALUE cb_eQuery;
 
                                    /* LCB_SUCCESS = 0x00         */
                                    /* LCB_AUTH_CONTINUE = 0x01   */
@@ -231,6 +236,7 @@ Init_couchbase_ext(void)
     /* just a holder for EventMachine module */
     em_m = 0;
 
+    cb_mMultiJson = rb_const_get(rb_cObject, rb_intern("MultiJson"));
     cb_mURI = rb_const_get(rb_cObject, rb_intern("URI"));
     cb_mCouchbase = rb_define_module("Couchbase");
     /* Document-method: libcouchbase_version
@@ -578,6 +584,15 @@ Init_couchbase_ext(void)
      */
     cb_eHTTPError = rb_define_class_under(cb_mError, "HTTP", cb_eBaseError);
     cb_id_iv_body = rb_intern("@body");
+
+    /* Document-class: Couchbase::Error::Query
+     * Query error with status code
+     *
+     * @since 1.2.0
+     */
+    cb_eQuery = rb_define_class_under(cb_mError, "Query", cb_eBaseError);
+    cb_id_iv_meta = rb_intern("@meta");
+
     /* Document-method: error
      *
      * The underlying libcouchbase library could return one of the following
@@ -1233,6 +1248,94 @@ Init_couchbase_ext(void)
     rb_define_method(cb_cBucket, "default_observe_timeout", cb_bucket_default_observe_timeout_get, 0);
     rb_define_method(cb_cBucket, "default_observe_timeout=", cb_bucket_default_observe_timeout_set, 1);
 
+    /* Document-method: query
+     *
+     * @since 1.3.12
+     *
+     * Perform N1QL query to the cluster. This API is experimental and
+     * subject to change in future. Read more info at http://query.couchbase.com
+     *
+     * @example Simple N1QL query
+     *   connection.query('select "hello world"')
+     *   #=>
+     *      {
+     *          :rows => [
+     *              [0] {
+     *                  "$1" => "hello world"
+     *              }
+     *          ],
+     *          :meta => {
+     *              "requestID" => "f0345617-f809-4b75-8340-acaa412b9f3d",
+     *              "signature" => {
+     *                  "$1" => "string"
+     *              },
+     *              "results" => [],
+     *              "status" => "success",
+     *              "metrics" => {
+     *                  "elapsedTime" => "1.582327ms",
+     *                  "executionTime" => "1.470542ms",
+     *                  "resultCount" => 1,
+     *                  "resultSize" => 43
+     *              }
+     *          }
+     *      }
+     *
+     * @example create primary index
+     *   connection.query('create primary index on `travel-sample` using view')
+     *   #=>
+     *      {
+     *          :rows => [],
+     *          :meta => {
+     *              "requestID" => "597882ef-3c2b-4ac9-8f08-275fece46645",
+     *              "signature" => nil,
+     *                "results" => [],
+     *                 "status" => "success",
+     *                "metrics" => {
+     *                    "elapsedTime" => "1.550941465s",
+     *                  "executionTime" => "1.550856413s",
+     *                    "resultCount" => 0,
+     *                     "resultSize" => 0
+     *              }
+     *          }
+     *      }
+     *
+     * @example select first airline
+     *  connection.query('select * from `travel-sample` where type = "airline" limit 1')
+     *  #=> {
+     *      :rows => [
+     *          [0] {
+     *              "travel-sample" => {
+     *                  "callsign" => "Orbit",
+     *                   "country" => "United States",
+     *                      "iata" => nil,
+     *                      "icao" => "OBT",
+     *                        "id" => 16932,
+     *                      "name" => "Orbit Airlines",
+     *                      "type" => "airline"
+     *              }
+     *          }
+     *      ],
+     *      :meta => {
+     *          "requestID" => "f999550c-70b0-43f6-b76d-8cde03288847",
+     *          "signature" => {
+     *              "*" => "*"
+     *          },
+     *            "results" => [],
+     *             "status" => "success",
+     *            "metrics" => {
+     *                "elapsedTime" => "501.048085ms",
+     *              "executionTime" => "500.991849ms",
+     *                "resultCount" => 1,
+     *                 "resultSize" => 303
+     *          }
+     *      }
+     *    }
+     * @param [String] query string which contains the N1QL query
+     *
+     * @return [Hash] result object with :rows and :meta keys
+     */
+    rb_define_method(cb_cBucket, "query", cb_bucket_query, -1);
+
     cb_cCouchRequest = rb_define_class_under(cb_cBucket, "CouchRequest", rb_cObject);
     rb_define_alloc_func(cb_cCouchRequest, cb_http_request_alloc);
 
@@ -1350,6 +1453,8 @@ Init_couchbase_ext(void)
     cb_sym_quiet = ID2SYM(rb_intern("quiet"));
     cb_sym_replace = ID2SYM(rb_intern("replace"));
     cb_sym_replica = ID2SYM(rb_intern("replica"));
+    cb_sym_rows = ID2SYM(rb_intern("rows"));
+    cb_sym_meta = ID2SYM(rb_intern("meta"));
     cb_sym_select = ID2SYM(rb_intern("select"));
     cb_sym_send_threshold = ID2SYM(rb_intern("send_threshold"));
     cb_sym_set = ID2SYM(rb_intern("set"));

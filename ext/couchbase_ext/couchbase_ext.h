@@ -53,6 +53,7 @@ extern hrtime_t gethrtime(void);
 #endif
 
 #include <libcouchbase/couchbase.h>
+#include <libcouchbase/n1ql.h>
 
 #ifdef HAVE_RUBY_ENCODING_H
 #include "ruby/encoding.h"
@@ -194,6 +195,7 @@ extern VALUE cb_mDocument;
 extern VALUE cb_mPlain;
 extern VALUE cb_mMarshal;
 extern VALUE cb_mURI;
+extern VALUE cb_mMultiJson;
 extern VALUE em_m;
 
 /* Symbols */
@@ -264,6 +266,8 @@ extern ID cb_sym_put;
 extern ID cb_sym_quiet;
 extern ID cb_sym_replace;
 extern ID cb_sym_replica;
+extern ID cb_sym_rows;
+extern ID cb_sym_meta;
 extern ID cb_sym_select;
 extern ID cb_sym_send_threshold;
 extern ID cb_sym_set;
@@ -294,6 +298,7 @@ extern ID cb_id_iv_error;
 extern ID cb_id_iv_flags;
 extern ID cb_id_iv_from_master;
 extern ID cb_id_iv_headers;
+extern ID cb_id_iv_meta;
 extern ID cb_id_iv_inner_exception;
 extern ID cb_id_iv_key;
 extern ID cb_id_iv_node;
@@ -321,6 +326,7 @@ extern ID cb_id_verify_observe_options;
 extern VALUE cb_eBaseError;
 extern VALUE cb_eValueFormatError;
 extern VALUE cb_eHTTPError;
+extern VALUE cb_eQuery;
                                        /* LCB_SUCCESS = 0x00         */
                                        /* LCB_AUTH_CONTINUE = 0x01   */
 extern VALUE cb_eAuthError;               /* LCB_AUTH_ERROR = 0x02      */
@@ -418,6 +424,7 @@ VALUE cb_bucket_get(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_incr(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_decr(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_unlock(int argc, VALUE *argv, VALUE self);
+VALUE cb_bucket_query(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_run(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_stop(VALUE self);
 VALUE cb_bucket_version(int argc, VALUE *argv, VALUE self);
