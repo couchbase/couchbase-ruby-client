@@ -3,6 +3,10 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3.12 (2015-04-21)
+
+* [major] Experimental support of N1QL querires
+
 ## 1.3.11 (2015-01-08)
 
 * [minor] Update crossbuild system to use cmake for libcouchbase
