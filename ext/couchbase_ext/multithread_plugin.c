@@ -558,6 +558,7 @@ ls_arg_free(void *p) {
     if (args) {
         rb_fd_term(&args->in);
         rb_fd_term(&args->out);
+        rb_fd_term(&args->exc);
         xfree(args);
     }
 }
