@@ -42,19 +42,11 @@ bootstrap_callback(lcb_t handle, lcb_error_t error)
 
     lcb_breakout(handle);
     bucket->exception = cb_check_error(error, "bootstrap error", Qnil);
-    if (bucket->async && !bucket->connected) {
-        (void)trigger_on_connect_callback(bucket->self);
-    }
-}
-
-    static void
-configuration_callback(lcb_t handle, lcb_configuration_t config)
-{
-    struct cb_bucket_st *bucket = (struct cb_bucket_st *)lcb_get_cookie(handle);
-
-    if (config == LCB_CONFIGURATION_NEW) {
+    if (!bucket->connected) {
         bucket->connected = 1;
-        (void)trigger_on_connect_callback(bucket->self);
+        if (bucket->async) {
+            (void)trigger_on_connect_callback(bucket->self);
+        }
     }
 }
 
@@ -424,7 +416,6 @@ do_connect(struct cb_bucket_st *bucket)
     (void)lcb_set_http_data_callback(bucket->handle, cb_http_data_callback);
     (void)lcb_set_observe_callback(bucket->handle, cb_observe_callback);
     (void)lcb_set_unlock_callback(bucket->handle, cb_unlock_callback);
-    (void)lcb_set_configuration_callback(bucket->handle, configuration_callback);
 
     lcb_cntl(bucket->handle, (bucket->timeout > 0) ? LCB_CNTL_SET : LCB_CNTL_GET,
              LCB_CNTL_OP_TIMEOUT, &bucket->timeout);
