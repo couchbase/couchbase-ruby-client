@@ -406,11 +406,36 @@ lcb_destroy_io_opts(struct lcb_io_opt_st *iops)
     rb_em_loop_destroy((rb_em_loop*)iops->v.v0.cookie);
 }
 
+    static void
+iops_getprocs(int version,
+              lcb_loop_procs *loop_procs, lcb_timer_procs *timer_procs,
+              lcb_bsd_procs *bsd_procs, lcb_ev_procs *ev_procs,
+              lcb_completion_procs *completion_procs, lcb_iomodel_t *iomodel)
+{
+    /* Call the parent function */
+    lcb_iops_wire_bsd_impl2(bsd_procs, version);
+
+    /* Now apply our new I/O functionality */
+    ev_procs->create = lcb_io_create_event;
+    ev_procs->destroy = lcb_io_destroy_event;
+    ev_procs->watch = lcb_io_update_event;
+    ev_procs->cancel = lcb_io_delete_event;
+
+    timer_procs->create = lcb_io_create_timer;
+    timer_procs->destroy = lcb_io_destroy_timer;
+    timer_procs->schedule = lcb_io_update_timer;
+    timer_procs->cancel = lcb_io_delete_timer;
+
+    loop_procs->start = lcb_io_run_event_loop;
+    loop_procs->stop = lcb_io_stop_event_loop;
+    (void) completion_procs;
+    (void) iomodel;
+}
+
     LIBCOUCHBASE_API lcb_error_t
 cb_create_ruby_em_io_opts(int version, lcb_io_opt_t *io, void *arg)
 {
-    lcb_bsd_procs procs;
-    struct lcb_io_opt_st *ret;
+    lcb_io_opt_t ret;
     rb_em_loop *loop;
     struct cb_bucket_st *bucket = arg;
 
@@ -422,40 +447,19 @@ cb_create_ruby_em_io_opts(int version, lcb_io_opt_t *io, void *arg)
 
     ret = calloc(1, sizeof(*ret));
     if (ret == NULL) {
+        return LCB_CLIENT_ENOMEM;
+    }
+    loop = rb_em_loop_create(bucket);
+    if (loop == NULL) {
         free(ret);
         return LCB_CLIENT_ENOMEM;
     }
 
-    ret->version = 0;
     ret->dlhandle = NULL;
     ret->destructor = lcb_destroy_io_opts;
-    /* consider that struct isn't allocated by the library,
-     * `need_cleanup' flag might be set in lcb_create() */
-    ret->v.v0.need_cleanup = 0;
-    lcb_iops_wire_bsd_impl2(&procs, 0);
-    ret->v.v0.recv = procs.recv;
-    ret->v.v0.recvv = procs.recvv;
-    ret->v.v0.send = procs.send;
-    ret->v.v0.sendv = procs.sendv;
-    ret->v.v0.socket = procs.socket0;
-    ret->v.v0.connect = procs.connect0;
-    ret->v.v0.close = procs.close;
-    ret->v.v0.delete_event = lcb_io_delete_event;
-    ret->v.v0.destroy_event = lcb_io_destroy_event;
-    ret->v.v0.create_event = lcb_io_create_event;
-    ret->v.v0.update_event = lcb_io_update_event;
-
-    ret->v.v0.delete_timer = lcb_io_delete_timer;
-    ret->v.v0.destroy_timer = lcb_io_destroy_timer;
-    ret->v.v0.create_timer = lcb_io_create_timer;
-    ret->v.v0.update_timer = lcb_io_update_timer;
-
-    ret->v.v0.run_event_loop = lcb_io_run_event_loop;
-    ret->v.v0.stop_event_loop = lcb_io_stop_event_loop;
-
-    loop = rb_em_loop_create(bucket);
-    ret->v.v0.cookie = loop;
-
+    ret->version = 2;
+    ret->v.v2.get_procs = iops_getprocs;
+    LCB_IOPS_BASEFLD(ret, cookie) = loop;
     *io = ret;
     return LCB_SUCCESS;
 }

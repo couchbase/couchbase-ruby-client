@@ -355,18 +355,16 @@ do_connect(struct cb_bucket_st *bucket)
         } else if (bucket->engine == cb_sym_libev) {
             ciops.v.v0.type = LCB_IO_OPS_LIBEV;
         } else if (bucket->engine == cb_sym_eventmachine) {
-            ciops.version = 1;
-            ciops.v.v1.sofile = NULL;
-            ciops.v.v1.symbol = "cb_create_ruby_em_io_opts";
-            ciops.v.v1.cookie = bucket;
+            ciops.version = 2;
+            ciops.v.v2.create = cb_create_ruby_em_io_opts;
+            ciops.v.v2.cookie = bucket;
         } else {
 #ifdef _WIN32
             ciops.v.v0.type = LCB_IO_OPS_DEFAULT;
 #else
-            ciops.version = 1;
-            ciops.v.v1.sofile = NULL;
-            ciops.v.v1.symbol = "cb_create_ruby_mt_io_opts";
-            ciops.v.v1.cookie = NULL;
+            ciops.version = 2;
+            ciops.v.v2.create = cb_create_ruby_mt_io_opts;
+            ciops.v.v2.cookie = NULL;
 #endif
         }
         err = lcb_create_io_ops(&bucket->io, &ciops);

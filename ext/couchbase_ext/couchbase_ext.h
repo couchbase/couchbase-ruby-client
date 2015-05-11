@@ -644,6 +644,8 @@ int cb_io_connect(struct lcb_io_opt_st *iops, lcb_socket_t sock, const struct so
 /* plugin init functions */
 LIBCOUCHBASE_API
 lcb_error_t cb_create_ruby_mt_io_opts(int version, lcb_io_opt_t *io, void *arg);
+LIBCOUCHBASE_API
+lcb_error_t cb_create_ruby_em_io_opts(int version, lcb_io_opt_t *io, void *arg);
 
 /* shortcut functions */
     static inline VALUE
