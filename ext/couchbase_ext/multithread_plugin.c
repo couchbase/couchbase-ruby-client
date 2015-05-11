@@ -580,8 +580,8 @@ loop_run_select(VALUE argp)
     hrtime_t now, next_time;
 
     next_time = timers_minimum(&loop->timers);
+    now = gethrtime();
     if (next_time) {
-        now = gethrtime();
         if (next_time <= now) {
             timeout.tv_sec = 0;
             timeout.tv_usec = 0;
@@ -621,11 +621,6 @@ loop_run_select(VALUE argp)
     if (result < 0) {
         rb_sys_fail("rb_thread_fd_select");
     }
-    /* fix current time so that socket callbacks will not cause timers timeouts */
-    if (next_time) {
-        now = gethrtime();
-    }
-
     if (result > 0) {
         uint32_t i;
         for(i = 0; i < loop->events.count && result; i++) {
@@ -772,8 +767,8 @@ loop_run_poll(VALUE argp)
 
 retry:
     next_time = timers_minimum(&loop->timers);
+    now = gethrtime();
     if (next_time) {
-        now = gethrtime();
         args->ts = next_time <= now ? 0 : next_time - now;
     } else {
         args->ts = HRTIME_INFINITY;
@@ -823,10 +818,6 @@ retry:
         }
         rb_sys_fail("poll");
         return Qnil;
-    }
-
-    if (next_time) {
-        now = gethrtime();
     }
 
     if (args->result > 0) {

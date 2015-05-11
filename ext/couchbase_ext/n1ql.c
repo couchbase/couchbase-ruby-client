@@ -75,7 +75,7 @@ cb_bucket_query(int argc, VALUE *argv, VALUE self)
     lcb_N1QLPARAMS *params = lcb_n1p_new();
     lcb_CMDN1QL cmd = { 0 };
     lcb_error_t rc;
-    VALUE qstr, proc, opts, args;
+    VALUE qstr, proc, args;
     VALUE exc, rv;
 
     rb_scan_args(argc, argv, "1*&", &qstr, &args, &proc);
