@@ -354,10 +354,12 @@ do_connect(struct cb_bucket_st *bucket)
 #endif
         } else if (bucket->engine == cb_sym_libev) {
             ciops.v.v0.type = LCB_IO_OPS_LIBEV;
+#ifdef BUILD_EVENTMACHINE_PLUGIN
         } else if (bucket->engine == cb_sym_eventmachine) {
             ciops.version = 2;
             ciops.v.v2.create = cb_create_ruby_em_io_opts;
             ciops.v.v2.cookie = bucket;
+#endif
         } else {
 #ifdef _WIN32
             ciops.v.v0.type = LCB_IO_OPS_DEFAULT;

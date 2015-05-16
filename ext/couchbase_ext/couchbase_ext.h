@@ -27,7 +27,7 @@
 #endif
 
 #include "couchbase_config.h"
-#ifdef HAVE_RB_FIBER_YIELD
+#if defined(HAVE_RB_FIBER_YIELD) && !defined(_WIN32)
 #define BUILD_EVENTMACHINE_PLUGIN
 #endif
 #ifdef HAVE_STDINT_H
@@ -644,8 +644,10 @@ int cb_io_connect(struct lcb_io_opt_st *iops, lcb_socket_t sock, const struct so
 /* plugin init functions */
 LIBCOUCHBASE_API
 lcb_error_t cb_create_ruby_mt_io_opts(int version, lcb_io_opt_t *io, void *arg);
+#ifdef BUILD_EVENTMACHINE_PLUGIN
 LIBCOUCHBASE_API
 lcb_error_t cb_create_ruby_em_io_opts(int version, lcb_io_opt_t *io, void *arg);
+#endif
 
 /* shortcut functions */
     static inline VALUE
