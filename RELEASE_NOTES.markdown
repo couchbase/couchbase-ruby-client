@@ -3,6 +3,10 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3.13 (2015-05-16)
+
+* [major] RCBC-196 Improved integration with libcouchbase IO API
+
 ## 1.3.12 (2015-04-21)
 
 * [major] Experimental support of N1QL querires
