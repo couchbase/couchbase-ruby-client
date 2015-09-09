@@ -30,6 +30,10 @@
 #if defined(HAVE_RB_FIBER_YIELD) && !defined(_WIN32)
 #define BUILD_EVENTMACHINE_PLUGIN
 #endif
+#if defined(_WIN32) && defined(__cplusplus)
+#define __STDC_LIMIT_MACROS
+#include <cstdint>
+#endif
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif

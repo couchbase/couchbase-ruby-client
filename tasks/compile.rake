@@ -57,7 +57,7 @@ end
 recent = '2.0.0-p353'
 CROSS_PLATFORMS = [
   Platform.new(:name => 'x64-mingw32', :host => 'x86_64-w64-mingw32', :versions => %w(1.9.3-p484 2.0.0-p353 2.1.0)),
-  Platform.new(:name => 'x86-mingw32', :host => 'i686-w64-mingw32', :versions => %w(1.8.7-p374 1.9.3-p484 2.0.0-p353 2.1.0))
+  Platform.new(:name => 'x86-mingw32', :host => 'i686-w64-mingw32', :versions => %w(1.9.3-p484 2.0.0-p353 2.1.0))
 ]
 
 # Setup compile tasks.  Configuration can be passed via ENV.
@@ -131,7 +131,7 @@ task 'package:windows' => ['package', 'lib/couchbase_ext.rb'] do
     h[v] = ENV[v]
     h
   end
-  ENV['LDFLAGS'] = '-static-libgcc'
+  ENV['LDFLAGS'] = '-static-libgcc -static-libstdc++'
 
   CROSS_PLATFORMS.each do |platform|
     ENV['TARGET'] = platform.name

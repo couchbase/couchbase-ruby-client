@@ -228,6 +228,9 @@ cb_libcouchbase_version(VALUE self)
 }
 
 /* Ruby Extension initializer */
+#ifdef __cplusplus
+extern "C"
+#endif
     void
 Init_couchbase_ext(void)
 {

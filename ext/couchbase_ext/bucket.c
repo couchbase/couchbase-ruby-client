@@ -750,11 +750,9 @@ cb_bucket_quiet_get(VALUE self)
 cb_bucket_quiet_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
-    VALUE new;
 
     bucket->quiet = RTEST(val);
-    new = bucket->quiet ? Qtrue : Qfalse;
-    return new;
+    return bucket->quiet ? Qtrue : Qfalse;
 }
 
     VALUE

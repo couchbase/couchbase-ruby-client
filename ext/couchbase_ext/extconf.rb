@@ -43,18 +43,18 @@ end
 ($LDFLAGS ||= '') << " #{ENV['LDFLAGS']}"
 ($LIBS    ||= '') << " #{ENV['LIBS']}"
 
-$CFLAGS << ' -std=c99 -Wall -Wextra '
-if ENV['DEBUG']
-  $CFLAGS << ' -O0 -ggdb3 -pedantic '
-else
-  $CFLAGS << ' -O2'
-  $LDFLAGS << ' -Wl,--strip-debug' if RbConfig::CONFIG['target_os'] =~ /mingw32/
-end
-
 if RbConfig::CONFIG['target_os'] =~ /mingw32/
-  $LDFLAGS << ' -static-libgcc'
+  CONFIG['CC'] = CONFIG['CXX']
+  $LDFLAGS << ' -static-libgcc -static-libstdc++ -Wl,--strip-debug'
+  $CFLAGS << ' -fpermissive -std=c++11'
   dir_config('libcouchbase')
 else
+  $CFLAGS << ' -std=c99 -Wall -Wextra '
+  if ENV['DEBUG']
+    $CFLAGS << ' -O0 -ggdb3 -pedantic '
+  else
+    $CFLAGS << ' -O2'
+  end
   LIBDIR = RbConfig::CONFIG['libdir']
   INCLUDEDIR = RbConfig::CONFIG['includedir']
 
