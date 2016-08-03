@@ -17,7 +17,13 @@ documentation][api].
 ## INSTALL
 
 This gem depends [libcouchbase][3]. In most cases installing
-libcouchbase doesn't take much effort. After that you can install the
+libcouchbase doesn't take much effort.
+
+If on Mac OSX, you can install libcouchbase with [brew][brew]:
+
+    $ brew install libcouchbase
+
+After that you can install the
 couchbase gem itself:
 
     $ gem install couchbase
@@ -590,3 +596,4 @@ task and you will find all artifacts in `pkg/` directory:
 [10]: https://github.com/couchbase/couchbase-ruby-client/blob/master/CONTRIBUTING.markdown
 [11]: https://github.com/luislavena/rake-compiler
 [rbenv]: https://github.com/sstephenson/rbenv#homebrew-on-mac-os-x
+[brew]: http://brew.sh
