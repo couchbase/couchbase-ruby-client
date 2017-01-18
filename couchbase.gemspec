@@ -24,7 +24,7 @@ Gem::Specification.new do |s|
   s.version     = Couchbase::VERSION
   s.author      = 'Couchbase'
   s.email       = 'support@couchbase.com'
-  s.license     = 'ASL-2'
+  s.license     = 'Apache-2.0'
   s.homepage    = 'http://couchbase.org'
   s.summary     = %q{Couchbase ruby driver}
   s.description = %q{The official client library for use with Couchbase Server.}

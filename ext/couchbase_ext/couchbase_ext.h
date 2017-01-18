@@ -17,19 +17,8 @@
 #ifndef COUCHBASE_EXT_H
 #define COUCHBASE_EXT_H
 
-#include <ruby.h>
-#ifndef RUBY_ST_H
-#include <st.h>
-#endif
-
-#ifdef HAVE_RUBY_THREAD_H
-#include <ruby/thread.h>
-#endif
-
 #include "couchbase_config.h"
-#if defined(HAVE_RB_FIBER_YIELD) && !defined(_WIN32)
-#define BUILD_EVENTMACHINE_PLUGIN
-#endif
+
 #if defined(_WIN32) && defined(__cplusplus)
 #define __STDC_LIMIT_MACROS
 #include <cstdint>
@@ -37,6 +26,19 @@
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
+
+#include <ruby.h>
+#ifndef RUBY_ST_H
+#include <st.h>
+#endif
+
+#if defined(HAVE_RB_FIBER_YIELD) && !defined(_WIN32)
+#define BUILD_EVENTMACHINE_PLUGIN
+#endif
+#ifdef HAVE_RUBY_THREAD_H
+#include <ruby/thread.h>
+#endif
+
 #ifndef HAVE_GETHRTIME
 typedef uint64_t hrtime_t;
 extern hrtime_t gethrtime(void);

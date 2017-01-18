@@ -172,7 +172,7 @@ end
 have_library('couchbase', 'lcb_iops_wire_bsd_impl2(NULL, 0)', 'libcouchbase/couchbase.h') || die(install_notice)
 have_header('mach/mach_time.h')
 have_header('stdint.h') || die('Failed to locate stdint.h')
-have_header('sys/time.h')
+have_header('sys/time.h') unless RbConfig::CONFIG['target_os'] =~ /mingw32/
 have_header('fcntl.h')
 have_header('sys/socket.h')
 have_header('errno.h')

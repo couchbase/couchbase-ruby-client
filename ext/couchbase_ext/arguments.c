@@ -17,6 +17,7 @@
 
 #include "couchbase_ext.h"
 
+
 #define _alloc_data_for_s(type, _type, size, items, ptr) do {\
     lcb_size_t ii; \
     \
