@@ -85,7 +85,9 @@ class TestCouchbaseRailsCacheStore < MiniTest::Test
   def test_it_doest_write_data_if_unless_exist_option_is_true
     store.write uniq_id, @foo
     [:unless_exist, :unless_exists].each do |unless_exists|
-      store.write uniq_id, @foobar, unless_exists => true
+      assert_raises(Couchbase::Error::KeyExists) do
+        store.write uniq_id, @foobar, unless_exists => true
+      end
       assert_equal @foo, store.read(uniq_id)
     end
   end
