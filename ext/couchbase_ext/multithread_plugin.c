@@ -54,7 +54,7 @@ struct rb_mt_events {
     rb_mt_socket_list *sockets;
 };
 
-    static int
+static int
 events_init(rb_mt_events *events)
 {
     rb_mt_socket_list *new_socks = malloc(4 * sizeof(*new_socks));
@@ -67,14 +67,14 @@ events_init(rb_mt_events *events)
     return 1;
 }
 
-    static void
+static void
 events_finalize(rb_mt_events *events)
 {
     if (events->sockets) {
         uint32_t i;
-        for(i = 0; i < events->count; i++) {
+        for (i = 0; i < events->count; i++) {
             rb_mt_socket_list *list = &events->sockets[i];
-            while(list->first) {
+            while (list->first) {
                 rb_mt_event *next = list->first->next;
                 free(list->first);
                 list->first = next;
@@ -87,11 +87,11 @@ events_finalize(rb_mt_events *events)
     events->count = 0;
 }
 
-    static uint32_t
+static uint32_t
 events_index(rb_mt_events *events, lcb_socket_t socket)
 {
     uint32_t m, l = 0, r = events->count;
-    while(l < r) {
+    while (l < r) {
         m = l + (r - l) / 2;
         if (events->sockets[m].socket >= socket) {
             r = m;
@@ -102,7 +102,7 @@ events_index(rb_mt_events *events, lcb_socket_t socket)
     return l;
 }
 
-    static void
+static void
 events_insert(rb_mt_events *events, rb_mt_event *event)
 {
     uint32_t i = events_index(events, event->socket);
@@ -119,7 +119,7 @@ events_insert(rb_mt_events *events, rb_mt_event *event)
             list = &events->sockets[i];
         }
         if (i < events->count) {
-            MEMMOVE(events->sockets+i+1, events->sockets+i, rb_mt_socket_list, events->count - i);
+            MEMMOVE(events->sockets + i + 1, events->sockets + i, rb_mt_socket_list, events->count - i);
         }
         events->count++;
         list->socket = event->socket;
@@ -134,7 +134,7 @@ events_insert(rb_mt_events *events, rb_mt_event *event)
     event->inserted = 1;
 }
 
-    static void
+static void
 event_list_fix_flags(rb_mt_socket_list *list)
 {
     short flags = 0;
@@ -146,7 +146,7 @@ event_list_fix_flags(rb_mt_socket_list *list)
     list->flags = flags;
 }
 
-    static void
+static void
 events_remove(rb_mt_events *events, rb_mt_event *event)
 {
     uint32_t i = events_index(events, event->socket);
@@ -156,7 +156,7 @@ events_remove(rb_mt_events *events, rb_mt_event *event)
         rb_raise(rb_eIndexError, "There is no socket in event loop");
     }
     next = &list->first;
-    for(;;) {
+    for (;;) {
         if (*next == NULL) {
             rb_raise(rb_eIndexError, "There is no event in event loop");
         }
@@ -176,7 +176,7 @@ events_remove(rb_mt_events *events, rb_mt_event *event)
     }
 }
 
-    static void
+static void
 events_fix_flags(rb_mt_events *events, lcb_socket_t socket)
 {
     uint32_t i = events_index(events, socket);
@@ -187,7 +187,7 @@ events_fix_flags(rb_mt_events *events, lcb_socket_t socket)
     event_list_fix_flags(list);
 }
 
-    static inline lcb_socket_t
+static inline lcb_socket_t
 events_max_fd(rb_mt_events *events)
 {
     if (events->count) {
@@ -216,7 +216,7 @@ struct rb_mt_timers {
     rb_mt_timer **timers;
 };
 
-    static int
+static int
 timers_init(rb_mt_timers *timers)
 {
     rb_mt_timer **new_timers = malloc(4 * sizeof(*new_timers));
@@ -229,12 +229,12 @@ timers_init(rb_mt_timers *timers)
     return 1;
 }
 
-    static void
+static void
 timers_finalize(rb_mt_timers *timers)
 {
     if (timers->timers) {
         uint32_t i;
-        for(i = 0; i < timers->count; i++) {
+        for (i = 0; i < timers->count; i++) {
             free(timers->timers[i]);
         }
         free(timers->timers);
@@ -247,7 +247,7 @@ timers_finalize(rb_mt_timers *timers)
 #define tms_at(_timers, at) (_timers)->timers[(at)]
 #define tms_ts_at(timers, at) tms_at((timers), (at))->ts
 
-    static void
+static void
 timers_move_last(rb_mt_timers *timers, uint32_t to)
 {
     if (to < timers->count - 1) {
@@ -258,7 +258,7 @@ timers_move_last(rb_mt_timers *timers, uint32_t to)
     timers->count--;
 }
 
-    static inline void
+static inline void
 timers_swap(rb_mt_timers *timers, uint32_t i, uint32_t j)
 {
     rb_mt_timer *itmp = tms_at(timers, j);
@@ -271,13 +271,13 @@ timers_swap(rb_mt_timers *timers, uint32_t i, uint32_t j)
 
 static void timers_heapify_up(rb_mt_timers *timers, uint32_t pos);
 
-    static void
+static void
 timers_insert(rb_mt_timers *timers, rb_mt_timer *timer)
 {
     if (timers->count == timers->capa) {
         rb_mt_timer **new_timers;
         size_t new_capa = timers->capa << 1;
-        new_timers = realloc(timers->timers, new_capa * sizeof(rb_mt_timer*));
+        new_timers = realloc(timers->timers, new_capa * sizeof(rb_mt_timer *));
         if (new_timers == NULL) {
             rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for timers heap");
         }
@@ -290,7 +290,7 @@ timers_insert(rb_mt_timers *timers, rb_mt_timer *timer)
     timers_heapify_up(timers, timer->index);
 }
 
-    static void
+static void
 timers_heapify_up(rb_mt_timers *timers, uint32_t pos)
 {
     hrtime_t cur_ts = tms_ts_at(timers, pos);
@@ -302,13 +302,14 @@ timers_heapify_up(rb_mt_timers *timers, uint32_t pos)
     }
 }
 
-    static void
+static void
 timers_heapify_down(rb_mt_timers *timers, uint32_t pos)
 {
     uint32_t count = timers->count;
     uint32_t middle = (timers->count - 2) / 2;
     hrtime_t cur_ts = tms_ts_at(timers, pos);
-    if (count == 1) return;
+    if (count == 1)
+        return;
     while (pos <= middle) {
         uint32_t min_pos = pos;
         hrtime_t ch_ts, min_ts = cur_ts;
@@ -322,13 +323,14 @@ timers_heapify_down(rb_mt_timers *timers, uint32_t pos)
             min_pos = pos * 2 + 2;
         }
 
-        if (min_pos == pos) break;
+        if (min_pos == pos)
+            break;
         timers_swap(timers, pos, min_pos);
         pos = min_pos;
     }
 }
 
-    static void
+static void
 timers_heapify_item(rb_mt_timers *timers, uint32_t pos)
 {
     if (pos && tms_ts_at(timers, pos) < tms_ts_at(timers, (pos - 1) / 2)) {
@@ -338,7 +340,7 @@ timers_heapify_item(rb_mt_timers *timers, uint32_t pos)
     }
 }
 
-    static inline hrtime_t
+static inline hrtime_t
 timers_minimum(rb_mt_timers *timers)
 {
     if (timers->count) {
@@ -348,7 +350,7 @@ timers_minimum(rb_mt_timers *timers)
     }
 }
 
-    static inline rb_mt_timer *
+static inline rb_mt_timer *
 timers_first(rb_mt_timers *timers)
 {
     if (timers->count) {
@@ -358,7 +360,7 @@ timers_first(rb_mt_timers *timers)
     }
 }
 
-    static void
+static void
 timers_remove_timer(rb_mt_timers *timers, rb_mt_timer *timer)
 {
     uint32_t at = timer->index;
@@ -371,7 +373,7 @@ timers_remove_timer(rb_mt_timers *timers, rb_mt_timer *timer)
     }
 }
 
-    static void
+static void
 timers_run(rb_mt_timers *timers, hrtime_t now)
 {
     hrtime_t next_time = timers_minimum(timers);
@@ -396,7 +398,7 @@ struct rb_mt_callbacks {
     rb_mt_event **events;
 };
 
-    static int
+static int
 callbacks_init(rb_mt_callbacks *callbacks)
 {
     rb_mt_event **new_events = calloc(4, sizeof(*new_events));
@@ -409,7 +411,7 @@ callbacks_init(rb_mt_callbacks *callbacks)
     return 1;
 }
 
-    static void
+static void
 callbacks_finalize(rb_mt_callbacks *callbacks)
 {
     if (callbacks->events) {
@@ -420,7 +422,7 @@ callbacks_finalize(rb_mt_callbacks *callbacks)
     callbacks->count = 0;
 }
 
-    static void
+static void
 callbacks_push(rb_mt_callbacks *callbacks, rb_mt_event *event)
 {
     if (callbacks->count == callbacks->capa) {
@@ -437,7 +439,7 @@ callbacks_push(rb_mt_callbacks *callbacks, rb_mt_event *event)
     callbacks->count++;
 }
 
-    static void
+static void
 callbacks_remove(rb_mt_callbacks *callbacks, rb_mt_event *event)
 {
     int i = event->loop_index;
@@ -450,11 +452,11 @@ callbacks_remove(rb_mt_callbacks *callbacks, rb_mt_event *event)
     }
 }
 
-    static void
+static void
 callbacks_run(rb_mt_callbacks *callbacks)
 {
     uint32_t i;
-    for(i = 0; i < callbacks->count; i++) {
+    for (i = 0; i < callbacks->count; i++) {
         rb_mt_event *cb = callbacks->events[i];
         if (cb) {
             cb->loop_index = -1;
@@ -465,11 +467,11 @@ callbacks_run(rb_mt_callbacks *callbacks)
     callbacks->count = 0;
 }
 
-    static void
+static void
 callbacks_clean(rb_mt_callbacks *callbacks)
 {
     uint32_t i;
-    for(i = 0; i < callbacks->count; i++) {
+    for (i = 0; i < callbacks->count; i++) {
         if (callbacks->events[i]) {
             callbacks->events[i]->loop_index = -1;
             callbacks->events[i] = NULL;
@@ -487,14 +489,18 @@ struct rb_mt_loop {
     short run;
 };
 
-    static rb_mt_loop*
+static rb_mt_loop *
 loop_create()
 {
     rb_mt_loop *loop = calloc(1, sizeof(*loop));
-    if (loop == NULL) return NULL;
-    if (!events_init(&loop->events)) goto free_loop;
-    if (!timers_init(&loop->timers)) goto free_events;
-    if (!callbacks_init(&loop->callbacks)) goto free_timers;
+    if (loop == NULL)
+        return NULL;
+    if (!events_init(&loop->events))
+        goto free_loop;
+    if (!timers_init(&loop->timers))
+        goto free_events;
+    if (!callbacks_init(&loop->callbacks))
+        goto free_timers;
     return loop;
 
 free_timers:
@@ -506,7 +512,7 @@ free_loop:
     return NULL;
 }
 
-    static void
+static void
 loop_destroy(rb_mt_loop *loop)
 {
     events_finalize(&loop->events);
@@ -515,7 +521,7 @@ loop_destroy(rb_mt_loop *loop)
     free(loop);
 }
 
-    static void
+static void
 loop_remove_event(rb_mt_loop *loop, rb_mt_event *event)
 {
     if (event->inserted) {
@@ -524,14 +530,14 @@ loop_remove_event(rb_mt_loop *loop, rb_mt_event *event)
     callbacks_remove(&loop->callbacks, event);
 }
 
-    static void
+static void
 loop_enque_events(rb_mt_callbacks *callbacks, rb_mt_event *sock, short flags)
 {
     while (sock) {
         short actual = sock->flags & flags;
         if (actual) {
             sock->actual_flags = actual;
-            callbacks_push(callbacks, (rb_mt_event*)sock);
+            callbacks_push(callbacks, (rb_mt_event *)sock);
         }
         sock = sock->next;
     }
@@ -540,10 +546,10 @@ loop_enque_events(rb_mt_callbacks *callbacks, rb_mt_event *sock, short flags)
 /* loop select implementation */
 #ifndef HAVE_RB_THREAD_FD_SELECT
 typedef fd_set rb_fdset_t;
-#define rb_fd_init   FD_ZERO
-#define rb_fd_set    FD_SET
-#define rb_fd_isset  FD_ISSET
-#define rb_fd_term(set)  (void)0
+#define rb_fd_init FD_ZERO
+#define rb_fd_set FD_SET
+#define rb_fd_isset FD_ISSET
+#define rb_fd_term(set) (void)0
 #define rb_thread_fd_select rb_thread_select
 #endif
 
@@ -552,8 +558,9 @@ typedef struct loop_select_arg {
     rb_fdset_t in, out, exc;
 } ls_arg;
 
-    static void
-ls_arg_free(void *p) {
+static void
+ls_arg_free(void *p)
+{
     ls_arg *args = p;
     if (args) {
         rb_fd_term(&args->in);
@@ -563,16 +570,16 @@ ls_arg_free(void *p) {
     }
 }
 
-    static VALUE
+static VALUE
 ls_arg_alloc(ls_arg **args)
 {
     return Data_Make_Struct(rb_cObject, ls_arg, 0, ls_arg_free, *args);
 }
 
-    static VALUE
+static VALUE
 loop_run_select(VALUE argp)
 {
-    ls_arg *args = (ls_arg*) argp;
+    ls_arg *args = (ls_arg *)argp;
     rb_mt_loop *loop = args->loop;
     rb_fdset_t *in = NULL, *out = NULL, *exc = NULL;
     struct timeval timeout;
@@ -599,7 +606,7 @@ loop_run_select(VALUE argp)
         rb_fd_init(&args->in);
         rb_fd_init(&args->out);
         rb_fd_init(&args->exc);
-        for(i = 0; i < loop->events.count; i++) {
+        for (i = 0; i < loop->events.count; i++) {
             rb_mt_socket_list *list = &loop->events.sockets[i];
             if (list->flags != 0) {
                 if (list->flags & LCB_READ_EVENT) {
@@ -624,7 +631,7 @@ loop_run_select(VALUE argp)
     }
     if (result > 0) {
         uint32_t i;
-        for(i = 0; i < loop->events.count && result; i++) {
+        for (i = 0; i < loop->events.count && result; i++) {
             rb_mt_socket_list *list = loop->events.sockets + i;
             rb_mt_event *sock = list->first;
             short flags = 0;
@@ -656,7 +663,7 @@ loop_run_select(VALUE argp)
     return Qnil;
 }
 
-    static VALUE
+static VALUE
 loop_select_cleanup(VALUE argp)
 {
     ls_arg *args = DATA_PTR(argp);
@@ -677,7 +684,7 @@ loop_select_cleanup(VALUE argp)
 #define HRTIME_INFINITY ((hrtime_t)~0)
 
 #ifdef HAVE_PPOLL
-    static int
+static int
 xpoll(struct pollfd *fds, nfds_t nfds, hrtime_t timeout)
 {
     if (timeout != HRTIME_INFINITY) {
@@ -690,7 +697,7 @@ xpoll(struct pollfd *fds, nfds_t nfds, hrtime_t timeout)
 }
 #else
 #define TIMEOUT_MAX ((hrtime_t)(((unsigned int)~0) >> 1))
-    static int
+static int
 xpoll(struct pollfd *fds, nfds_t nfds, hrtime_t timeout)
 {
     int ts = -1;
@@ -714,7 +721,7 @@ struct poll_args {
     int lerrno;
 };
 
-    static void
+static void
 lp_arg_free(void *p)
 {
     lp_arg *args = p;
@@ -726,27 +733,28 @@ lp_arg_free(void *p)
     }
 }
 
-    static VALUE
+static VALUE
 lp_arg_alloc(lp_arg **args)
 {
     return Data_Make_Struct(rb_cObject, lp_arg, 0, lp_arg_free, *args);
 }
 
 #if defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
-    static VALUE
+static VALUE
 loop_blocking_poll(void *argp)
 {
     lp_arg *args = argp;
     args->result = xpoll(args->fds, args->nfd, args->ts);
-    if (args->result < 0) args->lerrno = errno;
+    if (args->result < 0)
+        args->lerrno = errno;
     return Qnil;
 }
 #endif
 
-    static VALUE
+static VALUE
 loop_run_poll(VALUE argp)
 {
-    lp_arg *args = (lp_arg*)argp;
+    lp_arg *args = (lp_arg *)argp;
     rb_mt_loop *loop = args->loop;
     hrtime_t now, next_time;
 
@@ -756,12 +764,11 @@ loop_run_poll(VALUE argp)
         if (args->fds == NULL) {
             rb_raise(cb_eClientNoMemoryError, "failed to allocate memory for pollfd");
         }
-        for(i = 0; i < loop->events.count; i++) {
+        for (i = 0; i < loop->events.count; i++) {
             rb_mt_socket_list *list = &loop->events.sockets[i];
             args->fds[i].fd = list->socket;
             args->fds[i].events =
-                (list->flags & LCB_READ_EVENT ? POLLIN : 0) |
-                (list->flags & LCB_WRITE_EVENT ? POLLOUT : 0);
+                (list->flags & LCB_READ_EVENT ? POLLIN : 0) | (list->flags & LCB_WRITE_EVENT ? POLLOUT : 0);
         }
         args->nfd = loop->events.count;
     }
@@ -775,16 +782,16 @@ retry:
         args->ts = HRTIME_INFINITY;
     }
 
-
 #if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
-    rb_thread_call_without_gvl((void *(*)(void*))loop_blocking_poll, args, RUBY_UBF_IO, 0);
+    rb_thread_call_without_gvl((void *(*)(void *))loop_blocking_poll, args, RUBY_UBF_IO, 0);
 #elif defined(HAVE_RB_THREAD_BLOCKING_REGION)
     rb_thread_blocking_region(loop_blocking_poll, args, RUBY_UBF_PROCESS, NULL);
 #else
     if (rb_thread_alone()) {
         TRAP_BEG;
         args->result = xpoll(args->fds, args->nfd, args->ts);
-        if (args->result < 0) args->lerrno = errno;
+        if (args->result < 0)
+            args->lerrno = errno;
         TRAP_END;
     } else {
         /* 5 millisecond pause */
@@ -796,7 +803,8 @@ retry:
         }
         TRAP_BEG;
         args->result = xpoll(args->fds, args->nfd, mini_pause);
-        if (args->result < 0) args->lerrno = errno;
+        if (args->result < 0)
+            args->lerrno = errno;
         TRAP_END;
         if (args->result == 0 && !exact) {
             args->result = -1;
@@ -808,14 +816,14 @@ retry:
     if (args->result < 0) {
         errno = args->lerrno;
         switch (errno) {
-            case EINTR:
+        case EINTR:
 #ifdef ERESTART
-            case ERESTART:
+        case ERESTART:
 #endif
 #ifndef HAVE_RB_THREAD_BLOCKING_REGION
-                rb_thread_schedule();
+            rb_thread_schedule();
 #endif
-                goto retry;
+            goto retry;
         }
         rb_sys_fail("poll");
         return Qnil;
@@ -839,9 +847,8 @@ retry:
             }
 
             if (res->revents) {
-                short flags =
-                    ((res->revents & POLLIN_SET) ? LCB_READ_EVENT : 0) |
-                    ((res->revents & POLLOUT_SET) ? LCB_WRITE_EVENT : 0);
+                short flags = ((res->revents & POLLIN_SET) ? LCB_READ_EVENT : 0) |
+                              ((res->revents & POLLOUT_SET) ? LCB_WRITE_EVENT : 0);
                 cnt--;
                 loop_enque_events(&loop->callbacks, sock, flags);
             }
@@ -860,7 +867,7 @@ retry:
     return Qnil;
 }
 
-    static VALUE
+static VALUE
 loop_poll_cleanup(VALUE argp)
 {
     lp_arg *args = DATA_PTR(argp);
@@ -874,13 +881,13 @@ loop_poll_cleanup(VALUE argp)
 #endif
 /* loop poll implementation end */
 
-    static void
+static void
 loop_run(rb_mt_loop *loop)
 {
 
     loop->run = 1;
 
-    while(loop->run) {
+    while (loop->run) {
 #ifdef HAVE_POLL
         /* prefer use of poll when it gives some benefits, but use rb_thread_fd_select when it is sufficient */
         lcb_socket_t max = events_max_fd(&loop->events);
@@ -901,7 +908,7 @@ loop_run(rb_mt_loop *loop)
     }
 }
 
-    static void *
+static void *
 lcb_io_create_event(struct lcb_io_opt_st *iops)
 {
     rb_mt_event *event = calloc(1, sizeof(*event));
@@ -910,23 +917,15 @@ lcb_io_create_event(struct lcb_io_opt_st *iops)
     return event;
 }
 
-    static int
-lcb_io_update_event(struct lcb_io_opt_st *iops,
-        lcb_socket_t sock,
-        void *eventp,
-        short flags,
-        void *cb_data,
-        void (*handler)(lcb_socket_t sock,
-            short which,
-            void *cb_data))
+static int
+lcb_io_update_event(struct lcb_io_opt_st *iops, lcb_socket_t sock, void *eventp, short flags, void *cb_data,
+                    void (*handler)(lcb_socket_t sock, short which, void *cb_data))
 {
     rb_mt_loop *loop = iops->v.v0.cookie;
     rb_mt_event *event = eventp;
     short old_flags = event->flags;
 
-    if (event->inserted && old_flags == flags &&
-            cb_data == event->cb_data && handler == event->handler)
-    {
+    if (event->inserted && old_flags == flags && cb_data == event->cb_data && handler == event->handler) {
         return 0;
     }
     loop_remove_event(loop, event);
@@ -943,24 +942,21 @@ lcb_io_update_event(struct lcb_io_opt_st *iops,
     return 0;
 }
 
-    static void
-lcb_io_delete_event(struct lcb_io_opt_st *iops,
-        lcb_socket_t sock,
-        void *event)
+static void
+lcb_io_delete_event(struct lcb_io_opt_st *iops, lcb_socket_t sock, void *event)
 {
-    loop_remove_event((rb_mt_loop*)iops->v.v0.cookie, (rb_mt_event*)event);
+    loop_remove_event((rb_mt_loop *)iops->v.v0.cookie, (rb_mt_event *)event);
     (void)sock;
 }
 
-    static void
-lcb_io_destroy_event(struct lcb_io_opt_st *iops,
-        void *event)
+static void
+lcb_io_destroy_event(struct lcb_io_opt_st *iops, void *event)
 {
     lcb_io_delete_event(iops, -1, event);
     free(event);
 }
 
-    static void *
+static void *
 lcb_io_create_timer(struct lcb_io_opt_st *iops)
 {
     rb_mt_timer *timer = calloc(1, sizeof(*timer));
@@ -969,10 +965,9 @@ lcb_io_create_timer(struct lcb_io_opt_st *iops)
     return timer;
 }
 
-    static int
-lcb_io_update_timer(struct lcb_io_opt_st *iops, void *event,
-        lcb_uint32_t usec, void *cb_data,
-        void (*handler)(lcb_socket_t sock, short which, void *cb_data))
+static int
+lcb_io_update_timer(struct lcb_io_opt_st *iops, void *event, lcb_uint32_t usec, void *cb_data,
+                    void (*handler)(lcb_socket_t sock, short which, void *cb_data))
 {
     rb_mt_loop *loop = iops->v.v0.cookie;
     rb_mt_timer *timer = event;
@@ -989,7 +984,7 @@ lcb_io_update_timer(struct lcb_io_opt_st *iops, void *event,
     return 0;
 }
 
-    static void
+static void
 lcb_io_delete_timer(struct lcb_io_opt_st *iops, void *event)
 {
     rb_mt_loop *loop = iops->v.v0.cookie;
@@ -999,28 +994,28 @@ lcb_io_delete_timer(struct lcb_io_opt_st *iops, void *event)
     }
 }
 
-    static void
+static void
 lcb_io_destroy_timer(struct lcb_io_opt_st *iops, void *timer)
 {
     lcb_io_delete_timer(iops, timer);
     free(timer);
 }
 
-    static void
+static void
 lcb_io_stop_event_loop(struct lcb_io_opt_st *iops)
 {
     rb_mt_loop *loop = iops->v.v0.cookie;
     loop->run = 0;
 }
 
-    static void
+static void
 lcb_io_run_event_loop(struct lcb_io_opt_st *iops)
 {
     rb_mt_loop *loop = iops->v.v0.cookie;
     loop_run(loop);
 }
 
-    static void
+static void
 lcb_destroy_io_opts(struct lcb_io_opt_st *iops)
 {
     rb_mt_loop *loop = iops->v.v0.cookie;
@@ -1028,11 +1023,9 @@ lcb_destroy_io_opts(struct lcb_io_opt_st *iops)
     free(iops);
 }
 
-    static void
-iops_getprocs(int version,
-              lcb_loop_procs *loop_procs, lcb_timer_procs *timer_procs,
-              lcb_bsd_procs *bsd_procs, lcb_ev_procs *ev_procs,
-              lcb_completion_procs *completion_procs, lcb_iomodel_t *iomodel)
+static void
+iops_getprocs(int version, lcb_loop_procs *loop_procs, lcb_timer_procs *timer_procs, lcb_bsd_procs *bsd_procs,
+              lcb_ev_procs *ev_procs, lcb_completion_procs *completion_procs, lcb_iomodel_t *iomodel)
 {
     /* Call the parent function */
     lcb_iops_wire_bsd_impl2(bsd_procs, version);
@@ -1050,11 +1043,11 @@ iops_getprocs(int version,
 
     loop_procs->start = lcb_io_run_event_loop;
     loop_procs->stop = lcb_io_stop_event_loop;
-    (void) completion_procs;
-    (void) iomodel;
+    (void)completion_procs;
+    (void)iomodel;
 }
 
-    LIBCOUCHBASE_API lcb_error_t
+LIBCOUCHBASE_API lcb_error_t
 cb_create_ruby_mt_io_opts(int version, lcb_io_opt_t *io, void *arg)
 {
     lcb_io_opt_t ret;

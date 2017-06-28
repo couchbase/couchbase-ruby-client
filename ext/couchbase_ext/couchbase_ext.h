@@ -69,10 +69,10 @@ extern hrtime_t gethrtime(void);
 
 #ifdef HAVE_STDARG_PROTOTYPES
 #include <stdarg.h>
-#define va_init_list(a,b) va_start(a,b)
+#define va_init_list(a, b) va_start(a, b)
 #else
 #include <varargs.h>
-#define va_init_list(a,b) va_start(a)
+#define va_init_list(a, b) va_start(a)
 #endif
 
 #ifndef HAVE_RB_HASH_LOOKUP2
@@ -82,26 +82,22 @@ VALUE rb_hash_lookup2(VALUE, VALUE, VALUE);
 typedef st_data_t st_index_t;
 #endif
 
-#define cb_debug_object(OBJ) do { \
-    VALUE debug_args[6] = { \
-        rb_funcall(OBJ, rb_intern("object_id"), 0), \
-        STR_NEW_CSTR(" "), \
-        rb_funcall(OBJ, rb_intern("class"), 0), \
-        STR_NEW_CSTR(" "), \
-        rb_funcall(OBJ, rb_intern("inspect"), 0), \
-        STR_NEW_CSTR("\n") }; \
-    rb_funcall2(rb_stderr, rb_intern("print"), 6, debug_args); \
-} while(0)
+#define cb_debug_object(OBJ)                                                                                           \
+    do {                                                                                                               \
+        VALUE debug_args[6] = {rb_funcall(OBJ, rb_intern("object_id"), 0), STR_NEW_CSTR(" "),                          \
+                               rb_funcall(OBJ, rb_intern("class"), 0),     STR_NEW_CSTR(" "),                          \
+                               rb_funcall(OBJ, rb_intern("inspect"), 0),   STR_NEW_CSTR("\n")};                        \
+        rb_funcall2(rb_stderr, rb_intern("print"), 6, debug_args);                                                     \
+    } while (0)
 
-#define CB_FMT_MASK        0x3
-#define CB_FMT_DOCUMENT    0x0
-#define CB_FMT_MARSHAL     0x1
-#define CB_FMT_PLAIN       0x2
+#define CB_FMT_MASK 0x3
+#define CB_FMT_DOCUMENT 0x0
+#define CB_FMT_MARSHAL 0x1
+#define CB_FMT_PLAIN 0x2
 
 #define CB_PACKET_HEADER_SIZE 24
 /* Structs */
-struct cb_bucket_st
-{
+struct cb_bucket_st {
     lcb_t handle;
     lcb_type_t type;
     struct lcb_io_opt_st *io;
@@ -115,34 +111,35 @@ struct cb_bucket_st
     VALUE engine;
     int async;
     int quiet;
-    uint8_t connected;       /* non-zero if instance has been connected. it is possible to defer connection with :async option */
-    uint8_t running;         /* non-zero if event loop is running */
-    uint8_t trigger_connect_cb_on_set; /* if non-zero, the on_connect callback will be triggered immediately after set */
+    uint8_t
+        connected; /* non-zero if instance has been connected. it is possible to defer connection with :async option */
+    uint8_t running; /* non-zero if event loop is running */
+    uint8_t
+        trigger_connect_cb_on_set; /* if non-zero, the on_connect callback will be triggered immediately after set */
     VALUE transcoder;
     uint32_t default_flags;
     time_t default_ttl;
     time_t default_observe_timeout;
-    lcb_uint64_t default_arith_create;  /* should the incr/decr create the key? if non-zero, will use arith_init */
-    lcb_uint64_t default_arith_init;    /* default initial value for incr/decr */
+    lcb_uint64_t default_arith_create; /* should the incr/decr create the key? if non-zero, will use arith_init */
+    lcb_uint64_t default_arith_init;   /* default initial value for incr/decr */
     uint32_t timeout;
-    size_t threshold;       /* the number of bytes to trigger event loop, zero if don't care */
-    size_t nbytes;          /* the number of bytes scheduled to be sent */
-    VALUE exception;        /* error delivered by error_callback */
-    VALUE on_error_proc;    /* is using to deliver errors in async mode */
-    VALUE on_connect_proc;  /* used to notify that instance ready to handle requests in async mode */
-    VALUE environment;      /* sym_development or sym_production */
+    size_t threshold;      /* the number of bytes to trigger event loop, zero if don't care */
+    size_t nbytes;         /* the number of bytes scheduled to be sent */
+    VALUE exception;       /* error delivered by error_callback */
+    VALUE on_error_proc;   /* is using to deliver errors in async mode */
+    VALUE on_connect_proc; /* used to notify that instance ready to handle requests in async mode */
+    VALUE environment;     /* sym_development or sym_production */
     VALUE key_prefix_val;
     VALUE node_list;
     VALUE bootstrap_transports;
     st_table *object_space;
     char destroying;
-    VALUE self;             /* the pointer to bucket representation in ruby land */
+    VALUE self; /* the pointer to bucket representation in ruby land */
 };
 
 struct cb_http_request_st;
-struct cb_context_st
-{
-    struct cb_bucket_st* bucket;
+struct cb_context_st {
+    struct cb_bucket_st *bucket;
     int extended;
     VALUE proc;
     VALUE rv;
@@ -155,8 +152,8 @@ struct cb_context_st
     int headers_built;
     struct cb_http_request_st *request;
     int quiet;
-    int arith;           /* incr: +1, decr: -1, other: 0 */
-    int all_replicas;    /* handle multiple responses from get_replica if non-zero */
+    int arith;        /* incr: +1, decr: -1, other: 0 */
+    int all_replicas; /* handle multiple responses from get_replica if non-zero */
     size_t nqueries;
 };
 
@@ -173,8 +170,7 @@ struct cb_http_request_st {
     VALUE on_body_callback;
 };
 
-struct cb_timer_st
-{
+struct cb_timer_st {
     struct cb_bucket_st *bucket;
     int periodic;
     uint32_t usec;
@@ -327,53 +323,52 @@ extern VALUE cb_eBaseError;
 extern VALUE cb_eValueFormatError;
 extern VALUE cb_eHTTPError;
 extern VALUE cb_eQuery;
-                                       /* LCB_SUCCESS = 0x00         */
-                                       /* LCB_AUTH_CONTINUE = 0x01   */
-extern VALUE cb_eAuthError;               /* LCB_AUTH_ERROR = 0x02      */
-extern VALUE cb_eDeltaBadvalError;        /* LCB_DELTA_BADVAL = 0x03    */
-extern VALUE cb_eTooBigError;             /* LCB_E2BIG = 0x04           */
-extern VALUE cb_eBusyError;               /* LCB_EBUSY = 0x05           */
-extern VALUE cb_eInternalError;           /* LCB_EINTERNAL = 0x06       */
-extern VALUE cb_eInvalidError;            /* LCB_EINVAL = 0x07          */
-extern VALUE cb_eNoMemoryError;           /* LCB_ENOMEM = 0x08          */
-extern VALUE cb_eRangeError;              /* LCB_ERANGE = 0x09          */
-extern VALUE cb_eLibcouchbaseError;       /* LCB_ERROR = 0x0a           */
-extern VALUE cb_eTmpFailError;            /* LCB_ETMPFAIL = 0x0b        */
-extern VALUE cb_eKeyExistsError;          /* LCB_KEY_EEXISTS = 0x0c     */
-extern VALUE cb_eNotFoundError;           /* LCB_KEY_ENOENT = 0x0d      */
-extern VALUE cb_eDlopenFailedError;       /* LCB_DLOPEN_FAILED = 0x0e   */
-extern VALUE cb_eDlsymFailedError;        /* LCB_DLSYM_FAILED = 0x0f    */
-extern VALUE cb_eNetworkError;            /* LCB_NETWORK_ERROR = 0x10   */
-extern VALUE cb_eNotMyVbucketError;       /* LCB_NOT_MY_VBUCKET = 0x11  */
-extern VALUE cb_eNotStoredError;          /* LCB_NOT_STORED = 0x12      */
-extern VALUE cb_eNotSupportedError;       /* LCB_NOT_SUPPORTED = 0x13   */
-extern VALUE cb_eUnknownCommandError;     /* LCB_UNKNOWN_COMMAND = 0x14 */
-extern VALUE cb_eUnknownHostError;        /* LCB_UNKNOWN_HOST = 0x15    */
-extern VALUE cb_eProtocolError;           /* LCB_PROTOCOL_ERROR = 0x16  */
-extern VALUE cb_eTimeoutError;            /* LCB_ETIMEDOUT = 0x17       */
-extern VALUE cb_eConnectError;            /* LCB_CONNECT_ERROR = 0x18   */
-extern VALUE cb_eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x19   */
-extern VALUE cb_eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x1a   */
-extern VALUE cb_eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x1b */
-extern VALUE cb_eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
-extern VALUE cb_eServerBug;               /* LCB_SERVER_BUG = 0x1d      */
-extern VALUE cb_ePluginVersionMismatch;   /* LCB_PLUGIN_VERSION_MISMATCH = 0x1e */
-extern VALUE cb_eInvalidHostFormat;       /* LCB_INVALID_HOST_FORMAT = 0x1f     */
-extern VALUE cb_eInvalidChar;             /* LCB_INVALID_CHAR = 0x20            */
-extern VALUE cb_eDurabilityTooMany;       /* LCB_DURABILITY_ETOOMANY = 0x21 */
-extern VALUE cb_eDuplicateCommands;       /* LCB_DUPLICATE_COMMANDS = 0x22 */
-extern VALUE cb_eNoMatchingServer;        /* LCB_NO_MATCHING_SERVER = 0x23 */
-extern VALUE cb_eBadEnvironment;          /* LCB_BAD_ENVIRONMENT = 0x24 */
-extern VALUE cb_eBusy;                    /* LCB_BUSY = 0x25 */
-extern VALUE cb_eInvalidUsername;         /* LCB_INVALID_USERNAME = 0x26 */
-
+/* LCB_SUCCESS = 0x00         */
+/* LCB_AUTH_CONTINUE = 0x01   */
+extern VALUE cb_eAuthError;             /* LCB_AUTH_ERROR = 0x02      */
+extern VALUE cb_eDeltaBadvalError;      /* LCB_DELTA_BADVAL = 0x03    */
+extern VALUE cb_eTooBigError;           /* LCB_E2BIG = 0x04           */
+extern VALUE cb_eBusyError;             /* LCB_EBUSY = 0x05           */
+extern VALUE cb_eInternalError;         /* LCB_EINTERNAL = 0x06       */
+extern VALUE cb_eInvalidError;          /* LCB_EINVAL = 0x07          */
+extern VALUE cb_eNoMemoryError;         /* LCB_ENOMEM = 0x08          */
+extern VALUE cb_eRangeError;            /* LCB_ERANGE = 0x09          */
+extern VALUE cb_eLibcouchbaseError;     /* LCB_ERROR = 0x0a           */
+extern VALUE cb_eTmpFailError;          /* LCB_ETMPFAIL = 0x0b        */
+extern VALUE cb_eKeyExistsError;        /* LCB_KEY_EEXISTS = 0x0c     */
+extern VALUE cb_eNotFoundError;         /* LCB_KEY_ENOENT = 0x0d      */
+extern VALUE cb_eDlopenFailedError;     /* LCB_DLOPEN_FAILED = 0x0e   */
+extern VALUE cb_eDlsymFailedError;      /* LCB_DLSYM_FAILED = 0x0f    */
+extern VALUE cb_eNetworkError;          /* LCB_NETWORK_ERROR = 0x10   */
+extern VALUE cb_eNotMyVbucketError;     /* LCB_NOT_MY_VBUCKET = 0x11  */
+extern VALUE cb_eNotStoredError;        /* LCB_NOT_STORED = 0x12      */
+extern VALUE cb_eNotSupportedError;     /* LCB_NOT_SUPPORTED = 0x13   */
+extern VALUE cb_eUnknownCommandError;   /* LCB_UNKNOWN_COMMAND = 0x14 */
+extern VALUE cb_eUnknownHostError;      /* LCB_UNKNOWN_HOST = 0x15    */
+extern VALUE cb_eProtocolError;         /* LCB_PROTOCOL_ERROR = 0x16  */
+extern VALUE cb_eTimeoutError;          /* LCB_ETIMEDOUT = 0x17       */
+extern VALUE cb_eConnectError;          /* LCB_CONNECT_ERROR = 0x18   */
+extern VALUE cb_eBucketNotFoundError;   /* LCB_BUCKET_ENOENT = 0x19   */
+extern VALUE cb_eClientNoMemoryError;   /* LCB_CLIENT_ENOMEM = 0x1a   */
+extern VALUE cb_eClientTmpFailError;    /* LCB_CLIENT_ETMPFAIL = 0x1b */
+extern VALUE cb_eBadHandleError;        /* LCB_EBADHANDLE = 0x1c      */
+extern VALUE cb_eServerBug;             /* LCB_SERVER_BUG = 0x1d      */
+extern VALUE cb_ePluginVersionMismatch; /* LCB_PLUGIN_VERSION_MISMATCH = 0x1e */
+extern VALUE cb_eInvalidHostFormat;     /* LCB_INVALID_HOST_FORMAT = 0x1f     */
+extern VALUE cb_eInvalidChar;           /* LCB_INVALID_CHAR = 0x20            */
+extern VALUE cb_eDurabilityTooMany;     /* LCB_DURABILITY_ETOOMANY = 0x21 */
+extern VALUE cb_eDuplicateCommands;     /* LCB_DUPLICATE_COMMANDS = 0x22 */
+extern VALUE cb_eNoMatchingServer;      /* LCB_NO_MATCHING_SERVER = 0x23 */
+extern VALUE cb_eBadEnvironment;        /* LCB_BAD_ENVIRONMENT = 0x24 */
+extern VALUE cb_eBusy;                  /* LCB_BUSY = 0x25 */
+extern VALUE cb_eInvalidUsername;       /* LCB_INVALID_USERNAME = 0x26 */
 
 /* Default Strings */
 extern VALUE cb_vStrDefault;
 extern VALUE cb_vStrEmpty;
 extern VALUE cb_vStrLocalhost;
 
-typedef void (*mark_f)(void *, struct cb_bucket_st*);
+typedef void (*mark_f)(void *, struct cb_bucket_st *);
 void cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key);
 VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);
 VALUE cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb_http_status_t status);
@@ -382,23 +377,25 @@ void cb_gc_protect_ptr(struct cb_bucket_st *bucket, void *ptr, mark_f mark_func)
 void cb_gc_unprotect_ptr(struct cb_bucket_st *bucket, void *ptr);
 VALUE cb_proc_call(struct cb_bucket_st *bucket, VALUE recv, int argc, ...);
 int cb_first_value_i(VALUE key, VALUE value, VALUE arg);
-void cb_build_headers(struct cb_context_st *ctx, const char * const *headers);
+void cb_build_headers(struct cb_context_st *ctx, const char *const *headers);
 void cb_maybe_do_loop(struct cb_bucket_st *bucket);
 VALUE cb_unify_key(struct cb_bucket_st *bucket, VALUE key, int apply_prefix);
 VALUE cb_encode_value(VALUE transcoder, VALUE val, uint32_t *flags, VALUE options);
 VALUE cb_decode_value(VALUE transcoder, VALUE blob, uint32_t flags, VALUE options);
 void cb_async_error_notify(struct cb_bucket_st *bucket, VALUE exc);
 
-
-void cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, lcb_error_t error, const lcb_store_resp_t *resp);
+void cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, lcb_error_t error,
+                         const lcb_store_resp_t *resp);
 void cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_resp_t *resp);
 void cb_touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_touch_resp_t *resp);
 void cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_remove_resp_t *resp);
 void cb_stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_stat_resp_t *resp);
 void cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_arithmetic_resp_t *resp);
 void cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_version_resp_t *resp);
-void cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp);
-void cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp);
+void cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error,
+                               const lcb_http_resp_t *resp);
+void cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error,
+                           const lcb_http_resp_t *resp);
 void cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_observe_resp_t *resp);
 void cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp);
 
@@ -487,19 +484,18 @@ VALUE cb_timer_init(int argc, VALUE *argv, VALUE self);
 /* Method arguments */
 
 enum cb_command_t {
-    cb_cmd_touch       = 0x01,
-    cb_cmd_remove      = 0x02,
-    cb_cmd_store       = 0x03,
-    cb_cmd_get         = 0x04,
-    cb_cmd_arith       = 0x05,
-    cb_cmd_stats       = 0x06,
-    cb_cmd_version     = 0x08,
-    cb_cmd_observe     = 0x09,
-    cb_cmd_unlock      = 0x10
+    cb_cmd_touch = 0x01,
+    cb_cmd_remove = 0x02,
+    cb_cmd_store = 0x03,
+    cb_cmd_get = 0x04,
+    cb_cmd_arith = 0x05,
+    cb_cmd_stats = 0x06,
+    cb_cmd_version = 0x08,
+    cb_cmd_observe = 0x09,
+    cb_cmd_unlock = 0x10
 };
 
-struct cb_params_st
-{
+struct cb_params_st {
     enum cb_command_t type;
     union {
         struct {
@@ -646,19 +642,19 @@ LIBCOUCHBASE_API
 lcb_error_t cb_create_ruby_mt_io_opts(int version, lcb_io_opt_t *io, void *arg);
 
 /* shortcut functions */
-    static inline VALUE
+static inline VALUE
 rb_funcall_0(VALUE self, ID method)
 {
     return rb_funcall2(self, method, 0, NULL);
 }
 
-    static inline VALUE
+static inline VALUE
 rb_funcall_1(VALUE self, ID method, VALUE arg)
 {
     return rb_funcall2(self, method, 1, &arg);
 }
 
-    static inline VALUE
+static inline VALUE
 rb_funcall_2(VALUE self, ID method, VALUE arg1, VALUE arg2)
 {
     VALUE args[2] = {arg1, arg2};

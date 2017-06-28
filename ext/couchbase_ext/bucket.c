@@ -17,7 +17,7 @@
 
 #include "couchbase_ext.h"
 
-    static VALUE
+static VALUE
 trigger_on_connect_callback(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -35,7 +35,7 @@ trigger_on_connect_callback(VALUE self)
     }
 }
 
-    static void
+static void
 bootstrap_callback(lcb_t handle, lcb_error_t error)
 {
     struct cb_bucket_st *bucket = (struct cb_bucket_st *)lcb_get_cookie(handle);
@@ -50,7 +50,7 @@ bootstrap_callback(lcb_t handle, lcb_error_t error)
     }
 }
 
-    void
+void
 cb_bucket_free(void *ptr)
 {
     struct cb_bucket_st *bucket = ptr;
@@ -68,14 +68,14 @@ cb_bucket_free(void *ptr)
     }
 }
 
-    static int
+static int
 cb_bucket_mark_object_i(st_index_t key, st_data_t value, st_data_t arg)
 {
-    ((mark_f)value)((void*)key, (struct cb_bucket_st*)arg);
+    ((mark_f)value)((void *)key, (struct cb_bucket_st *)arg);
     return ST_CONTINUE;
 }
 
-    void
+void
 cb_bucket_mark(void *ptr)
 {
     struct cb_bucket_st *bucket = ptr;
@@ -99,7 +99,7 @@ cb_bucket_mark(void *ptr)
     }
 }
 
-    static void
+static void
 do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
 {
     VALUE uri, opts, arg;
@@ -225,15 +225,15 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
                 if (TYPE(arg) == T_FIXNUM) {
                     rb_warn("numeric argument to :default_format option is deprecated, use symbol");
                     switch (FIX2INT(arg)) {
-                        case CB_FMT_DOCUMENT:
-                            arg = cb_sym_document;
-                            break;
-                        case CB_FMT_MARSHAL:
-                            arg = cb_sym_marshal;
-                            break;
-                        case CB_FMT_PLAIN:
-                            arg = cb_sym_plain;
-                            break;
+                    case CB_FMT_DOCUMENT:
+                        arg = cb_sym_document;
+                        break;
+                    case CB_FMT_MARSHAL:
+                        arg = cb_sym_marshal;
+                        break;
+                    case CB_FMT_PLAIN:
+                        arg = cb_sym_plain;
+                        break;
                     }
                 }
                 if (arg == cb_sym_document) {
@@ -309,16 +309,13 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
     rb_str_freeze(bucket->authority);
 }
 
-    static void
+static void
 do_connect(struct cb_bucket_st *bucket)
 {
     lcb_error_t err;
     struct lcb_create_st create_opts;
-    lcb_config_transport_t transports[3] = {
-        LCB_CONFIG_TRANSPORT_HTTP,
-        LCB_CONFIG_TRANSPORT_LIST_END,
-        LCB_CONFIG_TRANSPORT_LIST_END
-    };
+    lcb_config_transport_t transports[3] = {LCB_CONFIG_TRANSPORT_HTTP, LCB_CONFIG_TRANSPORT_LIST_END,
+                                            LCB_CONFIG_TRANSPORT_LIST_END};
 
     if (bucket->handle) {
         cb_bucket_disconnect(bucket->self);
@@ -357,7 +354,7 @@ do_connect(struct cb_bucket_st *bucket)
     memset(&create_opts, 0, sizeof(struct lcb_create_st));
     create_opts.version = 2;
     create_opts.v.v2.type = bucket->type;
-    create_opts.v.v2.host = RTEST(bucket->node_list) ? RSTRING_PTR(bucket-> node_list) : RSTRING_PTR(bucket->authority);
+    create_opts.v.v2.host = RTEST(bucket->node_list) ? RSTRING_PTR(bucket->node_list) : RSTRING_PTR(bucket->authority);
     create_opts.v.v2.user = RTEST(bucket->username) ? RSTRING_PTR(bucket->username) : NULL;
     create_opts.v.v2.passwd = RTEST(bucket->password) ? RSTRING_PTR(bucket->password) : NULL;
     create_opts.v.v2.bucket = RSTRING_PTR(bucket->bucket);
@@ -396,8 +393,8 @@ do_connect(struct cb_bucket_st *bucket)
     (void)lcb_set_observe_callback(bucket->handle, cb_observe_callback);
     (void)lcb_set_unlock_callback(bucket->handle, cb_unlock_callback);
 
-    lcb_cntl(bucket->handle, (bucket->timeout > 0) ? LCB_CNTL_SET : LCB_CNTL_GET,
-             LCB_CNTL_OP_TIMEOUT, &bucket->timeout);
+    lcb_cntl(bucket->handle, (bucket->timeout > 0) ? LCB_CNTL_SET : LCB_CNTL_GET, LCB_CNTL_OP_TIMEOUT,
+             &bucket->timeout);
     err = lcb_connect(bucket->handle);
     if (err != LCB_SUCCESS) {
         cb_bucket_disconnect(bucket->self);
@@ -413,15 +410,14 @@ do_connect(struct cb_bucket_st *bucket)
     }
 }
 
-    VALUE
+VALUE
 cb_bucket_alloc(VALUE klass)
 {
     VALUE obj;
     struct cb_bucket_st *bucket;
 
     /* allocate new bucket struct and set it to zero */
-    obj = Data_Make_Struct(klass, struct cb_bucket_st, cb_bucket_mark, cb_bucket_free,
-            bucket);
+    obj = Data_Make_Struct(klass, struct cb_bucket_st, cb_bucket_mark, cb_bucket_free, bucket);
     return obj;
 }
 
@@ -530,7 +526,7 @@ cb_bucket_alloc(VALUE klass)
  *
  * @return [Bucket]
  */
-    VALUE
+VALUE
 cb_bucket_init(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -577,7 +573,7 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
  *
  * @return [Couchbase::Bucket]
  */
-    VALUE
+VALUE
 cb_bucket_init_copy(VALUE copy, VALUE orig)
 {
     struct cb_bucket_st *copy_b;
@@ -586,8 +582,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     if (copy == orig)
         return copy;
 
-    if (TYPE(orig) != T_DATA || TYPE(copy) != T_DATA ||
-            RDATA(orig)->dfree != (RUBY_DATA_FUNC)cb_bucket_free) {
+    if (TYPE(orig) != T_DATA || TYPE(copy) != T_DATA || RDATA(orig)->dfree != (RUBY_DATA_FUNC)cb_bucket_free) {
         rb_raise(rb_eTypeError, "wrong argument type");
     }
 
@@ -658,7 +653,7 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
  *  @example reconnect the instance to another bucket
  *    c.reconnect(:bucket => 'new')
  */
-    VALUE
+VALUE
 cb_bucket_reconnect(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -676,7 +671,7 @@ cb_bucket_reconnect(int argc, VALUE *argv, VALUE self)
  *
  * @return [true, false] +true+ if the instance connected to the cluster
  */
-    VALUE
+VALUE
 cb_bucket_connected_p(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -704,21 +699,21 @@ cb_bucket_connected_p(VALUE self)
  *
  * @see Bucket#run
  */
-    VALUE
+VALUE
 cb_bucket_async_p(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     return bucket->async ? Qtrue : Qfalse;
 }
 
-    VALUE
+VALUE
 cb_bucket_quiet_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     return bucket->quiet ? Qtrue : Qfalse;
 }
 
-    VALUE
+VALUE
 cb_bucket_quiet_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -727,14 +722,14 @@ cb_bucket_quiet_set(VALUE self, VALUE val)
     return bucket->quiet ? Qtrue : Qfalse;
 }
 
-    VALUE
+VALUE
 cb_bucket_default_flags_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     return ULONG2NUM(bucket->default_flags);
 }
 
-    VALUE
+VALUE
 cb_bucket_default_flags_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -743,14 +738,14 @@ cb_bucket_default_flags_set(VALUE self, VALUE val)
     return val;
 }
 
-    VALUE
+VALUE
 cb_bucket_transcoder_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     return bucket->transcoder;
 }
 
-    VALUE
+VALUE
 cb_bucket_transcoder_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -763,7 +758,7 @@ cb_bucket_transcoder_set(VALUE self, VALUE val)
     return bucket->transcoder;
 }
 
-    VALUE
+VALUE
 cb_bucket_default_format_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -778,21 +773,21 @@ cb_bucket_default_format_get(VALUE self)
     return Qnil;
 }
 
-    VALUE
+VALUE
 cb_bucket_default_format_set(VALUE self, VALUE val)
 {
     if (TYPE(val) == T_FIXNUM) {
         rb_warn("numeric argument to #default_format option is deprecated, use symbol");
         switch (FIX2INT(val)) {
-            case CB_FMT_DOCUMENT:
-                val = cb_sym_document;
-                break;
-            case CB_FMT_MARSHAL:
-                val = cb_sym_marshal;
-                break;
-            case CB_FMT_PLAIN:
-                val = cb_sym_plain;
-                break;
+        case CB_FMT_DOCUMENT:
+            val = cb_sym_document;
+            break;
+        case CB_FMT_MARSHAL:
+            val = cb_sym_marshal;
+            break;
+        case CB_FMT_PLAIN:
+            val = cb_sym_plain;
+            break;
         }
     }
     if (val == cb_sym_document) {
@@ -808,7 +803,7 @@ cb_bucket_default_format_set(VALUE self, VALUE val)
     return val;
 }
 
-    VALUE
+VALUE
 cb_bucket_on_error_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -822,7 +817,7 @@ cb_bucket_on_error_set(VALUE self, VALUE val)
     return bucket->on_error_proc;
 }
 
-    VALUE
+VALUE
 cb_bucket_on_error_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -834,14 +829,14 @@ cb_bucket_on_error_get(VALUE self)
     }
 }
 
-    static
-VALUE trigger_on_connect_callback_block(VALUE nil, VALUE self)
+static VALUE
+trigger_on_connect_callback_block(VALUE nil, VALUE self)
 {
     (void)nil;
     return trigger_on_connect_callback(self);
 }
 
-    VALUE
+VALUE
 cb_bucket_on_connect_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -854,8 +849,8 @@ cb_bucket_on_connect_set(VALUE self, VALUE val)
                 VALUE args[] = {INT2FIX(0)};
                 /* setup timer with zero interval to call on_connect
                  * callback on the next tick */
-                rb_block_call(bucket->self, cb_id_create_timer, 1,
-                        args, trigger_on_connect_callback_block, bucket->self);
+                rb_block_call(bucket->self, cb_id_create_timer, 1, args, trigger_on_connect_callback_block,
+                              bucket->self);
             } else {
                 trigger_on_connect_callback(self);
             }
@@ -867,7 +862,7 @@ cb_bucket_on_connect_set(VALUE self, VALUE val)
     return bucket->on_connect_proc;
 }
 
-    VALUE
+VALUE
 cb_bucket_on_connect_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -879,14 +874,14 @@ cb_bucket_on_connect_get(VALUE self)
     }
 }
 
-    VALUE
+VALUE
 cb_bucket_timeout_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     return ULONG2NUM(bucket->timeout);
 }
 
-    VALUE
+VALUE
 cb_bucket_timeout_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -899,14 +894,14 @@ cb_bucket_timeout_set(VALUE self, VALUE val)
     return tmval;
 }
 
-    VALUE
+VALUE
 cb_bucket_default_arithmetic_init_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     return ULL2NUM(bucket->default_arith_init);
 }
 
-    VALUE
+VALUE
 cb_bucket_default_arithmetic_init_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -920,14 +915,14 @@ cb_bucket_default_arithmetic_init_set(VALUE self, VALUE val)
     return ULL2NUM(bucket->default_arith_init);
 }
 
-    VALUE
+VALUE
 cb_bucket_key_prefix_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     return bucket->key_prefix_val;
 }
 
-    VALUE
+VALUE
 cb_bucket_key_prefix_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -943,7 +938,7 @@ cb_bucket_key_prefix_set(VALUE self, VALUE val)
  *
  * @return [String] the host name of the management interface (default: "localhost")
  */
-    VALUE
+VALUE
 cb_bucket_hostname_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -952,7 +947,7 @@ cb_bucket_hostname_get(VALUE self)
         char *colon;
         unsigned long len;
         host = lcb_get_node(bucket->handle, LCB_NODE_HTCONFIG | LCB_NODE_NEVERNULL, 0);
-        if (host != NULL && (colon = strstr(host, ":"))  != NULL) {
+        if (host != NULL && (colon = strstr(host, ":")) != NULL) {
             *colon = '\0';
         }
         len = RSTRING_LEN(bucket->hostname);
@@ -970,7 +965,7 @@ cb_bucket_hostname_get(VALUE self)
  *
  * @return [Fixnum] the port number of the management interface (default: 8091)
  */
-    VALUE
+VALUE
 cb_bucket_port_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -991,7 +986,7 @@ cb_bucket_port_get(VALUE self)
  *
  * @return [String] host with port
  */
-    VALUE
+VALUE
 cb_bucket_authority_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1016,7 +1011,7 @@ cb_bucket_authority_get(VALUE self)
  *
  * @return [String] the bucket name
  */
-    VALUE
+VALUE
 cb_bucket_bucket_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1029,7 +1024,7 @@ cb_bucket_bucket_get(VALUE self)
  *
  * @return [String] the pool name (usually "default")
  */
-    VALUE
+VALUE
 cb_bucket_pool_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1043,7 +1038,7 @@ cb_bucket_pool_get(VALUE self)
  * @return [String] the username for protected buckets (usually matches
  *   the bucket name)
  */
-    VALUE
+VALUE
 cb_bucket_username_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1056,7 +1051,7 @@ cb_bucket_username_get(VALUE self)
  *
  * @return [String] the password for protected buckets
  */
-    VALUE
+VALUE
 cb_bucket_password_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1071,7 +1066,7 @@ cb_bucket_password_get(VALUE self)
  *
  * @return [Symbol] the environment (+:development+ or +:production+)
  */
-    VALUE
+VALUE
 cb_bucket_environment_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1085,7 +1080,7 @@ cb_bucket_environment_get(VALUE self)
  *
  * @return [Fixnum]
  */
-    VALUE
+VALUE
 cb_bucket_num_replicas_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1105,7 +1100,7 @@ cb_bucket_num_replicas_get(VALUE self)
  *
  * @return [Fixnum]
  */
-    VALUE
+VALUE
 cb_bucket_default_observe_timeout_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1121,7 +1116,7 @@ cb_bucket_default_observe_timeout_get(VALUE self)
  *
  * @return [Fixnum]
  */
-    VALUE
+VALUE
 cb_bucket_default_observe_timeout_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1134,7 +1129,7 @@ cb_bucket_default_observe_timeout_set(VALUE self, VALUE val)
  *
  * @return [String] the address of the cluster management interface
  */
-    VALUE
+VALUE
 cb_bucket_url_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1159,7 +1154,7 @@ cb_bucket_url_get(VALUE self)
  *
  * @return [String]
  */
-    VALUE
+VALUE
 cb_bucket_inspect(VALUE self)
 {
     VALUE str;
@@ -1179,11 +1174,9 @@ cb_bucket_inspect(VALUE self)
     rb_str_append(str, bucket->bucket);
     rb_str_buf_cat2(str, "/\" transcoder=");
     rb_str_append(str, rb_inspect(bucket->transcoder));
-    snprintf(buf, 150, ", default_flags=0x%x, quiet=%s, connected=%s, timeout=%u",
-            bucket->default_flags,
-            bucket->quiet ? "true" : "false",
-            (bucket->handle && bucket->connected) ? "true" : "false",
-            bucket->timeout);
+    snprintf(buf, 150, ", default_flags=0x%x, quiet=%s, connected=%s, timeout=%u", bucket->default_flags,
+             bucket->quiet ? "true" : "false", (bucket->handle && bucket->connected) ? "true" : "false",
+             bucket->timeout);
     rb_str_buf_cat2(str, buf);
     if (bucket->handle && bucket->connected) {
         lcb_config_transport_t type;
@@ -1210,14 +1203,14 @@ cb_bucket_inspect(VALUE self)
     return str;
 }
 
-    static void
+static void
 do_loop(struct cb_bucket_st *bucket)
 {
     lcb_wait(bucket->handle);
     bucket->nbytes = 0;
 }
 
-    void
+void
 cb_maybe_do_loop(struct cb_bucket_st *bucket)
 {
     if (bucket->threshold != 0 && bucket->nbytes > bucket->threshold) {
@@ -1225,7 +1218,7 @@ cb_maybe_do_loop(struct cb_bucket_st *bucket)
     }
 }
 
-    static VALUE
+static VALUE
 do_run(VALUE *args)
 {
     VALUE self = args[0], opts = args[1], proc = args[2], exc;
@@ -1276,7 +1269,7 @@ do_run(VALUE *args)
     return Qnil;
 }
 
-    static VALUE
+static VALUE
 ensure_run(VALUE *args)
 {
     VALUE self = args[0];
@@ -1336,7 +1329,7 @@ ensure_run(VALUE *args)
  *
  * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
  */
-    VALUE
+VALUE
 cb_bucket_run(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1372,7 +1365,7 @@ cb_bucket_run(int argc, VALUE *argv, VALUE self)
  *
  * @return [nil]
  */
-    VALUE
+VALUE
 cb_bucket_stop(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -1389,7 +1382,7 @@ cb_bucket_stop(VALUE self)
  *
  * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
  */
-    VALUE
+VALUE
 cb_bucket_disconnect(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);

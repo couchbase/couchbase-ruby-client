@@ -17,7 +17,7 @@
 
 #include "couchbase_ext.h"
 
-    static VALUE
+static VALUE
 storage_observe_callback(VALUE args, VALUE cookie)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
@@ -40,34 +40,34 @@ storage_observe_callback(VALUE args, VALUE cookie)
     return Qnil;
 }
 
-    VALUE
+VALUE
 storage_opcode_to_sym(lcb_storage_t operation)
 {
-    switch(operation) {
-        case LCB_ADD:
-            return cb_sym_add;
-        case LCB_REPLACE:
-            return cb_sym_replace;
-        case LCB_SET:
-            return cb_sym_set;
-        case LCB_APPEND:
-            return cb_sym_append;
-        case LCB_PREPEND:
-            return cb_sym_prepend;
-        default:
-            return Qnil;
+    switch (operation) {
+    case LCB_ADD:
+        return cb_sym_add;
+    case LCB_REPLACE:
+        return cb_sym_replace;
+    case LCB_SET:
+        return cb_sym_set;
+    case LCB_APPEND:
+        return cb_sym_append;
+    case LCB_PREPEND:
+        return cb_sym_prepend;
+    default:
+        return Qnil;
     }
 }
 
-    void
-cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
-        lcb_error_t error, const lcb_store_resp_t *resp)
+void
+cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, lcb_error_t error,
+                    const lcb_store_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
     VALUE key, cas, exc, res;
 
-    key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
+    key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
     cb_strip_key_prefix(bucket, key);
 
     cas = resp->v.v0.cas > 0 ? ULL2NUM(resp->v.v0.cas) : Qnil;
@@ -85,8 +85,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
             args[0] = rb_hash_new();
             rb_hash_aset(args[0], key, cas);
             args[1] = ctx->observe_options;
-            rb_block_call(bucket->self, cb_id_observe_and_wait, 2, args,
-                    storage_observe_callback, (VALUE)ctx);
+            rb_block_call(bucket->self, cb_id_observe_and_wait, 2, args, storage_observe_callback, (VALUE)ctx);
             ctx->observe_options = Qnil;
         } else if (ctx->proc != Qnil) {
             res = rb_class_new_instance(0, NULL, cb_cResult);
@@ -96,7 +95,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
             rb_ivar_set(res, cb_id_iv_cas, cas);
             cb_proc_call(bucket, ctx->proc, 1, res);
         }
-    } else {             /* synchronous */
+    } else { /* synchronous */
         rb_hash_aset(ctx->rv, key, cas);
     }
 
@@ -112,7 +111,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation,
     (void)handle;
 }
 
-    static inline VALUE
+static inline VALUE
 cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -141,8 +140,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
     }
     ctx->proc = proc;
     ctx->nqueries = params.cmd.store.num;
-    err = lcb_store(bucket->handle, (const void *)ctx,
-            params.cmd.store.num, params.cmd.store.ptr);
+    err = lcb_store(bucket->handle, (const void *)ctx, params.cmd.store.num, params.cmd.store.ptr);
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule set request", Qnil);
     if (exc != Qnil) {
@@ -173,7 +171,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
             rv = rb_funcall(bucket->self, cb_id_observe_and_wait, 2, rv, obs);
         }
         if (params.cmd.store.num > 1) {
-            return rv;  /* return as a hash {key => cas, ...} */
+            return rv; /* return as a hash {key => cas, ...} */
         } else {
             VALUE vv = Qnil;
             rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
@@ -276,7 +274,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
  *   @example Ensure that the key will be persisted at least on the one node
  *     c.set("foo", "bar", :observe => {:persisted => 1})
  */
-    VALUE
+VALUE
 cb_bucket_set(int argc, VALUE *argv, VALUE self)
 {
     return cb_bucket_store(LCB_SET, argc, argv, self);
@@ -332,7 +330,7 @@ cb_bucket_set(int argc, VALUE *argv, VALUE self)
  *   @example Ensure that the key will be persisted at least on the one node
  *     c.add("foo", "bar", :observe => {:persisted => 1})
  */
-    VALUE
+VALUE
 cb_bucket_add(int argc, VALUE *argv, VALUE self)
 {
     return cb_bucket_store(LCB_ADD, argc, argv, self);
@@ -380,7 +378,7 @@ cb_bucket_add(int argc, VALUE *argv, VALUE self)
  *   @example Ensure that the key will be persisted at least on the one node
  *     c.replace("foo", "bar", :observe => {:persisted => 1})
  */
-    VALUE
+VALUE
 cb_bucket_replace(int argc, VALUE *argv, VALUE self)
 {
     return cb_bucket_store(LCB_REPLACE, argc, argv, self);
@@ -460,7 +458,7 @@ cb_bucket_replace(int argc, VALUE *argv, VALUE self)
  *   @example Ensure that the key will be persisted at least on the one node
  *     c.append("foo", "bar", :observe => {:persisted => 1})
  */
-    VALUE
+VALUE
 cb_bucket_append(int argc, VALUE *argv, VALUE self)
 {
     return cb_bucket_store(LCB_APPEND, argc, argv, self);
@@ -519,13 +517,13 @@ cb_bucket_append(int argc, VALUE *argv, VALUE self)
  *   @example Ensure that the key will be persisted at least on the one node
  *     c.prepend("foo", "bar", :observe => {:persisted => 1})
  */
-    VALUE
+VALUE
 cb_bucket_prepend(int argc, VALUE *argv, VALUE self)
 {
     return cb_bucket_store(LCB_PREPEND, argc, argv, self);
 }
 
-    VALUE
+VALUE
 cb_bucket_aset(int argc, VALUE *argv, VALUE self)
 {
     VALUE temp;
@@ -538,5 +536,3 @@ cb_bucket_aset(int argc, VALUE *argv, VALUE self)
     }
     return cb_bucket_set(argc, argv, self);
 }
-
-

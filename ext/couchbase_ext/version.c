@@ -17,7 +17,7 @@
 
 #include "couchbase_ext.h"
 
-    void
+void
 cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_version_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
@@ -32,8 +32,8 @@ cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
     }
 
     if (node != Qnil) {
-        val = STR_NEW((const char*)resp->v.v0.vstring, resp->v.v0.nvstring);
-        if (bucket->async) {    /* asynchronous */
+        val = STR_NEW((const char *)resp->v.v0.vstring, resp->v.v0.nvstring);
+        if (bucket->async) { /* asynchronous */
             if (ctx->proc != Qnil) {
                 res = rb_class_new_instance(0, NULL, cb_cResult);
                 rb_ivar_set(res, cb_id_iv_error, exc);
@@ -42,7 +42,7 @@ cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
                 rb_ivar_set(res, cb_id_iv_value, val);
                 cb_proc_call(bucket, ctx->proc, 1, res);
             }
-        } else {                /* synchronous */
+        } else { /* synchronous */
             if (NIL_P(exc)) {
                 rb_hash_aset(ctx->rv, node, val);
             }
@@ -85,7 +85,7 @@ cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
  *       end
  *     end
  */
-    VALUE
+VALUE
 cb_bucket_version(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -107,8 +107,7 @@ cb_bucket_version(int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     cb_params_build(&params);
     ctx = cb_context_alloc_common(bucket, proc, params.cmd.version.num);
-    err = lcb_server_versions(bucket->handle, (const void *)ctx,
-            params.cmd.version.num, params.cmd.version.ptr);
+    err = lcb_server_versions(bucket->handle, (const void *)ctx, params.cmd.version.num, params.cmd.version.ptr);
     exc = cb_check_error(err, "failed to schedule version request", Qnil);
     cb_params_destroy(&params);
     if (exc != Qnil) {
@@ -138,5 +137,3 @@ cb_bucket_version(int argc, VALUE *argv, VALUE self)
         return rv;
     }
 }
-
-

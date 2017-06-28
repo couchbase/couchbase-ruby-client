@@ -17,8 +17,9 @@
 
 #include "couchbase_ext.h"
 
-    void
-cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp)
+void
+cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error,
+                          const lcb_http_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
@@ -32,8 +33,8 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
         return;
     }
 
-    key = STR_NEW((const char*)resp->v.v0.path, resp->v.v0.npath);
-    val = resp->v.v0.nbytes ? STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;
+    key = STR_NEW((const char *)resp->v.v0.path, resp->v.v0.npath);
+    val = resp->v.v0.nbytes ? STR_NEW((const char *)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;
     exc = ctx->exception;
     if (!RTEST(exc)) {
         exc = cb_check_error_with_status(error, "failed to execute HTTP request", key, resp->v.v0.status);
@@ -78,20 +79,20 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
     (void)request;
 }
 
-    void
-cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error, const lcb_http_resp_t *resp)
+void
+cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error,
+                      const lcb_http_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
     VALUE key, val, res;
     lcb_http_status_t status;
 
-    key = STR_NEW((const char*)resp->v.v0.path, resp->v.v0.npath);
-    val = resp->v.v0.nbytes ? STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;
+    key = STR_NEW((const char *)resp->v.v0.path, resp->v.v0.npath);
+    val = resp->v.v0.nbytes ? STR_NEW((const char *)resp->v.v0.bytes, resp->v.v0.nbytes) : Qnil;
     status = resp->v.v0.status;
     if (NIL_P(ctx->exception)) {
-        ctx->exception = cb_check_error_with_status(error,
-                "failed to execute HTTP request", key, resp->v.v0.status);
+        ctx->exception = cb_check_error_with_status(error, "failed to execute HTTP request", key, resp->v.v0.status);
         if (ctx->exception != Qnil) {
             VALUE body_str = rb_ivar_get(ctx->exception, cb_id_iv_body);
             if (NIL_P(body_str)) {
@@ -124,15 +125,14 @@ cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cook
     (void)request;
 }
 
-    void
+void
 cb_http_request_free(void *ptr)
 {
     struct cb_http_request_st *request = ptr;
     if (request) {
         request->running = 0;
-        if (TYPE(request->bucket_obj) == T_DATA
-                && RDATA(request->bucket_obj)->dfree == (RUBY_DATA_FUNC)cb_bucket_free
-                && !request->completed) {
+        if (TYPE(request->bucket_obj) == T_DATA &&
+            RDATA(request->bucket_obj)->dfree == (RUBY_DATA_FUNC)cb_bucket_free && !request->completed) {
             lcb_cancel_http_request(request->bucket->handle, request->request);
         }
         free((char *)request->cmd.v.v0.content_type);
@@ -142,7 +142,7 @@ cb_http_request_free(void *ptr)
     xfree(request);
 }
 
-    void
+void
 cb_http_request_mark(void *ptr)
 {
     struct cb_http_request_st *request = ptr;
@@ -151,15 +151,14 @@ cb_http_request_mark(void *ptr)
     }
 }
 
-    VALUE
+VALUE
 cb_http_request_alloc(VALUE klass)
 {
     VALUE obj;
     struct cb_http_request_st *request;
 
     /* allocate new bucket struct and set it to zero */
-    obj = Data_Make_Struct(klass, struct cb_http_request_st, cb_http_request_mark,
-            cb_http_request_free, request);
+    obj = Data_Make_Struct(klass, struct cb_http_request_st, cb_http_request_mark, cb_http_request_free, request);
     return obj;
 }
 
@@ -171,7 +170,7 @@ cb_http_request_alloc(VALUE klass)
  *
  * @return [String]
  */
-    VALUE
+VALUE
 cb_http_request_inspect(VALUE self)
 {
     VALUE str;
@@ -196,7 +195,7 @@ cb_http_request_inspect(VALUE self)
  *
  * @return [Bucket::CouchRequest]
  */
-    VALUE
+VALUE
 cb_http_request_init(int argc, VALUE *argv, VALUE self)
 {
     struct cb_http_request_st *request = DATA_PTR(self);
@@ -215,7 +214,7 @@ cb_http_request_init(int argc, VALUE *argv, VALUE self)
     request->bucket = DATA_PTR(bucket);
     request->bucket_obj = bucket;
     request->extended = Qfalse;
-    path = StringValue(pp);	/* convert path to string */
+    path = StringValue(pp); /* convert path to string */
     request->cmd.v.v0.path = strdup(RSTRING_PTR(path));
     request->cmd.v.v0.npath = RSTRING_LEN(path);
     request->cmd.v.v0.method = LCB_HTTP_METHOD_GET;
@@ -267,7 +266,7 @@ cb_http_request_init(int argc, VALUE *argv, VALUE self)
  *
  * @since 1.2.0
  */
-    VALUE
+VALUE
 cb_http_request_on_body(VALUE self)
 {
     struct cb_http_request_st *request = DATA_PTR(self);
@@ -283,7 +282,7 @@ cb_http_request_on_body(VALUE self)
  *
  * @since 1.2.0
  */
-    VALUE
+VALUE
 cb_http_request_perform(VALUE self)
 {
     struct cb_http_request_st *req = DATA_PTR(self);
@@ -303,10 +302,8 @@ cb_http_request_perform(VALUE self)
     ctx->request = req;
     ctx->headers_val = rb_hash_new();
 
-    err = lcb_make_http_request(bucket->handle, (const void *)ctx,
-            req->type, &req->cmd, &req->request);
-    exc = cb_check_error(err, "failed to schedule document request",
-            STR_NEW(req->cmd.v.v0.path, req->cmd.v.v0.npath));
+    err = lcb_make_http_request(bucket->handle, (const void *)ctx, req->type, &req->cmd, &req->request);
+    exc = cb_check_error(err, "failed to schedule document request", STR_NEW(req->cmd.v.v0.path, req->cmd.v.v0.npath));
     if (exc != Qnil) {
         lcb_cancel_http_request(bucket->handle, req->request);
         rb_exc_raise(exc);
@@ -332,7 +329,7 @@ cb_http_request_perform(VALUE self)
     return Qnil;
 }
 
-    VALUE
+VALUE
 cb_http_request_pause(VALUE self)
 {
     struct cb_http_request_st *req = DATA_PTR(self);
@@ -340,7 +337,7 @@ cb_http_request_pause(VALUE self)
     return Qnil;
 }
 
-    VALUE
+VALUE
 cb_http_request_continue(VALUE self)
 {
     VALUE exc, rv;
@@ -369,7 +366,7 @@ cb_http_request_continue(VALUE self)
  *
  * @return [String] the requested path
  */
-    VALUE
+VALUE
 cb_http_request_path_get(VALUE self)
 {
     struct cb_http_request_st *req = DATA_PTR(self);
@@ -383,7 +380,7 @@ cb_http_request_path_get(VALUE self)
  * @return [Boolean] +false+ if library should collect whole response before
  *   yielding, +true+ if the client is ready to handle response in chunks.
  */
-    VALUE
+VALUE
 cb_http_request_chunked_get(VALUE self)
 {
     struct cb_http_request_st *req = DATA_PTR(self);
@@ -397,7 +394,7 @@ cb_http_request_chunked_get(VALUE self)
  * @return [Boolean] if +false+ the callbacks should receive just the data,
  *   and {Couchbase::Result} instance otherwise.
  */
-    VALUE
+VALUE
 cb_http_request_extended_get(VALUE self)
 {
     struct cb_http_request_st *req = DATA_PTR(self);
@@ -418,7 +415,7 @@ cb_http_request_extended_get(VALUE self)
  *
  * @return [Couchbase::Bucket::CouchRequest]
  */
-    VALUE
+VALUE
 cb_bucket_make_http_request(int argc, VALUE *argv, VALUE self)
 {
     VALUE args[4]; /* bucket, path, options, block */
@@ -428,5 +425,3 @@ cb_bucket_make_http_request(int argc, VALUE *argv, VALUE self)
 
     return rb_class_new_instance(4, args, cb_cCouchRequest);
 }
-
-

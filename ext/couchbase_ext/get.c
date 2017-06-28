@@ -17,7 +17,7 @@
 
 #include "couchbase_ext.h"
 
-    void
+void
 cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
@@ -25,7 +25,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
     VALUE key, val, flags, cas, exc = Qnil, res, raw;
 
     ctx->nqueries--;
-    key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
+    key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
     cb_strip_key_prefix(bucket, key);
 
     if (error != LCB_KEY_ENOENT || !ctx->quiet) {
@@ -39,12 +39,12 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
     if (error == LCB_SUCCESS) {
         flags = ULONG2NUM(resp->v.v0.flags);
         cas = ULL2NUM(resp->v.v0.cas);
-        raw = STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes);
+        raw = STR_NEW((const char *)resp->v.v0.bytes, resp->v.v0.nbytes);
         val = cb_decode_value(ctx->transcoder, raw, resp->v.v0.flags, ctx->transcoder_opts);
         if (rb_obj_is_kind_of(val, rb_eStandardError)) {
             VALUE exc_str = rb_funcall(val, cb_id_to_s, 0);
             VALUE msg = rb_funcall(rb_mKernel, cb_id_sprintf, 3,
-                    rb_str_new2("unable to convert value for key \"%s\": %s"), key, exc_str);
+                                   rb_str_new2("unable to convert value for key \"%s\": %s"), key, exc_str);
             ctx->exception = rb_exc_new3(cb_eValueFormatError, msg);
             rb_ivar_set(ctx->exception, cb_id_iv_operation, cb_sym_get);
             rb_ivar_set(ctx->exception, cb_id_iv_key, key);
@@ -65,7 +65,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
             rb_ivar_set(res, cb_id_iv_cas, cas);
             cb_proc_call(bucket, ctx->proc, 1, res);
         }
-    } else {                /* synchronous */
+    } else { /* synchronous */
         if (NIL_P(exc) && error != LCB_KEY_ENOENT) {
             if (ctx->extended) {
                 val = rb_ary_new3(3, val, flags, cas);
@@ -97,7 +97,8 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *
  * @since 1.0.0
  *
- * @see http://couchbase.com/docs/couchbase-manual-2.0/couchbase-architecture-apis-memcached-protocol-additions.html#couchbase-architecture-apis-memcached-protocol-additions-getl
+ * @see
+ * http://couchbase.com/docs/couchbase-manual-2.0/couchbase-architecture-apis-memcached-protocol-additions.html#couchbase-architecture-apis-memcached-protocol-additions-getl
  *
  * @overload get(*keys, options = {})
  *   @param keys [String, Symbol, Array] One or several keys to fetch
@@ -225,7 +226,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *     c.get("foo" => 10, "bar" => 20, :lock => true)
  *     #=> {"foo" => val1, "bar" => val2}
  */
-    VALUE
+VALUE
 cb_bucket_get(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -258,11 +259,9 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
             ctx->nqueries = lcb_get_num_replicas(bucket->handle);
             ctx->all_replicas = 1;
         }
-        err = lcb_get_replica(bucket->handle, (const void *)ctx,
-                params.cmd.get.num, params.cmd.get.ptr_gr);
+        err = lcb_get_replica(bucket->handle, (const void *)ctx, params.cmd.get.num, params.cmd.get.ptr_gr);
     } else {
-        err = lcb_get(bucket->handle, (const void *)ctx,
-                params.cmd.get.num, params.cmd.get.ptr);
+        err = lcb_get(bucket->handle, (const void *)ctx, params.cmd.get.num, params.cmd.get.ptr);
     }
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule get request", Qnil);
@@ -291,8 +290,8 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
             rb_exc_raise(exc);
         }
         if (params.cmd.get.gat || params.cmd.get.assemble_hash ||
-                (params.cmd.get.extended && (params.cmd.get.num > 1 || params.cmd.get.array))) {
-            return rv;  /* return as a hash {key => [value, flags, cas], ...} */
+            (params.cmd.get.extended && (params.cmd.get.num > 1 || params.cmd.get.array))) {
+            return rv; /* return as a hash {key => [value, flags, cas], ...} */
         }
         if (params.cmd.get.num > 1 || params.cmd.get.array) {
             VALUE keys, ret;
@@ -304,7 +303,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
             for (ii = 0; ii < params.cmd.get.num; ++ii) {
                 rb_ary_push(ret, rb_hash_aref(rv, rb_ary_entry(keys, ii)));
             }
-            return ret;  /* return as an array [value1, value2, ...] */
+            return ret; /* return as an array [value1, value2, ...] */
         } else {
             VALUE vv = Qnil;
             rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
@@ -312,5 +311,3 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         }
     }
 }
-
-

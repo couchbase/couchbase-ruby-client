@@ -17,7 +17,7 @@
 
 #include "couchbase_ext.h"
 
-    void
+void
 cb_stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_stat_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
@@ -31,9 +31,9 @@ cb_stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
         ctx->exception = exc;
     }
     if (node != Qnil) {
-        key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
-        val = STR_NEW((const char*)resp->v.v0.bytes, resp->v.v0.nbytes);
-        if (bucket->async) {    /* asynchronous */
+        key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
+        val = STR_NEW((const char *)resp->v.v0.bytes, resp->v.v0.nbytes);
+        if (bucket->async) { /* asynchronous */
             if (ctx->proc != Qnil) {
                 res = rb_class_new_instance(0, NULL, cb_cResult);
                 rb_ivar_set(res, cb_id_iv_error, exc);
@@ -43,7 +43,7 @@ cb_stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
                 rb_ivar_set(res, cb_id_iv_value, val);
                 cb_proc_call(bucket, ctx->proc, 1, res);
             }
-        } else {                /* synchronous */
+        } else { /* synchronous */
             if (NIL_P(exc)) {
                 stats = rb_hash_aref(ctx->rv, key);
                 if (NIL_P(stats)) {
@@ -104,7 +104,7 @@ cb_stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
  *   @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
  *   @raise [ArgumentError] when passing the block in synchronous mode
  */
-    VALUE
+VALUE
 cb_bucket_stats(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -126,8 +126,7 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     cb_params_build(&params);
     ctx = cb_context_alloc_common(bucket, proc, params.cmd.stats.num);
-    err = lcb_server_stats(bucket->handle, (const void *)ctx,
-            params.cmd.stats.num, params.cmd.stats.ptr);
+    err = lcb_server_stats(bucket->handle, (const void *)ctx, params.cmd.stats.num, params.cmd.stats.ptr);
     exc = cb_check_error(err, "failed to schedule stat request", Qnil);
     cb_params_destroy(&params);
     if (exc != Qnil) {
@@ -159,5 +158,3 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
 
     return Qnil;
 }
-
-

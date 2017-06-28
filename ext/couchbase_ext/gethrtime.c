@@ -19,9 +19,9 @@
 
 #ifndef HAVE_GETHRTIME
 
+#include <assert.h>
 #include <stdlib.h>
 #include <time.h>
-#include <assert.h>
 
 #ifdef HAVE_MACH_MACH_TIME_H
 #include <mach/mach_time.h>
@@ -43,8 +43,8 @@
 
 #define CLOCK_MONOTONIC 192996728
 
-static void mach_absolute_difference(uint64_t start, uint64_t end,
-                                     struct timespec *tp)
+static void
+mach_absolute_difference(uint64_t start, uint64_t end, struct timespec *tp)
 {
     uint64_t difference = end - start;
     static mach_timebase_info_data_t info = {0, 0};
@@ -59,7 +59,8 @@ static void mach_absolute_difference(uint64_t start, uint64_t end,
     tp->tv_nsec = elapsednano - (tp->tv_sec * 1e9);
 }
 
-static int clock_gettime(int which, struct timespec *tp)
+static int
+clock_gettime(int which, struct timespec *tp)
 {
     assert(which == CLOCK_MONOTONIC);
 
@@ -79,7 +80,8 @@ static int clock_gettime(int which, struct timespec *tp)
 #define HAVE_CLOCK_GETTIME 1
 #endif
 
-hrtime_t gethrtime(void)
+hrtime_t
+gethrtime(void)
 {
 #ifdef HAVE_CLOCK_GETTIME
     struct timespec tm;
@@ -104,7 +106,7 @@ hrtime_t gethrtime(void)
     // gethrtime should be called in a global static variable first.
     // It will guarantee the local static variable will be initialized
     // before any thread calls the function.
-    static LARGE_INTEGER pf = { 0 };
+    static LARGE_INTEGER pf = {0};
     static double freq;
     LARGE_INTEGER currtime;
 
@@ -119,7 +121,7 @@ hrtime_t gethrtime(void)
 
     QueryPerformanceCounter(&currtime);
 
-    ret = (double)currtime.QuadPart * freq ;
+    ret = (double)currtime.QuadPart * freq;
     return (hrtime_t)ret;
 #else
 #error "I don't know how to build a highres clock..."

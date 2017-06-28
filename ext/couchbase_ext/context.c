@@ -17,8 +17,8 @@
 
 #include "couchbase_ext.h"
 
-    static void
-cb_context_mark(void *p, struct cb_bucket_st* bucket)
+static void
+cb_context_mark(void *p, struct cb_bucket_st *bucket)
 {
     struct cb_context_st *ctx = p;
     rb_gc_mark(ctx->proc);
@@ -32,8 +32,8 @@ cb_context_mark(void *p, struct cb_bucket_st* bucket)
     (void)bucket;
 }
 
-    struct cb_context_st *
-cb_context_alloc(struct cb_bucket_st* bucket)
+struct cb_context_st *
+cb_context_alloc(struct cb_bucket_st *bucket)
 {
     struct cb_context_st *ctx = calloc(1, sizeof(*ctx));
     if (ctx == NULL) {
@@ -45,7 +45,7 @@ cb_context_alloc(struct cb_bucket_st* bucket)
     return ctx;
 }
 
-    struct cb_context_st *
+struct cb_context_st *
 cb_context_alloc_common(struct cb_bucket_st *bucket, VALUE proc, size_t nqueries)
 {
     struct cb_context_st *ctx = cb_context_alloc(bucket);
@@ -57,7 +57,7 @@ cb_context_alloc_common(struct cb_bucket_st *bucket, VALUE proc, size_t nqueries
     return ctx;
 }
 
-    void
+void
 cb_context_free(struct cb_context_st *ctx)
 {
     cb_gc_unprotect_ptr(ctx->bucket, ctx);

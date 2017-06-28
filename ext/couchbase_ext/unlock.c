@@ -17,7 +17,7 @@
 
 #include "couchbase_ext.h"
 
-    void
+void
 cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
@@ -25,7 +25,7 @@ cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
     VALUE key, exc = Qnil, res;
 
     ctx->nqueries--;
-    key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
+    key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
     cb_strip_key_prefix(bucket, key);
 
     if (error != LCB_KEY_ENOENT || !ctx->quiet) {
@@ -36,7 +36,7 @@ cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
         }
     }
 
-    if (bucket->async) {    /* asynchronous */
+    if (bucket->async) { /* asynchronous */
         if (ctx->proc != Qnil) {
             res = rb_class_new_instance(0, NULL, cb_cResult);
             rb_ivar_set(res, cb_id_iv_error, exc);
@@ -44,7 +44,7 @@ cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
             rb_ivar_set(res, cb_id_iv_key, key);
             cb_proc_call(bucket, ctx->proc, 1, res);
         }
-    } else {                /* synchronous */
+    } else { /* synchronous */
         rb_hash_aset(ctx->rv, key, (error == LCB_SUCCESS) ? Qtrue : Qfalse);
     }
     if (ctx->nqueries == 0) {
@@ -111,7 +111,7 @@ cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
  *     end
  *
  */
-   VALUE
+VALUE
 cb_bucket_unlock(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -135,8 +135,7 @@ cb_bucket_unlock(int argc, VALUE *argv, VALUE self)
     cb_params_build(&params);
     ctx = cb_context_alloc_common(bucket, proc, params.cmd.unlock.num);
     ctx->quiet = params.cmd.unlock.quiet;
-    err = lcb_unlock(bucket->handle, (const void *)ctx,
-            params.cmd.unlock.num, params.cmd.unlock.ptr);
+    err = lcb_unlock(bucket->handle, (const void *)ctx, params.cmd.unlock.num, params.cmd.unlock.ptr);
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule unlock request", Qnil);
     if (exc != Qnil) {
@@ -164,7 +163,7 @@ cb_bucket_unlock(int argc, VALUE *argv, VALUE self)
             rb_exc_raise(exc);
         }
         if (params.cmd.unlock.num > 1) {
-            return rv;  /* return as a hash {key => true, ...} */
+            return rv; /* return as a hash {key => true, ...} */
         } else {
             VALUE vv = Qnil;
             rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
@@ -172,5 +171,3 @@ cb_bucket_unlock(int argc, VALUE *argv, VALUE self)
         }
     }
 }
-
-

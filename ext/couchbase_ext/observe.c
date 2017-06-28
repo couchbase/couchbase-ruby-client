@@ -17,7 +17,7 @@
 
 #include "couchbase_ext.h"
 
-    void
+void
 cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_observe_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
@@ -25,7 +25,7 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
     VALUE key, res, exc;
 
     if (resp->v.v0.key) {
-        key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
+        key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
         exc = cb_check_error(error, "failed to execute observe request", key);
         if (exc != Qnil) {
             ctx->exception = exc;
@@ -40,23 +40,23 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
         rb_ivar_set(res, cb_id_iv_time_to_persist, ULONG2NUM(resp->v.v0.ttp));
         rb_ivar_set(res, cb_id_iv_time_to_replicate, ULONG2NUM(resp->v.v0.ttr));
         switch (resp->v.v0.status) {
-            case LCB_OBSERVE_FOUND:
-                rb_ivar_set(res, cb_id_iv_status, cb_sym_found);
-                break;
-            case LCB_OBSERVE_PERSISTED:
-                rb_ivar_set(res, cb_id_iv_status, cb_sym_persisted);
-                break;
-            case LCB_OBSERVE_NOT_FOUND:
-                rb_ivar_set(res, cb_id_iv_status, cb_sym_not_found);
-                break;
-            default:
-                rb_ivar_set(res, cb_id_iv_status, Qnil);
+        case LCB_OBSERVE_FOUND:
+            rb_ivar_set(res, cb_id_iv_status, cb_sym_found);
+            break;
+        case LCB_OBSERVE_PERSISTED:
+            rb_ivar_set(res, cb_id_iv_status, cb_sym_persisted);
+            break;
+        case LCB_OBSERVE_NOT_FOUND:
+            rb_ivar_set(res, cb_id_iv_status, cb_sym_not_found);
+            break;
+        default:
+            rb_ivar_set(res, cb_id_iv_status, Qnil);
         }
         if (bucket->async) { /* asynchronous */
             if (ctx->proc != Qnil) {
                 cb_proc_call(bucket, ctx->proc, 1, res);
             }
-        } else {             /* synchronous */
+        } else { /* synchronous */
             if (NIL_P(ctx->exception)) {
                 VALUE stats = rb_hash_aref(ctx->rv, key);
                 if (NIL_P(stats)) {
@@ -110,7 +110,7 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
  *     stats["foo"] #=> [#<Couchbase::Result:0x00000001650df0 ...>, ...]
  */
 
-    VALUE
+VALUE
 cb_bucket_observe(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -132,8 +132,7 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
     params.bucket = bucket;
     cb_params_build(&params);
     ctx = cb_context_alloc_common(bucket, proc, params.cmd.observe.num);
-    err = lcb_observe(bucket->handle, (const void *)ctx,
-            params.cmd.observe.num, params.cmd.observe.ptr);
+    err = lcb_observe(bucket->handle, (const void *)ctx, params.cmd.observe.num, params.cmd.observe.ptr);
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule observe request", Qnil);
     if (exc != Qnil) {
@@ -161,11 +160,11 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
             rb_exc_raise(exc);
         }
         if (params.cmd.observe.num > 1 || params.cmd.observe.array) {
-            return rv;  /* return as a hash {key => {}, ...} */
+            return rv; /* return as a hash {key => {}, ...} */
         } else {
             VALUE vv = Qnil;
             rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
-            return vv;  /* return first value */
+            return vv; /* return first value */
         }
     }
 }

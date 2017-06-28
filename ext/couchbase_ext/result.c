@@ -25,7 +25,7 @@
  * @return [true, false] +false+ if there is an +error+ object attached,
  *   +false+ otherwise.
  */
-    VALUE
+VALUE
 cb_result_success_p(VALUE self)
 {
     return RTEST(rb_attr_get(self, cb_id_iv_error)) ? Qfalse : Qtrue;
@@ -38,7 +38,7 @@ cb_result_success_p(VALUE self)
  *
  * @return [String]
  */
-    VALUE
+VALUE
 cb_result_inspect(VALUE self)
 {
     VALUE str, attr;
@@ -125,5 +125,3 @@ cb_result_inspect(VALUE self)
 
     return str;
 }
-
-

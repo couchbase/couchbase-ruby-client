@@ -16,7 +16,8 @@
 
 #include "couchbase_ext.h"
 
-static void n1ql_callback(lcb_t handle, int type, const lcb_RESPN1QL *resp)
+static void
+n1ql_callback(lcb_t handle, int type, const lcb_RESPN1QL *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)resp->cookie;
     VALUE res = ctx->rv;
@@ -29,7 +30,7 @@ static void n1ql_callback(lcb_t handle, int type, const lcb_RESPN1QL *resp)
             p += snprintf(buf, 512, "failed to perform query, rc = 0x%02x", resp->rc);
             if (resp->htresp) {
                 p += snprintf(p, end - p, ". Inner HTTP requeest failed (rc = 0x%02x, http_status = %d)",
-                         resp->htresp->rc, resp->htresp->htstatus);
+                              resp->htresp->rc, resp->htresp->htstatus);
             }
             if (resp->row) {
                 VALUE errors;
@@ -67,13 +68,13 @@ static void n1ql_callback(lcb_t handle, int type, const lcb_RESPN1QL *resp)
     (void)type;
 }
 
-    VALUE
+VALUE
 cb_bucket_query(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
     lcb_N1QLPARAMS *params = lcb_n1p_new();
-    lcb_CMDN1QL cmd = { 0 };
+    lcb_CMDN1QL cmd = {0};
     lcb_error_t rc;
     VALUE qstr, proc, args;
     VALUE exc, rv;

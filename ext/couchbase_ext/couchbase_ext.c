@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-
 #include "couchbase_ext.h"
 
 /* Classes */
@@ -163,52 +162,52 @@ VALUE cb_eValueFormatError;
 VALUE cb_eHTTPError;
 VALUE cb_eQuery;
 
-                                   /* LCB_SUCCESS = 0x00         */
-                                   /* LCB_AUTH_CONTINUE = 0x01   */
-VALUE cb_eAuthError;               /* LCB_AUTH_ERROR = 0x02      */
-VALUE cb_eDeltaBadvalError;        /* LCB_DELTA_BADVAL = 0x03    */
-VALUE cb_eTooBigError;             /* LCB_E2BIG = 0x04           */
-VALUE cb_eBusyError;               /* LCB_EBUSY = 0x05           */
-VALUE cb_eInternalError;           /* LCB_EINTERNAL = 0x06       */
-VALUE cb_eInvalidError;            /* LCB_EINVAL = 0x07          */
-VALUE cb_eNoMemoryError;           /* LCB_ENOMEM = 0x08          */
-VALUE cb_eRangeError;              /* LCB_ERANGE = 0x09          */
-VALUE cb_eLibcouchbaseError;       /* LCB_ERROR = 0x0a           */
-VALUE cb_eTmpFailError;            /* LCB_ETMPFAIL = 0x0b        */
-VALUE cb_eKeyExistsError;          /* LCB_KEY_EEXISTS = 0x0c     */
-VALUE cb_eNotFoundError;           /* LCB_KEY_ENOENT = 0x0d      */
-VALUE cb_eDlopenFailedError;       /* LCB_DLOPEN_FAILED = 0x0e   */
-VALUE cb_eDlsymFailedError;        /* LCB_DLSYM_FAILED = 0x0f    */
-VALUE cb_eNetworkError;            /* LCB_NETWORK_ERROR = 0x10   */
-VALUE cb_eNotMyVbucketError;       /* LCB_NOT_MY_VBUCKET = 0x11  */
-VALUE cb_eNotStoredError;          /* LCB_NOT_STORED = 0x12      */
-VALUE cb_eNotSupportedError;       /* LCB_NOT_SUPPORTED = 0x13   */
-VALUE cb_eUnknownCommandError;     /* LCB_UNKNOWN_COMMAND = 0x14 */
-VALUE cb_eUnknownHostError;        /* LCB_UNKNOWN_HOST = 0x15    */
-VALUE cb_eProtocolError;           /* LCB_PROTOCOL_ERROR = 0x16  */
-VALUE cb_eTimeoutError;            /* LCB_ETIMEDOUT = 0x17       */
-VALUE cb_eConnectError;            /* LCB_CONNECT_ERROR = 0x18   */
-VALUE cb_eBucketNotFoundError;     /* LCB_BUCKET_ENOENT = 0x19   */
-VALUE cb_eClientNoMemoryError;     /* LCB_CLIENT_ENOMEM = 0x1a   */
-VALUE cb_eClientTmpFailError;      /* LCB_CLIENT_ETMPFAIL = 0x1b */
-VALUE cb_eBadHandleError;          /* LCB_EBADHANDLE = 0x1c      */
-VALUE cb_eServerBug;               /* LCB_SERVER_BUG = 0x1d      */
-VALUE cb_ePluginVersionMismatch;   /* LCB_PLUGIN_VERSION_MISMATCH = 0x1e */
-VALUE cb_eInvalidHostFormat;       /* LCB_INVALID_HOST_FORMAT = 0x1f     */
-VALUE cb_eInvalidChar;             /* LCB_INVALID_CHAR = 0x20            */
-VALUE cb_eDurabilityTooMany;       /* LCB_DURABILITY_ETOOMANY = 0x21 */
-VALUE cb_eDuplicateCommands;       /* LCB_DUPLICATE_COMMANDS = 0x22 */
-VALUE cb_eNoMatchingServer;        /* LCB_NO_MATCHING_SERVER = 0x23 */
-VALUE cb_eBadEnvironment;          /* LCB_BAD_ENVIRONMENT = 0x24 */
-VALUE cb_eBusy;                    /* LCB_BUSY = 0x25 */
-VALUE cb_eInvalidUsername;         /* LCB_INVALID_USERNAME = 0x26 */
+/* LCB_SUCCESS = 0x00         */
+/* LCB_AUTH_CONTINUE = 0x01   */
+VALUE cb_eAuthError;             /* LCB_AUTH_ERROR = 0x02      */
+VALUE cb_eDeltaBadvalError;      /* LCB_DELTA_BADVAL = 0x03    */
+VALUE cb_eTooBigError;           /* LCB_E2BIG = 0x04           */
+VALUE cb_eBusyError;             /* LCB_EBUSY = 0x05           */
+VALUE cb_eInternalError;         /* LCB_EINTERNAL = 0x06       */
+VALUE cb_eInvalidError;          /* LCB_EINVAL = 0x07          */
+VALUE cb_eNoMemoryError;         /* LCB_ENOMEM = 0x08          */
+VALUE cb_eRangeError;            /* LCB_ERANGE = 0x09          */
+VALUE cb_eLibcouchbaseError;     /* LCB_ERROR = 0x0a           */
+VALUE cb_eTmpFailError;          /* LCB_ETMPFAIL = 0x0b        */
+VALUE cb_eKeyExistsError;        /* LCB_KEY_EEXISTS = 0x0c     */
+VALUE cb_eNotFoundError;         /* LCB_KEY_ENOENT = 0x0d      */
+VALUE cb_eDlopenFailedError;     /* LCB_DLOPEN_FAILED = 0x0e   */
+VALUE cb_eDlsymFailedError;      /* LCB_DLSYM_FAILED = 0x0f    */
+VALUE cb_eNetworkError;          /* LCB_NETWORK_ERROR = 0x10   */
+VALUE cb_eNotMyVbucketError;     /* LCB_NOT_MY_VBUCKET = 0x11  */
+VALUE cb_eNotStoredError;        /* LCB_NOT_STORED = 0x12      */
+VALUE cb_eNotSupportedError;     /* LCB_NOT_SUPPORTED = 0x13   */
+VALUE cb_eUnknownCommandError;   /* LCB_UNKNOWN_COMMAND = 0x14 */
+VALUE cb_eUnknownHostError;      /* LCB_UNKNOWN_HOST = 0x15    */
+VALUE cb_eProtocolError;         /* LCB_PROTOCOL_ERROR = 0x16  */
+VALUE cb_eTimeoutError;          /* LCB_ETIMEDOUT = 0x17       */
+VALUE cb_eConnectError;          /* LCB_CONNECT_ERROR = 0x18   */
+VALUE cb_eBucketNotFoundError;   /* LCB_BUCKET_ENOENT = 0x19   */
+VALUE cb_eClientNoMemoryError;   /* LCB_CLIENT_ENOMEM = 0x1a   */
+VALUE cb_eClientTmpFailError;    /* LCB_CLIENT_ETMPFAIL = 0x1b */
+VALUE cb_eBadHandleError;        /* LCB_EBADHANDLE = 0x1c      */
+VALUE cb_eServerBug;             /* LCB_SERVER_BUG = 0x1d      */
+VALUE cb_ePluginVersionMismatch; /* LCB_PLUGIN_VERSION_MISMATCH = 0x1e */
+VALUE cb_eInvalidHostFormat;     /* LCB_INVALID_HOST_FORMAT = 0x1f     */
+VALUE cb_eInvalidChar;           /* LCB_INVALID_CHAR = 0x20            */
+VALUE cb_eDurabilityTooMany;     /* LCB_DURABILITY_ETOOMANY = 0x21 */
+VALUE cb_eDuplicateCommands;     /* LCB_DUPLICATE_COMMANDS = 0x22 */
+VALUE cb_eNoMatchingServer;      /* LCB_NO_MATCHING_SERVER = 0x23 */
+VALUE cb_eBadEnvironment;        /* LCB_BAD_ENVIRONMENT = 0x24 */
+VALUE cb_eBusy;                  /* LCB_BUSY = 0x25 */
+VALUE cb_eInvalidUsername;       /* LCB_INVALID_USERNAME = 0x26 */
 
 /* Default Strings */
 VALUE cb_vStrDefault;
 VALUE cb_vStrEmpty;
 VALUE cb_vStrLocalhost;
 
-    static VALUE
+static VALUE
 cb_intern_string(VALUE ar, const char *str)
 {
     VALUE tmp = STR_NEW_CSTR(str);
@@ -217,7 +216,7 @@ cb_intern_string(VALUE ar, const char *str)
     return tmp;
 }
 
-    static VALUE
+static VALUE
 cb_libcouchbase_version(VALUE self)
 {
     const char *ver = lcb_get_version(NULL);
@@ -230,7 +229,7 @@ cb_libcouchbase_version(VALUE self)
 extern "C"
 #endif
     void
-Init_couchbase_ext(void)
+    Init_couchbase_ext(void)
 {
     VALUE interned;
 

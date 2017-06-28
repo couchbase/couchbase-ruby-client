@@ -17,7 +17,7 @@
 
 #include "couchbase_ext.h"
 
-    void
+void
 cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_remove_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
@@ -25,7 +25,7 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
     VALUE key, exc = Qnil, res;
 
     ctx->nqueries--;
-    key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
+    key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
     cb_strip_key_prefix(bucket, key);
 
     if (error != LCB_KEY_ENOENT || !ctx->quiet) {
@@ -35,7 +35,7 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
             ctx->exception = exc;
         }
     }
-    if (bucket->async) {    /* asynchronous */
+    if (bucket->async) { /* asynchronous */
         if (ctx->proc != Qnil) {
             res = rb_class_new_instance(0, NULL, cb_cResult);
             rb_ivar_set(res, cb_id_iv_error, exc);
@@ -43,7 +43,7 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
             rb_ivar_set(res, cb_id_iv_key, key);
             cb_proc_call(bucket, ctx->proc, 1, res);
         }
-    } else {                /* synchronous */
+    } else { /* synchronous */
         rb_hash_aset(ctx->rv, key, (error == LCB_SUCCESS) ? Qtrue : Qfalse);
     }
     if (ctx->nqueries == 0) {
@@ -97,7 +97,7 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
  *     c.delete("foo", :cas => 123456)    #=> will raise Couchbase::Error::KeyExists
  *     c.delete("foo", :cas => ver)       #=> true
  */
-    VALUE
+VALUE
 cb_bucket_delete(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -123,8 +123,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
 
     ctx = cb_context_alloc_common(bucket, proc, params.cmd.remove.num);
     ctx->quiet = params.cmd.remove.quiet;
-    err = lcb_remove(bucket->handle, (const void *)ctx,
-            params.cmd.remove.num, params.cmd.remove.ptr);
+    err = lcb_remove(bucket->handle, (const void *)ctx, params.cmd.remove.num, params.cmd.remove.ptr);
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule delete request", Qnil);
     if (exc != Qnil) {
@@ -152,7 +151,7 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
             rb_exc_raise(exc);
         }
         if (params.cmd.remove.num > 1) {
-            return rv;  /* return as a hash {key => true, ...} */
+            return rv; /* return as a hash {key => true, ...} */
         } else {
             VALUE vv = Qnil;
             rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);

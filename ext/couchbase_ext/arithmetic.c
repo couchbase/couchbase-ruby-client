@@ -17,7 +17,7 @@
 
 #include "couchbase_ext.h"
 
-    void
+void
 cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_arithmetic_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
@@ -26,7 +26,7 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
     ID o;
 
     ctx->nqueries--;
-    key = STR_NEW((const char*)resp->v.v0.key, resp->v.v0.nkey);
+    key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
     cb_strip_key_prefix(bucket, key);
 
     cas = resp->v.v0.cas > 0 ? ULL2NUM(resp->v.v0.cas) : Qnil;
@@ -38,7 +38,7 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
         ctx->exception = exc;
     }
     val = ULL2NUM(resp->v.v0.value);
-    if (bucket->async) {    /* asynchronous */
+    if (bucket->async) { /* asynchronous */
         if (ctx->proc != Qnil) {
             res = rb_class_new_instance(0, NULL, cb_cResult);
             rb_ivar_set(res, cb_id_iv_error, exc);
@@ -48,7 +48,7 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
             rb_ivar_set(res, cb_id_iv_cas, cas);
             cb_proc_call(bucket, ctx->proc, 1, res);
         }
-    } else {                /* synchronous */
+    } else { /* synchronous */
         if (NIL_P(exc)) {
             if (ctx->extended) {
                 rb_hash_aset(ctx->rv, key, rb_ary_new3(2, val, cas));
@@ -66,7 +66,7 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
     (void)handle;
 }
 
-    static inline VALUE
+static inline VALUE
 cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
@@ -90,8 +90,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     cb_params_build(&params);
     ctx = cb_context_alloc_common(bucket, proc, params.cmd.arith.num);
     ctx->extended = params.cmd.arith.extended;
-    err = lcb_arithmetic(bucket->handle, (const void *)ctx,
-            params.cmd.arith.num, params.cmd.arith.ptr);
+    err = lcb_arithmetic(bucket->handle, (const void *)ctx, params.cmd.arith.num, params.cmd.arith.ptr);
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule arithmetic request", Qnil);
     if (exc != Qnil) {
@@ -114,7 +113,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
             rb_exc_raise(exc);
         }
         if (params.cmd.store.num > 1) {
-            return rv;  /* return as a hash {key => cas, ...} */
+            return rv; /* return as a hash {key => cas, ...} */
         } else {
             VALUE vv = Qnil;
             rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
@@ -216,7 +215,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
  *     end
  *
  */
-    VALUE
+VALUE
 cb_bucket_incr(int argc, VALUE *argv, VALUE self)
 {
     return cb_bucket_arithmetic(+1, argc, argv, self);
@@ -307,10 +306,8 @@ cb_bucket_incr(int argc, VALUE *argv, VALUE self)
  *     end
  *
  */
-    VALUE
+VALUE
 cb_bucket_decr(int argc, VALUE *argv, VALUE self)
 {
     return cb_bucket_arithmetic(-1, argc, argv, self);
 }
-
-

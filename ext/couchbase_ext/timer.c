@@ -17,13 +17,13 @@
 
 #include "couchbase_ext.h"
 
-    void
+void
 cb_timer_free(void *ptr)
 {
     xfree(ptr);
 }
 
-    void
+void
 cb_timer_mark(void *ptr)
 {
     struct cb_timer_st *timer = ptr;
@@ -32,15 +32,14 @@ cb_timer_mark(void *ptr)
     }
 }
 
-    VALUE
+VALUE
 cb_timer_alloc(VALUE klass)
 {
     VALUE obj;
     struct cb_timer_st *timer;
 
     /* allocate new bucket struct and set it to zero */
-    obj = Data_Make_Struct(klass, struct cb_timer_st, cb_timer_mark,
-            cb_timer_free, timer);
+    obj = Data_Make_Struct(klass, struct cb_timer_st, cb_timer_mark, cb_timer_free, timer);
     return obj;
 }
 
@@ -52,7 +51,7 @@ cb_timer_alloc(VALUE klass)
  *
  * @return [String]
  */
-    VALUE
+VALUE
 cb_timer_inspect(VALUE self)
 {
     VALUE str;
@@ -63,8 +62,7 @@ cb_timer_inspect(VALUE self)
     rb_str_buf_cat2(str, rb_obj_classname(self));
     snprintf(buf, 20, ":%p", (void *)self);
     rb_str_buf_cat2(str, buf);
-    snprintf(buf, 100, " timeout:%u periodic:%s>",
-            tm->usec, tm->periodic ? "true" : "false");
+    snprintf(buf, 100, " timeout:%u periodic:%s>", tm->usec, tm->periodic ? "true" : "false");
     rb_str_buf_cat2(str, buf);
 
     return str;
@@ -94,7 +92,7 @@ cb_timer_inspect(VALUE self)
  *
  * @return [String]
  */
-    VALUE
+VALUE
 cb_timer_cancel(VALUE self)
 {
     struct cb_timer_st *tm = DATA_PTR(self);
@@ -102,16 +100,15 @@ cb_timer_cancel(VALUE self)
     return self;
 }
 
-    static VALUE
+static VALUE
 trigger_timer(VALUE timer)
 {
     struct cb_timer_st *tm = DATA_PTR(timer);
     return cb_proc_call(tm->bucket, tm->callback, 1, timer);
 }
 
-    static void
-timer_callback(lcb_timer_t timer, lcb_t instance,
-        const void *cookie)
+static void
+timer_callback(lcb_timer_t timer, lcb_t instance, const void *cookie)
 {
     struct cb_timer_st *tm = (struct cb_timer_st *)cookie;
     int error = 0;
@@ -159,7 +156,7 @@ timer_callback(lcb_timer_t timer, lcb_t instance,
  *
  * @return [Couchbase::Timer]
  */
-    VALUE
+VALUE
 cb_timer_init(int argc, VALUE *argv, VALUE self)
 {
     struct cb_timer_st *tm = DATA_PTR(self);
@@ -180,8 +177,7 @@ cb_timer_init(int argc, VALUE *argv, VALUE self)
         Check_Type(opts, T_HASH);
         tm->periodic = RTEST(rb_hash_aref(opts, cb_sym_periodic));
     }
-    tm->timer = lcb_timer_create(tm->bucket->handle, tm, tm->usec,
-            tm->periodic, timer_callback, &err);
+    tm->timer = lcb_timer_create(tm->bucket->handle, tm, tm->usec, tm->periodic, timer_callback, &err);
     exc = cb_check_error(err, "failed to attach the timer", Qnil);
     if (exc != Qnil) {
         rb_exc_raise(exc);
@@ -189,4 +185,3 @@ cb_timer_init(int argc, VALUE *argv, VALUE self)
 
     return self;
 }
-
