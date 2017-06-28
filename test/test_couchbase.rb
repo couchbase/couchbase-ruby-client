@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,6 @@ require File.join(File.dirname(__FILE__), 'setup')
 require 'minitest/mock'
 
 class TestCouchbase < MiniTest::Test
-
   def teardown
     Couchbase.reset_thread_storage!
   end
@@ -73,5 +72,4 @@ class TestCouchbase < MiniTest::Test
       end
     end
   end
-
 end

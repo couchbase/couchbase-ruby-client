@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2013 Couchbase, Inc.
+# Copyright:: 2013-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,7 @@ OPTIONS = {
 }
 
 OptionParser.new do |opts|
-  opts.banner = "Usage: #{$0} [options] keys"
+  opts.banner = "Usage: #{$PROGRAM_NAME} [options] keys"
   opts.on("-h", "--hostname HOSTNAME", "Hostname to connect to (default: #{OPTIONS[:hostname]}:#{OPTIONS[:port]})") do |v|
     host, port = v.split(':')
     OPTIONS[:hostname] = host.empty? ? '127.0.0.1' : host

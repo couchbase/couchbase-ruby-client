@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,20 +18,20 @@
 require 'rake/testtask'
 require 'rake/clean'
 
-rule 'test/CouchbaseMock.jar' do |task|
+rule 'test/CouchbaseMock.jar' do |_task|
   jar_path = "0.8-SNAPSHOT/CouchbaseMock-0.8-20140621.030439-1.jar"
-  sh %{wget -q -O test/CouchbaseMock.jar http://files.couchbase.com/maven2/org/couchbase/mock/CouchbaseMock/#{jar_path}}
+  sh %(wget -q -O test/CouchbaseMock.jar http://files.couchbase.com/maven2/org/couchbase/mock/CouchbaseMock/#{jar_path})
 end
 
 CLOBBER << 'test/CouchbaseMock.jar'
 
 module FileUtils
-  alias :orig_ruby :ruby
+  alias orig_ruby ruby
 
   def ruby(*args, &block)
     executable = [ENV['RUBY_PREFIX'], RUBY].flatten.compact.join(' ')
-    options = (Hash === args.last) ? args.pop : {}
-    if args.length > 1 then
+    options = Hash === args.last ? args.pop : {}
+    if args.length > 1
       sh(*([executable] + args + [options]), &block)
     else
       sh("#{executable} #{args.first}", options, &block)
@@ -47,7 +47,7 @@ end
 
 Rake::Task['test'].prerequisites.unshift('test/CouchbaseMock.jar')
 
-common_flags = %w[
+common_flags = %w(
   --tool=memcheck
   --error-limit=no
   --undef-value-errors=no
@@ -59,7 +59,7 @@ common_flags = %w[
   --leak-resolution=med
   --max-stackframe=7304328
   --partial-loads-ok=yes
-]
+)
 
 desc "Run the test suite under Valgrind memcheck."
 task "test:valgrind" do
@@ -69,32 +69,32 @@ end
 
 desc "Run the test suite under Valgrind memcheck with memory-fill."
 task "test:valgrind:mem_fill" do
-  local_flags = %w[
+  local_flags = %w(
     --malloc-fill=6D
     --freelist-vol=100000000
     --free-fill=66
-  ]
+  )
   ENV['RUBY_PREFIX'] = "valgrind #{common_flags.join(' ')} #{local_flags.join(' ')}"
   Rake::Task['test'].invoke
 end
 
 desc "Run the test suite under Valgrind memcheck with memory-zero."
 task "test:valgrind:mem_zero" do
-  local_flags = %w[
+  local_flags = %w(
     --freelist-vol=100000000
     --malloc-fill=00
     --free-fill=00
-  ]
+  )
   ENV['RUBY_PREFIX'] = "valgrind #{common_flags.join(' ')} #{local_flags.join(' ')}"
   Rake::Task['test'].invoke
 end
 
 desc "Run the test suite under Valgrind massif."
 task "test:valgrind:massif" do
-  local_flags = %w[
+  local_flags = %w(
     --tool=massif
     --time-unit=B
-  ]
+  )
   ENV['RUBY_PREFIX'] = "valgrind #{local_flags.join(' ')}"
   Rake::Task['test'].invoke
 end

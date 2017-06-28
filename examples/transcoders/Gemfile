@@ -1,3 +1,5 @@
+# Copyright:: 2017 Couchbase, Inc.
+
 source 'https://rubygems.org'
 
 gem 'couchbase'

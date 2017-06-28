@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +19,11 @@
 # using json_gem. It amends behaviour of MultiJson::Engines::JsonGem#load
 # when it receives JSON string which neither Array nor Object.
 
-if MultiJson.respond_to?(:engine)
-  multi_json_engine = MultiJson.send(:engine)
-else
-  multi_json_engine = MultiJson.send(:adapter)
-end
+multi_json_engine = if MultiJson.respond_to?(:engine)
+                      MultiJson.send(:engine)
+                    else
+                      MultiJson.send(:adapter)
+                    end
 
 # Patch for MultiJson versions < 1.3.3
 require 'multi_json/version'
@@ -34,8 +34,8 @@ version = begin
           end.dup # because Gem::Version modifies it
 if Gem::Version.new(version) < Gem::Version.new('1.3.3')
   class << MultiJson
-    alias :dump :encode
-    alias :load :decode
+    alias dump encode
+    alias load decode
   end
 end
 
@@ -43,9 +43,7 @@ if multi_json_engine.name =~ /JsonGem$/
   class << multi_json_engine
     alias _load_object load
     def load(string, options = {})
-      if string.respond_to?(:read)
-        string = string.read
-      end
+      string = string.read if string.respond_to?(:read)
       if string =~ /\A\s*[{\[]/
         _load_object(string, options)
       else

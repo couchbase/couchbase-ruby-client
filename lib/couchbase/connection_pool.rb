@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2013 Couchbase, Inc.
+# Copyright:: 2013-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,6 @@ require 'connection_pool'
 
 module Couchbase
   class ConnectionPool
-
     def initialize(pool_size = 5, *args)
       @pool = ::ConnectionPool.new(:size => pool_size) { ::Couchbase::Bucket.new(*args) }
     end
@@ -53,6 +52,5 @@ module Couchbase
         end
       RUBY
     end
-
   end
 end

@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 require File.join(File.dirname(__FILE__), 'setup')
 
 class TestFormat < MiniTest::Test
-
   ArbitraryClass = Struct.new(:name, :role)
   class SkinyClass < Struct.new(:name, :role)
     undef to_s rescue nil
@@ -93,14 +92,14 @@ class TestFormat < MiniTest::Test
     end
 
     assert_raises(Couchbase::Error::ValueFormat) do
-      connection.set(uniq_id, {:foo => "bar"})
+      connection.set(uniq_id, :foo => "bar")
     end
   end
 
   def test_bignum_conversion
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :plain)
     cas = 0xffff_ffff_ffff_ffff
-    assert cas.is_a?(Bignum)
+    assert cas.is_a?(Integer)
     assert_raises(Couchbase::Error::NotFound) do
       connection.delete(uniq_id => cas)
     end
@@ -109,7 +108,7 @@ class TestFormat < MiniTest::Test
   def test_it_allows_to_turn_off_transcoder
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :transcoder => nil)
     connection.set(uniq_id, "value", :flags => 0xffff_ffff)
-    doc, flags, _ = connection.get(uniq_id, :extended => true)
+    doc, flags, = connection.get(uniq_id, :extended => true)
     assert_equal "value", doc
     assert_equal 0xffff_ffff, flags
   end
@@ -129,7 +128,7 @@ class TestFormat < MiniTest::Test
       z = Zlib::Deflate.new(Zlib::BEST_SPEED)
       buffer = z.deflate(obj, Zlib::FINISH)
       z.close
-      [buffer, flags|FMT_ZLIB]
+      [buffer, flags | FMT_ZLIB]
     end
 
     def load(blob, flags, options = {})
@@ -147,10 +146,10 @@ class TestFormat < MiniTest::Test
   def test_it_can_use_custom_transcoder
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.transcoder = ZlibTranscoder.new(Couchbase::Transcoder::Document)
-    connection.set(uniq_id, {"foo" => "bar"})
-    doc, flags, _ = connection.get(uniq_id, :extended => true)
+    connection.set(uniq_id, "foo" => "bar")
+    doc, flags, = connection.get(uniq_id, :extended => true)
     assert_equal({"foo" => "bar"}, doc)
-    assert_equal(ZlibTranscoder::FMT_ZLIB|Couchbase::Bucket::FMT_DOCUMENT, flags)
+    assert_equal(ZlibTranscoder::FMT_ZLIB | Couchbase::Bucket::FMT_DOCUMENT, flags)
     connection.transcoder = nil
     doc = connection.get(uniq_id)
     case RUBY_VERSION
@@ -160,5 +159,4 @@ class TestFormat < MiniTest::Test
       assert_equal "x\u0001\xABVJ\xCB\xCFW\xB2RJJ,R\xAA\u0005\u0000\u001Dz\u00044", doc
     end
   end
-
 end

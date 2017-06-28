@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,6 @@ require 'thread'
 
 module Rack
   module Session
-
     # This is Couchbase-powered session store for rack applications
     #
     # To use it just load it as usual middleware in your `config.ru` file
@@ -46,7 +45,8 @@ module Rack
 
       DEFAULT_OPTIONS = Abstract::ID::DEFAULT_OPTIONS.merge(
         :couchbase => {:quiet => true, :default_format => :marshal,
-                       :key_prefix => 'rack:session:'})
+                       :key_prefix => 'rack:session:'}
+      )
 
       def initialize(app, options = {})
         # Support old :expires option
@@ -61,7 +61,7 @@ module Rack
       end
 
       def generate_sid
-        while true
+        loop do
           sid = super
           break sid unless @pool.get(sid)
         end
@@ -69,7 +69,7 @@ module Rack
 
       def get_session(env, sid)
         with_lock(env, [nil, {}]) do
-          unless sid and session = @pool.get(sid)
+          unless sid && (session = @pool.get(sid))
             sid, session = generate_sid, {}
             @pool.set(sid, session)
           end
@@ -97,7 +97,7 @@ module Rack
       rescue ::Couchbase::Error::Connect, ::Couchbase::Error::Timeout
         if $VERBOSE
           warn "#{self} is unable to find Couchbase server."
-          warn $!.inspect
+          warn $ERROR_INFO.inspect
         end
         default
       ensure

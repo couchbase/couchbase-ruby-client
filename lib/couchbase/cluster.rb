@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +16,7 @@
 #
 
 module Couchbase
-
   class Cluster
-
     # Establish connection to the cluster for administration
     #
     # @param [Hash] options The connection parameter
@@ -78,7 +76,7 @@ module Couchbase
       params["flushEnabled"] = !!options[:flush_enabled]
       params["replicaIndex"] = !!options[:replica_index]
       params["parallelDBAndViewCompaction"] = !!options[:parallel_db_and_view_compaction]
-      payload = Utils.encode_params(params.reject!{|k, v| v.nil?})
+      payload = Utils.encode_params(params.reject! { |_k, v| v.nil? })
       request = @connection.make_http_request("/pools/default/buckets",
                                               :content_type => "application/x-www-form-urlencoded",
                                               :type => :management,
@@ -99,7 +97,7 @@ module Couchbase
     #
     # @param [String] name The name of the bucket
     # @param [Hash] options
-    def delete_bucket(name, options = {})
+    def delete_bucket(name, _options = {})
       request = @connection.make_http_request("/pools/default/buckets/#{name}",
                                               :type => :management,
                                               :method => :delete,
@@ -113,7 +111,5 @@ module Couchbase
       request.continue
       response
     end
-
   end
-
 end

@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 require File.join(File.dirname(__FILE__), 'setup')
 
 class TestGet < MiniTest::Test
-
   def setup
     @mock = start_mock
   end
@@ -122,7 +121,7 @@ class TestGet < MiniTest::Test
     val = connection.get(uniq_id(:missing), :extended => true)
     refute(val)
 
-    val1, missing, val2  = connection.get(uniq_id(1), uniq_id(:missing), uniq_id(2))
+    val1, missing, val2 = connection.get(uniq_id(1), uniq_id(:missing), uniq_id(2))
     assert_equal "foo1", val1
     refute missing
     assert_equal "foo2", val2
@@ -171,8 +170,8 @@ class TestGet < MiniTest::Test
     suite = lambda do |conn|
       res.clear
       conn.get(uniq_id) # ignore result
-      conn.get(uniq_id) {|ret| res << ret}
-      handler = lambda {|ret| res << ret}
+      conn.get(uniq_id) { |ret| res << ret }
+      handler = lambda { |ret| res << ret }
       conn.get(uniq_id, &handler)
     end
 
@@ -190,7 +189,7 @@ class TestGet < MiniTest::Test
     connection.run(&suite)
     checks.call
 
-    connection.run{ suite.call(connection) }
+    connection.run { suite.call(connection) }
     checks.call
   end
 
@@ -201,7 +200,7 @@ class TestGet < MiniTest::Test
 
     res = {}
     connection.run do |conn|
-      conn.get(uniq_id(1), uniq_id(2)) {|ret| res[ret.key] = ret.value}
+      conn.get(uniq_id(1), uniq_id(2)) { |ret| res[ret.key] = ret.value }
     end
 
     assert res[uniq_id(1)]
@@ -237,17 +236,17 @@ class TestGet < MiniTest::Test
     end
 
     connection.run(&suite)
-    refute res.has_key?(uniq_id(:missing1))
-    refute res.has_key?(uniq_id(:missing2))
+    refute res.key?(uniq_id(:missing1))
+    refute res.key?(uniq_id(:missing2))
     assert_equal [uniq_id(:missing1), uniq_id(:missing2)], missing.sort
     assert_equal "foo", res[uniq_id]
 
     connection.quiet = true
     connection.run(&suite)
     assert_equal "foo", res[uniq_id]
-    assert res.has_key?(uniq_id(:missing1)) # handler was called with nil
+    assert res.key?(uniq_id(:missing1)) # handler was called with nil
     refute res[uniq_id(:missing1)]
-    assert res.has_key?(uniq_id(:missing2))
+    assert res.key?(uniq_id(:missing2))
     refute res[uniq_id(:missing2)]
     assert_empty missing
   end
@@ -313,11 +312,11 @@ class TestGet < MiniTest::Test
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 
     connection.set(uniq_id, '{"foo":"bar"}', :format => :plain)
-    value, flags, _ = connection.get(uniq_id, :extended => true)
+    value, flags, = connection.get(uniq_id, :extended => true)
     assert_equal '{"foo":"bar"}', value
     assert_equal 0x02, flags
 
-    value, flags, _ = connection.get(uniq_id, :extended => true, :format => :document)
+    value, flags, = connection.get(uniq_id, :extended => true, :format => :document)
     expected = {"foo" => "bar"}
     assert_equal expected, value
     assert_equal 0x02, flags
@@ -337,8 +336,8 @@ class TestGet < MiniTest::Test
 
     assert_equal "foo", connection.get(uniq_id("foo"))
     assert_equal ["foo"], connection.get([uniq_id("foo")])
-    assert_equal ["foo", "bar"], connection.get([uniq_id("foo"), uniq_id("bar")])
-    assert_equal ["foo", "bar"], connection.get(uniq_id("foo"), uniq_id("bar"))
+    assert_equal %w(foo bar), connection.get([uniq_id("foo"), uniq_id("bar")])
+    assert_equal %w(foo bar), connection.get(uniq_id("foo"), uniq_id("bar"))
     expected = {uniq_id("foo") => ["foo", 0x00, cas]}
     assert_equal expected, connection.get([uniq_id("foo")], :extended => true)
     assert_raises TypeError do
@@ -366,7 +365,7 @@ class TestGet < MiniTest::Test
       connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
       connection.set(uniq_id(1), "foo1")
       connection.set(uniq_id(2), "foo2")
-      assert_equal ["foo1", "foo2"], connection.get([uniq_id(1), uniq_id(2)], :lock => 1)
+      assert_equal %w(foo1 foo2), connection.get([uniq_id(1), uniq_id(2)], :lock => 1)
       assert_raises Couchbase::Error::KeyExists do
         connection.set(uniq_id(1), "bar")
       end

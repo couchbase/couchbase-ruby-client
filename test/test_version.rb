@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 require File.join(File.dirname(__FILE__), 'setup')
 
 class TestVersion < MiniTest::Test
-
   def setup
     @mock = start_mock
   end
@@ -44,9 +43,8 @@ class TestVersion < MiniTest::Test
       end
     end
     assert_equal @mock.num_nodes, ver.size
-    ver.each do |node, v|
+    ver.each do |_node, v|
       assert v.is_a?(String)
     end
   end
-
 end

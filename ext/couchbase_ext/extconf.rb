@@ -1,6 +1,6 @@
-# encoding: UTF-8
+# encoding: utf-8
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -50,11 +50,11 @@ if RbConfig::CONFIG['target_os'] =~ /mingw32/
   dir_config('libcouchbase')
 else
   $CFLAGS << ' -std=c99 -Wall -Wextra '
-  if ENV['DEBUG']
-    $CFLAGS << ' -O0 -ggdb3 -pedantic '
-  else
-    $CFLAGS << ' -O2'
-  end
+  $CFLAGS << if ENV['DEBUG']
+               ' -O0 -ggdb3 -pedantic '
+             else
+               ' -O2'
+             end
   LIBDIR = RbConfig::CONFIG['libdir']
   INCLUDEDIR = RbConfig::CONFIG['includedir']
 
@@ -125,7 +125,7 @@ end
 
 def die(message)
   STDERR.puts "\n#{'*' * 70}"
-  STDERR.puts "#{message.gsub(/^/, '* ')}"
+  STDERR.puts message.gsub(/^/, '* ')
   STDERR.puts "#{'*' * 70}\n\n"
   abort
 end
@@ -157,7 +157,7 @@ unless 'foo()'.respond_to?(:funcall_style)
 
   def try_func(func, libs, headers = nil, &b)
     headers = cpp_include(headers)
-    try_link(<<"SRC", libs, &b) or try_link(<<"SRC", libs, &b)
+    try_link(<<"SRC", libs, &b) || try_link(<<"SRC", libs, &b)
 #{COMMON_HEADERS}
 #{headers}
 /*top*/

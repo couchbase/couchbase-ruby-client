@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-$:.push File.expand_path('../lib', __FILE__)
+$LOAD_PATH.push File.expand_path('../lib', __FILE__)
 require 'couchbase/version'
 
 Gem::Specification.new do |s|
@@ -26,12 +26,12 @@ Gem::Specification.new do |s|
   s.email       = 'support@couchbase.com'
   s.license     = 'Apache-2.0'
   s.homepage    = 'http://couchbase.org'
-  s.summary     = %q{Couchbase ruby driver}
-  s.description = %q{The official client library for use with Couchbase Server.}
+  s.summary     = 'Couchbase ruby driver'
+  s.description = 'The official client library for use with Couchbase Server.'
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
-  s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
+  s.executables   = `git ls-files -- bin/*`.split("\n").map { |f| File.basename(f) }
   s.extensions    = `git ls-files -- ext/**/extconf.rb`.split("\n")
   s.require_paths = ['lib']
 

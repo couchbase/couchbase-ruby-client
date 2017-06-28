@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,13 +38,14 @@ class CouchbaseServer
 
     @config = MultiJson.load(open("http://#{@host}:#{@port}/pools/default"))
     @num_nodes = @config["nodes"].size
-    @buckets_spec = params[:buckets_spec] || "default:"  # "default:,protected:secret,cache::memcache"
+    @buckets_spec = params[:buckets_spec] || "default:" # "default:,protected:secret,cache::memcache"
   end
 
   def start
     # flush all buckets
+    return unless ENV['COUCHBASE_FLUSH_BUCKETS']
     @buckets_spec.split(',') do |bucket|
-      name, password, _ = bucket.split(':')
+      name, password, = bucket.split(':')
       connection = Couchbase.new(:hostname => @host,
                                  :port => @port,
                                  :username => name,
@@ -55,8 +56,9 @@ class CouchbaseServer
       rescue Couchbase::Error::NotSupported
         # on recent server flush is disabled
       end
-    end if ENV['COUCHBASE_FLUSH_BUCKETS']
+    end
   end
+
   def stop; end
 end
 
@@ -74,7 +76,7 @@ class CouchbaseMock
     @port = 0
     @num_nodes = 10
     @num_vbuckets = 4096
-    @buckets_spec = "default:"  # "default:,protected:secret,cache::memcache"
+    @buckets_spec = "default:" # "default:,protected:secret,cache::memcache"
     params.each do |key, value|
       send("#{key}=", value)
     end
@@ -88,7 +90,7 @@ class CouchbaseMock
     @monitor = Monitor.new
     @monitor.socket = TCPServer.new(nil, 0)
     @monitor.socket.listen(10)
-    _, @monitor.port, _, _ = @monitor.socket.addr
+    _, @monitor.port, = @monitor.socket.addr
     trap("CLD") do
       puts "CouchbaseMock.jar died unexpectedly during startup"
       exit(1)
@@ -98,7 +100,7 @@ class CouchbaseMock
       rc = exec(command_line("--harakiri-monitor=:#{@monitor.port}"))
     else
       trap("CLD", "SIG_DFL")
-      @monitor.client, _ = @monitor.socket.accept
+      @monitor.client, = @monitor.socket.accept
       @port = @monitor.client.recv(100).to_i
     end
   end
@@ -133,14 +135,13 @@ class CouchbaseMock
 end
 
 class MiniTest::Test
-
   def start_mock(params = {})
     mock = nil
     if ENV['COUCHBASE_SERVER']
       mock = CouchbaseServer.new(params)
       if (params[:port] && mock.port != params[:port]) ||
-        (params[:host] && mock.host != params[:host]) ||
-        mock.buckets_spec != "default:"
+         (params[:host] && mock.host != params[:host]) ||
+         mock.buckets_spec != "default:"
         skip("Unable to configure real cluster. Requested config is: #{params.inspect}")
       end
     else

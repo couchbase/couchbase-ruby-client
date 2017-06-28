@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 require File.join(File.dirname(__FILE__), 'setup')
 
 class TestUtils < MiniTest::Test
-
   def setup
     @mock = start_mock
   end
@@ -28,13 +27,13 @@ class TestUtils < MiniTest::Test
   end
 
   def test_complex_startkey
-    assert_equal "all_docs?startkey=%5B%22Deadmau5%22%2C%22%22%5D", Couchbase::Utils.build_query("all_docs", :startkey =>  ["Deadmau5", ""])
+    assert_equal "all_docs?startkey=%5B%22Deadmau5%22%2C%22%22%5D", Couchbase::Utils.build_query("all_docs", :startkey => ["Deadmau5", ""])
   end
 
   def test_it_provides_enough_info_with_value_error
     class << MultiJson
-      alias dump_good dump
-      def dump(obj)
+      alias_method :dump_good, :dump
+      def dump(_obj)
         raise ArgumentError, "cannot accept your object"
       end
     end
@@ -51,8 +50,7 @@ class TestUtils < MiniTest::Test
   ensure
     class << MultiJson
       undef dump
-      alias dump dump_good
+      alias_method :dump, :dump_good
     end
   end
-
 end

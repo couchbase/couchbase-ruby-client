@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,6 @@ require File.join(File.dirname(__FILE__), 'setup')
 require 'digest/md5'
 
 class TestErrors < MiniTest::Test
-
   def setup
     @mock = start_mock
   end
@@ -57,11 +56,11 @@ class TestErrors < MiniTest::Test
     end
 
     msg3 = {"author" => "foo", "message" => "hi all",
-                "time" => ["2012-01-12 11:29:09", "2012-01-12 11:29:30"]}
+            "time" => ["2012-01-12 11:29:09", "2012-01-12 11:29:30"]}
     key3 = uniq_id(genkey(msg3))
     assert_equal msg3, connection.get(key3)
 
-    connection.run do |conn|
+    connection.run do |_conn|
       msg4 = {"author" => "foo", "message" => "hi all", "time" => "2012-01-12 11:45:34"}
       key4 = uniq_id(genkey(msg4))
 
@@ -74,9 +73,8 @@ class TestErrors < MiniTest::Test
     end
 
     msg5 = {"author" => "foo", "message" => "hi all",
-                "time" => ["2012-01-12 11:29:09", "2012-01-12 11:29:30", "2012-01-12 11:45:34"]}
+            "time" => ["2012-01-12 11:29:09", "2012-01-12 11:29:30", "2012-01-12 11:45:34"]}
     key5 = uniq_id(genkey(msg5))
     assert_equal msg5, connection.get(key5)
   end
-
 end

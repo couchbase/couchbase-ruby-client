@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +16,7 @@
 #
 
 module Couchbase
-
   class Bucket
-
     # Compare and swap value.
     #
     # @since 1.0.0
@@ -119,7 +117,7 @@ module Couchbase
         end
       end
     end
-    alias :compare_and_swap :cas
+    alias compare_and_swap cas
 
     # Fetch design docs stored in current bucket
     #
@@ -133,13 +131,11 @@ module Couchbase
       req.on_body do |body|
         res = MultiJson.load(body.value)
         res["rows"].each do |obj|
-          if obj['doc']
-            obj['doc']['value'] = obj['doc'].delete('json')
-          end
+          obj['doc']['value'] = obj['doc'].delete('json') if obj['doc']
           doc = DesignDoc.wrap(self, obj)
           key = doc.id.sub(/^_design\//, '')
-          next if self.environment == :production && key =~ /dev_/
-            docmap[key] = doc
+          next if environment == :production && key =~ /dev_/
+          docmap[key] = doc
         end
         yield(docmap) if block_given?
       end
@@ -178,7 +174,7 @@ module Couchbase
         raise rv.error unless async?
       end
       req = make_http_request(id, :body => MultiJson.dump(attrs),
-                              :method => :put, :extended => true)
+                                  :method => :put, :extended => true)
       req.on_body do |res|
         rv = res
         val = MultiJson.load(res.value)
@@ -190,9 +186,7 @@ module Couchbase
         end
       end
       req.continue
-      unless async?
-        rv.success? or raise res.error
-      end
+      rv.success? || raise(res.error) unless async?
     end
 
     # Delete design doc with given id and revision.
@@ -226,9 +220,7 @@ module Couchbase
         end
       end
       req.continue
-      unless async?
-        rv.success? or raise res.error
-      end
+      rv.success? || raise(res.error) unless async?
     end
 
     # Delete contents of the bucket
@@ -317,17 +309,14 @@ module Couchbase
       if block && !async?
         raise ArgumentError, "synchronous mode doesn't support callbacks"
       end
-      if keys.size == 0
-        raise ArgumentError, "at least one key is required"
-      end
-      if keys.size == 1 && keys[0].is_a?(Hash)
-        key_cas = keys[0]
-      else
-        key_cas = keys.flatten.reduce({}) do |h, kk|
-          h[kk] = nil   # set CAS to nil
-          h
-        end
-      end
+      raise ArgumentError, "at least one key is required" if keys.empty?
+      key_cas = if keys.size == 1 && keys[0].is_a?(Hash)
+                  keys[0]
+                else
+                  keys.flatten.each_with_object({}) do |kk, h|
+                    h[kk] = nil # set CAS to nil
+                  end
+                end
       if async?
         do_observe_and_wait(key_cas, options, &block)
       else
@@ -359,10 +348,10 @@ module Couchbase
       unless options[:persisted] || options[:replicated]
         raise ArgumentError, "either :persisted or :replicated option must be set"
       end
-      if options[:persisted] && !(1..num_replicas + 1).include?(options[:persisted])
+      if options[:persisted] && !(1..num_replicas + 1).cover?(options[:persisted])
         raise ArgumentError, "persisted number should be in range (1..#{num_replicas + 1})"
       end
-      if options[:replicated] && !(1..num_replicas).include?(options[:replicated])
+      if options[:replicated] && !(1..num_replicas).cover?(options[:replicated])
         raise ArgumentError, "replicated number should be in range (1..#{num_replicas})"
       end
     end
@@ -375,7 +364,7 @@ module Couchbase
       end
       check_condition = lambda do
         ok = catch :break do
-          acc.each do |key, stats|
+          acc.each do |_key, stats|
             master = stats[:cas][0]
             if master.nil?
               # master node doesn't have the key
@@ -396,13 +385,13 @@ module Couchbase
           if async?
             options[:timer].cancel if options[:timer]
             keys.each do |k, _|
-              block.call(Result.new(:key => k,
-                                    :cas => acc[k][:cas][0],
-                                    :operation => :observe_and_wait))
+              yield(Result.new(:key => k,
+                               :cas => acc[k][:cas][0],
+                               :operation => :observe_and_wait))
             end
             return :async
           else
-            return keys.inject({}){|res, (k, _)| res[k] = acc[k][:cas][0]; res}
+            return keys.each_with_object({}) { |(k, _), res| res[k] = acc[k][:cas][0] }
           end
         else
           options[:timeout] /= 2
@@ -414,7 +403,7 @@ module Couchbase
               return :async
             else
               # do wait for timeout
-              run { create_timer(options[:timeout]){} }
+              run { create_timer(options[:timeout]) {} }
               # return nil to avoid recursive call
               return nil
             end
@@ -423,10 +412,10 @@ module Couchbase
             err.instance_variable_set("@operation", :observe_and_wait)
             if async?
               keys.each do |k, _|
-                block.call(Result.new(:key => k,
-                                      :cas => acc[k][:cas][0],
-                                      :operation => :observe_and_wait,
-                                      :error => err))
+                yield(Result.new(:key => k,
+                                 :cas => acc[k][:cas][0],
+                                 :operation => :observe_and_wait,
+                                 :error => err))
               end
               return :async
             else
@@ -447,19 +436,16 @@ module Couchbase
               acc[res.key][:cas] << res.cas
             end
             acc[res.key][res.status] += 1
-            if res.status == :persisted
-              acc[res.key][:replicated] += 1
-            end
+            acc[res.key][:replicated] += 1 if res.status == :persisted
           end
         end
       end
       if async?
         observe(keys.keys, options, &collect)
       else
-        observe(keys.keys, options).each{|_, v| collect.call(v)}
+        observe(keys.keys, options).each { |_, v| collect.call(v) }
         check_condition.call
       end
     end
   end
-
 end

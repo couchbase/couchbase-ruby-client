@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 require File.join(File.dirname(__FILE__), 'setup')
 
 class TestBucket < MiniTest::Test
-
   def test_it_substitute_default_parts_to_url
 #   with_mock(:host => 'localhost', :port => 8091, :buckets_spec => 'default,foo') do |mock|
 #     connections = [
@@ -118,12 +117,14 @@ class TestBucket < MiniTest::Test
 
   def test_it_raises_error_with_wrong_credentials
     with_mock do |mock|
-      assert_raises Couchbase::Error::Auth do
-        Couchbase.new(:hostname => mock.host,
-                      :port => mock.port,
-                      :bucket => 'default',
-                      :password => 'wrong_password')
-      end if mock.real?
+      if mock.real?
+        assert_raises Couchbase::Error::Auth do
+          Couchbase.new(:hostname => mock.host,
+                        :port => mock.port,
+                        :bucket => 'default',
+                        :password => 'wrong_password')
+        end
+      end
       assert_raises Couchbase::Error::InvalidUsername do
         Couchbase.new(:hostname => mock.host,
                       :port => mock.port,
@@ -295,5 +296,4 @@ class TestBucket < MiniTest::Test
       assert_equal mock.host, connection.hostname
     end
   end
-
 end

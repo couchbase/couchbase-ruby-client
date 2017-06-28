@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,7 +38,6 @@ module ActiveSupport
     #   }
     #   config.cache_store = :couchbase_store, cache_options
     class CouchbaseStore < Store
-
       # Creates a new CouchbaseStore object, with the given options. For
       # more info see {{Couchbase::Bucket#initialize}}
       #
@@ -49,7 +48,7 @@ module ActiveSupport
       # bucket named "default" which is always open for unauthorized access
       # (if exists).
       def initialize(*args)
-        args = [*(args.flatten)]
+        args = [*args.flatten]
         options = args.extract_options! || {}
         @raise_errors = !options[:quiet] = !options.delete(:raise_errors)
         options[:default_ttl] ||= options.delete(:expires_in)
@@ -111,7 +110,7 @@ module ActiveSupport
             instrument(:fetch_hit, name, options) { |payload| }
             entry
           else
-            result = instrument(:generate, name, options) do |payload|
+            result = instrument(:generate, name, options) do |_payload|
               yield
             end
             write(name, result, options)
@@ -144,7 +143,7 @@ module ActiveSupport
           value.force_encoding(Encoding::BINARY) if defined?(Encoding)
         end
 
-        instrument(:write, name, options) do |payload|
+        instrument(:write, name, options) do |_payload|
           write_entry(name, value, options)
         end
       end
@@ -168,9 +167,7 @@ module ActiveSupport
       def read(name, options = nil)
         options ||= {}
         name = expanded_key name
-        if options.delete(:raw)
-          options[:format] = :plain
-        end
+        options[:format] = :plain if options.delete(:raw)
 
         instrument(:read, name, options) do |payload|
           entry = read_entry(name, options)
@@ -190,11 +187,9 @@ module ActiveSupport
       # @return [Hash] key-value pairs
       def read_multi(*names)
         options = names.extract_options!
-        names = names.flatten.map{|name| expanded_key(name)}
+        names = names.flatten.map { |name| expanded_key(name) }
         options[:assemble_hash] = true
-        if options.delete(:raw)
-          options[:format] = :plain
-        end
+        options[:format] = :plain if options.delete(:raw)
         instrument(:read_multi, names, options) do
           @data.get(names, options)
         end
@@ -217,7 +212,7 @@ module ActiveSupport
           !read_entry(name, options).nil?
         end
       end
-      alias :exist? :exists?
+      alias exist? exists?
 
       # Deletes an entry in the cache.
       #
@@ -353,13 +348,13 @@ module ActiveSupport
 
         case key
         when Array
-          if key.size > 1
-            key = key.collect{|element| expanded_key(element)}
-          else
-            key = key.first
-          end
+          key = if key.size > 1
+                  key.collect { |element| expanded_key(element) }
+                else
+                  key.first
+                end
         when Hash
-          key = key.sort_by { |k,_| k.to_s }.collect{|k,v| "#{k}=#{v}"}
+          key = key.sort_by { |k, _| k.to_s }.collect { |k, v| "#{k}=#{v}" }
         end
 
         validate_key(key.respond_to?(:to_param) ? key.to_param : key)
@@ -369,7 +364,7 @@ module ActiveSupport
         if key_with_prefix(key).length > 250
           key = "#{key[0, max_length_before_prefix]}:md5:#{Digest::MD5.hexdigest(key)}"
         end
-        return key
+        key
       end
 
       def key_with_prefix(key)

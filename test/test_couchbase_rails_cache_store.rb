@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,6 @@ require 'active_support/notifications'
 require 'ostruct'
 
 class TestCouchbaseRailsCacheStore < MiniTest::Test
-
   def setup
     @mock = start_mock
     @foo = OpenStruct.new :payload => "foo"
@@ -301,14 +300,14 @@ class TestCouchbaseRailsCacheStore < MiniTest::Test
           store.write('a', 9)
           store.write('b', 11)
           assert_equal 9, store.read('a')
-          assert_equal({ 'a' => 9, 'b' => 11 }, store.read_multi('a', 'b'))
+          assert_equal({'a' => 9, 'b' => 11}, store.read_multi('a', 'b'))
           assert_equal 11, store.read('b')
           assert_equal %w(a b), store.read_multi('a', 'b', 'c').keys.sort
         end
       end
     end
 
-    workers.each { |w| w.join }
+    workers.each(&:join)
   end
 
   def test_it_can_use_connection_pool_for_thread_safety
@@ -320,14 +319,14 @@ class TestCouchbaseRailsCacheStore < MiniTest::Test
           pool_store.write('a', 9)
           pool_store.write('b', 11)
           assert_equal 9, pool_store.read('a')
-          assert_equal({ 'a' => 9, 'b' => 11 }, pool_store.read_multi('a', 'b'))
+          assert_equal({'a' => 9, 'b' => 11}, pool_store.read_multi('a', 'b'))
           assert_equal 11, pool_store.read('b')
           assert_equal %w(a b), pool_store.read_multi('a', 'b', 'c').keys.sort
         end
       end
     end
 
-    workers.each { |w| w.join }
+    workers.each(&:join)
   end
 
   # These tests are only relevant against a real server,
@@ -347,7 +346,7 @@ class TestCouchbaseRailsCacheStore < MiniTest::Test
   private
 
   def collect_notifications
-    @events = [ ]
+    @events = []
     ActiveSupport::Cache::CouchbaseStore.instrument = true
     ActiveSupport::Notifications.subscribe(/^cache_(.*)\.active_support$/) do |*args|
       @events << ActiveSupport::Notifications::Event.new(*args)

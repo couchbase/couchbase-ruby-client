@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 require File.join(File.dirname(__FILE__), 'setup')
 
 class TestStore < MiniTest::Test
-
   def setup
     @mock = start_mock
   end
@@ -40,7 +39,7 @@ class TestStore < MiniTest::Test
     assert cas1 > 0
 
     assert_raises(Couchbase::Error::KeyExists) do
-      connection.set(uniq_id, "bar2", :cas => cas1+1)
+      connection.set(uniq_id, "bar2", :cas => cas1 + 1)
     end
 
     cas2 = connection.set(uniq_id, "bar2", :cas => cas1)
@@ -100,7 +99,7 @@ class TestStore < MiniTest::Test
     end
 
     class << obj
-      alias :to_str :to_s
+      alias_method :to_str, :to_s
     end
 
     connection.set(obj, "bar")
@@ -111,7 +110,7 @@ class TestStore < MiniTest::Test
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     ret = nil
     connection.run do |conn|
-      conn.set(uniq_id("1"), "foo1") {|res| ret = res}
+      conn.set(uniq_id("1"), "foo1") { |res| ret = res }
       conn.set(uniq_id("2"), "foo2") # ignore result
     end
     assert ret.is_a?(Couchbase::Result)
@@ -198,19 +197,19 @@ class TestStore < MiniTest::Test
   def test_multi_store
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :plain)
     connection.add(uniq_id(:a) => "bbb", uniq_id(:z) => "yyy")
-    assert_equal ["bbb", "yyy"], connection.get(uniq_id(:a), uniq_id(:z))
+    assert_equal %w(bbb yyy), connection.get(uniq_id(:a), uniq_id(:z))
 
     connection.prepend(uniq_id(:a) => "aaa", uniq_id(:z) => "xxx")
-    assert_equal ["aaabbb", "xxxyyy"], connection.get(uniq_id(:a), uniq_id(:z))
+    assert_equal %w(aaabbb xxxyyy), connection.get(uniq_id(:a), uniq_id(:z))
 
     connection.append(uniq_id(:a) => "ccc", uniq_id(:z) => "zzz")
-    assert_equal ["aaabbbccc", "xxxyyyzzz"], connection.get(uniq_id(:a), uniq_id(:z))
+    assert_equal %w(aaabbbccc xxxyyyzzz), connection.get(uniq_id(:a), uniq_id(:z))
 
     connection.replace(uniq_id(:a) => "foo", uniq_id(:z) => "bar")
-    assert_equal ["foo", "bar"], connection.get(uniq_id(:a), uniq_id(:z))
+    assert_equal %w(foo bar), connection.get(uniq_id(:a), uniq_id(:z))
 
     res = connection.set(uniq_id(:a) => "bar", uniq_id(:z) => "foo")
-    assert_equal ["bar", "foo"], connection.get(uniq_id(:a), uniq_id(:z))
+    assert_equal %w(bar foo), connection.get(uniq_id(:a), uniq_id(:z))
     assert res.is_a?(Hash)
   end
 

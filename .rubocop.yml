@@ -1,0 +1,58 @@
+AllCops:
+  TargetRubyVersion: 2.3
+
+Metrics/LineLength:
+  Max: 120
+
+Metrics/MethodLength:
+  Max: 40
+
+Style/NumericPredicate:
+  Enabled: false
+
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+Style/NumericLiterals:
+  Enabled: false
+
+Style/StringLiterals:
+  Enabled: false
+
+Style/HashSyntax:
+  EnforcedStyle: hash_rockets
+
+Style/Copyright:
+  Enabled: true
+  Notice: 'Copyright:: .*2017 Couchbase, Inc.'
+  AutocorrectNotice: '# Copyright:: 2017 Couchbase, Inc.'
+
+Style/MutableConstant:
+  Enabled: false
+
+Style/SafeNavigation:
+  Enabled: false
+
+Style/PercentLiteralDelimiters:
+  PreferredDelimiters:
+    default: ()
+    '%i': '()'
+    '%I': '()'
+    '%r': '()'
+    '%w': '()'
+    '%W': '()'
+Style/SpaceInsideHashLiteralBraces:
+  EnforcedStyle: no_space
+  EnforcedStyleForEmptyBraces: no_space
+
+Style/SafeNavigation:
+  Enabled: false
+
+Style/ParallelAssignment:
+  Enabled: false
+
+Style/RescueModifier:
+  Enabled: false
+
+Style/Lambda:
+  EnforcedStyle: lambda

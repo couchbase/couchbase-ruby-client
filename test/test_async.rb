@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 require File.join(File.dirname(__FILE__), 'setup')
 
 class TestAsync < MiniTest::Test
-
   def setup
     @mock = start_mock
   end
@@ -62,7 +61,7 @@ class TestAsync < MiniTest::Test
 
   def test_nested_async_get_set
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    connection.set(uniq_id, {"bar" => 1})
+    connection.set(uniq_id, "bar" => 1)
     connection.set(uniq_id(:hit), 0)
 
     connection.run do |conn|
@@ -230,13 +229,13 @@ class TestAsync < MiniTest::Test
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     connection.set(uniq_id, "foo")
 
-    connection.timeout = 100_000  # 100_000 us
+    connection.timeout = 100_000 # 100_000 us
     connection.run do
       connection.get(uniq_id) do |ret|
         assert ret.success?
         assert_equal "foo", ret.value
       end
-      sleep(1.5)  # 1_500_000 us
+      sleep(1.5) # 1_500_000 us
     end
   end
 
@@ -245,7 +244,7 @@ class TestAsync < MiniTest::Test
 
     sent = false
     connection.run(:send_threshold => 100) do # 100 bytes
-      connection.set(uniq_id, "foo" * 100) {|r| sent = true}
+      connection.set(uniq_id, "foo" * 100) { |_r| sent = true }
       assert sent
     end
   end

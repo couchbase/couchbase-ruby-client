@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2013 Couchbase, Inc.
+# Copyright:: 2013-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,7 @@ class GzipTranscoder
     gz = Zlib::GzipWriter.new(io)
     gz.write(obj)
     gz.close
-    [io.string, flags|FMT_GZIP]
+    [io.string, flags | FMT_GZIP]
   end
 
   def load(blob, flags, options = {})

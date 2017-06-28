@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 require File.join(File.dirname(__FILE__), 'setup')
 
 class TestCas < MiniTest::Test
-
   def setup
     @mock = start_mock
   end
@@ -30,7 +29,7 @@ class TestCas < MiniTest::Test
   def test_compare_and_swap
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
                                :default_format => :document)
-    connection.set(uniq_id, {"bar" => 1})
+    connection.set(uniq_id, "bar" => 1)
     connection.cas(uniq_id) do |val|
       val["baz"] = 2
       val
@@ -43,12 +42,12 @@ class TestCas < MiniTest::Test
   def test_compare_and_swap_collision
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
                                :default_format => :document)
-    connection.set(uniq_id, {"bar" => 1})
+    connection.set(uniq_id, "bar" => 1)
     assert_raises(Couchbase::Error::KeyExists) do
       connection.cas(uniq_id) do |val|
         # Simulate collision with a separate writer. This will
         # change the CAS value to be different than what #cas just loaded.
-        connection.set(uniq_id, {"bar" => 2})
+        connection.set(uniq_id, "bar" => 2)
 
         # Complete the modification we desire, which should fail when set.
         val["baz"] = 3
@@ -60,7 +59,7 @@ class TestCas < MiniTest::Test
   def test_compare_and_swap_retry
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
                                :default_format => :document)
-    connection.set(uniq_id, {"bar" => 1})
+    connection.set(uniq_id, "bar" => 1)
     calls = 0
     connection.cas(uniq_id, :retry => 1) do |val|
       calls += 1
@@ -68,7 +67,7 @@ class TestCas < MiniTest::Test
         # Simulate collision with a separate writer. This will
         # change the CAS value to be different than what #cas just loaded.
         # Only do this the first time this block is executed.
-        connection.set(uniq_id, {"bar" => 2})
+        connection.set(uniq_id, "bar" => 2)
       end
 
       # Complete the modification we desire, which should fail when set.
@@ -84,7 +83,7 @@ class TestCas < MiniTest::Test
   def test_compare_and_swap_too_many_retries
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
                                :default_format => :document)
-    connection.set(uniq_id, {"bar" => 0})
+    connection.set(uniq_id, "bar" => 0)
     calls = 0
     assert_raises(Couchbase::Error::KeyExists) do
       connection.cas(uniq_id, :retry => 10) do |val|
@@ -93,7 +92,7 @@ class TestCas < MiniTest::Test
         # Simulate collision with a separate writer. This will
         # change the CAS value to be different than what #cas just loaded.
         # Do it every time so we just keep retrying and failing.
-        connection.set(uniq_id, {"bar" => calls})
+        connection.set(uniq_id, "bar" => calls)
 
         # Complete the modification we desire, which should fail when set.
         val["baz"] = 3
@@ -106,7 +105,7 @@ class TestCas < MiniTest::Test
   def test_compare_and_swap_async
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
                                :default_format => :document)
-    connection.set(uniq_id, {"bar" => 1})
+    connection.set(uniq_id, "bar" => 1)
     calls = 0
     connection.run do |conn|
       conn.cas(uniq_id) do |ret|
@@ -132,7 +131,7 @@ class TestCas < MiniTest::Test
   def test_compare_and_swap_async_collision
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
                                :default_format => :document)
-    connection.set(uniq_id, {"bar" => 1})
+    connection.set(uniq_id, "bar" => 1)
     calls = 0
     connection.run do |conn|
       conn.cas(uniq_id) do |ret|
@@ -143,8 +142,7 @@ class TestCas < MiniTest::Test
 
           # Simulate collision with a separate writer. This will
           # change the CAS value to be different than what #cas just loaded.
-          connection.set(uniq_id, {"bar" => 2})
-
+          connection.set(uniq_id, "bar" => 2)
 
           # Complete the modification we desire, which should fail when set.
           new_val["baz"] = 3
@@ -162,7 +160,7 @@ class TestCas < MiniTest::Test
   def test_compare_and_swap_async_retry
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
                                :default_format => :document)
-    connection.set(uniq_id, {"bar" => 1})
+    connection.set(uniq_id, "bar" => 1)
     calls = 0
     connection.run do |conn|
       conn.cas(uniq_id, :retry => 1) do |ret|
@@ -175,7 +173,7 @@ class TestCas < MiniTest::Test
             # Simulate collision with a separate writer. This will
             # change the CAS value to be different than what #cas just loaded.
             # Only do this the first time this block is executed.
-            connection.set(uniq_id, {"bar" => 2})
+            connection.set(uniq_id, "bar" => 2)
           end
 
           # Complete the modification we desire, which should fail when set.
@@ -197,7 +195,7 @@ class TestCas < MiniTest::Test
   def test_compare_and_swap_async_too_many_retries
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port,
                                :default_format => :document)
-    connection.set(uniq_id, {"bar" => 0})
+    connection.set(uniq_id, "bar" => 0)
     calls = 0
     connection.run do |conn|
       conn.cas(uniq_id, :retry => 10) do |ret|
@@ -209,7 +207,7 @@ class TestCas < MiniTest::Test
           # Simulate collision with a separate writer. This will
           # change the CAS value to be different than what #cas just loaded.
           # Do it every time so we just keep retrying and failing.
-          connection.set(uniq_id, {"bar" => calls})
+          connection.set(uniq_id, "bar" => calls)
 
           # Complete the modification we desire, which should fail when set.
           new_val["baz"] = 3
@@ -229,7 +227,7 @@ class TestCas < MiniTest::Test
                                :default_format => :document)
     connection.set(uniq_id, "bar", :flags => 0x100)
     connection.cas(uniq_id) { "baz" }
-    _, flags, _ = connection.get(uniq_id, :extended => true)
+    _, flags, = connection.get(uniq_id, :extended => true)
     assert_equal 0x100, flags
   end
 end

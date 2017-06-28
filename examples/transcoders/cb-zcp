@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2013 Couchbase, Inc.
+# Copyright:: 2013-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,7 @@ begin
 
   ARGV.each do |filename|
     STDERR.print "store \"#{filename}\" ... "
-    if File.exists?(filename)
+    if File.exist?(filename)
       conn.set(filename, File.read(filename))
       STDERR.puts "ok"
     else

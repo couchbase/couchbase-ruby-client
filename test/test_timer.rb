@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2012 Couchbase, Inc.
+# Copyright:: 2012-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 require File.join(File.dirname(__FILE__), 'setup')
 
 class TestTimer < MiniTest::Test
-
   def setup
     @mock = start_mock
   end
@@ -31,11 +30,11 @@ class TestTimer < MiniTest::Test
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     num = 0
     connection.run do
-      assert Couchbase::Timer.new(connection, 100)  { num += 1}
-      assert connection.create_timer(100)           { num += 1}
+      assert Couchbase::Timer.new(connection, 100)  { num += 1 }
+      assert connection.create_timer(100)           { num += 1 }
 
-      assert Couchbase::Timer.new(connection, 100, :periodic => true)  {|t| num += 1; t.cancel}
-      assert connection.create_periodic_timer(100)                     {|t| num += 1; t.cancel}
+      assert Couchbase::Timer.new(connection, 100, :periodic => true)  { |t| num += 1; t.cancel }
+      assert connection.create_periodic_timer(100)                     { |t| num += 1; t.cancel }
     end
     assert_equal 4, num
   end

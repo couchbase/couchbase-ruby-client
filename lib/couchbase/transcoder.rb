@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2013 Couchbase, Inc.
+# Copyright:: 2013-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,9 +19,7 @@ require 'multi_json'
 require 'ext/multi_json_fix'
 
 module Couchbase
-
   module Transcoder
-
     module Compat
       def self.enable!
         @disabled = false
@@ -35,7 +33,7 @@ module Couchbase
         !@disabled
       end
 
-      def self.guess_and_load(blob, flags, options = {})
+      def self.guess_and_load(blob, flags, _options = {})
         case flags & Bucket::FMT_MASK
         when Bucket::FMT_DOCUMENT
           MultiJson.load(blob)
@@ -50,7 +48,7 @@ module Couchbase
     end
 
     module Document
-      def self.dump(obj, flags, options = {})
+      def self.dump(obj, flags, _options = {})
         [
           MultiJson.dump(obj),
           (flags & ~Bucket::FMT_MASK) | Bucket::FMT_DOCUMENT
@@ -62,17 +60,17 @@ module Couchbase
           MultiJson.load(blob)
         else
           if Compat.enabled?
-            return Compat.guess_and_load(blob, flags, options)
+            Compat.guess_and_load(blob, flags, options)
           else
             raise ArgumentError,
-              "unexpected flags (0x%02x instead of 0x%02x)" % [flags, Bucket::FMT_DOCUMENT]
+                  "unexpected flags (0x%02x instead of 0x%02x)" % [flags, Bucket::FMT_DOCUMENT]
           end
         end
       end
     end
 
     module Marshal
-      def self.dump(obj, flags, options = {})
+      def self.dump(obj, flags, _options = {})
         [
           ::Marshal.dump(obj),
           (flags & ~Bucket::FMT_MASK) | Bucket::FMT_MARSHAL
@@ -84,17 +82,17 @@ module Couchbase
           ::Marshal.load(blob)
         else
           if Compat.enabled?
-            return Compat.guess_and_load(blob, flags, options)
+            Compat.guess_and_load(blob, flags, options)
           else
             raise ArgumentError,
-              "unexpected flags (0x%02x instead of 0x%02x)" % [flags, Bucket::FMT_MARSHAL]
+                  "unexpected flags (0x%02x instead of 0x%02x)" % [flags, Bucket::FMT_MARSHAL]
           end
         end
       end
     end
 
     module Plain
-      def self.dump(obj, flags, options = {})
+      def self.dump(obj, flags, _options = {})
         [
           obj,
           (flags & ~Bucket::FMT_MASK) | Bucket::FMT_PLAIN
@@ -106,15 +104,13 @@ module Couchbase
           blob
         else
           if Compat.enabled?
-            return Compat.guess_and_load(blob, flags, options)
+            Compat.guess_and_load(blob, flags, options)
           else
             raise ArgumentError,
-              "unexpected flags (0x%02x instead of 0x%02x)" % [flags, Bucket::FMT_PLAIN]
+                  "unexpected flags (0x%02x instead of 0x%02x)" % [flags, Bucket::FMT_PLAIN]
           end
         end
       end
     end
-
   end
-
 end

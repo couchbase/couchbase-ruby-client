@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 require File.join(File.dirname(__FILE__), 'setup')
 
 class TestStats < MiniTest::Test
-
   def setup
     @mock = start_mock(:num_nodes => 4)
   end
@@ -31,7 +30,7 @@ class TestStats < MiniTest::Test
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
     stats = connection.stats
     assert stats.is_a?(Hash)
-    assert stats.has_key?("pid")
+    assert stats.key?("pid")
     key, info = stats.first
     assert key.is_a?(String)
     assert info.is_a?(Hash)
@@ -43,7 +42,7 @@ class TestStats < MiniTest::Test
       connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
       stats = connection.stats("memory")
       assert stats.is_a?(Hash)
-      assert stats.has_key?("mem_used")
+      assert stats.key?("mem_used")
       key, info = stats.first
       assert key.is_a?(String)
       assert info.is_a?(Hash)
@@ -53,5 +52,4 @@ class TestStats < MiniTest::Test
       skip("make CouchbaseMock.jar STATS more real-life")
     end
   end
-
 end

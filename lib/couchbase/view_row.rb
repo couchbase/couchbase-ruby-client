@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -118,7 +118,7 @@ module Couchbase
     #
     # @return [ViewRow]
     def self.wrap(bucket, data)
-      self.new(bucket, data)
+      new(bucket, data)
     end
 
     # Get attribute of the document
@@ -143,7 +143,7 @@ module Couchbase
     # @return [true, false] +true+ if the given attribute is present in in
     #   the document.
     def has_key?(key)
-      @doc.has_key?(key)
+      @doc.key?(key)
     end
 
     # Set document attribute
@@ -170,7 +170,7 @@ module Couchbase
     end
 
     def inspect
-      desc = "#<#{self.class.name}:#{self.object_id}"
+      desc = "#<#{self.class.name}:#{object_id}"
       [:@id, :@key, :@value, :@doc, :@meta].each do |iv|
         desc << " #{iv}=#{instance_variable_get(iv).inspect}"
       end
@@ -204,10 +204,10 @@ module Couchbase
     def initialize(bucket, data)
       super
       @all_views = {}
-      @views = @doc.has_key?('views') ? @doc['views'].keys : []
-      @spatial = @doc.has_key?('spatial') ? @doc['spatial'].keys : []
-      @views.each{|name| @all_views[name] = "#{@id}/_view/#{name}"}
-      @spatial.each{|name| @all_views[name] = "#{@id}/_spatial/#{name}"}
+      @views = @doc.key?('views') ? @doc['views'].keys : []
+      @spatial = @doc.key?('spatial') ? @doc['spatial'].keys : []
+      @views.each { |name| @all_views[name] = "#{@id}/_view/#{name}" }
+      @spatial.each { |name| @all_views[name] = "#{@id}/_spatial/#{name}" }
     end
 
     def method_missing(meth, *args)
@@ -228,7 +228,7 @@ module Couchbase
 
     def method(meth, *args)
       if path = @all_views[meth.to_s]
-        lambda{|*p| View.new(@bucket, path, *p)}
+        lambda { |*p| View.new(@bucket, path, *p) }
       else
         super
       end
@@ -260,13 +260,12 @@ module Couchbase
     end
 
     def inspect
-      desc = "#<#{self.class.name}:#{self.object_id}"
+      desc = "#<#{self.class.name}:#{object_id}"
       [:@id, :@views, :@spatial].each do |iv|
         desc << " #{iv}=#{instance_variable_get(iv).inspect}"
       end
       desc << ">"
       desc
     end
-
   end
 end

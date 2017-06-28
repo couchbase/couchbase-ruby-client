@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,13 +16,11 @@
 #
 
 module Couchbase
-
   class Utils
-
     def self.encode_params(params)
       params.map do |k, v|
         next if !v && k.to_s == "group"
-        if %w{key keys startkey endkey start_key end_key}.include?(k.to_s)
+        if %w(key keys startkey endkey start_key end_key).include?(k.to_s)
           v = MultiJson.dump(v)
         end
         if v.class == Array
@@ -40,9 +38,9 @@ module Couchbase
     end
 
     def self.escape(s)
-      s.to_s.gsub(/([^ a-zA-Z0-9_.-]+)/nu) {
-        '%'+$1.unpack('H2'*bytesize($1)).join('%').upcase
-      }.tr(' ', '+')
+      s.to_s.gsub(/([^ a-zA-Z0-9_.-]+)/nu) do
+        '%' + Regexp.last_match(1).unpack('H2' * bytesize(Regexp.last_match(1))).join('%').upcase
+      end.tr(' ', '+')
     end
 
     # Return the bytesize of String; uses String#size under Ruby 1.8 and
@@ -56,7 +54,5 @@ module Couchbase
         string.size
       end
     end
-
   end
-
 end

@@ -1,3 +1,20 @@
+# Author:: Couchbase <info@couchbase.com>
+# Copyright:: 2011-2017 Couchbase, Inc.
+# License:: Apache License, Version 2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 # Useful environment variables:
 #
 # LOOPS (50000)
@@ -39,7 +56,6 @@ puts File.readlines('/proc/cpuinfo').sort.uniq.grep(/model name|cpu cores/) resc
 puts RUBY_DESCRIPTION
 
 class Bench
-
   def initialize(loops = nil, stack_depth = nil)
     @loops = (loops || 50000).to_i
     @stack_depth = (stack_depth || 0).to_i
@@ -49,9 +65,11 @@ class Bench
     puts "Stack depth is #{@stack_depth}"
 
     @m_value = Marshal.dump(
-      @small_value = ["testing"])
+      @small_value = ["testing"]
+    )
     @m_large_value = Marshal.dump(
-      @large_value = [{"test" => "1", "test2" => "2", Object.new => "3", 4 => 4, "test5" => 2**65}] * 2048)
+      @large_value = [{"test" => "1", "test2" => "2", Object.new => "3", 4 => 4, "test5" => 2**65}] * 2048
+    )
 
     puts "Small value size is: #{@m_value.size} bytes"
     puts "Large value size is: #{@m_large_value.size} bytes"
@@ -62,7 +80,8 @@ class Bench
       @k3 = "Long" * 40,
       @k4 = "Medium" * 8,
       @k5 = "Medium2" * 8,
-      @k6 = "Long3" * 40]
+      @k6 = "Long3" * 40
+    ]
 
     reset_clients
 
@@ -88,10 +107,10 @@ class Bench
   end
 
   def benchmark_clients(test_name, populate_keys = true)
-    return if ENV["TEST"] and !test_name.include?(ENV["TEST"])
+    return if ENV["TEST"] && !test_name.include?(ENV["TEST"])
 
     @clients.keys.each do |client_name|
-      next if ENV["CLIENT"] and !client_name.include?(ENV["CLIENT"])
+      next if ENV["CLIENT"] && !client_name.include?(ENV["CLIENT"])
 
       kid = fork do
         client = @clients[client_name].call
@@ -188,7 +207,6 @@ class Bench
       c.get @k2
       c.get @k3
     end
-
   end
 end
 

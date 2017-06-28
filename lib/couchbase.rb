@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,10 +28,8 @@ require 'couchbase/view'
 require 'couchbase/result'
 require 'couchbase/cluster'
 
-
 # Couchbase ruby client
 module Couchbase
-
   if RUBY_VERSION.to_f >= 1.9
     autoload(:ConnectionPool, 'couchbase/connection_pool')
   end
@@ -60,9 +58,9 @@ module Couchbase
     #
     # @return [Bucket] connection instance
     def connect(*options)
-      Bucket.new(*(options.flatten))
+      Bucket.new(*options.flatten)
     end
-    alias :new :connect
+    alias new connect
 
     # Default connection options
     #
@@ -77,7 +75,7 @@ module Couchbase
 
     # @private the thread local storage
     def thread_storage
-      Thread.current[:couchbase] ||= { :pid => Process.pid, :bucket => {} }
+      Thread.current[:couchbase] ||= {:pid => Process.pid, :bucket => {}}
     end
 
     # @private resets thread local storage if process ids don't match
@@ -149,7 +147,5 @@ module Couchbase
       thread_storage[:bucket][name] = connection
     end
     alias set_bucket bucket=
-
   end
-
 end

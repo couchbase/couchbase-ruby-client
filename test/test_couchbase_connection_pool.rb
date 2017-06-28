@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2013 Couchbase, Inc.
+# Copyright:: 2013-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,6 @@ if RUBY_VERSION.to_f >= 1.9
   require 'couchbase/connection_pool'
 
   class TestCouchbaseConnectionPool < MiniTest::Test
-
     def setup
       @mock = start_mock
       @pool = ::Couchbase::ConnectionPool.new(5, :hostname => @mock.host, :port => @mock.port)
@@ -71,7 +70,6 @@ if RUBY_VERSION.to_f >= 1.9
       @pool.decr('counter', 1)
       assert_equal 0, @pool.get('counter')
     end
-
   end
 
 end

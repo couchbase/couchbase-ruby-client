@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 require 'base64'
 
 module Couchbase
-
   module Error
     class View < Base
       attr_reader :from, :reason
@@ -51,7 +50,7 @@ module Couchbase
       def to_s
         str = super
         if @type || @reason
-          str.sub(/ \(/, ": #{[@type, @reason].compact.join(": ")} (")
+          str.sub(/ \(/, ": #{[@type, @reason].compact.join(': ')} (")
         else
           str
         end
@@ -134,9 +133,7 @@ module Couchbase
           break unless obj[S_DOC]
           queue[@first - shift] = nil
           @first += 1
-          if @completed && @first == queue.size + shift
-            obj[S_IS_LAST] = true
-          end
+          obj[S_IS_LAST] = true if @completed && @first == queue.size + shift
           block_call obj
         end
         if @first - shift > queue.size / 2
@@ -144,7 +141,6 @@ module Couchbase
           @shift = @first
         end
       end
-
     end
 
     attr_reader :params
@@ -197,7 +193,7 @@ module Couchbase
     #
     def each(params = {})
       return enum_for(:each, params) unless block_given?
-      fetch(params) {|doc| yield(doc)}
+      fetch(params) { |doc| yield(doc) }
     end
 
     def first(params = {})
@@ -248,7 +244,7 @@ module Couchbase
     #
     def on_error(&callback)
       @on_error = callback
-      self  # enable call chains
+      self # enable call chains
     end
 
     # Performs query to Couchbase view. This method will stream results if block
@@ -360,7 +356,7 @@ module Couchbase
     def fetch(params = {}, &block)
       params = @params.merge(params)
       include_docs = params.delete(:include_docs)
-      quiet = params.delete(:quiet){ true }
+      quiet = params.delete(:quiet) { true }
 
       options = {:chunked => true, :extended => true, :type => :view}
       if body = params.delete(:body)
@@ -371,9 +367,7 @@ module Couchbase
       request = @bucket.make_http_request(path, options)
 
       if @bucket.async?
-        if block
-          fetch_async(request, include_docs, quiet, block)
-        end
+        fetch_async(request, include_docs, quiet, block) if block
       else
         fetch_sync(request, include_docs, quiet, block)
       end
@@ -397,18 +391,15 @@ module Couchbase
       all = []
       fetch(params) do |row|
         all << row
-        if row.last?
-          @bucket.create_timer(0) { block.call(all) }
-        end
+        @bucket.create_timer(0) { yield(all) } if row.last?
       end
     end
-
 
     # Returns a string containing a human-readable representation of the {View}
     #
     # @return [String]
     def inspect
-      %(#<#{self.class.name}:#{self.object_id} @endpoint=#{@endpoint.inspect} @params=#{@params.inspect}>)
+      %(#<#{self.class.name}:#{object_id} @endpoint=#{@endpoint.inspect} @params=#{@params.inspect}>)
     end
 
     private
@@ -461,7 +452,7 @@ module Couchbase
 
       request.on_body do |chunk|
         last_chunk = chunk
-        res << chunk.value  if chunk.success?
+        res << chunk.value if chunk.success?
       end
 
       parser.on_object do |path, obj|

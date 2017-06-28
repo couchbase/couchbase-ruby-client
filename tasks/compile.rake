@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011, 2012 Couchbase, Inc.
+# Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,8 +55,8 @@ class Platform
 end
 
 CROSS_PLATFORMS = [
-  Platform.new(name: 'x64-mingw32', host: 'x86_64-w64-mingw32', versions: %w(2.4.0 2.3.0 2.2.2 2.1.6 2.0.0-p645)),
-  Platform.new(name: 'x86-mingw32', host: 'i686-w64-mingw32', versions: %w(2.4.0 2.3.0 2.2.2 2.1.6 2.0.0-p645))
+  Platform.new(:name => 'x64-mingw32', :host => 'x86_64-w64-mingw32', :versions => %w(2.4.0 2.3.0 2.2.2 2.1.6 2.0.0-p645)),
+  Platform.new(:name => 'x86-mingw32', :host => 'i686-w64-mingw32', :versions => %w(2.4.0 2.3.0 2.2.2 2.1.6 2.0.0-p645))
 ].freeze
 
 # Setup compile tasks.  Configuration can be passed via ENV.
@@ -142,7 +142,7 @@ task 'package:windows' => ['package', 'lib/couchbase_ext.rb'] do
                                   '--enable-static')
     recipe.cook
     recipe.activate
-    platform.each_version do |long, short|
+    platform.each_version do |_long, short|
       sh("env RUBY_CC_VERSION=#{short} rake cross compile")
     end
     vars.each do |k, v|
