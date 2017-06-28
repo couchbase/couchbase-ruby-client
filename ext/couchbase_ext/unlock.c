@@ -21,12 +21,10 @@ void
 cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
-    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE key, exc = Qnil;
 
     ctx->nqueries--;
     key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
-    cb_strip_key_prefix(bucket, key);
 
     if (error != LCB_KEY_ENOENT || !ctx->quiet) {
         exc = cb_check_error(error, "failed to unlock value", key);

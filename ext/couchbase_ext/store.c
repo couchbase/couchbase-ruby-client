@@ -41,12 +41,9 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, l
                     const lcb_store_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
-    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE key, cas, exc;
 
     key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
-    cb_strip_key_prefix(bucket, key);
-
     cas = resp->v.v0.cas > 0 ? ULL2NUM(resp->v.v0.cas) : Qnil;
     ctx->operation = storage_opcode_to_sym(operation);
     exc = cb_check_error(error, "failed to store value", key);

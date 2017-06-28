@@ -86,7 +86,7 @@ cb_params_touch_alloc(struct cb_params_st *params, lcb_size_t size)
 static void
 cb_params_touch_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, lcb_time_t exptime)
 {
-    key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(key_obj);
     rb_ary_push(params->ensurance, key_obj);
     params->cmd.touch.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.touch.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
@@ -169,7 +169,7 @@ cb_params_remove_alloc(struct cb_params_st *params, lcb_size_t size)
 static void
 cb_params_remove_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, lcb_cas_t cas)
 {
-    key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(key_obj);
     rb_ary_push(params->ensurance, key_obj);
     params->cmd.remove.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.remove.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
@@ -252,7 +252,7 @@ static void
 cb_params_store_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, VALUE value_obj,
                           lcb_uint32_t flags, lcb_cas_t cas, lcb_time_t exptime)
 {
-    key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(key_obj);
     value_obj = cb_encode_value(params->cmd.store.transcoder, value_obj, &flags, params->cmd.store.transcoder_opts);
     if (rb_obj_is_kind_of(value_obj, rb_eStandardError)) {
         VALUE exc_str = rb_funcall(value_obj, cb_id_to_s, 0);
@@ -384,7 +384,7 @@ cb_params_get_alloc(struct cb_params_st *params, lcb_size_t size)
 static void
 cb_params_get_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, lcb_time_t exptime)
 {
-    key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(key_obj);
     rb_ary_push(params->ensurance, key_obj);
     if (RTEST(params->cmd.get.replica)) {
         params->cmd.get.items_gr[idx].version = 1;
@@ -519,7 +519,7 @@ cb_params_arith_alloc(struct cb_params_st *params, lcb_size_t size)
 static void
 cb_params_arith_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, lcb_int64_t delta)
 {
-    key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(key_obj);
     rb_ary_push(params->ensurance, key_obj);
     params->cmd.arith.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.arith.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
@@ -622,7 +622,7 @@ cb_params_stats_alloc(struct cb_params_st *params, lcb_size_t size)
 static void
 cb_params_stats_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj)
 {
-    key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(key_obj);
     rb_ary_push(params->ensurance, key_obj);
     params->cmd.stats.items[idx].v.v0.name = RSTRING_PTR(key_obj);
     params->cmd.stats.items[idx].v.v0.nname = RSTRING_LEN(key_obj);
@@ -673,7 +673,7 @@ cb_params_observe_alloc(struct cb_params_st *params, lcb_size_t size)
 static void
 cb_params_observe_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj)
 {
-    key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(key_obj);
     rb_ary_push(params->ensurance, key_obj);
     params->cmd.observe.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.observe.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);
@@ -723,7 +723,7 @@ cb_params_unlock_alloc(struct cb_params_st *params, lcb_size_t size)
 static void
 cb_params_unlock_init_item(struct cb_params_st *params, lcb_size_t idx, VALUE key_obj, lcb_cas_t cas)
 {
-    key_obj = cb_unify_key(params->bucket, key_obj, 1);
+    key_obj = cb_unify_key(key_obj);
     rb_ary_push(params->ensurance, key_obj);
     params->cmd.unlock.items[idx].v.v0.key = RSTRING_PTR(key_obj);
     params->cmd.unlock.items[idx].v.v0.nkey = RSTRING_LEN(key_obj);

@@ -54,6 +54,7 @@ module Rack
         super
 
         @default_options[:couchbase][:default_ttl] ||= options[:expire_after]
+        # FIXME: namespace should be implemented in the session store adapter
         @default_options[:couchbase][:key_prefix] ||= options[:namespace]
         @namespace = @default_options[:couchbase][:key_prefix]
         @mutex = Mutex.new

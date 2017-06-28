@@ -123,7 +123,6 @@ struct cb_bucket_st {
     size_t nbytes;         /* the number of bytes scheduled to be sent */
     VALUE exception;       /* error delivered by error_callback */
     VALUE environment;     /* sym_development or sym_production */
-    VALUE key_prefix_val;
     VALUE node_list;
     VALUE bootstrap_transports;
     st_table *object_space;
@@ -231,7 +230,6 @@ extern ID cb_sym_http_request;
 extern ID cb_sym_increment;
 extern ID cb_sym_initial;
 extern ID cb_sym_iocp;
-extern ID cb_sym_key_prefix;
 extern ID cb_sym_libev;
 extern ID cb_sym_libevent;
 extern ID cb_sym_lock;
@@ -362,7 +360,6 @@ extern VALUE cb_vStrEmpty;
 extern VALUE cb_vStrLocalhost;
 
 typedef void (*mark_f)(void *, struct cb_bucket_st *);
-void cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key);
 VALUE cb_check_error(lcb_error_t rc, const char *msg, VALUE key);
 VALUE cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb_http_status_t status);
 int cb_bucket_connected_bang(struct cb_bucket_st *bucket, VALUE operation);
@@ -372,7 +369,7 @@ VALUE cb_proc_call(struct cb_bucket_st *bucket, VALUE recv, int argc, ...);
 int cb_first_value_i(VALUE key, VALUE value, VALUE arg);
 void cb_build_headers(struct cb_context_st *ctx, const char *const *headers);
 void cb_maybe_do_loop(struct cb_bucket_st *bucket);
-VALUE cb_unify_key(struct cb_bucket_st *bucket, VALUE key, int apply_prefix);
+VALUE cb_unify_key(VALUE key);
 VALUE cb_encode_value(VALUE transcoder, VALUE val, uint32_t *flags, VALUE options);
 VALUE cb_decode_value(VALUE transcoder, VALUE blob, uint32_t flags, VALUE options);
 
@@ -430,8 +427,6 @@ VALUE cb_bucket_default_format_get(VALUE self);
 VALUE cb_bucket_default_format_set(VALUE self, VALUE val);
 VALUE cb_bucket_timeout_get(VALUE self);
 VALUE cb_bucket_timeout_set(VALUE self, VALUE val);
-VALUE cb_bucket_key_prefix_get(VALUE self);
-VALUE cb_bucket_key_prefix_set(VALUE self, VALUE val);
 VALUE cb_bucket_url_get(VALUE self);
 VALUE cb_bucket_hostname_get(VALUE self);
 VALUE cb_bucket_port_get(VALUE self);

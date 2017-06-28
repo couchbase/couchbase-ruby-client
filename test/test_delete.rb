@@ -62,15 +62,6 @@ class TestStore < MiniTest::Test
     assert connection.delete(uniq_id, cas)
   end
 
-  def test_delete_with_prefix
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :key_prefix => "prefix:")
-    connection.set(uniq_id(:foo), "bar")
-    assert connection.delete(uniq_id(:foo))
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id(:foo))
-    end
-  end
-
   def test_simple_multi_delete
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => true)
     connection.set(uniq_id(1) => "bar", uniq_id(2) => "foo")

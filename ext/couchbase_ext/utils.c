@@ -437,31 +437,16 @@ cb_decode_value(VALUE transcoder, VALUE blob, uint32_t flags, VALUE options)
     return rb_rescue(do_decode, (VALUE)args, coding_failed, 0);
 }
 
-void
-cb_strip_key_prefix(struct cb_bucket_st *bucket, VALUE key)
-{
-    if (RTEST(bucket->key_prefix_val)) {
-        rb_str_update(key, 0, RSTRING_LEN(bucket->key_prefix_val), cb_vStrEmpty);
-    }
-}
-
 VALUE
-cb_unify_key(struct cb_bucket_st *bucket, VALUE key, int apply_prefix)
+cb_unify_key(VALUE key)
 {
-    VALUE ret = Qnil, tmp;
-
-    if (RTEST(bucket->key_prefix_val) && apply_prefix) {
-        ret = rb_str_dup(bucket->key_prefix_val);
-    }
     switch (TYPE(key)) {
     case T_STRING:
-        return NIL_P(ret) ? key : rb_str_concat(ret, key);
+        return key;
     case T_SYMBOL:
-        tmp = STR_NEW_CSTR(rb_id2name(SYM2ID(key)));
-        return NIL_P(ret) ? tmp : rb_str_concat(ret, tmp);
+        return STR_NEW_CSTR(rb_id2name(SYM2ID(key)));
     default: /* call #to_str or raise error */
-        tmp = StringValue(key);
-        return NIL_P(ret) ? tmp : rb_str_concat(ret, tmp);
+        return StringValue(key);
     }
 }
 

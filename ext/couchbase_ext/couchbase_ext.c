@@ -75,7 +75,6 @@ ID cb_sym_http_request;
 ID cb_sym_increment;
 ID cb_sym_initial;
 ID cb_sym_iocp;
-ID cb_sym_key_prefix;
 ID cb_sym_libev;
 ID cb_sym_libevent;
 ID cb_sym_lock;
@@ -1017,16 +1016,6 @@ extern "C"
     rb_define_method(cb_cBucket, "default_arithmetic_init", cb_bucket_default_arithmetic_init_get, 0);
     rb_define_method(cb_cBucket, "default_arithmetic_init=", cb_bucket_default_arithmetic_init_set, 1);
 
-    /* Document-method: key_prefix
-     *
-     * @since 1.2.0.dp5
-     *
-     * @return [String] The library will prepend +key_prefix+ to each key to
-     *   provide simple namespacing. */
-    /* rb_define_attr(cb_cBucket, "key_prefix", 1, 1); */
-    rb_define_method(cb_cBucket, "key_prefix", cb_bucket_key_prefix_get, 0);
-    rb_define_method(cb_cBucket, "key_prefix=", cb_bucket_key_prefix_set, 1);
-
     /* Document-method: url
      *
      * The config url for this connection.
@@ -1337,7 +1326,6 @@ extern "C"
     cb_sym_increment = ID2SYM(rb_intern("increment"));
     cb_sym_initial = ID2SYM(rb_intern("initial"));
     cb_sym_iocp = ID2SYM(rb_intern("iocp"));
-    cb_sym_key_prefix = ID2SYM(rb_intern("key_prefix"));
     cb_sym_libev = ID2SYM(rb_intern("libev"));
     cb_sym_libevent = ID2SYM(rb_intern("libevent"));
     cb_sym_lock = ID2SYM(rb_intern("lock"));

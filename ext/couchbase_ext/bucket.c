@@ -67,7 +67,6 @@ cb_bucket_mark(void *ptr)
         rb_gc_mark(bucket->username);
         rb_gc_mark(bucket->password);
         rb_gc_mark(bucket->exception);
-        rb_gc_mark(bucket->key_prefix_val);
         rb_gc_mark(bucket->node_list);
         rb_gc_mark(bucket->bootstrap_transports);
         if (bucket->object_space) {
@@ -230,10 +229,6 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
                 if (arg == cb_sym_production || arg == cb_sym_development) {
                     bucket->environment = arg;
                 }
-            }
-            arg = rb_hash_aref(opts, cb_sym_key_prefix);
-            if (arg != Qnil) {
-                bucket->key_prefix_val = rb_str_dup_frozen(StringValue(arg));
             }
             arg = rb_hash_aref(opts, cb_sym_default_arithmetic_init);
             if (arg != Qnil) {
@@ -443,9 +438,6 @@ cb_bucket_alloc(VALUE klass)
  *     the environment is +:development+, you will able to get design
  *     documents with 'dev_' prefix, otherwise (in +:production+ mode) the
  *     library will hide them from you.
- *   @option options [String] :key_prefix (nil) the prefix string which will
- *     be prepended to each key before sending out, and sripped before
- *     returning back to the application.
  *   @option options [Fixnum] :timeout (2500000) the timeout for IO
  *     operations (in microseconds)
  *   @option options [Fixnum, true] :default_arithmetic_init (0) the default
@@ -516,7 +508,6 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->default_observe_timeout = 2500000;
     bucket->timeout = 0;
     bucket->environment = cb_sym_production;
-    bucket->key_prefix_val = Qnil;
     bucket->node_list = Qnil;
     bucket->bootstrap_transports = Qnil;
     bucket->object_space = st_init_numtable();
@@ -570,16 +561,12 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->environment = orig_b->environment;
     copy_b->timeout = orig_b->timeout;
     copy_b->exception = Qnil;
-    if (orig_b->key_prefix_val != Qnil) {
-        copy_b->key_prefix_val = rb_funcall(orig_b->key_prefix_val, cb_id_dup, 0);
-    }
     if (orig_b->node_list != Qnil) {
         copy_b->node_list = rb_funcall(orig_b->node_list, cb_id_dup, 0);
     }
     if (orig_b->bootstrap_transports != Qnil) {
         copy_b->bootstrap_transports = rb_funcall(orig_b->bootstrap_transports, cb_id_dup, 0);
     }
-    copy_b->key_prefix_val = orig_b->key_prefix_val;
     copy_b->object_space = st_init_numtable();
     copy_b->destroying = 0;
     copy_b->connected = 0;
@@ -772,23 +759,6 @@ cb_bucket_default_arithmetic_init_set(VALUE self, VALUE val)
         bucket->default_arith_init = 0;
     }
     return ULL2NUM(bucket->default_arith_init);
-}
-
-VALUE
-cb_bucket_key_prefix_get(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    return bucket->key_prefix_val;
-}
-
-VALUE
-cb_bucket_key_prefix_set(VALUE self, VALUE val)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-
-    bucket->key_prefix_val = rb_str_dup_frozen(StringValue(val));
-
-    return bucket->key_prefix_val;
 }
 
 /* Document-method: hostname
@@ -1052,10 +1022,6 @@ cb_bucket_inspect(VALUE self)
             rb_str_buf_cat2(str, "<unknown>");
             break;
         }
-    }
-    if (RTEST(bucket->key_prefix_val)) {
-        rb_str_buf_cat2(str, ", key_prefix=");
-        rb_str_append(str, rb_inspect(bucket->key_prefix_val));
     }
     rb_str_buf_cat2(str, ">");
 

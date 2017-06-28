@@ -21,14 +21,11 @@ void
 cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_arithmetic_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
-    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE cas, key, val, exc;
     ID o;
 
     ctx->nqueries--;
     key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
-    cb_strip_key_prefix(bucket, key);
-
     cas = resp->v.v0.cas > 0 ? ULL2NUM(resp->v.v0.cas) : Qnil;
     o = ctx->arith > 0 ? cb_sym_increment : cb_sym_decrement;
     exc = cb_check_error(error, "failed to perform arithmetic operation", key);
