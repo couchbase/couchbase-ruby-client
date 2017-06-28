@@ -53,9 +53,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
         val = flags = cas = Qnil;
     }
     if (NIL_P(exc) && error != LCB_KEY_ENOENT) {
-        if (ctx->extended) {
-            val = rb_ary_new3(3, val, flags, cas);
-        }
+        val = cb_result_new3(key, val, cas);
         if (ctx->all_replicas) {
             VALUE ary = rb_hash_aref(ctx->rv, key);
             if (NIL_P(ary)) {
@@ -85,9 +83,6 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  * @overload get(*keys, options = {})
  *   @param keys [String, Symbol, Array] One or several keys to fetch
  *   @param options [Hash] Options for operation.
- *   @option options [true, false] :extended (false) If set to +true+, the
- *     operation will return a tuple +[value, flags, cas]+, otherwise (by
- *     default) it returns just the value.
  *   @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
  *     Values larger than 30*24*60*60 seconds (30 days) are interpreted as
  *     absolute times (from the epoch).
@@ -211,7 +206,6 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     params.cmd.get.keys_ary = rb_ary_new();
     cb_params_build(&params);
     ctx = cb_context_alloc_common(bucket, params.cmd.get.num);
-    ctx->extended = params.cmd.get.extended;
     ctx->quiet = params.cmd.get.quiet;
     ctx->transcoder = params.cmd.get.transcoder;
     ctx->transcoder_opts = params.cmd.get.transcoder_opts;

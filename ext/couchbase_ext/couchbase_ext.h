@@ -133,7 +133,6 @@ struct cb_bucket_st {
 struct cb_http_request_st;
 struct cb_context_st {
     struct cb_bucket_st *bucket;
-    int extended;
     VALUE proc;
     VALUE rv;
     VALUE exception;
@@ -453,6 +452,8 @@ VALUE cb_http_request_path_get(VALUE self);
 VALUE cb_http_request_extended_get(VALUE self);
 VALUE cb_http_request_chunked_get(VALUE self);
 
+VALUE cb_result_new2(VALUE key, lcb_CAS cas);
+VALUE cb_result_new3(VALUE key, VALUE val, lcb_CAS cas);
 VALUE cb_result_success_p(VALUE self);
 VALUE cb_result_inspect(VALUE self);
 

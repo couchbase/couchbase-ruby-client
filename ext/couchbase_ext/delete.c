@@ -33,7 +33,7 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
             ctx->exception = exc;
         }
     }
-    rb_hash_aset(ctx->rv, key, (error == LCB_SUCCESS) ? Qtrue : Qfalse);
+    rb_hash_aset(ctx->rv, key, cb_result_new2(key, resp->v.v0.cas));
     if (ctx->nqueries == 0) {
         ctx->proc = Qnil;
     }

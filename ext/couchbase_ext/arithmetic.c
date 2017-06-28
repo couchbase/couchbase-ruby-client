@@ -34,13 +34,9 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
         rb_ivar_set(exc, cb_id_iv_operation, o);
         ctx->exception = exc;
     }
-    val = ULL2NUM(resp->v.v0.value);
     if (NIL_P(exc)) {
-        if (ctx->extended) {
-            rb_hash_aset(ctx->rv, key, rb_ary_new3(2, val, cas));
-        } else {
-            rb_hash_aset(ctx->rv, key, val);
-        }
+        val = cb_result_new3(key, ULL2NUM(resp->v.v0.value), cas);
+        rb_hash_aset(ctx->rv, key, val);
     }
     if (ctx->nqueries == 0) {
         ctx->proc = Qnil;
@@ -68,7 +64,6 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     params.cmd.arith.sign = sign;
     cb_params_build(&params);
     ctx = cb_context_alloc_common(bucket, params.cmd.arith.num);
-    ctx->extended = params.cmd.arith.extended;
     err = lcb_arithmetic(bucket->handle, (const void *)ctx, params.cmd.arith.num, params.cmd.arith.ptr);
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule arithmetic request", Qnil);

@@ -34,7 +34,7 @@ cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
         }
     }
 
-    rb_hash_aset(ctx->rv, key, (error == LCB_SUCCESS) ? Qtrue : Qfalse);
+    rb_hash_aset(ctx->rv, key, cb_result_new2(key, 0));
     if (ctx->nqueries == 0) {
         ctx->proc = Qnil;
     }

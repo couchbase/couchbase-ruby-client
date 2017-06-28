@@ -53,18 +53,17 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
         cb_build_headers(ctx, resp->v.v0.headers);
         ctx->headers_val = Qnil;
     }
-    if (ctx->extended) {
-        res = rb_class_new_instance(0, NULL, cb_cResult);
-        rb_ivar_set(res, cb_id_iv_error, ctx->exception);
-        rb_ivar_set(res, cb_id_iv_status, status ? INT2FIX(status) : Qnil);
-        rb_ivar_set(res, cb_id_iv_operation, cb_sym_http_request);
-        rb_ivar_set(res, cb_id_iv_key, key);
-        rb_ivar_set(res, cb_id_iv_value, val);
-        rb_ivar_set(res, cb_id_iv_completed, Qtrue);
-        rb_ivar_set(res, cb_id_iv_headers, ctx->headers_val);
-    } else {
-        res = val;
-    }
+
+    // FIXME: remove direct HTTP API
+    res = rb_class_new_instance(0, NULL, cb_cResult);
+    rb_ivar_set(res, cb_id_iv_error, ctx->exception);
+    rb_ivar_set(res, cb_id_iv_status, status ? INT2FIX(status) : Qnil);
+    rb_ivar_set(res, cb_id_iv_operation, cb_sym_http_request);
+    rb_ivar_set(res, cb_id_iv_key, key);
+    rb_ivar_set(res, cb_id_iv_value, val);
+    rb_ivar_set(res, cb_id_iv_completed, Qtrue);
+    rb_ivar_set(res, cb_id_iv_headers, ctx->headers_val);
+
     if (ctx->proc != Qnil) {
         cb_proc_call(bucket, ctx->proc, 1, res);
         ctx->proc = Qnil;
@@ -104,18 +103,16 @@ cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cook
         cb_build_headers(ctx, resp->v.v0.headers);
     }
     if (ctx->proc != Qnil) {
-        if (ctx->extended) {
-            res = rb_class_new_instance(0, NULL, cb_cResult);
-            rb_ivar_set(res, cb_id_iv_error, Qnil);
-            rb_ivar_set(res, cb_id_iv_status, status ? INT2FIX(status) : Qnil);
-            rb_ivar_set(res, cb_id_iv_operation, cb_sym_http_request);
-            rb_ivar_set(res, cb_id_iv_key, key);
-            rb_ivar_set(res, cb_id_iv_value, val);
-            rb_ivar_set(res, cb_id_iv_completed, Qfalse);
-            rb_ivar_set(res, cb_id_iv_headers, ctx->headers_val);
-        } else {
-            res = val;
-        }
+        // FIXME: remove direct HTTP API
+        res = rb_class_new_instance(0, NULL, cb_cResult);
+        rb_ivar_set(res, cb_id_iv_error, Qnil);
+        rb_ivar_set(res, cb_id_iv_status, status ? INT2FIX(status) : Qnil);
+        rb_ivar_set(res, cb_id_iv_operation, cb_sym_http_request);
+        rb_ivar_set(res, cb_id_iv_key, key);
+        rb_ivar_set(res, cb_id_iv_value, val);
+        rb_ivar_set(res, cb_id_iv_completed, Qfalse);
+        rb_ivar_set(res, cb_id_iv_headers, ctx->headers_val);
+
         cb_proc_call(bucket, ctx->proc, 1, res);
     }
     (void)handle;
@@ -295,7 +292,6 @@ cb_http_request_perform(VALUE self)
     ctx = cb_context_alloc(bucket);
     ctx->rv = Qnil;
     ctx->proc = rb_block_given_p() ? rb_block_proc() : req->on_body_callback;
-    ctx->extended = req->extended;
     ctx->request = req;
     ctx->headers_val = rb_hash_new();
 

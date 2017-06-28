@@ -53,7 +53,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, l
         ctx->exception = exc;
     }
 
-    rb_hash_aset(ctx->rv, key, cas);
+    rb_hash_aset(ctx->rv, key, cb_result_new2(key, resp->v.v0.cas));
 
     if (!RTEST(ctx->observe_options)) {
         ctx->nqueries--;
