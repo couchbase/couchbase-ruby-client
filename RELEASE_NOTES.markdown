@@ -6,6 +6,7 @@ bugfixes. Do not forget to update this doc in every important patch.
 ## 2.0.0 (2018-XX-YY)
 * Reduce API surface to improve maintainability:
   * removed EventMachine plugin
+  * removed asynchronous mode
 
 ## 1.3 End-of-life Notice
 * [major] Couchbase Ruby Client 1.3 has gone to end of life for official

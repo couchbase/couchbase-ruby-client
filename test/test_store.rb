@@ -106,20 +106,6 @@ class TestStore < MiniTest::Test
     assert cas > 0
   end
 
-  def test_asynchronous_set
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    ret = nil
-    connection.run do |conn|
-      conn.set(uniq_id("1"), "foo1") { |res| ret = res }
-      conn.set(uniq_id("2"), "foo2") # ignore result
-    end
-    assert ret.is_a?(Couchbase::Result)
-    assert ret.success?
-    assert_equal uniq_id("1"), ret.key
-    assert_equal :set, ret.operation
-    assert ret.cas.is_a?(Numeric)
-  end
-
   def test_it_raises_error_when_appending_or_prepending_to_missing_key
     connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
 

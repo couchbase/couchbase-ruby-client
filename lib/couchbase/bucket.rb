@@ -38,10 +38,6 @@ module Couchbase
     # an update collision is detected, and automatically get a fresh copy
     # of the value and retry the block. This will repeat as long as there
     # continues to be conflicts, up to the maximum number of retries specified.
-    # For asynchronous mode, this means the block will be yielded once for
-    # the initial {Bucket#get}, once for the final {Bucket#set} (successful
-    # or last failure), and zero or more additional {Bucket#get} retries
-    # in between, up to the maximum allowed by the +:retry+ option.
     #
     # @param [String, Symbol] key
     #
@@ -51,13 +47,11 @@ module Couchbase
     # @option options [Fixnum] :flags (self.default_flags) flags for this key
     # @option options [Fixnum] :retry (0) maximum number of times to autmatically retry upon update collision
     #
-    # @yieldparam [Object, Result] value old value in synchronous mode and
-    #   +Result+ object in asynchronous mode.
+    # @yieldparam [Object] value old value
     # @yieldreturn [Object] new value.
     #
     # @raise [Couchbase::Error::KeyExists] if the key was updated before the the
     #   code in block has been completed (the CAS value has been changed).
-    # @raise [ArgumentError] if the block is missing for async mode
     #
     # @example Implement append to JSON encoded value
     #
@@ -69,52 +63,19 @@ module Couchbase
     #     end
     #     c.get("foo")      #=> {"bar" => 1, "baz" => 2}
     #
-    # @example Append JSON encoded value asynchronously
-    #
-    #     c.default_format = :document
-    #     c.set("foo", {"bar" => 1})
-    #     c.run do
-    #       c.cas("foo") do |val|
-    #         case val.operation
-    #         when :get
-    #           val["baz"] = 2
-    #           val
-    #         when :set
-    #           # verify all is ok
-    #           puts "error: #{ret.error.inspect}" unless ret.success?
-    #         end
-    #       end
-    #     end
-    #     c.get("foo")      #=> {"bar" => 1, "baz" => 2}
-    #
     # @return [Fixnum] the CAS of new value
     def cas(key, options = {})
       retries_remaining = options.delete(:retry) || 0
-      if async?
-        block = Proc.new
-        get(key) do |ret|
-          val = block.call(ret) # get new value from caller
-          set(ret.key, val, options.merge(:cas => ret.cas, :flags => ret.flags)) do |set_ret|
-            if set_ret.error.is_a?(Couchbase::Error::KeyExists) && (retries_remaining > 0)
-              cas(key, options.merge(:retry => retries_remaining - 1), &block)
-            else
-              block.call(set_ret)
-            end
-          end
+      begin
+        val, flags, ver = get(key, :extended => true)
+        val = yield(val) # get new value from caller
+        set(key, val, options.merge(:cas => ver, :flags => flags))
+      rescue Couchbase::Error::KeyExists
+        if retries_remaining > 0
+          retries_remaining -= 1
+          retry
         end
-      else
-        begin
-          val, flags, ver = get(key, :extended => true)
-          val = yield(val) # get new value from caller
-          set(key, val, options.merge(:cas => ver, :flags => flags))
-        rescue Couchbase::Error::KeyExists
-          if retries_remaining > 0
-            retries_remaining -= 1
-            retry
-          else
-            raise
-          end
-        end
+        raise
       end
     end
     alias compare_and_swap cas
@@ -306,9 +267,6 @@ module Couchbase
       options = {:timeout => default_observe_timeout}
       options.update(keys.pop) if keys.size > 1 && keys.last.is_a?(Hash)
       verify_observe_options(options)
-      if block && !async?
-        raise ArgumentError, "synchronous mode doesn't support callbacks"
-      end
       raise ArgumentError, "at least one key is required" if keys.empty?
       key_cas = if keys.size == 1 && keys[0].is_a?(Hash)
                   keys[0]
@@ -317,18 +275,9 @@ module Couchbase
                     h[kk] = nil # set CAS to nil
                   end
                 end
-      if async?
-        do_observe_and_wait(key_cas, options, &block)
-      else
-        res = do_observe_and_wait(key_cas, options, &block) while res.nil?
-        unless async?
-          if keys.size == 1 && (keys[0].is_a?(String) || keys[0].is_a?(Symbol))
-            return res.values.first
-          else
-            return res
-          end
-        end
-      end
+      res = do_observe_and_wait(key_cas, options, &block) while res.nil?
+      return res.values.first if keys.size == 1 && (keys[0].is_a?(String) || keys[0].is_a?(Symbol))
+      return res
     end
 
     def fetch(key, ttl = 0)
@@ -381,71 +330,34 @@ module Couchbase
           end
           true
         end
-        if ok
-          if async?
-            options[:timer].cancel if options[:timer]
-            keys.each do |k, _|
-              yield(Result.new(:key => k,
-                               :cas => acc[k][:cas][0],
-                               :operation => :observe_and_wait))
-            end
-            return :async
-          else
-            return keys.each_with_object({}) { |(k, _), res| res[k] = acc[k][:cas][0] }
-          end
+        return keys.each_with_object({}) { |(k, _), res| res[k] = acc[k][:cas][0] } if ok
+        options[:timeout] /= 2
+        if options[:timeout] > 0
+          # do wait for timeout
+          run { create_timer(options[:timeout]) {} }
+          # return nil to avoid recursive call
+          return nil
         else
-          options[:timeout] /= 2
-          if options[:timeout] > 0
-            if async?
-              options[:timer] = create_timer(options[:timeout]) do
-                do_observe_and_wait(keys, options, &block)
-              end
-              return :async
-            else
-              # do wait for timeout
-              run { create_timer(options[:timeout]) {} }
-              # return nil to avoid recursive call
-              return nil
-            end
-          else
-            err = Couchbase::Error::Timeout.new("the observe request was timed out")
-            err.instance_variable_set("@operation", :observe_and_wait)
-            if async?
-              keys.each do |k, _|
-                yield(Result.new(:key => k,
-                                 :cas => acc[k][:cas][0],
-                                 :operation => :observe_and_wait,
-                                 :error => err))
-              end
-              return :async
-            else
-              err.instance_variable_set("@key", keys.keys)
-              raise err
-            end
-          end
+          err = Couchbase::Error::Timeout.new("the observe request was timed out")
+          err.instance_variable_set("@operation", :observe_and_wait)
+          err.instance_variable_set("@key", keys.keys)
+          raise err
         end
       end
       collect = lambda do |results|
         results.each do |res|
-          if res.completed?
-            check_condition.call if async?
+          next if res.completed?
+          if res.from_master?
+            acc[res.key][:cas][0] = res.cas
           else
-            if res.from_master?
-              acc[res.key][:cas][0] = res.cas
-            else
-              acc[res.key][:cas] << res.cas
-            end
-            acc[res.key][res.status] += 1
-            acc[res.key][:replicated] += 1 if res.status == :persisted
+            acc[res.key][:cas] << res.cas
           end
+          acc[res.key][res.status] += 1
+          acc[res.key][:replicated] += 1 if res.status == :persisted
         end
       end
-      if async?
-        observe(keys.keys, options, &collect)
-      else
-        observe(keys.keys, options).each { |_, v| collect.call(v) }
-        check_condition.call
-      end
+      observe(keys.keys, options).each { |_, v| collect.call(v) }
+      check_condition.call
     end
   end
 end

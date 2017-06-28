@@ -21,7 +21,6 @@ void
 cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_observe_resp_t *resp)
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
-    struct cb_bucket_st *bucket = ctx->bucket;
     VALUE key, res, exc;
 
     if (resp->v.v0.key) {
@@ -52,31 +51,17 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
         default:
             rb_ivar_set(res, cb_id_iv_status, Qnil);
         }
-        if (bucket->async) { /* asynchronous */
-            if (ctx->proc != Qnil) {
-                cb_proc_call(bucket, ctx->proc, 1, res);
+        if (NIL_P(ctx->exception)) {
+            VALUE stats = rb_hash_aref(ctx->rv, key);
+            if (NIL_P(stats)) {
+                stats = rb_ary_new();
+                rb_hash_aset(ctx->rv, key, stats);
             }
-        } else { /* synchronous */
-            if (NIL_P(ctx->exception)) {
-                VALUE stats = rb_hash_aref(ctx->rv, key);
-                if (NIL_P(stats)) {
-                    stats = rb_ary_new();
-                    rb_hash_aset(ctx->rv, key, stats);
-                }
-                rb_ary_push(stats, res);
-            }
+            rb_ary_push(stats, res);
         }
     } else {
-        if (bucket->async && ctx->proc != Qnil) {
-            res = rb_class_new_instance(0, NULL, cb_cResult);
-            rb_ivar_set(res, cb_id_iv_completed, Qtrue);
-            cb_proc_call(bucket, ctx->proc, 1, res);
-        }
         ctx->nqueries--;
         ctx->proc = Qnil;
-        if (bucket->async) {
-            cb_context_free(ctx);
-        }
     }
     (void)handle;
 }
@@ -89,10 +74,6 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
  * @overload observe(*keys, options = {})
  *   @param keys [String, Symbol, Array] One or several keys to fetch
  *   @param options [Hash] Options for operation.
- *
- *   @yieldparam ret [Result] the result of operation in asynchronous mode
- *     (valid attributes: +error+, +status+, +operation+, +key+, +cas+,
- *     +from_master+, +time_to_persist+, +time_to_replicate+).
  *
  *   @return [Hash<String, Array<Result>>, Array<Result>] the state of the
  *     keys on all nodes. If the +keys+ argument was String or Symbol, this
@@ -115,7 +96,7 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE rv, proc, exc;
+    VALUE rv, exc;
     lcb_error_t err;
     struct cb_params_st params;
 
@@ -124,14 +105,11 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
     }
 
     memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*&", &params.args, &proc);
-    if (!bucket->async && proc != Qnil) {
-        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
-    }
+    rb_scan_args(argc, argv, "0*", &params.args);
     params.type = cb_cmd_observe;
     params.bucket = bucket;
     cb_params_build(&params);
-    ctx = cb_context_alloc_common(bucket, proc, params.cmd.observe.num);
+    ctx = cb_context_alloc_common(bucket, params.cmd.observe.num);
     err = lcb_observe(bucket->handle, (const void *)ctx, params.cmd.observe.num, params.cmd.observe.ptr);
     cb_params_destroy(&params);
     exc = cb_check_error(err, "failed to schedule observe request", Qnil);
@@ -140,31 +118,26 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
-    if (bucket->async) {
-        cb_maybe_do_loop(bucket);
-        return Qnil;
+    if (ctx->nqueries > 0) {
+        /* we have some operations pending */
+        lcb_wait(bucket->handle);
+    }
+    exc = ctx->exception;
+    rv = ctx->rv;
+    cb_context_free(ctx);
+    if (exc != Qnil) {
+        rb_exc_raise(exc);
+    }
+    exc = bucket->exception;
+    if (exc != Qnil) {
+        bucket->exception = Qnil;
+        rb_exc_raise(exc);
+    }
+    if (params.cmd.observe.num > 1 || params.cmd.observe.array) {
+        return rv; /* return as a hash {key => {}, ...} */
     } else {
-        if (ctx->nqueries > 0) {
-            /* we have some operations pending */
-            lcb_wait(bucket->handle);
-        }
-        exc = ctx->exception;
-        rv = ctx->rv;
-        cb_context_free(ctx);
-        if (exc != Qnil) {
-            rb_exc_raise(exc);
-        }
-        exc = bucket->exception;
-        if (exc != Qnil) {
-            bucket->exception = Qnil;
-            rb_exc_raise(exc);
-        }
-        if (params.cmd.observe.num > 1 || params.cmd.observe.array) {
-            return rv; /* return as a hash {key => {}, ...} */
-        } else {
-            VALUE vv = Qnil;
-            rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
-            return vv; /* return first value */
-        }
+        VALUE vv = Qnil;
+        rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
+        return vv; /* return first value */
     }
 }

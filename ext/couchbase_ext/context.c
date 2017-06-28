@@ -46,14 +46,11 @@ cb_context_alloc(struct cb_bucket_st *bucket)
 }
 
 struct cb_context_st *
-cb_context_alloc_common(struct cb_bucket_st *bucket, VALUE proc, size_t nqueries)
+cb_context_alloc_common(struct cb_bucket_st *bucket, size_t nqueries)
 {
     struct cb_context_st *ctx = cb_context_alloc(bucket);
-    ctx->proc = proc;
     ctx->nqueries = nqueries;
-    if (!bucket->async) {
-        ctx->rv = rb_hash_new();
-    }
+    ctx->rv = rb_hash_new();
     return ctx;
 }
 

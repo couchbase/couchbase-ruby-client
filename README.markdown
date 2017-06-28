@@ -72,57 +72,6 @@ connection options via `Couchbase.connection_options`:
     Couchbase.bucket.name                   #=> "blog"
     Couchbase.bucket.set("foo", "bar")      #=> 3289400178357895424
 
-The library supports both synchronous and asynchronous mode. In
-asynchronous mode all operations will return control to caller
-without blocking current thread. You can pass a block to the method and it
-will be called with result when the operation will be completed. You
-need to run the event loop once you've scheduled your operations:
-
-    c = Couchbase.connect
-    c.run do |conn|
-      conn.get("foo") {|ret| puts ret.value}
-      conn.set("bar", "baz")
-    end
-
-The handlers could be nested
-
-    c.run do |conn|
-      conn.get("foo") do |ret|
-        conn.incr(ret.value, :initial => 0)
-      end
-    end
-
-The asynchronous callback receives an instance of `Couchbase::Result` which
-responds to several methods to figure out what was happened:
-
-  * `success?`. Returns `true` if operation succed.
-
-  * `error`. Returns `nil` or exception object (subclass of
-    `Couchbase::Error::Base`) if something went wrong.
-
-  * `key`
-
-  * `value`
-
-  * `flags`
-
-  * `cas`. The CAS version tag.
-
-  * `node`. Node address. This is used in the flush and stats commands.
-
-  * `operation`. The symbol, representing an operation.
-
-
-To handle global errors in async mode `#on_error` callback should be
-used. It can be set in following fashions:
-
-    c.on_error do |opcode, key, exc|
-      # ...
-    end
-
-    handler = lambda {|opcode, key, exc| }
-    c.on_error = handler
-
 By default connections use `:quiet` mode. This mean it won't raise
 exceptions when the given key does not exist:
 
@@ -464,25 +413,6 @@ useful.
 Note that errors object in view results usually goes *after* the rows,
 so you will likely receive a number of view results successfully before
 the error is detected.
-
-## Engines
-
-As far as couchbase gem uses [libcouchbase][8] as the backend, you can
-choose from several asynchronous IO options:
-
-* `:default` this one is used by default and implemented as the part
-  of the ruby extensions (this mean you don't need any dependencies
-  apart from libcouchbase2-core and libcouchbase-dev to build and use
-  it). This engine honours ruby GVL, so when it comes to waiting for
-  IO operations from kernel it release the GVL allowing interpreter to
-  run your code. This technique isn't available on windows, but down't
-  worry `:default` engine still accessible and will pick up statically
-  linked on that platform `:libevent` engine.
-
-* `:libev` and `:libevent`, these two engines require installed
-  libcouchbase2-libev and libcouchbase2-libevent packages
-  correspondingly. Currently they aren't so friendly to GVL but still
-  useful.
 
 ## HACKING
 

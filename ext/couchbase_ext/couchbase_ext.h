@@ -109,13 +109,9 @@ struct cb_bucket_st {
     VALUE username;
     VALUE password;
     VALUE engine;
-    int async;
     int quiet;
-    uint8_t
-        connected; /* non-zero if instance has been connected. it is possible to defer connection with :async option */
+    uint8_t connected; /* non-zero if instance has been connected */
     uint8_t running; /* non-zero if event loop is running */
-    uint8_t
-        trigger_connect_cb_on_set; /* if non-zero, the on_connect callback will be triggered immediately after set */
     VALUE transcoder;
     uint32_t default_flags;
     time_t default_ttl;
@@ -126,8 +122,6 @@ struct cb_bucket_st {
     size_t threshold;      /* the number of bytes to trigger event loop, zero if don't care */
     size_t nbytes;         /* the number of bytes scheduled to be sent */
     VALUE exception;       /* error delivered by error_callback */
-    VALUE on_error_proc;   /* is using to deliver errors in async mode */
-    VALUE on_connect_proc; /* used to notify that instance ready to handle requests in async mode */
     VALUE environment;     /* sym_development or sym_production */
     VALUE key_prefix_val;
     VALUE node_list;
@@ -200,7 +194,6 @@ extern ID cb_sym_add;
 extern ID cb_sym_all;
 extern ID cb_sym_append;
 extern ID cb_sym_assemble_hash;
-extern ID cb_sym_async;
 extern ID cb_sym_body;
 extern ID cb_sym_bootstrap_transports;
 extern ID cb_sym_bucket;
@@ -382,7 +375,6 @@ void cb_maybe_do_loop(struct cb_bucket_st *bucket);
 VALUE cb_unify_key(struct cb_bucket_st *bucket, VALUE key, int apply_prefix);
 VALUE cb_encode_value(VALUE transcoder, VALUE val, uint32_t *flags, VALUE options);
 VALUE cb_decode_value(VALUE transcoder, VALUE blob, uint32_t flags, VALUE options);
-void cb_async_error_notify(struct cb_bucket_st *bucket, VALUE exc);
 
 void cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, lcb_error_t error,
                          const lcb_store_resp_t *resp);
@@ -400,7 +392,7 @@ void cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, co
 void cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp);
 
 struct cb_context_st *cb_context_alloc(struct cb_bucket_st *bucket);
-struct cb_context_st *cb_context_alloc_common(struct cb_bucket_st *bucket, VALUE proc, size_t nqueries);
+struct cb_context_st *cb_context_alloc_common(struct cb_bucket_st *bucket, size_t nqueries);
 void cb_context_free(struct cb_context_st *ctx);
 
 VALUE cb_bucket_alloc(VALUE klass);
@@ -422,15 +414,12 @@ VALUE cb_bucket_incr(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_decr(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_unlock(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_query(int argc, VALUE *argv, VALUE self);
-VALUE cb_bucket_run(int argc, VALUE *argv, VALUE self);
-VALUE cb_bucket_stop(VALUE self);
 VALUE cb_bucket_version(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_disconnect(VALUE self);
 VALUE cb_bucket_reconnect(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_make_http_request(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_observe(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_connected_p(VALUE self);
-VALUE cb_bucket_async_p(VALUE self);
 VALUE cb_bucket_quiet_get(VALUE self);
 VALUE cb_bucket_quiet_set(VALUE self, VALUE val);
 VALUE cb_bucket_transcoder_get(VALUE self);
@@ -439,10 +428,6 @@ VALUE cb_bucket_default_flags_get(VALUE self);
 VALUE cb_bucket_default_flags_set(VALUE self, VALUE val);
 VALUE cb_bucket_default_format_get(VALUE self);
 VALUE cb_bucket_default_format_set(VALUE self, VALUE val);
-VALUE cb_bucket_on_error_set(VALUE self, VALUE val);
-VALUE cb_bucket_on_error_get(VALUE self);
-VALUE cb_bucket_on_connect_set(VALUE self, VALUE val);
-VALUE cb_bucket_on_connect_get(VALUE self);
 VALUE cb_bucket_timeout_get(VALUE self);
 VALUE cb_bucket_timeout_set(VALUE self, VALUE val);
 VALUE cb_bucket_key_prefix_get(VALUE self);

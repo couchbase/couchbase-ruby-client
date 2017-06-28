@@ -22,7 +22,7 @@ cb_touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE key, exc = Qnil, res;
+    VALUE key, exc = Qnil;
 
     ctx->nqueries--;
     key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
@@ -36,22 +36,9 @@ cb_touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb
         }
     }
 
-    if (bucket->async) { /* asynchronous */
-        if (ctx->proc != Qnil) {
-            res = rb_class_new_instance(0, NULL, cb_cResult);
-            rb_ivar_set(res, cb_id_iv_error, exc);
-            rb_ivar_set(res, cb_id_iv_operation, cb_sym_touch);
-            rb_ivar_set(res, cb_id_iv_key, key);
-            cb_proc_call(bucket, ctx->proc, 1, res);
-        }
-    } else { /* synchronous */
-        rb_hash_aset(ctx->rv, key, (error == LCB_SUCCESS) ? Qtrue : Qfalse);
-    }
+    rb_hash_aset(ctx->rv, key, (error == LCB_SUCCESS) ? Qtrue : Qfalse);
     if (ctx->nqueries == 0) {
         ctx->proc = Qnil;
-        if (bucket->async) {
-            cb_context_free(ctx);
-        }
     }
     (void)handle;
 }
@@ -77,9 +64,6 @@ cb_touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb
  *   @option options [true, false] :quiet (self.quiet) If set to +true+, the
  *     operation won't raise error for missing key, it will return +nil+.
  *
- *   @yieldparam ret [Result] the result of operation in asynchronous mode
- *     (valid attributes: +error+, +operation+, +key+).
- *
  *   @return [true, false] +true+ if the operation was successful and +false+
  *     otherwise.
  *
@@ -99,23 +83,11 @@ cb_touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb
  *     description of +:ttl+ argument above for more information about TTL
  *     values.
  *
- *   @yieldparam ret [Result] the result of operation for each key in
- *     asynchronous mode (valid attributes: +error+, +operation+, +key+).
- *
  *   @return [Hash] Mapping keys to result of touch operation (+true+ if the
  *     operation was successful and +false+ otherwise)
  *
  *   @example Touch several values
  *     c.touch("foo" => 10, :bar => 20) #=> {"foo" => true, "bar" => true}
- *
- *   @example Touch several values in async mode
- *     c.run do
- *       c.touch("foo" => 10, :bar => 20) do |ret|
- *          ret.operation   #=> :touch
- *          ret.success?    #=> true
- *          ret.key         #=> "foo" and "bar" in separate calls
- *       end
- *     end
  *
  *   @example Touch single value
  *     c.touch("foo" => 10)             #=> true
@@ -126,7 +98,7 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE rv, proc, exc;
+    VALUE rv, exc;
     lcb_error_t err;
     struct cb_params_st params;
 
@@ -135,15 +107,12 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
     }
 
     memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*&", &params.args, &proc);
-    if (!bucket->async && proc != Qnil) {
-        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
-    }
+    rb_scan_args(argc, argv, "0*", &params.args);
     rb_funcall(params.args, cb_id_flatten_bang, 0);
     params.type = cb_cmd_touch;
     params.bucket = bucket;
     cb_params_build(&params);
-    ctx = cb_context_alloc_common(bucket, proc, params.cmd.touch.num);
+    ctx = cb_context_alloc_common(bucket, params.cmd.touch.num);
     ctx->quiet = params.cmd.touch.quiet;
     err = lcb_touch(bucket->handle, (const void *)ctx, params.cmd.touch.num, params.cmd.touch.ptr);
     cb_params_destroy(&params);
@@ -153,31 +122,26 @@ cb_bucket_touch(int argc, VALUE *argv, VALUE self)
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
-    if (bucket->async) {
-        cb_maybe_do_loop(bucket);
-        return Qnil;
+    if (ctx->nqueries > 0) {
+        /* we have some operations pending */
+        lcb_wait(bucket->handle);
+    }
+    exc = ctx->exception;
+    rv = ctx->rv;
+    cb_context_free(ctx);
+    if (exc != Qnil) {
+        rb_exc_raise(exc);
+    }
+    exc = bucket->exception;
+    if (exc != Qnil) {
+        bucket->exception = Qnil;
+        rb_exc_raise(exc);
+    }
+    if (params.cmd.touch.num > 1) {
+        return rv; /* return as a hash {key => true, ...} */
     } else {
-        if (ctx->nqueries > 0) {
-            /* we have some operations pending */
-            lcb_wait(bucket->handle);
-        }
-        exc = ctx->exception;
-        rv = ctx->rv;
-        cb_context_free(ctx);
-        if (exc != Qnil) {
-            rb_exc_raise(exc);
-        }
-        exc = bucket->exception;
-        if (exc != Qnil) {
-            bucket->exception = Qnil;
-            rb_exc_raise(exc);
-        }
-        if (params.cmd.touch.num > 1) {
-            return rv; /* return as a hash {key => true, ...} */
-        } else {
-            VALUE vv = Qnil;
-            rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
-            return vv;
-        }
+        VALUE vv = Qnil;
+        rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
+        return vv;
     }
 }

@@ -38,7 +38,6 @@ ID cb_sym_add;
 ID cb_sym_all;
 ID cb_sym_append;
 ID cb_sym_assemble_hash;
-ID cb_sym_async;
 ID cb_sym_body;
 ID cb_sym_bootstrap_transports;
 ID cb_sym_bucket;
@@ -675,7 +674,7 @@ extern "C"
 
     /* Document-class: Couchbase::Result
      *
-     * The object which yielded to asynchronous callbacks
+     * The Result object
      *
      * @since 1.0.0
      */
@@ -844,8 +843,6 @@ extern "C"
     rb_define_method(cb_cBucket, "replace", cb_bucket_replace, -1);
     rb_define_method(cb_cBucket, "set", cb_bucket_set, -1);
     rb_define_method(cb_cBucket, "get", cb_bucket_get, -1);
-    rb_define_method(cb_cBucket, "run", cb_bucket_run, -1);
-    rb_define_method(cb_cBucket, "stop", cb_bucket_stop, 0);
     rb_define_method(cb_cBucket, "touch", cb_bucket_touch, -1);
     rb_define_method(cb_cBucket, "delete", cb_bucket_delete, -1);
     rb_define_method(cb_cBucket, "stats", cb_bucket_stats, -1);
@@ -866,7 +863,6 @@ extern "C"
     rb_define_method(cb_cBucket, "[]=", cb_bucket_aset, -1);
 
     rb_define_method(cb_cBucket, "connected?", cb_bucket_connected_p, 0);
-    rb_define_method(cb_cBucket, "async?", cb_bucket_async_p, 0);
 
     /* Document-method: quiet
      * Flag specifying behaviour for operations on missing keys
@@ -1030,69 +1026,6 @@ extern "C"
     /* rb_define_attr(cb_cBucket, "key_prefix", 1, 1); */
     rb_define_method(cb_cBucket, "key_prefix", cb_bucket_key_prefix_get, 0);
     rb_define_method(cb_cBucket, "key_prefix=", cb_bucket_key_prefix_set, 1);
-
-    /* Document-method: on_error
-     * Error callback for asynchronous mode.
-     *
-     * @since 1.0.0
-     *
-     * This callback is using to deliver exceptions in asynchronous mode.
-     *
-     * @yieldparam [Exception] exc The exception instance
-     *
-     * @example Using lambda syntax
-     *   connection = Couchbase.connect
-     *   connection.on_error = lambda {|exc| ... }
-     *   connection.run do |conn|
-     *     conn.set("foo", "bar")
-     *   end
-     *
-     * @example Using block syntax
-     *   connection = Couchbase.connect
-     *   connection.on_error {|exc| ... }
-     *   connection.run do |conn|
-     *     conn.set("foo", "bar")
-     *   end
-     *
-     * @return [Proc] the effective callback */
-    /* rb_define_attr(cb_cBucket, "on_error", 1, 1); */
-    rb_define_method(cb_cBucket, "on_error", cb_bucket_on_error_get, 0);
-    rb_define_method(cb_cBucket, "on_error=", cb_bucket_on_error_set, 1);
-
-    /* Document-method: on_connect
-     * Connection callback for asynchronous mode.
-     *
-     * @since 1.3.0
-     *
-     * This callback used to notify that bucket instance is connected
-     * and ready to handle requests in asynchronous mode.
-     *
-     * @yieldparam [Result] result The result instance, with valid
-     *   properties +#error+, +#success?+, +#operation+ and +#bucket+
-     *
-     * @example Using lambda syntax
-     *   connection = Couchbase.new(:async => true)
-     *   connection.on_connect = lambda do |ret|
-     *     if ret.success?
-     *       conn.set("foo", "bar")
-     *     end
-     *   end
-     *   connection.run
-     *
-     * @example Using block syntax
-     *   connection = Couchbase.new(:async => true)
-     *   connection.run do |conn|
-     *     connection.on_connect do |ret|
-     *       if ret.success?
-     *         conn.set("foo", "bar")
-     *       end
-     *     end
-     *   end
-     *
-     * @return [Proc] the effective callback */
-    /* rb_define_attr(cb_cBucket, "on_connect", 1, 1); */
-    rb_define_method(cb_cBucket, "on_connect", cb_bucket_on_connect_get, 0);
-    rb_define_method(cb_cBucket, "on_connect=", cb_bucket_on_connect_set, 1);
 
     /* Document-method: url
      *
@@ -1368,7 +1301,6 @@ extern "C"
     cb_sym_all = ID2SYM(rb_intern("all"));
     cb_sym_append = ID2SYM(rb_intern("append"));
     cb_sym_assemble_hash = ID2SYM(rb_intern("assemble_hash"));
-    cb_sym_async = ID2SYM(rb_intern("async"));
     cb_sym_body = ID2SYM(rb_intern("body"));
     cb_sym_bootstrap_transports = ID2SYM(rb_intern("bootstrap_transports"));
     cb_sym_bucket = ID2SYM(rb_intern("bucket"));

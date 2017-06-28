@@ -38,32 +38,6 @@ struct proc_params_st {
     VALUE exc;
 };
 
-static VALUE
-do_async_error_notify(VALUE ptr)
-{
-    struct proc_params_st *p = (struct proc_params_st *)ptr;
-    return rb_funcall(p->bucket->on_error_proc, cb_id_call, 1, p->exc);
-}
-
-void
-cb_async_error_notify(struct cb_bucket_st *bucket, VALUE exc)
-{
-    if (bucket->on_error_proc != Qnil) {
-        struct proc_params_st params;
-        int fail;
-        params.bucket = bucket;
-        params.exc = exc;
-        rb_protect(do_async_error_notify, (VALUE)&params, &fail);
-        if (fail) {
-            rb_warning("Couchbase::Bucket#on_error shouldn't raise exceptions");
-        }
-    } else {
-        if (NIL_P(bucket->exception)) {
-            bucket->exception = exc;
-        }
-    }
-}
-
 int
 cb_bucket_connected_bang(struct cb_bucket_st *bucket, VALUE operation)
 {
@@ -71,11 +45,7 @@ cb_bucket_connected_bang(struct cb_bucket_st *bucket, VALUE operation)
         VALUE exc = rb_exc_new2(cb_eConnectError, "not connected to the server");
         rb_ivar_set(exc, cb_id_iv_operation, operation);
         rb_ivar_set(exc, cb_id_iv_value, bucket->self);
-        if (bucket->async) {
-            cb_async_error_notify(bucket, exc);
-        } else {
-            rb_exc_raise(exc);
-        }
+        rb_exc_raise(exc);
         return 0;
     }
     return 1;
@@ -84,8 +54,8 @@ cb_bucket_connected_bang(struct cb_bucket_st *bucket, VALUE operation)
 static VALUE
 func_call_failed(VALUE ptr, VALUE exc)
 {
-    struct proc_params_st *p = (struct proc_params_st *)ptr;
-    cb_async_error_notify(p->bucket, exc);
+    (void)ptr;
+    (void)exc;
     return Qnil;
 }
 

@@ -32,19 +32,4 @@ class TestVersion < MiniTest::Test
     assert ver.is_a?(Hash)
     assert_equal @mock.num_nodes, ver.size
   end
-
-  def test_async_version
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    ver = {}
-    connection.run do |conn|
-      conn.version do |ret|
-        assert ret.success?
-        ver[ret.node] = ret.value
-      end
-    end
-    assert_equal @mock.num_nodes, ver.size
-    ver.each do |_node, v|
-      assert v.is_a?(String)
-    end
-  end
 end

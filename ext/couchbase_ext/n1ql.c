@@ -91,7 +91,7 @@ cb_bucket_query(int argc, VALUE *argv, VALUE self)
         rb_raise(cb_eQuery, "cannot construct N1QL command: %s", lcb_strerror(bucket->handle, rc));
     }
 
-    ctx = cb_context_alloc_common(bucket, proc, 1);
+    ctx = cb_context_alloc_common(bucket, 1);
     ctx->rv = rb_hash_new();
     rb_hash_aset(ctx->rv, cb_sym_rows, rb_ary_new());
     rb_hash_aset(ctx->rv, cb_sym_meta, Qnil);

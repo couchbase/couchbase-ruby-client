@@ -22,7 +22,7 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE cas, key, val, exc, res;
+    VALUE cas, key, val, exc;
     ID o;
 
     ctx->nqueries--;
@@ -38,30 +38,15 @@ cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
         ctx->exception = exc;
     }
     val = ULL2NUM(resp->v.v0.value);
-    if (bucket->async) { /* asynchronous */
-        if (ctx->proc != Qnil) {
-            res = rb_class_new_instance(0, NULL, cb_cResult);
-            rb_ivar_set(res, cb_id_iv_error, exc);
-            rb_ivar_set(res, cb_id_iv_operation, o);
-            rb_ivar_set(res, cb_id_iv_key, key);
-            rb_ivar_set(res, cb_id_iv_value, val);
-            rb_ivar_set(res, cb_id_iv_cas, cas);
-            cb_proc_call(bucket, ctx->proc, 1, res);
-        }
-    } else { /* synchronous */
-        if (NIL_P(exc)) {
-            if (ctx->extended) {
-                rb_hash_aset(ctx->rv, key, rb_ary_new3(2, val, cas));
-            } else {
-                rb_hash_aset(ctx->rv, key, val);
-            }
+    if (NIL_P(exc)) {
+        if (ctx->extended) {
+            rb_hash_aset(ctx->rv, key, rb_ary_new3(2, val, cas));
+        } else {
+            rb_hash_aset(ctx->rv, key, val);
         }
     }
     if (ctx->nqueries == 0) {
         ctx->proc = Qnil;
-        if (bucket->async) {
-            cb_context_free(ctx);
-        }
     }
     (void)handle;
 }
@@ -71,7 +56,7 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE rv, proc, exc;
+    VALUE rv, exc;
     lcb_error_t err;
     struct cb_params_st params;
 
@@ -80,15 +65,12 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
     }
 
     memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*&", &params.args, &proc);
-    if (!bucket->async && proc != Qnil) {
-        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
-    }
+    rb_scan_args(argc, argv, "0*", &params.args);
     params.type = cb_cmd_arith;
     params.bucket = bucket;
     params.cmd.arith.sign = sign;
     cb_params_build(&params);
-    ctx = cb_context_alloc_common(bucket, proc, params.cmd.arith.num);
+    ctx = cb_context_alloc_common(bucket, params.cmd.arith.num);
     ctx->extended = params.cmd.arith.extended;
     err = lcb_arithmetic(bucket->handle, (const void *)ctx, params.cmd.arith.num, params.cmd.arith.ptr);
     cb_params_destroy(&params);
@@ -98,29 +80,24 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
-    if (bucket->async) {
-        cb_maybe_do_loop(bucket);
-        return Qnil;
-    } else {
-        if (ctx->nqueries > 0) {
-            /* we have some operations pending */
-            lcb_wait(bucket->handle);
-        }
-        exc = ctx->exception;
-        rv = ctx->rv;
-        cb_context_free(ctx);
-        if (exc != Qnil) {
-            rb_exc_raise(exc);
-        }
-        if (params.cmd.store.num > 1) {
-            return rv; /* return as a hash {key => cas, ...} */
-        } else {
-            VALUE vv = Qnil;
-            rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
-            return vv;
-        }
-        return rv;
+    if (ctx->nqueries > 0) {
+        /* we have some operations pending */
+        lcb_wait(bucket->handle);
     }
+    exc = ctx->exception;
+    rv = ctx->rv;
+    cb_context_free(ctx);
+    if (exc != Qnil) {
+        rb_exc_raise(exc);
+    }
+    if (params.cmd.store.num > 1) {
+        return rv; /* return as a hash {key => cas, ...} */
+    } else {
+        VALUE vv = Qnil;
+        rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
+        return vv;
+    }
+    return rv;
 }
 
 /*
@@ -157,9 +134,6 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
  *   @option options [true, false] :extended (false) If set to +true+, the
  *     operation will return tuple +[value, cas]+, otherwise (by default) it
  *     returns just value.
- *
- *   @yieldparam ret [Result] the result of operation in asynchronous mode
- *     (valid attributes: +error+, +operation+, +key+, +value+, +cas+).
  *
  *   @return [Fixnum] the actual value of the key.
  *
@@ -203,17 +177,6 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
  *     #    num += 2
  *     #    // num is 0
  *
- *   @example Asynchronous invocation
- *     c.run do
- *       c.incr("foo") do |ret|
- *         ret.operation   #=> :increment
- *         ret.success?    #=> true
- *         ret.key         #=> "foo"
- *         ret.value
- *         ret.cas
- *       end
- *     end
- *
  */
 VALUE
 cb_bucket_incr(int argc, VALUE *argv, VALUE self)
@@ -256,9 +219,6 @@ cb_bucket_incr(int argc, VALUE *argv, VALUE self)
  *     operation will return tuple +[value, cas]+, otherwise (by default) it
  *     returns just value.
  *
- *   @yieldparam ret [Result] the result of operation in asynchronous mode
- *     (valid attributes: +error+, +operation+, +key+, +value+, +cas+).
- *
  *   @return [Fixnum] the actual value of the key.
  *
  *   @raise [Couchbase::Error::NotFound] if key is missing and +:create+
@@ -293,17 +253,6 @@ cb_bucket_incr(int argc, VALUE *argv, VALUE self)
  *   @example Decrementing negative value
  *     c.set("foo", -100)
  *     c.decrement("foo", 100500)   #=> 0
- *
- *   @example Asynchronous invocation
- *     c.run do
- *       c.decr("foo") do |ret|
- *         ret.operation   #=> :decrement
- *         ret.success?    #=> true
- *         ret.key         #=> "foo"
- *         ret.value
- *         ret.cas
- *       end
- *     end
  *
  */
 VALUE

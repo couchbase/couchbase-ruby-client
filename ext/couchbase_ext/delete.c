@@ -22,7 +22,7 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE key, exc = Qnil, res;
+    VALUE key, exc = Qnil;
 
     ctx->nqueries--;
     key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
@@ -35,22 +35,9 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
             ctx->exception = exc;
         }
     }
-    if (bucket->async) { /* asynchronous */
-        if (ctx->proc != Qnil) {
-            res = rb_class_new_instance(0, NULL, cb_cResult);
-            rb_ivar_set(res, cb_id_iv_error, exc);
-            rb_ivar_set(res, cb_id_iv_operation, cb_sym_delete);
-            rb_ivar_set(res, cb_id_iv_key, key);
-            cb_proc_call(bucket, ctx->proc, 1, res);
-        }
-    } else { /* synchronous */
-        rb_hash_aset(ctx->rv, key, (error == LCB_SUCCESS) ? Qtrue : Qfalse);
-    }
+    rb_hash_aset(ctx->rv, key, (error == LCB_SUCCESS) ? Qtrue : Qfalse);
     if (ctx->nqueries == 0) {
         ctx->proc = Qnil;
-        if (bucket->async) {
-            cb_context_free(ctx);
-        }
     }
     (void)handle;
 }
@@ -65,8 +52,7 @@ cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lc
  *   @param options [Hash] Options for operation.
  *   @option options [true, false] :quiet (self.quiet) If set to +true+, the
  *     operation won't raise error for missing key, it will return +nil+.
- *     Otherwise it will raise error in synchronous mode. In asynchronous
- *     mode this option ignored.
+ *     Otherwise it will raise error in synchronous mode.
  *   @option options [Fixnum] :cas The CAS value for an object. This value
  *     created on the server and is guaranteed to be unique for each value of
  *     a given key. This value is used to provide simple optimistic
@@ -103,7 +89,6 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
     VALUE rv, exc;
-    VALUE proc;
     lcb_error_t err;
     struct cb_params_st params;
 
@@ -112,16 +97,13 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
     }
 
     memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*&", &params.args, &proc);
-    if (!bucket->async && proc != Qnil) {
-        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
-    }
+    rb_scan_args(argc, argv, "0*", &params.args);
     rb_funcall(params.args, cb_id_flatten_bang, 0);
     params.type = cb_cmd_remove;
     params.bucket = bucket;
     cb_params_build(&params);
 
-    ctx = cb_context_alloc_common(bucket, proc, params.cmd.remove.num);
+    ctx = cb_context_alloc_common(bucket, params.cmd.remove.num);
     ctx->quiet = params.cmd.remove.quiet;
     err = lcb_remove(bucket->handle, (const void *)ctx, params.cmd.remove.num, params.cmd.remove.ptr);
     cb_params_destroy(&params);
@@ -131,32 +113,27 @@ cb_bucket_delete(int argc, VALUE *argv, VALUE self)
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
-    if (bucket->async) {
-        cb_maybe_do_loop(bucket);
-        return Qnil;
-    } else {
-        if (ctx->nqueries > 0) {
-            /* we have some operations pending */
-            lcb_wait(bucket->handle);
-        }
-        exc = ctx->exception;
-        rv = ctx->rv;
-        cb_context_free(ctx);
-        if (exc != Qnil) {
-            rb_exc_raise(exc);
-        }
-        exc = bucket->exception;
-        if (exc != Qnil) {
-            bucket->exception = Qnil;
-            rb_exc_raise(exc);
-        }
-        if (params.cmd.remove.num > 1) {
-            return rv; /* return as a hash {key => true, ...} */
-        } else {
-            VALUE vv = Qnil;
-            rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
-            return vv;
-        }
-        return rv;
+    if (ctx->nqueries > 0) {
+        /* we have some operations pending */
+        lcb_wait(bucket->handle);
     }
+    exc = ctx->exception;
+    rv = ctx->rv;
+    cb_context_free(ctx);
+    if (exc != Qnil) {
+        rb_exc_raise(exc);
+    }
+    exc = bucket->exception;
+    if (exc != Qnil) {
+        bucket->exception = Qnil;
+        rb_exc_raise(exc);
+    }
+    if (params.cmd.remove.num > 1) {
+        return rv; /* return as a hash {key => true, ...} */
+    } else {
+        VALUE vv = Qnil;
+        rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
+        return vv;
+    }
+    return rv;
 }

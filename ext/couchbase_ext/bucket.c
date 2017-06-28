@@ -17,24 +17,6 @@
 
 #include "couchbase_ext.h"
 
-static VALUE
-trigger_on_connect_callback(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    VALUE on_connect_proc = bucket->on_connect_proc;
-    if (RTEST(on_connect_proc)) {
-        VALUE res = rb_class_new_instance(0, NULL, cb_cResult);
-        rb_ivar_set(res, cb_id_iv_error, bucket->exception);
-        bucket->exception = Qnil;
-        rb_ivar_set(res, cb_id_iv_operation, cb_sym_connect);
-        rb_ivar_set(res, cb_id_iv_value, self);
-        return rb_funcall(on_connect_proc, cb_id_call, 1, res);
-    } else {
-        bucket->trigger_connect_cb_on_set = 1;
-        return Qnil;
-    }
-}
-
 static void
 bootstrap_callback(lcb_t handle, lcb_error_t error)
 {
@@ -44,9 +26,6 @@ bootstrap_callback(lcb_t handle, lcb_error_t error)
     bucket->exception = cb_check_error(error, "bootstrap error", Qnil);
     if (!bucket->connected) {
         bucket->connected = 1;
-        if (bucket->async) {
-            (void)trigger_on_connect_callback(bucket->self);
-        }
     }
 }
 
@@ -88,8 +67,6 @@ cb_bucket_mark(void *ptr)
         rb_gc_mark(bucket->username);
         rb_gc_mark(bucket->password);
         rb_gc_mark(bucket->exception);
-        rb_gc_mark(bucket->on_error_proc);
-        rb_gc_mark(bucket->on_connect_proc);
         rb_gc_mark(bucket->key_prefix_val);
         rb_gc_mark(bucket->node_list);
         rb_gc_mark(bucket->bootstrap_transports);
@@ -285,7 +262,6 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
                     rb_raise(rb_eArgError, "Couchbase: unknown engine %s", RSTRING_PTR(ins));
                 }
             }
-            bucket->async = RTEST(rb_hash_aref(opts, cb_sym_async));
             arg = rb_hash_aref(opts, cb_sym_transcoder);
             if (arg != Qnil) {
                 bucket->default_arith_create = RTEST(arg);
@@ -401,12 +377,10 @@ do_connect(struct cb_bucket_st *bucket)
         rb_exc_raise(cb_check_error(err, "failed to connect libcouchbase instance to server", Qnil));
     }
     bucket->exception = Qnil;
-    if (!bucket->async) {
-        lcb_wait(bucket->handle);
-        if (bucket->exception != Qnil) {
-            cb_bucket_disconnect(bucket->self);
-            rb_exc_raise(bucket->exception);
-        }
+    lcb_wait(bucket->handle);
+    if (bucket->exception != Qnil) {
+        cb_bucket_disconnect(bucket->self);
+        rb_exc_raise(bucket->exception);
     }
 }
 
@@ -486,11 +460,6 @@ cb_bucket_alloc(VALUE klass)
  *     :iocp         :: "I/O Completion Ports" plugin from libcouchbase (windows only)
  *     :libevent     :: libevent IO plugin from libcouchbase (optional)
  *     :libev        :: libev IO plugin from libcouchbase (optional)
- *   @option options [true, false] :async (false) If true, the
- *     connection instance will be considered always asynchronous and
- *     IO interaction will be occured only when {Couchbase::Bucket#run}
- *     called. See {Couchbase::Bucket#on_connect} to hook your code
- *     after the instance will be connected.
  *   @option options [Array] :bootstrap_transports (nil) the list of
  *     bootrap transport mechanisms the library should try during
  *     initial connection and also when cluster changes its
@@ -540,14 +509,11 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->username = Qnil;
     bucket->password = Qnil;
     bucket->engine = cb_sym_default;
-    bucket->async = 0;
     bucket->quiet = 0;
     bucket->default_ttl = 0;
     bucket->default_flags = 0;
     cb_bucket_transcoder_set(self, cb_mDocument);
     bucket->default_observe_timeout = 2500000;
-    bucket->on_error_proc = Qnil;
-    bucket->on_connect_proc = Qnil;
     bucket->timeout = 0;
     bucket->environment = cb_sym_production;
     bucket->key_prefix_val = Qnil;
@@ -556,7 +522,6 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->object_space = st_init_numtable();
     bucket->destroying = 0;
     bucket->connected = 0;
-    bucket->on_connect_proc = Qnil;
 
     do_scan_connection_options(bucket, argc, argv);
     do_connect(bucket);
@@ -598,7 +563,6 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->username = orig_b->username;
     copy_b->password = orig_b->password;
     copy_b->engine = orig_b->engine;
-    copy_b->async = orig_b->async;
     copy_b->quiet = orig_b->quiet;
     copy_b->transcoder = orig_b->transcoder;
     copy_b->default_flags = orig_b->default_flags;
@@ -606,12 +570,6 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->environment = orig_b->environment;
     copy_b->timeout = orig_b->timeout;
     copy_b->exception = Qnil;
-    if (orig_b->on_error_proc != Qnil) {
-        copy_b->on_error_proc = rb_funcall(orig_b->on_error_proc, cb_id_dup, 0);
-    }
-    if (orig_b->on_connect_proc != Qnil) {
-        copy_b->on_connect_proc = rb_funcall(orig_b->on_connect_proc, cb_id_dup, 0);
-    }
     if (orig_b->key_prefix_val != Qnil) {
         copy_b->key_prefix_val = rb_funcall(orig_b->key_prefix_val, cb_id_dup, 0);
     }
@@ -676,34 +634,6 @@ cb_bucket_connected_p(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     return (bucket->handle && bucket->connected) ? Qtrue : Qfalse;
-}
-
-/* Document-method: async?
- * Check whether the connection asynchronous.
- *
- * @since 1.0.0
- *
- * By default all operations are synchronous and block waiting for
- * results, but you can make them asynchronous and run event loop
- * explicitly. (see {Bucket#run})
- *
- * @example Return value of #get operation depending on async flag
- *   connection = Connection.new
- *   connection.async?      #=> false
- *
- *   connection.run do |conn|
- *     conn.async?          #=> true
- *   end
- *
- * @return [true, false] +true+ if the connection if asynchronous
- *
- * @see Bucket#run
- */
-VALUE
-cb_bucket_async_p(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    return bucket->async ? Qtrue : Qfalse;
 }
 
 VALUE
@@ -801,77 +731,6 @@ cb_bucket_default_format_set(VALUE self, VALUE val)
     }
 
     return val;
-}
-
-VALUE
-cb_bucket_on_error_set(VALUE self, VALUE val)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-
-    if (rb_respond_to(val, cb_id_call)) {
-        bucket->on_error_proc = val;
-    } else {
-        bucket->on_error_proc = Qnil;
-    }
-
-    return bucket->on_error_proc;
-}
-
-VALUE
-cb_bucket_on_error_get(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-
-    if (rb_block_given_p()) {
-        return cb_bucket_on_error_set(self, rb_block_proc());
-    } else {
-        return bucket->on_error_proc;
-    }
-}
-
-static VALUE
-trigger_on_connect_callback_block(VALUE nil, VALUE self)
-{
-    (void)nil;
-    return trigger_on_connect_callback(self);
-}
-
-VALUE
-cb_bucket_on_connect_set(VALUE self, VALUE val)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-
-    if (rb_respond_to(val, cb_id_call)) {
-        bucket->on_connect_proc = val;
-        if (bucket->trigger_connect_cb_on_set) {
-            bucket->trigger_connect_cb_on_set = 0;
-            if (bucket->async) {
-                VALUE args[] = {INT2FIX(0)};
-                /* setup timer with zero interval to call on_connect
-                 * callback on the next tick */
-                rb_block_call(bucket->self, cb_id_create_timer, 1, args, trigger_on_connect_callback_block,
-                              bucket->self);
-            } else {
-                trigger_on_connect_callback(self);
-            }
-        }
-    } else {
-        bucket->on_connect_proc = Qnil;
-    }
-
-    return bucket->on_connect_proc;
-}
-
-VALUE
-cb_bucket_on_connect_get(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-
-    if (rb_block_given_p()) {
-        return cb_bucket_on_connect_set(self, rb_block_proc());
-    } else {
-        return bucket->on_connect_proc;
-    }
 }
 
 VALUE
@@ -1216,161 +1075,6 @@ cb_maybe_do_loop(struct cb_bucket_st *bucket)
     if (bucket->threshold != 0 && bucket->nbytes > bucket->threshold) {
         do_loop(bucket);
     }
-}
-
-static VALUE
-do_run(VALUE *args)
-{
-    VALUE self = args[0], opts = args[1], proc = args[2], exc;
-    VALUE was_async = args[3];
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-
-    if (bucket->handle == NULL) {
-        rb_raise(cb_eConnectError, "closed connection");
-    }
-
-    if (bucket->running) {
-        rb_raise(cb_eInvalidError, "nested #run");
-    }
-    bucket->threshold = 0;
-    if (opts != Qnil) {
-        VALUE arg;
-        Check_Type(opts, T_HASH);
-        arg = rb_hash_aref(opts, cb_sym_send_threshold);
-        if (arg != Qnil) {
-            bucket->threshold = (uint32_t)NUM2ULONG(arg);
-        }
-    }
-    bucket->async = 1;
-    bucket->running = 1;
-    if (proc != Qnil) {
-        cb_proc_call(bucket, proc, 1, self);
-    }
-    if (bucket->exception != Qnil) {
-        exc = bucket->exception;
-        bucket->exception = Qnil;
-        if (was_async) {
-            cb_async_error_notify(bucket, exc);
-            /* XXX return here? */
-        } else {
-            rb_exc_raise(exc);
-        }
-    }
-    do_loop(bucket);
-    if (bucket->exception != Qnil) {
-        exc = bucket->exception;
-        bucket->exception = Qnil;
-        if (!was_async) {
-            rb_exc_raise(exc);
-        }
-        /* async connections notified immediately from the callbacks
-         * via cb_async_error_notify() */
-    }
-    return Qnil;
-}
-
-static VALUE
-ensure_run(VALUE *args)
-{
-    VALUE self = args[0];
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-
-    bucket->running = 0;
-    bucket->async = args[3];
-    bucket->running = args[4];
-    return Qnil;
-}
-
-/*
- * Run the event loop.
- *
- * @since 1.0.0
- *
- * @param [Hash] options The options for operation for connection
- * @option options [Fixnum] :send_threshold (0) if the internal command
- *   buffer will exceeds this value, then the library will start network
- *   interaction and block the current thread until all scheduled commands
- *   will be completed.
- *
- * @yieldparam [Bucket] bucket the bucket instance
- *
- * @example Use block to run the loop
- *   c = Couchbase.new
- *   c.run do
- *     c.get("foo") {|ret| puts ret.value}
- *   end
- *
- * @example Use lambda to run the loop
- *   c = Couchbase.new
- *   operations = lambda do |c|
- *     c.get("foo") {|ret| puts ret.value}
- *   end
- *   c.run(&operations)
- *
- * @example Use threshold to send out commands automatically
- *   c = Couchbase.connect
- *   sent = 0
- *   c.run(:send_threshold => 8192) do  # 8Kb
- *     c.set("foo1", "x" * 100) {|r| sent += 1}
- *     # 128 bytes buffered, sent is 0 now
- *     c.set("foo2", "x" * 10000) {|r| sent += 1}
- *     # 10028 bytes added, sent is 2 now
- *     c.set("foo3", "x" * 100) {|r| sent += 1}
- *   end
- *   # all commands were executed and sent is 3 now
- *
- * @example Use {Couchbase::Bucket#run} without block for async connection
- *   c = Couchbase.new(:async => true)
- *   c.run      # ensure that instance connected
- *   c.set("foo", "bar"){|r| puts r.cas}
- *   c.run
- *
- * @return [nil]
- *
- * @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
- */
-VALUE
-cb_bucket_run(int argc, VALUE *argv, VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    VALUE args[5];
-
-    /* it is allowed to omit block for async connections */
-    if (!bucket->async) {
-        rb_need_block();
-    }
-    args[0] = self;
-    rb_scan_args(argc, argv, "01&", &args[1], &args[2]);
-    args[3] = bucket->async;
-    args[4] = bucket->running;
-    rb_ensure(do_run, (VALUE)args, ensure_run, (VALUE)args);
-    return Qnil;
-}
-
-/*
- * Stop the event loop.
- *
- * @since 1.2.0
- *
- * @example Breakout the event loop when 5th request is completed
- *   c = Couchbase.connect
- *   c.run do
- *     10.times do |ii|
- *       c.get("foo") do |ret|
- *         puts ii
- *         c.stop if ii == 5
- *       end
- *     end
- *   end
- *
- * @return [nil]
- */
-VALUE
-cb_bucket_stop(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    lcb_breakout(bucket->handle);
-    return Qnil;
 }
 
 /*

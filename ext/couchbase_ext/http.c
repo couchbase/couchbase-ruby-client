@@ -69,11 +69,8 @@ cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *
         cb_proc_call(bucket, ctx->proc, 1, res);
         ctx->proc = Qnil;
     }
-    if (!bucket->async && ctx->exception == Qnil) {
+    if (ctx->exception == Qnil) {
         ctx->rv = res;
-    }
-    if (bucket->async) {
-        cb_context_free(ctx);
     }
     (void)handle;
     (void)request;
@@ -310,21 +307,17 @@ cb_http_request_perform(VALUE self)
     }
     req->running = 1;
     req->ctx = ctx;
-    if (bucket->async) {
-        return Qnil;
-    } else {
-        lcb_wait(bucket->handle);
-        if (req->completed) {
-            rv = ctx->rv;
-            exc = ctx->exception;
-            cb_context_free(ctx);
-            if (exc != Qnil) {
-                rb_exc_raise(exc);
-            }
-            return rv;
-        } else {
-            return Qnil;
+    lcb_wait(bucket->handle);
+    if (req->completed) {
+        rv = ctx->rv;
+        exc = ctx->exception;
+        cb_context_free(ctx);
+        if (exc != Qnil) {
+            rb_exc_raise(exc);
         }
+        return rv;
+    } else {
+        return Qnil;
     }
     return Qnil;
 }

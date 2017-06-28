@@ -22,7 +22,7 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE key, val, flags, cas, exc = Qnil, res, raw;
+    VALUE key, val, flags, cas, exc = Qnil, raw;
 
     ctx->nqueries--;
     key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
@@ -54,40 +54,24 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
     } else {
         val = flags = cas = Qnil;
     }
-    if (bucket->async) { /* asynchronous */
-        if (ctx->proc != Qnil) {
-            res = rb_class_new_instance(0, NULL, cb_cResult);
-            rb_ivar_set(res, cb_id_iv_error, exc);
-            rb_ivar_set(res, cb_id_iv_operation, cb_sym_get);
-            rb_ivar_set(res, cb_id_iv_key, key);
-            rb_ivar_set(res, cb_id_iv_value, val);
-            rb_ivar_set(res, cb_id_iv_flags, flags);
-            rb_ivar_set(res, cb_id_iv_cas, cas);
-            cb_proc_call(bucket, ctx->proc, 1, res);
+    if (NIL_P(exc) && error != LCB_KEY_ENOENT) {
+        if (ctx->extended) {
+            val = rb_ary_new3(3, val, flags, cas);
         }
-    } else { /* synchronous */
-        if (NIL_P(exc) && error != LCB_KEY_ENOENT) {
-            if (ctx->extended) {
-                val = rb_ary_new3(3, val, flags, cas);
+        if (ctx->all_replicas) {
+            VALUE ary = rb_hash_aref(ctx->rv, key);
+            if (NIL_P(ary)) {
+                ary = rb_ary_new();
+                rb_hash_aset(ctx->rv, key, ary);
             }
-            if (ctx->all_replicas) {
-                VALUE ary = rb_hash_aref(ctx->rv, key);
-                if (NIL_P(ary)) {
-                    ary = rb_ary_new();
-                    rb_hash_aset(ctx->rv, key, ary);
-                }
-                rb_ary_push(ary, val);
-            } else {
-                rb_hash_aset(ctx->rv, key, val);
-            }
+            rb_ary_push(ary, val);
+        } else {
+            rb_hash_aset(ctx->rv, key, val);
         }
     }
 
     if (ctx->nqueries == 0) {
         ctx->proc = Qnil;
-        if (bucket->async) {
-            cb_context_free(ctx);
-        }
     }
     (void)handle;
 }
@@ -111,8 +95,6 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *     absolute times (from the epoch).
  *   @option options [true, false] :quiet (self.quiet) If set to +true+, the
  *     operation won't raise error for missing key, it will return +nil+.
- *     Otherwise it will raise error in synchronous mode. In asynchronous
- *     mode this option ignored.
  *   @option options [Symbol] :format (nil) Explicitly choose the decoder
  *     for this key (+:plain+, +:document+, +:marshal+). See
  *     {Bucket#default_format}.
@@ -135,10 +117,6 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *     and return first successful response, skipping all failures.
  *     It is also possible to query all replicas in parallel using
  *     the +:all+ option, or pass a replica index, starting from zero.
- *
- *   @yieldparam ret [Result] the result of operation in asynchronous mode
- *     (valid attributes: +error+, +operation+, +key+, +value+, +flags+,
- *     +cas+).
  *
  *   @return [Object, Array, Hash] the value(s) (or tuples in extended mode)
  *     associated with the key.
@@ -176,18 +154,6 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *   @example Extended get multiple keys
  *     c.get("foo", "bar", :extended => true)
  *     #=> {"foo" => [val1, flags1, cas1], "bar" => [val2, flags2, cas2]}
- *
- *   @example Asynchronous get
- *     c.run do
- *       c.get("foo", "bar", "baz") do |res|
- *         ret.operation   #=> :get
- *         ret.success?    #=> true
- *         ret.key         #=> "foo", "bar" or "baz" in separate calls
- *         ret.value
- *         ret.flags
- *         ret.cas
- *       end
- *     end
  *
  *   @example Get and lock key using default timeout
  *     c.get("foo", :lock => true)
@@ -231,7 +197,7 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE rv, proc, exc;
+    VALUE rv, exc;
     size_t ii;
     lcb_error_t err = LCB_SUCCESS;
     struct cb_params_st params;
@@ -241,15 +207,12 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
     }
 
     memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*&", &params.args, &proc);
-    if (!bucket->async && proc != Qnil) {
-        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
-    }
+    rb_scan_args(argc, argv, "0*", &params.args);
     params.type = cb_cmd_get;
     params.bucket = bucket;
     params.cmd.get.keys_ary = rb_ary_new();
     cb_params_build(&params);
-    ctx = cb_context_alloc_common(bucket, proc, params.cmd.get.num);
+    ctx = cb_context_alloc_common(bucket, params.cmd.get.num);
     ctx->extended = params.cmd.get.extended;
     ctx->quiet = params.cmd.get.quiet;
     ctx->transcoder = params.cmd.get.transcoder;
@@ -270,44 +233,39 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
-    if (bucket->async) {
-        cb_maybe_do_loop(bucket);
-        return Qnil;
+    if (ctx->nqueries > 0) {
+        /* we have some operations pending */
+        lcb_wait(bucket->handle);
+    }
+    exc = ctx->exception;
+    rv = ctx->rv;
+    cb_context_free(ctx);
+    if (exc != Qnil) {
+        rb_exc_raise(exc);
+    }
+    exc = bucket->exception;
+    if (exc != Qnil) {
+        bucket->exception = Qnil;
+        rb_exc_raise(exc);
+    }
+    if (params.cmd.get.gat || params.cmd.get.assemble_hash ||
+        (params.cmd.get.extended && (params.cmd.get.num > 1 || params.cmd.get.array))) {
+        return rv; /* return as a hash {key => [value, flags, cas], ...} */
+    }
+    if (params.cmd.get.num > 1 || params.cmd.get.array) {
+        VALUE keys, ret;
+        ret = rb_ary_new();
+        /* make sure ret is guarded so not invisible in a register
+         * when stack scanning */
+        RB_GC_GUARD(ret);
+        keys = params.cmd.get.keys_ary;
+        for (ii = 0; ii < params.cmd.get.num; ++ii) {
+            rb_ary_push(ret, rb_hash_aref(rv, rb_ary_entry(keys, ii)));
+        }
+        return ret; /* return as an array [value1, value2, ...] */
     } else {
-        if (ctx->nqueries > 0) {
-            /* we have some operations pending */
-            lcb_wait(bucket->handle);
-        }
-        exc = ctx->exception;
-        rv = ctx->rv;
-        cb_context_free(ctx);
-        if (exc != Qnil) {
-            rb_exc_raise(exc);
-        }
-        exc = bucket->exception;
-        if (exc != Qnil) {
-            bucket->exception = Qnil;
-            rb_exc_raise(exc);
-        }
-        if (params.cmd.get.gat || params.cmd.get.assemble_hash ||
-            (params.cmd.get.extended && (params.cmd.get.num > 1 || params.cmd.get.array))) {
-            return rv; /* return as a hash {key => [value, flags, cas], ...} */
-        }
-        if (params.cmd.get.num > 1 || params.cmd.get.array) {
-            VALUE keys, ret;
-            ret = rb_ary_new();
-            /* make sure ret is guarded so not invisible in a register
-             * when stack scanning */
-            RB_GC_GUARD(ret);
-            keys = params.cmd.get.keys_ary;
-            for (ii = 0; ii < params.cmd.get.num; ++ii) {
-                rb_ary_push(ret, rb_hash_aref(rv, rb_ary_entry(keys, ii)));
-            }
-            return ret; /* return as an array [value1, value2, ...] */
-        } else {
-            VALUE vv = Qnil;
-            rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
-            return vv;
-        }
+        VALUE vv = Qnil;
+        rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
+        return vv;
     }
 }

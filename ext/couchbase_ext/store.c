@@ -17,29 +17,6 @@
 
 #include "couchbase_ext.h"
 
-static VALUE
-storage_observe_callback(VALUE args, VALUE cookie)
-{
-    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
-    struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE res = rb_ary_shift(args);
-
-    if (ctx->proc != Qnil) {
-        rb_ivar_set(res, cb_id_iv_operation, ctx->operation);
-        cb_proc_call(bucket, ctx->proc, 1, res);
-    }
-    if (!RTEST(ctx->observe_options)) {
-        ctx->nqueries--;
-        if (ctx->nqueries == 0) {
-            ctx->proc = Qnil;
-            if (bucket->async) {
-                cb_context_free(ctx);
-            }
-        }
-    }
-    return Qnil;
-}
-
 VALUE
 storage_opcode_to_sym(lcb_storage_t operation)
 {
@@ -65,7 +42,7 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, l
 {
     struct cb_context_st *ctx = (struct cb_context_st *)cookie;
     struct cb_bucket_st *bucket = ctx->bucket;
-    VALUE key, cas, exc, res;
+    VALUE key, cas, exc;
 
     key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
     cb_strip_key_prefix(bucket, key);
@@ -79,33 +56,12 @@ cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, l
         ctx->exception = exc;
     }
 
-    if (bucket->async) { /* asynchronous */
-        if (RTEST(ctx->observe_options)) {
-            VALUE args[2]; /* it's ok to pass pointer to stack struct here */
-            args[0] = rb_hash_new();
-            rb_hash_aset(args[0], key, cas);
-            args[1] = ctx->observe_options;
-            rb_block_call(bucket->self, cb_id_observe_and_wait, 2, args, storage_observe_callback, (VALUE)ctx);
-            ctx->observe_options = Qnil;
-        } else if (ctx->proc != Qnil) {
-            res = rb_class_new_instance(0, NULL, cb_cResult);
-            rb_ivar_set(res, cb_id_iv_error, exc);
-            rb_ivar_set(res, cb_id_iv_key, key);
-            rb_ivar_set(res, cb_id_iv_operation, ctx->operation);
-            rb_ivar_set(res, cb_id_iv_cas, cas);
-            cb_proc_call(bucket, ctx->proc, 1, res);
-        }
-    } else { /* synchronous */
-        rb_hash_aset(ctx->rv, key, cas);
-    }
+    rb_hash_aset(ctx->rv, key, cas);
 
     if (!RTEST(ctx->observe_options)) {
         ctx->nqueries--;
         if (ctx->nqueries == 0) {
             ctx->proc = Qnil;
-            if (bucket->async) {
-                cb_context_free(ctx);
-            }
         }
     }
     (void)handle;
@@ -116,7 +72,7 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE rv, proc, exc, obs = Qnil;
+    VALUE rv, exc, obs = Qnil;
     lcb_error_t err;
     struct cb_params_st params;
 
@@ -124,21 +80,15 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
         return Qnil;
     }
     memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*&", &params.args, &proc);
-    if (!bucket->async && proc != Qnil) {
-        rb_raise(rb_eArgError, "synchronous mode doesn't support callbacks");
-    }
+    rb_scan_args(argc, argv, "0*", &params.args);
     params.type = cb_cmd_store;
     params.bucket = bucket;
     params.cmd.store.operation = cmd;
     cb_params_build(&params);
     obs = params.cmd.store.observe;
     ctx = cb_context_alloc(bucket);
-    if (!bucket->async) {
-        ctx->rv = rb_hash_new();
-        ctx->observe_options = obs;
-    }
-    ctx->proc = proc;
+    ctx->rv = rb_hash_new();
+    ctx->observe_options = obs;
     ctx->nqueries = params.cmd.store.num;
     err = lcb_store(bucket->handle, (const void *)ctx, params.cmd.store.num, params.cmd.store.ptr);
     cb_params_destroy(&params);
@@ -148,35 +98,30 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
         rb_exc_raise(exc);
     }
     bucket->nbytes += params.npayload;
-    if (bucket->async) {
-        cb_maybe_do_loop(bucket);
-        return Qnil;
+    if (ctx->nqueries > 0) {
+        /* we have some operations pending */
+        lcb_wait(bucket->handle);
+    }
+    exc = ctx->exception;
+    rv = ctx->rv;
+    cb_context_free(ctx);
+    if (exc != Qnil) {
+        rb_exc_raise(exc);
+    }
+    exc = bucket->exception;
+    if (exc != Qnil) {
+        bucket->exception = Qnil;
+        rb_exc_raise(exc);
+    }
+    if (RTEST(obs)) {
+        rv = rb_funcall(bucket->self, cb_id_observe_and_wait, 2, rv, obs);
+    }
+    if (params.cmd.store.num > 1) {
+        return rv; /* return as a hash {key => cas, ...} */
     } else {
-        if (ctx->nqueries > 0) {
-            /* we have some operations pending */
-            lcb_wait(bucket->handle);
-        }
-        exc = ctx->exception;
-        rv = ctx->rv;
-        cb_context_free(ctx);
-        if (exc != Qnil) {
-            rb_exc_raise(exc);
-        }
-        exc = bucket->exception;
-        if (exc != Qnil) {
-            bucket->exception = Qnil;
-            rb_exc_raise(exc);
-        }
-        if (RTEST(obs)) {
-            rv = rb_funcall(bucket->self, cb_id_observe_and_wait, 2, rv, obs);
-        }
-        if (params.cmd.store.num > 1) {
-            return rv; /* return as a hash {key => cas, ...} */
-        } else {
-            VALUE vv = Qnil;
-            rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
-            return vv;
-        }
+        VALUE vv = Qnil;
+        rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
+        return vv;
     }
 }
 
@@ -208,9 +153,6 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
  *     returning result. When this option specified the library will observe
  *     given condition. See {Bucket#observe_and_wait}.
  *
- *   @yieldparam ret [Result] the result of operation in asynchronous mode
- *     (valid attributes: +error+, +operation+, +key+).
- *
  *   @return [Fixnum] The CAS value of the object.
  *
  *   @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect}).
@@ -230,18 +172,6 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
  *     c.set("foo1" => "bar1", "foo2" => "bar2")
  *     #=> {"foo1" => cas1, "foo2" => cas2}
  *
- *   @example More advanced multi-set using asynchronous mode
- *     c.run do
- *       # fire and forget
- *       c.set("foo1", "bar1", :ttl => 10)
- *       # receive result into the callback
- *       c.set("foo2", "bar2", :ttl => 10) do |ret|
- *         if ret.success?
- *           puts ret.cas
- *         end
- *       end
- *     end
- *
  *   @example Store the key which will be expired in 2 seconds using absolute TTL.
  *     c.set("foo", "bar", :ttl => Time.now.to_i + 2)
  *
@@ -260,16 +190,6 @@ cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
  *
  *   @example Perform optimistic locking by specifying last known CAS version
  *     c.set("foo", "bar", :cas => 8835713818674332672)
- *
- *   @example Perform asynchronous call
- *     c.run do
- *       c.set("foo", "bar") do |ret|
- *         ret.operation   #=> :set
- *         ret.success?    #=> true
- *         ret.key         #=> "foo"
- *         ret.cas
- *       end
- *     end
  *
  *   @example Ensure that the key will be persisted at least on the one node
  *     c.set("foo", "bar", :observe => {:persisted => 1})
@@ -307,9 +227,6 @@ cb_bucket_set(int argc, VALUE *argv, VALUE self)
  *   @option options [Hash] :observe Apply persistence condition before
  *     returning result. When this option specified the library will observe
  *     given condition. See {Bucket#observe_and_wait}.
- *
- *   @yieldparam ret [Result] the result of operation in asynchronous mode
- *     (valid attributes: +error+, +operation+, +key+).
  *
  *   @return [Fixnum] The CAS value of the object.
  *
