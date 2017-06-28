@@ -279,10 +279,6 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
                     bucket->engine = cb_sym_libev;
                 } else if (arg == cb_sym_libevent) {
                     bucket->engine = cb_sym_libevent;
-#ifdef BUILD_EVENTMACHINE_PLUGIN
-                } else if (arg == cb_sym_eventmachine) {
-                    bucket->engine = cb_sym_eventmachine;
-#endif
 #endif
                 } else {
                     VALUE ins = rb_funcall(arg, rb_intern("inspect"), 0);
@@ -311,17 +307,6 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
     bucket->authority = rb_str_dup(bucket->hostname);
     rb_str_cat2(bucket->authority, port_s);
     rb_str_freeze(bucket->authority);
-}
-
-    static VALUE
-em_disconnect_block(VALUE unused, VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    if (bucket->handle) {
-        return cb_bucket_disconnect(self);
-    }
-    (void)unused;
-    return Qnil;
 }
 
     static void
@@ -354,12 +339,6 @@ do_connect(struct cb_bucket_st *bucket)
 #endif
         } else if (bucket->engine == cb_sym_libev) {
             ciops.v.v0.type = LCB_IO_OPS_LIBEV;
-#ifdef BUILD_EVENTMACHINE_PLUGIN
-        } else if (bucket->engine == cb_sym_eventmachine) {
-            ciops.version = 2;
-            ciops.v.v2.create = cb_create_ruby_em_io_opts;
-            ciops.v.v2.cookie = bucket;
-#endif
         } else {
 #ifdef _WIN32
             ciops.v.v0.type = LCB_IO_OPS_DEFAULT;
@@ -425,10 +404,6 @@ do_connect(struct cb_bucket_st *bucket)
         rb_exc_raise(cb_check_error(err, "failed to connect libcouchbase instance to server", Qnil));
     }
     bucket->exception = Qnil;
-    if (bucket->engine == cb_sym_eventmachine && !bucket->async_disconnect_hook_set) {
-        bucket->async_disconnect_hook_set = 1;
-        rb_block_call(em_m, cb_id_add_shutdown_hook, 0, NULL, em_disconnect_block, bucket->self);
-    }
     if (!bucket->async) {
         lcb_wait(bucket->handle);
         if (bucket->exception != Qnil) {
@@ -515,7 +490,6 @@ cb_bucket_alloc(VALUE klass)
  *     :iocp         :: "I/O Completion Ports" plugin from libcouchbase (windows only)
  *     :libevent     :: libevent IO plugin from libcouchbase (optional)
  *     :libev        :: libev IO plugin from libcouchbase (optional)
- *     :eventmachine :: EventMachine plugin (builtin, but requires EM gem and ruby 1.9+)
  *   @option options [true, false] :async (false) If true, the
  *     connection instance will be considered always asynchronous and
  *     IO interaction will be occured only when {Couchbase::Bucket#run}
@@ -587,7 +561,6 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->destroying = 0;
     bucket->connected = 0;
     bucket->on_connect_proc = Qnil;
-    bucket->async_disconnect_hook_set = 0;
 
     do_scan_connection_options(bucket, argc, argv);
     do_connect(bucket);
@@ -638,7 +611,6 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->environment = orig_b->environment;
     copy_b->timeout = orig_b->timeout;
     copy_b->exception = Qnil;
-    copy_b->async_disconnect_hook_set = 0;
     if (orig_b->on_error_proc != Qnil) {
         copy_b->on_error_proc = rb_funcall(orig_b->on_error_proc, cb_id_dup, 0);
     }

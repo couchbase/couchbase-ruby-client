@@ -1,7 +1,0 @@
-source :rubygems
-
-gem 'eventmachine'
-
-# couchbase dependencies
-gem 'yaji'
-gem 'multi_json'

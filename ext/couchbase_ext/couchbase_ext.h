@@ -32,9 +32,6 @@
 #include <st.h>
 #endif
 
-#if defined(HAVE_RB_FIBER_YIELD) && !defined(_WIN32)
-#define BUILD_EVENTMACHINE_PLUGIN
-#endif
 #ifdef HAVE_RUBY_THREAD_H
 #include <ruby/thread.h>
 #endif
@@ -139,7 +136,6 @@ struct cb_bucket_st
     VALUE bootstrap_transports;
     st_table *object_space;
     char destroying;
-    char async_disconnect_hook_set;
     VALUE self;             /* the pointer to bucket representation in ruby land */
 };
 
@@ -202,7 +198,6 @@ extern VALUE cb_mPlain;
 extern VALUE cb_mMarshal;
 extern VALUE cb_mURI;
 extern VALUE cb_mMultiJson;
-extern VALUE em_m;
 
 /* Symbols */
 extern ID cb_sym_add;
@@ -233,7 +228,6 @@ extern ID cb_sym_development;
 extern ID cb_sym_document;
 extern ID cb_sym_engine;
 extern ID cb_sym_environment;
-extern ID cb_sym_eventmachine;
 extern ID cb_sym_extended;
 extern ID cb_sym_first;
 extern ID cb_sym_flags;
@@ -650,10 +644,6 @@ int cb_io_connect(struct lcb_io_opt_st *iops, lcb_socket_t sock, const struct so
 /* plugin init functions */
 LIBCOUCHBASE_API
 lcb_error_t cb_create_ruby_mt_io_opts(int version, lcb_io_opt_t *io, void *arg);
-#ifdef BUILD_EVENTMACHINE_PLUGIN
-LIBCOUCHBASE_API
-lcb_error_t cb_create_ruby_em_io_opts(int version, lcb_io_opt_t *io, void *arg);
-#endif
 
 /* shortcut functions */
     static inline VALUE

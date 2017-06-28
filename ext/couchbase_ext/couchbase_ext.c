@@ -33,7 +33,6 @@ VALUE cb_mPlain;
 VALUE cb_mMarshal;
 VALUE cb_mURI;
 VALUE cb_mMultiJson;
-VALUE em_m;
 
 /* Symbols */
 ID cb_sym_add;
@@ -64,7 +63,6 @@ ID cb_sym_development;
 ID cb_sym_document;
 ID cb_sym_engine;
 ID cb_sym_environment;
-ID cb_sym_eventmachine;
 ID cb_sym_extended;
 ID cb_sym_first;
 ID cb_sym_flags;
@@ -235,9 +233,6 @@ extern "C"
 Init_couchbase_ext(void)
 {
     VALUE interned;
-
-    /* just a holder for EventMachine module */
-    em_m = 0;
 
     cb_mMultiJson = rb_const_get(rb_cObject, rb_intern("MultiJson"));
     cb_mURI = rb_const_get(rb_cObject, rb_intern("URI"));
@@ -1095,26 +1090,6 @@ Init_couchbase_ext(void)
      *     end
      *   end
      *
-     * @example
-     *   EM.run do
-     *     pool = Pool.new
-     *     connection = Couchbase.new(:engine => :eventmachine, :async => true)
-     *     connection.on_connect do |result|
-     *       unless result.success?
-     *         $stderr.puts "Could not connect to CouchBase #{result.error}"
-     *       else
-     *         pool.add result.bucket
-     *       end
-     *     end
-     *   end
-     *
-     * @example
-     *   EM.run do
-     *     pool = Pool.new
-     *     connection = Couchbase.new(:engine => :eventmachine, :async => true)
-     *     connection.on_connect = pool.method(:couchbase_connect_callback)
-     *   end
-     *
      * @return [Proc] the effective callback */
     /* rb_define_attr(cb_cBucket, "on_connect", 1, 1); */
     rb_define_method(cb_cBucket, "on_connect", cb_bucket_on_connect_get, 0);
@@ -1417,7 +1392,6 @@ Init_couchbase_ext(void)
     cb_sym_document = ID2SYM(rb_intern("document"));
     cb_sym_engine = ID2SYM(rb_intern("engine"));
     cb_sym_environment = ID2SYM(rb_intern("environment"));
-    cb_sym_eventmachine = ID2SYM(rb_intern("eventmachine"));
     cb_sym_extended = ID2SYM(rb_intern("extended"));
     cb_sym_first = ID2SYM(rb_intern("first"));
     cb_sym_flags = ID2SYM(rb_intern("flags"));

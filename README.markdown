@@ -484,35 +484,6 @@ choose from several asynchronous IO options:
   correspondingly. Currently they aren't so friendly to GVL but still
   useful.
 
-* `:eventmachine` engine. From version 1.2.2 it is possible to use
-  great [EventMachine][9] library as underlying IO backend and
-  integrate couchbase gem to your current asynchronous application.
-  This engine will be only accessible on the MRI ruby 1.9+. Checkout
-  simple example of usage:
-
-        require 'eventmachine'
-        require 'couchbase'
-
-        EM.epoll = true  if EM.epoll?
-        EM.kqueue = true  if EM.kqueue?
-        EM.run do
-          con = Couchbase.connect :engine => :eventmachine, :async => true
-          con.on_connect do |res|
-            puts "connected: #{res.inspect}"
-            if res.success?
-              con.set("emfoo", "bar") do |res|
-                puts "set: #{res.inspect}"
-                con.get("emfoo") do |res|
-                  puts "get: #{res.inspect}"
-                  EM.stop
-                end
-              end
-            else
-              EM.stop
-            end
-          end
-        end
-
 ## HACKING
 
 Clone the repository. For starters, you can use github mirror, but
@@ -597,7 +568,6 @@ task and you will find all artifacts in `pkg/` directory:
 [6]: https://rubygems.org/gems/couchbase-model
 [7]: https://github.com/couchbase/couchbase-ruby-model
 [8]: http://www.couchbase.com/develop/c/current
-[9]: http://rubygems.org/gems/eventmachine
 [10]: https://github.com/couchbase/couchbase-ruby-client/blob/master/CONTRIBUTING.markdown
 [11]: https://github.com/luislavena/rake-compiler
 [rbenv]: https://github.com/sstephenson/rbenv#homebrew-on-mac-os-x
