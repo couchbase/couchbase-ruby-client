@@ -130,14 +130,18 @@ def die(message)
   abort
 end
 
-install_notice = "You must install libcouchbase >= 2.4.5\nSee http://www.couchbase.com/communities/c/ for more details"
+minimal_lcb_version = '2.9.2'
+install_notice = "You must install libcouchbase >= #{minimal_lcb_version}
+See http://developer.couchbase.com/server/other-products/release-notes-archives/c-sdk for more details"
 
 unless try_compile(<<-SRC)
   #include <libcouchbase/couchbase.h>
   #include <stdio.h>
 
   int main() {
-    printf("CCCP transport flag is: %d\\n", LCB_CONFIG_TRANSPORT_CCCP);
+#if LCB_VERSION < 0x#{minimal_lcb_version.split('.').map { |x| format('%02x', x.to_i) }.join}
+#  error "libcouchbase is too old"
+#endif
     return 0;
   }
   SRC
