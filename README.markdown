@@ -207,6 +207,13 @@ Hash-like syntax
     c.set("foo", "bar", :cas => 8835713818674332672)
     c.set("foo", "bar"){|cas, key, operation|  }
 
+### Fetch
+    c.fetch(key, ttl){ some document }
+
+    c.fetch(key, ttl) do                  # default ttl is 0
+      some document
+    end
+
 ### Add
 
 The add command will fail if the key already exists. It accepts the same

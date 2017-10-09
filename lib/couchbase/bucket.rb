@@ -454,4 +454,12 @@ module Couchbase
     end
   end
 
+  def fetch(key, ttl = 0)
+    cached_obj = get(key.to_s)
+    return cached_obj if cached_obj
+    value = yield
+    set(key.to_s, value, ttl: ttl.to_i)
+    value
+  end
+  
 end
