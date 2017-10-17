@@ -342,6 +342,14 @@ module Couchbase
       end
     end
 
+    def fetch(key, ttl = 0)
+      cached_obj = get(key)
+      return cached_obj if cached_obj
+      value = yield
+      set(key, value, ttl: ttl)
+      value
+    end
+
     private
 
     def verify_observe_options(options)
