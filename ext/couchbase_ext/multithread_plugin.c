@@ -19,9 +19,6 @@
 
 #ifndef _WIN32
 
-#ifndef HAVE_RB_THREAD_BLOCKING_REGION
-#include <rubysig.h>
-#endif
 #include <errno.h>
 #ifdef HAVE_POLL
 #include <poll.h>

@@ -21,7 +21,6 @@
 VALUE cb_cBucket;
 VALUE cb_cCouchRequest;
 VALUE cb_cResult;
-VALUE cb_cTimer;
 
 /* Modules */
 VALUE cb_mCouchbase;
@@ -1253,12 +1252,6 @@ extern "C"
     /* rb_define_attr(cb_cCouchRequest, "chunked", 1, 0); */
     rb_define_method(cb_cCouchRequest, "chunked", cb_http_request_chunked_get, 0);
     rb_define_alias(cb_cCouchRequest, "chunked?", "chunked");
-
-    cb_cTimer = rb_define_class_under(cb_mCouchbase, "Timer", rb_cObject);
-    rb_define_alloc_func(cb_cTimer, cb_timer_alloc);
-    rb_define_method(cb_cTimer, "initialize", cb_timer_init, -1);
-    rb_define_method(cb_cTimer, "inspect", cb_timer_inspect, 0);
-    rb_define_method(cb_cTimer, "cancel", cb_timer_cancel, 0);
 
     /* Define cb_symbols */
     cb_id_add_shutdown_hook = rb_intern("add_shutdown_hook");

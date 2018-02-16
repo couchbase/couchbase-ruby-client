@@ -175,7 +175,6 @@ struct cb_timer_st {
 extern VALUE cb_cBucket;
 extern VALUE cb_cCouchRequest;
 extern VALUE cb_cResult;
-extern VALUE cb_cTimer;
 
 /* Modules */
 extern VALUE cb_mCouchbase;

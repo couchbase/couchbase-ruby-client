@@ -9,6 +9,7 @@ bugfixes. Do not forget to update this doc in every important patch.
   * removed asynchronous mode
   * removed key prefix support
   * use Result instances instead of primitives and tuples
+  * remove timer API
 
 ## 1.3 End-of-life Notice
 * [major] Couchbase Ruby Client 1.3 has gone to end of life for official
