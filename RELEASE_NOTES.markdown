@@ -3,6 +3,13 @@
 This document is a list of user visible feature changes and important
 bugfixes. Do not forget to update this doc in every important patch.
 
+## 1.3 End-of-life Notice
+* [major] Couchbase Ruby Client 1.3 has gone to end of life for official
+  support (Nov 2016).
+* Further improvements to the library
+  from the community are welcome and will be handled via pull requests on a
+  case-by-case basis.
+
 ## 1.3.13 (2015-05-16)
 
 * [major] RCBC-196 Improved integration with libcouchbase IO API

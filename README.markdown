@@ -1,6 +1,12 @@
 # Couchbase Ruby Client
 
-This is the official client library for use with Couchbase Server. There
+This client was the officially developed Ruby client for Couchbase Server.
+
+**As of version 1.3 it is no longer being actively developed officially by Couchbase.
+However, community contributions are encouraged via pull requests and will
+be reviewed on a case-by-case basis.**
+
+There
 are related libraries available:
 
 * [couchbase-model][6] the ActiveModel implementation, git repository:
