@@ -1015,56 +1015,17 @@ extern "C"
     rb_define_method(cb_cBucket, "default_arithmetic_init", cb_bucket_default_arithmetic_init_get, 0);
     rb_define_method(cb_cBucket, "default_arithmetic_init=", cb_bucket_default_arithmetic_init_set, 1);
 
-    /* Document-method: url
+    /* Document-method: connstr
      *
-     * The config url for this connection.
-     *
-     * Generally it is the bootstrap URL, but it could be different after
-     * cluster upgrade. This url is used to fetch the cluster
-     * configuration.
+     * The bootstrap url for this connection.
      *
      * @since 1.0.0
      *
      * @return [String] the address of the cluster management interface
      */
-    /* rb_define_attr(cb_cBucket, "url", 1, 0); */
-    rb_define_method(cb_cBucket, "url", cb_bucket_url_get, 0);
-    /* Document-method: hostname
-     *
-     * The hostname of the current node
-     *
-     * @see Bucket#url
-     *
-     * @since 1.0.0
-     *
-     * @return [String] the host name of the management interface (default: "localhost")
-     */
-    /* rb_define_attr(cb_cBucket, "hostname", 1, 0); */
-    rb_define_method(cb_cBucket, "hostname", cb_bucket_hostname_get, 0);
-    /* Document-method: port
-     *
-     * The port of the current node
-     *
-     * @see Bucket#url
-     *
-     * @since 1.0.0
-     *
-     * @return [Fixnum] the port number of the management interface (default: 8091)
-     */
-    /* rb_define_attr(cb_cBucket, "port", 1, 0); */
-    rb_define_method(cb_cBucket, "port", cb_bucket_port_get, 0);
-    /* Document-method: authority
-     *
-     * The authority ("hostname:port") of the current node
-     *
-     * @see Bucket#url
-     *
-     * @since 1.0.0
-     *
-     * @return [String] host with port
-     */
-    /* rb_define_attr(cb_cBucket, "authority", 1, 0); */
-    rb_define_method(cb_cBucket, "authority", cb_bucket_authority_get, 0);
+    /* rb_define_attr(cb_cBucket, "connstr", 1, 0); */
+    rb_define_method(cb_cBucket, "connstr", cb_bucket_connstr_get, 0);
+
     /* Document-method: bucket
      *
      * The bucket name of the current connection
@@ -1078,41 +1039,7 @@ extern "C"
     /* rb_define_attr(cb_cBucket, "bucket", 1, 0); */
     rb_define_method(cb_cBucket, "bucket", cb_bucket_bucket_get, 0);
     rb_define_alias(cb_cBucket, "name", "bucket");
-    /* Document-method: pool
-     *
-     * The pool name of the current connection
-     *
-     * @see Bucket#url
-     *
-     * @since 1.0.0
-     *
-     * @return [String] the pool name (usually "default")
-     */
-    /* rb_define_attr(cb_cBucket, "pool", 1, 0); */
-    rb_define_method(cb_cBucket, "pool", cb_bucket_pool_get, 0);
-    /* Document-method: username
-     *
-     * The user name used to connect to the cluster
-     *
-     * @see Bucket#url
-     *
-     * @since 1.0.0
-     *
-     * @return [String] the username for protected buckets (usually matches
-     *   the bucket name)
-     */
-    /* rb_define_attr(cb_cBucket, "username", 1, 0); */
-    rb_define_method(cb_cBucket, "username", cb_bucket_username_get, 0);
-    /* Document-method: password
-     *
-     * The password used to connect to the cluster
-     *
-     * @since 1.0.0
-     *
-     * @return [String] the password for protected buckets
-     */
-    /* rb_define_attr(cb_cBucket, "password", 1, 0); */
-    rb_define_method(cb_cBucket, "password", cb_bucket_password_get, 0);
+
     /* Document-method: environment
      *
      * The environment of the connection (+:development+ or +:production+)
@@ -1362,5 +1289,5 @@ extern "C"
     rb_const_set(cb_mCouchbase, rb_intern("_INTERNED"), interned);
     cb_vStrDefault = cb_intern_string(interned, "default");
     cb_vStrEmpty = cb_intern_string(interned, "");
-    cb_vStrLocalhost = cb_intern_string(interned, "localhost");
+    cb_vStrLocalhost = cb_intern_string(interned, "couchbase://localhost");
 }

@@ -60,15 +60,8 @@ cb_bucket_mark(void *ptr)
     struct cb_bucket_st *bucket = ptr;
 
     if (bucket) {
-        rb_gc_mark(bucket->authority);
-        rb_gc_mark(bucket->hostname);
-        rb_gc_mark(bucket->pool);
-        rb_gc_mark(bucket->bucket);
-        rb_gc_mark(bucket->username);
-        rb_gc_mark(bucket->password);
+        rb_gc_mark(bucket->connstr);
         rb_gc_mark(bucket->exception);
-        rb_gc_mark(bucket->node_list);
-        rb_gc_mark(bucket->bootstrap_transports);
         if (bucket->object_space) {
             st_foreach(bucket->object_space, cb_bucket_mark_object_i, (st_data_t)bucket);
         }
@@ -79,53 +72,17 @@ static void
 do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
 {
     VALUE uri, opts, arg;
-    char port_s[8];
 
     if (rb_scan_args(argc, argv, "02", &uri, &opts) > 0) {
         if (TYPE(uri) == T_HASH && argc == 1) {
             opts = uri;
             uri = Qnil;
         }
-        if (uri != Qnil) {
-            const char path_re[] = "^(/pools/([A-Za-z0-9_.-]+)(/buckets/([A-Za-z0-9_.-]+))?)?";
-            VALUE match, uri_obj, re;
-
+        if (NIL_P(uri)) {
+            bucket->connstr = cb_vStrLocalhost;
+        } else {
             Check_Type(uri, T_STRING);
-            uri_obj = rb_funcall(cb_mURI, cb_id_parse, 1, uri);
-
-            arg = rb_funcall(uri_obj, cb_id_scheme, 0);
-            if (arg == Qnil || rb_str_cmp(arg, STR_NEW_CSTR("http"))) {
-                rb_raise(rb_eArgError, "invalid URI: invalid scheme");
-            }
-
-            arg = rb_funcall(uri_obj, cb_id_user, 0);
-            if (arg != Qnil) {
-                bucket->username = rb_str_dup_frozen(StringValue(arg));
-            }
-
-            arg = rb_funcall(uri_obj, cb_id_password, 0);
-            if (arg != Qnil) {
-                bucket->password = rb_str_dup_frozen(StringValue(arg));
-            }
-            arg = rb_funcall(uri_obj, cb_id_host, 0);
-            if (arg != Qnil) {
-                bucket->hostname = rb_str_dup_frozen(StringValue(arg));
-            } else {
-                rb_raise(rb_eArgError, "invalid URI: missing hostname");
-            }
-
-            arg = rb_funcall(uri_obj, cb_id_port, 0);
-            bucket->port = NIL_P(arg) ? 8091 : (uint16_t)NUM2UINT(arg);
-
-            arg = rb_funcall(uri_obj, cb_id_path, 0);
-            re = rb_reg_new(path_re, sizeof(path_re) - 1, 0);
-            match = rb_funcall(re, cb_id_match, 1, arg);
-            arg = rb_reg_nth_match(2, match);
-            bucket->pool = NIL_P(arg) ? cb_vStrDefault : rb_str_dup_frozen(StringValue(arg));
-            rb_str_freeze(bucket->pool);
-            arg = rb_reg_nth_match(4, match);
-            bucket->bucket = NIL_P(arg) ? cb_vStrDefault : rb_str_dup_frozen(StringValue(arg));
-            rb_str_freeze(bucket->bucket);
+            bucket->connstr = uri;
         }
         if (TYPE(opts) == T_HASH) {
             arg = rb_hash_aref(opts, cb_sym_type);
@@ -138,31 +95,27 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_node_list);
             if (arg != Qnil) {
-                Check_Type(arg, T_ARRAY);
-                bucket->node_list = rb_ary_join(arg, STR_NEW_CSTR(";"));
-                rb_str_freeze(bucket->node_list);
+                rb_warning("passing a :node_list to Bucket#new is deprecated, use connection string");
             }
             arg = rb_hash_aref(opts, cb_sym_bootstrap_transports);
             if (arg != Qnil) {
-                Check_Type(arg, T_ARRAY);
-                bucket->bootstrap_transports = arg;
+                rb_warning("passing a :bootstrap_transports to Bucket#new is deprecated, use connection string option `bootstrap_on`");
             }
             arg = rb_hash_aref(opts, cb_sym_hostname);
             if (arg != Qnil) {
-                bucket->hostname = rb_str_dup_frozen(StringValue(arg));
+                rb_warning("passing a :hostname to Bucket#new is deprecated, use connection string");
             } else {
                 arg = rb_hash_aref(opts, cb_sym_host);
                 if (arg != Qnil) {
-                    bucket->hostname = rb_str_dup_frozen(StringValue(arg));
+                    rb_warning("passing a :host to Bucket#new is deprecated, use connection string");
                 }
             }
-            arg = rb_hash_aref(opts, cb_sym_pool);
-            if (arg != Qnil) {
-                bucket->pool = rb_str_dup_frozen(StringValue(arg));
+            if (rb_hash_aref(opts, cb_sym_pool) != Qnil) {
+                rb_warning("passing a :pool to Bucket#new is deprecated, use connection string");
             }
             arg = rb_hash_aref(opts, cb_sym_bucket);
             if (arg != Qnil) {
-                bucket->bucket = rb_str_dup_frozen(StringValue(arg));
+                rb_warning("passing a :bucket to Bucket#new is deprecated, use connection string");
             }
             arg = rb_hash_aref(opts, cb_sym_username);
             if (arg != Qnil) {
@@ -174,7 +127,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_port);
             if (arg != Qnil) {
-                bucket->port = (uint16_t)NUM2UINT(arg);
+                rb_warning("passing a :port to Bucket#new is deprecated, use connection string");
             }
             arg = rb_hash_lookup2(opts, cb_sym_quiet, Qundef);
             if (arg != Qundef) {
@@ -268,16 +221,9 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             opts = Qnil;
         }
     }
-    if (RTEST(bucket->password) && !RTEST(bucket->username)) {
-        bucket->username = bucket->bucket;
-    }
     if (bucket->default_observe_timeout < 2) {
         rb_raise(rb_eArgError, "default_observe_timeout is too low");
     }
-    snprintf(port_s, sizeof(port_s), ":%u", bucket->port);
-    bucket->authority = rb_str_dup(bucket->hostname);
-    rb_str_cat2(bucket->authority, port_s);
-    rb_str_freeze(bucket->authority);
 }
 
 static void
@@ -285,8 +231,6 @@ do_connect(struct cb_bucket_st *bucket)
 {
     lcb_error_t err;
     struct lcb_create_st create_opts;
-    lcb_config_transport_t transports[3] = {LCB_CONFIG_TRANSPORT_HTTP, LCB_CONFIG_TRANSPORT_LIST_END,
-                                            LCB_CONFIG_TRANSPORT_LIST_END};
 
     if (bucket->handle) {
         cb_bucket_disconnect(bucket->self);
@@ -323,28 +267,12 @@ do_connect(struct cb_bucket_st *bucket)
     }
 
     memset(&create_opts, 0, sizeof(struct lcb_create_st));
-    create_opts.version = 2;
-    create_opts.v.v2.type = bucket->type;
-    create_opts.v.v2.host = RTEST(bucket->node_list) ? RSTRING_PTR(bucket->node_list) : RSTRING_PTR(bucket->authority);
-    create_opts.v.v2.user = RTEST(bucket->username) ? RSTRING_PTR(bucket->username) : NULL;
+    create_opts.version = 3;
+    create_opts.v.v3.type = bucket->type;
+    create_opts.v.v3.connstr = RTEST(bucket->connstr) ? RSTRING_PTR(bucket->connstr) : NULL;
+    create_opts.v.v3.username = RTEST(bucket->username) ? RSTRING_PTR(bucket->username) : NULL;
     create_opts.v.v2.passwd = RTEST(bucket->password) ? RSTRING_PTR(bucket->password) : NULL;
-    create_opts.v.v2.bucket = RSTRING_PTR(bucket->bucket);
-    create_opts.v.v2.io = bucket->io;
-    if (RTEST(bucket->bootstrap_transports) && RARRAY_LEN(bucket->bootstrap_transports) > 0) {
-        int i;
-        for (i = 0; i < 2 && i < RARRAY_LEN(bucket->bootstrap_transports); ++i) {
-            VALUE transport_sym = rb_ary_entry(bucket->bootstrap_transports, i);
-            if (transport_sym == cb_sym_cccp) {
-                transports[i] = LCB_CONFIG_TRANSPORT_CCCP;
-            } else if (transport_sym == cb_sym_http) {
-                transports[i] = LCB_CONFIG_TRANSPORT_HTTP;
-            } else {
-                transports[i] = LCB_CONFIG_TRANSPORT_LIST_END;
-                break;
-            }
-        }
-    }
-    create_opts.v.v2.transports = transports;
+    create_opts.v.v3.io = bucket->io;
     err = lcb_create(&bucket->handle, &create_opts);
     if (err != LCB_SUCCESS) {
         bucket->handle = NULL;
@@ -408,15 +336,6 @@ cb_bucket_alloc(VALUE klass)
  *   Initialize bucket using options only.
  *
  *   @param [Hash] options The options for operation for connection
- *   @option options [Array] :node_list (nil) the list of nodes to connect
- *     to. If specified it takes precedence over +:host+ option. The list
- *     must be array of strings in form of host names or host names with
- *     ports (in first case port 8091 will be used, see examples).
- *   @option options [String] :hostname ("localhost") the hostname or
- *     IP address of the node
- *   @option options [Fixnum] :port (8091) the port of the managemenent API
- *   @option options [String] :pool ("default") the pool name
- *   @option options [String] :bucket ("default") the bucket name
  *   @option options [Fixnum] :default_ttl (0) the TTL used by default during
  *     storing key-value pairs.
  *   @option options [Fixnum] :default_flags (0) the default flags.
@@ -452,17 +371,6 @@ cb_bucket_alloc(VALUE klass)
  *     :iocp         :: "I/O Completion Ports" plugin from libcouchbase (windows only)
  *     :libevent     :: libevent IO plugin from libcouchbase (optional)
  *     :libev        :: libev IO plugin from libcouchbase (optional)
- *   @option options [Array] :bootstrap_transports (nil) the list of
- *     bootrap transport mechanisms the library should try during
- *     initial connection and also when cluster changes its
- *     topology. When +nil+ passed it will fallback to best accessible
- *     option. The order of the array elements does not matter at the
- *     momemnt. Currently following values are supported:
- *     :http :: Previous default protocol, which involves open HTTP stream
- *     :cccp :: Cluster Configutration Carrier Publication: new binary
- *              protocol for efficient delivery of cluster
- *              configuration changes to the clients. Read more at
- *              http://www.couchbase.com/wiki/display/couchbase/Cluster+Configuration+Carrier+Publication
  *
  * @example Initialize connection using default options
  *   Couchbase.new
@@ -475,9 +383,6 @@ cb_bucket_alloc(VALUE klass)
  *   Couchbase.new(:bucket => 'protected', :username => 'protected', :password => 'secret')
  *   Couchbase.new('http://localhost:8091/pools/default/buckets/protected',
  *                 :username => 'protected', :password => 'secret')
- *
- * @example Use list of nodes, in case some nodes might be dead
- *   Couchbase.new(:node_list => ['example.com:8091', 'example.org:8091', 'example.net'])
  *
  * @raise [Couchbase::Error::BucketNotFound] if there is no such bucket to
  *   connect to
@@ -494,10 +399,6 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->self = self;
     bucket->exception = Qnil;
     bucket->type = LCB_TYPE_BUCKET;
-    bucket->hostname = cb_vStrLocalhost;
-    bucket->port = 8091;
-    bucket->pool = cb_vStrDefault;
-    bucket->bucket = cb_vStrDefault;
     bucket->username = Qnil;
     bucket->password = Qnil;
     bucket->engine = cb_sym_default;
@@ -508,8 +409,6 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->default_observe_timeout = 2500000;
     bucket->timeout = 0;
     bucket->environment = cb_sym_production;
-    bucket->node_list = Qnil;
-    bucket->bootstrap_transports = Qnil;
     bucket->object_space = st_init_numtable();
     bucket->destroying = 0;
     bucket->connected = 0;
@@ -546,13 +445,6 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     orig_b = DATA_PTR(orig);
 
     copy_b->self = copy;
-    copy_b->port = orig_b->port;
-    copy_b->authority = orig_b->authority;
-    copy_b->hostname = orig_b->hostname;
-    copy_b->pool = orig_b->pool;
-    copy_b->bucket = orig_b->bucket;
-    copy_b->username = orig_b->username;
-    copy_b->password = orig_b->password;
     copy_b->engine = orig_b->engine;
     copy_b->quiet = orig_b->quiet;
     copy_b->transcoder = orig_b->transcoder;
@@ -561,12 +453,6 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
     copy_b->environment = orig_b->environment;
     copy_b->timeout = orig_b->timeout;
     copy_b->exception = Qnil;
-    if (orig_b->node_list != Qnil) {
-        copy_b->node_list = rb_funcall(orig_b->node_list, cb_id_dup, 0);
-    }
-    if (orig_b->bootstrap_transports != Qnil) {
-        copy_b->bootstrap_transports = rb_funcall(orig_b->bootstrap_transports, cb_id_dup, 0);
-    }
     copy_b->object_space = st_init_numtable();
     copy_b->destroying = 0;
     copy_b->connected = 0;
@@ -761,79 +647,6 @@ cb_bucket_default_arithmetic_init_set(VALUE self, VALUE val)
     return ULL2NUM(bucket->default_arith_init);
 }
 
-/* Document-method: hostname
- *
- * @since 1.0.0
- *
- * @return [String] the host name of the management interface (default: "localhost")
- */
-VALUE
-cb_bucket_hostname_get(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    if (bucket->handle) {
-        const char *host;
-        char *colon;
-        unsigned long len;
-        host = lcb_get_node(bucket->handle, LCB_NODE_HTCONFIG | LCB_NODE_NEVERNULL, 0);
-        if (host != NULL && (colon = strstr(host, ":")) != NULL) {
-            *colon = '\0';
-        }
-        len = RSTRING_LEN(bucket->hostname);
-        if (len != strlen(host) || strncmp(RSTRING_PTR(bucket->hostname), host, len) != 0) {
-            bucket->hostname = STR_NEW_CSTR(host);
-            rb_str_freeze(bucket->hostname);
-        }
-    }
-    return bucket->hostname;
-}
-
-/* Document-method: port
- *
- * @since 1.0.0
- *
- * @return [Fixnum] the port number of the management interface (default: 8091)
- */
-VALUE
-cb_bucket_port_get(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    if (bucket->handle) {
-        const char *port;
-        port = lcb_get_node(bucket->handle, LCB_NODE_HTCONFIG | LCB_NODE_NEVERNULL, 0);
-        if (port && (port = strstr(port, ":"))) {
-            port++;
-        }
-        bucket->port = atoi(port);
-    }
-    return UINT2NUM(bucket->port);
-}
-
-/* Document-method: authority
- *
- * @since 1.0.0
- *
- * @return [String] host with port
- */
-VALUE
-cb_bucket_authority_get(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    VALUE old_hostname = bucket->hostname;
-    uint16_t old_port = bucket->port;
-    VALUE hostname = cb_bucket_hostname_get(self);
-    cb_bucket_port_get(self);
-
-    if (hostname != old_hostname || bucket->port != old_port) {
-        char port_s[8];
-        snprintf(port_s, sizeof(port_s), ":%u", bucket->port);
-        bucket->authority = rb_str_dup(hostname);
-        rb_str_cat2(bucket->authority, port_s);
-        rb_str_freeze(bucket->authority);
-    }
-    return bucket->authority;
-}
-
 /* Document-method: bucket
  *
  * @since 1.0.0
@@ -844,47 +657,9 @@ VALUE
 cb_bucket_bucket_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
-    return bucket->bucket;
-}
-
-/* Document-method: pool
- *
- * @since 1.0.0
- *
- * @return [String] the pool name (usually "default")
- */
-VALUE
-cb_bucket_pool_get(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    return bucket->pool;
-}
-
-/* Document-method: username
- *
- * @since 1.0.0
- *
- * @return [String] the username for protected buckets (usually matches
- *   the bucket name)
- */
-VALUE
-cb_bucket_username_get(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    return bucket->username;
-}
-
-/* Document-method: password
- *
- * @since 1.0.0
- *
- * @return [String] the password for protected buckets
- */
-VALUE
-cb_bucket_password_get(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    return bucket->password;
+    const char *name = NULL;
+    lcb_cntl(bucket->handle, LCB_CNTL_GET, LCB_CNTL_BUCKETNAME, &name);
+    return rb_str_buf_new2(name);
 }
 
 /* Document-method: environment
@@ -952,27 +727,18 @@ cb_bucket_default_observe_timeout_set(VALUE self, VALUE val)
     bucket->default_observe_timeout = FIX2INT(val);
     return val;
 }
-/* Document-method: url
+
+/* Document-method: connstr
  *
- * @since 1.0.0
+ * @since 1.4.0
  *
- * @return [String] the address of the cluster management interface
+ * @return [String] the bootstrap address
  */
 VALUE
-cb_bucket_url_get(VALUE self)
+cb_bucket_connstr_get(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
-    VALUE str;
-
-    (void)cb_bucket_authority_get(self);
-    str = rb_str_buf_new2("http://");
-    rb_str_append(str, bucket->authority);
-    rb_str_buf_cat2(str, "/pools/");
-    rb_str_append(str, bucket->pool);
-    rb_str_buf_cat2(str, "/buckets/");
-    rb_str_append(str, bucket->bucket);
-    rb_str_buf_cat2(str, "/");
-    return str;
+    return bucket->connstr;
 }
 
 /*
@@ -993,14 +759,8 @@ cb_bucket_inspect(VALUE self)
     str = rb_str_buf_new2("#<");
     rb_str_buf_cat2(str, rb_obj_classname(self));
     snprintf(buf, 25, ":%p \"", (void *)self);
-    (void)cb_bucket_authority_get(self);
     rb_str_buf_cat2(str, buf);
-    rb_str_buf_cat2(str, "http://");
-    rb_str_append(str, bucket->authority);
-    rb_str_buf_cat2(str, "/pools/");
-    rb_str_append(str, bucket->pool);
-    rb_str_buf_cat2(str, "/buckets/");
-    rb_str_append(str, bucket->bucket);
+    rb_str_append(str, bucket->connstr);
     rb_str_buf_cat2(str, "/\" transcoder=");
     rb_str_append(str, rb_inspect(bucket->transcoder));
     snprintf(buf, 150, ", default_flags=0x%x, quiet=%s, connected=%s, timeout=%u", bucket->default_flags,

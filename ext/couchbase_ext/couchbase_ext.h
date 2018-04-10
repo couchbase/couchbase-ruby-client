@@ -101,11 +101,7 @@ struct cb_bucket_st {
     lcb_t handle;
     lcb_type_t type;
     struct lcb_io_opt_st *io;
-    uint16_t port;
-    VALUE authority;
-    VALUE hostname;
-    VALUE pool;
-    VALUE bucket;
+    VALUE connstr;
     VALUE username;
     VALUE password;
     VALUE engine;
@@ -123,8 +119,6 @@ struct cb_bucket_st {
     size_t nbytes;         /* the number of bytes scheduled to be sent */
     VALUE exception;       /* error delivered by error_callback */
     VALUE environment;     /* sym_development or sym_production */
-    VALUE node_list;
-    VALUE bootstrap_transports;
     st_table *object_space;
     char destroying;
     VALUE self; /* the pointer to bucket representation in ruby land */
@@ -425,14 +419,8 @@ VALUE cb_bucket_default_format_get(VALUE self);
 VALUE cb_bucket_default_format_set(VALUE self, VALUE val);
 VALUE cb_bucket_timeout_get(VALUE self);
 VALUE cb_bucket_timeout_set(VALUE self, VALUE val);
-VALUE cb_bucket_url_get(VALUE self);
-VALUE cb_bucket_hostname_get(VALUE self);
-VALUE cb_bucket_port_get(VALUE self);
-VALUE cb_bucket_authority_get(VALUE self);
 VALUE cb_bucket_bucket_get(VALUE self);
-VALUE cb_bucket_pool_get(VALUE self);
-VALUE cb_bucket_username_get(VALUE self);
-VALUE cb_bucket_password_get(VALUE self);
+VALUE cb_bucket_connstr_get(VALUE self);
 VALUE cb_bucket_environment_get(VALUE self);
 VALUE cb_bucket_num_replicas_get(VALUE self);
 VALUE cb_bucket_default_observe_timeout_get(VALUE self);
