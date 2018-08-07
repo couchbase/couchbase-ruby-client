@@ -1,4 +1,3 @@
-# -*- encoding: utf-8 -*-
 # Author:: Couchbase <info@couchbase.com>
 # Copyright:: 2011-2017 Couchbase, Inc.
 # License:: Apache License, Version 2.0
@@ -14,9 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-$LOAD_PATH.push File.expand_path('../lib', __FILE__)
+$LOAD_PATH.push File.expand_path('lib', __dir__)
 require 'couchbase/version'
 
 Gem::Specification.new do |s|
@@ -35,14 +33,13 @@ Gem::Specification.new do |s|
   s.extensions    = `git ls-files -- ext/**/extconf.rb`.split("\n")
   s.require_paths = ['lib']
 
-  s.add_runtime_dependency 'yaji', '~> 0.3', '>= 0.3.2'
-  s.add_runtime_dependency 'multi_json', '~> 1.0'
   s.add_runtime_dependency 'connection_pool', '<= 3.0.0', '>= 1.0.0'
+  s.add_runtime_dependency 'jsonsl', '~> 0.1'
+  s.add_runtime_dependency 'multi_json', '~> 1.0'
 
-  s.add_development_dependency 'rake'
-  s.add_development_dependency 'minitest', '~> 5.0', '>= 5.0.4'
-  s.add_development_dependency 'rake-compiler', '~> 0.7', '>= 0.7.5'
-  s.add_development_dependency 'mini_portile', '~> 0.5', '>= 0.5.2'
-  s.add_development_dependency 'yajl-ruby', '~> 1.1', '>= 1.1.0'
   s.add_development_dependency 'activesupport'
+  s.add_development_dependency 'mini_portile', '~> 0.5', '>= 0.5.2'
+  s.add_development_dependency 'minitest', '~> 5.0', '>= 5.0.4'
+  s.add_development_dependency 'rake'
+  s.add_development_dependency 'rake-compiler', '~> 0.7', '>= 0.7.5'
 end

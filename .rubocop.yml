@@ -24,8 +24,8 @@ Style/HashSyntax:
 
 Style/Copyright:
   Enabled: true
-  Notice: 'Copyright:: .*2017 Couchbase, Inc.'
-  AutocorrectNotice: '# Copyright:: 2017 Couchbase, Inc.'
+  Notice: 'Copyright:: .*20\d{2} Couchbase, Inc.'
+  AutocorrectNotice: '# Copyright:: 20\d{2} Couchbase, Inc.'
 
 Style/MutableConstant:
   Enabled: false
@@ -56,3 +56,13 @@ Style/RescueModifier:
 
 Style/Lambda:
   EnforcedStyle: lambda
+
+Style/SymbolArray:
+  EnforcedStyle: brackets
+
+Style/WordArray:
+  EnforcedStyle: brackets
+
+Style/RegexpLiteral:
+  EnforcedStyle: mixed
+  AllowInnerSlashes: true

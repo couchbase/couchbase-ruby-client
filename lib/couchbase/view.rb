@@ -16,6 +16,7 @@
 #
 
 require 'base64'
+require 'jsonsl'
 
 module Couchbase
   module Error
@@ -31,21 +32,6 @@ module Couchbase
 
     class HTTP < Base
       attr_reader :type, :reason
-
-      def parse_body!
-        if @body
-          hash = MultiJson.load(@body)
-          if hash["errors"]
-            @type = :invalid_arguments
-            @reason = hash["errors"].values.join(" ")
-          else
-            @type = hash["error"]
-            @reason = hash["reason"]
-          end
-        end
-      rescue MultiJson::DecodeError
-        @type = @reason = nil
-      end
 
       def to_s
         str = super
@@ -68,79 +54,6 @@ module Couchbase
     class ArrayWithTotalRows < Array # :nodoc:
       attr_accessor :total_rows
       alias total_entries total_rows
-    end
-
-    class AsyncHelper # :nodoc:
-      include Constants
-      EMPTY = []
-
-      def initialize(wrapper_class, bucket, include_docs, quiet, block)
-        @wrapper_class = wrapper_class
-        @bucket = bucket
-        @block = block
-        @quiet = quiet
-        @include_docs = include_docs
-        @queue = []
-        @first = @shift = 0
-        @completed = false
-      end
-
-      # Register object in the emitter.
-      def push(obj)
-        if @include_docs
-          @queue << obj
-          @bucket.get(obj[S_ID], :extended => true, :quiet => @quiet) do |res|
-            obj[S_DOC] = {
-              S_VALUE => res.value,
-              S_META => {
-                S_ID => obj[S_ID],
-                S_FLAGS => res.flags,
-                S_CAS => res.cas
-              }
-            }
-            check_for_ready_documents
-          end
-        else
-          old_obj = @queue.shift
-          @queue << obj
-          block_call(old_obj) if old_obj
-        end
-      end
-
-      def complete!
-        if @include_docs
-          @completed = true
-          check_for_ready_documents
-        elsif !@queue.empty?
-          obj = @queue.shift
-          obj[S_IS_LAST] = true
-          block_call obj
-        end
-      end
-
-      private
-
-      def block_call(obj)
-        @block.call @wrapper_class.wrap(@bucket, obj)
-      end
-
-      def check_for_ready_documents
-        shift = @shift
-        queue = @queue
-        save_last = @completed ? 0 : 1
-        while @first < queue.size + shift - save_last
-          obj = queue[@first - shift]
-          break unless obj[S_DOC]
-          queue[@first - shift] = nil
-          @first += 1
-          obj[S_IS_LAST] = true if @completed && @first == queue.size + shift
-          block_call obj
-        end
-        if @first - shift > queue.size / 2
-          queue[0, @first - shift] = EMPTY
-          @shift = @first
-        end
-      end
     end
 
     attr_reader :params
@@ -353,117 +266,19 @@ module Couchbase
     #   doc.recent_posts_with_comments(:start_key => [post_id, 0],
     #                                  :end_key => [post_id, 1],
     #                                  :include_docs => true)
-    def fetch(params = {}, &block)
+    def fetch(params = {})
       params = @params.merge(params)
       include_docs = params.delete(:include_docs)
       quiet = params.delete(:quiet) { true }
 
-      options = {:chunked => true, :extended => true, :type => :view}
-      if body = params.delete(:body)
-        body = MultiJson.dump(body) unless body.is_a?(String)
-        options.update(:body => body, :method => params.delete(:method) || :post)
-      end
+      body = params.delete(:body) || {}
+      body = MultiJson.dump(body) unless body.is_a?(String)
       path = Utils.build_query(@endpoint, params)
-      request = @bucket.make_http_request(path, options)
-
-      if @bucket.async?
-        fetch_async(request, include_docs, quiet, block) if block
-      else
-        fetch_sync(request, include_docs, quiet, block)
-      end
-    end
-
-    # Method for fetching asynchronously all rows and passing array to callback
-    #
-    # Parameters are same as for {View#fetch} method, but callback is called for whole set for
-    # rows instead of one by each.
-    #
-    # @example
-    #   con.run do
-    #     doc.recent_posts.fetch_all do |posts|
-    #       do_something_with_all_posts(posts)
-    #     end
-    #   end
-    def fetch_all(params = {}, &block)
-      return fetch(params) unless @bucket.async?
-      raise ArgumentError, "Block needed for fetch_all in async mode" unless block
-
-      all = []
-      fetch(params) do |row|
-        all << row
-        @bucket.create_timer(0) { yield(all) } if row.last?
-      end
-    end
-
-    # Returns a string containing a human-readable representation of the {View}
-    #
-    # @return [String]
-    def inspect
-      %(#<#{self.class.name}:#{object_id} @endpoint=#{@endpoint.inspect} @params=#{@params.inspect}>)
-    end
-
-    private
-
-    def send_error(*args)
-      if @on_error
-        @on_error.call(*args.take(2))
-      else
-        raise Error::View.new(*args)
-      end
-    end
-
-    def fetch_async(request, include_docs, quiet, block)
-      filter = ["/rows/", "/errors/"]
-      parser = YAJI::Parser.new(:filter => filter, :with_path => true)
-      helper = AsyncHelper.new(@wrapper_class, @bucket, include_docs, quiet, block)
-
-      request.on_body do |chunk|
-        if chunk.success?
-          parser << chunk.value if chunk.value
-          helper.complete! if chunk.completed?
-        else
-          send_error("http_error", chunk.error)
-        end
-      end
-
-      parser.on_object do |path, obj|
-        case path
-        when "/errors/"
-          from, reason = obj["from"], obj["reason"]
-          send_error(from, reason)
-        else
-          helper.push(obj)
-        end
-      end
-
-      request.perform
-      nil
-    end
-
-    def fetch_sync(request, include_docs, quiet, block)
-      res = []
-      filter = ["/rows/", "/errors/"]
-      unless block
-        filter << "/total_rows"
-        docs = ArrayWithTotalRows.new
-      end
-      parser = YAJI::Parser.new(:filter => filter, :with_path => true)
-      last_chunk = nil
-
-      request.on_body do |chunk|
-        last_chunk = chunk
-        res << chunk.value if chunk.success?
-      end
-
-      parser.on_object do |path, obj|
-        case path
-        when "/total_rows"
-          # if total_rows key present, save it and take next object
-          docs.total_rows = obj
-        when "/errors/"
-          from, reason = obj["from"], obj["reason"]
-          send_error(from, reason)
-        else
+      docs = ArrayWithTotalRows.new unless block_given?
+      parser = JSONSL::RowParser.new('/rows/^') do |row, idx|
+        obj = MultiJson.load(row)
+        if idx
+          # response row
           if include_docs
             val, flags, cas = @bucket.get(obj[S_ID], :extended => true, :quiet => quiet)
             obj[S_DOC] = {
@@ -476,22 +291,36 @@ module Couchbase
             }
           end
           doc = @wrapper_class.wrap(@bucket, obj)
-          block ? block.call(doc) : docs << doc
+          if block_given?
+            yield doc
+          else
+            docs << doc
+          end
+        else
+          # parse meta
+          docs.total_rows = obj[S_TOTAL_ROWS] unless block_given?
+          send_error(obj[S_ERRORS][S_FROM], obj[S_ERRORS][S_REASON]) if obj[S_ERRORS]
         end
       end
-
-      request.continue
-
-      if last_chunk.success?
-        while value = res.shift
-          parser << value
-        end
-      else
-        send_error("http_error", last_chunk.error, nil)
+      @bucket.send(:__http_query, :view, params[:method] || :post,
+                   path, body, 'application/json', nil, nil, nil) do |x|
+        parser.feed(x)
       end
-
-      # return nil for call with block
       docs
+    end
+
+    # Returns a string containing a human-readable representation of the {View}
+    #
+    # @return [String]
+    def inspect
+      %(#<#{self.class.name}:#{object_id} @endpoint=#{@endpoint.inspect} @params=#{@params.inspect}>)
+    end
+
+    private
+
+    def send_error(*args)
+      raise Error::View.new(*args) unless @on_error
+      @on_error.call(*args.take(2))
     end
   end
 end

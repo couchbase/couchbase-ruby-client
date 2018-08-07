@@ -19,17 +19,15 @@ module Couchbase
   class Cluster
     # Establish connection to the cluster for administration
     #
+    # @param [String] connstr ("couchbasae://localhost") connection string
     # @param [Hash] options The connection parameter
     # @option options [String] :username The username
     # @option options [String] :password The password
-    # @option options [String] :pool ("default") The pool name
-    # @option options [String] :hostname ("localhost") The hostname
-    # @option options [String] :port (8091) The port
-    def initialize(options = {})
+    def initialize(connstr = 'couchbase://localhost', options = {})
       if options[:username].nil? || options[:password].nil?
         raise ArgumentError, "username and password mandatory to connect to the cluster"
       end
-      @connection = Bucket.new(options.merge(:type => :cluster))
+      @connection = Bucket.new(connstr, options.merge(:type => :cluster))
     end
 
     # Create data bucket
@@ -73,24 +71,14 @@ module Couchbase
       params["authType"] = options[:auth_type]
       params["saslPassword"] = options[:sasl_password]
       params["proxyPort"] = options[:proxy_port]
-      params["flushEnabled"] = !!options[:flush_enabled]
-      params["replicaIndex"] = !!options[:replica_index]
+      params["flushEnabled"] = options[:flush_enabled] ? 1 : 0
+      params["replicaIndex"] = options[:replica_index] ? 1 : 0
       params["parallelDBAndViewCompaction"] = !!options[:parallel_db_and_view_compaction]
       payload = Utils.encode_params(params.reject! { |_k, v| v.nil? })
-      request = @connection.make_http_request("/pools/default/buckets",
-                                              :content_type => "application/x-www-form-urlencoded",
-                                              :type => :management,
-                                              :method => :post,
-                                              :extended => true,
-                                              :body => payload)
-      response = nil
-      request.on_body do |r|
-        response = r
-        response.instance_variable_set("@operation", :create_bucket)
-        yield(response) if block_given?
-      end
-      request.continue
-      response
+      response = @connection.send(:__http_query, :management, :post,
+                                  "/pools/default/buckets", payload,
+                                  "application/x-www-form-urlencoded", nil, nil, nil)
+      Result.new(response.merge(:operation => :create_bucket))
     end
 
     # Delete the data bucket
@@ -98,18 +86,10 @@ module Couchbase
     # @param [String] name The name of the bucket
     # @param [Hash] options
     def delete_bucket(name, _options = {})
-      request = @connection.make_http_request("/pools/default/buckets/#{name}",
-                                              :type => :management,
-                                              :method => :delete,
-                                              :extended => true)
-      response = nil
-      request.on_body do |r|
-        response = r
-        response.instance_variable_set("@operation", :delete_bucket)
-        yield(response) if block_given?
-      end
-      request.continue
-      response
+      response = @connection.send(:__http_query, :management, :delete,
+                                  "/pools/default/buckets/#{name}",
+                                  nil, nil, nil, nil, nil)
+      Result.new(response.merge(:operation => :create_bucket))
     end
   end
 end

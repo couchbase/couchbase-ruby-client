@@ -242,16 +242,15 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb_http_
     } else {
         str = rb_str_buf_new2("");
     }
-    rb_str_buf_cat2(str, lcb_strerror(NULL, rc));
-    rb_str_buf_cat2(str, " (");
+    rb_str_buf_cat2(str, lcb_strerror_short(rc));
     if (key != Qnil) {
-        snprintf(buf, 300, "key=\"%s\", ", RSTRING_PTR(key));
+        snprintf(buf, 300, ", key=\"%s\"", RSTRING_PTR(key));
         rb_str_buf_cat2(str, buf);
     }
     if (status > 0) {
         const char *reason = NULL;
         klass = cb_eHTTPError;
-        snprintf(buf, 300, "status=\"%d\"", status);
+        snprintf(buf, 300, ", status=\"%d\"", status);
         rb_str_buf_cat2(str, buf);
         switch (status) {
         case LCB_HTTP_STATUS_BAD_REQUEST:
@@ -342,10 +341,7 @@ cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb_http_
             reason = "";
         }
         rb_str_buf_cat2(str, reason);
-        rb_str_buf_cat2(str, ", ");
     }
-    snprintf(buf, 300, "error=0x%02x)", rc);
-    rb_str_buf_cat2(str, buf);
     exc = rb_exc_new3(klass, str);
     rb_ivar_set(exc, cb_id_iv_error, INT2FIX(rc));
     rb_ivar_set(exc, cb_id_iv_key, key);

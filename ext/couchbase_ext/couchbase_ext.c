@@ -19,7 +19,6 @@
 
 /* Classes */
 VALUE cb_cBucket;
-VALUE cb_cCouchRequest;
 VALUE cb_cResult;
 
 /* Modules */
@@ -70,7 +69,6 @@ ID cb_sym_get;
 ID cb_sym_host;
 ID cb_sym_hostname;
 ID cb_sym_http;
-ID cb_sym_http_request;
 ID cb_sym_increment;
 ID cb_sym_initial;
 ID cb_sym_iocp;
@@ -112,6 +110,13 @@ ID cb_sym_unlock;
 ID cb_sym_username;
 ID cb_sym_version;
 ID cb_sym_view;
+ID cb_sym_raw;
+ID cb_sym_n1ql;
+ID cb_sym_fts;
+ID cb_sym_cbas;
+ID cb_sym_chunks;
+ID cb_sym_headers;
+ID cb_sym_status;
 ID cb_id_add_shutdown_hook;
 ID cb_id_arity;
 ID cb_id_call;
@@ -143,7 +148,6 @@ ID cb_id_match;
 ID cb_id_next_tick;
 ID cb_id_observe_and_wait;
 ID cb_id_parse;
-ID cb_id_parse_body_bang;
 ID cb_id_password;
 ID cb_id_path;
 ID cb_id_port;
@@ -850,7 +854,6 @@ extern "C"
     rb_define_method(cb_cBucket, "unlock", cb_bucket_unlock, -1);
     rb_define_method(cb_cBucket, "disconnect", cb_bucket_disconnect, 0);
     rb_define_method(cb_cBucket, "reconnect", cb_bucket_reconnect, -1);
-    rb_define_method(cb_cBucket, "make_http_request", cb_bucket_make_http_request, -1);
     rb_define_method(cb_cBucket, "observe", cb_bucket_observe, -1);
 
     rb_define_alias(cb_cBucket, "decrement", "decr");
@@ -1161,24 +1164,8 @@ extern "C"
      */
     rb_define_method(cb_cBucket, "query", cb_bucket_query, -1);
 
-    cb_cCouchRequest = rb_define_class_under(cb_cBucket, "CouchRequest", rb_cObject);
-    rb_define_alloc_func(cb_cCouchRequest, cb_http_request_alloc);
 
-    rb_define_method(cb_cCouchRequest, "initialize", cb_http_request_init, -1);
-    rb_define_method(cb_cCouchRequest, "inspect", cb_http_request_inspect, 0);
-    rb_define_method(cb_cCouchRequest, "on_body", cb_http_request_on_body, 0);
-    rb_define_method(cb_cCouchRequest, "perform", cb_http_request_perform, 0);
-    rb_define_method(cb_cCouchRequest, "pause", cb_http_request_pause, 0);
-    rb_define_method(cb_cCouchRequest, "continue", cb_http_request_continue, 0);
-
-    /* rb_define_attr(cb_cCouchRequest, "path", 1, 0); */
-    rb_define_method(cb_cCouchRequest, "path", cb_http_request_path_get, 0);
-    /* rb_define_attr(cb_cCouchRequest, "extended", 1, 0); */
-    rb_define_method(cb_cCouchRequest, "extended", cb_http_request_extended_get, 0);
-    rb_define_alias(cb_cCouchRequest, "extended?", "extended");
-    /* rb_define_attr(cb_cCouchRequest, "chunked", 1, 0); */
-    rb_define_method(cb_cCouchRequest, "chunked", cb_http_request_chunked_get, 0);
-    rb_define_alias(cb_cCouchRequest, "chunked?", "chunked");
+    rb_define_private_method(cb_cBucket, "__http_query", cb_bucket___http_query, 8);
 
     /* Define cb_symbols */
     cb_id_add_shutdown_hook = rb_intern("add_shutdown_hook");
@@ -1196,7 +1183,6 @@ extern "C"
     cb_id_next_tick = rb_intern("next_tick");
     cb_id_observe_and_wait = rb_intern("observe_and_wait");
     cb_id_parse = rb_intern("parse");
-    cb_id_parse_body_bang = rb_intern("parse_body!");
     cb_id_password = rb_intern("password");
     cb_id_path = rb_intern("path");
     cb_id_port = rb_intern("port");
@@ -1242,7 +1228,6 @@ extern "C"
     cb_sym_host = ID2SYM(rb_intern("host"));
     cb_sym_hostname = ID2SYM(rb_intern("hostname"));
     cb_sym_http = ID2SYM(rb_intern("http"));
-    cb_sym_http_request = ID2SYM(rb_intern("http_request"));
     cb_sym_increment = ID2SYM(rb_intern("increment"));
     cb_sym_initial = ID2SYM(rb_intern("initial"));
     cb_sym_iocp = ID2SYM(rb_intern("iocp"));
@@ -1284,6 +1269,13 @@ extern "C"
     cb_sym_username = ID2SYM(rb_intern("username"));
     cb_sym_version = ID2SYM(rb_intern("version"));
     cb_sym_view = ID2SYM(rb_intern("view"));
+    cb_sym_n1ql = ID2SYM(rb_intern("n1ql"));
+    cb_sym_raw = ID2SYM(rb_intern("raw"));
+    cb_sym_fts = ID2SYM(rb_intern("fts"));
+    cb_sym_cbas = ID2SYM(rb_intern("cbas"));
+    cb_sym_chunks = ID2SYM(rb_intern("chunks"));
+    cb_sym_headers = ID2SYM(rb_intern("headers"));
+    cb_sym_status = ID2SYM(rb_intern("status"));
 
     interned = rb_ary_new();
     rb_const_set(cb_mCouchbase, rb_intern("_INTERNED"), interned);

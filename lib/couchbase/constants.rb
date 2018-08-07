@@ -24,6 +24,10 @@ module Couchbase
     S_FLAGS = 'flags'.freeze
     S_CAS = 'cas'.freeze
     S_KEY = 'key'.freeze
+    S_TOTAL_ROWS = 'total_rows'.freeze
+    S_ERRORS = 'errors'.freeze
+    S_FROM = 'from'.freeze
+    S_REASON = 'reason'.freeze
     S_IS_LAST = Object.new.freeze
   end
 end

@@ -16,7 +16,6 @@
 #
 
 require 'couchbase/version'
-require 'yaji'
 require 'uri'
 require 'couchbase/transcoder'
 require 'couchbase_ext'

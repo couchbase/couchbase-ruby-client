@@ -27,10 +27,6 @@ module Couchbase
     # {Couchbase::Error::KeyExists}. CAS stands for "compare and swap", and
     # avoids the need for manual key mutexing. Read more info here:
     #
-    # In asynchronous mode it will yield result twice, first for
-    # {Bucket#get} with {Result#operation} equal to +:get+ and
-    # second time for {Bucket#set} with {Result#operation} equal to +:set+.
-    #
     # @see http://couchbase.com/docs/memcached-api/memcached-api-protocol-text_cas.html
     #
     # Setting the +:retry+ option to a positive number will cause this method
@@ -86,22 +82,17 @@ module Couchbase
     #
     # @return [Hash]
     def design_docs
-      req = make_http_request("/pools/default/buckets/#{bucket}/ddocs",
-                              :type => :management, :extended => true)
+      req = __http_query(:management, :get, "/pools/default/buckets/#{bucket}/ddocs", nil, nil, nil, nil, nil)
       docmap = {}
-      req.on_body do |body|
-        res = MultiJson.load(body.value)
-        res["rows"].each do |obj|
-          obj['doc']['value'] = obj['doc'].delete('json') if obj['doc']
-          doc = DesignDoc.wrap(self, obj)
-          key = doc.id.sub(/^_design\//, '')
-          next if environment == :production && key =~ /dev_/
-          docmap[key] = doc
-        end
-        yield(docmap) if block_given?
+      res = MultiJson.load(req[:chunks].join)
+      res["rows"].each do |obj|
+        obj['doc']['value'] = obj['doc'].delete('json') if obj['doc']
+        doc = DesignDoc.wrap(self, obj)
+        key = doc.id.sub(/^_design\//, '')
+        next if environment == :production && key =~ /dev_/
+        docmap[key] = doc
       end
-      req.continue
-      async? ? nil : docmap
+      docmap
     end
 
     # Update or create design doc with supplied views
@@ -124,30 +115,13 @@ module Couchbase
               else
                 raise ArgumentError, "Document should be Hash, String or IO instance"
               end
-      rv = nil
       id = attrs.delete('_id').to_s
       attrs['language'] ||= 'javascript'
-      if id !~ /\A_design\//
-        rv = Result.new(:operation => :http_request,
-                        :key => id,
-                        :error => ArgumentError.new("'_id' key must be set and start with '_design/'."))
-        yield rv if block_given?
-        raise rv.error unless async?
-      end
-      req = make_http_request(id, :body => MultiJson.dump(attrs),
-                                  :method => :put, :extended => true)
-      req.on_body do |res|
-        rv = res
-        val = MultiJson.load(res.value)
-        if block_given?
-          if res.success? && val['error']
-            res.error = Error::View.new("save_design_doc", val['error'])
-          end
-          yield(res)
-        end
-      end
-      req.continue
-      rv.success? || raise(res.error) unless async?
+      raise ArgumentError, "'_id' key must be set and start with '_design/'." if id !~ /\A_design\//
+      res = __http_query(:view, :put, "/#{id}", MultiJson.dump(attrs), 'application/json', nil, nil, nil)
+      return true if res[:status] == 201
+      val = MultiJson.load(res[:chunks].join)
+      raise Error::View.new("save_design_doc", val['error'])
     end
 
     # Delete design doc with given id and revision.
@@ -163,25 +137,12 @@ module Couchbase
     # @return [true, false]
     def delete_design_doc(id, rev = nil)
       ddoc = design_docs[id.sub(/^_design\//, '')]
-      unless ddoc
-        yield nil if block_given?
-        return nil
-      end
+      return false unless ddoc
       path = Utils.build_query(ddoc.id, :rev => rev || ddoc.meta['rev'])
-      req = make_http_request(path, :method => :delete, :extended => true)
-      rv = nil
-      req.on_body do |res|
-        rv = res
-        val = MultiJson.load(res.value)
-        if block_given?
-          if res.success? && val['error']
-            res.error = Error::View.new("delete_design_doc", val['error'])
-          end
-          yield(res)
-        end
-      end
-      req.continue
-      rv.success? || raise(res.error) unless async?
+      res = __http_query(:view, :delete, path, nil, nil, nil, nil, nil)
+      return true if res[:status] == 200
+      val = MultiJson.load(res[:chunks].join)
+      raise Error::View.new("delete_design_doc", val['error'])
     end
 
     # Delete contents of the bucket
@@ -200,28 +161,9 @@ module Couchbase
     #
     # @example Simple flush the bucket
     #   c.flush    #=> true
-    #
-    # @example Asynchronous flush
-    #   c.run do
-    #     c.flush do |ret|
-    #       ret.operation   #=> :flush
-    #       ret.success?    #=> true
-    #       ret.status      #=> 200
-    #     end
-    #   end
     def flush
-      if !async? && block_given?
-        raise ArgumentError, "synchronous mode doesn't support callbacks"
-      end
-      req = make_http_request("/pools/default/buckets/#{bucket}/controller/doFlush",
-                              :type => :management, :method => :post, :extended => true)
-      res = nil
-      req.on_body do |r|
-        res = r
-        res.instance_variable_set("@operation", :flush)
-        yield(res) if block_given?
-      end
-      req.continue
+      bucket.send(:__http_query, :management, :post, "/pools/default/buckets/#{bucket}/controller/doFlush",
+                  nil, nil, nil, nil, nil)
       true
     end
 

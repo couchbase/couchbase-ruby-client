@@ -51,6 +51,7 @@ cb_context_alloc_common(struct cb_bucket_st *bucket, size_t nqueries)
     struct cb_context_st *ctx = cb_context_alloc(bucket);
     ctx->nqueries = nqueries;
     ctx->rv = rb_hash_new();
+    ctx->proc = Qnil;
     return ctx;
 }
 
