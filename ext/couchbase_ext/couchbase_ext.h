@@ -307,6 +307,8 @@ extern ID cb_id_user;
 extern ID cb_id_verify_observe_options;
 
 /* Errors */
+extern VALUE cb_eLibraryError;
+
 extern VALUE cb_eBaseError;
 extern VALUE cb_eValueFormatError;
 extern VALUE cb_eHTTPError;
@@ -382,7 +384,7 @@ void cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const v
                                const lcb_http_resp_t *resp);
 void cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error,
                            const lcb_http_resp_t *resp);
-void cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_observe_resp_t *resp);
+void cb_observe_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp);
 
 struct cb_context_st *cb_context_alloc(struct cb_bucket_st *bucket);
@@ -623,5 +625,24 @@ rb_funcall_2(VALUE self, ID method, VALUE arg1, VALUE arg2)
     VALUE args[2] = {arg1, arg2};
     return rb_funcall2(self, method, 2, args);
 }
+
+
+VALUE cb_exc_new_at(VALUE klass, lcb_error_t code, const char *file, int line, const char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__((format(printf, 5, 6)))
+#endif
+    ;
+#define cb_exc_new(klass, code, fmt, ...) cb_exc_new_at(klass, code, __FILE__, __LINE__, fmt, __VA_ARGS__)
+#define cb_exc_new2(klass, code, msg) cb_exc_new_at(klass, code, __FILE__, __LINE__, msg)
+#define cb_exc_new_msg(klass, fmt, ...) cb_exc_new_at(klass, 0, __FILE__, __LINE__, fmt, __VA_ARGS__)
+
+NORETURN(void cb_raise_at(VALUE klass, lcb_error_t code, const char *file, int line, const char *fmt, ...))
+#ifdef __GNUC__
+__attribute__((format(printf, 5, 6)))
+#endif
+;
+#define cb_raise(klass, code, fmt, ...) cb_raise_at(klass, code, __FILE__, __LINE__, fmt, __VA_ARGS__)
+#define cb_raise2(klass, code, msg) cb_raise_at(klass, code, __FILE__, __LINE__, msg)
+#define cb_raise_msg(klass, fmt, ...) cb_raise_at(klass, 0, __FILE__, __LINE__, fmt, __VA_ARGS__)
 
 #endif

@@ -158,6 +158,8 @@ ID cb_id_user;
 ID cb_id_verify_observe_options;
 
 /* Errors */
+VALUE cb_eLibraryError;
+
 VALUE cb_eBaseError;
 VALUE cb_eValueFormatError;
 VALUE cb_eHTTPError;
@@ -250,6 +252,8 @@ extern "C"
     cb_mDocument = rb_const_get(cb_mTranscoder, rb_intern("Document"));
     cb_mMarshal = rb_const_get(cb_mTranscoder, rb_intern("Marshal"));
     cb_mPlain = rb_const_get(cb_mTranscoder, rb_intern("Plain"));
+
+    cb_eLibraryError = rb_const_get(cb_mCouchbase, rb_intern("LibraryError"));
 
     cb_mError = rb_define_module_under(cb_mCouchbase, "Error");
     /* Document-class: Couchbase::Error::Base

@@ -16,6 +16,7 @@
 #
 
 require 'couchbase/version'
+require 'couchbase/library_error'
 require 'uri'
 require 'couchbase/transcoder'
 require 'couchbase_ext'

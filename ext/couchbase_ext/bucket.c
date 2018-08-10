@@ -287,9 +287,9 @@ do_connect(struct cb_bucket_st *bucket)
     (void)lcb_set_stat_callback(bucket->handle, cb_stat_callback);
     (void)lcb_set_arithmetic_callback(bucket->handle, cb_arithmetic_callback);
     (void)lcb_set_version_callback(bucket->handle, cb_version_callback);
-    (void)lcb_set_observe_callback(bucket->handle, cb_observe_callback);
     (void)lcb_set_unlock_callback(bucket->handle, cb_unlock_callback);
     (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_HTTP, cb_http_callback);
+    (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_OBSERVE, cb_observe_callback);
 
     lcb_cntl(bucket->handle, (bucket->timeout > 0) ? LCB_CNTL_SET : LCB_CNTL_GET, LCB_CNTL_OP_TIMEOUT,
              &bucket->timeout);

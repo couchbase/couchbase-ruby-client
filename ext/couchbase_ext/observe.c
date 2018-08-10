@@ -1,6 +1,6 @@
 /* vim: ft=c et ts=8 sts=4 sw=4 cino=
  *
- *   Copyright 2011, 2012 Couchbase, Inc.
+ *   Copyright 2011-2018 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,27 +18,24 @@
 #include "couchbase_ext.h"
 
 void
-cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_observe_resp_t *resp)
+cb_observe_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *rb)
 {
-    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
-    VALUE key, res, exc;
+    const lcb_RESPOBSERVE *resp = (const lcb_RESPOBSERVE *)rb;
+    struct cb_context_st *ctx = (struct cb_context_st *)rb->cookie;
+    VALUE res, key;
 
-    if (resp->v.v0.key) {
-        key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
-        exc = cb_check_error(error, "failed to execute observe request", key);
-        if (exc != Qnil) {
-            ctx->exception = exc;
-        }
-        res = rb_class_new_instance(0, NULL, cb_cResult);
-        rb_ivar_set(res, cb_id_iv_completed, Qfalse);
-        rb_ivar_set(res, cb_id_iv_error, ctx->exception);
-        rb_ivar_set(res, cb_id_iv_operation, cb_sym_observe);
-        rb_ivar_set(res, cb_id_iv_key, key);
-        rb_ivar_set(res, cb_id_iv_cas, ULL2NUM(resp->v.v0.cas));
-        rb_ivar_set(res, cb_id_iv_from_master, resp->v.v0.from_master ? Qtrue : Qfalse);
-        rb_ivar_set(res, cb_id_iv_time_to_persist, ULONG2NUM(resp->v.v0.ttp));
-        rb_ivar_set(res, cb_id_iv_time_to_replicate, ULONG2NUM(resp->v.v0.ttr));
-        switch (resp->v.v0.status) {
+    if (rb->nkey == 0) {
+        return;
+    }
+
+    res = rb_class_new_instance(0, NULL, cb_cResult);
+    key = rb_external_str_new(rb->key, rb->nkey);
+    rb_ivar_set(res, cb_id_iv_key, key);
+    rb_ivar_set(res, cb_id_iv_operation, cb_sym_observe);
+    if (resp->rc == LCB_SUCCESS) {
+        rb_ivar_set(res, cb_id_iv_cas, ULL2NUM(resp->cas));
+        rb_ivar_set(res, cb_id_iv_from_master, resp->ismaster ? Qtrue : Qfalse);
+        switch (resp->status) {
         case LCB_OBSERVE_FOUND:
             rb_ivar_set(res, cb_id_iv_status, cb_sym_found);
             break;
@@ -51,19 +48,30 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
         default:
             rb_ivar_set(res, cb_id_iv_status, Qnil);
         }
-        if (NIL_P(ctx->exception)) {
-            VALUE stats = rb_hash_aref(ctx->rv, key);
-            if (NIL_P(stats)) {
-                stats = rb_ary_new();
-                rb_hash_aset(ctx->rv, key, stats);
-            }
-            rb_ary_push(stats, res);
-        }
     } else {
-        ctx->nqueries--;
-        ctx->proc = Qnil;
+        rb_ivar_set(res, cb_id_iv_error,
+                    cb_exc_new(cb_eLibraryError, rb->rc, "failed to observe key: %.*s", (int)resp->nkey,
+                               (const char *)resp->key));
     }
-    (void)handle;
+    switch (TYPE(ctx->rv)) {
+    case T_ARRAY:
+        rb_ary_push(ctx->rv, res);
+        break;
+    case T_HASH: {
+        VALUE stats = rb_hash_aref(ctx->rv, key);
+        if (NIL_P(stats)) {
+            stats = rb_ary_new();
+            rb_hash_aset(ctx->rv, key, stats);
+        }
+        rb_ary_push(stats, res);
+    } break;
+    default:
+        // FIXME: use some kind of invalid state error
+        cb_raise_msg(cb_eLibraryError, "unexpected result container type: %d", (int)TYPE(ctx->rv));
+        break;
+    }
+    (void)instance;
+    (void)cbtype;
 }
 
 /*
@@ -71,7 +79,7 @@ cb_observe_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
  *
  * @since 1.2.0.dp6
  *
- * @overload observe(*keys, options = {})
+ * @overload observe(keys, options = {})
  *   @param keys [String, Symbol, Array] One or several keys to fetch
  *   @param options [Hash] Options for operation.
  *
@@ -96,48 +104,66 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE rv, exc;
     lcb_error_t err;
-    struct cb_params_st params;
+    lcb_MULTICMD_CTX *mctx = NULL;
+    lcb_CMDOBSERVE cmd = {0};
+    VALUE arg;
+    int ii;
 
     if (!cb_bucket_connected_bang(bucket, cb_sym_observe)) {
         return Qnil;
     }
 
-    memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*", &params.args);
-    params.type = cb_cmd_observe;
-    params.bucket = bucket;
-    cb_params_build(&params);
-    ctx = cb_context_alloc_common(bucket, params.cmd.observe.num);
-    err = lcb_observe(bucket->handle, (const void *)ctx, params.cmd.observe.num, params.cmd.observe.ptr);
-    cb_params_destroy(&params);
-    exc = cb_check_error(err, "failed to schedule observe request", Qnil);
-    if (exc != Qnil) {
+    rb_scan_args(argc, argv, "1", &arg);
+
+    ctx = cb_context_alloc(bucket);
+    mctx = lcb_observe3_ctxnew(bucket->handle);
+    switch (TYPE(arg)) {
+    case T_ARRAY:
+        for (ii = 0; ii < RARRAY_LEN(arg); ii++) {
+            VALUE entry = rb_ary_entry(arg, ii);
+            switch (TYPE(entry)) {
+            case T_SYMBOL:
+                arg = rb_sym2str(arg);
+                /* fallthrough */
+            case T_STRING:
+                LCB_CMD_SET_KEY(&cmd, RSTRING_PTR(entry), RSTRING_LEN(entry));
+                err = mctx->addcmd(mctx, (const lcb_CMDBASE *)&cmd);
+                if (err != LCB_SUCCESS) {
+                    mctx->fail(mctx);
+                    cb_context_free(ctx);
+                    cb_raise2(cb_eLibraryError, err, "unable to add key to observe context");
+                }
+                break;
+            default:
+                mctx->fail(mctx);
+                cb_context_free(ctx);
+                cb_raise_msg(rb_eArgError, "expected array or strings or symbols (type=%d)", (int)TYPE(entry));
+                break;
+            }
+        }
+        ctx->rv = rb_hash_new();
+        break;
+    case T_SYMBOL:
+        arg = rb_sym2str(arg);
+        /* fallthrough */
+    case T_STRING:
+        LCB_CMD_SET_KEY(&cmd, RSTRING_PTR(arg), RSTRING_LEN(arg));
+        mctx->addcmd(mctx, (const lcb_CMDBASE *)&cmd);
+        ctx->rv = rb_ary_new();
+        break;
+    default:
+        mctx->fail(mctx);
         cb_context_free(ctx);
-        rb_exc_raise(exc);
+        cb_raise_msg(rb_eArgError, "expected array of keys or single key (type=%d)", (int)TYPE(arg));
+        break;
     }
-    bucket->nbytes += params.npayload;
-    if (ctx->nqueries > 0) {
-        /* we have some operations pending */
-        lcb_wait(bucket->handle);
+    err = mctx->done(mctx, ctx);
+    if (err != LCB_SUCCESS) {
+        mctx->fail(mctx);
+        cb_context_free(ctx);
+        cb_raise2(cb_eLibraryError, err, "unable to schedule observe request");
     }
-    exc = ctx->exception;
-    rv = ctx->rv;
-    cb_context_free(ctx);
-    if (exc != Qnil) {
-        rb_exc_raise(exc);
-    }
-    exc = bucket->exception;
-    if (exc != Qnil) {
-        bucket->exception = Qnil;
-        rb_exc_raise(exc);
-    }
-    if (params.cmd.observe.num > 1 || params.cmd.observe.array) {
-        return rv; /* return as a hash {key => {}, ...} */
-    } else {
-        VALUE vv = Qnil;
-        rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
-        return vv; /* return first value */
-    }
+    lcb_wait(bucket->handle);
+    return ctx->rv;
 }

@@ -50,7 +50,7 @@ if RbConfig::CONFIG['target_os'] =~ /mingw32/
   dir_config('libcouchbase')
 else
   $CFLAGS << ' -std=c99 -Wall -Wextra '
-  $CFLAGS << if ENV['DEBUG']
+  $CFLAGS << if ENV['DEBUG_BUILD']
                ' -O0 -ggdb3 -pedantic '
              else
                ' -O2'
