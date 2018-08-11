@@ -107,7 +107,7 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
     lcb_error_t err;
     lcb_MULTICMD_CTX *mctx = NULL;
     lcb_CMDOBSERVE cmd = {0};
-    VALUE arg;
+    VALUE arg, rv;
     int ii;
 
     if (!cb_bucket_connected_bang(bucket, cb_sym_observe)) {
@@ -165,5 +165,7 @@ cb_bucket_observe(int argc, VALUE *argv, VALUE self)
         cb_raise2(cb_eLibraryError, err, "unable to schedule observe request");
     }
     lcb_wait(bucket->handle);
-    return ctx->rv;
+    rv = ctx->rv;
+    cb_context_free(ctx);
+    return rv;
 }

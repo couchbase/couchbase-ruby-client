@@ -43,8 +43,8 @@
 
 #define _release_data_for(type) _release_data_for_s(type, items, ptr)
 
-static VALUE
-get_transcoder(struct cb_bucket_st *bucket, VALUE override, int compat, VALUE opts)
+VALUE
+cb_get_transcoder(struct cb_bucket_st *bucket, VALUE override, int compat, VALUE opts)
 {
     VALUE ret = Qundef;
 
@@ -329,11 +329,11 @@ cb_params_store_parse_options(struct cb_params_st *params, VALUE options)
     }
     tmp = rb_hash_aref(options, cb_sym_format);
     if (tmp != Qnil) {
-        params->cmd.store.transcoder = get_transcoder(params->bucket, tmp, 1, params->cmd.store.transcoder_opts);
+        params->cmd.store.transcoder = cb_get_transcoder(params->bucket, tmp, 1, params->cmd.store.transcoder_opts);
     }
     tmp = rb_hash_lookup2(options, cb_sym_transcoder, Qundef);
     if (tmp != Qundef) {
-        params->cmd.store.transcoder = get_transcoder(params->bucket, tmp, 0, params->cmd.store.transcoder_opts);
+        params->cmd.store.transcoder = cb_get_transcoder(params->bucket, tmp, 0, params->cmd.store.transcoder_opts);
     }
 }
 
@@ -444,11 +444,11 @@ cb_params_get_parse_options(struct cb_params_st *params, VALUE options)
     }
     tmp = rb_hash_aref(options, cb_sym_format);
     if (tmp != Qnil) {
-        params->cmd.get.transcoder = get_transcoder(params->bucket, tmp, 1, params->cmd.get.transcoder_opts);
+        params->cmd.get.transcoder = cb_get_transcoder(params->bucket, tmp, 1, params->cmd.get.transcoder_opts);
     }
     tmp = rb_hash_lookup2(options, cb_sym_transcoder, Qundef);
     if (tmp != Qundef) {
-        params->cmd.get.transcoder = get_transcoder(params->bucket, tmp, 0, params->cmd.get.transcoder_opts);
+        params->cmd.get.transcoder = cb_get_transcoder(params->bucket, tmp, 0, params->cmd.get.transcoder_opts);
     }
     tmp = rb_hash_aref(options, cb_sym_ttl);
     if (tmp != Qnil) {
@@ -566,11 +566,11 @@ cb_params_arith_parse_options(struct cb_params_st *params, VALUE options)
     }
     tmp = rb_hash_aref(options, cb_sym_format);
     if (tmp != Qnil) {
-        params->cmd.arith.transcoder = get_transcoder(params->bucket, tmp, 1, params->cmd.arith.transcoder_opts);
+        params->cmd.arith.transcoder = cb_get_transcoder(params->bucket, tmp, 1, params->cmd.arith.transcoder_opts);
     }
     tmp = rb_hash_lookup2(options, cb_sym_transcoder, Qundef);
     if (tmp != Qundef) {
-        params->cmd.arith.transcoder = get_transcoder(params->bucket, tmp, 0, params->cmd.arith.transcoder_opts);
+        params->cmd.arith.transcoder = cb_get_transcoder(params->bucket, tmp, 0, params->cmd.arith.transcoder_opts);
     }
 }
 

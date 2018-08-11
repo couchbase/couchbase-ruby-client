@@ -1,6 +1,6 @@
 /* vim: ft=c et ts=8 sts=4 sw=4 cino=
  *
- *   Copyright 2011, 2012 Couchbase, Inc.
+ *   Copyright 2011-2018 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 #include "couchbase_ext.h"
 
-VALUE
+static VALUE
 storage_opcode_to_sym(lcb_storage_t operation)
 {
     switch (operation) {
@@ -32,94 +32,257 @@ storage_opcode_to_sym(lcb_storage_t operation)
     case LCB_PREPEND:
         return cb_sym_prepend;
     default:
-        return Qnil;
+        cb_raise_msg(cb_eLibraryError, "unexpected type of store operation: %d", (int)operation);
     }
 }
 
 void
-cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, lcb_error_t error,
-                    const lcb_store_resp_t *resp)
+cb_storage_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb)
 {
-    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
-    VALUE key, cas, exc;
+    const lcb_RESPSTORE *resp = (const lcb_RESPSTORE *)rb;
+    struct cb_context_st *ctx = (struct cb_context_st *)rb->cookie;
+    VALUE key, exc = Qnil, res;
 
-    key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
-    cas = resp->v.v0.cas > 0 ? ULL2NUM(resp->v.v0.cas) : Qnil;
-    ctx->operation = storage_opcode_to_sym(operation);
-    exc = cb_check_error(error, "failed to store value", key);
-    if (exc != Qnil) {
-        rb_ivar_set(exc, cb_id_iv_cas, cas);
-        rb_ivar_set(exc, cb_id_iv_operation, ctx->operation);
-        ctx->exception = exc;
+    res = rb_class_new_instance(0, NULL, cb_cResult);
+    key = rb_external_str_new(rb->key, rb->nkey);
+    rb_ivar_set(res, cb_id_iv_key, key);
+    rb_ivar_set(res, cb_id_iv_operation, ctx->operation);
+    rb_ivar_set(res, cb_id_iv_cas, ULL2NUM(resp->cas));
+    if (resp->rc != LCB_SUCCESS) {
+        exc =
+            cb_exc_new(cb_eLibraryError, rb->rc, "failed to store key: %.*s", (int)resp->nkey, (const char *)resp->key);
+        rb_ivar_set(res, cb_id_iv_error, exc);
     }
-
-    rb_hash_aset(ctx->rv, key, cb_result_new2(key, resp->v.v0.cas));
-
-    if (!RTEST(ctx->observe_options)) {
-        ctx->nqueries--;
-        if (ctx->nqueries == 0) {
-            ctx->proc = Qnil;
-        }
+    ctx->exception = exc;
+    if (TYPE(ctx->rv) == T_HASH) {
+        rb_hash_aset(ctx->rv, key, res);
+    } else if (NIL_P(ctx->rv)) {
+        ctx->rv = res;
+    } else {
+        // FIXME: use some kind of invalid state error
+        cb_context_free(ctx);
+        cb_raise_msg(cb_eLibraryError, "unexpected result container type: %d", (int)TYPE(ctx->rv));
     }
+    (void)cbtype;
     (void)handle;
 }
 
+typedef struct __cb_store_arg_i {
+    lcb_t handle;
+    lcb_CMDSTOREDUR *cmd;
+    struct cb_context_st *ctx;
+    uint32_t *flags;
+    VALUE transcoder;
+    VALUE transcoder_opts;
+    lcb_storage_t operation;
+} __cb_store_arg_i;
+
+static int
+cb_store_extract_pairs_i(VALUE key, VALUE value, VALUE cookie)
+{
+    VALUE encoded;
+    lcb_error_t err;
+    __cb_store_arg_i *arg = (__cb_store_arg_i *)cookie;
+
+    if (arg->operation == LCB_PREPEND || arg->operation == LCB_APPEND) {
+        if (TYPE(value) != T_STRING) {
+            lcb_sched_fail(arg->handle);
+            cb_context_free(arg->ctx);
+            cb_raise_msg(cb_eValueFormatError,
+                         "unable to schedule operation for key \"%.*s\": string value required for prepend/append",
+                         (int)RSTRING_LEN(key), (const char *)RSTRING_PTR(key));
+        }
+    } else {
+        encoded = cb_encode_value(arg->transcoder, value, arg->flags, arg->transcoder_opts);
+        if (TYPE(encoded) != T_STRING) {
+            lcb_sched_fail(arg->handle);
+            cb_context_free(arg->ctx);
+            if (rb_obj_is_kind_of(encoded, rb_eStandardError)) {
+                VALUE exc = cb_exc_new_msg(cb_eValueFormatError, "unable to encode value for key \"%.*s\"",
+                                           (int)RSTRING_LEN(key), (const char *)RSTRING_PTR(key));
+                rb_ivar_set(exc, cb_id_iv_inner_exception, encoded);
+                rb_exc_raise(exc);
+            } else {
+                cb_raise_msg(cb_eValueFormatError, "unable to encode value for key \"%.*s\"", (int)RSTRING_LEN(key),
+                             (const char *)RSTRING_PTR(key));
+            }
+        }
+        value = encoded;
+    }
+    if (TYPE(key) == T_SYMBOL) {
+        key = rb_sym2str(key);
+    }
+    LCB_CMD_SET_KEY(arg->cmd, RSTRING_PTR(key), RSTRING_LEN(key));
+    LCB_CMD_SET_VALUE(arg->cmd, RSTRING_PTR(value), RSTRING_LEN(value));
+    if (arg->cmd->persist_to || arg->cmd->replicate_to) {
+        err = lcb_storedur3(arg->handle, (const void *)arg->ctx, arg->cmd);
+    } else {
+        err = lcb_store3(arg->handle, (const void *)arg->ctx, (lcb_CMDSTORE *)arg->cmd);
+    }
+    if (err != LCB_SUCCESS) {
+        lcb_sched_fail(arg->handle);
+        cb_context_free(arg->ctx);
+        cb_raise2(cb_eLibraryError, err, "unable to schedule store request");
+    }
+    return ST_CONTINUE;
+}
+
 static inline VALUE
-cb_bucket_store(lcb_storage_t cmd, int argc, VALUE *argv, VALUE self)
+cb_bucket_store(lcb_storage_t operation, int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE rv, exc, obs = Qnil;
+    VALUE rv, key = Qnil, keys = Qnil, value = Qnil, options = Qnil;
+    VALUE transcoder = Qnil, transcoder_opts = Qnil;
     lcb_error_t err;
-    struct cb_params_st params;
+    lcb_CMDSTOREDUR cmd = {0};
 
-    if (!cb_bucket_connected_bang(bucket, storage_opcode_to_sym(cmd))) {
+    if (!cb_bucket_connected_bang(bucket, storage_opcode_to_sym(operation))) {
         return Qnil;
     }
-    memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*", &params.args);
-    params.type = cb_cmd_store;
-    params.bucket = bucket;
-    params.cmd.store.operation = cmd;
-    cb_params_build(&params);
-    obs = params.cmd.store.observe;
+
+    rb_scan_args(argc, argv, "12", &key, &value, &options);
+
+    switch (TYPE(key)) {
+    case T_HASH:
+        if (!NIL_P(options)) {
+            cb_raise_msg(rb_eArgError, "wrong number of arguments (expected 2, type of 3rd arg: %d)",
+                         (int)TYPE(options));
+        }
+        if (TYPE(value) == T_HASH || NIL_P(value)) {
+            options = value;
+        } else {
+            cb_raise_msg(rb_eArgError, "expected options to be a Hash, given type: %d", (int)TYPE(value));
+        }
+        keys = key;
+        key = Qnil;
+        break;
+    case T_SYMBOL:
+        key = rb_sym2str(key);
+        /* fallthrough */
+    case T_STRING:
+        break;
+    default:
+        cb_raise_msg(rb_eArgError, "expected key to be a Symbol or String, given type: %d", (int)TYPE(key));
+        break;
+    }
+    cmd.datatype = 0x00;
+    cmd.exptime = bucket->default_ttl;
+    cmd.persist_to = 0;
+    cmd.replicate_to = 0;
+    cmd.operation = operation;
+    transcoder = bucket->transcoder;
+    transcoder_opts = rb_hash_new();
+    if (!NIL_P(options)) {
+        VALUE tmp;
+        Check_Type(options, T_HASH);
+        tmp = rb_hash_aref(options, cb_sym_ttl);
+        if (tmp != Qnil) {
+            cmd.exptime = NUM2ULONG(tmp);
+        }
+        tmp = rb_hash_aref(options, cb_sym_cas);
+        if (tmp != Qnil) {
+            if (operation == LCB_ADD) {
+                cb_raise_msg2(rb_eArgError, "CAS is not allowed for add operation");
+            }
+            cmd.cas = NUM2ULL(tmp);
+        }
+        tmp = rb_hash_aref(options, cb_sym_observe);
+        if (tmp != Qnil) {
+            VALUE obs;
+            Check_Type(tmp, T_HASH);
+            obs = rb_hash_aref(tmp, cb_sym_persisted);
+            if (obs != Qnil) {
+                Check_Type(obs, T_FIXNUM);
+                cmd.persist_to = NUM2INT(obs);
+            }
+            obs = rb_hash_aref(tmp, cb_sym_replicated);
+            if (obs != Qnil) {
+                Check_Type(obs, T_FIXNUM);
+                cmd.replicate_to = NUM2INT(obs);
+            }
+            if (cmd.persist_to == 0 && cmd.replicate_to == 0) {
+                cb_raise_msg2(rb_eArgError, "either :persisted or :replicated option must be set");
+            }
+        }
+        tmp = rb_hash_aref(options, cb_sym_format);
+        if (tmp != Qnil) {
+            transcoder = cb_get_transcoder(bucket, tmp, 1, transcoder_opts);
+        }
+        tmp = rb_hash_lookup2(options, cb_sym_transcoder, Qundef);
+        if (tmp != Qundef) {
+            transcoder = cb_get_transcoder(bucket, tmp, 0, transcoder_opts);
+        }
+    }
     ctx = cb_context_alloc(bucket);
-    ctx->rv = rb_hash_new();
-    ctx->observe_options = obs;
-    ctx->nqueries = params.cmd.store.num;
-    err = lcb_store(bucket->handle, (const void *)ctx, params.cmd.store.num, params.cmd.store.ptr);
-    cb_params_destroy(&params);
-    exc = cb_check_error(err, "failed to schedule set request", Qnil);
-    if (exc != Qnil) {
+    ctx->operation = storage_opcode_to_sym(operation);
+    lcb_sched_enter(bucket->handle);
+    if (NIL_P(keys)) {
+        if (operation == LCB_PREPEND || operation == LCB_APPEND) {
+            if (TYPE(value) != T_STRING) {
+                lcb_sched_fail(bucket->handle);
+                cb_context_free(ctx);
+                cb_raise_msg(cb_eValueFormatError,
+                             "unable to schedule operation for key \"%.*s\": string value required for prepend/append",
+                             (int)RSTRING_LEN(key), (const char *)RSTRING_PTR(key));
+            }
+        } else {
+            VALUE encoded;
+            encoded = cb_encode_value(transcoder, value, &cmd.flags, transcoder_opts);
+            if (TYPE(encoded) != T_STRING) {
+                VALUE val;
+                lcb_sched_fail(bucket->handle);
+                cb_context_free(ctx);
+                val = rb_any_to_s(encoded);
+                if (rb_obj_is_kind_of(encoded, rb_eStandardError)) {
+                    VALUE exc =
+                        cb_exc_new_msg(cb_eValueFormatError, "unable to convert value for key \"%.*s\" to string: %.*s",
+                                       (int)RSTRING_LEN(key), (const char *)RSTRING_PTR(key), (int)RSTRING_LEN(val),
+                                       (const char *)RSTRING_PTR(val));
+                    rb_ivar_set(exc, cb_id_iv_inner_exception, encoded);
+                    rb_exc_raise(exc);
+                } else {
+                    cb_raise_msg(cb_eValueFormatError, "unable to convert value for key \"%.*s\" to string: %.*s",
+                                 (int)RSTRING_LEN(key), (const char *)RSTRING_PTR(key), (int)RSTRING_LEN(val),
+                                 (const char *)RSTRING_PTR(val));
+                }
+            }
+            value = encoded;
+        }
+        ctx->rv = Qnil;
+        LCB_CMD_SET_KEY(&cmd, RSTRING_PTR(key), RSTRING_LEN(key));
+        LCB_CMD_SET_VALUE(&cmd, RSTRING_PTR(value), RSTRING_LEN(value));
+        if (cmd.persist_to || cmd.replicate_to) {
+            err = lcb_storedur3(bucket->handle, (const void *)ctx, &cmd);
+        } else {
+            err = lcb_store3(bucket->handle, (const void *)ctx, (lcb_CMDSTORE *)&cmd);
+        }
+        if (err != LCB_SUCCESS) {
+            lcb_sched_fail(bucket->handle);
+            cb_context_free(ctx);
+            cb_raise2(cb_eLibraryError, err, "unable to schedule store request");
+        }
+    } else {
+        __cb_store_arg_i iarg = {0};
+        iarg.handle = bucket->handle;
+        iarg.cmd = &cmd;
+        iarg.ctx = ctx;
+        iarg.transcoder = transcoder;
+        iarg.transcoder_opts = transcoder_opts;
+        iarg.flags = &cmd.flags;
+        iarg.operation = operation;
+        ctx->rv = rb_hash_new();
+        rb_hash_foreach(keys, cb_store_extract_pairs_i, (VALUE)&iarg);
+    }
+    lcb_sched_leave(bucket->handle);
+    if (err != LCB_SUCCESS) {
         cb_context_free(ctx);
-        rb_exc_raise(exc);
+        cb_raise2(cb_eLibraryError, err, "unable to schedule observe request");
     }
-    bucket->nbytes += params.npayload;
-    if (ctx->nqueries > 0) {
-        /* we have some operations pending */
-        lcb_wait(bucket->handle);
-    }
-    exc = ctx->exception;
+    lcb_wait(bucket->handle);
     rv = ctx->rv;
     cb_context_free(ctx);
-    if (exc != Qnil) {
-        rb_exc_raise(exc);
-    }
-    exc = bucket->exception;
-    if (exc != Qnil) {
-        bucket->exception = Qnil;
-        rb_exc_raise(exc);
-    }
-    if (RTEST(obs)) {
-        rv = rb_funcall(bucket->self, cb_id_observe_and_wait, 2, rv, obs);
-    }
-    if (params.cmd.store.num > 1) {
-        return rv; /* return as a hash {key => cas, ...} */
-    } else {
-        VALUE vv = Qnil;
-        rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
-        return vv;
-    }
+    return rv;
 }
 
 /*

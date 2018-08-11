@@ -234,6 +234,7 @@ extern ID cb_sym_observe;
 extern ID cb_sym_password;
 extern ID cb_sym_periodic;
 extern ID cb_sym_persisted;
+extern ID cb_sym_replicated;
 extern ID cb_sym_plain;
 extern ID cb_sym_pool;
 extern ID cb_sym_port;
@@ -372,8 +373,6 @@ VALUE cb_unify_key(VALUE key);
 VALUE cb_encode_value(VALUE transcoder, VALUE val, uint32_t *flags, VALUE options);
 VALUE cb_decode_value(VALUE transcoder, VALUE blob, uint32_t flags, VALUE options);
 
-void cb_storage_callback(lcb_t handle, const void *cookie, lcb_storage_t operation, lcb_error_t error,
-                         const lcb_store_resp_t *resp);
 void cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_resp_t *resp);
 void cb_touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_touch_resp_t *resp);
 void cb_delete_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_remove_resp_t *resp);
@@ -385,7 +384,10 @@ void cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const v
 void cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error,
                            const lcb_http_resp_t *resp);
 void cb_observe_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
+void cb_storage_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp);
+
+VALUE cb_get_transcoder(struct cb_bucket_st *bucket, VALUE override, int compat, VALUE opts);
 
 struct cb_context_st *cb_context_alloc(struct cb_bucket_st *bucket);
 struct cb_context_st *cb_context_alloc_common(struct cb_bucket_st *bucket, size_t nqueries);
@@ -644,5 +646,6 @@ __attribute__((format(printf, 5, 6)))
 #define cb_raise(klass, code, fmt, ...) cb_raise_at(klass, code, __FILE__, __LINE__, fmt, __VA_ARGS__)
 #define cb_raise2(klass, code, msg) cb_raise_at(klass, code, __FILE__, __LINE__, msg)
 #define cb_raise_msg(klass, fmt, ...) cb_raise_at(klass, 0, __FILE__, __LINE__, fmt, __VA_ARGS__)
+#define cb_raise_msg2(klass, msg) cb_raise_at(klass, 0, __FILE__, __LINE__, msg)
 
 #endif

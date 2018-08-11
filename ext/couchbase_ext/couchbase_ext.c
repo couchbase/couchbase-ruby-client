@@ -85,6 +85,7 @@ ID cb_sym_observe;
 ID cb_sym_password;
 ID cb_sym_periodic;
 ID cb_sym_persisted;
+ID cb_sym_replicated;
 ID cb_sym_plain;
 ID cb_sym_pool;
 ID cb_sym_port;
@@ -1248,6 +1249,7 @@ extern "C"
     cb_sym_password = ID2SYM(rb_intern("password"));
     cb_sym_periodic = ID2SYM(rb_intern("periodic"));
     cb_sym_persisted = ID2SYM(rb_intern("persisted"));
+    cb_sym_replicated = ID2SYM(rb_intern("replicated"));
     cb_sym_plain = ID2SYM(rb_intern("plain"));
     cb_sym_pool = ID2SYM(rb_intern("pool"));
     cb_sym_port = ID2SYM(rb_intern("port"));

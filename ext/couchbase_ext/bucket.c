@@ -280,7 +280,6 @@ do_connect(struct cb_bucket_st *bucket)
     }
     lcb_set_cookie(bucket->handle, bucket);
     (void)lcb_set_bootstrap_callback(bucket->handle, bootstrap_callback);
-    (void)lcb_set_store_callback(bucket->handle, cb_storage_callback);
     (void)lcb_set_get_callback(bucket->handle, cb_get_callback);
     (void)lcb_set_touch_callback(bucket->handle, cb_touch_callback);
     (void)lcb_set_remove_callback(bucket->handle, cb_delete_callback);
@@ -290,6 +289,8 @@ do_connect(struct cb_bucket_st *bucket)
     (void)lcb_set_unlock_callback(bucket->handle, cb_unlock_callback);
     (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_HTTP, cb_http_callback);
     (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_OBSERVE, cb_observe_callback);
+    (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_STORE, cb_storage_callback);
+    (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_STOREDUR, cb_storage_callback);
 
     lcb_cntl(bucket->handle, (bucket->timeout > 0) ? LCB_CNTL_SET : LCB_CNTL_GET, LCB_CNTL_OP_TIMEOUT,
              &bucket->timeout);
