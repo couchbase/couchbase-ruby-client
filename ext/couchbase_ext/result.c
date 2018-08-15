@@ -73,6 +73,12 @@ cb_result_inspect(VALUE self)
         rb_str_append(str, rb_inspect(attr));
     }
 
+    attr = rb_attr_get(self, cb_id_iv_value);
+    if (RTEST(attr) && (TYPE(attr) == T_FIXNUM || TYPE(attr) == T_BIGNUM || rb_attr_get(self, cb_id_iv_operation) == cb_sym_stats)) {
+        rb_str_buf_cat2(str, " value=");
+        rb_str_append(str, rb_inspect(attr));
+    }
+
     attr = rb_attr_get(self, cb_id_iv_status);
     if (RTEST(attr)) {
         rb_str_buf_cat2(str, " status=");
@@ -126,7 +132,8 @@ cb_result_inspect(VALUE self)
     return str;
 }
 
-VALUE cb_result_new3(VALUE key, VALUE val, lcb_CAS cas)
+VALUE
+cb_result_new3(VALUE key, VALUE val, lcb_CAS cas)
 {
     VALUE res;
     res = rb_class_new_instance(0, NULL, cb_cResult);
@@ -136,7 +143,8 @@ VALUE cb_result_new3(VALUE key, VALUE val, lcb_CAS cas)
     return res;
 }
 
-VALUE cb_result_new2(VALUE key, lcb_CAS cas)
+VALUE
+cb_result_new2(VALUE key, lcb_CAS cas)
 {
     VALUE res;
     res = rb_class_new_instance(0, NULL, cb_cResult);
