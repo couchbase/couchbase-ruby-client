@@ -1,6 +1,6 @@
 /* vim: ft=c et ts=8 sts=4 sw=4 cino=
  *
- *   Copyright 2011, 2012 Couchbase, Inc.
+ *   Copyright 2011-2018 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,29 +18,33 @@
 #include "couchbase_ext.h"
 
 void
-cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_version_resp_t *resp)
+cb_version_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb)
 {
-    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
-    VALUE node, val, exc;
+    VALUE res;
+    struct cb_context_st *ctx = (struct cb_context_st *)rb->cookie;
+    lcb_RESPMCVERSION *resp = (lcb_RESPMCVERSION *)rb;
 
-    node = resp->v.v0.server_endpoint ? STR_NEW_CSTR(resp->v.v0.server_endpoint) : Qnil;
-    exc = cb_check_error(error, "failed to get version", node);
-    if (exc != Qnil) {
-        rb_ivar_set(exc, cb_id_iv_operation, cb_sym_version);
-        ctx->exception = exc;
+    if (resp->server == NULL) {
+        return;
     }
 
-    if (node != Qnil) {
-        val = STR_NEW((const char *)resp->v.v0.vstring, resp->v.v0.nvstring);
-        if (NIL_P(exc)) {
-            rb_hash_aset(ctx->rv, node, val);
-        }
+    res = rb_class_new_instance(0, NULL, cb_cResult);
+    rb_ivar_set(res, cb_id_iv_node, rb_external_str_new_cstr(resp->server));
+    rb_ivar_set(res, cb_id_iv_operation, cb_sym_version);
+    if (rb->rc == LCB_SUCCESS) {
+        rb_ivar_set(res, cb_id_iv_value, rb_external_str_new(resp->mcversion, resp->nversion));
     } else {
-        ctx->nqueries--;
-        ctx->proc = Qnil;
+        VALUE exc = cb_exc_new(cb_eLibraryError, rb->rc, "failed to fetch version for node: %s", resp->server);
+        rb_ivar_set(exc, cb_id_iv_operation, cb_sym_version);
+        rb_ivar_set(res, cb_id_iv_error, exc);
     }
-
+    if (TYPE(ctx->rv) != T_ARRAY) {
+        cb_context_free(ctx);
+        cb_raise_msg(cb_eLibraryError, "unexpected result container type: %d", (int)TYPE(ctx->rv));
+    }
+    rb_ary_push(ctx->rv, res);
     (void)handle;
+    (void)cbtype;
 }
 
 /*
@@ -49,10 +53,7 @@ cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
  * @since 1.1.0
  *
  * @overload version
- *   @yieldparam [Result] ret the object with +error+, +node+, +operation+
- *     and +value+ attributes.
- *
- *   @return [Hash] node-version pairs
+ *   @return [Array] nodes version information
  *
  *   @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
  *   @raise [ArgumentError] when passing the block in synchronous mode
@@ -62,46 +63,27 @@ cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const l
  *
  */
 VALUE
-cb_bucket_version(int argc, VALUE *argv, VALUE self)
+cb_bucket_version(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE rv, exc;
+    VALUE rv;
     lcb_error_t err;
-    struct cb_params_st params;
+    lcb_CMDBASE cmd = {0};
 
     if (!cb_bucket_connected_bang(bucket, cb_sym_version)) {
         return Qnil;
     }
 
-    memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*", &params.args);
-    params.type = cb_cmd_version;
-    params.bucket = bucket;
-    cb_params_build(&params);
-    ctx = cb_context_alloc_common(bucket, params.cmd.version.num);
-    err = lcb_server_versions(bucket->handle, (const void *)ctx, params.cmd.version.num, params.cmd.version.ptr);
-    exc = cb_check_error(err, "failed to schedule version request", Qnil);
-    cb_params_destroy(&params);
-    if (exc != Qnil) {
+    ctx = cb_context_alloc(bucket);
+    ctx->rv = rb_ary_new();
+    err = lcb_server_versions3(bucket->handle, (const void *)ctx, &cmd);
+    if (err != LCB_SUCCESS) {
         cb_context_free(ctx);
-        rb_exc_raise(exc);
+        cb_raise2(cb_eLibraryError, err, "unable to schedule versions request");
     }
-    bucket->nbytes += params.npayload;
-    if (ctx->nqueries > 0) {
-        /* we have some operations pending */
-        lcb_wait(bucket->handle);
-    }
-    exc = ctx->exception;
+    lcb_wait(bucket->handle);
     rv = ctx->rv;
     cb_context_free(ctx);
-    if (exc != Qnil) {
-        rb_exc_raise(exc);
-    }
-    exc = bucket->exception;
-    if (exc != Qnil) {
-        bucket->exception = Qnil;
-        rb_exc_raise(exc);
-    }
     return rv;
 }

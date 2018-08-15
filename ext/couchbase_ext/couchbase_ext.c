@@ -853,7 +853,7 @@ extern "C"
     rb_define_method(cb_cBucket, "touch", cb_bucket_touch, -1);
     rb_define_method(cb_cBucket, "delete", cb_bucket_delete, -1);
     rb_define_method(cb_cBucket, "stats", cb_bucket_stats, -1);
-    rb_define_method(cb_cBucket, "version", cb_bucket_version, -1);
+    rb_define_method(cb_cBucket, "version", cb_bucket_version, 0);
     rb_define_method(cb_cBucket, "incr", cb_bucket_incr, -1);
     rb_define_method(cb_cBucket, "decr", cb_bucket_decr, -1);
     rb_define_method(cb_cBucket, "unlock", cb_bucket_unlock, -1);

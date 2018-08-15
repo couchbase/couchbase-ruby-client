@@ -378,7 +378,6 @@ void cb_touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, cons
 void cb_unlock_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_unlock_resp_t *resp);
 void cb_stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_stat_resp_t *resp);
 void cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_arithmetic_resp_t *resp);
-void cb_version_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_version_resp_t *resp);
 void cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error,
                                const lcb_http_resp_t *resp);
 void cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error,
@@ -386,6 +385,7 @@ void cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void 
 void cb_observe_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_storage_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_remove_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
+void cb_version_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 
 VALUE cb_get_transcoder(struct cb_bucket_st *bucket, VALUE override, int compat, VALUE opts);
 
@@ -412,7 +412,7 @@ VALUE cb_bucket_incr(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_decr(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_unlock(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_query(int argc, VALUE *argv, VALUE self);
-VALUE cb_bucket_version(int argc, VALUE *argv, VALUE self);
+VALUE cb_bucket_version(VALUE self);
 VALUE cb_bucket_disconnect(VALUE self);
 VALUE cb_bucket_reconnect(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_observe(int argc, VALUE *argv, VALUE self);

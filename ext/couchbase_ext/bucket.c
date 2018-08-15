@@ -99,7 +99,8 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_bootstrap_transports);
             if (arg != Qnil) {
-                rb_warning("passing a :bootstrap_transports to Bucket#new is deprecated, use connection string option `bootstrap_on`");
+                rb_warning("passing a :bootstrap_transports to Bucket#new is deprecated, use connection string option "
+                           "`bootstrap_on`");
             }
             arg = rb_hash_aref(opts, cb_sym_hostname);
             if (arg != Qnil) {
@@ -284,13 +285,13 @@ do_connect(struct cb_bucket_st *bucket)
     (void)lcb_set_touch_callback(bucket->handle, cb_touch_callback);
     (void)lcb_set_stat_callback(bucket->handle, cb_stat_callback);
     (void)lcb_set_arithmetic_callback(bucket->handle, cb_arithmetic_callback);
-    (void)lcb_set_version_callback(bucket->handle, cb_version_callback);
     (void)lcb_set_unlock_callback(bucket->handle, cb_unlock_callback);
     (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_HTTP, cb_http_callback);
     (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_OBSERVE, cb_observe_callback);
     (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_STORE, cb_storage_callback);
     (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_STOREDUR, cb_storage_callback);
     (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_REMOVE, cb_remove_callback);
+    (void)lcb_install_callback3(bucket->handle, LCB_CALLBACK_VERSIONS, cb_version_callback);
 
     lcb_cntl(bucket->handle, (bucket->timeout > 0) ? LCB_CNTL_SET : LCB_CNTL_GET, LCB_CNTL_OP_TIMEOUT,
              &bucket->timeout);
