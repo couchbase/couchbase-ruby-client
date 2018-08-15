@@ -1,6 +1,6 @@
 /* vim: ft=c et ts=8 sts=4 sw=4 cino=
  *
- *   Copyright 2011, 2012 Couchbase, Inc.
+ *   Copyright 2011-2018 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,30 +18,78 @@
 #include "couchbase_ext.h"
 
 void
-cb_arithmetic_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_arithmetic_resp_t *resp)
+cb_arithmetic_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb)
 {
-    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
-    VALUE cas, key, val, exc;
-    ID o;
+    struct cb_context_st *ctx = (struct cb_context_st *)rb->cookie;
+    lcb_RESPCOUNTER *resp = (lcb_RESPCOUNTER *)rb;
+    VALUE key, res;
 
-    ctx->nqueries--;
-    key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
-    cas = resp->v.v0.cas > 0 ? ULL2NUM(resp->v.v0.cas) : Qnil;
-    o = ctx->arith > 0 ? cb_sym_increment : cb_sym_decrement;
-    exc = cb_check_error(error, "failed to perform arithmetic operation", key);
-    if (exc != Qnil) {
-        rb_ivar_set(exc, cb_id_iv_cas, cas);
-        rb_ivar_set(exc, cb_id_iv_operation, o);
-        ctx->exception = exc;
+    res = rb_class_new_instance(0, NULL, cb_cResult);
+    key = rb_external_str_new(rb->key, rb->nkey);
+    rb_ivar_set(res, cb_id_iv_key, key);
+    rb_ivar_set(res, cb_id_iv_operation, ctx->operation);
+    rb_ivar_set(res, cb_id_iv_cas, ULL2NUM(rb->cas));
+    if (rb->rc != LCB_SUCCESS) {
+        VALUE exc = cb_exc_new(cb_eLibraryError, rb->rc, "failed to update counter for key: %.*s", (int)rb->nkey,
+                               (const char *)rb->key);
+        rb_ivar_set(res, cb_id_iv_error, exc);
+        rb_ivar_set(exc, cb_id_iv_operation, ctx->operation);
+    } else {
+        rb_ivar_set(res, cb_id_iv_value, ULL2NUM(resp->value));
     }
-    if (NIL_P(exc)) {
-        val = cb_result_new3(key, ULL2NUM(resp->v.v0.value), cas);
-        rb_hash_aset(ctx->rv, key, val);
-    }
-    if (ctx->nqueries == 0) {
-        ctx->proc = Qnil;
+    if (TYPE(ctx->rv) == T_HASH) {
+        rb_hash_aset(ctx->rv, key, res);
+    } else {
+        ctx->rv = res;
     }
     (void)handle;
+    (void)cbtype;
+}
+
+typedef struct __cb_counter_arg_i {
+    lcb_t handle;
+    lcb_CMDCOUNTER *cmd;
+    struct cb_context_st *ctx;
+    int sign;
+} __cb_counter_arg_i;
+
+static int
+cb_counter_extract_pairs_i(VALUE key, VALUE value, VALUE cookie)
+{
+    lcb_error_t err;
+    __cb_counter_arg_i *arg = (__cb_counter_arg_i *)cookie;
+    if (value != Qnil) {
+        switch (TYPE(value)) {
+        case T_FIXNUM:
+        case T_BIGNUM:
+            arg->cmd->delta = arg->sign * (NUM2ULL(value) & INT64_MAX);
+            break;
+        default:
+            lcb_sched_fail(arg->handle);
+            cb_context_free(arg->ctx);
+            cb_raise_msg(rb_eArgError, "expected number for counter delta, given type: %d", (int)TYPE(value));
+        }
+    }
+    switch (TYPE(key)) {
+    case T_SYMBOL:
+        key = rb_sym2str(key);
+        /* fallthrough */
+    case T_STRING:
+        LCB_CMD_SET_KEY(arg->cmd, RSTRING_PTR(key), RSTRING_LEN(key));
+        err = lcb_counter3(arg->handle, (const void *)arg->ctx, arg->cmd);
+        if (err != LCB_SUCCESS) {
+            lcb_sched_fail(arg->handle);
+            cb_context_free(arg->ctx);
+            cb_raise2(cb_eLibraryError, err, "unable to schedule key for counter operation");
+        }
+        break;
+    default:
+        lcb_sched_fail(arg->handle);
+        cb_context_free(arg->ctx);
+        cb_raise_msg(rb_eArgError, "expected array or strings or symbols (type=%d)", (int)TYPE(key));
+        break;
+    }
+    return ST_CONTINUE;
 }
 
 static inline VALUE
@@ -49,46 +97,139 @@ cb_bucket_arithmetic(int sign, int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE rv, exc;
+    VALUE rv, options = Qnil, key, keys = Qnil, value = Qnil;
     lcb_error_t err;
-    struct cb_params_st params;
+    VALUE operation = sign > 0 ? cb_sym_increment : cb_sym_decrement;
+    lcb_CMDCOUNTER cmd = {0};
+    long ii;
 
-    if (!cb_bucket_connected_bang(bucket, sign > 0 ? cb_sym_increment : cb_sym_decrement)) {
+    if (!cb_bucket_connected_bang(bucket, operation)) {
         return Qnil;
     }
 
-    memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*", &params.args);
-    params.type = cb_cmd_arith;
-    params.bucket = bucket;
-    params.cmd.arith.sign = sign;
-    cb_params_build(&params);
-    ctx = cb_context_alloc_common(bucket, params.cmd.arith.num);
-    err = lcb_arithmetic(bucket->handle, (const void *)ctx, params.cmd.arith.num, params.cmd.arith.ptr);
-    cb_params_destroy(&params);
-    exc = cb_check_error(err, "failed to schedule arithmetic request", Qnil);
-    if (exc != Qnil) {
-        cb_context_free(ctx);
-        rb_exc_raise(exc);
+    rb_scan_args(argc, argv, "12", &key, &value, &options);
+
+    switch (TYPE(key)) {
+    case T_HASH:
+    case T_ARRAY:
+        if (!NIL_P(options)) {
+            cb_raise_msg(rb_eArgError, "wrong number of arguments (expected 2, type of 3rd arg: %d)",
+                         (int)TYPE(options));
+        }
+        if (TYPE(value) == T_HASH || NIL_P(value)) {
+            options = value;
+        } else {
+            cb_raise_msg(rb_eArgError, "expected options to be a Hash, given type: %d", (int)TYPE(value));
+        }
+        keys = key;
+        key = Qnil;
+        break;
+    case T_SYMBOL:
+        key = rb_sym2str(key);
+        /* fallthrough */
+    case T_STRING:
+        break;
+    default:
+        cb_raise_msg(rb_eArgError, "expected key to be a Symbol or String, given type: %d", (int)TYPE(key));
+        break;
     }
-    bucket->nbytes += params.npayload;
-    if (ctx->nqueries > 0) {
-        /* we have some operations pending */
-        lcb_wait(bucket->handle);
+    if (TYPE(value) == T_HASH && NIL_P(options)) {
+        options = value;
+        value = Qnil;
     }
-    exc = ctx->exception;
+    cmd.delta = sign;
+    cmd.create = bucket->default_arith_create;
+    cmd.initial = bucket->default_arith_init;
+    if (!NIL_P(options)) {
+        VALUE tmp;
+        Check_Type(options, T_HASH);
+        tmp = rb_hash_aref(options, cb_sym_ttl);
+        if (tmp != Qnil) {
+            cmd.exptime = NUM2ULONG(tmp);
+        }
+        tmp = rb_hash_aref(options, cb_sym_create);
+        if (tmp != Qnil) {
+            cmd.create = RTEST(tmp);
+        }
+        tmp = rb_hash_aref(options, cb_sym_initial);
+        if (tmp != Qnil) {
+            cmd.create = 1;
+            cmd.initial = NUM2ULL(tmp);
+        }
+        tmp = rb_hash_aref(options, cb_sym_delta);
+        if (tmp != Qnil) {
+            cmd.delta = sign * (NUM2ULL(tmp) & INT64_MAX);
+        }
+    }
+    ctx = cb_context_alloc(bucket);
+    ctx->operation = operation;
+    lcb_sched_enter(bucket->handle);
+    if (NIL_P(keys)) {
+        if (value != Qnil) {
+            switch (TYPE(value)) {
+            case T_FIXNUM:
+            case T_BIGNUM:
+                cmd.delta = sign * (NUM2ULL(value) & INT64_MAX);
+                break;
+            default:
+                lcb_sched_fail(bucket->handle);
+                cb_context_free(ctx);
+                cb_raise_msg(rb_eArgError, "expected number for counter delta, given type: %d", (int)TYPE(value));
+            }
+        }
+        ctx->rv = Qnil;
+        LCB_CMD_SET_KEY(&cmd, RSTRING_PTR(key), RSTRING_LEN(key));
+        err = lcb_counter3(bucket->handle, (const void *)ctx, &cmd);
+        if (err != LCB_SUCCESS) {
+            lcb_sched_fail(bucket->handle);
+            cb_context_free(ctx);
+            cb_raise2(cb_eLibraryError, err, "unable to schedule store request");
+        }
+    } else {
+        ctx->rv = rb_hash_new();
+        switch (TYPE(keys)) {
+        case T_HASH: {
+            __cb_counter_arg_i iarg = {0};
+            iarg.handle = bucket->handle;
+            iarg.cmd = &cmd;
+            iarg.ctx = ctx;
+            iarg.sign = sign;
+            rb_hash_foreach(keys, cb_counter_extract_pairs_i, (VALUE)&iarg);
+        } break;
+        case T_ARRAY:
+            for (ii = 0; ii < RARRAY_LEN(keys); ii++) {
+                VALUE entry = rb_ary_entry(keys, ii);
+                switch (TYPE(entry)) {
+                case T_SYMBOL:
+                    entry = rb_sym2str(entry);
+                    /* fallthrough */
+                case T_STRING:
+                    LCB_CMD_SET_KEY(&cmd, RSTRING_PTR(entry), RSTRING_LEN(entry));
+                    err = lcb_counter3(bucket->handle, (const void *)ctx, &cmd);
+                    if (err != LCB_SUCCESS) {
+                        lcb_sched_fail(bucket->handle);
+                        cb_context_free(ctx);
+                        cb_raise2(cb_eLibraryError, err, "unable to schedule key for counter operation");
+                    }
+                    break;
+                default:
+                    lcb_sched_fail(bucket->handle);
+                    cb_context_free(ctx);
+                    cb_raise_msg(rb_eArgError, "expected array or strings or symbols (type=%d)", (int)TYPE(entry));
+                    break;
+                }
+            }
+            break;
+        default:
+            cb_raise_msg(rb_eArgError, "expected keys to be a Array, Hash, Symbol or String, given type: %d",
+                         (int)TYPE(keys));
+            break;
+        }
+    }
+    lcb_sched_leave(bucket->handle);
+    lcb_wait(bucket->handle);
     rv = ctx->rv;
     cb_context_free(ctx);
-    if (exc != Qnil) {
-        rb_exc_raise(exc);
-    }
-    if (params.cmd.store.num > 1) {
-        return rv; /* return as a hash {key => cas, ...} */
-    } else {
-        VALUE vv = Qnil;
-        rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
-        return vv;
-    }
     return rv;
 }
 
