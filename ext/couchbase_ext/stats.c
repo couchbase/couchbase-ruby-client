@@ -1,6 +1,6 @@
 /* vim: ft=c et ts=8 sts=4 sw=4 cino=
  *
- *   Copyright 2011, 2012 Couchbase, Inc.
+ *   Copyright 2011-2018 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,32 +18,30 @@
 #include "couchbase_ext.h"
 
 void
-cb_stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_server_stat_resp_t *resp)
+cb_stat_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb)
 {
-    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
-    VALUE stats, node, key, val, exc = Qnil;
+    VALUE res;
+    struct cb_context_st *ctx = (struct cb_context_st *)rb->cookie;
+    lcb_RESPSTATS *resp = (lcb_RESPSTATS *)rb;
 
-    node = resp->v.v0.server_endpoint ? STR_NEW_CSTR(resp->v.v0.server_endpoint) : Qnil;
-    exc = cb_check_error(error, "failed to fetch stats", node);
-    if (exc != Qnil) {
-        rb_ivar_set(exc, cb_id_iv_operation, cb_sym_stats);
-        ctx->exception = exc;
+    if (resp->server == NULL) {
+        return;
     }
-    if (node != Qnil) {
-        key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
-        val = STR_NEW((const char *)resp->v.v0.bytes, resp->v.v0.nbytes);
-        if (NIL_P(exc)) {
-            stats = rb_hash_aref(ctx->rv, key);
-            if (NIL_P(stats)) {
-                stats = rb_hash_new();
-                rb_hash_aset(ctx->rv, key, stats);
-            }
-            rb_hash_aset(stats, node, val);
-        }
+    res = rb_class_new_instance(0, NULL, cb_cResult);
+    rb_ivar_set(res, cb_id_iv_key, rb_external_str_new(resp->key, resp->nkey));
+    rb_ivar_set(res, cb_id_iv_node, rb_external_str_new_cstr(resp->server));
+    rb_ivar_set(res, cb_id_iv_operation, cb_sym_stats);
+    if (rb->rc == LCB_SUCCESS) {
+        rb_ivar_set(res, cb_id_iv_value, rb_external_str_new(resp->value, resp->nvalue));
     } else {
-        ctx->proc = Qnil;
+        VALUE exc = cb_exc_new(cb_eLibraryError, rb->rc, "failed to fetch stats for node: %s", resp->server);
+        rb_ivar_set(exc, cb_id_iv_operation, cb_sym_stats);
+        rb_ivar_set(res, cb_id_iv_error, exc);
     }
+    Check_Type(ctx->rv, T_ARRAY);
+    rb_ary_push(ctx->rv, res);
     (void)handle;
+    (void)cbtype;
 }
 
 /*
@@ -58,19 +56,16 @@ cb_stat_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_
  *
  * @overload stats(arg = nil)
  *   @param [String] arg argument to STATS query
- *   @yieldparam [Result] ret the object with +node+, +key+ and +value+
- *     attributes.
  *
- *   @example Found how many items in the bucket
- *     total = 0
- *     c.stats["total_items"].each do |key, value|
- *       total += value.to_i
- *     end
+ *   @example Found how many operations has been performed in the bucket
+ *     c.stats
+ *      .select { |res| res.key == "cmd_total_ops" }
+ *      .reduce(0) { |sum, res| sum += res.value }
  *
  *   @example Get memory stats (works on couchbase buckets)
  *     c.stats(:memory)   #=> {"mem_used"=>{...}, ...}
  *
- *   @return [Hash] where keys are stat keys, values are host-value pairs
+ *   @return [Array<Result>] where keys are stat keys, values are host-value pairs
  *
  *   @raise [Couchbase::Error::Connect] if connection closed (see {Bucket#reconnect})
  *   @raise [ArgumentError] when passing the block in synchronous mode
@@ -80,42 +75,29 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE rv, exc;
+    VALUE rv, arg = Qnil;
     lcb_error_t err;
-    struct cb_params_st params;
+    lcb_CMDSTATS cmd = {0};
 
     if (!cb_bucket_connected_bang(bucket, cb_sym_stats)) {
         return Qnil;
     }
 
-    memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*", &params.args);
-    params.type = cb_cmd_stats;
-    params.bucket = bucket;
-    cb_params_build(&params);
-    ctx = cb_context_alloc_common(bucket, params.cmd.stats.num);
-    err = lcb_server_stats(bucket->handle, (const void *)ctx, params.cmd.stats.num, params.cmd.stats.ptr);
-    exc = cb_check_error(err, "failed to schedule stat request", Qnil);
-    cb_params_destroy(&params);
-    if (exc != Qnil) {
+    rb_scan_args(argc, argv, "01", &arg);
+    ctx = cb_context_alloc(bucket);
+    ctx->rv = rb_ary_new();
+
+    if (arg != Qnil) {
+        Check_Type(arg, T_STRING);
+        LCB_CMD_SET_KEY(&cmd, RSTRING_PTR(arg), RSTRING_LEN(arg));
+    }
+    err = lcb_stats3(bucket->handle, (const void *)ctx, &cmd);
+    if (err != LCB_SUCCESS) {
         cb_context_free(ctx);
-        rb_exc_raise(exc);
+        cb_raise2(cb_eLibraryError, err, "unable to schedule versions request");
     }
-    bucket->nbytes += params.npayload;
-    if (ctx->nqueries > 0) {
-        /* we have some operations pending */
-        lcb_wait(bucket->handle);
-    }
-    exc = ctx->exception;
+    lcb_wait(bucket->handle);
     rv = ctx->rv;
     cb_context_free(ctx);
-    if (exc != Qnil) {
-        rb_exc_raise(exc);
-    }
-    exc = bucket->exception;
-    if (exc != Qnil) {
-        bucket->exception = Qnil;
-        rb_exc_raise(exc);
-    }
     return rv;
 }
