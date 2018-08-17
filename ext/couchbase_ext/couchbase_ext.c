@@ -1263,7 +1263,6 @@ extern "C"
     cb_sym_rows = ID2SYM(rb_intern("rows"));
     cb_sym_meta = ID2SYM(rb_intern("meta"));
     cb_sym_select = ID2SYM(rb_intern("select"));
-    cb_sym_send_threshold = ID2SYM(rb_intern("send_threshold"));
     cb_sym_set = ID2SYM(rb_intern("set"));
     cb_sym_stats = ID2SYM(rb_intern("stats"));
     cb_sym_timeout = ID2SYM(rb_intern("timeout"));

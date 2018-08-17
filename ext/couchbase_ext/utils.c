@@ -29,15 +29,6 @@ cb_gc_unprotect_ptr(struct cb_bucket_st *bucket, void *ptr)
     st_delete(bucket->object_space, (st_index_t *)&ptr, NULL);
 }
 
-struct proc_params_st {
-    struct cb_bucket_st *bucket;
-    VALUE recv;
-    ID mid;
-    int argc;
-    VALUE *argv;
-    VALUE exc;
-};
-
 int
 cb_bucket_connected_bang(struct cb_bucket_st *bucket, VALUE operation)
 {
@@ -49,62 +40,6 @@ cb_bucket_connected_bang(struct cb_bucket_st *bucket, VALUE operation)
         return 0;
     }
     return 1;
-}
-
-static VALUE
-func_call_failed(VALUE ptr, VALUE exc)
-{
-    (void)ptr;
-    (void)exc;
-    return Qnil;
-}
-
-static VALUE
-do_func_call(VALUE ptr)
-{
-    struct proc_params_st *p = (struct proc_params_st *)ptr;
-    return rb_funcall2(p->recv, p->mid, p->argc, p->argv);
-}
-
-VALUE
-cb_proc_call(struct cb_bucket_st *bucket, VALUE recv, int argc, ...)
-{
-    VALUE *argv;
-    va_list ar;
-    int arity;
-    int ii;
-    struct proc_params_st params;
-
-    arity = FIX2INT(rb_funcall(recv, cb_id_arity, 0));
-    if (arity < 0) {
-        arity = argc;
-    }
-    if (arity > 0) {
-        va_init_list(ar, argc);
-        argv = ALLOCA_N(VALUE, argc);
-        for (ii = 0; ii < arity; ++ii) {
-            if (ii < argc) {
-                argv[ii] = va_arg(ar, VALUE);
-            } else {
-                argv[ii] = Qnil;
-            }
-        }
-        va_end(ar);
-    } else {
-        argv = NULL;
-    }
-    params.bucket = bucket;
-    params.recv = recv;
-    params.mid = cb_id_call;
-    params.argc = arity;
-    params.argv = argv;
-    return rb_rescue2(do_func_call, (VALUE)&params, func_call_failed, (VALUE)&params, rb_eException, (VALUE)0);
-}
-
-VALUE
-cb_hash_delete(VALUE hash, VALUE key)
-{
-    return rb_funcall(hash, cb_id_delete, 1, key);
 }
 
 /* Helper to convert return code from libcouchbase to meaningful exception.
@@ -433,52 +368,6 @@ cb_decode_value(VALUE transcoder, VALUE blob, uint32_t flags, VALUE options)
     return rb_rescue(do_decode, (VALUE)args, coding_failed, 0);
 }
 
-VALUE
-cb_unify_key(VALUE key)
-{
-    switch (TYPE(key)) {
-    case T_STRING:
-        return key;
-    case T_SYMBOL:
-        return STR_NEW_CSTR(rb_id2name(SYM2ID(key)));
-    default: /* call #to_str or raise error */
-        return StringValue(key);
-    }
-}
-
-void
-cb_build_headers(struct cb_context_st *ctx, const char *const *headers)
-{
-    if (!ctx->headers_built) {
-        VALUE key = Qnil, val;
-        for (size_t ii = 1; *headers != NULL; ++ii, ++headers) {
-            if (ii % 2 == 0) {
-                if (key == Qnil) {
-                    break;
-                }
-                val = rb_hash_aref(ctx->headers_val, key);
-                switch (TYPE(val)) {
-                case T_NIL:
-                    rb_hash_aset(ctx->headers_val, key, STR_NEW_CSTR(*headers));
-                    break;
-                case T_ARRAY:
-                    rb_ary_push(val, STR_NEW_CSTR(*headers));
-                    break;
-                default: {
-                    VALUE ary = rb_ary_new();
-                    rb_ary_push(ary, val);
-                    rb_ary_push(ary, STR_NEW_CSTR(*headers));
-                    rb_hash_aset(ctx->headers_val, key, ary);
-                }
-                }
-            } else {
-                key = STR_NEW_CSTR(*headers);
-            }
-        }
-        ctx->headers_built = 1;
-    }
-}
-
 int
 cb_first_value_i(VALUE key, VALUE value, VALUE arg)
 {
@@ -489,13 +378,34 @@ cb_first_value_i(VALUE key, VALUE value, VALUE arg)
     return ST_STOP;
 }
 
-#ifndef HAVE_RB_HASH_LOOKUP2
 VALUE
-rb_hash_lookup2(VALUE hash, VALUE key, VALUE dflt)
+cb_get_transcoder(struct cb_bucket_st *bucket, VALUE override, int compat, VALUE opts)
 {
-    if (RTEST(rb_funcall2(hash, cb_id_has_key_p, 1, &key))) {
-        dflt = rb_hash_aref(hash, key);
+    VALUE ret = Qundef;
+
+    /* override with symbol */
+    if (TYPE(override) == T_SYMBOL) {
+        if (override == cb_sym_document) {
+            ret = cb_mDocument;
+        } else if (override == cb_sym_marshal) {
+            ret = cb_mMarshal;
+        } else if (override == cb_sym_plain) {
+            ret = cb_mPlain;
+        }
+    } else if (!compat) {
+        /* override with transcoder */
+        if (rb_respond_to(override, cb_id_dump) && rb_respond_to(override, cb_id_load)) {
+            ret = override;
+        }
+        /* nil is also valid */
+        if (NIL_P(override)) {
+            ret = Qnil;
+        }
     }
-    return dflt;
+    if (ret == Qundef) {
+        return bucket->transcoder;
+    } else {
+        rb_hash_aset(opts, cb_sym_forced, Qtrue);
+        return ret;
+    }
 }
-#endif

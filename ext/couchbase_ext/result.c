@@ -131,26 +131,3 @@ cb_result_inspect(VALUE self)
 
     return str;
 }
-
-VALUE
-cb_result_new3(VALUE key, VALUE val, lcb_CAS cas)
-{
-    VALUE res;
-    res = rb_class_new_instance(0, NULL, cb_cResult);
-    rb_ivar_set(res, cb_id_iv_key, key);
-    rb_ivar_set(res, cb_id_iv_value, val);
-    rb_ivar_set(res, cb_id_iv_cas, ULL2NUM(cas));
-    return res;
-}
-
-VALUE
-cb_result_new2(VALUE key, lcb_CAS cas)
-{
-    VALUE res;
-    res = rb_class_new_instance(0, NULL, cb_cResult);
-    rb_ivar_set(res, cb_id_iv_key, key);
-    if (cas > 0) {
-        rb_ivar_set(res, cb_id_iv_cas, ULL2NUM(cas));
-    }
-    return res;
-}

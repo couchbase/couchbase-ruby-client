@@ -67,17 +67,6 @@ extern hrtime_t gethrtime(void);
 #define STR_NEW_CSTR(str) rb_str_new2((str))
 #endif
 
-#ifdef HAVE_STDARG_PROTOTYPES
-#include <stdarg.h>
-#define va_init_list(a, b) va_start(a, b)
-#else
-#include <varargs.h>
-#define va_init_list(a, b) va_start(a)
-#endif
-
-#ifndef HAVE_RB_HASH_LOOKUP2
-VALUE rb_hash_lookup2(VALUE, VALUE, VALUE);
-#endif
 #ifndef HAVE_TYPE_ST_INDEX_T
 typedef st_data_t st_index_t;
 #endif
@@ -95,7 +84,6 @@ typedef st_data_t st_index_t;
 #define CB_FMT_MARSHAL 0x1
 #define CB_FMT_PLAIN 0x2
 
-#define CB_PACKET_HEADER_SIZE 24
 /* Structs */
 struct cb_bucket_st {
     lcb_t handle;
@@ -115,7 +103,6 @@ struct cb_bucket_st {
     lcb_uint64_t default_arith_create; /* should the incr/decr create the key? if non-zero, will use arith_init */
     lcb_uint64_t default_arith_init;   /* default initial value for incr/decr */
     uint32_t timeout;
-    size_t threshold;      /* the number of bytes to trigger event loop, zero if don't care */
     size_t nbytes;         /* the number of bytes scheduled to be sent */
     VALUE exception;       /* error delivered by error_callback */
     VALUE environment;     /* sym_development or sym_production */
@@ -124,7 +111,6 @@ struct cb_bucket_st {
     VALUE self; /* the pointer to bucket representation in ruby land */
 };
 
-struct cb_http_request_st;
 struct cb_context_st {
     struct cb_bucket_st *bucket;
     VALUE proc;
@@ -136,24 +122,9 @@ struct cb_context_st {
     VALUE operation;
     VALUE headers_val;
     int headers_built;
-    struct cb_http_request_st *request;
-    int quiet;
     int arith;        /* incr: +1, decr: -1, other: 0 */
     int all_replicas; /* handle multiple responses from get_replica if non-zero */
     size_t nqueries;
-};
-
-struct cb_http_request_st {
-    struct cb_bucket_st *bucket;
-    VALUE bucket_obj;
-    VALUE type;
-    int extended;
-    int running;
-    int completed;
-    lcb_http_request_t request;
-    lcb_http_cmd_t cmd;
-    struct cb_context_st *ctx;
-    VALUE on_body_callback;
 };
 
 struct cb_timer_st {
@@ -248,7 +219,6 @@ extern ID cb_sym_replica;
 extern ID cb_sym_rows;
 extern ID cb_sym_meta;
 extern ID cb_sym_select;
-extern ID cb_sym_send_threshold;
 extern ID cb_sym_set;
 extern ID cb_sym_stats;
 extern ID cb_sym_timeout;
@@ -365,11 +335,7 @@ VALUE cb_check_error_with_status(lcb_error_t rc, const char *msg, VALUE key, lcb
 int cb_bucket_connected_bang(struct cb_bucket_st *bucket, VALUE operation);
 void cb_gc_protect_ptr(struct cb_bucket_st *bucket, void *ptr, mark_f mark_func);
 void cb_gc_unprotect_ptr(struct cb_bucket_st *bucket, void *ptr);
-VALUE cb_proc_call(struct cb_bucket_st *bucket, VALUE recv, int argc, ...);
 int cb_first_value_i(VALUE key, VALUE value, VALUE arg);
-void cb_build_headers(struct cb_context_st *ctx, const char *const *headers);
-void cb_maybe_do_loop(struct cb_bucket_st *bucket);
-VALUE cb_unify_key(VALUE key);
 VALUE cb_encode_value(VALUE transcoder, VALUE val, uint32_t *flags, VALUE options);
 VALUE cb_decode_value(VALUE transcoder, VALUE blob, uint32_t flags, VALUE options);
 
@@ -382,6 +348,7 @@ void cb_arithmetic_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_unlock_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_touch_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_get_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
+void cb_http_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *r);
 
 VALUE cb_get_transcoder(struct cb_bucket_st *bucket, VALUE override, int compat, VALUE opts);
 
@@ -390,7 +357,6 @@ struct cb_context_st *cb_context_alloc_common(struct cb_bucket_st *bucket, size_
 void cb_context_free(struct cb_context_st *ctx);
 
 VALUE cb_bucket_alloc(VALUE klass);
-void cb_bucket_free(void *ptr);
 VALUE cb_bucket_init_copy(VALUE copy, VALUE orig);
 VALUE cb_bucket_init(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_inspect(VALUE self);
@@ -432,199 +398,15 @@ VALUE cb_bucket_default_observe_timeout_set(VALUE self, VALUE val);
 VALUE cb_bucket_default_arithmetic_init_get(VALUE self);
 VALUE cb_bucket_default_arithmetic_init_set(VALUE self, VALUE val);
 VALUE cb_bucket___http_query(VALUE self, VALUE type, VALUE method, VALUE path, VALUE body, VALUE content_type, VALUE username, VALUE password, VALUE hostname);
-void cb_http_callback(lcb_t instance, int cbtype, const lcb_RESPBASE *r);
 
-VALUE cb_result_new2(VALUE key, lcb_CAS cas);
-VALUE cb_result_new3(VALUE key, VALUE val, lcb_CAS cas);
 VALUE cb_result_success_p(VALUE self);
 VALUE cb_result_inspect(VALUE self);
-
-VALUE cb_timer_alloc(VALUE klass);
-VALUE cb_timer_inspect(VALUE self);
-VALUE cb_timer_cancel(VALUE self);
-VALUE cb_timer_init(int argc, VALUE *argv, VALUE self);
-
-/* Method arguments */
-
-enum cb_command_t {
-    cb_cmd_touch = 0x01,
-    cb_cmd_remove = 0x02,
-    cb_cmd_store = 0x03,
-    cb_cmd_get = 0x04,
-    cb_cmd_arith = 0x05,
-    cb_cmd_stats = 0x06,
-    cb_cmd_version = 0x08,
-    cb_cmd_observe = 0x09,
-    cb_cmd_unlock = 0x10
-};
-
-struct cb_params_st {
-    enum cb_command_t type;
-    union {
-        struct {
-            /* number of items */
-            size_t num;
-            /* array of the items */
-            lcb_touch_cmd_t *items;
-            /* array of the pointers to the items */
-            const lcb_touch_cmd_t **ptr;
-            unsigned int quiet : 1;
-            unsigned int array : 1;
-            lcb_time_t ttl;
-        } touch;
-        struct {
-            /* number of items */
-            size_t num;
-            /* array of the items */
-            lcb_remove_cmd_t *items;
-            /* array of the pointers to the items */
-            const lcb_remove_cmd_t **ptr;
-            unsigned int array : 1;
-            /* 1 if it should silense NOT_FOUND errors */
-            unsigned int quiet : 1;
-            lcb_cas_t cas;
-        } remove;
-        struct {
-            /* number of items */
-            size_t num;
-            /* array of the items */
-            lcb_store_cmd_t *items;
-            /* array of the pointers to the items */
-            const lcb_store_cmd_t **ptr;
-            lcb_storage_t operation;
-            lcb_uint32_t flags;
-            lcb_time_t ttl;
-            lcb_cas_t cas;
-            lcb_datatype_t datatype;
-            VALUE observe;
-            VALUE transcoder;
-            VALUE transcoder_opts;
-        } store;
-        struct {
-            /* number of items */
-            size_t num;
-            /* array of the items */
-            lcb_get_cmd_t *items;
-            /* array of the pointers to the items */
-            const lcb_get_cmd_t **ptr;
-            /* array of the items for GET_REPLICA command */
-            lcb_get_replica_cmd_t *items_gr;
-            /* array of the pointers to the items for GET_REPLICA command */
-            const lcb_get_replica_cmd_t **ptr_gr;
-            unsigned int array : 1;
-            unsigned int lock : 1;
-            unsigned int assemble_hash : 1;
-            unsigned int extended : 1;
-            unsigned int quiet : 1;
-            /* arguments given in form of hash key-ttl to "get and touch" */
-            unsigned int gat : 1;
-            lcb_time_t ttl;
-            VALUE replica;
-            VALUE transcoder;
-            VALUE transcoder_opts;
-            VALUE keys_ary;
-        } get;
-        struct {
-            /* number of items */
-            size_t num;
-            /* array of the items */
-            lcb_arithmetic_cmd_t *items;
-            /* array of the pointers to the items */
-            const lcb_arithmetic_cmd_t **ptr;
-            unsigned int array : 1;
-            unsigned int extended : 1;
-            unsigned int create : 1;
-            lcb_time_t ttl;
-            lcb_uint64_t initial;
-            lcb_uint64_t delta;
-            int sign;
-            VALUE transcoder;
-            VALUE transcoder_opts;
-            lcb_datatype_t datatype;
-        } arith;
-        struct {
-            /* number of items */
-            size_t num;
-            /* array of the items */
-            lcb_server_stats_cmd_t *items;
-            /* array of the pointers to the items */
-            const lcb_server_stats_cmd_t **ptr;
-            unsigned int array : 1;
-        } stats;
-        struct {
-            /* number of items */
-            size_t num;
-            /* array of the items */
-            lcb_server_version_cmd_t *items;
-            /* array of the pointers to the items */
-            const lcb_server_version_cmd_t **ptr;
-        } version;
-        struct {
-            /* number of items */
-            size_t num;
-            /* array of the items */
-            lcb_observe_cmd_t *items;
-            /* array of the pointers to the items */
-            const lcb_observe_cmd_t **ptr;
-            unsigned int array : 1;
-        } observe;
-        struct {
-            /* number of items */
-            size_t num;
-            /* array of the items */
-            lcb_unlock_cmd_t *items;
-            /* array of the pointers to the items */
-            const lcb_unlock_cmd_t **ptr;
-            unsigned int quiet : 1;
-            lcb_cas_t cas;
-        } unlock;
-    } cmd;
-    struct cb_bucket_st *bucket;
-    /* helper index for iterators */
-    size_t idx;
-    /* the approximate size of the data to be sent */
-    size_t npayload;
-    VALUE ensurance;
-    VALUE args;
-};
-
-void cb_params_destroy(struct cb_params_st *params);
-void cb_params_build(struct cb_params_st *params);
-
-/* common plugin functions */
-lcb_ssize_t cb_io_recv(struct lcb_io_opt_st *iops, lcb_socket_t sock, void *buffer, lcb_size_t len, int flags);
-lcb_ssize_t cb_io_recvv(struct lcb_io_opt_st *iops, lcb_socket_t sock, struct lcb_iovec_st *iov, lcb_size_t niov);
-lcb_ssize_t cb_io_send(struct lcb_io_opt_st *iops, lcb_socket_t sock, const void *msg, lcb_size_t len, int flags);
-lcb_ssize_t cb_io_sendv(struct lcb_io_opt_st *iops, lcb_socket_t sock, struct lcb_iovec_st *iov, lcb_size_t niov);
-lcb_socket_t cb_io_socket(struct lcb_io_opt_st *iops, int domain, int type, int protocol);
-void cb_io_close(struct lcb_io_opt_st *iops, lcb_socket_t sock);
-int cb_io_connect(struct lcb_io_opt_st *iops, lcb_socket_t sock, const struct sockaddr *name, unsigned int namelen);
 
 /* plugin init functions */
 LIBCOUCHBASE_API
 lcb_error_t cb_create_ruby_mt_io_opts(int version, lcb_io_opt_t *io, void *arg);
 
 /* shortcut functions */
-static inline VALUE
-rb_funcall_0(VALUE self, ID method)
-{
-    return rb_funcall2(self, method, 0, NULL);
-}
-
-static inline VALUE
-rb_funcall_1(VALUE self, ID method, VALUE arg)
-{
-    return rb_funcall2(self, method, 1, &arg);
-}
-
-static inline VALUE
-rb_funcall_2(VALUE self, ID method, VALUE arg1, VALUE arg2)
-{
-    VALUE args[2] = {arg1, arg2};
-    return rb_funcall2(self, method, 2, args);
-}
-
-
 VALUE cb_exc_new_at(VALUE klass, lcb_error_t code, const char *file, int line, const char *fmt, ...)
 #ifdef __GNUC__
     __attribute__((format(printf, 5, 6)))

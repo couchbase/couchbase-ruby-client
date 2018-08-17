@@ -29,7 +29,7 @@ bootstrap_callback(lcb_t handle, lcb_error_t error)
     }
 }
 
-void
+static void
 cb_bucket_free(void *ptr)
 {
     struct cb_bucket_st *bucket = ptr;
@@ -186,10 +186,8 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_default_arithmetic_init);
             if (arg != Qnil) {
-                bucket->default_arith_create = RTEST(arg);
-                if (TYPE(arg) == T_FIXNUM) {
-                    bucket->default_arith_init = NUM2ULL(arg);
-                }
+                bucket->default_arith_create = 1;
+                bucket->default_arith_init = NUM2ULL(arg);
             }
             arg = rb_hash_aref(opts, cb_sym_engine);
             if (arg != Qnil) {
@@ -213,10 +211,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_transcoder);
             if (arg != Qnil) {
-                bucket->default_arith_create = RTEST(arg);
-                if (TYPE(arg) == T_FIXNUM) {
-                    bucket->default_arith_init = NUM2ULL(arg);
-                }
+                bucket->transcoder = arg;
             }
         } else {
             opts = Qnil;
@@ -640,12 +635,8 @@ cb_bucket_default_arithmetic_init_set(VALUE self, VALUE val)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
 
-    bucket->default_arith_create = RTEST(val);
-    if (bucket->default_arith_create) {
-        bucket->default_arith_init = NUM2ULL(val);
-    } else {
-        bucket->default_arith_init = 0;
-    }
+    bucket->default_arith_create = 1;
+    bucket->default_arith_init = NUM2ULL(val);
     return ULL2NUM(bucket->default_arith_init);
 }
 
@@ -788,21 +779,6 @@ cb_bucket_inspect(VALUE self)
     rb_str_buf_cat2(str, ">");
 
     return str;
-}
-
-static void
-do_loop(struct cb_bucket_st *bucket)
-{
-    lcb_wait(bucket->handle);
-    bucket->nbytes = 0;
-}
-
-void
-cb_maybe_do_loop(struct cb_bucket_st *bucket)
-{
-    if (bucket->threshold != 0 && bucket->nbytes > bucket->threshold) {
-        do_loop(bucket);
-    }
 }
 
 /*
