@@ -1,6 +1,6 @@
 /* vim: ft=c et ts=8 sts=4 sw=4 cino=
  *
- *   Copyright 2011, 2012 Couchbase, Inc.
+ *   Copyright 2011-2018 Couchbase, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,58 +18,86 @@
 #include "couchbase_ext.h"
 
 void
-cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_resp_t *resp)
+cb_get_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb)
 {
-    struct cb_context_st *ctx = (struct cb_context_st *)cookie;
-    VALUE key, val, flags, cas, exc = Qnil, raw;
+    struct cb_context_st *ctx = (struct cb_context_st *)rb->cookie;
+    const lcb_RESPGET *resp = (const lcb_RESPGET *)rb;
+    VALUE key, res;
 
-    ctx->nqueries--;
-    key = STR_NEW((const char *)resp->v.v0.key, resp->v.v0.nkey);
-
-    if (error != LCB_KEY_ENOENT || !ctx->quiet) {
-        exc = cb_check_error(error, "failed to get value", key);
-        if (exc != Qnil) {
-            rb_ivar_set(exc, cb_id_iv_operation, cb_sym_get);
-            ctx->exception = exc;
-        }
-    }
-
-    if (error == LCB_SUCCESS) {
-        flags = ULONG2NUM(resp->v.v0.flags);
-        cas = ULL2NUM(resp->v.v0.cas);
-        raw = STR_NEW((const char *)resp->v.v0.bytes, resp->v.v0.nbytes);
-        val = cb_decode_value(ctx->transcoder, raw, resp->v.v0.flags, ctx->transcoder_opts);
-        if (rb_obj_is_kind_of(val, rb_eStandardError)) {
-            VALUE exc_str = rb_funcall(val, cb_id_to_s, 0);
-            VALUE msg = rb_funcall(rb_mKernel, cb_id_sprintf, 3,
-                                   rb_str_new2("unable to convert value for key \"%s\": %s"), key, exc_str);
-            ctx->exception = rb_exc_new3(cb_eValueFormatError, msg);
-            rb_ivar_set(ctx->exception, cb_id_iv_operation, cb_sym_get);
-            rb_ivar_set(ctx->exception, cb_id_iv_key, key);
-            rb_ivar_set(ctx->exception, cb_id_iv_inner_exception, val);
-            val = Qnil;
-        }
+    res = rb_class_new_instance(0, NULL, cb_cResult);
+    key = rb_external_str_new(rb->key, rb->nkey);
+    rb_ivar_set(res, cb_id_iv_key, key);
+    rb_ivar_set(res, cb_id_iv_operation, cb_sym_get);
+    if (rb->rc != LCB_SUCCESS) {
+        VALUE exc =
+            cb_exc_new(cb_eLibraryError, rb->rc, "failed to get key: %.*s", (int)rb->nkey, (const char *)rb->key);
+        rb_ivar_set(res, cb_id_iv_error, exc);
+        rb_ivar_set(exc, cb_id_iv_operation, cb_sym_get);
     } else {
-        val = flags = cas = Qnil;
-    }
-    if (NIL_P(exc) && error != LCB_KEY_ENOENT) {
-        val = cb_result_new3(key, val, cas);
-        if (ctx->all_replicas) {
-            VALUE ary = rb_hash_aref(ctx->rv, key);
-            if (NIL_P(ary)) {
-                ary = rb_ary_new();
-                rb_hash_aset(ctx->rv, key, ary);
-            }
-            rb_ary_push(ary, val);
+        VALUE raw, decoded;
+        raw = rb_external_str_new(resp->value, resp->nvalue);
+        decoded = cb_decode_value(ctx->transcoder, raw, resp->itmflags, ctx->transcoder_opts);
+        if (rb_obj_is_kind_of(decoded, rb_eStandardError)) {
+            VALUE exc = cb_exc_new_msg(cb_eValueFormatError, "unable to decode value for key \"%.*s\"",
+                                       (int)RSTRING_LEN(key), (const char *)RSTRING_PTR(key));
+            rb_ivar_set(exc, cb_id_iv_inner_exception, decoded);
+            rb_ivar_set(exc, cb_id_iv_operation, cb_sym_touch);
+            rb_ivar_set(res, cb_id_iv_error, exc);
         } else {
-            rb_hash_aset(ctx->rv, key, val);
+            rb_ivar_set(res, cb_id_iv_value, decoded);
         }
+        // rb_ivar_set(res, cb_id_iv_datatype, UINT2NUM(rb->datatype));
+        rb_ivar_set(res, cb_id_iv_cas, ULL2NUM(rb->cas));
     }
 
-    if (ctx->nqueries == 0) {
-        ctx->proc = Qnil;
+    if (TYPE(ctx->rv) == T_HASH) {
+        rb_hash_aset(ctx->rv, key, res);
+    } else {
+        ctx->rv = res;
     }
+    (void)cbtype;
     (void)handle;
+}
+
+typedef struct __cb_get_arg_i {
+    lcb_t handle;
+    lcb_CMDGET *cmd;
+    struct cb_context_st *ctx;
+} __cb_get_arg_i;
+
+static int
+cb_get_extract_pairs_i(VALUE key, VALUE value, VALUE cookie)
+{
+    lcb_error_t err;
+    __cb_get_arg_i *arg = (__cb_get_arg_i *)cookie;
+    if (value != Qnil) {
+        if (TYPE(value) != T_FIXNUM) {
+            lcb_sched_fail(arg->handle);
+            cb_context_free(arg->ctx);
+            cb_raise_msg(rb_eArgError, "expected number (expiration) for get value, given type: %d", (int)TYPE(value));
+        }
+        arg->cmd->exptime = NUM2ULONG(value);
+    }
+    switch (TYPE(key)) {
+    case T_SYMBOL:
+        key = rb_sym2str(key);
+        /* fallthrough */
+    case T_STRING:
+        LCB_CMD_SET_KEY(arg->cmd, RSTRING_PTR(key), RSTRING_LEN(key));
+        err = lcb_get3(arg->handle, (const void *)arg->ctx, arg->cmd);
+        if (err != LCB_SUCCESS) {
+            lcb_sched_fail(arg->handle);
+            cb_context_free(arg->ctx);
+            cb_raise2(cb_eLibraryError, err, "unable to schedule key for get operation");
+        }
+        break;
+    default:
+        lcb_sched_fail(arg->handle);
+        cb_context_free(arg->ctx);
+        cb_raise_msg(rb_eArgError, "expected array or strings or symbols (type=%d)", (int)TYPE(key));
+        break;
+    }
+    return ST_CONTINUE;
 }
 
 /*
@@ -86,8 +114,6 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *   @option options [Fixnum] :ttl (self.default_ttl) Expiry time for key.
  *     Values larger than 30*24*60*60 seconds (30 days) are interpreted as
  *     absolute times (from the epoch).
- *   @option options [true, false] :quiet (self.quiet) If set to +true+, the
- *     operation won't raise error for missing key, it will return +nil+.
  *   @option options [Symbol] :format (nil) Explicitly choose the decoder
  *     for this key (+:plain+, +:document+, +:marshal+). See
  *     {Bucket#default_format}.
@@ -100,9 +126,6 @@ cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_g
  *     inspecting keys  "ep_getl_default_timeout" and "ep_getl_max_timeout"
  *     correspondingly. See overloaded hash syntax to specify custom timeout
  *     per each key.
- *   @option options [true, false] :assemble_hash (false) Assemble Hash for
- *     results. Hash assembled automatically if +:extended+ option is true
- *     or in case of "get and touch" multimple keys.
  *   @option options [true, false, :all, :first, Fixnum] :replica
  *     (false) Read key from replica node. Options +:ttl+ and +:lock+
  *     are not compatible with +:replica+. Value +true+ is a synonym to
@@ -190,74 +213,186 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    VALUE rv, exc;
-    size_t ii;
+    VALUE rv, arg, options, transcoder, transcoder_opts;
+    long ii;
     lcb_error_t err = LCB_SUCCESS;
-    struct cb_params_st params;
+    int is_replica = 0;
+    lcb_CMDGET get = {0};
+    lcb_CMDGETREPLICA getr = {0};
 
     if (!cb_bucket_connected_bang(bucket, cb_sym_get)) {
         return Qnil;
     }
 
-    memset(&params, 0, sizeof(struct cb_params_st));
-    rb_scan_args(argc, argv, "0*", &params.args);
-    params.type = cb_cmd_get;
-    params.bucket = bucket;
-    params.cmd.get.keys_ary = rb_ary_new();
-    cb_params_build(&params);
-    ctx = cb_context_alloc_common(bucket, params.cmd.get.num);
-    ctx->quiet = params.cmd.get.quiet;
-    ctx->transcoder = params.cmd.get.transcoder;
-    ctx->transcoder_opts = params.cmd.get.transcoder_opts;
-    if (RTEST(params.cmd.get.replica)) {
-        if (params.cmd.get.replica == cb_sym_all) {
-            ctx->nqueries = lcb_get_num_replicas(bucket->handle);
-            ctx->all_replicas = 1;
+    rb_scan_args(argc, argv, "11", &arg, &options);
+
+    transcoder = bucket->transcoder;
+    transcoder_opts = rb_hash_new();
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+        VALUE tmp;
+        tmp = rb_hash_lookup2(options, cb_sym_replica, Qundef);
+        if (tmp != Qundef) {
+            is_replica = 1;
+            switch (TYPE(tmp)) {
+            case T_FIXNUM: {
+                int nr = NUM2INT(tmp);
+                int max = lcb_get_num_replicas(bucket->handle);
+                if (nr < 0 || nr >= max) {
+                    cb_raise_msg(rb_eArgError, "replica index should be in interval 0...%d, given: %d", max, nr);
+                }
+                getr.strategy = LCB_REPLICA_SELECT;
+                getr.index = nr;
+            } break;
+            case T_SYMBOL:
+                if (tmp == cb_sym_all) {
+                    getr.strategy = LCB_REPLICA_ALL;
+                } else if (tmp == cb_sym_first) {
+                    getr.strategy = LCB_REPLICA_FIRST;
+                } else {
+                    VALUE idstr = rb_sym2str(tmp);
+                    cb_raise_msg(rb_eArgError, "unknown replica strategy: %s (expected :all, :first or replica index)",
+                                 idstr ? RSTRING_PTR(idstr) : "(null)");
+                }
+                break;
+            case T_TRUE:
+                getr.strategy = LCB_REPLICA_FIRST;
+                break;
+            case T_FALSE:
+                is_replica = 0;
+                break;
+            default:
+                cb_raise_msg(rb_eArgError, "expected replica option to be index or :all/:first symbol (given type=%d)",
+                             (int)TYPE(tmp));
+                break;
+            }
         }
-        err = lcb_get_replica(bucket->handle, (const void *)ctx, params.cmd.get.num, params.cmd.get.ptr_gr);
-    } else {
-        err = lcb_get(bucket->handle, (const void *)ctx, params.cmd.get.num, params.cmd.get.ptr);
+        tmp = rb_hash_aref(options, cb_sym_ttl);
+        if (tmp != Qnil) {
+            if (is_replica) {
+                cb_raise_msg2(rb_eArgError, "expiration option (:ttl) is not allowed for get-replica operation");
+            }
+            get.exptime = NUM2ULONG(tmp);
+            if (get.exptime == 0) {
+                get.cmdflags = LCB_CMDGET_F_CLEAREXP;
+            }
+        }
+        tmp = rb_hash_aref(options, cb_sym_lock);
+        if (tmp != Qnil) {
+            if (is_replica) {
+                cb_raise_msg2(rb_eArgError, ":lock option is not allowed for get-replica operation");
+            }
+            switch (TYPE(tmp)) {
+            case T_FIXNUM:
+                get.exptime = NUM2ULONG(tmp);
+                /* fallthrough */
+            case T_TRUE:
+                get.lock = 1;
+                break;
+            case T_FALSE:
+                get.lock = 0;
+                break;
+            default:
+                cb_raise_msg(rb_eArgError,
+                             "unexpected type for :lock option (expected boolean or number, but given type=%d)",
+                             (int)TYPE(tmp));
+                break;
+            }
+        }
+        tmp = rb_hash_lookup2(options, cb_sym_format, Qundef);
+        if (tmp != Qundef) {
+            if (tmp == cb_sym_document || tmp == cb_sym_marshal || tmp == cb_sym_plain) {
+                transcoder = cb_get_transcoder(bucket, tmp, 1, transcoder_opts);
+            } else {
+                cb_raise_msg2(rb_eArgError, "unexpected format (expected :document, :marshal or :plain)");
+            }
+        }
+        tmp = rb_hash_lookup2(options, cb_sym_transcoder, Qundef);
+        if (tmp != Qundef) {
+            if (tmp == Qnil || (rb_respond_to(tmp, cb_id_dump) && rb_respond_to(tmp, cb_id_load))) {
+                transcoder = cb_get_transcoder(bucket, tmp, 0, transcoder_opts);
+            } else {
+                cb_raise_msg2(rb_eArgError, "transcoder must respond to :load and :dump methods");
+            }
+        }
     }
-    cb_params_destroy(&params);
-    exc = cb_check_error(err, "failed to schedule get request", Qnil);
-    if (exc != Qnil) {
+
+    ctx = cb_context_alloc(bucket);
+    ctx->operation = cb_sym_get;
+    ctx->transcoder = transcoder;
+    ctx->transcoder_opts = transcoder_opts;
+    lcb_sched_enter(bucket->handle);
+    switch (TYPE(arg)) {
+    case T_HASH:
+        if (is_replica) {
+            cb_raise_msg2(rb_eArgError, "key/ttl Hash is not allowed for get-replica operation");
+        } else {
+            __cb_get_arg_i iarg = {0};
+            iarg.handle = bucket->handle;
+            iarg.cmd = &get;
+            iarg.ctx = ctx;
+            rb_hash_foreach(arg, cb_get_extract_pairs_i, (VALUE)&iarg);
+            ctx->rv = rb_hash_new();
+        }
+        break;
+    case T_ARRAY:
+        for (ii = 0; ii < RARRAY_LEN(arg); ii++) {
+            VALUE entry = rb_ary_entry(arg, ii);
+            switch (TYPE(entry)) {
+            case T_SYMBOL:
+                arg = rb_sym2str(arg);
+                /* fallthrough */
+            case T_STRING:
+                if (is_replica) {
+                    LCB_CMD_SET_KEY(&getr, RSTRING_PTR(entry), RSTRING_LEN(entry));
+                    err = lcb_rget3(bucket->handle, (const void *)ctx, &getr);
+                } else {
+                    LCB_CMD_SET_KEY(&get, RSTRING_PTR(entry), RSTRING_LEN(entry));
+                    err = lcb_get3(bucket->handle, (const void *)ctx, &get);
+                }
+                if (err != LCB_SUCCESS) {
+                    lcb_sched_fail(bucket->handle);
+                    cb_context_free(ctx);
+                    cb_raise2(cb_eLibraryError, err, "unable to schedule key for get operation");
+                }
+                break;
+            default:
+                lcb_sched_fail(bucket->handle);
+                cb_context_free(ctx);
+                cb_raise_msg(rb_eArgError, "expected array or strings or symbols (type=%d)", (int)TYPE(entry));
+                break;
+            }
+        }
+        ctx->rv = rb_hash_new();
+        break;
+    case T_SYMBOL:
+        arg = rb_sym2str(arg);
+        /* fallthrough */
+    case T_STRING:
+        if (is_replica) {
+            LCB_CMD_SET_KEY(&getr, RSTRING_PTR(arg), RSTRING_LEN(arg));
+            err = lcb_rget3(bucket->handle, (const void *)ctx, &getr);
+        } else {
+            LCB_CMD_SET_KEY(&get, RSTRING_PTR(arg), RSTRING_LEN(arg));
+            err = lcb_get3(bucket->handle, (const void *)ctx, &get);
+        }
+        if (err != LCB_SUCCESS) {
+            lcb_sched_fail(bucket->handle);
+            cb_context_free(ctx);
+            cb_raise2(cb_eLibraryError, err, "unable to schedule key for get operation");
+        }
+        ctx->rv = Qnil;
+        break;
+    default:
+        lcb_sched_fail(bucket->handle);
         cb_context_free(ctx);
-        rb_exc_raise(exc);
+        cb_raise_msg(rb_eArgError, "expected array of keys, key/ttl pairs or single key (type=%d)", (int)TYPE(arg));
+        break;
     }
-    bucket->nbytes += params.npayload;
-    if (ctx->nqueries > 0) {
-        /* we have some operations pending */
-        lcb_wait(bucket->handle);
-    }
-    exc = ctx->exception;
+    lcb_sched_leave(bucket->handle);
+
+    lcb_wait(bucket->handle);
     rv = ctx->rv;
     cb_context_free(ctx);
-    if (exc != Qnil) {
-        rb_exc_raise(exc);
-    }
-    exc = bucket->exception;
-    if (exc != Qnil) {
-        bucket->exception = Qnil;
-        rb_exc_raise(exc);
-    }
-    if (params.cmd.get.gat || params.cmd.get.assemble_hash ||
-        (params.cmd.get.extended && (params.cmd.get.num > 1 || params.cmd.get.array))) {
-        return rv; /* return as a hash {key => [value, flags, cas], ...} */
-    }
-    if (params.cmd.get.num > 1 || params.cmd.get.array) {
-        VALUE keys, ret;
-        ret = rb_ary_new();
-        /* make sure ret is guarded so not invisible in a register
-         * when stack scanning */
-        RB_GC_GUARD(ret);
-        keys = params.cmd.get.keys_ary;
-        for (ii = 0; ii < params.cmd.get.num; ++ii) {
-            rb_ary_push(ret, rb_hash_aref(rv, rb_ary_entry(keys, ii)));
-        }
-        return ret; /* return as an array [value1, value2, ...] */
-    } else {
-        VALUE vv = Qnil;
-        rb_hash_foreach(rv, cb_first_value_i, (VALUE)&vv);
-        return vv;
-    }
+    return rv;
 }
