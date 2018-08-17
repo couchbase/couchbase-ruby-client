@@ -374,11 +374,6 @@ VALUE cb_encode_value(VALUE transcoder, VALUE val, uint32_t *flags, VALUE option
 VALUE cb_decode_value(VALUE transcoder, VALUE blob, uint32_t flags, VALUE options);
 
 void cb_get_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_get_resp_t *resp);
-void cb_touch_callback(lcb_t handle, const void *cookie, lcb_error_t error, const lcb_touch_resp_t *resp);
-void cb_http_complete_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error,
-                               const lcb_http_resp_t *resp);
-void cb_http_data_callback(lcb_http_request_t request, lcb_t handle, const void *cookie, lcb_error_t error,
-                           const lcb_http_resp_t *resp);
 void cb_observe_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_storage_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_remove_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
@@ -386,6 +381,7 @@ void cb_version_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_stat_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_arithmetic_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 void cb_unlock_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
+void cb_touch_callback(lcb_t handle, int cbtype, const lcb_RESPBASE *rb);
 
 VALUE cb_get_transcoder(struct cb_bucket_st *bucket, VALUE override, int compat, VALUE opts);
 
