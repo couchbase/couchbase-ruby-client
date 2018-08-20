@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,41 +15,26 @@
 # limitations under the License.
 #
 
-require File.join(File.dirname(__FILE__), 'setup')
+require File.join(__dir__, 'setup')
 
 class TestStats < MiniTest::Test
-  def setup
-    @mock = start_mock(:num_nodes => 4)
-  end
-
-  def teardown
-    stop_mock(@mock)
-  end
-
   def test_trivial_stats_without_argument
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
     stats = connection.stats
-    assert stats.is_a?(Hash)
-    assert stats.key?("pid")
-    key, info = stats.first
-    assert key.is_a?(String)
-    assert info.is_a?(Hash)
-    assert_equal @mock.num_nodes, info.size
+    assert_instance_of Array, stats
+    assert(stats.find { |s| s.key == "pid" })
+    info = stats.first
+    assert info.key.is_a?(String)
+    assert_equal(mock.num_nodes, stats.group_by(&:node).size)
   end
 
   def test_stats_with_argument
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      stats = connection.stats("memory")
-      assert stats.is_a?(Hash)
-      assert stats.key?("mem_used")
-      key, info = stats.first
-      assert key.is_a?(String)
-      assert info.is_a?(Hash)
-      assert_equal @mock.num_nodes, info.size
-    else
-      # FIXME
-      skip("make CouchbaseMock.jar STATS more real-life")
-    end
+    connection = Couchbase.new(mock.connstr)
+    stats = connection.stats("memory")
+    assert_instance_of Array, stats
+    assert(stats.find { |s| s.key == "mem_used" })
+    info = stats.first
+    assert info.key.is_a?(String)
+    assert_equal(mock.num_nodes, stats.group_by(&:node).size)
   end
 end
