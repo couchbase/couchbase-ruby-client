@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,8 @@
 # limitations under the License.
 #
 
-require File.join(File.dirname(__FILE__), 'setup')
+require 'yajl'
+require File.join(__dir__, 'setup')
 
 class TestFormat < MiniTest::Test
   ArbitraryClass = Struct.new(:name, :role)
@@ -24,68 +25,58 @@ class TestFormat < MiniTest::Test
     undef to_json rescue nil
   end
 
-  def setup
-    @mock = start_mock
-  end
-
-  def teardown
-    stop_mock(@mock)
-  end
-
   def test_default_document_format
     orig_doc = {'name' => 'Twoflower', 'role' => 'The tourist'}
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
     assert_equal :document, connection.default_format
-    connection.set(uniq_id, orig_doc)
-    doc, flags, cas = connection.get(uniq_id, :extended => true)
-    assert_equal 0x00, flags & 0x11
-    assert doc.is_a?(Hash)
-    assert_equal 'Twoflower', doc['name']
-    assert_equal 'The tourist', doc['role']
+    refute connection.set(uniq_id, orig_doc).error
+    res = connection.get(uniq_id)
+    assert_instance_of Hash, res.value
+    assert_equal 'Twoflower', res.value['name']
+    assert_equal 'The tourist', res.value['role']
   end
 
   def test_it_raises_error_for_document_format_when_neither_to_json_nor_to_s_defined
-    if (MultiJson.respond_to?(:engine) ? MultiJson.engine : MultiJson.adapter).name =~ /Yajl$/
-      orig_doc = SkinyClass.new("Twoflower", "The tourist")
-      refute orig_doc.respond_to?(:to_s)
-      refute orig_doc.respond_to?(:to_json)
+    assert_match(/Yajl$/, MultiJson.engine.name)
+    orig_doc = SkinyClass.new("Twoflower", "The tourist")
+    refute orig_doc.respond_to?(:to_s)
+    refute orig_doc.respond_to?(:to_json)
 
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :document)
-      assert_raises(Couchbase::Error::ValueFormat) do
-        connection.set(uniq_id, orig_doc)
-      end
-
-      class << orig_doc
-        def to_json
-          MultiJson.dump(:name => name, :role => role)
-        end
-      end
-      connection.set(uniq_id, orig_doc) # OK
-
-      class << orig_doc
-        undef to_json
-        def to_s
-          MultiJson.dump(:name => name, :role => role)
-        end
-      end
-      connection.set(uniq_id, orig_doc) # OK
+    connection = Couchbase.new(mock.connstr, :default_format => :document)
+    assert_raises(Couchbase::Error::ValueFormat) do
+      connection.set(uniq_id, orig_doc)
     end
+
+    class << orig_doc
+      def to_json
+        MultiJson.dump(:name => name, :role => role)
+      end
+    end
+    refute connection.set(uniq_id, orig_doc).error
+
+    class << orig_doc
+      undef to_json
+      def to_s
+        MultiJson.dump(:name => name, :role => role)
+      end
+    end
+    refute connection.set(uniq_id, orig_doc).error
   end
 
   def test_it_could_dump_arbitrary_class_using_marshal_format
     orig_doc = ArbitraryClass.new("Twoflower", "The tourist")
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    connection.set(uniq_id, orig_doc, :format => :marshal)
-    doc, flags, cas = connection.get(uniq_id, :extended => true)
-    assert_equal Couchbase::Bucket::FMT_MARSHAL, flags & Couchbase::Bucket::FMT_MASK
-    assert doc.is_a?(ArbitraryClass)
-    assert_equal 'Twoflower', doc.name
-    assert_equal 'The tourist', doc.role
+    connection = Couchbase.new(mock.connstr)
+    refute connection.set(uniq_id, orig_doc, :format => :marshal).error
+    res = connection.get(uniq_id)
+    refute res.error
+    assert_instance_of ArbitraryClass, res.value
+    assert_equal 'Twoflower', res.value.name
+    assert_equal 'The tourist', res.value.role
   end
 
   def test_it_accepts_only_string_in_plain_mode
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :plain)
-    connection.set(uniq_id, "1")
+    connection = Couchbase.new(mock.connstr, :default_format => :plain)
+    refute connection.set(uniq_id, "1").error
 
     assert_raises(Couchbase::Error::ValueFormat) do
       connection.set(uniq_id, 1)
@@ -97,20 +88,20 @@ class TestFormat < MiniTest::Test
   end
 
   def test_bignum_conversion
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :default_format => :plain)
+    connection = Couchbase.new(mock.connstr, :default_format => :plain)
     cas = 0xffff_ffff_ffff_ffff
-    assert cas.is_a?(Integer)
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.delete(uniq_id => cas)
-    end
+    assert_instance_of Integer, cas
+    res = connection.delete(uniq_id, cas)
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
   end
 
   def test_it_allows_to_turn_off_transcoder
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :transcoder => nil)
-    connection.set(uniq_id, "value", :flags => 0xffff_ffff)
-    doc, flags, = connection.get(uniq_id, :extended => true)
-    assert_equal "value", doc
-    assert_equal 0xffff_ffff, flags
+    connection = Couchbase.new(mock.connstr, :transcoder => nil)
+    refute connection.set(uniq_id, '{"foo":   42}').error
+    res = connection.get(uniq_id)
+    refute res.error
+    assert_equal '{"foo":   42}', res.value
   end
 
   require 'zlib'
@@ -144,19 +135,18 @@ class TestFormat < MiniTest::Test
   end
 
   def test_it_can_use_custom_transcoder
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
     connection.transcoder = ZlibTranscoder.new(Couchbase::Transcoder::Document)
-    connection.set(uniq_id, "foo" => "bar")
-    doc, flags, = connection.get(uniq_id, :extended => true)
-    assert_equal({"foo" => "bar"}, doc)
-    assert_equal(ZlibTranscoder::FMT_ZLIB | Couchbase::Bucket::FMT_DOCUMENT, flags)
+
+    refute connection.set(uniq_id, "foo" => "bar").error
+
+    res = connection.get(uniq_id)
+    refute res.error
+    assert_equal({"foo" => "bar"}, res.value)
+
     connection.transcoder = nil
-    doc = connection.get(uniq_id)
-    case RUBY_VERSION
-    when /^1\.8/
-      assert_equal "x\x01\xABVJ\xCB\xCFW\xB2RJJ,R\xAA\x05\0\x1Dz\x044", doc
-    else
-      assert_equal "x\u0001\xABVJ\xCB\xCFW\xB2RJJ,R\xAA\u0005\u0000\u001Dz\u00044", doc
-    end
+    res = connection.get(uniq_id)
+    refute res.error
+    assert_equal "x\u0001\xABVJ\xCB\xCFW\xB2RJJ,R\xAA\u0005\u0000\u001Dz\u00044", res.value
   end
 end

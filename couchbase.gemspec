@@ -41,6 +41,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'mini_portile', '~> 0.5', '>= 0.5.2'
   s.add_development_dependency 'minitest'
   s.add_development_dependency 'minitest-hooks'
-  s.add_development_dependency 'rake'
+  s.add_development_dependency 'yajl-ruby'
   s.add_development_dependency 'rake-compiler', '~> 0.7', '>= 0.7.5'
 end
