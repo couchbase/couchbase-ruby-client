@@ -186,8 +186,20 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             }
             arg = rb_hash_aref(opts, cb_sym_default_arithmetic_init);
             if (arg != Qnil) {
-                bucket->default_arith_create = 1;
-                bucket->default_arith_init = NUM2ULL(arg);
+                switch (TYPE(arg)) {
+                case T_FIXNUM:
+                case T_BIGNUM:
+                    bucket->default_arith_init = NUM2ULL(arg);
+                    /* fallthrough */
+                case T_TRUE:
+                    bucket->default_arith_create = 1;
+                    break;
+                case T_FALSE:
+                    bucket->default_arith_create = 0;
+                    break;
+                default:
+                    break;
+                }
             }
             arg = rb_hash_aref(opts, cb_sym_engine);
             if (arg != Qnil) {

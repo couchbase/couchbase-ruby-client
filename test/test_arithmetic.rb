@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,170 +15,235 @@
 # limitations under the License.
 #
 
-require File.join(File.dirname(__FILE__), 'setup')
+require File.join(__dir__, 'setup')
 
 class TestArithmetic < MiniTest::Test
-  def setup
-    @mock = start_mock
-  end
-
-  def teardown
-    stop_mock(@mock)
-  end
-
   def test_trivial_incr_decr
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
 
-    connection.set(uniq_id, 1)
-    val = connection.incr(uniq_id)
-    assert_equal 2, val
-    val = connection.get(uniq_id)
-    assert_equal 2, val
+    refute connection.set(uniq_id, 1).error
 
-    connection.set(uniq_id, 7)
-    val = connection.decr(uniq_id)
-    assert_equal 6, val
-    val = connection.get(uniq_id)
-    assert_equal 6, val
+    res = connection.incr(uniq_id)
+    refute res.error
+    assert_equal 2, res.value
+    assert_kind_of Numeric, res.cas
+
+    res = connection.get(uniq_id)
+    refute res.error
+    assert_equal 2, res.value
+
+    refute connection.set(uniq_id, 7).error
+
+    res = connection.decr(uniq_id)
+    assert_equal 6, res.value
+    assert_kind_of Numeric, res.cas
+
+    res = connection.get(uniq_id)
+    assert_equal 6, res.value
   end
 
   def test_it_fails_to_incr_decr_missing_key
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
 
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.incr(uniq_id(:missing))
-    end
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.decr(uniq_id(:missing))
-    end
+    res = connection.incr(uniq_id(:missing))
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert res.error.data?
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
+    assert_equal 13, res.error.code
+
+    res = connection.decr(uniq_id(:missing))
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert res.error.data?
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
+    assert_equal 13, res.error.code
   end
 
   def test_it_allows_to_make_increments_less_verbose_by_forcing_create_by_default
-    connection = Couchbase.connect(:hostname => @mock.host, :port => @mock.port,
-                                   :default_arithmetic_init => true)
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id)
-    end
-    assert_equal 0, connection.incr(uniq_id), "return value"
-    assert_equal 0, connection.get(uniq_id), "via get command"
+    connection = Couchbase.connect(mock.connstr, :default_arithmetic_init => true)
+
+    res = connection.get(uniq_id)
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
+
+    res = connection.incr(uniq_id)
+    refute res.error
+    assert_equal 0, res.value
+
+    assert_equal 0, connection.get(uniq_id).value
   end
 
   def test_it_allows_to_setup_initial_value_during_connection
-    connection = Couchbase.connect(:hostname => @mock.host, :port => @mock.port,
-                                   :default_arithmetic_init => 10)
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id)
-    end
-    assert_equal 10, connection.incr(uniq_id), "return value"
-    assert_equal 10, connection.get(uniq_id), "via get command"
+    connection = Couchbase.connect(mock.connstr, :default_arithmetic_init => 10)
+
+    res = connection.get(uniq_id)
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
+
+    res = connection.incr(uniq_id)
+    refute res.error
+    assert_equal 10, res.value
+
+    assert_equal 10, connection.get(uniq_id).value
   end
 
   def test_it_allows_to_change_default_initial_value_after_connection
-    connection = Couchbase.connect(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.connect(mock.connstr)
 
     assert_equal 0, connection.default_arithmetic_init
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.incr(uniq_id)
-    end
+    res = connection.incr(uniq_id)
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
 
     connection.default_arithmetic_init = 10
     assert_equal 10, connection.default_arithmetic_init
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id)
-    end
-    assert_equal 10, connection.incr(uniq_id), "return value"
-    assert_equal 10, connection.get(uniq_id), "via get command"
+    res = connection.get(uniq_id)
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
+
+    res = connection.incr(uniq_id)
+    refute res.error
+    assert_equal 10, res.value
+
+    res = connection.get(uniq_id)
+    refute res.error
+    assert_equal 10, res.value
   end
 
   def test_it_creates_missing_key_when_initial_value_specified
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
 
-    val = connection.incr(uniq_id(:missing), :initial => 5)
-    assert_equal 5, val
-    val = connection.incr(uniq_id(:missing), :initial => 5)
-    assert_equal 6, val
-    val = connection.get(uniq_id(:missing))
-    assert_equal 6, val
+    res = connection.incr(uniq_id(:missing), :initial => 5)
+    refute res.error
+    assert_equal 5, res.value
+
+    res = connection.incr(uniq_id(:missing), :initial => 5)
+    refute res.error
+    assert_equal 6, res.value
+
+    res = connection.get(uniq_id(:missing))
+    refute res.error
+    assert_equal 6, res.value
   end
 
   def test_it_uses_zero_as_default_value_for_missing_keys
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
 
-    val = connection.incr(uniq_id(:missing), :create => true)
-    assert_equal 0, val
-    val = connection.incr(uniq_id(:missing), :create => true)
-    assert_equal 1, val
-    val = connection.get(uniq_id(:missing))
-    assert_equal 1, val
+    res = connection.incr(uniq_id(:missing), :create => true)
+    refute res.error
+    assert_equal 0, res.value
+
+    res = connection.incr(uniq_id(:missing), :create => true)
+    refute res.error
+    assert_equal 1, res.value
+
+    res = connection.get(uniq_id(:missing))
+    refute res.error
+    assert_equal 1, res.value
   end
 
   def test_it_allows_custom_ttl
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
 
-    val = connection.incr(uniq_id(:missing), :create => true, :ttl => 1)
-    assert_equal 0, val
-    val = connection.incr(uniq_id(:missing), :create => true)
-    assert_equal 1, val
-    sleep(2)
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id(:missing))
-    end
+    res = connection.incr(uniq_id, :create => true, :ttl => 1)
+    refute res.error
+    assert_equal 0, res.value
+
+    res = connection.incr(uniq_id, :create => true)
+    refute res.error
+    assert_equal 1, res.value
+
+    mock.time_travel(3)
+
+    res = connection.get(uniq_id)
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
   end
 
   def test_decrement_with_absolute_ttl
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
     # absolute TTL: one second from now
-    exp = Time.now.to_i + 1
-    val = connection.decr(uniq_id, 12, :initial => 0, :ttl => exp)
-    assert_equal 0, val
-    assert_equal 0, connection.get(uniq_id)
-    sleep(2)
-    assert_raises(Couchbase::Error::NotFound) do
-      refute connection.get(uniq_id)
-    end
+    exp = Time.now.to_i + 2
+    res = connection.decr(uniq_id, 12, :initial => 0, :ttl => exp)
+    refute res.error
+    assert_equal 0, res.value
+
+    res = connection.get(uniq_id)
+    refute res.error
+    assert_equal 0, res.value
+
+    mock.time_travel(2)
+
+    res = connection.get(uniq_id)
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
   end
 
   def test_it_allows_custom_delta
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
 
-    connection.set(uniq_id, 12)
-    val = connection.incr(uniq_id, 10)
-    assert_equal 22, val
+    refute connection.set(uniq_id, 12).error
+
+    res = connection.incr(uniq_id, 10)
+    refute res.error
+    assert_equal 22, res.value
   end
 
   def test_it_allows_to_specify_delta_in_options
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
+    refute connection.set(uniq_id, 12).error
 
-    connection.set(uniq_id, 12)
-    options = {:delta => 10}
-    val = connection.incr(uniq_id, options)
-    assert_equal 22, val
+    res = connection.incr(uniq_id, :delta => 10)
+    refute res.error
+    assert_equal 22, res.value
   end
 
   def test_multi_incr
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    connection.set(uniq_id(:foo) => 1, uniq_id(:bar) => 1)
+    connection = Couchbase.new(mock.connstr)
+    res = connection.set(uniq_id(:foo) => 1, uniq_id(:bar) => 1)
+    refute res[uniq_id(:foo)].error
+    refute res[uniq_id(:bar)].error
 
-    assert_equal [2, 2],   connection.incr(uniq_id(:foo), uniq_id(:bar)).values.sort
-    assert_equal [12, 12], connection.incr(uniq_id(:foo), uniq_id(:bar), :delta => 10).values.sort
-    assert_equal [14, 15], connection.incr(uniq_id(:foo) => 2, uniq_id(:bar) => 3).values.sort
+    res = connection.incr([uniq_id(:foo), uniq_id(:bar)])
+    refute res[uniq_id(:foo)].error
+    assert_equal 2, res[uniq_id(:foo)].value
+    refute res[uniq_id(:bar)].error
+    assert_equal 2, res[uniq_id(:bar)].value
+
+    res = connection.incr([uniq_id(:foo), uniq_id(:bar)], :delta => 10)
+    refute res[uniq_id(:foo)].error
+    assert_equal 12, res[uniq_id(:foo)].value
+    refute res[uniq_id(:bar)].error
+    assert_equal 12, res[uniq_id(:bar)].value
+
+    res = connection.incr(uniq_id(:foo) => 2, uniq_id(:bar) => 3)
+    refute res[uniq_id(:foo)].error
+    assert_equal 14, res[uniq_id(:foo)].value
+    refute res[uniq_id(:bar)].error
+    assert_equal 15, res[uniq_id(:bar)].value
   end
 
   def test_multi_decr
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    connection.set(uniq_id(:foo) => 14, uniq_id(:bar) => 15)
+    connection = Couchbase.new(mock.connstr)
+    res = connection.set(uniq_id(:foo) => 14, uniq_id(:bar) => 15)
+    refute res[uniq_id(:foo)].error
+    refute res[uniq_id(:bar)].error
 
-    assert_equal [12, 12], connection.decr(uniq_id(:foo) => 2, uniq_id(:bar) => 3).values.sort
-    assert_equal [2, 2],   connection.decr(uniq_id(:foo), uniq_id(:bar), :delta => 10).values.sort
-    assert_equal [1, 1],   connection.decr(uniq_id(:foo), uniq_id(:bar)).values.sort
-  end
+    res = connection.decr(uniq_id(:foo) => 2, uniq_id(:bar) => 3)
+    refute res[uniq_id(:foo)].error
+    assert_equal 12, res[uniq_id(:foo)].value
+    refute res[uniq_id(:bar)].error
+    assert_equal 12, res[uniq_id(:bar)].value
 
-  def test_it_returns_cas_value_in_extended_mode
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    orig_cas = connection.set(uniq_id(:foo), 1)
-    val, cas = connection.incr(uniq_id(:foo), :extended => true)
-    assert_equal 2, val
-    assert cas.is_a?(Numeric), "CAS should be numeric value: #{cas.inspect}"
-    refute_equal orig_cas, cas
+    res = connection.decr([uniq_id(:foo), uniq_id(:bar)], :delta => 10)
+    refute res[uniq_id(:foo)].error
+    assert_equal 2, res[uniq_id(:foo)].value
+    refute res[uniq_id(:bar)].error
+    assert_equal 2, res[uniq_id(:bar)].value
+
+    res = connection.decr([uniq_id(:foo), uniq_id(:bar)])
+    refute res[uniq_id(:foo)].error
+    assert_equal 1, res[uniq_id(:foo)].value
+    refute res[uniq_id(:bar)].error
+    assert_equal 1, res[uniq_id(:bar)].value
   end
 end
