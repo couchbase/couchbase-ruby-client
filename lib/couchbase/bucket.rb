@@ -62,16 +62,17 @@ module Couchbase
     # @return [Fixnum] the CAS of new value
     def cas(key, options = {})
       retries_remaining = options.delete(:retry) || 0
-      begin
-        val, flags, ver = get(key, :extended => true)
-        val = yield(val) # get new value from caller
-        set(key, val, options.merge(:cas => ver, :flags => flags))
-      rescue Couchbase::Error::KeyExists
-        if retries_remaining > 0
-          retries_remaining -= 1
-          retry
+      loop do
+        res = get(key, options)
+        val = yield(res.value) # get new value from caller
+        res = set(key, val, options.merge(:cas => res.cas))
+        if res.error && res.error.code == Couchbase::LibraryError::LCB_KEY_EEXISTS
+          if retries_remaining > 0
+            retries_remaining -= 1
+            next
+          end
         end
-        raise
+        return res
       end
     end
     alias compare_and_swap cas
