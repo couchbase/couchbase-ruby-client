@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,303 +15,232 @@
 # limitations under the License.
 #
 
-require File.join(File.dirname(__FILE__), 'setup')
+require File.join(__dir__, 'setup')
 
 class TestGet < MiniTest::Test
-  def setup
-    @mock = start_mock
-  end
-
-  def teardown
-    stop_mock(@mock)
-  end
-
   def test_trivial_get
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    connection.set(uniq_id, "bar")
-    val = connection.get(uniq_id)
-    assert_equal "bar", val
-  end
+    connection = Couchbase.new(mock.connstr)
 
-  def test_extended_get
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    res = connection.set(uniq_id, "bar")
+    refute res.error
+    orig_cas = res.cas
 
-    orig_cas = connection.set(uniq_id, "bar")
-    val, flags, cas = connection.get(uniq_id, :extended => true)
-    assert_equal "bar", val
-    assert_equal 0x0, flags
-    assert_equal orig_cas, cas
-
-    orig_cas = connection.set(uniq_id, "bar", :flags => 0x1000)
-    val, flags, cas = connection.get(uniq_id, :extended => true)
-    assert_equal "bar", val
-    assert_equal 0x1000, flags
-    assert_equal orig_cas, cas
+    res = connection.get(uniq_id)
+    assert_equal "bar", res.value
+    assert_equal orig_cas, res.cas
   end
 
   def test_multi_get
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
 
-    connection.set(uniq_id(1), "foo1")
-    connection.set(uniq_id(2), "foo2")
+    res = connection.set(uniq_id(1), "foo1")
+    refute res.error
+    cas1 = res.cas
+    res = connection.set(uniq_id(2), "foo2")
+    refute res.error
+    cas2 = res.cas
 
-    val1, val2 = connection.get(uniq_id(1), uniq_id(2))
-    assert_equal "foo1", val1
-    assert_equal "foo2", val2
-  end
-
-  def test_multi_get_extended
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-
-    cas1 = connection.set(uniq_id(1), "foo1")
-    cas2 = connection.set(uniq_id(2), "foo2")
-
-    results = connection.get(uniq_id(1), uniq_id(2), :extended => true)
-    assert_equal ["foo1", 0x0, cas1], results[uniq_id(1)]
-    assert_equal ["foo2", 0x0, cas2], results[uniq_id(2)]
+    res = connection.get([uniq_id(1), uniq_id(2)])
+    refute res[uniq_id(1)].error
+    refute res[uniq_id(2)].error
+    assert_equal "foo1", res[uniq_id(1)].value
+    assert_equal cas1, res[uniq_id(1)].cas
+    assert_equal "foo2", res[uniq_id(2)].value
+    assert_equal cas2, res[uniq_id(2)].cas
   end
 
   def test_multi_get_and_touch
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    connection.set(uniq_id(1), "foo1")
-    connection.set(uniq_id(2), "foo2")
+    connection = Couchbase.new(mock.connstr)
+    refute connection.set(uniq_id(1), "foo1").error
+    refute connection.set(uniq_id(2), "foo2").error
 
-    results = connection.get(uniq_id(1) => 1, uniq_id(2) => 1)
-    assert results.is_a?(Hash)
-    assert_equal "foo1", results[uniq_id(1)]
-    assert_equal "foo2", results[uniq_id(2)]
-    sleep(2)
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id(1), uniq_id(2))
-    end
-    assert connection.get(uniq_id(1), uniq_id(2), :quiet => true).compact.empty?
-  end
-
-  def test_multi_get_and_touch_extended
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-
-    cas1 = connection.set(uniq_id(1), "foo1")
-    cas2 = connection.set(uniq_id(2), "foo2")
-
-    results = connection.get({uniq_id(1) => 1, uniq_id(2) => 1}, :extended => true)
-    assert_equal ["foo1", 0x0, cas1], results[uniq_id(1)]
-    assert_equal ["foo2", 0x0, cas2], results[uniq_id(2)]
+    res = connection.get(uniq_id(1) => 1, uniq_id(2) => 1)
+    assert_instance_of Hash, res
+    refute res[uniq_id(1)].error
+    assert_equal "foo1", res[uniq_id(1)].value
+    refute res[uniq_id(2)].error
+    assert_equal "foo2", res[uniq_id(2)].value
+    mock.time_travel(2)
+    res = connection.get([uniq_id(1), uniq_id(2)])
+    assert_instance_of Couchbase::LibraryError, res[uniq_id(1)].error
+    assert res[uniq_id(1)].error.data?
+    assert_equal 'LCB_KEY_ENOENT', res[uniq_id(1)].error.name
+    assert_equal 13, res[uniq_id(1)].error.code
+    assert_instance_of Couchbase::LibraryError, res[uniq_id(2)].error
+    assert_equal 'LCB_KEY_ENOENT', res[uniq_id(2)].error.name
+    assert_equal 13, res[uniq_id(2)].error.code
   end
 
   def test_multi_get_and_touch_with_single_key
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    connection.set(uniq_id, "foo1")
+    connection = Couchbase.new(mock.connstr)
+    refute connection.set(uniq_id, "foo1").error
 
-    results = connection.get(uniq_id => 1)
-    assert results.is_a?(Hash)
-    assert_equal "foo1", results[uniq_id]
-    sleep(2)
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id)
-    end
+    res = connection.get(uniq_id => 1)
+    assert res.is_a?(Hash)
+    refute res[uniq_id].error
+    assert_equal "foo1", res[uniq_id].value
+    mock.time_travel(2)
+    res = connection.get(uniq_id)
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
+    assert_equal 13, res.error.code
   end
 
-  def test_missing_in_quiet_mode
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => true)
-    cas1 = connection.set(uniq_id(1), "foo1")
-    cas2 = connection.set(uniq_id(2), "foo2")
+  def test_missing
+    connection = Couchbase.new(mock.connstr)
+    refute connection.set(uniq_id(1), "foo1").error
+    refute connection.set(uniq_id(2), "foo2").error
 
-    val = connection.get(uniq_id(:missing))
-    refute(val)
-    val = connection.get(uniq_id(:missing), :extended => true)
-    refute(val)
+    res = connection.get(uniq_id(:missing))
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
+    assert_equal 13, res.error.code
 
-    val1, missing, val2 = connection.get(uniq_id(1), uniq_id(:missing), uniq_id(2))
-    assert_equal "foo1", val1
-    refute missing
-    assert_equal "foo2", val2
-
-    results = connection.get(uniq_id(1), uniq_id(:missing), uniq_id(2), :extended => true)
-    assert_equal ["foo1", 0x0, cas1], results[uniq_id(1)]
-    refute results[uniq_id(:missing)]
-    assert_equal ["foo2", 0x0, cas2], results[uniq_id(2)]
-  end
-
-  def test_it_allows_temporary_quiet_flag
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => false)
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id(:missing))
-    end
-    refute connection.get(uniq_id(:missing), :quiet => true)
-  end
-
-  def test_missing_in_verbose_mode
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port, :quiet => false)
-    connection.set(uniq_id(1), "foo1")
-    connection.set(uniq_id(2), "foo2")
-
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id(:missing))
-    end
-
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id(:missing), :extended => true)
-    end
-
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id(1), uniq_id(:missing), uniq_id(2))
-    end
-
-    assert_raises(Couchbase::Error::NotFound) do
-      connection.get(uniq_id(1), uniq_id(:missing), uniq_id(2), :extended => true)
-    end
+    res = connection.get([uniq_id(1), uniq_id(:missing), uniq_id(2)])
+    refute res[uniq_id(1)].error
+    refute res[uniq_id(2)].error
+    assert_instance_of Couchbase::LibraryError, res[uniq_id(:missing)].error
+    assert_equal 'LCB_KEY_ENOENT', res[uniq_id(:missing)].error.name
+    assert_equal 13, res[uniq_id(:missing)].error.code
   end
 
   def test_get_using_brackets
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
 
-    orig_cas = connection.set(uniq_id, "foo", :flags => 0x1100)
+    refute connection.set(uniq_id, "foo").error
 
-    val = connection[uniq_id]
-    assert_equal "foo", val
-
-    if RUBY_VERSION =~ /^1\.9/
-      eval <<-EOC
-      val, flags, cas = connection[uniq_id, :extended => true]
-      assert_equal "foo", val
-      assert_equal 0x1100, flags
-      assert_equal orig_cas, cas
-      EOC
-    end
+    res = connection[uniq_id]
+    refute res.error
+    assert_equal "foo", res.value
   end
 
   def test_it_allows_to_store_nil
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
 
-    orig_cas = connection.set(uniq_id, nil)
-    assert orig_cas.is_a?(Numeric)
+    res = connection.set(uniq_id, nil)
+    refute res.error
+    assert res.cas.is_a?(Numeric)
+    orig_cas = res.cas
 
-    refute connection.get(uniq_id)
-    # doesn't raise NotFound exception
-    refute connection.get(uniq_id, :quiet => false)
-    # returns CAS
-    value, flags, cas = connection.get(uniq_id, :extended => true)
-    refute value
-    assert_equal 0x00, flags
-    assert_equal orig_cas, cas
+    res = connection.get(uniq_id)
+    refute res.error
+    assert_nil res.value
+    assert_equal orig_cas, res.cas
   end
 
   def test_zero_length_string_is_not_nil
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
 
-    connection.set(uniq_id, "", :format => :document)
-    assert_equal "", connection.get(uniq_id)
+    refute connection.set(uniq_id, "", :format => :document).error
 
-    connection.set(uniq_id, "", :format => :plain)
-    assert_equal "", connection.get(uniq_id)
+    res = connection.get(uniq_id)
+    refute res.error
+    assert_equal '', res.value
 
-    connection.set(uniq_id, "", :format => :marshal)
-    assert_equal "", connection.get(uniq_id)
+    refute connection.set(uniq_id, "", :format => :plain).error
+    res = connection.get(uniq_id)
+    assert_equal '', res.value
 
-    connection.set(uniq_id, nil, :format => :document)
-    assert_equal nil, connection.get(uniq_id, :quiet => false)
+    refute connection.set(uniq_id, "", :format => :marshal).error
+    res = connection.get(uniq_id)
+    assert_equal '', res.value
+
+    refute connection.set(uniq_id, nil, :format => :document).error
+    res = connection.get(uniq_id)
+    refute res.error
 
     assert_raises Couchbase::Error::ValueFormat do
       connection.set(uniq_id, nil, :format => :plain)
     end
 
     connection.set(uniq_id, nil, :format => :marshal)
-    assert_equal nil, connection.get(uniq_id, :quiet => false)
+    res = connection.get(uniq_id)
+    refute res.error
+    assert_nil res.value
   end
 
   def test_format_forcing
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
+    connection = Couchbase.new(mock.connstr)
 
-    connection.set(uniq_id, '{"foo":"bar"}', :format => :plain)
-    value, flags, = connection.get(uniq_id, :extended => true)
-    assert_equal '{"foo":"bar"}', value
-    assert_equal 0x02, flags
+    refute connection.set(uniq_id, '{"foo":"bar"}', :format => :plain).error
+    res = connection.get(uniq_id)
+    refute res.error
+    assert_equal('{"foo":"bar"}', res.value)
 
-    value, flags, = connection.get(uniq_id, :extended => true, :format => :document)
-    expected = {"foo" => "bar"}
-    assert_equal expected, value
-    assert_equal 0x02, flags
+    res = connection.get(uniq_id, :format => :document)
+    assert_equal({"foo" => "bar"}, res.value)
 
-    connection.prepend(uniq_id, "NOT-A-JSON")
-    assert_raises Couchbase::Error::ValueFormat do
-      connection.get(uniq_id, :format => :document)
-    end
-  end
-
-  # http://www.couchbase.com/issues/browse/RCBC-31
-  def test_consistent_behaviour_for_arrays
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-
-    cas = connection.set(uniq_id("foo"), "foo")
-    connection.set(uniq_id("bar"), "bar")
-
-    assert_equal "foo", connection.get(uniq_id("foo"))
-    assert_equal ["foo"], connection.get([uniq_id("foo")])
-    assert_equal %w(foo bar), connection.get([uniq_id("foo"), uniq_id("bar")])
-    assert_equal %w(foo bar), connection.get(uniq_id("foo"), uniq_id("bar"))
-    expected = {uniq_id("foo") => ["foo", 0x00, cas]}
-    assert_equal expected, connection.get([uniq_id("foo")], :extended => true)
-    assert_raises TypeError do
-      connection.get([uniq_id("foo"), uniq_id("bar")], [uniq_id("foo")])
-    end
+    refute connection.prepend(uniq_id, "NOT-A-JSON").error
+    res = connection.get(uniq_id, :format => :document)
+    assert_instance_of Couchbase::Error::ValueFormat, res.error
+    assert_nil res.value
   end
 
   def test_get_with_lock_trivial
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      connection.set(uniq_id, "foo")
-      assert_equal "foo", connection.get(uniq_id, :lock => 1)
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id, "bar")
-      end
-      sleep(2)
-      connection.set(uniq_id, "bar")
-    else
-      skip("implement GETL in CouchbaseMock.jar")
-    end
+    connection = Couchbase.new(mock.connstr)
+    refute connection.set(uniq_id, "foo").error
+
+    res = connection.get(uniq_id, :lock => 1)
+    refute res.error
+    assert_equal 'foo', res.value
+
+    res = connection.set(uniq_id, 'bar')
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert res.error.data?
+    assert_equal 'LCB_KEY_EEXISTS', res.error.name
+    assert_equal 12, res.error.code
+
+    mock.time_travel(2)
+    refute connection.set(uniq_id, "bar").error
   end
 
   def test_multi_get_with_lock
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      connection.set(uniq_id(1), "foo1")
-      connection.set(uniq_id(2), "foo2")
-      assert_equal %w(foo1 foo2), connection.get([uniq_id(1), uniq_id(2)], :lock => 1)
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id(1), "bar")
-      end
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id(2), "bar")
-      end
-    else
-      skip("implement GETL in CouchbaseMock.jar")
+    connection = Couchbase.new(mock.connstr)
+    refute connection.set(uniq_id(1), "foo1").error
+    refute connection.set(uniq_id(2), "foo2").error
+
+    res = connection.get([uniq_id(1), uniq_id(2)], :lock => 1)
+    refute res[uniq_id(1)].error
+    assert_equal 'foo1', res[uniq_id(1)].value
+    refute res[uniq_id(2)].error
+    assert_equal 'foo2', res[uniq_id(2)].value
+
+    [1, 2].each do |arg|
+      res = connection.set(uniq_id(arg), 'bar')
+      assert_instance_of Couchbase::LibraryError, res.error
+      assert res.error.data?
+      assert_equal 'LCB_KEY_EEXISTS', res.error.name
+      assert_equal 12, res.error.code
     end
   end
 
   def test_multi_get_with_custom_locks
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      connection.set(uniq_id(1), "foo1")
-      connection.set(uniq_id(2), "foo2")
-      expected = {uniq_id(1) => "foo1", uniq_id(2) => "foo2"}
-      assert_equal expected, connection.get({uniq_id(1) => 1, uniq_id(2) => 2}, :lock => true)
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id(1), "foo")
-      end
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id(2), "foo")
-      end
-    else
-      skip("implement GETL in CouchbaseMock.jar")
+    connection = Couchbase.new(mock.connstr)
+    refute connection.set(uniq_id(1), "foo1").error
+    refute connection.set(uniq_id(2), "foo2").error
+
+    res = connection.get({uniq_id(1) => 1, uniq_id(2) => 3}, :lock => true)
+    refute res[uniq_id(1)].error
+    assert_equal 'foo1', res[uniq_id(1)].value
+    refute res[uniq_id(2)].error
+    assert_equal 'foo2', res[uniq_id(2)].value
+
+    [1, 2].each do |arg|
+      res = connection.set(uniq_id(arg), 'bar')
+      assert_instance_of Couchbase::LibraryError, res.error
+      assert res.error.data?
+      assert_equal 'LCB_KEY_EEXISTS', res.error.name
+      assert_equal 12, res.error.code
     end
-  end
 
-  def test_multi_get_result_hash_assembling
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    connection.set(uniq_id(1), "foo")
-    connection.set(uniq_id(2), "bar")
+    mock.time_travel(2)
 
-    expected = {uniq_id(1) => "foo", uniq_id(2) => "bar"}
-    assert_equal expected, connection.get(uniq_id(1), uniq_id(2), :assemble_hash => true)
+    refute connection.set(uniq_id(1), 'bar').error
+
+    res = connection.set(uniq_id(2), 'bar')
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert res.error.data?
+    assert_equal 'LCB_KEY_EEXISTS', res.error.name
+    assert_equal 12, res.error.code
   end
 end

@@ -21,6 +21,8 @@ require 'ext/multi_json_fix'
 module Couchbase
   module Transcoder
     module Compat
+      @disabled = false
+
       def self.enable!
         @disabled = false
       end
@@ -42,7 +44,7 @@ module Couchbase
         when Bucket::FMT_PLAIN
           blob
         else
-          raise ArgumentError, "unexpected flags (0x%02x)" % flags
+          raise ArgumentError, format('unexpected flags (0x%02x)', flags)
         end
       end
     end
@@ -59,12 +61,9 @@ module Couchbase
         if (flags & Bucket::FMT_MASK) == Bucket::FMT_DOCUMENT || options[:forced]
           MultiJson.load(blob)
         else
-          if Compat.enabled?
-            Compat.guess_and_load(blob, flags, options)
-          else
-            raise ArgumentError,
-                  "unexpected flags (0x%02x instead of 0x%02x)" % [flags, Bucket::FMT_DOCUMENT]
-          end
+          return Compat.guess_and_load(blob, flags, options) if Compat.enabled?
+          raise ArgumentError,
+                format('unexpected flags (0x%02x instead of 0x%02x)', flags, Bucket::FMT_DOCUMENT)
         end
       end
     end
@@ -85,7 +84,7 @@ module Couchbase
             Compat.guess_and_load(blob, flags, options)
           else
             raise ArgumentError,
-                  "unexpected flags (0x%02x instead of 0x%02x)" % [flags, Bucket::FMT_MARSHAL]
+                  format('unexpected flags (0x%02x instead of 0x%02x)', flags, Bucket::FMT_MARSHAL)
           end
         end
       end
@@ -107,7 +106,7 @@ module Couchbase
             Compat.guess_and_load(blob, flags, options)
           else
             raise ArgumentError,
-                  "unexpected flags (0x%02x instead of 0x%02x)" % [flags, Bucket::FMT_PLAIN]
+                  format('unexpected flags (0x%02x instead of 0x%02x)', flags, Bucket::FMT_PLAIN)
           end
         end
       end
