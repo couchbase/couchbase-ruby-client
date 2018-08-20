@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +19,9 @@ require 'rake/testtask'
 require 'rake/clean'
 
 rule 'test/CouchbaseMock.jar' do |_task|
-  jar_path = "0.8-SNAPSHOT/CouchbaseMock-0.8-20140621.030439-1.jar"
-  sh %(wget -q -O test/CouchbaseMock.jar http://files.couchbase.com/maven2/org/couchbase/mock/CouchbaseMock/#{jar_path})
+  jar_version = 'CouchbaseMock-1.5.19.jar'
+  jar_path = "https://packages.couchbase.com/clients/c/mock/#{jar_version}"
+  sh "wget -O test/CouchbaseMock.jar #{jar_path}"
 end
 
 CLOBBER << 'test/CouchbaseMock.jar'

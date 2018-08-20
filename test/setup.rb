@@ -16,6 +16,8 @@
 #
 
 require 'minitest/autorun'
+require 'minitest/hooks'
+
 require 'couchbase'
 
 require 'socket'
@@ -59,16 +61,48 @@ class CouchbaseServer
     end
   end
 
+  def time_travel(offset)
+    sleep(offset)
+  end
+
   def stop; end
 end
 
 class CouchbaseMock
-  Monitor = Struct.new(:pid, :client, :socket, :port)
+  class Monitor
+    attr_accessor :pid
+    attr_accessor :client
+    attr_accessor :socket
+    attr_accessor :port
 
-  attr_accessor :host, :port, :buckets_spec, :num_nodes, :num_vbuckets
+    def send_command(spec)
+      req = MultiJson.dump(spec)
+      client.send("#{req}\n", 0)
+      res = MultiJson.load(recv_until("\n"))
+      return res['payload'] unless res['error']
+      STDERR.puts
+      STDERR.puts(res['error'])
+      raise "Mock returned error for #{req}"
+    end
+
+    def recv_until(term)
+      buf = ''
+      loop do
+        c = client.recv(1)
+        return buf if c == term
+        buf << c
+      end
+    end
+  end
+
+  attr_accessor :buckets_spec, :num_nodes, :num_vbuckets
 
   def real?
     false
+  end
+
+  def connstr
+    "couchbase://#{@host}:#{@port}=http"
   end
 
   def initialize(params = {})
@@ -97,11 +131,11 @@ class CouchbaseMock
     end
     @monitor.pid = fork
     if @monitor.pid.nil?
-      rc = exec(command_line("--harakiri-monitor=:#{@monitor.port}"))
+      exec(command_line("--harakiri-monitor=:#{@monitor.port}"))
     else
       trap("CLD", "SIG_DFL")
       @monitor.client, = @monitor.socket.accept
-      @port = @monitor.client.recv(100).to_i
+      @port = @monitor.recv_until("\0").to_i
     end
   end
 
@@ -110,6 +144,15 @@ class CouchbaseMock
     @monitor.socket.close
     Process.kill("TERM", @monitor.pid)
     Process.wait(@monitor.pid)
+  end
+
+  def time_travel(offset)
+    @monitor.send_command(
+      'command' => 'TIME_TRAVEL',
+      'payload' => {
+        'Offset' => offset
+      }
+    )
   end
 
   def failover_node(index, bucket = "default")
@@ -135,6 +178,18 @@ class CouchbaseMock
 end
 
 class MiniTest::Test
+  include Minitest::Hooks
+
+  around :all do |&block|
+    @__mock = start_mock
+    block.call
+    stop_mock(@__mock)
+  end
+
+  def mock
+    @__mock
+  end
+
   def start_mock(params = {})
     mock = nil
     if ENV['COUCHBASE_SERVER']
