@@ -18,5 +18,7 @@
 module Couchbase
   class LibraryError < StandardError
     attr_reader :code
+    attr_reader :name
+    attr_reader :message
   end
 end
