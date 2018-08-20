@@ -49,13 +49,13 @@ class TestArithmetic < MiniTest::Test
     assert_instance_of Couchbase::LibraryError, res.error
     assert res.error.data?
     assert_equal 'LCB_KEY_ENOENT', res.error.name
-    assert_equal 13, res.error.code
+    assert_equal Couchbase::LibraryError::LCB_KEY_ENOENT, res.error.code
 
     res = connection.decr(uniq_id(:missing))
     assert_instance_of Couchbase::LibraryError, res.error
     assert res.error.data?
     assert_equal 'LCB_KEY_ENOENT', res.error.name
-    assert_equal 13, res.error.code
+    assert_equal Couchbase::LibraryError::LCB_KEY_ENOENT, res.error.code
   end
 
   def test_it_allows_to_make_increments_less_verbose_by_forcing_create_by_default

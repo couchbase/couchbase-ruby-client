@@ -65,10 +65,10 @@ class TestGet < MiniTest::Test
     assert_instance_of Couchbase::LibraryError, res[uniq_id(1)].error
     assert res[uniq_id(1)].error.data?
     assert_equal 'LCB_KEY_ENOENT', res[uniq_id(1)].error.name
-    assert_equal 13, res[uniq_id(1)].error.code
+    assert_equal Couchbase::LibraryError::LCB_KEY_ENOENT, res[uniq_id(1)].error.code
     assert_instance_of Couchbase::LibraryError, res[uniq_id(2)].error
     assert_equal 'LCB_KEY_ENOENT', res[uniq_id(2)].error.name
-    assert_equal 13, res[uniq_id(2)].error.code
+    assert_equal Couchbase::LibraryError::LCB_KEY_ENOENT, res[uniq_id(2)].error.code
   end
 
   def test_multi_get_and_touch_with_single_key
@@ -83,7 +83,7 @@ class TestGet < MiniTest::Test
     res = connection.get(uniq_id)
     assert_instance_of Couchbase::LibraryError, res.error
     assert_equal 'LCB_KEY_ENOENT', res.error.name
-    assert_equal 13, res.error.code
+    assert_equal Couchbase::LibraryError::LCB_KEY_ENOENT, res.error.code
   end
 
   def test_missing
@@ -94,14 +94,14 @@ class TestGet < MiniTest::Test
     res = connection.get(uniq_id(:missing))
     assert_instance_of Couchbase::LibraryError, res.error
     assert_equal 'LCB_KEY_ENOENT', res.error.name
-    assert_equal 13, res.error.code
+    assert_equal Couchbase::LibraryError::LCB_KEY_ENOENT, res.error.code
 
     res = connection.get([uniq_id(1), uniq_id(:missing), uniq_id(2)])
     refute res[uniq_id(1)].error
     refute res[uniq_id(2)].error
     assert_instance_of Couchbase::LibraryError, res[uniq_id(:missing)].error
     assert_equal 'LCB_KEY_ENOENT', res[uniq_id(:missing)].error.name
-    assert_equal 13, res[uniq_id(:missing)].error.code
+    assert_equal Couchbase::LibraryError::LCB_KEY_ENOENT, res[uniq_id(:missing)].error.code
   end
 
   def test_get_using_brackets

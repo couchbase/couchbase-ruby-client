@@ -426,4 +426,6 @@ __attribute__((format(printf, 5, 6)))
 #define cb_raise_msg(klass, fmt, ...) cb_raise_at(klass, 0, __FILE__, __LINE__, fmt, __VA_ARGS__)
 #define cb_raise_msg2(klass, msg) cb_raise_at(klass, 0, __FILE__, __LINE__, msg)
 
+void init_library_error();
+
 #endif

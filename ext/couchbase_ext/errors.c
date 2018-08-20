@@ -126,4 +126,8 @@ init_library_error()
     rb_define_method(cb_eLibraryError, "subdoc?", cb_library_error_subdoc_p, 0);
     rb_define_method(cb_eLibraryError, "server_load?", cb_library_error_server_load_p, 0);
     rb_define_method(cb_eLibraryError, "server_generated?", cb_library_error_server_generated_p, 0);
+
+#define X(c, v, t, s) rb_const_set(cb_eLibraryError, rb_intern(#c), INT2FIX(v));
+    LCB_XERR(X)
+#undef X
 }
