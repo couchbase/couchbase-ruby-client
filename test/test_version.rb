@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,21 +15,13 @@
 # limitations under the License.
 #
 
-require File.join(File.dirname(__FILE__), 'setup')
+require File.join(__dir__, 'setup')
 
 class TestVersion < MiniTest::Test
-  def setup
-    @mock = start_mock
-  end
-
-  def teardown
-    stop_mock(@mock)
-  end
-
   def test_sync_version
-    connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-    ver = connection.version
-    assert ver.is_a?(Hash)
-    assert_equal @mock.num_nodes, ver.size
+    connection = Couchbase.new(mock.connstr)
+    res = connection.version
+    assert_instance_of Array, res
+    assert_equal(mock.num_nodes, res.group_by(&:node).size)
   end
 end
