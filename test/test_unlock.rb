@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,104 +15,103 @@
 # limitations under the License.
 #
 
-require File.join(File.dirname(__FILE__), 'setup')
+require File.join(__dir__, 'setup')
 
 class TestTouch < MiniTest::Test
-  def setup
-    @mock = start_mock
-  end
-
-  def teardown
-    stop_mock(@mock)
-  end
-
   def test_trivial_unlock
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      connection.set(uniq_id, "foo")
-      _, _, cas = connection.get(uniq_id, :lock => true, :extended => true)
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id, "bar")
-      end
-      assert connection.unlock(uniq_id, :cas => cas)
-      connection.set(uniq_id, "bar")
-    else
-      skip("GETL and UNL aren't implemented in CouchbaseMock.jar yet")
-    end
+    connection = Couchbase.new(mock.connstr)
+
+    refute connection.set(uniq_id, "foo").error
+    res = connection.get(uniq_id, :lock => true)
+    refute res.error
+    cas = res.cas
+
+    res = connection.set(uniq_id, "bar")
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_EEXISTS', res.error.name
+
+    res = connection.unlock(uniq_id, :cas => cas)
+    refute res.error
+
+    res = connection.set(uniq_id, "bar")
+    refute res.error
   end
 
   def test_alternative_syntax_for_single_key
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      connection.set(uniq_id, "foo")
-      _, _, cas = connection.get(uniq_id, :lock => true, :extended => true)
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id, "bar")
-      end
-      assert connection.unlock(uniq_id, cas)
-      connection.set(uniq_id, "bar")
-    else
-      skip("GETL and UNL aren't implemented in CouchbaseMock.jar yet")
-    end
+    connection = Couchbase.new(mock.connstr)
+    refute connection.set(uniq_id, "foo").error
+    res = connection.get(uniq_id, :lock => true)
+    cas = res.cas
+
+    res = connection.set(uniq_id, "bar")
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_EEXISTS', res.error.name
+
+    res = connection.unlock(uniq_id, cas)
+    refute res.error
+
+    res = connection.set(uniq_id, "bar")
+    refute res.error
   end
 
   def test_multiple_unlock
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      connection.set(uniq_id(1), "foo")
-      connection.set(uniq_id(2), "foo")
-      info = connection.get(uniq_id(1), uniq_id(2), :lock => true, :extended => true)
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id(1), "bar")
-      end
-      assert_raises Couchbase::Error::KeyExists do
-        connection.set(uniq_id(2), "bar")
-      end
-      ret = connection.unlock(uniq_id(1) => info[uniq_id(1)][2],
-                              uniq_id(2) => info[uniq_id(2)][2])
-      assert ret[uniq_id(1)]
-      assert ret[uniq_id(2)]
-      connection.set(uniq_id(1), "bar")
-      connection.set(uniq_id(2), "bar")
-    else
-      skip("GETL and UNL aren't implemented in CouchbaseMock.jar yet")
+    connection = Couchbase.new(mock.connstr)
+    refute connection.set(uniq_id(1), "foo").error
+    refute connection.set(uniq_id(2), "foo").error
+
+    res = connection.get([uniq_id(1), uniq_id(2)], :lock => true)
+    cas1 = res[uniq_id(1)].cas
+    cas2 = res[uniq_id(2)].cas
+    [1, 2].each do |suff|
+      res = connection.set(uniq_id(suff), 'bar')
+      assert_instance_of Couchbase::LibraryError, res.error
+      assert_equal 'LCB_KEY_EEXISTS', res.error.name
     end
+    res = connection.unlock(uniq_id(1) => cas1, uniq_id(2) => cas2)
+    refute res[uniq_id(1)].error
+    refute res[uniq_id(2)].error
+
+    refute connection.set(uniq_id(1), "bar").error
+    refute connection.set(uniq_id(2), "bar").error
   end
 
   def test_quiet_mode
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      connection.set(uniq_id, "foo")
-      _, _, cas = connection.get(uniq_id, :lock => true, :extended => true)
-      assert_raises Couchbase::Error::NotFound do
-        connection.unlock(uniq_id(:missing), :cas => 0xdeadbeef)
-      end
-      keys = {
-        uniq_id => cas,
-        uniq_id(:missing) => 0xdeadbeef
-      }
-      ret = connection.unlock(keys, :quiet => true)
-      assert ret[uniq_id]
-      refute ret[uniq_id(:missing)]
-    else
-      skip("GETL and UNL aren't implemented in CouchbaseMock.jar yet")
-    end
+    connection = Couchbase.new(mock.connstr)
+    refute connection.set(uniq_id, "foo").error
+    res = connection.get(uniq_id, :lock => true)
+    cas = res.cas
+    res = connection.unlock(uniq_id(:missing), :cas => 0xdeadbeef)
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert_equal 'LCB_KEY_ENOENT', res.error.name
+    res = connection.unlock(uniq_id => cas,
+                            uniq_id(:missing) => 0xdeadbeef)
+    refute res[uniq_id].error
+    assert_instance_of Couchbase::LibraryError, res[uniq_id(:missing)].error
+    assert_equal 'LCB_KEY_ENOENT', res[uniq_id(:missing)].error.name
   end
 
   def test_tmp_failure
-    if @mock.real?
-      connection = Couchbase.new(:hostname => @mock.host, :port => @mock.port)
-      cas1 = connection.set(uniq_id(1), "foo")
-      cas2 = connection.set(uniq_id(2), "foo")
-      connection.get(uniq_id(1), :lock => true) # get with lock will update CAS
-      assert_raises Couchbase::Error::TemporaryFail do
-        connection.unlock(uniq_id(1), cas1)
-      end
-      assert_raises Couchbase::Error::TemporaryFail do
-        connection.unlock(uniq_id(2), cas2)
-      end
-    else
-      skip("GETL and UNL aren't implemented in CouchbaseMock.jar yet")
-    end
+    connection = Couchbase.new(mock.connstr)
+
+    res = connection.set(uniq_id(1), "foo")
+    refute res.error
+    cas1 = res.cas
+
+    res = connection.set(uniq_id(2), "foo")
+    refute res.error
+    cas2 = res.cas
+
+    res = connection.get(uniq_id(1), :lock => true) # get with lock will update CAS
+    refute res.error
+
+    res = connection.unlock(uniq_id(1), cas1)
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert res.error.transient?
+    assert_equal 'LCB_ETMPFAIL', res.error.name
+
+    res = connection.unlock(uniq_id(2), cas2)
+    assert_instance_of Couchbase::LibraryError, res.error
+    assert res.error.transient?
+    assert_equal 'LCB_ETMPFAIL', res.error.name
   end
 end
