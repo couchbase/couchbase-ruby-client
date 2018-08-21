@@ -74,7 +74,7 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
     VALUE uri, opts, arg;
 
     if (rb_scan_args(argc, argv, "02", &uri, &opts) > 0) {
-        if (TYPE(uri) == T_HASH && argc == 1) {
+        if (TYPE(uri) == T_HASH && opts == Qnil) {
             opts = uri;
             uri = Qnil;
         }

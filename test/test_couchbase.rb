@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +15,7 @@
 # limitations under the License.
 #
 
-require File.join(File.dirname(__FILE__), 'setup')
-require 'minitest/mock'
+require File.join(__dir__, 'setup')
 
 class TestCouchbase < MiniTest::Test
   def teardown
@@ -24,9 +23,7 @@ class TestCouchbase < MiniTest::Test
   end
 
   def test_that_it_create_instance_of_bucket
-    with_mock do |mock|
-      assert_instance_of Couchbase::Bucket, Couchbase.new("http://#{mock.host}:#{mock.port}/pools/default")
-    end
+    assert_instance_of Couchbase::Bucket, Couchbase.new(mock.connstr)
   end
 
   def test_verify_connection
@@ -48,28 +45,23 @@ class TestCouchbase < MiniTest::Test
   end
 
   def test_new_connection_when_process_forks
-    with_mock do |mock|
-      connection_options = "http://#{mock.host}:#{mock.port}/pools/default"
-      Couchbase.connection_options = connection_options
-      old_bucket_id = Couchbase.bucket.object_id
+    connection_options = mock.connstr
+    Couchbase.connection_options = connection_options
+    old_bucket_id = Couchbase.bucket.object_id
 
-      Process.stub(:pid, Process.pid + 1) do
-        refute_equal old_bucket_id, Couchbase.bucket.object_id
-      end
+    Process.stub(:pid, Process.pid + 1) do
+      refute_equal old_bucket_id, Couchbase.bucket.object_id
     end
   end
 
   def test_new_connection_has_same_configuration_options
-    with_mock do |mock|
-      connection_options = "http://#{mock.host}:#{mock.port}/pools/default"
-      Couchbase.connection_options = connection_options
-      old_bucket = Couchbase.bucket
+    connection_options = mock.connstr
+    Couchbase.connection_options = connection_options
+    old_bucket = Couchbase.bucket
 
-      Process.stub(:pid, Process.pid + 1) do
-        new_bucket = Couchbase.bucket
-        assert_equal old_bucket.name, new_bucket.name
-        assert_equal old_bucket.hostname, new_bucket.hostname
-      end
+    Process.stub(:pid, Process.pid + 1) do
+      new_bucket = Couchbase.bucket
+      assert_equal old_bucket.name, new_bucket.name
     end
   end
 end

@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,6 @@
 
 require 'couchbase/version'
 require 'couchbase/library_error'
-require 'uri'
 require 'couchbase/transcoder'
 require 'couchbase_ext'
 require 'couchbase/constants'
@@ -30,9 +29,7 @@ require 'couchbase/cluster'
 
 # Couchbase ruby client
 module Couchbase
-  if RUBY_VERSION.to_f >= 1.9
-    autoload(:ConnectionPool, 'couchbase/connection_pool')
-  end
+  autoload(:ConnectionPool, 'couchbase/connection_pool')
 
   class << self
     # The method +connect+ initializes new Bucket instance with all arguments passed.
@@ -57,8 +54,8 @@ module Couchbase
     #   Couchbase.connect("http://bucket:secret@localhost:8091/pools/default/buckets/blog")
     #
     # @return [Bucket] connection instance
-    def connect(*options)
-      Bucket.new(*options.flatten)
+    def connect(connstr = 'couchbase://localhost/default', options = nil)
+      Bucket.new(connstr, options)
     end
     alias new connect
 
@@ -122,18 +119,17 @@ module Couchbase
     #   Couchbase.bucket("other").set("john:1", {"products" => [42, 66]})
     #
     # @return [Bucket]
-    def bucket(name = nil)
+    def bucket(name = 'default')
       verify_connection!
-      name ||= case @connection_options
-               when Hash
-                 @connection_options[:bucket]
-               when String
-                 path = URI.parse(@connection_options).path
-                 path[%r(^(/pools/([A-Za-z0-9_.-]+)(/buckets/([A-Za-z0-9_.-]+))?)?), 3] || "default"
-               else
-                 "default"
-               end
-      thread_storage[:bucket][name] ||= connect(connection_options)
+      thread_storage[:bucket][name] ||=
+        case connection_options
+        when String, Hash, nil
+          connect(connection_options)
+        when Array
+          connect(*connection_options)
+        else
+          raise ArgumentError, "invalid connection_options type: #{connection_options.class}"
+        end
     end
 
     # Set a connection instance for current thread
@@ -141,9 +137,8 @@ module Couchbase
     # @since 1.1.0
     #
     # @return [Bucket]
-    def bucket=(connection, name = nil)
+    def bucket=(connection, name = 'default')
       verify_connection!
-      name ||= @connection_options && @connection_options[:bucket] || "default"
       thread_storage[:bucket][name] = connection
     end
     alias set_bucket bucket=
