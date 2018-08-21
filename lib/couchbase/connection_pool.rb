@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2013-2017 Couchbase, Inc.
+# Copyright:: 2013-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +15,6 @@
 # limitations under the License.
 #
 
-if RUBY_VERSION.to_f < 1.9
-  raise LoadError, "connection_pool gem doesn't support ruby < 1.9"
-end
 require 'connection_pool'
 
 module Couchbase
