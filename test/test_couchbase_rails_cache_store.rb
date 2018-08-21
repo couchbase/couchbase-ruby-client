@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,37 +15,27 @@
 # limitations under the License.
 #
 
-require File.join(File.dirname(__FILE__), 'setup')
+require File.join(__dir__, 'setup')
 require 'active_support/cache/couchbase_store'
 require 'active_support/notifications'
 require 'ostruct'
 
 class TestCouchbaseRailsCacheStore < MiniTest::Test
   def setup
-    @mock = start_mock
     @foo = OpenStruct.new :payload => "foo"
     @foobar = OpenStruct.new :payload => "foobar"
   end
 
-  def teardown
-    stop_mock(@mock)
-  end
-
   def store
-    @store ||= ActiveSupport::Cache::CouchbaseStore.new(:hostname => @mock.host,
-                                                        :port => @mock.port)
+    @store ||= ActiveSupport::Cache::CouchbaseStore.new(mock.connstr)
   end
 
   def pool_store
-    @pool_store ||= ActiveSupport::Cache::CouchbaseStore.new(:hostname => @mock.host,
-                                                             :port => @mock.port,
-                                                             :connection_pool => 5)
+    @pool_store ||= ActiveSupport::Cache::CouchbaseStore.new(mock.connstr, :connection_pool => 5)
   end
 
   def prefixed_store
-    @prefixed_store ||= ActiveSupport::Cache::CouchbaseStore.new(:hostname => @mock.host,
-                                                                 :port => @mock.port,
-                                                                 :namespace => 'v1')
+    @prefixed_store ||= ActiveSupport::Cache::CouchbaseStore.new(mock.connstr, :namespace => 'v1')
   end
 
   def test_it_supported_methods
@@ -77,7 +67,7 @@ class TestCouchbaseRailsCacheStore < MiniTest::Test
   def test_it_writes_the_data_with_expiration_time
     store.write(uniq_id, @foobar, :expires_in => 1.second)
     assert_equal @foobar, store.read(uniq_id)
-    sleep 2
+    mock.time_travel(2)
     refute store.read(uniq_id)
   end
 
@@ -91,12 +81,7 @@ class TestCouchbaseRailsCacheStore < MiniTest::Test
 
   def test_it_reads_raw_data
     store.write uniq_id, @foo
-    expected = if RUBY_VERSION =~ /^1\.8/
-                 "\004\bU:\017OpenStruct{\006:\fpayload\"\bfoo"
-               else
-                 "\x04\bU:\x0FOpenStruct{\x06:\fpayloadI\"\bfoo\x06:\x06ET"
-               end
-    assert_equal expected, store.read(uniq_id, :raw => true)
+    assert_equal "\x04\bU:\x0FOpenStruct{\x06:\fpayloadI\"\bfoo\x06:\x06ET", store.read(uniq_id, :raw => true)
   end
 
   def test_it_writes_raw_data
@@ -191,7 +176,7 @@ class TestCouchbaseRailsCacheStore < MiniTest::Test
     store.fetch(uniq_id, :force => true) # force cache miss
     store.fetch(uniq_id, :force => true, :expires_in => 1.second) { @foobar }
     assert_equal @foobar, store.fetch(uniq_id)
-    sleep 2
+    mock.time_travel(2)
     refute store.fetch(uniq_id)
   end
 
@@ -347,11 +332,9 @@ class TestCouchbaseRailsCacheStore < MiniTest::Test
 
   def collect_notifications
     @events = []
-    ActiveSupport::Cache::CouchbaseStore.instrument = true
     ActiveSupport::Notifications.subscribe(/^cache_(.*)\.active_support$/) do |*args|
       @events << ActiveSupport::Notifications::Event.new(*args)
     end
     yield
-    ActiveSupport::Cache::CouchbaseStore.instrument = false
   end
 end

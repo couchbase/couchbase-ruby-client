@@ -16,7 +16,7 @@
 #
 
 require 'couchbase'
-require 'securerandom'
+require 'digest/md5'
 require 'active_support/core_ext/array/extract_options'
 require 'active_support/cache'
 require 'monitor'
@@ -50,25 +50,18 @@ module ActiveSupport
       def initialize(*args)
         args = [*args.flatten]
         options = args.extract_options! || {}
-        @raise_errors = !options[:quiet] = !options.delete(:raise_errors)
+        @raise_errors = options.delete(:raise_errors)
+        @key_prefix = options.delete(:namespace)
         options[:default_ttl] ||= options.delete(:expires_in)
         options[:default_format] ||= :marshal
-        options[:key_prefix] ||= options.delete(:namespace)
-        @key_prefix = options[:key_prefix]
         options[:connection_pool] ||= options.delete(:connection_pool)
         args.push(options)
-
-        if options[:connection_pool]
-          if RUBY_VERSION.to_f < 1.9
-            warn "connection_pool gem doesn't support ruby < 1.9"
+        @data =
+          if options[:connection_pool]
+            ::Couchbase::ConnectionPool.new(options[:connection_pool], *args)
           else
-            @data = ::Couchbase::ConnectionPool.new(options[:connection_pool], *args)
+            ::Couchbase::Bucket.new(*args).extend(Threadsafe)
           end
-        end
-        unless @data
-          @data = ::Couchbase::Bucket.new(*args)
-          @data.extend(Threadsafe)
-        end
       end
 
       # Fetches data from the cache, using the given key.
@@ -191,12 +184,16 @@ module ActiveSupport
         options[:assemble_hash] = true
         options[:format] = :plain if options.delete(:raw)
         instrument(:read_multi, names, options) do
-          @data.get(names, options)
+          res = @data.get(names, options)
+          res.each_with_object({}) do |(k, r), acc|
+            if r.error
+              logger.error("#{r.error.class}: #{r.error.message}") if logger
+              raise r.error if @raise_errors
+            else
+              acc[k] = r.value
+            end
+          end
         end
-      rescue ::Couchbase::Error::Base => e
-        logger.error("#{e.class}: #{e.message}") if logger
-        raise if @raise_errors
-        false
       end
 
       # Return true if the cache contains an entry for the given key.
@@ -246,18 +243,18 @@ module ActiveSupport
         options ||= {}
         name = expanded_key name
 
-        if ttl = options.delete(:expires_in)
-          options[:ttl] ||= ttl
-        end
+        ttl = options.delete(:expires_in)
+        options[:ttl] ||= ttl if ttl
         options[:create] = true
         instrument(:increment, name, options) do |payload|
           payload[:amount] = amount if payload
-          @data.incr(name, amount, options)
+          res = @data.incr(name, amount, options)
+          if res.error
+            logger.error("#{res.error.class}: #{res.error.message}") if logger
+            raise res.error if @raise_errors
+          end
+          res.value
         end
-      rescue ::Couchbase::Error::Base => e
-        logger.error("#{e.class}: #{e.message}") if logger
-        raise if @raise_errors
-        false
       end
 
       # Decrement an integer value in the cache.
@@ -277,19 +274,18 @@ module ActiveSupport
       def decrement(name, amount = 1, options = nil)
         options ||= {}
         name = expanded_key name
-
-        if ttl = options.delete(:expires_in)
-          options[:ttl] ||= ttl
-        end
+        ttl = options.delete(:expires_in)
+        options[:ttl] ||= ttl if ttl
         options[:create] = true
         instrument(:decrement, name, options) do |payload|
           payload[:amount] = amount if payload
-          @data.decr(name, amount, options)
+          res = @data.decr(name, amount, options)
+          if res.error
+            logger.error("#{res.error.class}: #{res.error.message}") if logger
+            raise res.error if @raise_errors
+          end
+          res.value
         end
-      rescue ::Couchbase::Error::Base => e
-        logger.error("#{e.class}: #{e.message}") if logger
-        raise if @raise_errors
-        false
       end
 
       # Get the statistics from the memcached servers.
@@ -298,18 +294,21 @@ module ActiveSupport
       #
       # @return [Hash]
       def stats(*arg)
-        @data.stats(*arg)
+        @data.stats(*arg).each_with_object({}) do |s, acc|
+          (acc[s.key] ||= []) << {s.node => s.value} unless s.error
+        end
       end
 
       protected
 
       # Read an entry from the cache.
       def read_entry(key, options) # :nodoc:
-        @data.get(key, options)
-      rescue ::Couchbase::Error::Base => e
-        logger.error("#{e.class}: #{e.message}") if logger
-        raise if @raise_errors
-        nil
+        res = @data.get(key, options)
+        if res.error
+          logger.error("#{res.error.class}: #{res.error.message}") if logger
+          raise res.error if @raise_errors
+        end
+        res.value
       end
 
       # Write an entry to the cache.
@@ -319,23 +318,24 @@ module ActiveSupport
                  else
                    :set
                  end
-        if ttl = options.delete(:expires_in)
-          options[:ttl] ||= ttl
+        ttl = options.delete(:expires_in)
+        options[:ttl] ||= ttl if ttl
+        res = @data.send(method, key, value, options)
+        if res.error
+          logger.error("#{res.error.class}: #{res.error.message}") if logger
+          raise res.error if @raise_errors
         end
-        @data.send(method, key, value, options)
-      rescue ::Couchbase::Error::Base => e
-        logger.error("#{e.class}: #{e.message}") if logger
-        raise if @raise_errors
-        false
+        res.cas
       end
 
       # Delete an entry from the cache.
       def delete_entry(key, options) # :nodoc:
-        @data.delete(key, options)
-      rescue ::Couchbase::Error::Base => e
-        logger.error("#{e.class}: #{e.message}") if logger
-        raise if @raise_errors
-        false
+        res = @data.delete(key, options)
+        if res.error
+          logger.error("#{res.error.class}: #{res.error.message}") if logger
+          raise res.error if @raise_errors
+        end
+        res.cas
       end
 
       private
