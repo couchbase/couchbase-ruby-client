@@ -93,7 +93,6 @@ struct cb_bucket_st {
     VALUE username;
     VALUE password;
     VALUE engine;
-    int quiet;
     uint8_t connected; /* non-zero if instance has been connected */
     uint8_t running; /* non-zero if event loop is running */
     VALUE transcoder;
@@ -213,7 +212,6 @@ extern ID cb_sym_post;
 extern ID cb_sym_prepend;
 extern ID cb_sym_production;
 extern ID cb_sym_put;
-extern ID cb_sym_quiet;
 extern ID cb_sym_replace;
 extern ID cb_sym_replica;
 extern ID cb_sym_rows;
@@ -379,8 +377,6 @@ VALUE cb_bucket_disconnect(VALUE self);
 VALUE cb_bucket_reconnect(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_observe(int argc, VALUE *argv, VALUE self);
 VALUE cb_bucket_connected_p(VALUE self);
-VALUE cb_bucket_quiet_get(VALUE self);
-VALUE cb_bucket_quiet_set(VALUE self, VALUE val);
 VALUE cb_bucket_transcoder_get(VALUE self);
 VALUE cb_bucket_transcoder_set(VALUE self, VALUE val);
 VALUE cb_bucket_default_flags_get(VALUE self);

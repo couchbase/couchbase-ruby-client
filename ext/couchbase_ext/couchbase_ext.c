@@ -93,7 +93,6 @@ ID cb_sym_post;
 ID cb_sym_prepend;
 ID cb_sym_production;
 ID cb_sym_put;
-ID cb_sym_quiet;
 ID cb_sym_replace;
 ID cb_sym_replica;
 ID cb_sym_rows;
@@ -868,28 +867,6 @@ extern "C"
 
     rb_define_method(cb_cBucket, "connected?", cb_bucket_connected_p, 0);
 
-    /* Document-method: quiet
-     * Flag specifying behaviour for operations on missing keys
-     *
-     * @since 1.0.0
-     *
-     * If it is +true+, the operations will silently return +nil+ or +false+
-     * instead of raising {Couchbase::Error::NotFound}.
-     *
-     * @example Hiding cache miss (considering "miss" key is not stored)
-     *   connection.quiet = true
-     *   connection.get("miss")     #=> nil
-     *
-     * @example Raising errors on miss (considering "miss" key is not stored)
-     *   connection.quiet = false
-     *   connection.get("miss")     #=> will raise Couchbase::Error::NotFound
-     *
-     * @return [true, false] */
-    /* rb_define_attr(cb_cBucket, "quiet", 1, 1); */
-    rb_define_method(cb_cBucket, "quiet", cb_bucket_quiet_get, 0);
-    rb_define_method(cb_cBucket, "quiet=", cb_bucket_quiet_set, 1);
-    rb_define_alias(cb_cBucket, "quiet?", "quiet");
-
     /* Document-method: default_flags
      * Default flags for new values.
      *
@@ -1255,7 +1232,6 @@ extern "C"
     cb_sym_prepend = ID2SYM(rb_intern("prepend"));
     cb_sym_production = ID2SYM(rb_intern("production"));
     cb_sym_put = ID2SYM(rb_intern("put"));
-    cb_sym_quiet = ID2SYM(rb_intern("quiet"));
     cb_sym_replace = ID2SYM(rb_intern("replace"));
     cb_sym_replica = ID2SYM(rb_intern("replica"));
     cb_sym_rows = ID2SYM(rb_intern("rows"));

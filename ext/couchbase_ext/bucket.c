@@ -130,10 +130,6 @@ do_scan_connection_options(struct cb_bucket_st *bucket, int argc, VALUE *argv)
             if (arg != Qnil) {
                 rb_warning("passing a :port to Bucket#new is deprecated, use connection string");
             }
-            arg = rb_hash_lookup2(opts, cb_sym_quiet, Qundef);
-            if (arg != Qundef) {
-                bucket->quiet = RTEST(arg);
-            }
             arg = rb_hash_aref(opts, cb_sym_timeout);
             if (arg != Qnil) {
                 bucket->timeout = (uint32_t)NUM2ULONG(arg);
@@ -356,11 +352,6 @@ cb_bucket_alloc(VALUE klass)
  *     be skipped for protected buckets, the bucket name will be used
  *     instead.
  *   @option options [String] :password (nil) the password of the user.
- *   @option options [true, false] :quiet (false) the flag controlling if raising
- *     exception when the client executes operations on non-existent keys. If it
- *     is +true+ it will raise {Couchbase::Error::NotFound} exceptions. The
- *     default behaviour is to return +nil+ value silently (might be useful in
- *     Rails cache).
  *   @option options [Symbol] :environment (:production) the mode of the
  *     connection. Currently it influences only on design documents set. If
  *     the environment is +:development+, you will able to get design
@@ -411,7 +402,6 @@ cb_bucket_init(int argc, VALUE *argv, VALUE self)
     bucket->username = Qnil;
     bucket->password = Qnil;
     bucket->engine = cb_sym_default;
-    bucket->quiet = 0;
     bucket->default_ttl = 0;
     bucket->default_flags = 0;
     cb_bucket_transcoder_set(self, cb_mDocument);
@@ -455,7 +445,6 @@ cb_bucket_init_copy(VALUE copy, VALUE orig)
 
     copy_b->self = copy;
     copy_b->engine = orig_b->engine;
-    copy_b->quiet = orig_b->quiet;
     copy_b->transcoder = orig_b->transcoder;
     copy_b->default_flags = orig_b->default_flags;
     copy_b->default_ttl = orig_b->default_ttl;
@@ -516,22 +505,6 @@ cb_bucket_connected_p(VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     return (bucket->handle && bucket->connected) ? Qtrue : Qfalse;
-}
-
-VALUE
-cb_bucket_quiet_get(VALUE self)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-    return bucket->quiet ? Qtrue : Qfalse;
-}
-
-VALUE
-cb_bucket_quiet_set(VALUE self, VALUE val)
-{
-    struct cb_bucket_st *bucket = DATA_PTR(self);
-
-    bucket->quiet = RTEST(val);
-    return bucket->quiet ? Qtrue : Qfalse;
 }
 
 VALUE
@@ -768,9 +741,8 @@ cb_bucket_inspect(VALUE self)
     rb_str_append(str, bucket->connstr);
     rb_str_buf_cat2(str, "/\" transcoder=");
     rb_str_append(str, rb_inspect(bucket->transcoder));
-    snprintf(buf, 150, ", default_flags=0x%x, quiet=%s, connected=%s, timeout=%u", bucket->default_flags,
-             bucket->quiet ? "true" : "false", (bucket->handle && bucket->connected) ? "true" : "false",
-             bucket->timeout);
+    snprintf(buf, 150, ", default_flags=0x%x, connected=%s, timeout=%u", bucket->default_flags,
+             (bucket->handle && bucket->connected) ? "true" : "false", bucket->timeout);
     rb_str_buf_cat2(str, buf);
     if (bucket->handle && bucket->connected) {
         lcb_config_transport_t type;
