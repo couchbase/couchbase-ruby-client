@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-require 'base64'
-require 'jsonsl'
 
 module Couchbase
   module Error
@@ -52,8 +49,13 @@ module Couchbase
     include Constants
 
     class ArrayWithTotalRows < Array # :nodoc:
-      attr_accessor :total_rows
+      attr_reader :total_rows
       alias total_entries total_rows
+
+      def initialize(rows, total_rows)
+        super(rows)
+        @total_rows = total_rows
+      end
     end
 
     attr_reader :params
@@ -68,9 +70,10 @@ module Couchbase
     # @param [Hash] params Optional parameter which will be passed to
     #   {View#fetch}
     #
-    def initialize(bucket, endpoint, params = {})
+    def initialize(bucket, ddoc, view, params = {})
       @bucket = bucket
-      @endpoint = endpoint
+      @ddoc = ddoc
+      @view = view
       @params = {:connection_timeout => 75_000}.merge(params)
       @wrapper_class = params.delete(:wrapper_class) || ViewRow
       unless @wrapper_class.respond_to?(:wrap)
@@ -98,8 +101,7 @@ module Couchbase
     #
     # @example Pass options during view initialization
     #
-    #   endpoint = "http://localhost:5984/default/_design/blog/_view/recent"
-    #   view = View.new(conn, endpoint, :descending => true)
+    #   view = View.new(conn, 'blog', 'recent', :descending => true)
     #   view.each do |document|
     #     # do something with document
     #   end
@@ -268,59 +270,40 @@ module Couchbase
     #                                  :include_docs => true)
     def fetch(params = {})
       params = @params.merge(params)
-      include_docs = params.delete(:include_docs)
-      quiet = params.delete(:quiet) { true }
+      options = {}
+      options[:include_docs] = params.delete(:include_docs) if params.key?(:include_docs)
+      options[:format] = params.delete(:format) if params.key?(:format)
+      options[:transcoder] = params.delete(:transcoder) if params.key?(:transcoder)
+      options[:spatial] = params.delete(:spatial) if params.key?(:spatial)
 
       body = params.delete(:body) || {}
       body = MultiJson.dump(body) unless body.is_a?(String)
-      path = Utils.build_query(@endpoint, params)
-      docs = ArrayWithTotalRows.new unless block_given?
-      parser = JSONSL::RowParser.new('/rows/^') do |row, idx|
-        obj = MultiJson.load(row)
-        if idx
-          # response row
-          if include_docs
-            val, flags, cas = @bucket.get(obj[S_ID], :extended => true, :quiet => quiet)
-            obj[S_DOC] = {
-              S_VALUE => val,
-              S_META => {
-                S_ID => obj[S_ID],
-                S_FLAGS => flags,
-                S_CAS => cas
-              }
-            }
-          end
-          doc = @wrapper_class.wrap(@bucket, obj)
-          if block_given?
-            yield doc
-          else
-            docs << doc
-          end
-        else
-          # parse meta
-          docs.total_rows = obj[S_TOTAL_ROWS] unless block_given?
-          send_error(obj[S_ERRORS][S_FROM], obj[S_ERRORS][S_REASON]) if obj[S_ERRORS]
+      res = @bucket.send(:__view_query, @ddoc, @view, Utils.encode_params(params), body, options)
+      raise res[:error] if res[:error]
+      meta = MultiJson.load(res[:meta])
+      send_error(meta[S_ERRORS][S_FROM], meta[S_ERRORS][S_REASON]) if meta[S_ERRORS]
+      if block_given?
+        res[:rows].each do |row|
+          yield @wrapper_class.wrap(row)
         end
+      else
+        rows = res[:rows].map { |row| @wrapper_class.wrap(row) }
+        ArrayWithTotalRows.new(rows, meta[S_TOTAL_ROWS])
       end
-      @bucket.send(:__http_query, :view, params[:method] || :post,
-                   path, body, 'application/json', nil, nil, nil) do |x|
-        parser.feed(x)
-      end
-      docs
     end
 
     # Returns a string containing a human-readable representation of the {View}
     #
     # @return [String]
     def inspect
-      %(#<#{self.class.name}:#{object_id} @endpoint=#{@endpoint.inspect} @params=#{@params.inspect}>)
+      %(#<#{self.class.name}:#{object_id} @ddoc=#{@ddoc.inspect} @view=#{@view.inspect} @params=#{@params.inspect}>)
     end
 
     private
 
-    def send_error(*args)
-      raise Error::View.new(*args) unless @on_error
-      @on_error.call(*args.take(2))
+    def send_error(from, reason)
+      raise Error::View.new(from, reason) unless @on_error
+      @on_error.call(from, reason)
     end
   end
 end

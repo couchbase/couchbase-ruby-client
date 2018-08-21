@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,17 +17,9 @@
 
 module Couchbase
   module Constants # :nodoc:
-    S_ID = 'id'.freeze
-    S_DOC = 'doc'.freeze
-    S_VALUE = 'value'.freeze
-    S_META = 'meta'.freeze
-    S_FLAGS = 'flags'.freeze
-    S_CAS = 'cas'.freeze
-    S_KEY = 'key'.freeze
     S_TOTAL_ROWS = 'total_rows'.freeze
     S_ERRORS = 'errors'.freeze
     S_FROM = 'from'.freeze
     S_REASON = 'reason'.freeze
-    S_IS_LAST = Object.new.freeze
   end
 end

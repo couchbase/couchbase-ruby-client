@@ -95,7 +95,8 @@ class CouchbaseMock
     end
   end
 
-  attr_accessor :buckets_spec, :num_nodes, :num_vbuckets
+  attr_accessor :buckets_spec, :num_nodes, :num_vbuckets,
+                :load_beer_sample
 
   def real?
     false
@@ -111,6 +112,7 @@ class CouchbaseMock
     @num_nodes = 10
     @num_vbuckets = 4096
     @buckets_spec = "default:" # "default:,protected:secret,cache::memcache"
+    @load_beer_sample = nil
     params.each do |key, value|
       send("#{key}=", value)
     end
@@ -172,6 +174,7 @@ class CouchbaseMock
     cmd << " --nodes #{@num_nodes}" if @num_nodes
     cmd << " --vbuckets #{@num_vbuckets}" if @num_vbuckets
     cmd << " --buckets #{@buckets_spec}" if @buckets_spec
+    cmd << " --with-beer-sample" if @load_beer_sample
     cmd << " #{extra}"
     cmd
   end
@@ -181,7 +184,7 @@ class MiniTest::Test
   include Minitest::Hooks
 
   around :all do |&block|
-    @__mock = start_mock
+    @__mock = respond_to?(:mock_params) ? start_mock(mock_params) : start_mock
     block.call
     stop_mock(@__mock)
   end

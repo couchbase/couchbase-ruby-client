@@ -56,6 +56,7 @@ extern hrtime_t gethrtime(void);
 #endif
 
 #include <libcouchbase/couchbase.h>
+#include <libcouchbase/views.h>
 #include <libcouchbase/n1ql.h>
 
 #ifdef HAVE_RUBY_ENCODING_H
@@ -274,6 +275,8 @@ extern ID cb_id_sprintf;
 extern ID cb_id_to_s;
 extern ID cb_id_user;
 extern ID cb_id_verify_observe_options;
+extern ID cb_sym_include_docs;
+extern ID cb_sym_docs_concurrent_max;
 
 /* Errors */
 extern VALUE cb_eLibraryError;
@@ -394,6 +397,7 @@ VALUE cb_bucket_default_observe_timeout_set(VALUE self, VALUE val);
 VALUE cb_bucket_default_arithmetic_init_get(VALUE self);
 VALUE cb_bucket_default_arithmetic_init_set(VALUE self, VALUE val);
 VALUE cb_bucket___http_query(VALUE self, VALUE type, VALUE method, VALUE path, VALUE body, VALUE content_type, VALUE username, VALUE password, VALUE hostname);
+VALUE cb_bucket___view_query(int argc, VALUE *argv, VALUE self);
 
 VALUE cb_result_success_p(VALUE self);
 VALUE cb_result_inspect(VALUE self);
@@ -423,5 +427,6 @@ __attribute__((format(printf, 5, 6)))
 #define cb_raise_msg2(klass, msg) cb_raise_at(klass, 0, __FILE__, __LINE__, msg)
 
 void init_library_error();
+void init_views();
 
 #endif

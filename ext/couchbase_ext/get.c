@@ -331,13 +331,14 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
             iarg.handle = bucket->handle;
             iarg.cmd = &get;
             iarg.ctx = ctx;
-            rb_hash_foreach(arg, cb_get_extract_pairs_i, (VALUE)&iarg);
             ctx->rv = rb_hash_new();
+            rb_hash_foreach(arg, cb_get_extract_pairs_i, (VALUE)&iarg);
         }
         break;
     case T_ARRAY:
         for (ii = 0; ii < RARRAY_LEN(arg); ii++) {
             VALUE entry = rb_ary_entry(arg, ii);
+            ctx->rv = rb_hash_new();
             switch (TYPE(entry)) {
             case T_SYMBOL:
                 arg = rb_sym2str(arg);
@@ -363,12 +364,12 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
                 break;
             }
         }
-        ctx->rv = rb_hash_new();
         break;
     case T_SYMBOL:
         arg = rb_sym2str(arg);
         /* fallthrough */
     case T_STRING:
+        ctx->rv = Qnil;
         if (is_replica) {
             LCB_CMD_SET_KEY(&getr, RSTRING_PTR(arg), RSTRING_LEN(arg));
             err = lcb_rget3(bucket->handle, (const void *)ctx, &getr);
@@ -381,7 +382,6 @@ cb_bucket_get(int argc, VALUE *argv, VALUE self)
             cb_context_free(ctx);
             cb_raise2(cb_eLibraryError, err, "unable to schedule key for get operation");
         }
-        ctx->rv = Qnil;
         break;
     default:
         lcb_sched_fail(bucket->handle);

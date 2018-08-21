@@ -88,10 +88,9 @@ module Couchbase
       res = MultiJson.load(req[:chunks].join)
       res["rows"].each do |obj|
         obj['doc']['value'] = obj['doc'].delete('json') if obj['doc']
-        doc = DesignDoc.wrap(self, obj)
-        key = doc.id.sub(/^_design\//, '')
-        next if environment == :production && key =~ /dev_/
-        docmap[key] = doc
+        doc = DesignDoc.new(self, obj)
+        next if environment == :production && doc.id =~ /dev_/
+        docmap[doc.id] = doc
       end
       docmap
     end

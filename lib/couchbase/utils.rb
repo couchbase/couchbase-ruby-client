@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,20 +39,8 @@ module Couchbase
 
     def self.escape(s)
       s.to_s.gsub(/([^ a-zA-Z0-9_.-]+)/nu) do
-        '%' + Regexp.last_match(1).unpack('H2' * bytesize(Regexp.last_match(1))).join('%').upcase
+	'%' + Regexp.last_match(1).unpack('H2' * Regexp.last_match(1).bytesize).join('%').upcase
       end.tr(' ', '+')
-    end
-
-    # Return the bytesize of String; uses String#size under Ruby 1.8 and
-    # String#bytesize under 1.9.
-    if ''.respond_to?(:bytesize)
-      def self.bytesize(string)
-        string.bytesize
-      end
-    else
-      def self.bytesize(string)
-        string.size
-      end
     end
   end
 end

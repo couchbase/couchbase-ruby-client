@@ -1,5 +1,5 @@
 # Author:: Couchbase <info@couchbase.com>
-# Copyright:: 2011-2017 Couchbase, Inc.
+# Copyright:: 2011-2018 Couchbase, Inc.
 # License:: Apache License, Version 2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -93,17 +93,12 @@ module Couchbase
     # @param [Couchbase::Bucket] bucket the reference to connection
     # @param [Hash] data the data hash, which was built from JSON document
     #   representation
-    def initialize(bucket, data)
-      @bucket = bucket
-      @data = data
-      @key = data[S_KEY]
-      @value = data[S_VALUE]
-      if data[S_DOC]
-        @meta = data[S_DOC][S_META]
-        @doc = data[S_DOC][S_VALUE]
-      end
-      @id = data[S_ID] || @meta && @meta[S_ID]
-      @last = data.delete(S_IS_LAST) || false
+    def initialize(data)
+      @key = MultiJson.load(data[:key])
+      @value = MultiJson.load(data[:value])
+      @id = data[:id]
+      @doc = data[:doc]
+      @meta = {:cas => data[:cas]} if @doc
     end
 
     # Wraps data hash into ViewRow instance
@@ -117,8 +112,8 @@ module Couchbase
     #   representation
     #
     # @return [ViewRow]
-    def self.wrap(bucket, data)
-      new(bucket, data)
+    def self.wrap(data)
+      new(data)
     end
 
     # Get attribute of the document
@@ -160,15 +155,6 @@ module Couchbase
       @doc[key] = value
     end
 
-    # Signals if this row is last in a stream
-    #
-    # @since 1.2.1
-    #
-    # @return [true, false] +true+ if this row is last in a stream
-    def last?
-      @last
-    end
-
     def inspect
       desc = "#<#{self.class.name}:#{object_id}"
       [:@id, :@key, :@value, :@doc, :@meta].each do |iv|
@@ -186,10 +172,8 @@ module Couchbase
   # It is subclass of ViewRow, but also gives access to view creation through method_missing
   #
   # @see http://www.couchbase.com/docs/couchbase-manual-2.0/couchbase-views-datastore.html
-  class DesignDoc < ViewRow
-    # It isn't allowed to change design document ID after
-    # initialization
-    undef id=
+  class DesignDoc
+    attr_reader :id
 
     # Initialize the design doc instance
     #
@@ -202,17 +186,19 @@ module Couchbase
     # @param [Hash] data the data hash, which was built from JSON document
     #   representation
     def initialize(bucket, data)
-      super
+      @bucket = bucket
       @all_views = {}
-      @views = @doc.key?('views') ? @doc['views'].keys : []
-      @spatial = @doc.key?('spatial') ? @doc['spatial'].keys : []
-      @views.each { |name| @all_views[name] = "#{@id}/_view/#{name}" }
-      @spatial.each { |name| @all_views[name] = "#{@id}/_spatial/#{name}" }
+      @id = data['doc']['meta']['id'].sub(/^_design\//, '')
+      @views = data['doc']['value']['views'].keys rescue []
+      @spatial = data['doc']['value']['spatial'].keys rescue []
+      @views.each { |name| @all_views[name] = [name, {}] }
+      @spatial.each { |name| @all_views[name] = [name, {:spatial => true}] }
     end
 
     def method_missing(meth, *args)
-      if path = @all_views[meth.to_s]
-        View.new(@bucket, path, *args)
+      name, options = @all_views[meth.to_s]
+      if name
+        View.new(@bucket, @id, name, (args[0] || {}).merge(options))
       else
         super
       end
@@ -226,9 +212,12 @@ module Couchbase
       end
     end
 
-    def method(meth, *args)
-      if path = @all_views[meth.to_s]
-        lambda { |*p| View.new(@bucket, path, *p) }
+    def method(meth)
+      name, options = @all_views[meth.to_s]
+      if name
+        lambda do |*args|
+          View.new(@bucket, @id, name, (args[0] || {}).merge(options))
+        end
       else
         super
       end

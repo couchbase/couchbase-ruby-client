@@ -1146,6 +1146,8 @@ extern "C"
 
 
     rb_define_private_method(cb_cBucket, "__http_query", cb_bucket___http_query, 8);
+    rb_define_private_method(cb_cBucket, "__view_query", cb_bucket___view_query, -1);
+    init_views();
 
     /* Define cb_symbols */
     cb_id_add_shutdown_hook = rb_intern("add_shutdown_hook");
