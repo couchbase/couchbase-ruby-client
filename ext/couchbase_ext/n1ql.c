@@ -16,6 +16,10 @@
 
 #include "couchbase_ext.h"
 
+ID cb_sym_positional;
+ID cb_sym_named;
+ID cb_sym_prepared;
+
 static void
 n1ql_callback(lcb_t handle, int type, const lcb_RESPN1QL *resp)
 {
@@ -68,22 +72,119 @@ n1ql_callback(lcb_t handle, int type, const lcb_RESPN1QL *resp)
     (void)type;
 }
 
+typedef struct __cb_query_arg_i {
+    lcb_N1QLPARAMS *params;
+    lcb_CMDN1QL *cmd;
+} __cb_query_arg_i;
+
+lcb_error_t
+lcb_n1p_namedparam(lcb_N1QLPARAMS *params, const char *name, size_t nname, const char *value, size_t nvalue)
+{
+    return lcb_n1p_setopt(params, name, nname, value, nvalue);
+}
+static int
+cb_query_extract_named_params_i(VALUE key, VALUE value, VALUE cookie)
+{
+    lcb_error_t rc;
+    __cb_query_arg_i *arg = (__cb_query_arg_i *)cookie;
+
+    if (TYPE(key) == T_SYMBOL) {
+        key = rb_sym2str(key);
+    } else if (TYPE(key) != T_STRING) {
+        lcb_n1p_free(arg->params);
+        cb_raise_msg(cb_eLibraryError, "expected key for N1QL query option to be a String or Symbol, given type: %d",
+                     (int)TYPE(key));
+    }
+    value = rb_funcall(cb_mMultiJson, cb_id_dump, 1, value);
+    rc = lcb_n1p_namedparam(arg->params, RSTRING_PTR(key), RSTRING_LEN(key), RSTRING_PTR(value), RSTRING_LEN(value));
+    if (rc != LCB_SUCCESS) {
+        lcb_n1p_free(arg->params);
+        cb_raise(cb_eLibraryError, rc, "cannot set N1QL query named parameter: %.*s", (int)RSTRING_LEN(key),
+                 RSTRING_PTR(key));
+    }
+    return ST_CONTINUE;
+}
+
+static int
+cb_query_extract_params_i(VALUE key, VALUE value, VALUE cookie)
+{
+    lcb_error_t rc;
+    __cb_query_arg_i *arg = (__cb_query_arg_i *)cookie;
+
+    if (TYPE(key) == T_SYMBOL) {
+        if (key == cb_sym_positional) {
+            long ii;
+            if (TYPE(value) != T_ARRAY) {
+                lcb_n1p_free(arg->params);
+                cb_raise_msg(cb_eLibraryError,
+                             "expected value of :positional option for N1QL query to be an Array, given type: %d",
+                             (int)TYPE(value));
+            }
+            for (ii = 0; ii < RARRAY_LEN(value); ii++) {
+                VALUE entry = rb_funcall(cb_mMultiJson, cb_id_dump, 1, rb_ary_entry(value, ii));
+                rc = lcb_n1p_posparam(arg->params, RSTRING_PTR(entry), RSTRING_LEN(entry));
+                if (rc != LCB_SUCCESS)
+                    if (rc != LCB_SUCCESS) {
+                        lcb_n1p_free(arg->params);
+                        cb_raise2(cb_eLibraryError, rc, "cannot set N1QL query positional parameter");
+                    }
+            }
+        } else if (key == cb_sym_named) {
+            if (TYPE(value) != T_HASH) {
+                lcb_n1p_free(arg->params);
+                cb_raise_msg(cb_eLibraryError,
+                             "expected value of :named option for N1QL query to be an Array, given type: %d",
+                             (int)TYPE(value));
+            }
+            rb_hash_foreach(value, cb_query_extract_named_params_i, (VALUE)&arg);
+        } else if (key == cb_sym_prepared && RTEST(value)) {
+            arg->cmd->cmdflags |= LCB_CMDN1QL_F_PREPCACHE;
+        } else {
+            key = rb_sym2str(key);
+        }
+    } else if (TYPE(key) != T_STRING) {
+        lcb_n1p_free(arg->params);
+        cb_raise_msg(cb_eLibraryError, "expected key for N1QL query option to be a String or Symbol, given type: %d",
+                     (int)TYPE(key));
+    }
+    value = rb_funcall(cb_mMultiJson, cb_id_dump, 1, value);
+    rc = lcb_n1p_setopt(arg->params, RSTRING_PTR(key), RSTRING_LEN(key), RSTRING_PTR(value), RSTRING_LEN(value));
+    if (rc != LCB_SUCCESS) {
+        lcb_n1p_free(arg->params);
+        cb_raise(cb_eLibraryError, rc, "cannot set N1QL query option: %.*s", (int)RSTRING_LEN(key), RSTRING_PTR(key));
+    }
+
+    return ST_CONTINUE;
+}
+
 VALUE
 cb_bucket_query(int argc, VALUE *argv, VALUE self)
 {
     struct cb_bucket_st *bucket = DATA_PTR(self);
     struct cb_context_st *ctx;
-    lcb_N1QLPARAMS *params = lcb_n1p_new();
+    lcb_N1QLPARAMS *params;
     lcb_CMDN1QL cmd = {0};
     lcb_error_t rc;
-    VALUE qstr, proc, args;
+    VALUE qstr, options = Qnil;
     VALUE exc, rv;
 
-    rb_scan_args(argc, argv, "1*&", &qstr, &args, &proc);
+    rb_scan_args(argc, argv, "11", &qstr, &options);
 
+    params = lcb_n1p_new();
     rc = lcb_n1p_setquery(params, RSTRING_PTR(qstr), RSTRING_LEN(qstr), LCB_N1P_QUERY_STATEMENT);
     if (rc != LCB_SUCCESS) {
-        rb_raise(cb_eQuery, "cannot set query for N1QL command: %s", lcb_strerror(bucket->handle, rc));
+        lcb_n1p_free(params);
+        cb_raise2(cb_eLibraryError, rc, "cannot set query for N1QL command");
+    }
+    if (options != Qnil) {
+        __cb_query_arg_i iarg = {0};
+        if (TYPE(options) != T_HASH) {
+            lcb_n1p_free(params);
+            cb_raise_msg(cb_eLibraryError, "expected options to be a Hash, given type: %d", (int)TYPE(options));
+        }
+        iarg.params = params;
+        iarg.cmd = &cmd;
+        rb_hash_foreach(options, cb_query_extract_params_i, (VALUE)&iarg);
     }
 
     rc = lcb_n1p_mkcmd(params, &cmd);
@@ -115,4 +216,12 @@ cb_bucket_query(int argc, VALUE *argv, VALUE self)
         rb_exc_raise(exc);
     }
     return rv;
+}
+
+void
+init_n1ql()
+{
+    cb_sym_positional = ID2SYM(rb_intern("positional"));
+    cb_sym_named = ID2SYM(rb_intern("named"));
+    cb_sym_prepared = ID2SYM(rb_intern("prepared"));
 }
