@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-gem 'rake-compiler', '>= 0.7.5'
 require 'rake/extensiontask'
 
 def gemspec
@@ -54,9 +53,10 @@ class Platform
   end
 end
 
+VERSIONS = %w(2.5.0 2.4.0 2.3.0)
 CROSS_PLATFORMS = [
-  Platform.new(:name => 'x64-mingw32', :host => 'x86_64-w64-mingw32', :versions => %w(2.4.0 2.3.0 2.2.2 2.1.6 2.0.0-p645)),
-  Platform.new(:name => 'x86-mingw32', :host => 'i686-w64-mingw32', :versions => %w(2.4.0 2.3.0 2.2.2 2.1.6 2.0.0-p645))
+  Platform.new(:name => 'x64-mingw32', :host => 'x86_64-w64-mingw32', :versions => VERSIONS),
+  Platform.new(:name => 'x86-mingw32', :host => 'i686-w64-mingw32', :versions => VERSIONS)
 ].freeze
 
 # Setup compile tasks.  Configuration can be passed via ENV.
@@ -134,10 +134,11 @@ task 'package:windows' => ['package', 'lib/couchbase_ext.rb'] do
     ENV['TARGET'] = platform.name
     rm_rf('tmp/ ports/')
     mkdir_p('ports')
-    recipe = MiniPortile.new('libcouchbase', '2.7.0')
+    recipe = MiniPortile.new('libcouchbase', '2.9.3')
     recipe.host = platform.host
-    recipe.files << "http://packages.couchbase.com/clients/c/libcouchbase-#{recipe.version}.tar.gz"
-    recipe.configure_options.push('--disable-cxx',
+    # recipe.files << "http://packages.couchbase.com/clients/c/libcouchbase-#{recipe.version}.tar.gz"
+    recipe.files << "http://files.avsej.net/clients/c/libcouchbase-#{recipe.version}.tar.gz"
+    recipe.configure_options.push('--skip-git-version',
                                   '--disable-tests',
                                   '--enable-static')
     recipe.cook
