@@ -88,7 +88,11 @@ cb_bucket_stats(int argc, VALUE *argv, VALUE self)
     ctx->rv = rb_ary_new();
 
     if (arg != Qnil) {
-        Check_Type(arg, T_STRING);
+        if (TYPE(arg) == T_SYMBOL) {
+            arg = rb_sym2str(arg);
+        } else {
+            Check_Type(arg, T_STRING);
+        }
         LCB_CMD_SET_KEY(&cmd, RSTRING_PTR(arg), RSTRING_LEN(arg));
     }
     err = lcb_stats3(bucket->handle, (const void *)ctx, &cmd);

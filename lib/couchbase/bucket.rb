@@ -162,8 +162,8 @@ module Couchbase
     # @example Simple flush the bucket
     #   c.flush    #=> true
     def flush
-      bucket.send(:__http_query, :management, :post, "/pools/default/buckets/#{bucket}/controller/doFlush",
-                  nil, nil, nil, nil, nil)
+      __http_query(:management, :post, "/pools/default/buckets/#{bucket}/controller/doFlush",
+                   nil, nil, nil, nil, nil)
       true
     end
 
@@ -209,7 +209,7 @@ module Couchbase
     end
 
     def fetch(key, ttl = 0)
-      cached_obj = get(key)
+      cached_obj = get(key).value
       return cached_obj if cached_obj
       value = yield
       set(key, value, ttl: ttl)

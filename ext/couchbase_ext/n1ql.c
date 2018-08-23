@@ -77,11 +77,6 @@ typedef struct __cb_query_arg_i {
     lcb_CMDN1QL *cmd;
 } __cb_query_arg_i;
 
-lcb_error_t
-lcb_n1p_namedparam(lcb_N1QLPARAMS *params, const char *name, size_t nname, const char *value, size_t nvalue)
-{
-    return lcb_n1p_setopt(params, name, nname, value, nvalue);
-}
 static int
 cb_query_extract_named_params_i(VALUE key, VALUE value, VALUE cookie)
 {
