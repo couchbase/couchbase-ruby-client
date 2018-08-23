@@ -10,7 +10,15 @@ If you find an issue, please file it in our [JIRA][1]. Also you are always welco
 ## INSTALL
 
 This gem depends [libcouchbase][3]. In most cases installing libcouchbase doesn't take much
-effort. After that you can install the couchbase gem itself:
+effort. For example on Fedora Linux, it could be installed with dnf:
+
+    $ sudo dnf install libcouchbase-devel
+
+On MacOS X with homebrew:
+
+    $ brew install libcouchbase
+
+After that you can install the couchbase gem itself:
 
     $ gem install couchbase
 
