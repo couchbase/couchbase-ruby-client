@@ -136,8 +136,7 @@ task 'package:windows' => ['package', 'lib/couchbase_ext.rb'] do
     mkdir_p('ports')
     recipe = MiniPortile.new('libcouchbase', '2.9.3')
     recipe.host = platform.host
-    # recipe.files << "http://packages.couchbase.com/clients/c/libcouchbase-#{recipe.version}.tar.gz"
-    recipe.files << "http://files.avsej.net/clients/c/libcouchbase-#{recipe.version}.tar.gz"
+    recipe.files << "http://packages.couchbase.com/clients/c/libcouchbase-#{recipe.version}.tar.gz"
     recipe.configure_options.push('--skip-git-version',
                                   '--disable-tests',
                                   '--enable-static')
