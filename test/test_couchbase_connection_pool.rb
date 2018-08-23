@@ -17,6 +17,7 @@
 
 require File.join(__dir__, 'setup')
 require 'couchbase/connection_pool'
+::ConnectionPool::DEFAULTS[:timeout] = 30
 
 class TestCouchbaseConnectionPool < MiniTest::Test
   def setup

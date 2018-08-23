@@ -20,6 +20,9 @@ require 'active_support/cache/couchbase_store'
 require 'active_support/notifications'
 require 'ostruct'
 
+require 'couchbase/connection_pool'
+::ConnectionPool::DEFAULTS[:timeout] = 30
+
 class TestCouchbaseRailsCacheStore < MiniTest::Test
   def setup
     @foo = OpenStruct.new :payload => "foo"

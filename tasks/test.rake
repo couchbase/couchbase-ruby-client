@@ -30,7 +30,8 @@ module FileUtils
   alias orig_ruby ruby
 
   def ruby(*args, &block)
-    executable = [ENV['RUBY_PREFIX'], RUBY].flatten.compact.join(' ')
+    ruby_interp = File.readlink('/proc/self/exe')
+    executable = [ENV['RUBY_PREFIX'], ruby_interp].flatten.compact.join(' ')
     options = Hash === args.last ? args.pop : {}
     if args.length > 1
       sh(*([executable] + args + [options]), &block)
@@ -49,6 +50,7 @@ end
 Rake::Task['test'].prerequisites.unshift('test/CouchbaseMock.jar')
 
 common_flags = %w(
+  --log-file=/tmp/valgrind.log
   --tool=memcheck
   --error-limit=no
   --undef-value-errors=no
@@ -56,7 +58,6 @@ common_flags = %w(
   --show-reachable=yes
   --num-callers=50
   --track-fds=yes
-  --workaround-gcc296-bugs=yes
   --leak-resolution=med
   --max-stackframe=7304328
   --partial-loads-ok=yes
