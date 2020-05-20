@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
   spec.license = "MIT"
 
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/avsej/couchbase.rb"
+  spec.metadata["source_code_uri"] = "https://github.com/couchbase/couchbase-ruby-client"
   spec.metadata["changelog_uri"] = "#{spec.metadata["source_code_uri"]}/releases"
 
   spec.files = Dir.chdir(File.expand_path("..", __FILE__)) do
