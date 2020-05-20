@@ -29,6 +29,14 @@
 
 #include <ruby.h>
 
+#if !defined(RB_METHOD_DEFINITION_DECL)
+#define VALUE_FUNC(f) reinterpret_cast<VALUE (*)(ANYARGS)>(f)
+#define INT_FUNC(f) reinterpret_cast<int (*)(ANYARGS)>(f)
+#else
+#define VALUE_FUNC(f) (f)
+#define INT_FUNC(f) (f)
+#endif
+
 static void
 init_versions(VALUE mCouchbase)
 {
@@ -916,6 +924,18 @@ cb_Backend_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE
     return res;
 }
 
+static int
+cb__for_each_named_param(VALUE key, VALUE value, VALUE arg)
+{
+    auto* preq = reinterpret_cast<couchbase::operations::query_request*>(arg);
+    Check_Type(key, T_STRING);
+    Check_Type(value, T_STRING);
+    preq->named_parameters.emplace(
+      std::string_view(RSTRING_PTR(key), static_cast<std::size_t>(RSTRING_LEN(key))),
+      tao::json::from_string(std::string_view(RSTRING_PTR(value), static_cast<std::size_t>(RSTRING_LEN(value)))));
+    return ST_CONTINUE;
+}
+
 static VALUE
 cb_Backend_query(VALUE self, VALUE statement, VALUE options)
 {
@@ -970,18 +990,7 @@ cb_Backend_query(VALUE self, VALUE statement, VALUE options)
     VALUE named_params = rb_hash_aref(options, rb_id2sym(rb_intern("named_parameters")));
     if (!NIL_P(named_params)) {
         Check_Type(named_params, T_HASH);
-        rb_hash_foreach(
-          named_params,
-          [](VALUE key, VALUE value, VALUE arg) -> int {
-              auto* preq = reinterpret_cast<couchbase::operations::query_request*>(arg);
-              Check_Type(key, T_STRING);
-              Check_Type(value, T_STRING);
-              preq->named_parameters.emplace(
-                std::string_view(RSTRING_PTR(key), static_cast<std::size_t>(RSTRING_LEN(key))),
-                tao::json::from_string(std::string_view(RSTRING_PTR(value), static_cast<std::size_t>(RSTRING_LEN(value)))));
-              return ST_CONTINUE;
-          },
-          reinterpret_cast<VALUE>(&req));
+        rb_hash_foreach(named_params, INT_FUNC(cb__for_each_named_param), reinterpret_cast<VALUE>(&req));
     }
 
     auto barrier = std::make_shared<std::promise<couchbase::operations::query_response>>();
@@ -1052,15 +1061,15 @@ init_backend(VALUE mCouchbase)
 {
     VALUE cBackend = rb_define_class_under(mCouchbase, "Backend", rb_cBasicObject);
     rb_define_alloc_func(cBackend, cb_Backend_allocate);
-    rb_define_method(cBackend, "open", cb_Backend_open, 3);
-    rb_define_method(cBackend, "close", cb_Backend_close, 0);
-    rb_define_method(cBackend, "open_bucket", cb_Backend_open_bucket, 1);
-    rb_define_method(cBackend, "get", cb_Backend_get, 3);
-    rb_define_method(cBackend, "upsert", cb_Backend_upsert, 4);
-    rb_define_method(cBackend, "remove", cb_Backend_remove, 3);
-    rb_define_method(cBackend, "lookup_in", cb_Backend_lookup_in, 5);
-    rb_define_method(cBackend, "mutate_in", cb_Backend_mutate_in, 5);
-    rb_define_method(cBackend, "query", cb_Backend_query, 2);
+    rb_define_method(cBackend, "open", VALUE_FUNC(cb_Backend_open), 3);
+    rb_define_method(cBackend, "close", VALUE_FUNC(cb_Backend_close), 0);
+    rb_define_method(cBackend, "open_bucket", VALUE_FUNC(cb_Backend_open_bucket), 1);
+    rb_define_method(cBackend, "get", VALUE_FUNC(cb_Backend_get), 3);
+    rb_define_method(cBackend, "upsert", VALUE_FUNC(cb_Backend_upsert), 4);
+    rb_define_method(cBackend, "remove", VALUE_FUNC(cb_Backend_remove), 3);
+    rb_define_method(cBackend, "lookup_in", VALUE_FUNC(cb_Backend_lookup_in), 5);
+    rb_define_method(cBackend, "mutate_in", VALUE_FUNC(cb_Backend_mutate_in), 5);
+    rb_define_method(cBackend, "query", VALUE_FUNC(cb_Backend_query), 2);
 }
 
 extern "C" {
