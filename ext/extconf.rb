@@ -1,6 +1,7 @@
 require "mkmf"
 require "fileutils"
 require "tempfile"
+require "rbconfig"
 
 unless find_executable("cmake")
   abort "ERROR: CMake is required to build couchbase extension."
@@ -15,6 +16,8 @@ end
 build_type = ENV["DEBUG"] ? "Debug" : "RelWithDebInfo"
 cmake_flags = [
   "-DCMAKE_BUILD_TYPE=#{build_type}",
+  "-DRUBY_HDR_DIR=#{RbConfig::CONFIG["rubyhdrdir"]}",
+  "-DRUBY_ARCH_HDR_DIR=#{RbConfig::CONFIG["rubyarchhdrdir"]}",
   "-DTAOCPP_JSON_BUILD_TESTS=OFF",
   "-DTAOCPP_JSON_BUILD_EXAMPLES=OFF",
 ]

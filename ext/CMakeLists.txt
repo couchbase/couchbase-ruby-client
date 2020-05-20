@@ -99,10 +99,15 @@ add_library(
     couchbase/cbsasl/client.cc couchbase/cbsasl/context.cc couchbase/cbsasl/mechanism.cc
     couchbase/cbsasl/plain/plain.cc couchbase/cbsasl/scram-sha/scram-sha.cc couchbase/cbsasl/scram-sha/stringutils.cc)
 
-find_package(Ruby REQUIRED)
-message(STATUS "RUBY_VERSION: ${RUBY_VERSION}")
-message(STATUS "RUBY_EXECUTABLE: ${RUBY_EXECUTABLE}")
+if(RUBY_HDR_DIR)
+    set(RUBY_INCLUDE_DIR ${RUBY_HDR_DIR} ${RUBY_ARCH_HDR_DIR})
+else()
+    find_package(Ruby REQUIRED)
+    message(STATUS "RUBY_VERSION: ${RUBY_VERSION}")
+    message(STATUS "RUBY_EXECUTABLE: ${RUBY_EXECUTABLE}")
+endif()
 message(STATUS "RUBY_INCLUDE_DIR: ${RUBY_INCLUDE_DIR}")
+include_directories(BEFORE SYSTEM "${RUBY_INCLUDE_DIR}")
 
 add_library(couchbase SHARED couchbase/couchbase.cxx)
 target_link_libraries(
