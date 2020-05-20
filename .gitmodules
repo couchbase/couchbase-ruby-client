@@ -1,0 +1,15 @@
+[submodule "ext/third_party/gsl"]
+	path = ext/third_party/gsl
+	url = git://github.com/microsoft/gsl.git
+[submodule "ext/third_party/json"]
+	path = ext/third_party/json
+	url = git://github.com/taocpp/json.git
+[submodule "ext/third_party/spdlog"]
+	path = ext/third_party/spdlog
+	url = git://github.com/gabime/spdlog.git
+[submodule "ext/third_party/http_parser"]
+	path = ext/third_party/http_parser
+	url = git://github.com/nodejs/http-parser.git
+[submodule "ext/third_party/asio"]
+	path = ext/third_party/asio
+	url = git@github.com:chriskohlhoff/asio.git
