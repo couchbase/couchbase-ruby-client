@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ext/third_party/asio" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ext/third_party/gsl" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ext/third_party/http_parser" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ext/third_party/json" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ext/third_party/spdlog" vcs="Git" />
+  </component>
+</project>

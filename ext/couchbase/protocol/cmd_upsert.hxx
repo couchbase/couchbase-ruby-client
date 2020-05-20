@@ -1,0 +1,136 @@
+/* -*- Mode: C++; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+/*
+ *     Copyright 2020 Couchbase, Inc.
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License");
+ *   you may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ */
+
+#pragma once
+
+#include <protocol/status.hxx>
+#include <protocol/client_opcode.hxx>
+#include <protocol/unsigned_leb128.h>
+#include <mutation_token.hxx>
+#include <utils/byteswap.hxx>
+
+namespace couchbase::protocol
+{
+
+class upsert_response_body
+{
+  public:
+    static const inline client_opcode opcode = client_opcode::upsert;
+
+  private:
+    mutation_token token_;
+
+  public:
+    mutation_token& token()
+    {
+        return token_;
+    }
+
+    bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
+    {
+        Expects(header[1] == static_cast<uint8_t>(opcode));
+        if (status == protocol::status::success) {
+            std::vector<uint8_t>::difference_type offset = 0;
+            uint8_t ext_size = header[4];
+            if (ext_size == 16) {
+                memcpy(&token_.partition_uuid, body.data() + offset, sizeof(token_.partition_uuid));
+                token_.partition_uuid = utils::byte_swap_64(token_.partition_uuid);
+                offset += 8;
+
+                memcpy(&token_.sequence_number, body.data() + offset, sizeof(token_.sequence_number));
+                token_.sequence_number = utils::byte_swap_64(token_.sequence_number);
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
+class upsert_request_body
+{
+  public:
+    using response_body_type = upsert_response_body;
+    static const inline client_opcode opcode = client_opcode::upsert;
+
+  private:
+    std::string key_{};
+    std::vector<std::uint8_t> ext_{};
+    std::vector<std::uint8_t> content_{};
+    std::uint32_t flags_{};
+    std::uint32_t expiration_{};
+
+  public:
+    void id(const operations::document_id& id)
+    {
+        key_ = id.key;
+    }
+
+    void content(const std::string& content)
+    {
+        content_ = { content.begin(), content.end() };
+    }
+
+    void flags(uint32_t flags)
+    {
+        flags_ = flags;
+    }
+
+    void expiration(uint32_t value)
+    {
+        expiration_ = value;
+    }
+
+    const std::string& key()
+    {
+        return key_;
+    }
+
+    const std::vector<std::uint8_t>& extension()
+    {
+        if (ext_.empty()) {
+            fill_extention();
+        }
+        return ext_;
+    }
+
+    const std::vector<std::uint8_t>& value()
+    {
+        return content_;
+    }
+
+    std::size_t size()
+    {
+        if (ext_.empty()) {
+            fill_extention();
+        }
+        return key_.size() + ext_.size() + content_.size();
+    }
+
+  private:
+    void fill_extention()
+    {
+        ext_.resize(sizeof(flags_) + sizeof(expiration_));
+
+        uint32_t field = htonl(flags_);
+        memcpy(ext_.data(), &field, sizeof(field));
+
+        field = htonl(expiration_);
+        memcpy(ext_.data() + sizeof(flags_), &field, sizeof(field));
+    }
+};
+
+} // namespace couchbase::protocol
