@@ -15,6 +15,7 @@
  *   limitations under the License.
  */
 
+#include <openssl/crypto.h>
 #include <asio/version.hpp>
 
 #include <spdlog/spdlog.h>
@@ -49,6 +50,12 @@ init_versions(VALUE mCouchbase)
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("http_parser")), rb_str_freeze(rb_str_new(ver.c_str(), static_cast<long>(ver.size()))));
     ver = fmt::format("{}.{}.{}", BACKEND_VERSION_MAJOR, BACKEND_VERSION_MINOR, BACKEND_VERSION_PATCH);
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("backend")), rb_str_freeze(rb_str_new(ver.c_str(), static_cast<long>(ver.size()))));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_headers")), rb_str_freeze(rb_str_new_cstr(OPENSSL_VERSION_TEXT)));
+#if defined(OPENSSL_VERSION)
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_runtime")), rb_str_freeze(rb_str_new_cstr(OpenSSL_version(OPENSSL_VERSION))));
+#elif defined(SSLEAY_VERSION)
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_runtime")), rb_str_freeze(rb_str_new_cstr(SSLeay_version(SSLEAY_VERSION))));
+#endif
 
 #undef VERSION_SPLIT_
 }

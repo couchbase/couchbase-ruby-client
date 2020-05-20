@@ -16,10 +16,7 @@
  */
 #include <cbcrypto/cbcrypto.h>
 
-#include <platform/base64.h>
-#include <iomanip>
 #include <memory>
-#include <sstream>
 #include <stdexcept>
 
 namespace internal
