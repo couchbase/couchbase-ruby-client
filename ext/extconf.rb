@@ -13,15 +13,21 @@ def sys(*cmd)
 end
 
 build_type = ENV["DEBUG"] ? "Debug" : "RelWithDebInfo"
+cmake_flags = [
+  "-DCMAKE_BUILD_TYPE=#{build_type}",
+  "-DTAOCPP_JSON_BUILD_TESTS=OFF",
+  "-DTAOCPP_JSON_BUILD_EXAMPLES=OFF",
+]
+openssl_root = `brew --prefix openssl 2> /dev/null`.strip
+if openssl_root
+  cmake_flags << "-DOPENSSL_ROOT_DIR=#{openssl_root}"
+end
+
 project_path = File.expand_path(File.join(__dir__))
 build_dir = File.join(Dir.tmpdir, "couchbase-rubygem-#{build_type}-#{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}")
 FileUtils.mkdir_p(build_dir)
 Dir.chdir(build_dir) do
-  sys("cmake",
-      "-DCMAKE_BUILD_TYPE=#{build_type}",
-      "-DTAOCPP_JSON_BUILD_TESTS=OFF",
-      "-DTAOCPP_JSON_BUILD_EXAMPLES=OFF",
-       project_path)
+  sys("cmake", *cmake_flags, project_path)
   sys("make -j4")
 end
 extension_path = File.expand_path(File.join(build_dir, 'libcouchbase.so'))
