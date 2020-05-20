@@ -108,7 +108,14 @@ cb_Backend_memsize(const void* ptr)
 
 static const rb_data_type_t cb_backend_type{
     "Couchbase/Backend",
-    { cb_Backend_mark, cb_Backend_free, cb_Backend_memsize, nullptr, {} },
+    { cb_Backend_mark,
+      cb_Backend_free,
+      cb_Backend_memsize,
+// only one reserved field when GC.compact implemented
+#ifdef T_MOVED
+      nullptr,
+#endif
+      {} },
 #ifdef RUBY_TYPED_FREE_IMMEDIATELY
     nullptr,
     nullptr,
