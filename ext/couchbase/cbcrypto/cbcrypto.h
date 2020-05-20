@@ -22,12 +22,11 @@
 
 namespace couchbase::crypto
 {
-enum class Algorithm { MD5, SHA1, SHA256, SHA512 };
+enum class Algorithm { SHA1, SHA256, SHA512 };
 
 bool
 isSupported(Algorithm algorithm);
 
-const int MD5_DIGEST_SIZE = 16;
 const int SHA1_DIGEST_SIZE = 20;
 const int SHA256_DIGEST_SIZE = 32;
 const int SHA512_DIGEST_SIZE = 64;

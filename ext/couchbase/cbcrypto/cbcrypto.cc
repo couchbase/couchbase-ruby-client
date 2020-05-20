@@ -102,12 +102,6 @@ hash(std::string_view key, std::string_view data, LPCWSTR algorithm, int flags)
 }
 
 static std::string
-HMAC_MD5(std::string_view key, std::string_view data)
-{
-    return hash(key, data, BCRYPT_MD5_ALGORITHM, BCRYPT_ALG_HANDLE_HMAC_FLAG);
-}
-
-static std::string
 HMAC_SHA1(std::string_view key, std::string_view data)
 {
     return hash(key, data, BCRYPT_SHA1_ALGORITHM, BCRYPT_ALG_HANDLE_HMAC_FLAG);
@@ -187,12 +181,6 @@ static std::string
 PBKDF2_HMAC_SHA512(const std::string& pass, std::string_view salt, unsigned int iterationCount)
 {
     return PBKDF2(pass, salt, iterationCount, BCRYPT_SHA512_ALGORITHM);
-}
-
-static std::string
-digest_md5(std::string_view data)
-{
-    return hash({}, data, BCRYPT_MD5_ALGORITHM, 0);
 }
 
 static std::string
@@ -317,15 +305,6 @@ decrypt(const couchbase::crypto::Cipher cipher, std::string_view key, std::strin
 #include <CommonCrypto/CommonKeyDerivation.h>
 
 static std::string
-HMAC_MD5(std::string_view key, std::string_view data)
-{
-    std::string ret;
-    ret.resize(couchbase::crypto::MD5_DIGEST_SIZE);
-    CCHmac(kCCHmacAlgMD5, key.data(), key.size(), data.data(), data.size(), reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())));
-    return ret;
-}
-
-static std::string
 HMAC_SHA1(std::string_view key, std::string_view data)
 {
     std::string ret;
@@ -414,15 +393,6 @@ PBKDF2_HMAC_SHA512(const std::string& pass, std::string_view salt, unsigned int 
                                  "failed: " +
                                  std::to_string(err));
     }
-    return ret;
-}
-
-static std::string
-digest_md5(std::string_view data)
-{
-    std::string ret;
-    ret.resize(couchbase::crypto::MD5_DIGEST_SIZE);
-    CC_MD5(data.data(), data.size(), reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())));
     return ret;
 }
 
@@ -551,23 +521,6 @@ decrypt(const couchbase::crypto::Cipher cipher, std::string_view key, std::strin
 // OpenSSL
 
 static std::string
-HMAC_MD5(std::string_view key, std::string_view data)
-{
-    std::string ret;
-    ret.resize(couchbase::crypto::MD5_DIGEST_SIZE);
-    if (HMAC(EVP_md5(),
-             key.data(),
-             static_cast<int>(key.size()),
-             reinterpret_cast<const uint8_t*>(data.data()),
-             data.size(),
-             reinterpret_cast<uint8_t*>(ret.data()),
-             nullptr) == nullptr) {
-        throw std::runtime_error("couchbase::crypto::HMAC(MD5): HMAC failed");
-    }
-    return ret;
-}
-
-static std::string
 HMAC_SHA1(std::string_view key, std::string_view data)
 {
     std::string ret;
@@ -678,15 +631,6 @@ PBKDF2_HMAC_SHA512(const std::string& pass, std::string_view salt, unsigned int 
         throw std::runtime_error("couchbase::crypto::PBKDF2_HMAC(SHA512): PKCS5_PBKDF2_HMAC failed" + std::to_string(err));
     }
 
-    return ret;
-}
-
-static std::string
-digest_md5(std::string_view data)
-{
-    std::string ret;
-    ret.resize(couchbase::crypto::MD5_DIGEST_SIZE);
-    MD5(reinterpret_cast<const uint8_t*>(data.data()), data.size(), reinterpret_cast<uint8_t*>(ret.data()));
     return ret;
 }
 
@@ -830,8 +774,6 @@ std::string
 couchbase::crypto::HMAC(const Algorithm algorithm, std::string_view key, std::string_view data)
 {
     switch (algorithm) {
-        case Algorithm::MD5:
-            return internal::HMAC_MD5(key, data);
         case Algorithm::SHA1:
             return internal::HMAC_SHA1(key, data);
         case Algorithm::SHA256:
@@ -847,8 +789,6 @@ std::string
 couchbase::crypto::PBKDF2_HMAC(const Algorithm algorithm, const std::string& pass, std::string_view salt, unsigned int iterationCount)
 {
     switch (algorithm) {
-        case Algorithm::MD5:
-            throw std::invalid_argument("couchbase::crypto::PBKDF2_HMAC: Can't use MD5");
         case Algorithm::SHA1:
             return internal::PBKDF2_HMAC_SHA1(pass, salt, iterationCount);
         case Algorithm::SHA256:
@@ -864,7 +804,6 @@ static inline void
 verifyLegalAlgorithm(const couchbase::crypto::Algorithm al)
 {
     switch (al) {
-        case couchbase::crypto::Algorithm::MD5:
         case couchbase::crypto::Algorithm::SHA1:
         case couchbase::crypto::Algorithm::SHA256:
         case couchbase::crypto::Algorithm::SHA512:
@@ -885,8 +824,6 @@ std::string
 couchbase::crypto::digest(const Algorithm algorithm, std::string_view data)
 {
     switch (algorithm) {
-        case Algorithm::MD5:
-            return internal::digest_md5(data);
         case Algorithm::SHA1:
             return internal::digest_sha1(data);
         case Algorithm::SHA256:
