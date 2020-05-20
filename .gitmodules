@@ -12,4 +12,4 @@
 	url = git://github.com/nodejs/http-parser.git
 [submodule "ext/third_party/asio"]
 	path = ext/third_party/asio
-	url = git@github.com:chriskohlhoff/asio.git
+	url = git://github.com/chriskohlhoff/asio.git
