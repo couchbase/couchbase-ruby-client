@@ -2,6 +2,8 @@
 *.gem
 *.o
 *.so
+*.dylib
+*.bundle
 .byebug_history
 /.rakeTasks
 /.yardoc

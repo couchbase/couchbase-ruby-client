@@ -1,7 +1,6 @@
 require "mkmf"
 require "fileutils"
 require "tempfile"
-require "rbconfig"
 
 unless find_executable("cmake")
   abort "ERROR: CMake is required to build couchbase extension."
@@ -31,13 +30,15 @@ build_dir = File.join(Dir.tmpdir, "couchbase-rubygem-#{build_type}-#{RUBY_VERSIO
 FileUtils.mkdir_p(build_dir)
 Dir.chdir(build_dir) do
   sys("cmake", *cmake_flags, project_path)
-  sys("make -j4")
+  sys("make -j4 VERBOSE=1")
 end
-extension_path = File.expand_path(File.join(build_dir, 'libcouchbase.so'))
+extension_name = "libcouchbase.#{RbConfig::CONFIG["SOEXT"]}"
+extension_path = File.expand_path(File.join(build_dir, extension_name))
 unless File.file?(extension_path)
   abort "ERROR: failed to build extension in #{extension_path}"
 end
-install_path = File.expand_path(File.join(__dir__, "..", "lib", "couchbase"))
+extension_name.gsub!(/\.dylib/, '.bundle')
+install_path = File.expand_path(File.join(__dir__, "..", "lib", "couchbase", extension_name))
 puts "-- copy extension to #{install_path}"
 FileUtils.cp(extension_path, install_path)
 create_makefile("libcouchbase")

@@ -121,8 +121,13 @@ target_link_libraries(
             cbsasl
             http_parser
             spdlog::spdlog_header_only)
+set_target_properties(cbcrypto cbsasl platform PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
-set_target_properties(cbcrypto cbsasl platform PROPERTIES CXX_VISIBILITY_PRESET hidden POSITION_INDEPENDENT_CODE TRUE)
+if(APPLE)
+    target_link_options(couchbase PRIVATE -Wl,-undefined,dynamic_lookup)
+else()
+    set_target_properties(cbcrypto cbsasl platform PROPERTIES CXX_VISIBILITY_PRESET hidden)
+endif()
 
 if(BUILD_EXAMPLES)
     add_executable(main test/main.cxx)
