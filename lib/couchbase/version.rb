@@ -13,9 +13,6 @@
 #  limitations under the License.
 
 module Couchbase
-  if defined?(VERSION)
-    VERSION.update(:sdk => "3.0.0.alpha.1".freeze)
-  else
-    VERSION = {:sdk => "3.0.0.alpha.1".freeze}
-  end
+  VERSION = {} unless defined?(VERSION)
+  VERSION.update(:sdk => "3.0.0.alpha.1".freeze)
 end
