@@ -12,6 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "couchbase/errors"
+
 module Couchbase
   module Management
     class BucketManager
@@ -27,8 +29,8 @@ module Couchbase
       # @param [CreateBucketSettings] settings bucket settings
       # @param [CreateBucketOptions] options
       #
-      # @raise ArgumentError
-      # @raise BucketExists
+      # @raise [ArgumentError]
+      # @raise [Error::BucketExists]
       def create_bucket(settings, options = CreateBucketOptions.new)
         # POST /pools/default/buckets
       end
@@ -38,8 +40,8 @@ module Couchbase
       # @param [BucketSettings] settings bucket settings
       # @param [UpdateBucketOptions] options
       #
-      # @raise ArgumentError
-      # @raise BucketNotFound
+      # @raise [ArgumentError]
+      # @raise [Error::BucketNotFound]
       def update_bucket(settings, options = UpdateBucketOptions.new)
         # POST /pools/default/buckets/#{settings.name}
       end
@@ -49,8 +51,8 @@ module Couchbase
       # @param [String] bucket_name name of the bucket
       # @param [DropBucketOptions] options
       #
-      # @raise ArgumentError
-      # @raise BucketNotFound
+      # @raise [ArgumentError]
+      # @raise [Error::BucketNotFound]
       def drop_bucket(bucket_name, options = DropBucketOptions.new)
         # DELETE /pools/default/buckets/#{bucket_name}
       end
@@ -62,8 +64,8 @@ module Couchbase
       #
       # @return [BucketSettings]
       #
-      # @raise ArgumentError
-      # @raise BucketNotFound
+      # @raise [ArgumentError]
+      # @raise [Error::BucketNotFound]
       def get_bucket(bucket_name, options = GetBucketOptions.new)
         # GET /pools/default/buckets/#{bucket_name}
       end
@@ -77,9 +79,9 @@ module Couchbase
       end
 
       # @param [String] bucket_name name of the bucket
-      # @raise ArgumentError
-      # @raise BucketNotFound
-      # @raise BucketNotFlushable
+      # @raise [ArgumentError]
+      # @raise [Error::BucketNotFound]
+      # @raise [Error::BucketNotFlushable]
       def flush_bucket(bucket_name, options = FlushBucketOptions.new)
         # POST /pools/default/buckets/#{bucket_name}/controller/doFlush
       end

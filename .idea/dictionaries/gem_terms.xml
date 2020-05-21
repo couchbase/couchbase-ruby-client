@@ -2,6 +2,7 @@
   <dictionary name="gem_terms">
     <words>
       <w>adhoc</w>
+      <w>datasets</w>
       <w>dataverse</w>
       <w>libcouchbase</w>
       <w>opcode</w>

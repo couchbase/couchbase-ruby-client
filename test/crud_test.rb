@@ -43,7 +43,7 @@ module Couchbase
 
       @collection.remove(doc_id(:foo))
 
-      assert_raises(Couchbase::DocumentNotFound) do
+      assert_raises(Couchbase::Error::DocumentNotFound) do
         @collection.get(doc_id(:foo))
       end
     end

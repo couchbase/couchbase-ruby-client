@@ -29,8 +29,8 @@ module Couchbase
       #
       # @return [UserAndMetadata]
       #
-      # @raise ArgumentError
-      # @raise UserNotFound
+      # @raise [ArgumentError]
+      # @raise [Error::UserNotFound]
       def get_user(user_name, options = GetUserOptions.new)
         # GET /settings/rbac/users/#{options.domain}/#{user_name}
       end
@@ -47,7 +47,7 @@ module Couchbase
       # @param [User] user the new version of the user
       # @param [UpsertUserOptions] options
       #
-      # @raise ArgumentError
+      # @raise [ArgumentError]
       def upsert_user(user, options = UpsertUserOptions.new)
         # PUT /settings/rbac/users/#{options.domain}/#{user_name}
       end
@@ -75,8 +75,8 @@ module Couchbase
       #
       # @return [Group]
       #
-      # @raise GroupNotFound
-      # @raise ArgumentError
+      # @raise [ArgumentError]
+      # @raise [Error::GroupNotFound]
       def get_group(group_name, options = GetGroupOptions.new)
         # GET /settings/rbac/groups/#{group_name}
       end
@@ -95,8 +95,8 @@ module Couchbase
       # @param [Group] group the new version of the group
       # @param [UpsertGroupOptions] options
       #
-      # @raise GroupNotFound
-      # @raise ArgumentError
+      # @raise [ArgumentError]
+      # @raise [Error::GroupNotFound]
       def upsert_group(group, options = UpsertGroupOptions.new)
         # PUT /settings/rbac/groups/#{group.name}
       end
@@ -106,7 +106,7 @@ module Couchbase
       # @param [String] group_name name of the group
       # @param [DropGroupOptions] options
       #
-      # @raise GroupNotFound
+      # @raise [Error::GroupNotFound]
       def drop_group(group_name, options = DropGroupOptions.new) end
 
       class GetUserOptions

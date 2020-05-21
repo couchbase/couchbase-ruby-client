@@ -13,210 +13,212 @@
 #  limitations under the License.
 
 module Couchbase
-  # Common exceptions
+  module Error
+    # Common exceptions
 
-  class RequestCanceled < StandardError
-  end
+    class RequestCanceled < StandardError
+    end
 
-  class InvalidArgument < StandardError
-  end
+    class InvalidArgument < StandardError
+    end
 
-  class ServiceNotAvailable < StandardError
-  end
+    class ServiceNotAvailable < StandardError
+    end
 
-  class InternalServerFailure < StandardError
-  end
+    class InternalServerFailure < StandardError
+    end
 
-  class AuthenticationFailure < StandardError
-  end
+    class AuthenticationFailure < StandardError
+    end
 
-  class TemporaryFailure < StandardError
-  end
+    class TemporaryFailure < StandardError
+    end
 
-  class ParsingFailure < StandardError
-  end
+    class ParsingFailure < StandardError
+    end
 
-  class CasMismatch < StandardError
-  end
+    class CasMismatch < StandardError
+    end
 
-  class BucketNotFound < StandardError
-  end
+    class BucketNotFound < StandardError
+    end
 
-  class CollectionNotFound < StandardError
-  end
+    class CollectionNotFound < StandardError
+    end
 
-  class ScopeNotFound < StandardError
-  end
+    class ScopeNotFound < StandardError
+    end
 
-  class IndexNotFound < StandardError
-  end
+    class IndexNotFound < StandardError
+    end
 
-  class IndexExists < StandardError
-  end
+    class IndexExists < StandardError
+    end
 
-  class EncodingFailure < StandardError
-  end
+    class EncodingFailure < StandardError
+    end
 
-  class DecodingFailure < StandardError
-  end
+    class DecodingFailure < StandardError
+    end
 
-  class UnsupportedOperation < StandardError
-  end
+    class UnsupportedOperation < StandardError
+    end
 
-  class AmbiguousTimeout < StandardError
-  end
+    class AmbiguousTimeout < StandardError
+    end
 
-  class UnambiguousTimeout < StandardError
-  end
+    class UnambiguousTimeout < StandardError
+    end
 
-  class FeatureNotAvailable < StandardError
-  end
+    class FeatureNotAvailable < StandardError
+    end
 
-  # KeyValue exceptions
+    # KeyValue exceptions
 
-  class DocumentNotFound < StandardError
-  end
+    class DocumentNotFound < StandardError
+    end
 
-  class DocumentIrretrievable < StandardError
-  end
+    class DocumentIrretrievable < StandardError
+    end
 
-  class DocumentLocked < StandardError
-  end
+    class DocumentLocked < StandardError
+    end
 
-  class ValueTooLarge < StandardError
-  end
+    class ValueTooLarge < StandardError
+    end
 
-  class DocumentExists < StandardError
-  end
+    class DocumentExists < StandardError
+    end
 
-  class DurabilityLevelNotAvailable < StandardError
-  end
+    class DurabilityLevelNotAvailable < StandardError
+    end
 
-  class DurabilityImpossible < StandardError
-  end
+    class DurabilityImpossible < StandardError
+    end
 
-  class DurabilityAmbiguous < StandardError
-  end
+    class DurabilityAmbiguous < StandardError
+    end
 
-  class DurableWriteInProgress < StandardError
-  end
+    class DurableWriteInProgress < StandardError
+    end
 
-  class DurableWriteReCommitInProgress < StandardError
-  end
+    class DurableWriteReCommitInProgress < StandardError
+    end
 
-  class PathNotFound < StandardError
-  end
+    class PathNotFound < StandardError
+    end
 
-  class PathMismatch < StandardError
-  end
+    class PathMismatch < StandardError
+    end
 
-  class PathInvalid < StandardError
-  end
+    class PathInvalid < StandardError
+    end
 
-  class PathTooDeep < StandardError
-  end
+    class PathTooDeep < StandardError
+    end
 
-  class PathTooBig < StandardError
-  end
+    class PathTooBig < StandardError
+    end
 
-  class ValueTooDeep < StandardError
-  end
+    class ValueTooDeep < StandardError
+    end
 
-  class ValueInvalid < StandardError
-  end
+    class ValueInvalid < StandardError
+    end
 
-  class DocumentNotJson < StandardError
-  end
+    class DocumentNotJson < StandardError
+    end
 
-  class NumberTooBig < StandardError
-  end
+    class NumberTooBig < StandardError
+    end
 
-  class DeltaInvalid < StandardError
-  end
+    class DeltaInvalid < StandardError
+    end
 
-  class PathExists < StandardError
-  end
+    class PathExists < StandardError
+    end
 
-  class XattrUnknownMacro < StandardError
-  end
+    class XattrUnknownMacro < StandardError
+    end
 
-  class XattrInvalidKeyCombo < StandardError
-  end
+    class XattrInvalidKeyCombo < StandardError
+    end
 
-  class XattrUnknownVirtualAttribute < StandardError
-  end
+    class XattrUnknownVirtualAttribute < StandardError
+    end
 
-  class XattrCannotModifyVirtualAttribute < StandardError
-  end
+    class XattrCannotModifyVirtualAttribute < StandardError
+    end
 
-  # Query exceptions
+    # Query exceptions
 
-  class PlanningFailure < StandardError
-  end
+    class PlanningFailure < StandardError
+    end
 
-  class IndexFailure < StandardError
-  end
+    class IndexFailure < StandardError
+    end
 
-  class PreparedStatementFailure < StandardError
-  end
+    class PreparedStatementFailure < StandardError
+    end
 
 
-  # Analytics exceptions
+    # Analytics exceptions
 
-  class CompilationFailure < StandardError
-  end
+    class CompilationFailure < StandardError
+    end
 
-  class JobQueueFull < StandardError
-  end
+    class JobQueueFull < StandardError
+    end
 
-  class DatasetNotFound < StandardError
-  end
+    class DatasetNotFound < StandardError
+    end
 
-  class DatasetExists < StandardError
-  end
+    class DatasetExists < StandardError
+    end
 
-  class DataverseExists < StandardError
-  end
+    class DataverseExists < StandardError
+    end
 
-  class DataverseNotFound < StandardError
-  end
+    class DataverseNotFound < StandardError
+    end
 
-  class LinkNotFound < StandardError
-  end
+    class LinkNotFound < StandardError
+    end
 
-  # View exceptions
+    # View exceptions
 
-  class DesignDocumentNotFound < StandardError
-  end
+    class DesignDocumentNotFound < StandardError
+    end
 
-  class ViewNotFound < StandardError
-  end
+    class ViewNotFound < StandardError
+    end
 
-  # Management exceptions
+    # Management exceptions
 
-  class CollectionExists < StandardError
-  end
+    class CollectionExists < StandardError
+    end
 
-  class ScopeExists < StandardError
-  end
+    class ScopeExists < StandardError
+    end
 
-  class UserExists < StandardError
-  end
+    class UserExists < StandardError
+    end
 
-  class BucketExists < StandardError
-  end
+    class BucketExists < StandardError
+    end
 
-  class BucketNotFlushable < StandardError
-  end
+    class BucketNotFlushable < StandardError
+    end
 
-  class GroupNotFound < StandardError
-  end
+    class GroupNotFound < StandardError
+    end
 
-  class UserNotFound < StandardError
-  end
+    class UserNotFound < StandardError
+    end
 
-  # Library-specific exceptions
+    # Library-specific exceptions
 
-  class BackendError < StandardError
+    class BackendError < StandardError
+    end
   end
 end
