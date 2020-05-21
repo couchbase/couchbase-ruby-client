@@ -21,7 +21,7 @@ cmake_flags = [
   "-DTAOCPP_JSON_BUILD_EXAMPLES=OFF",
 ]
 openssl_root = `brew --prefix openssl 2> /dev/null`.strip
-if openssl_root
+unless openssl_root.empty?
   cmake_flags << "-DOPENSSL_ROOT_DIR=#{openssl_root}"
 end
 
