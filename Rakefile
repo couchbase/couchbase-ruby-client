@@ -27,3 +27,11 @@ task :compile do
     sh "ruby #{File.join(__dir__, "ext", "extconf.rb")}"
   end
 end
+
+task :doc do
+  require "couchbase/version"
+  input_dir = File.join(__dir__, "lib")
+  output_dir = File.join(__dir__, "doc", "couchbase-ruby-client-#{Couchbase::VERSION[:sdk]}")
+  rm_rf output_dir
+  sh "yard doc --output-dir #{output_dir} #{input_dir}"
+end

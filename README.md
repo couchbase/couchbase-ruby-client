@@ -10,13 +10,11 @@ To generate documentation `yard` library is highly recommended.
 
 The following steps will generate API reference for selected git tag:
 
-    VERSION=3.0.0.alpha.1
-    git checkout $VERSION
-    yard doc -o /tmp/couchbase-ruby-client-$VERSION lib/
+    rake doc
 
-Now the API reference is accessible using web browser
+Now the API reference is accessible using web browser (where `VERSION` is current version of the SDK)
 
-    firefox /tmp/couchbase-ruby-client-$VERSION
+    firefox doc/couchbase-ruby-client-VERSION
 
 ## License
 

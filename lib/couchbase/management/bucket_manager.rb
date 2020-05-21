@@ -58,7 +58,7 @@ module Couchbase
       # Fetch settings of the bucket
       #
       # @param [String] bucket_name name of the bucket
-      # @param [GetBucketOptions]
+      # @param [GetBucketOptions] options
       #
       # @return [BucketSettings]
       #

@@ -187,7 +187,7 @@ module Couchbase
       #
       # * +:request_plus+ The indexer will wait until all mutations have been processed at the time of request before returning to the query engine.
       #
-      # @param [:not_bounded, :request_plus] scan_consistency the index scan consistency to be used for this query
+      # @param [:not_bounded, :request_plus] level the index scan consistency to be used for this query
       def scan_consistency=(level)
         @scan_consistency = level
       end
@@ -195,7 +195,7 @@ module Couchbase
       # Sets the mutation tokens this query should be consistent with
       #
       #
-      # @param [MutationState] the mutation state containing the mutation tokens
+      # @param [MutationState] mutation_state the mutation state containing the mutation tokens
       def consistent_with(mutation_state)
         @mutation_state = mutation_state
       end

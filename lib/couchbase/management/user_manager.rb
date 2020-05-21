@@ -62,7 +62,7 @@ module Couchbase
 
       # Gets all roles supported by the server
       #
-      # @param [GetRolesOptions]
+      # @param [GetRolesOptions] options
       #
       # @return [Array<RoleAndDescription>]
       def get_roles(options = GetRolesOptions.new)
