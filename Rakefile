@@ -34,6 +34,7 @@ task :doc do
   output_dir = File.join(__dir__, "doc", "couchbase-ruby-client-#{Couchbase::VERSION[:sdk]}")
   rm_rf output_dir
   sh "yard doc --output-dir #{output_dir} #{input_dir}"
+  puts "#{File.realpath(output_dir)}/index.html"
 end
 
 task :docs => :doc

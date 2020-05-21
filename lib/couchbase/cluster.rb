@@ -40,7 +40,7 @@ module Couchbase
     end
 
     # Performs a query against the query (N1QL) services
-    # 
+    #
     # @param [String] statement the N1QL query statement
     # @param [QueryOptions] options the custom options for this query
     #
@@ -85,7 +85,7 @@ module Couchbase
     end
 
     # Performs an analytics query
-    # 
+    #
     # @param [String] statement the N1QL query statement
     # @param [AnalyticsOptions] options the custom options for this query
     #
@@ -101,24 +101,29 @@ module Couchbase
     # @return [QueryResult]
     def search_query(index_name, query, options = SearchOptions.new) end
 
+    # @return [Management::UserManager]
     def users
-      UserManager.new(@backend)
+      Management::UserManager.new(@backend)
     end
 
+    # @return [Management::BucketManager]
     def buckets
-      BucketManager.new(@backend)
+      Management::BucketManager.new(@backend)
     end
 
+    # @return [Management::QueryIndexManager]
     def query_indexes
-      QueryIndexManager.new(@backend)
+      Management::QueryIndexManager.new(@backend)
     end
 
+    # @return [Management::AnalyticsIndexManager]
     def analytics_indexes
-      AnalyticsIndexManager.new(@backend)
+      Management::AnalyticsIndexManager.new(@backend)
     end
 
+    # @return [Management::SearchIndexManager]
     def search_indexes
-      SearchIndexManager.new(@backend)
+      Management::SearchIndexManager.new(@backend)
     end
 
     def disconnect

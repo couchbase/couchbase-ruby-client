@@ -146,14 +146,14 @@ class cluster
         return bucket->second->execute(request, std::forward<Handler>(handler));
     }
 
-    template<class Handler>
-    void execute(operations::query_request request, Handler&& handler)
+    template<class Request, class Handler>
+    void execute_http(Request request, Handler&& handler)
     {
-        auto session = session_manager_->check_out(service_type::query, origin_.username, origin_.password);
-        auto cmd = std::make_shared<operations::command<operations::query_request>>(ctx_, std::move(request));
-        cmd->send_to(session, [this, session, handler = std::forward<Handler>(handler)](operations::query_response resp) mutable {
+        auto session = session_manager_->check_out(Request::type, origin_.username, origin_.password);
+        auto cmd = std::make_shared<operations::command<Request>>(ctx_, std::move(request));
+        cmd->send_to(session, [this, session, handler = std::forward<Handler>(handler)](typename Request::response_type resp) mutable {
             handler(std::move(resp));
-            session_manager_->check_in(service_type::query, session);
+            session_manager_->check_in(Request::type, session);
         });
     }
 

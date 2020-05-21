@@ -158,7 +158,7 @@ module Couchbase
       attr_accessor :name
 
       # @return [String] name of the scope
-      attr_accessor :scoionpe_name
+      attr_accessor :scope_name
 
       # @return [Integer] time in seconds of the expiration for new documents in the collection (set to +nil+ to disable it)
       attr_accessor :max_expiry

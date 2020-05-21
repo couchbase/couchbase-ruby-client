@@ -17,9 +17,12 @@
 
 #pragma once
 
+#include <service_type.hxx>
+
 namespace couchbase::io
 {
 struct http_request {
+    service_type type;
     std::string method;
     std::string path;
     std::map<std::string, std::string> headers;
@@ -27,7 +30,8 @@ struct http_request {
 };
 
 struct http_response {
-    std::string status;
+    uint32_t status_code;
+    std::string status_message;
     std::map<std::string, std::string> headers;
     std::string body;
 };

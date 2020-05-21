@@ -26,4 +26,11 @@
 
 #include <operations/query.hxx>
 
+#include <operations/bucket_get_all.hxx>
+#include <operations/bucket_get.hxx>
+#include <operations/bucket_drop.hxx>
+#include <operations/bucket_flush.hxx>
+#include <operations/bucket_create.hxx>
+#include <operations/bucket_update.hxx>
+
 #include <operations/command.hxx>

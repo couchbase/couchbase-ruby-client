@@ -1,4 +1,3 @@
-require 'irb'
 require 'couchbase'
 include Couchbase
 

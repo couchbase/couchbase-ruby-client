@@ -1007,7 +1007,7 @@ cb_Backend_query(VALUE self, VALUE statement, VALUE options)
 
     auto barrier = std::make_shared<std::promise<couchbase::operations::query_response>>();
     auto f = barrier->get_future();
-    backend->cluster->execute(req, [barrier](couchbase::operations::query_response resp) mutable { barrier->set_value(resp); });
+    backend->cluster->execute_http(req, [barrier](couchbase::operations::query_response resp) mutable { barrier->set_value(resp); });
     auto resp = f.get();
     if (resp.ec) {
         cb_raise_error_code(resp.ec, fmt::format("unable to query: {}", req.statement.substr(0, 50)));
@@ -1069,6 +1069,337 @@ cb_Backend_query(VALUE self, VALUE statement, VALUE options)
 }
 
 static void
+cb__generate_bucket_settings(VALUE bucket, couchbase::operations::bucket_settings& entry, bool is_create)
+{
+    {
+        VALUE bucket_type = rb_hash_aref(bucket, rb_id2sym(rb_intern("bucket_type")));
+        Check_Type(bucket_type, T_SYMBOL);
+        if (bucket_type == rb_id2sym(rb_intern("couchbase")) || bucket_type == rb_id2sym(rb_intern("membase"))) {
+            entry.bucket_type = couchbase::operations::bucket_settings::bucket_type::couchbase;
+        } else if (bucket_type == rb_id2sym(rb_intern("memcached"))) {
+            entry.bucket_type = couchbase::operations::bucket_settings::bucket_type::memcached;
+        } else if (bucket_type == rb_id2sym(rb_intern("ephemeral"))) {
+            entry.bucket_type = couchbase::operations::bucket_settings::bucket_type::ephemeral;
+        } else {
+            rb_raise(rb_eArgError, "unknown bucket type");
+        }
+    }
+    {
+        VALUE name = rb_hash_aref(bucket, rb_id2sym(rb_intern("name")));
+        Check_Type(name, T_STRING);
+        entry.name.assign(RSTRING_PTR(name), static_cast<size_t>(RSTRING_LEN(name)));
+    }
+    {
+        VALUE quota = rb_hash_aref(bucket, rb_id2sym(rb_intern("ram_quota_mb")));
+        Check_Type(quota, T_FIXNUM);
+        entry.ram_quota_mb = FIX2ULONG(quota);
+    }
+    {
+        VALUE expiry = rb_hash_aref(bucket, rb_id2sym(rb_intern("max_expiry")));
+        if (!NIL_P(expiry)) {
+            Check_Type(expiry, T_FIXNUM);
+            entry.max_expiry = FIX2UINT(expiry);
+        }
+    }
+    {
+        VALUE num_replicas = rb_hash_aref(bucket, rb_id2sym(rb_intern("num_replicas")));
+        if (!NIL_P(num_replicas)) {
+            Check_Type(num_replicas, T_FIXNUM);
+            entry.num_replicas = FIX2UINT(num_replicas);
+        }
+    }
+    {
+        VALUE replica_indexes = rb_hash_aref(bucket, rb_id2sym(rb_intern("replica_indexes")));
+        if (!NIL_P(replica_indexes)) {
+            entry.replica_indexes = RTEST(replica_indexes);
+        }
+    }
+    {
+        VALUE flush_enabled = rb_hash_aref(bucket, rb_id2sym(rb_intern("flush_enabled")));
+        if (!NIL_P(flush_enabled)) {
+            entry.flush_enabled = RTEST(flush_enabled);
+        }
+    }
+    {
+        VALUE compression_mode = rb_hash_aref(bucket, rb_id2sym(rb_intern("compression_mode")));
+        if (!NIL_P(compression_mode)) {
+            Check_Type(compression_mode, T_SYMBOL);
+            if (compression_mode == rb_id2sym(rb_intern("active"))) {
+                entry.compression_mode = couchbase::operations::bucket_settings::compression_mode::active;
+            } else if (compression_mode == rb_id2sym(rb_intern("passive"))) {
+                entry.compression_mode = couchbase::operations::bucket_settings::compression_mode::passive;
+            } else if (compression_mode == rb_id2sym(rb_intern("off"))) {
+                entry.compression_mode = couchbase::operations::bucket_settings::compression_mode::off;
+            } else {
+                rb_raise(rb_eArgError, "unknown compression mode");
+            }
+        }
+    }
+    {
+        VALUE ejection_policy = rb_hash_aref(bucket, rb_id2sym(rb_intern("ejection_policy")));
+        if (!NIL_P(ejection_policy)) {
+            Check_Type(ejection_policy, T_SYMBOL);
+            if (ejection_policy == rb_id2sym(rb_intern("full"))) {
+                entry.ejection_policy = couchbase::operations::bucket_settings::ejection_policy::full;
+            } else if (ejection_policy == rb_id2sym(rb_intern("value_only"))) {
+                entry.ejection_policy = couchbase::operations::bucket_settings::ejection_policy::value_only;
+            } else {
+                rb_raise(rb_eArgError, "unknown ejection policy");
+            }
+        }
+    }
+    if (is_create) {
+        VALUE conflict_resolution_type = rb_hash_aref(bucket, rb_id2sym(rb_intern("conflict_resolution_type")));
+        if (!NIL_P(conflict_resolution_type)) {
+            Check_Type(conflict_resolution_type, T_SYMBOL);
+            if (conflict_resolution_type == rb_id2sym(rb_intern("timestamp"))) {
+                entry.conflict_resolution_type = couchbase::operations::bucket_settings::conflict_resolution_type::timestamp;
+            } else if (conflict_resolution_type == rb_id2sym(rb_intern("sequence_number"))) {
+                entry.conflict_resolution_type = couchbase::operations::bucket_settings::conflict_resolution_type::sequence_number;
+            } else {
+                rb_raise(rb_eArgError, "unknown conflict resolution type");
+            }
+        }
+    }
+}
+
+static VALUE
+cb_Backend_bucket_create(VALUE self, VALUE bucket_settings)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_settings, T_HASH);
+    couchbase::operations::bucket_create_request req{};
+    cb__generate_bucket_settings(bucket_settings, req.bucket, true);
+    auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_create_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req,
+                                   [barrier](couchbase::operations::bucket_create_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec,
+                            fmt::format("unable to create bucket \"{}\" on the cluster ({})", req.bucket.name, resp.error_message));
+    }
+
+    return Qtrue;
+}
+
+static VALUE
+cb_Backend_bucket_update(VALUE self, VALUE bucket_settings)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_settings, T_HASH);
+    couchbase::operations::bucket_update_request req{};
+    cb__generate_bucket_settings(bucket_settings, req.bucket, false);
+    auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_update_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req,
+                                   [barrier](couchbase::operations::bucket_update_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec,
+                            fmt::format("unable to update bucket \"{}\" on the cluster ({})", req.bucket.name, resp.error_message));
+    }
+
+    return Qtrue;
+}
+
+static VALUE
+cb_Backend_bucket_drop(VALUE self, VALUE bucket_name)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+
+    couchbase::operations::bucket_drop_request req{};
+    req.name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_drop_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req, [barrier](couchbase::operations::bucket_drop_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to remove bucket \"{}\" on the cluster", req.name));
+    }
+
+    return Qtrue;
+}
+
+static VALUE
+cb_Backend_bucket_flush(VALUE self, VALUE bucket_name)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+
+    couchbase::operations::bucket_flush_request req{};
+    req.name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_flush_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req, [barrier](couchbase::operations::bucket_flush_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to remove bucket \"{}\" on the cluster", req.name));
+    }
+
+    return Qtrue;
+}
+
+static void
+cb__extract_bucket_settings(const couchbase::operations::bucket_settings& entry, VALUE bucket)
+{
+    switch (entry.bucket_type) {
+        case couchbase::operations::bucket_settings::bucket_type::couchbase:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("bucket_type")), rb_id2sym(rb_intern("couchbase")));
+            break;
+        case couchbase::operations::bucket_settings::bucket_type::memcached:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("bucket_type")), rb_id2sym(rb_intern("memcached")));
+            break;
+        case couchbase::operations::bucket_settings::bucket_type::ephemeral:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("bucket_type")), rb_id2sym(rb_intern("ephemeral")));
+            break;
+        case couchbase::operations::bucket_settings::bucket_type::unknown:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("bucket_type")), Qnil);
+            break;
+    }
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("name")), rb_str_new(entry.name.data(), static_cast<long>(entry.name.size())));
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("uuid")), rb_str_new(entry.uuid.data(), static_cast<long>(entry.uuid.size())));
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("ram_quota_mb")), ULL2NUM(entry.ram_quota_mb));
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("max_expiry")), ULONG2NUM(entry.max_expiry));
+    switch (entry.compression_mode) {
+        case couchbase::operations::bucket_settings::compression_mode::off:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), rb_id2sym(rb_intern("off")));
+            break;
+        case couchbase::operations::bucket_settings::compression_mode::active:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), rb_id2sym(rb_intern("active")));
+            break;
+        case couchbase::operations::bucket_settings::compression_mode::passive:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), rb_id2sym(rb_intern("passive")));
+            break;
+        case couchbase::operations::bucket_settings::compression_mode::unknown:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), Qnil);
+            break;
+    }
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("num_replicas")), ULONG2NUM(entry.num_replicas));
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("replica_indexes")), entry.replica_indexes ? Qtrue : Qfalse);
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("flush_enabled")), entry.flush_enabled ? Qtrue : Qfalse);
+    switch (entry.ejection_policy) {
+        case couchbase::operations::bucket_settings::ejection_policy::full:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("ejection_policy")), rb_id2sym(rb_intern("full")));
+            break;
+        case couchbase::operations::bucket_settings::ejection_policy::value_only:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("ejection_policy")), rb_id2sym(rb_intern("value_only")));
+            break;
+        case couchbase::operations::bucket_settings::ejection_policy::unknown:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("ejection_policy")), Qnil);
+            break;
+    }
+    switch (entry.conflict_resolution_type) {
+        case couchbase::operations::bucket_settings::conflict_resolution_type::timestamp:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("conflict_resolution_type")), rb_id2sym(rb_intern("timestamp")));
+            break;
+        case couchbase::operations::bucket_settings::conflict_resolution_type::sequence_number:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("conflict_resolution_type")), rb_id2sym(rb_intern("sequence_number")));
+            break;
+        case couchbase::operations::bucket_settings::conflict_resolution_type::unknown:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("conflict_resolution_type")), Qnil);
+            break;
+    }
+    VALUE capabilities = rb_ary_new_capa(static_cast<long>(entry.capabilities.size()));
+    for (const auto& capa : entry.capabilities) {
+        rb_ary_push(capabilities, rb_str_new(capa.data(), static_cast<long>(capa.size())));
+    }
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("capabilities")), capabilities);
+    VALUE nodes = rb_ary_new_capa(static_cast<long>(entry.nodes.size()));
+    for (const auto& n : entry.nodes) {
+        VALUE node = rb_hash_new();
+        rb_hash_aset(node, rb_id2sym(rb_intern("status")), rb_str_new(n.status.data(), static_cast<long>(n.status.size())));
+        rb_hash_aset(node, rb_id2sym(rb_intern("hostname")), rb_str_new(n.hostname.data(), static_cast<long>(n.hostname.size())));
+        rb_hash_aset(node, rb_id2sym(rb_intern("version")), rb_str_new(n.version.data(), static_cast<long>(n.version.size())));
+        rb_ary_push(nodes, node);
+    }
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("nodes")), nodes);
+}
+
+static VALUE
+cb_Backend_bucket_get_all(VALUE self)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    couchbase::operations::bucket_get_all_request req{};
+    auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_get_all_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req,
+                                   [barrier](couchbase::operations::bucket_get_all_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, "unable to get list of the buckets of the cluster");
+    }
+
+    VALUE res = rb_ary_new_capa(static_cast<long>(resp.buckets.size()));
+    for (const auto& entry : resp.buckets) {
+        VALUE bucket = rb_hash_new();
+        cb__extract_bucket_settings(entry, bucket);
+        rb_ary_push(res, bucket);
+    }
+
+    return res;
+}
+
+static VALUE
+cb_Backend_bucket_get(VALUE self, VALUE bucket_name)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+
+    couchbase::operations::bucket_get_request req{};
+    req.name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_get_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req, [barrier](couchbase::operations::bucket_get_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to locate bucket \"{}\" on the cluster", req.name));
+    }
+
+    VALUE res = rb_hash_new();
+    cb__extract_bucket_settings(resp.bucket, res);
+
+    return res;
+}
+
+static void
 init_backend(VALUE mCouchbase)
 {
     VALUE cBackend = rb_define_class_under(mCouchbase, "Backend", rb_cBasicObject);
@@ -1082,6 +1413,13 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "lookup_in", VALUE_FUNC(cb_Backend_lookup_in), 5);
     rb_define_method(cBackend, "mutate_in", VALUE_FUNC(cb_Backend_mutate_in), 5);
     rb_define_method(cBackend, "query", VALUE_FUNC(cb_Backend_query), 2);
+
+    rb_define_method(cBackend, "bucket_create", VALUE_FUNC(cb_Backend_bucket_create), 1);
+    rb_define_method(cBackend, "bucket_update", VALUE_FUNC(cb_Backend_bucket_update), 1);
+    rb_define_method(cBackend, "bucket_drop", VALUE_FUNC(cb_Backend_bucket_drop), 1);
+    rb_define_method(cBackend, "bucket_flush", VALUE_FUNC(cb_Backend_bucket_flush), 1);
+    rb_define_method(cBackend, "bucket_get_all", VALUE_FUNC(cb_Backend_bucket_get_all), 0);
+    rb_define_method(cBackend, "bucket_get", VALUE_FUNC(cb_Backend_bucket_get), 1);
 }
 
 extern "C" {

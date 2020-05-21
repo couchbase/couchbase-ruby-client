@@ -98,7 +98,8 @@ struct http_parser {
 
     int on_status(const char* at, std::size_t length)
     {
-        response.status.assign(at, length);
+        response.status_message.assign(at, length);
+        response.status_code = parser_.status_code;
         return 0;
     }
 

@@ -135,8 +135,11 @@ struct query_response {
 };
 
 struct query_request {
+    using response_type = query_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+
+    static const inline service_type type = service_type::query;
 
     std::string statement;
     uuid::uuid_t client_context_id{ uuid::random() };
