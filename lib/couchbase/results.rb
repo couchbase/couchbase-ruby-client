@@ -251,7 +251,7 @@ module Couchbase
     attr_accessor :transcoder
   end
 
-  # @private
+  # @api private
   class SubDocumentField
     attr_accessor :error
     # @return [Boolean] true if the path exists in the document
