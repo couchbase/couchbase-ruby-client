@@ -254,13 +254,18 @@ module Couchbase
   # @api private
   class SubDocumentField
     attr_accessor :error
+
     # @return [Boolean] true if the path exists in the document
     attr_accessor :exists
+
     # @return [String] value
     attr_accessor :value
+
     # @return [String] path
     attr_accessor :path
 
+    # Operation type
+    #
     # * +:set_doc+
     # * +:counter+
     # * +:replace+
@@ -276,28 +281,31 @@ module Couchbase
     # * +:count+
     # * +:get_doc+
     #
-    # @return [Symbol] command type
+    # @return [Symbol]
     attr_accessor :type
 
-    # * +:success+ Indicates a successful response in general.
-    # * +:path_not_found+ The provided path does not exist in the document
-    # * +:path_mismatch+ One of path components treats a non-dictionary as a dictionary, or a non-array as an array, or value the path points to is not a number
-    # * +:path_invalid+ The path's syntax was incorrect
-    # * +:path_too_big+ The path provided is too large: either the string is too long, or it contains too many components
-    # * +:value_cannot_insert+ The value provided will invalidate the JSON if inserted
-    # * +:doc_not_json+ The existing document is not valid JSON
-    # * +:num_range+ The existing number is out of the valid range for arithmetic operations
-    # * +:delta_invalid+ The operation would result in a number outside the valid range
-    # * +:path_exists+ The requested operation requires the path to not already exist, but it exists
-    # * +:value_too_deep+ Inserting the value would cause the document to be too deep
-    # * +:invalid_combo+ An invalid combination of commands was specified
-    # * +:xattr_invalid_flag_combo+ An invalid combination of operations, using macros when not using extended attributes
-    # * +:xattr_invalid_key_combo+ Only single xattr key may be accessed at the same time
-    # * +:xattr_unknown_macro+ The server has no knowledge of the requested macro
-    # * +:xattr_unknown_vattr+ Unknown virtual attribute.
-    # * +:xattr_cannot_modify_vattr+ Cannot modify this virtual attribute.
-    # * +:unknown+ Unknown error.
-    # @return [Symbol] status
+    # Status of the subdocument path operation.
+    #
+    # [+:success+] Indicates a successful response in general.
+    # [+:path_not_found+] The provided path does not exist in the document
+    # [+:path_mismatch+] One of path components treats a non-dictionary as a dictionary, or a non-array as an array, or value the path points to is not a number
+    # [+:path_invalid+] The path's syntax was incorrect
+    # [+:path_too_big+] The path provided is too large: either the string is too long, or it contains too many components
+    # [+:value_cannot_insert+] The value provided will invalidate the JSON if inserted
+    # [+:doc_not_json+] The existing document is not valid JSON
+    # [+:num_range+] The existing number is out of the valid range for arithmetic operations
+    # [+:delta_invalid+] The operation would result in a number outside the valid range
+    # [+:path_exists+] The requested operation requires the path to not already exist, but it exists
+    # [+:value_too_deep+] Inserting the value would cause the document to be too deep
+    # [+:invalid_combo+] An invalid combination of commands was specified
+    # [+:xattr_invalid_flag_combo+] An invalid combination of operations, using macros when not using extended attributes
+    # [+:xattr_invalid_key_combo+] Only single xattr key may be accessed at the same time
+    # [+:xattr_unknown_macro+] The server has no knowledge of the requested macro
+    # [+:xattr_unknown_vattr+] Unknown virtual attribute.
+    # [+:xattr_cannot_modify_vattr+] Cannot modify this virtual attribute.
+    # [+:unknown+] Unknown error.
+    #
+    # @return [Symbol]
     attr_accessor :status
 
     def initialize
