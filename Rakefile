@@ -35,3 +35,5 @@ task :doc do
   rm_rf output_dir
   sh "yard doc --output-dir #{output_dir} #{input_dir}"
 end
+
+task :docs => :doc
