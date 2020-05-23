@@ -107,6 +107,7 @@ else()
     message(STATUS "RUBY_EXECUTABLE: ${RUBY_EXECUTABLE}")
 endif()
 message(STATUS "RUBY_INCLUDE_DIR: ${RUBY_INCLUDE_DIR}")
+message(STATUS "RUBY_LIBRARY: ${RUBY_LIBRARY}")
 include_directories(BEFORE SYSTEM "${RUBY_INCLUDE_DIR}")
 
 add_library(couchbase SHARED couchbase/couchbase.cxx)
@@ -130,16 +131,12 @@ else()
 endif()
 
 if(BUILD_EXAMPLES)
+    file(
+        GENERATE
+        OUTPUT ${PROJECT_BINARY_DIR}/generated/generated_config.hxx
+        CONTENT "#pragma once\n#define LIBCOUCHBASE_EXT_PATH \"$<TARGET_FILE:couchbase>\"")
     add_executable(main test/main.cxx)
-    target_link_libraries(
-        main
-        PRIVATE project_options
-                project_warnings
-                OpenSSL::SSL
-                OpenSSL::Crypto
-                platform
-                cbcrypto
-                cbsasl
-                http_parser
-                spdlog::spdlog_header_only)
+    target_include_directories(main PRIVATE ${PROJECT_BINARY_DIR}/generated)
+    target_link_libraries(main PRIVATE project_options project_warnings ${RUBY_LIBRARY} spdlog::spdlog_header_only)
+    add_dependencies(main couchbase)
 endif()

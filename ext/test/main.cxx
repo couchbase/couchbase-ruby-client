@@ -15,129 +15,49 @@
  *   limitations under the License.
  */
 
-#include <asio.hpp>
+#include <generated_config.hxx>
 
-#include <cluster.hxx>
+#include <spdlog/spdlog.h>
 
-#include <errors.hxx>
-#include <operations/get.hxx>
-#include <operations/upsert.hxx>
-#include <operations/lookup_in.hxx>
-#include <operations/query.hxx>
+#include <ruby.h>
 
-static int num_ops = 4;
-
-bool
-done()
+void
+run_script(const char* script)
 {
-    --num_ops;
-    spdlog::info("------ num_ops={}", num_ops);
-    return num_ops == 0;
+    spdlog::info("run script:\n----------------------------------------{}---------------------------------------\n", script);
+    int status = 0;
+    rb_eval_string_protect(script, &status);
+    if (status != 0) {
+        VALUE rbError = rb_funcall(rb_gv_get("$!"), rb_intern("message"), 0);
+        spdlog::critical("ruby execution failure: {}", StringValuePtr(rbError));
+        exit(EXIT_FAILURE);
+    }
 }
 
 int
 main()
 {
-    spdlog::set_level(spdlog::level::trace);
-    spdlog::set_pattern("[%Y-%m-%d %T.%e] [%P,%t] [%^%l%$] %v");
-    asio::io_context ctx;
+    ruby_init();
+    ruby_init_loadpath();
 
-    couchbase::cluster cluster{ ctx };
+    rb_require(LIBCOUCHBASE_EXT_PATH);
+    run_script(R"(
+p Couchbase::VERSION
+)");
 
-    couchbase::origin options;
-    options.hostname = "192.168.42.103";
-    options.hostname = "127.0.0.1";
-    options.username = "Administrator";
-    options.password = "password";
+    run_script(R"(
+B = Couchbase::Backend.new
+begin
+  B.open("localhost", "Administrator", "password")
+rescue => ex
+  p ex
+end
+)");
 
-    //  std::string bucket_name = "default";
-    //  std::string collection_name = "_default._default";
+    run_script(R"(
+B.close
+)");
 
-    cluster.open(options, [&](std::error_code ec1) {
-        spdlog::info("cluster has been opened: {}", ec1.message());
-        couchbase::operations::query_request req{ "select random()" };
-        cluster.execute(req, [&](couchbase::operations::query_response resp) {
-            spdlog::info("QUERY {}: ec={}, body={}",
-                         couchbase::uuid::to_string(resp.client_context_id),
-                         resp.ec.message(),
-                         resp.payload.meta_data.metrics.result_size);
-            for (auto &r : resp.payload.rows) {
-                spdlog::info("ROW: {}", r);
-            }
-            if (resp.payload.meta_data.profile) {
-                spdlog::info("PROFILE: {}", *resp.payload.meta_data.profile);
-            }
-            cluster.close();
-        });
-#if 0
-      cluster.open_bucket(bucket_name, [&](std::error_code ec2) {
-            if (!ec2) {
-                couchbase::operations::mutate_in_request req{
-                    couchbase::operations::document_id{ bucket_name, collection_name, "foo" },
-                };
-                req.specs.add_spec(couchbase::protocol::subdoc_opcode::dict_upsert, false, false, false, "test", R"({"name":"sergey"})");
-                req.specs.add_spec(couchbase::protocol::subdoc_opcode::counter, false,  false, false,"num", 24);
-                cluster.execute(req, [&](couchbase::operations::mutate_in_response resp) {
-                    spdlog::info("MUTATE_IN {}: ec={}, cas={}, fields={}", resp.id, resp.ec.message(), resp.cas, resp.fields.size());
-                    size_t idx = 0;
-                    for (const auto& field : resp.fields) {
-                        spdlog::info("  {}. {}: {} {}", idx++, field.path, field.status, field.value);
-                    }
-                    // if (done()) {
-                    cluster.close();
-                    //}
-                });
-                couchbase::operations::lookup_in_request req{
-                    couchbase::operations::document_id{ bucket_name, collection_name, "foo" },
-                };
-                req.access_deleted = true;
-                req.specs.add_spec(couchbase::protocol::subdoc_opcode::get, true, "$document");
-                req.specs.add_spec(couchbase::protocol::subdoc_opcode::exists, false, "bar");
-                req.specs.add_spec(couchbase::protocol::subdoc_opcode::get, false, "foo");
-                cluster.execute(req, [&](couchbase::operations::lookup_in_response resp) {
-                    spdlog::info("LOOKUP_IN {}: ec={}, cas={}, fields={}", resp.id, resp.ec.message(), resp.cas, resp.fields.size());
-                    size_t idx = 0;
-                    for (const auto &field : resp.fields) {
-                        spdlog::info("  {}. {}{}: {}", idx++, field.path, field.exists ? "(hit) " : "(miss)", field.value);
-                    }
-                    //if (done()) {
-                        cluster.close();
-                    //}
-                });
-                cluster.execute(
-                  couchbase::operations::get_request{
-                    couchbase::operations::document_id{ bucket_name, collection_name, "foo" },
-                  },
-                  [&](couchbase::operations::get_response resp) {
-                      spdlog::info("GET {}: ec={}, cas={}\n{}", resp.id, resp.ec.message(), resp.cas, resp.value);
-                      if (done()) {
-                          cluster.close();
-                      }
-                  });
-                cluster.execute(
-                  couchbase::operations::get_request{
-                    couchbase::operations::document_id{ bucket_name, collection_name, "bar" },
-                  },
-                  [&](couchbase::operations::get_response resp) {
-                      spdlog::info("GET {}: ec={}, cas={}\n{}", resp.id, resp.ec.message(), resp.cas, resp.value);
-                      if (done()) {
-                          cluster.close();
-                      }
-                  });
-                cluster.execute(
-                  couchbase::operations::upsert_request{ couchbase::operations::document_id{ bucket_name, collection_name, "foo" },
-                                                         "{\"prop\":42}" },
-                  [&](couchbase::operations::upsert_response resp) {
-                      spdlog::info("UPSERT {}: ec={}, cas={}", resp.id, resp.ec.message(), resp.cas);
-                      if (done()) {
-                          cluster.close();
-                      }
-                  });
-            } else {
-                spdlog::info("unable to open the bucket: {}", ec2.message());
-            }
-        });
-#endif
-    });
-    ctx.run();
+    ruby_finalize();
+    return 0;
 }
