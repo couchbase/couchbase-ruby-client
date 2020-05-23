@@ -20,6 +20,8 @@
 #include <gsl/gsl_assert>
 #include <protocol/magic.hxx>
 
+#include <spdlog/fmt/bin_to_hex.h>
+
 namespace couchbase::io
 {
 struct binary_parser {
@@ -53,7 +55,15 @@ struct binary_parser {
         std::copy(buf.begin() + header_size, buf.begin() + header_size + body_size, std::back_inserter(msg.body));
         buf.erase(buf.begin(), buf.begin() + header_size + body_size);
         if (!protocol::is_valid_magic(buf[0])) {
-            spdlog::warn("invalid magic of the next frame: {:x}, {} bytes to parse", buf[0], buf.size());
+            spdlog::warn("parsed frame for magic={:x}, opcode={:x}, opaque={}, body_len={}. Invalid magic of the next frame: {:x}, {} "
+                         "bytes to parse{}",
+                         msg.header.magic,
+                         msg.header.opcode,
+                         msg.header.opaque,
+                         body_size,
+                         buf[0],
+                         buf.size(),
+                         spdlog::to_hex(buf));
             reset();
         }
         return ok;

@@ -73,10 +73,10 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
 
       public:
         bootstrap_handler(bootstrap_handler&&) = default;
-        ~bootstrap_handler() = default;
+        ~bootstrap_handler() override = default;
 
         explicit bootstrap_handler(std::shared_ptr<key_value_session> session)
-          : session_(session)
+          : session_(std::move(session))
           , sasl_([this]() -> std::string { return session_->username_; },
                   [this]() -> std::string { return session_->password_; },
                   { "SCRAM-SHA512", "SCRAM-SHA256", "SCRAM-SHA1", "PLAIN" })
@@ -256,26 +256,30 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
       private:
         std::shared_ptr<key_value_session> session_;
         asio::steady_timer heartbeat_timer_;
+        bool stopped_{ false };
 
       public:
         normal_handler(normal_handler&&) = default;
-        ~normal_handler() = default;
+        ~normal_handler() override = default;
 
         explicit normal_handler(std::shared_ptr<key_value_session> session)
           : session_(session)
           , heartbeat_timer_(session_->ctx_)
         {
-            fetch_config();
+            fetch_config({});
         }
 
         void stop() override
         {
-            heartbeat_timer_.cancel();
+            if (!stopped_) {
+                heartbeat_timer_.cancel();
+                session_.reset();
+            }
         }
 
         void handle(binary_message&& msg) override
         {
-            if (session_->stopped_) {
+            if (stopped_ || !session_) {
                 return;
             }
             Expects(protocol::is_valid_client_opcode(msg.header.opcode));
@@ -283,7 +287,9 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
                 case protocol::client_opcode::get_cluster_config: {
                     protocol::client_response<protocol::get_cluster_config_response_body> resp(msg);
                     if (resp.status() == protocol::status::success) {
-                        session_->update_configuration(resp.body().config());
+                        if (session_) {
+                            session_->update_configuration(resp.body().config());
+                        }
                     } else {
                         spdlog::warn("unexpected message status: {}", resp.error_message());
                     }
@@ -308,16 +314,19 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
             }
         }
 
-        void fetch_config()
+        void fetch_config(std::error_code ec)
         {
-            if (session_->stopped_) {
+            if (ec == asio::error::operation_aborted) {
+                return;
+            }
+            if (stopped_ || !session_) {
                 return;
             }
             protocol::client_request<protocol::get_cluster_config_request_body> req;
             req.opaque(session_->next_opaque());
             session_->write_and_flush(req.data());
             heartbeat_timer_.expires_after(std::chrono::milliseconds(2500));
-            heartbeat_timer_.async_wait(std::bind(&normal_handler::fetch_config, this));
+            heartbeat_timer_.async_wait(std::bind(&normal_handler::fetch_config, this, std::placeholders::_1));
         }
     };
 
@@ -360,18 +369,14 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
     void stop()
     {
         stopped_ = true;
-        if (handler_) {
-            handler_->stop();
-        }
+        deadline_timer_.cancel();
+        resolver_.cancel();
         if (socket_.is_open()) {
             socket_.close();
         }
-        deadline_timer_.cancel();
-    }
-
-    bool is_stopped()
-    {
-        return stopped_;
+        if (handler_) {
+            handler_->stop();
+        }
     }
 
     void write(const std::vector<uint8_t>& buf)
@@ -611,7 +616,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
         }
         endpoints_ = endpoints;
         do_connect(endpoints_.begin());
-        deadline_timer_.async_wait(std::bind(&key_value_session::check_deadline, this));
+        deadline_timer_.async_wait(std::bind(&key_value_session::check_deadline, this, std::placeholders::_1));
     }
 
     void do_connect(asio::ip::tcp::resolver::results_type::iterator it)
@@ -643,8 +648,11 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
         }
     }
 
-    void check_deadline()
+    void check_deadline(std::error_code ec)
     {
+        if (ec == asio::error::operation_aborted) {
+            return;
+        }
         if (stopped_) {
             return;
         }
@@ -652,7 +660,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
             socket_.close();
             deadline_timer_.expires_at(asio::steady_timer::time_point::max());
         }
-        deadline_timer_.async_wait(std::bind(&key_value_session::check_deadline, this));
+        deadline_timer_.async_wait(std::bind(&key_value_session::check_deadline, this, std::placeholders::_1));
     }
 
     void do_read()
@@ -660,12 +668,16 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
         if (stopped_) {
             return;
         }
+        if (reading_) {
+            return;
+        }
+        reading_ = true;
         socket_.async_read_some(asio::buffer(input_buffer_),
                                 [self = shared_from_this()](std::error_code ec, std::size_t bytes_transferred) {
-                                    if (self->stopped_) {
+                                    if (ec == asio::error::operation_aborted || self->stopped_) {
                                         return;
                                     }
-                                    if (ec && ec != asio::error::operation_aborted) {
+                                    if (ec) {
                                         spdlog::error("IO error while reading from the socket: {}", ec.message());
                                         return self->stop();
                                     }
@@ -678,6 +690,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
                                                 self->handler_->handle(std::move(msg));
                                                 break;
                                             case binary_parser::need_data:
+                                                self->reading_ = false;
                                                 return self->do_read();
                                             case binary_parser::failure:
                                                 ec = std::make_error_code(std::errc::protocol_error);
@@ -750,5 +763,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
     std::optional<configuration> config_;
     std::optional<error_map> errmap_;
     std::optional<collections_manifest> manifest_;
+
+    std::atomic<bool> reading_{ false };
 };
 } // namespace couchbase::io
