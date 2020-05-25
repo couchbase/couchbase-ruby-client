@@ -148,7 +148,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         }
         endpoints_ = endpoints;
         do_connect(endpoints_.begin());
-        deadline_timer_.async_wait(std::bind(&http_session::check_deadline, this));
+        deadline_timer_.async_wait(std::bind(&http_session::check_deadline, this, std::placeholders::_1));
     }
 
     void do_connect(asio::ip::tcp::resolver::results_type::iterator it)
@@ -180,8 +180,11 @@ class http_session : public std::enable_shared_from_this<http_session>
         }
     }
 
-    void check_deadline()
+    void check_deadline(std::error_code ec)
     {
+        if (ec == asio::error::operation_aborted) {
+            return;
+        }
         if (stopped_) {
             return;
         }
@@ -189,7 +192,7 @@ class http_session : public std::enable_shared_from_this<http_session>
             socket_.close();
             deadline_timer_.expires_at(asio::steady_timer::time_point::max());
         }
-        deadline_timer_.async_wait(std::bind(&http_session::check_deadline, this));
+        deadline_timer_.async_wait(std::bind(&http_session::check_deadline, this, std::placeholders::_1));
     }
 
     void do_read()
