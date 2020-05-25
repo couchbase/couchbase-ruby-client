@@ -31,6 +31,7 @@
 #include <protocol/hello_feature.hxx>
 #include <protocol/client_request.hxx>
 #include <protocol/client_response.hxx>
+#include <protocol/server_request.hxx>
 #include <protocol/cmd_hello.hxx>
 #include <protocol/cmd_sasl_list_mechs.hxx>
 #include <protocol/cmd_sasl_auth.hxx>
@@ -40,6 +41,7 @@
 #include <protocol/cmd_get_error_map.hxx>
 #include <protocol/cmd_get_collections_manifest.hxx>
 #include <protocol/cmd_get.hxx>
+#include <protocol/cmd_cluster_map_change_notification.hxx>
 
 #include <cbsasl/client.h>
 
@@ -237,7 +239,6 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
                     protocol::client_response<protocol::get_cluster_config_response_body> resp(msg);
                     if (resp.status() == protocol::status::success) {
                         session_->update_configuration(resp.body().config());
-                        spdlog::trace("received new configuration: {}", session_->config_.value());
                         complete({});
                     } else {
                         spdlog::warn("unexpected message status during bootstrap: {}", resp.error_message());
@@ -282,35 +283,59 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
             if (stopped_ || !session_) {
                 return;
             }
-            Expects(protocol::is_valid_client_opcode(msg.header.opcode));
-            switch (auto opcode = static_cast<protocol::client_opcode>(msg.header.opcode)) {
-                case protocol::client_opcode::get_cluster_config: {
-                    protocol::client_response<protocol::get_cluster_config_response_body> resp(msg);
-                    if (resp.status() == protocol::status::success) {
-                        if (session_) {
-                            session_->update_configuration(resp.body().config());
-                        }
-                    } else {
-                        spdlog::warn("unexpected message status: {}", resp.error_message());
+            Expects(protocol::is_valid_magic(msg.header.magic));
+            switch (auto magic = static_cast<protocol::magic>(msg.header.magic)) {
+                case protocol::magic::client_response:
+                    Expects(protocol::is_valid_client_opcode(msg.header.opcode));
+                    switch (auto opcode = static_cast<protocol::client_opcode>(msg.header.opcode)) {
+                        case protocol::client_opcode::get_cluster_config: {
+                            protocol::client_response<protocol::get_cluster_config_response_body> resp(msg);
+                            if (resp.status() == protocol::status::success) {
+                                if (session_) {
+                                    session_->update_configuration(resp.body().config());
+                                }
+                            } else {
+                                spdlog::warn("unexpected message status: {}", resp.error_message());
+                            }
+                        } break;
+                        case protocol::client_opcode::get:
+                        case protocol::client_opcode::upsert:
+                        case protocol::client_opcode::remove:
+                        case protocol::client_opcode::subdoc_multi_lookup:
+                        case protocol::client_opcode::subdoc_multi_mutation: {
+                            std::uint32_t opaque = msg.header.opaque;
+                            std::uint16_t status = ntohs(msg.header.specific);
+                            auto handler = session_->command_handlers_.find(opaque);
+                            if (handler != session_->command_handlers_.end()) {
+                                handler->second(session_->map_status_code(opcode, status), std::move(msg));
+                                session_->command_handlers_.erase(handler);
+                            } else {
+                                spdlog::trace("unexpected orphan response opcode={}, opaque={}", msg.header.opcode, msg.header.opaque);
+                            }
+                        } break;
+                        default:
+                            spdlog::trace("unexpected client response: {}", opcode);
                     }
-                } break;
-                case protocol::client_opcode::get:
-                case protocol::client_opcode::upsert:
-                case protocol::client_opcode::remove:
-                case protocol::client_opcode::subdoc_multi_lookup:
-                case protocol::client_opcode::subdoc_multi_mutation: {
-                    std::uint32_t opaque = msg.header.opaque;
-                    std::uint16_t status = ntohs(msg.header.specific);
-                    auto handler = session_->command_handlers_.find(opaque);
-                    if (handler != session_->command_handlers_.end()) {
-                        handler->second(session_->map_status_code(opcode, status), std::move(msg));
-                        session_->command_handlers_.erase(handler);
-                    } else {
-                        spdlog::trace("unexpected orphan response opcode={}, opaque={}", msg.header.opcode, msg.header.opaque);
+                    break;
+                case protocol::magic::server_request:
+                    Expects(protocol::is_valid_server_request_opcode(msg.header.opcode));
+                    switch (auto opcode = static_cast<protocol::server_opcode>(msg.header.opcode)) {
+                        case protocol::server_opcode::cluster_map_change_notification: {
+                            protocol::server_request<protocol::cluster_map_change_notification_request_body> req(msg);
+                            if (session_) {
+                                session_->update_configuration(req.body().config());
+                            }
+                        } break;
+                        default:
+                            spdlog::trace("unexpected server request: {}", opcode);
                     }
-                } break;
-                default:
-                    spdlog::trace("unexpected message: {}", opcode);
+                    break;
+                case protocol::magic::client_request:
+                case protocol::magic::alt_client_request:
+                case protocol::magic::alt_client_response:
+                case protocol::magic::server_response:
+                    spdlog::trace("unexpected magic: {}, opcode={}, opaque={}{}", magic, msg.header.opcode, msg.header.opaque);
+                    break;
             }
         }
 
