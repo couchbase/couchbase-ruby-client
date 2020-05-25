@@ -323,7 +323,13 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
                         case protocol::server_opcode::cluster_map_change_notification: {
                             protocol::server_request<protocol::cluster_map_change_notification_request_body> req(msg);
                             if (session_) {
-                                session_->update_configuration(req.body().config());
+                                if (session_->bucket_name_->empty()) {
+                                    if (req.body().config().bucket->empty()) {
+                                        session_->update_configuration(req.body().config());
+                                    }
+                                } else if (session_->bucket_name_.value() == req.body().config().bucket) {
+                                    session_->update_configuration(req.body().config());
+                                }
                             }
                         } break;
                         default:

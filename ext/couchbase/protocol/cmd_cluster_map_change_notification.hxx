@@ -34,6 +34,7 @@ class cluster_map_change_notification_request_body
 
   private:
     uint32_t protocol_revision_;
+    std::string bucket_;
     configuration config_;
 
   public:
@@ -57,6 +58,11 @@ class cluster_map_change_notification_request_body
             memcpy(&protocol_revision_, body.data(), sizeof(protocol_revision_));
             protocol_revision_ = ntohl(protocol_revision_);
         }
+        uint16_t key_size = 0;
+        memcpy(&key_size, header.data() + 2, sizeof(key_size));
+        key_size = ntohs(key_size);
+        bucket_.assign(body.begin() + offset, body.begin() + offset + key_size);
+        offset += key_size;
         config_ = tao::json::from_string<deduplicate_keys>(std::string(body.begin() + offset, body.end())).as<configuration>();
         for (auto& node : config_.nodes) {
             if (node.this_node && node.hostname.empty()) {
