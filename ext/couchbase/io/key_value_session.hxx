@@ -640,6 +640,8 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
         if (!socket_.is_open() || ec) {
             do_connect(++it);
         } else {
+            socket_.set_option(asio::ip::tcp::no_delay{ true });
+            socket_.set_option(asio::socket_base::keep_alive{ true });
             endpoint_ = it->endpoint();
             spdlog::trace("connected to {}:{}", endpoint_.address().to_string(), it->endpoint().port());
             handler_ = std::make_unique<bootstrap_handler>(shared_from_this());
