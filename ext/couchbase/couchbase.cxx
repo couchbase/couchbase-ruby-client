@@ -1399,6 +1399,172 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name)
     return res;
 }
 
+static VALUE
+cb_Backend_cluster_enable_developer_preview(VALUE self)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    couchbase::operations::cluster_developer_preview_enable_request req{};
+    auto barrier = std::make_shared<std::promise<couchbase::operations::cluster_developer_preview_enable_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(
+      req, [barrier](couchbase::operations::cluster_developer_preview_enable_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to enable developer preview for this cluster"));
+    }
+    spdlog::critical("Developer preview cannot be disabled once it is enabled. If you enter developer preview mode you will not be able to "
+                     "upgrade. DO NOT USE IN PRODUCTION.");
+    return Qtrue;
+}
+
+static VALUE
+cb_Backend_scope_get_all(VALUE self, VALUE bucket_name)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+
+    couchbase::operations::scope_get_all_request req{};
+    req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    auto barrier = std::make_shared<std::promise<couchbase::operations::scope_get_all_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req,
+                                   [barrier](couchbase::operations::scope_get_all_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to get list of the scopes of the bucket \"{}\"", req.bucket_name));
+    }
+
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("uid")), ULL2NUM(resp.manifest.uid));
+    VALUE scopes = rb_ary_new_capa(static_cast<long>(resp.manifest.scopes.size()));
+    for (const auto& s : resp.manifest.scopes) {
+        VALUE scope = rb_hash_new();
+        rb_hash_aset(scope, rb_id2sym(rb_intern("uid")), ULL2NUM(s.uid));
+        rb_hash_aset(scope, rb_id2sym(rb_intern("name")), rb_str_new(s.name.data(), static_cast<long>(s.name.size())));
+        VALUE collections = rb_ary_new_capa(static_cast<long>(s.collections.size()));
+        for (const auto& c : s.collections) {
+            VALUE collection = rb_hash_new();
+            rb_hash_aset(collection, rb_id2sym(rb_intern("uid")), ULL2NUM(c.uid));
+            rb_hash_aset(collection, rb_id2sym(rb_intern("name")), rb_str_new(c.name.data(), static_cast<long>(c.name.size())));
+            rb_ary_push(collections, collection);
+        }
+        rb_hash_aset(scope, rb_id2sym(rb_intern("collections")), collections);
+        rb_ary_push(scopes, scope);
+    }
+    rb_hash_aset(res, rb_id2sym(rb_intern("scopes")), scopes);
+
+    return res;
+}
+
+static VALUE
+cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(scope_name, T_STRING);
+
+    couchbase::operations::scope_create_request req{};
+    req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
+    auto barrier = std::make_shared<std::promise<couchbase::operations::scope_create_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req, [barrier](couchbase::operations::scope_create_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to create the scope on the bucket \"{}\"", req.bucket_name));
+    }
+    return ULL2NUM(resp.uid);
+}
+
+static VALUE
+cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(scope_name, T_STRING);
+
+    // DELETE /pools/default/buckets/{bucket}/collections/{scope_name}
+    return Qtrue;
+}
+
+static VALUE
+cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE max_expiry)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(scope_name, T_STRING);
+    Check_Type(collection_name, T_STRING);
+
+    couchbase::operations::collection_create_request req{};
+    req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
+    req.collection_name.assign(RSTRING_PTR(collection_name), static_cast<size_t>(RSTRING_LEN(collection_name)));
+
+    if (!NIL_P(max_expiry)) {
+        Check_Type(max_expiry, T_FIXNUM);
+        req.max_expiry = FIX2UINT(max_expiry);
+    }
+    auto barrier = std::make_shared<std::promise<couchbase::operations::collection_create_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req,
+                                   [barrier](couchbase::operations::collection_create_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to create the collection on the bucket \"{}\"", req.bucket_name));
+    }
+    return ULL2NUM(resp.uid);
+}
+
+static VALUE
+cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name)
+{
+    return Qtrue;
+
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(scope_name, T_STRING);
+    Check_Type(collection_name, T_STRING);
+
+    // DELETE /pools/default/buckets/{bucket}/collections/{scope_name}/{collection_name}
+    return Qtrue;
+}
+
 static void
 init_backend(VALUE mCouchbase)
 {
@@ -1420,6 +1586,14 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "bucket_flush", VALUE_FUNC(cb_Backend_bucket_flush), 1);
     rb_define_method(cBackend, "bucket_get_all", VALUE_FUNC(cb_Backend_bucket_get_all), 0);
     rb_define_method(cBackend, "bucket_get", VALUE_FUNC(cb_Backend_bucket_get), 1);
+
+    rb_define_method(cBackend, "cluster_enable_developer_preview!", VALUE_FUNC(cb_Backend_cluster_enable_developer_preview), 0);
+
+    rb_define_method(cBackend, "scope_get_all", VALUE_FUNC(cb_Backend_scope_get_all), 1);
+    rb_define_method(cBackend, "scope_create", VALUE_FUNC(cb_Backend_scope_create), 2);
+    rb_define_method(cBackend, "scope_drop", VALUE_FUNC(cb_Backend_scope_drop), 2);
+    rb_define_method(cBackend, "collection_create", VALUE_FUNC(cb_Backend_collection_create), 4);
+    rb_define_method(cBackend, "collection_drop", VALUE_FUNC(cb_Backend_collection_drop), 3);
 }
 
 extern "C" {

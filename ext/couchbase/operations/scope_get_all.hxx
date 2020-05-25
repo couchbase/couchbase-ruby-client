@@ -25,38 +25,41 @@
 namespace couchbase::operations
 {
 
-struct bucket_get_response {
+struct scope_get_all_response {
     std::error_code ec;
-    bucket_settings bucket{};
+    collections_manifest manifest{};
 };
 
-struct bucket_get_request {
-    using response_type = bucket_get_response;
+struct scope_get_all_request {
+    using response_type = scope_get_all_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
 
     static const inline service_type type = service_type::management;
 
-    std::string name;
+    std::string bucket_name;
 
     void encode_to(encoded_request_type& encoded)
     {
         encoded.method = "GET";
-        encoded.path = fmt::format("/pools/default/buckets/{}", name);
+        encoded.path = fmt::format("/pools/default/buckets/{}/collections", bucket_name);
     }
 };
 
-bucket_get_response
-make_response(std::error_code ec, bucket_get_request&, bucket_get_request::encoded_response_type encoded)
+scope_get_all_response
+make_response(std::error_code ec, scope_get_all_request&, scope_get_all_request::encoded_response_type encoded)
 {
-    bucket_get_response response{ ec };
+    scope_get_all_response response{ ec };
     if (!ec) {
         switch (encoded.status_code) {
+            case 400:
+                response.ec = std::make_error_code(error::common_errc::unsupported_operation);
+                break;
             case 404:
                 response.ec = std::make_error_code(error::common_errc::bucket_not_found);
                 break;
             case 200:
-                response.bucket = tao::json::from_string(encoded.body).as<bucket_settings>();
+                response.manifest = tao::json::from_string(encoded.body).as<collections_manifest>();
                 break;
             default:
                 response.ec = std::make_error_code(error::common_errc::internal_server_failure);

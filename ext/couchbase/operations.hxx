@@ -33,4 +33,10 @@
 #include <operations/bucket_create.hxx>
 #include <operations/bucket_update.hxx>
 
+#include <operations/scope_get_all.hxx>
+#include <operations/scope_create.hxx>
+#include <operations/collection_create.hxx>
+
+#include <operations/cluster_developer_preview_enable.hxx>
+
 #include <operations/command.hxx>

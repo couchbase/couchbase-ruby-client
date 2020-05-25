@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 require 'couchbase/scope'
+require 'couchbase/management/collection_manager'
 
 module Couchbase
   class Bucket
@@ -55,6 +56,11 @@ module Couchbase
     # @return [Collection]
     def default_collection
       default_scope.default_collection
+    end
+
+    # @return [Management::CollectionManager]
+    def collections
+      Management::CollectionManager.new(@backend, @name)
     end
 
     # Performs application-level ping requests against services in the couchbase cluster

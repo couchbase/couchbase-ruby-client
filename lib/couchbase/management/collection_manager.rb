@@ -32,10 +32,31 @@ module Couchbase
       #
       # @return [Array<ScopeSpec>]
       def get_all_scopes(options = GetAllScopesOptions.new)
-        # GET /pools/default/buckets/{bucket}/collections
+        res = @backend.scope_get_all(@bucket_name)
+        res[:scopes].map do |s|
+          ScopeSpec.new do |scope|
+            scope.name = s[:name]
+            scope.collections = s[:collections].map do |c|
+              CollectionSpec.new do |collection|
+                collection.name = c[:name]
+                collection.scope_name = s[:name]
+              end
+            end
+          end
+        end
       end
 
-      def get_scope(scope_name, options = GetScopeOptions.new) end
+      # Removes a scope
+      #
+      # @param [String] scope_name name of the scope
+      # @param [GetScopeOptions] options
+      #
+      # @return [ScopeSpec]
+      #
+      # @raise [Error::ScopeNotFound]
+      def get_scope(scope_name, options = GetScopeOptions.new)
+        get_all_scopes.find { |scope| scope.name == scope_name } or raise Error::ScopeNotFound, "unable to find scope #{scope_name}"
+      end
 
       # Creates a new scope
       #
@@ -44,7 +65,7 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def create_scope(scope_name, options = CreateScopeOptions.new)
-        # POST /pools/default/buckets/{bucket}/collections -d name={scope_name}
+        @backend.scope_create(@bucket_name, scope_name)
       end
 
       # Removes a scope
@@ -54,7 +75,7 @@ module Couchbase
       #
       # @raise [Error::ScopeNotFound]
       def drop_scope(scope_name, options = DropScopeOptions.new)
-        # DELETE /pools/default/buckets/{bucket}/collections/{scope_name}
+        @backend.scope_drop(@bucket_name, scope_name)
       end
 
       # Creates a new collection
@@ -66,7 +87,7 @@ module Couchbase
       # @raise [Error::CollectionExist]
       # @raise [Error::ScopeNotFound]
       def create_collection(collection, options = CreateCollectionOptions.new)
-        # POST /pools/default/buckets/{bucket}/collections/{scope_name} -d name={collection_name} -D maxTTL={maxTTL}
+        @backend.collection_create(@bucket_name, collection.scope_name, collection.name, collection.max_expiry)
       end
 
       # Removes a collection
@@ -76,7 +97,7 @@ module Couchbase
       #
       # @raise [Error::CollectionNotFound]
       def drop_collection(collection, options = DropCollectionOptions.new)
-        # DELETE /pools/default/buckets/{bucket}/collections/{scope_name}/{collection_name}
+        @backend.collection_drop(@bucket_name, collection.scope_name, collection.name)
       end
 
       class GetScopeOptions
@@ -145,7 +166,7 @@ module Couchbase
       attr_accessor :name
 
       # @return [Array<CollectionSpec>] list of collections associated with the scope
-      attr_reader :collections
+      attr_accessor :collections
 
       # @yieldparam [ScopeSpec] self
       def initialize

@@ -25,42 +25,33 @@
 namespace couchbase::operations
 {
 
-struct bucket_get_response {
+struct cluster_developer_preview_enable_response {
     std::error_code ec;
-    bucket_settings bucket{};
 };
 
-struct bucket_get_request {
-    using response_type = bucket_get_response;
+struct cluster_developer_preview_enable_request {
+    using response_type = cluster_developer_preview_enable_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
 
     static const inline service_type type = service_type::management;
 
-    std::string name;
-
     void encode_to(encoded_request_type& encoded)
     {
-        encoded.method = "GET";
-        encoded.path = fmt::format("/pools/default/buckets/{}", name);
+        encoded.method = "POST";
+        encoded.headers["content-type"] = "application/x-www-form-urlencoded";
+        encoded.path = "/settings/developerPreview";
+        encoded.body = "enabled=true";
     }
 };
 
-bucket_get_response
-make_response(std::error_code ec, bucket_get_request&, bucket_get_request::encoded_response_type encoded)
+cluster_developer_preview_enable_response
+make_response(std::error_code ec, cluster_developer_preview_enable_request&, scope_get_all_request::encoded_response_type encoded)
 {
-    bucket_get_response response{ ec };
+    cluster_developer_preview_enable_response response{ ec };
     if (!ec) {
-        switch (encoded.status_code) {
-            case 404:
-                response.ec = std::make_error_code(error::common_errc::bucket_not_found);
-                break;
-            case 200:
-                response.bucket = tao::json::from_string(encoded.body).as<bucket_settings>();
-                break;
-            default:
-                response.ec = std::make_error_code(error::common_errc::internal_server_failure);
-                break;
+        if (encoded.status_code != 200) {
+            response.ec = std::make_error_code(error::common_errc::internal_server_failure);
         }
     }
     return response;

@@ -69,14 +69,14 @@ struct traits<couchbase::collections_manifest> {
         (void)v;
         couchbase::collections_manifest result;
         result.id = couchbase::uuid::random();
-        result.uid = std::stoull(v.at("uid").get_string());
+        result.uid = std::stoull(v.at("uid").get_string(), 0, 16);
         for (const auto& s : v.at("scopes").get_array()) {
             couchbase::collections_manifest::scope scope;
-            scope.uid = std::stoull(s.at("uid").get_string());
+            scope.uid = std::stoull(s.at("uid").get_string(), 0, 16);
             scope.name = s.at("name").get_string();
             for (const auto& c : s.at("collections").get_array()) {
                 couchbase::collections_manifest::collection collection;
-                collection.uid = std::stoull(c.at("uid").get_string());
+                collection.uid = std::stoull(c.at("uid").get_string(), 0, 16);
                 collection.name = c.at("name").get_string();
                 scope.collections.emplace_back(collection);
             }

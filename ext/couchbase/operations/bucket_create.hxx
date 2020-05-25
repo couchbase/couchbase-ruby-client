@@ -28,7 +28,6 @@ namespace couchbase::operations
 
 struct bucket_create_response {
     std::error_code ec;
-    bucket_settings bucket{};
     std::string error_message{};
 };
 
