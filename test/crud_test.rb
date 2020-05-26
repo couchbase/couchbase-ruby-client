@@ -23,6 +23,10 @@ module Couchbase
       @collection = @cluster.bucket("default").default_collection
     end
 
+    def teardown
+      @cluster.disconnect
+    end
+
     def doc_id(name)
       @ids_ ||= {}
       test_name = caller_locations[0].label

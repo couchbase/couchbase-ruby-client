@@ -78,6 +78,10 @@ static void
 cb__backend_close(cb_backend_data* backend)
 {
     if (backend->cluster) {
+        auto barrier = std::make_shared<std::promise<void>>();
+        auto f = barrier->get_future();
+        backend->cluster->close([barrier]() { barrier->set_value(); });
+        f.wait();
         backend->cluster.reset(nullptr);
         if (backend->worker.joinable()) {
             backend->worker.join();

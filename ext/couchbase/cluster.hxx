@@ -57,14 +57,13 @@ class cluster
       , ctx_(ctx)
       , work_(asio::make_work_guard(ctx_))
       , session_(std::make_shared<io::mcbp_session>(id_, ctx_))
-      , session_manager_(id_, ctx_)
+      , session_manager_(std::make_shared<io::session_manager>(id_, ctx_))
     {
     }
 
     ~cluster()
     {
         work_.reset();
-        close();
     }
 
     template<typename Handler>
@@ -72,16 +71,26 @@ class cluster
     {
         auto address = origin.get_address();
         origin_ = origin;
-        session_->bootstrap(address.first, address.second, origin.get_username(), origin.get_password(), std::forward<Handler>(handler));
-        session_->subscribe_to_configuration_updates([this](const configuration& config) { session_manager_.set_configuration(config); });
+        session_->bootstrap(address.first,
+                            address.second,
+                            origin.get_username(),
+                            origin.get_password(),
+                            [this, handler = std::forward<Handler>(handler)](std::error_code ec, configuration config) mutable {
+                                session_manager_->set_configuration(config);
+                                handler(ec);
+                            });
     }
 
-    void close()
+    template<typename Handler>
+    void close(Handler&& handler)
     {
-        session_->stop();
-        for (auto& bucket : buckets_) {
-            bucket.second->close();
-        }
+        asio::post(asio::bind_executor(ctx_, [this, handler = std::forward<Handler>(handler)]() {
+            session_->stop();
+            for (auto& bucket : buckets_) {
+                bucket.second->close();
+            }
+            handler();
+        }));
     }
 
     template<typename Handler>
@@ -93,37 +102,38 @@ class cluster
         configuration config = session_->config();
         auto& node = config.nodes.front();
         auto new_session = std::make_shared<io::mcbp_session>(id_, ctx_, bucket_name);
-        new_session->bootstrap(node.hostname,
-                               std::to_string(*node.services_plain.key_value),
-                               origin_.get_username(),
-                               origin_.get_password(),
-                               [this, name = bucket_name, new_session, h = std::forward<Handler>(handler)](std::error_code ec) mutable {
-                                   if (!ec) {
-                                       auto b = std::make_shared<bucket>(ctx_, name, new_session->config());
-                                       size_t this_index = new_session->index();
-                                       b->set_node(this_index, new_session);
-                                       if (new_session->config().nodes.size() > 1) {
-                                           for (const auto& n : new_session->config().nodes) {
-                                               if (n.index != this_index) {
-                                                   auto s = std::make_shared<io::mcbp_session>(id_, ctx_, name);
-                                                   b->set_node(n.index, s);
-                                                   s->bootstrap(n.hostname,
-                                                                std::to_string(*n.services_plain.key_value),
-                                                                origin_.get_username(),
-                                                                origin_.get_password(),
-                                                                [s, i = n.index, b](std::error_code err) {
-                                                                    if (err) {
-                                                                        spdlog::warn("unable to bootstrap node: {}", err.message());
-                                                                        b->remove_node(i);
-                                                                    }
-                                                                });
+        new_session->bootstrap(
+          node.hostname,
+          std::to_string(*node.services_plain.key_value),
+          origin_.get_username(),
+          origin_.get_password(),
+          [this, name = bucket_name, new_session, h = std::forward<Handler>(handler)](std::error_code ec, configuration cfg) mutable {
+              if (!ec) {
+                  auto b = std::make_shared<bucket>(ctx_, name, cfg);
+                  size_t this_index = new_session->index();
+                  b->set_node(this_index, new_session);
+                  if (cfg.nodes.size() > 1) {
+                      for (const auto& n : cfg.nodes) {
+                          if (n.index != this_index) {
+                              auto s = std::make_shared<io::mcbp_session>(id_, ctx_, name);
+                              b->set_node(n.index, s);
+                              s->bootstrap(n.hostname,
+                                           std::to_string(*n.services_plain.key_value),
+                                           origin_.get_username(),
+                                           origin_.get_password(),
+                                           [s, i = n.index, b](std::error_code err, configuration /*config*/) {
+                                               if (err) {
+                                                   spdlog::warn("unable to bootstrap node: {}", err.message());
+                                                   b->remove_node(i);
                                                }
-                                           }
-                                       }
-                                       buckets_.emplace(name, std::move(b));
-                                   }
-                                   h(ec);
-                               });
+                                           });
+                          }
+                      }
+                  }
+                  buckets_.emplace(name, std::move(b));
+              }
+              h(ec);
+          });
     }
 
     template<class Request, class Handler>
@@ -139,11 +149,11 @@ class cluster
     template<class Handler>
     void execute(operations::query_request request, Handler&& handler)
     {
-        auto session = session_manager_.check_out(service_type::query, origin_.username, origin_.password);
+        auto session = session_manager_->check_out(service_type::query, origin_.username, origin_.password);
         auto cmd = std::make_shared<operations::command<operations::query_request>>(ctx_, std::move(request));
         cmd->send_to(session, [this, session, handler = std::forward<Handler>(handler)](operations::query_response resp) mutable {
             handler(std::move(resp));
-            session_manager_.check_in(service_type::query, session);
+            session_manager_->check_in(service_type::query, session);
         });
     }
 
@@ -152,7 +162,7 @@ class cluster
     asio::io_context& ctx_;
     asio::executor_work_guard<asio::io_context::executor_type> work_;
     std::shared_ptr<io::mcbp_session> session_;
-    io::session_manager session_manager_;
+    std::shared_ptr<io::session_manager> session_manager_;
     std::map<std::string, std::shared_ptr<bucket>> buckets_;
     origin origin_;
 };

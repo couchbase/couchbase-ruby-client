@@ -44,6 +44,13 @@ else()
         target_link_libraries(project_options INTERFACE -fsanitize=address)
     endif()
 
+    option(ENABLE_TSAN "Enable thread sanitizer" FALSE)
+
+    if(ENABLE_TSAN)
+        target_compile_options(project_options INTERFACE -fsanitize=thread)
+        target_link_libraries(project_options INTERFACE -fsanitize=thread)
+    endif()
+
     target_compile_options(
         project_warnings
         INTERFACE -Wall

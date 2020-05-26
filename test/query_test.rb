@@ -22,6 +22,10 @@ module Couchbase
       @cluster = Cluster.connect("couchbase://localhost", options)
     end
 
+    def teardown
+      @cluster.disconnect
+    end
+
     def test_it_can_run_queries
       res = @cluster.query('SELECT "ruby rules" AS greeting')
       assert_equal "ruby rules", res.rows.first["greeting"]
