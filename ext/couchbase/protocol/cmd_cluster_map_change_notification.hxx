@@ -43,6 +43,11 @@ class cluster_map_change_notification_request_body
         return protocol_revision_;
     }
 
+    [[nodiscard]] const std::string& bucket()
+    {
+        return bucket_;
+    }
+
     [[nodiscard]] configuration config()
     {
         return config_;

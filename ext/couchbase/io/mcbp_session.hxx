@@ -335,14 +335,10 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                         case protocol::server_opcode::cluster_map_change_notification: {
                             protocol::server_request<protocol::cluster_map_change_notification_request_body> req(msg);
                             if (session_) {
-                                if (session_->bucket_name_) {
-                                    if (req.body().config().bucket == session_->bucket_name_.value()) {
-                                        session_->update_configuration(req.body().config());
-                                    }
-                                } else {
-                                    if (req.body().config().bucket->empty()) {
-                                        session_->update_configuration(req.body().config());
-                                    }
+                                if ((!req.body().config().bucket.has_value() && req.body().bucket().empty()) ||
+                                    (session_->bucket_name_.has_value() && !req.body().bucket().empty() &&
+                                     session_->bucket_name_.value() == req.body().bucket())) {
+                                    session_->update_configuration(req.body().config());
                                 }
                             }
                         } break;
