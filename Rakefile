@@ -38,3 +38,10 @@ task :doc do
 end
 
 task :docs => :doc
+
+task :render_git_revision do
+  build_version_path = File.join(__dir__, 'ext', 'build_version.hxx.in')
+  File.write(build_version_path, File.read(build_version_path).gsub('@BACKEND_GIT_REVISION@', `git rev-parse HEAD`.strip))
+end
+
+task :build => :render_git_revision

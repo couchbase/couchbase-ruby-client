@@ -117,7 +117,15 @@ message(STATUS "RUBY_INCLUDE_DIR: ${RUBY_INCLUDE_DIR}")
 message(STATUS "RUBY_LIBRARY: ${RUBY_LIBRARY}")
 include_directories(BEFORE SYSTEM "${RUBY_INCLUDE_DIR}")
 
+find_program(GIT git)
+if (GIT)
+    execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE BACKEND_GIT_REVISION)
+endif()
+
+STRING(TIMESTAMP BACKEND_BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S" UTC)
+configure_file(${PROJECT_SOURCE_DIR}/build_version.hxx.in ${PROJECT_BINARY_DIR}/generated/build_version.hxx @ONLY)
 add_library(couchbase SHARED couchbase/couchbase.cxx)
+target_include_directories(couchbase PRIVATE ${PROJECT_BINARY_DIR}/generated)
 target_link_libraries(
     couchbase
     PRIVATE project_options
