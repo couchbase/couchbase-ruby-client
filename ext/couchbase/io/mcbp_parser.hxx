@@ -24,7 +24,7 @@
 
 namespace couchbase::io
 {
-struct binary_parser {
+struct mcbp_parser {
     enum result { ok, need_data, failure };
 
     template<typename Iterator>
@@ -39,7 +39,7 @@ struct binary_parser {
         buf.clear();
     }
 
-    result next(binary_message& msg)
+    result next(mcbp_message& msg)
     {
         static const size_t header_size = 24;
         if (buf.size() < header_size) {

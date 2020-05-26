@@ -55,7 +55,7 @@ class client_response
 
   public:
     client_response() = default;
-    explicit client_response(io::binary_message& msg)
+    explicit client_response(io::mcbp_message& msg)
     {
         std::memcpy(header_.data(), &msg.header, sizeof(msg.header));
         verify_header();

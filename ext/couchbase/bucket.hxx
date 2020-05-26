@@ -45,7 +45,7 @@ class bucket
         return name_;
     }
 
-    void set_node(size_t index, std::shared_ptr<io::key_value_session> session)
+    void set_node(size_t index, std::shared_ptr<io::mcbp_session> session)
     {
         if (closed_) {
             return;
@@ -89,6 +89,6 @@ class bucket
     std::string name_;
     configuration config_;
     bool closed_{ false };
-    std::map<size_t, std::shared_ptr<io::key_value_session>> sessions_{};
+    std::map<size_t, std::shared_ptr<io::mcbp_session>> sessions_{};
 };
 } // namespace couchbase

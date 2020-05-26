@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include <io/key_value_session.hxx>
+#include <io/mcbp_session.hxx>
 #include <io/http_session.hxx>
 
 namespace couchbase::operations
@@ -38,14 +38,14 @@ struct command : public std::enable_shared_from_this<command<Request>> {
     }
 
     template<typename Handler>
-    void send_to(std::shared_ptr<io::key_value_session> session, Handler&& handler)
+    void send_to(std::shared_ptr<io::mcbp_session> session, Handler&& handler)
     {
         request.opaque = session->next_opaque();
         request.encode_to(encoded);
         session->write_and_subscribe(request.opaque,
                                      encoded.data(),
                                      [self = this->shared_from_this(),
-                                      handler = std::forward<Handler>(handler)](std::error_code ec, io::binary_message&& msg) mutable {
+                                      handler = std::forward<Handler>(handler)](std::error_code ec, io::mcbp_message&& msg) mutable {
                                          encoded_response_type resp(msg);
                                          self->deadline.cancel();
                                          handler(make_response(ec, self->request, resp));

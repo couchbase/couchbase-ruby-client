@@ -25,8 +25,8 @@
 
 #include <platform/uuid.h>
 
-#include <io/binary_message.hxx>
-#include <io/binary_parser.hxx>
+#include <io/mcbp_message.hxx>
+#include <io/mcbp_parser.hxx>
 
 #include <protocol/hello_feature.hxx>
 #include <protocol/client_request.hxx>
@@ -53,12 +53,12 @@
 namespace couchbase::io
 {
 
-class key_value_session : public std::enable_shared_from_this<key_value_session>
+class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 {
     class message_handler
     {
       public:
-        virtual void handle(binary_message&& msg) = 0;
+        virtual void handle(mcbp_message&& msg) = 0;
 
         virtual ~message_handler() = default;
 
@@ -70,7 +70,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
     class bootstrap_handler : public message_handler
     {
       private:
-        std::shared_ptr<key_value_session> session_;
+        std::shared_ptr<mcbp_session> session_;
         sasl::ClientContext sasl_;
         bool stopped_{ false };
 
@@ -87,7 +87,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
             session_.reset();
         }
 
-        explicit bootstrap_handler(std::shared_ptr<key_value_session> session)
+        explicit bootstrap_handler(std::shared_ptr<mcbp_session> session)
           : session_(session)
           , sasl_([this]() -> std::string { return session_->username_; },
                   [this]() -> std::string { return session_->password_; },
@@ -156,7 +156,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
             session_->flush();
         }
 
-        void handle(binary_message&& msg) override
+        void handle(mcbp_message&& msg) override
         {
             if (stopped_ || !session_) {
                 return;
@@ -273,7 +273,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
     class normal_handler : public message_handler
     {
       private:
-        std::shared_ptr<key_value_session> session_;
+        std::shared_ptr<mcbp_session> session_;
         asio::steady_timer heartbeat_timer_;
         bool stopped_{ false };
 
@@ -281,7 +281,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
         normal_handler(normal_handler&&) = default;
         ~normal_handler() override = default;
 
-        explicit normal_handler(std::shared_ptr<key_value_session> session)
+        explicit normal_handler(std::shared_ptr<mcbp_session> session)
           : session_(session)
           , heartbeat_timer_(session_->ctx_)
         {
@@ -298,7 +298,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
             session_.reset();
         }
 
-        void handle(binary_message&& msg) override
+        void handle(mcbp_message&& msg) override
         {
             if (stopped_ || !session_) {
                 return;
@@ -384,7 +384,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
     };
 
   public:
-    key_value_session(uuid::uuid_t client_id, asio::io_context& ctx, std::optional<std::string> bucket_name = {})
+    mcbp_session(uuid::uuid_t client_id, asio::io_context& ctx, std::optional<std::string> bucket_name = {})
       : client_id_(client_id)
       , id_(uuid::random())
       , ctx_(ctx)
@@ -396,7 +396,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
     {
     }
 
-    ~key_value_session()
+    ~mcbp_session()
     {
         stop();
     }
@@ -411,7 +411,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
         password_ = password;
         bootstrap_handler_ = std::move(handler);
         resolver_.async_resolve(
-          hostname, service, std::bind(&key_value_session::on_resolve, this, std::placeholders::_1, std::placeholders::_2));
+          hostname, service, std::bind(&mcbp_session::on_resolve, this, std::placeholders::_1, std::placeholders::_2));
     }
 
     [[nodiscard]] std::string id()
@@ -462,7 +462,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
 
     void write_and_subscribe(uint32_t opaque,
                              std::vector<std::uint8_t>& data,
-                             std::function<void(std::error_code, io::binary_message&&)> handler)
+                             std::function<void(std::error_code, io::mcbp_message&&)> handler)
     {
         if (stopped_) {
             return;
@@ -675,7 +675,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
         }
         endpoints_ = endpoints;
         do_connect(endpoints_.begin());
-        deadline_timer_.async_wait(std::bind(&key_value_session::check_deadline, this, std::placeholders::_1));
+        deadline_timer_.async_wait(std::bind(&mcbp_session::check_deadline, this, std::placeholders::_1));
     }
 
     void do_connect(asio::ip::tcp::resolver::results_type::iterator it)
@@ -686,7 +686,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
         if (it != endpoints_.end()) {
             spdlog::trace("connecting to {}:{}", it->endpoint().address().to_string(), it->endpoint().port());
             deadline_timer_.expires_after(std::chrono::seconds(10));
-            socket_.async_connect(it->endpoint(), std::bind(&key_value_session::on_connect, this, std::placeholders::_1, it));
+            socket_.async_connect(it->endpoint(), std::bind(&mcbp_session::on_connect, this, std::placeholders::_1, it));
         } else {
             spdlog::error("no more endpoints left to connect");
             invoke_bootstrap_handler(std::make_error_code(error::network_errc::no_endpoints_left));
@@ -724,7 +724,7 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
             socket_.close();
             deadline_timer_.expires_at(asio::steady_timer::time_point::max());
         }
-        deadline_timer_.async_wait(std::bind(&key_value_session::check_deadline, this, std::placeholders::_1));
+        deadline_timer_.async_wait(std::bind(&mcbp_session::check_deadline, this, std::placeholders::_1));
     }
 
     void do_read()
@@ -748,15 +748,15 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
                                     self->parser_.feed(self->input_buffer_.data(), self->input_buffer_.data() + ssize_t(bytes_transferred));
 
                                     for (;;) {
-                                        binary_message msg{};
+                                        mcbp_message msg{};
                                         switch (self->parser_.next(msg)) {
-                                            case binary_parser::ok:
+                                            case mcbp_parser::ok:
                                                 self->handler_->handle(std::move(msg));
                                                 break;
-                                            case binary_parser::need_data:
+                                            case mcbp_parser::need_data:
                                                 self->reading_ = false;
                                                 return self->do_read();
-                                            case binary_parser::failure:
+                                            case mcbp_parser::failure:
                                                 ec = std::make_error_code(std::errc::protocol_error);
                                                 return self->stop();
                                         }
@@ -802,10 +802,10 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
     asio::ip::tcp::socket socket_;
     asio::steady_timer deadline_timer_;
     std::optional<std::string> bucket_name_;
-    binary_parser parser_;
+    mcbp_parser parser_;
     std::unique_ptr<message_handler> handler_;
     std::function<void(std::error_code)> bootstrap_handler_;
-    std::map<uint32_t, std::function<void(std::error_code, io::binary_message&&)>> command_handlers_{};
+    std::map<uint32_t, std::function<void(std::error_code, io::mcbp_message&&)>> command_handlers_{};
 
     bool bootstrapped_{ false };
     bool stopped_{ false };

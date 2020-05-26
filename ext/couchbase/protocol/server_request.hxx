@@ -49,7 +49,7 @@ class server_request
 
   public:
     server_request() = default;
-    explicit server_request(io::binary_message& msg)
+    explicit server_request(io::mcbp_message& msg)
     {
         std::memcpy(header_.data(), &msg.header, sizeof(msg.header));
         verify_header();

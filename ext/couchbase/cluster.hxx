@@ -20,7 +20,7 @@
 #include <utility>
 #include <thread>
 
-#include <io/key_value_session.hxx>
+#include <io/mcbp_session.hxx>
 #include <io/session_manager.hxx>
 #include <bucket.hxx>
 #include <operations.hxx>
@@ -56,7 +56,7 @@ class cluster
       : id_(uuid::random())
       , ctx_(ctx)
       , work_(asio::make_work_guard(ctx_))
-      , session_(std::make_shared<io::key_value_session>(id_, ctx_))
+      , session_(std::make_shared<io::mcbp_session>(id_, ctx_))
       , session_manager_(id_, ctx_)
     {
     }
@@ -92,7 +92,7 @@ class cluster
         }
         configuration config = session_->config();
         auto& node = config.nodes.front();
-        auto new_session = std::make_shared<io::key_value_session>(id_, ctx_, bucket_name);
+        auto new_session = std::make_shared<io::mcbp_session>(id_, ctx_, bucket_name);
         new_session->bootstrap(node.hostname,
                                std::to_string(*node.services_plain.key_value),
                                origin_.get_username(),
@@ -105,7 +105,7 @@ class cluster
                                        if (new_session->config().nodes.size() > 1) {
                                            for (const auto& n : new_session->config().nodes) {
                                                if (n.index != this_index) {
-                                                   auto s = std::make_shared<io::key_value_session>(id_, ctx_, name);
+                                                   auto s = std::make_shared<io::mcbp_session>(id_, ctx_, name);
                                                    b->set_node(n.index, s);
                                                    s->bootstrap(n.hostname,
                                                                 std::to_string(*n.services_plain.key_value),
@@ -151,7 +151,7 @@ class cluster
     uuid::uuid_t id_;
     asio::io_context& ctx_;
     asio::executor_work_guard<asio::io_context::executor_type> work_;
-    std::shared_ptr<io::key_value_session> session_;
+    std::shared_ptr<io::mcbp_session> session_;
     io::session_manager session_manager_;
     std::map<std::string, std::shared_ptr<bucket>> buckets_;
     origin origin_;

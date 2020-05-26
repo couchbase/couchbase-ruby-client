@@ -17,22 +17,25 @@
 
 #pragma once
 
+#include <cstdint>
+#include <vector>
+
 namespace couchbase::io
 {
 struct binary_header {
-    uint8_t magic;
-    uint8_t opcode;
-    uint16_t keylen;
-    uint8_t extlen;
-    uint8_t datatype;
-    uint16_t specific;
-    uint32_t bodylen;
-    uint32_t opaque;
-    uint64_t cas;
+    std::uint8_t magic;
+    std::uint8_t opcode;
+    std::uint16_t keylen;
+    std::uint8_t extlen;
+    std::uint8_t datatype;
+    std::uint16_t specific;
+    std::uint32_t bodylen;
+    std::uint32_t opaque;
+    std::uint64_t cas;
 };
 
-struct binary_message {
+struct mcbp_message {
     binary_header header;
-    std::vector<uint8_t> body;
+    std::vector<std::uint8_t> body;
 };
 } // namespace couchbase::io
