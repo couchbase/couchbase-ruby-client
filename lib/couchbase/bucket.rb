@@ -30,7 +30,7 @@ module Couchbase
     #
     # @return [Scope]
     def default_scope
-      Scope.new(@backend, @name, :default)
+      Scope.new(@backend, @name, :_default)
     end
 
     # Get a named scope

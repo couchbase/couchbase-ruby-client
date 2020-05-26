@@ -49,14 +49,14 @@ template<class T>
 typename std::enable_if<std::is_unsigned<T>::value, std::pair<T, std::string_view>>::type
 decode_unsigned_leb128(std::string_view buf, struct Leb128NoThrow)
 {
-    T rv = static_cast<uint8_t>(buf[0]) & 0x7full;
+    T rv = static_cast<uint8_t>(buf[0]) & 0x7fULL;
     size_t end = 0;
-    if ((buf[0] & 0x80) == 0x80ull) {
+    if ((buf[0] & 0x80) == 0x80ULL) {
         T shift = 7;
         // shift in the remaining data
         for (end = 1; end < buf.size(); end++) {
-            rv |= (buf[end] & 0x7full) << shift;
-            if ((static_cast<uint8_t>(buf[end]) & 0x80ull) == 0) {
+            rv |= (buf[end] & 0x7fULL) << shift;
+            if ((static_cast<uint8_t>(buf[end]) & 0x80ULL) == 0) {
                 break; // no more
             }
             shift += 7;
@@ -112,7 +112,7 @@ unsigned_leb128_get_stop_byte_index(std::string_view buf)
     // If buf does not contain a stop-byte, invalid
     size_t stopByte = 0;
     for (auto c : buf) {
-        if ((static_cast<uint8_t>(c) & 0x80ull) == 0) {
+        if ((static_cast<uint8_t>(c) & 0x80ULL) == 0) {
             return stopByte;
         }
         stopByte++;
@@ -134,10 +134,10 @@ template<class T>
 class unsigned_leb128<T, typename std::enable_if<std::is_unsigned<T>::value>::type>
 {
   public:
-    unsigned_leb128(T in)
+    explicit unsigned_leb128(T in)
     {
         while (in > 0) {
-            auto byte = gsl::narrow_cast<uint8_t>(in & 0x7full);
+            auto byte = gsl::narrow_cast<uint8_t>(in & 0x7fULL);
             in >>= 7;
 
             // In has more data?
@@ -152,27 +152,27 @@ class unsigned_leb128<T, typename std::enable_if<std::is_unsigned<T>::value>::ty
         }
     }
 
-    std::string_view get() const
+    [[nodiscard]] std::string get() const
     {
-        return { encodedData.data(), encodedSize };
+        return { begin(), end() };
     }
 
-    const uint8_t* begin() const
+    [[nodiscard]] const uint8_t* begin() const
     {
         return encodedData.data();
     }
 
-    const uint8_t* end() const
+    [[nodiscard]] const uint8_t* end() const
     {
         return encodedData.data() + encodedSize;
     }
 
-    const uint8_t* data() const
+    [[nodiscard]] const uint8_t* data() const
     {
         return encodedData.data();
     }
 
-    size_t size() const
+    [[nodiscard]] size_t size() const
     {
         return encodedSize;
     }

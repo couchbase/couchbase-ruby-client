@@ -46,13 +46,16 @@ p Couchbase::VERSION
 )");
 
     run_script(R"(
-    b = Couchbase::Backend.new
-    b.open("192.168.42.101", "Administrator", "password")
-    b.open_bucket("travel-sample")
-    p b.upsert("travel-sample", "_default._default", "foo", '{"hello": 42}')
-    p b.upsert("travel-sample", "_default._default", "bar", '{"hello": 42}')
-    p b.upsert("travel-sample", "_default._default", "baz", '{"hello": 42}')
-    b.close
+B = Couchbase::Backend.new
+B.open("192.168.42.101", "Administrator", "password")
+B.open_bucket("default")
+p B.upsert("default", "_default._default", "foo", '{"bar":42}')
+p B.upsert("default", "_default._default", "bar", '{"bar":42}')
+p B.upsert("default", "_default._default", "baz", '{"bar":42}')
+)");
+
+    run_script(R"(
+B.close
 )");
 
     ruby_finalize();

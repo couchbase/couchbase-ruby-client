@@ -57,7 +57,11 @@ make_response(std::error_code ec, scope_create_request&, scope_create_request::e
     if (!ec) {
         switch (encoded.status_code) {
             case 400:
-                response.ec = std::make_error_code(error::management_errc::scope_exists);
+                if (encoded.body.find("Not allowed on this version") != std::string::npos) {
+                    response.ec = std::make_error_code(error::common_errc::unsupported_operation);
+                } else {
+                    response.ec = std::make_error_code(error::management_errc::scope_exists);
+                }
                 break;
             case 404:
                 response.ec = std::make_error_code(error::common_errc::bucket_not_found);

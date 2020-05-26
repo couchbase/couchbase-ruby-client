@@ -463,6 +463,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
     }
 
+    [[nodiscard]] std::optional<collections_manifest> manifest()
+    {
+        return manifest_;
+    }
+
     bool supports_feature(protocol::hello_feature feature)
     {
         return std::find(supported_features_.begin(), supported_features_.end(), feature) != supported_features_.end();
@@ -675,7 +680,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             return;
         }
         if (it != endpoints_.end()) {
-            spdlog::debug("connecting to {}:{}", it->endpoint().address().to_string(), it->endpoint().port());
+            spdlog::trace("connecting to {}:{}", it->endpoint().address().to_string(), it->endpoint().port());
             deadline_timer_.expires_after(std::chrono::seconds(10));
             socket_.async_connect(it->endpoint(), std::bind(&mcbp_session::on_connect, this, std::placeholders::_1, it));
         } else {
@@ -696,7 +701,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             socket_.set_option(asio::ip::tcp::no_delay{ true });
             socket_.set_option(asio::socket_base::keep_alive{ true });
             endpoint_ = it->endpoint();
-            spdlog::debug("connected to {}:{}", endpoint_.address().to_string(), it->endpoint().port());
+            spdlog::trace("connected to {}:{}", endpoint_.address().to_string(), it->endpoint().port());
             handler_ = std::make_unique<bootstrap_handler>(shared_from_this());
             deadline_timer_.expires_at(asio::steady_timer::time_point::max());
             deadline_timer_.cancel();

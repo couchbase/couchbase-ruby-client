@@ -35,7 +35,11 @@ enum class hello_feature : uint16_t {
     unordered_execution = 0x0e,
     alt_request_support = 0x10,
     sync_replication = 0x11,
+    collections = 0x12,
+    open_tracing = 0x13,
+    preserve_ttl = 0x14,
     vattr = 0x15,
+    point_in_time_recovery = 0x16,
 };
 
 constexpr inline bool
@@ -56,6 +60,10 @@ is_valid_hello_feature(uint16_t code)
         case hello_feature::alt_request_support:
         case hello_feature::sync_replication:
         case hello_feature::vattr:
+        case hello_feature::collections:
+        case hello_feature::open_tracing:
+        case hello_feature::preserve_ttl:
+        case hello_feature::point_in_time_recovery:
             return true;
     }
     return false;
@@ -111,6 +119,18 @@ struct fmt::formatter<couchbase::protocol::hello_feature> : formatter<string_vie
                 break;
             case couchbase::protocol::hello_feature::vattr:
                 name = "vattr";
+                break;
+            case couchbase::protocol::hello_feature::collections:
+                name = "collections";
+                break;
+            case couchbase::protocol::hello_feature::open_tracing:
+                name = "open_tracing";
+                break;
+            case couchbase::protocol::hello_feature::preserve_ttl:
+                name = "preserve_ttl";
+                break;
+            case couchbase::protocol::hello_feature::point_in_time_recovery:
+                name = "point_in_time_recovery";
                 break;
         }
         return formatter<string_view>::format(name, ctx);

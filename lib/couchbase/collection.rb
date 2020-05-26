@@ -26,8 +26,8 @@ module Couchbase
 
     # @param [Couchbase::Backend] backend
     # @param [String] bucket_name name of the bucket
-    # @param [String, :default] scope_name name of the scope
-    # @param [String, :default] collection_name name of the collection
+    # @param [String, :_default] scope_name name of the scope
+    # @param [String, :_default] collection_name name of the collection
     def initialize(backend, bucket_name, scope_name, collection_name)
       @backend = backend
       @bucket_name = bucket_name
@@ -43,10 +43,10 @@ module Couchbase
     end
 
     # Fetches the full document from the collection
-    # 
+    #
     # @param [String] id the document id which is used to uniquely identify it
     # @param [GetOptions] options request customization
-    # 
+    #
     # @return [GetResult]
     def get(id, options = GetOptions.new)
       resp = @backend.get(bucket_name, "#{@scope_name}.#{@name}", id)
@@ -61,7 +61,7 @@ module Couchbase
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Integer] lock_time how long to lock the document (values over 30 seconds will be capped)
     # @param [GetAndLockOptions] options request customization
-    # 
+    #
     # @return [GetResult]
     def get_and_lock(id, lock_time, options = GetAndLockOptions.new) end
 
@@ -70,15 +70,15 @@ module Couchbase
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Integer] expiration the new expiration time for the document
     # @param [GetAndTouchOptions] options request customization
-    # 
+    #
     # @return [GetResult]
     def get_and_touch(id, expiration, options = GetAndTouchOptions.new) end
 
     # Reads from all available replicas and the active node and returns the results
-    # 
+    #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [GetAllReplicasOptions] options request customization
-    # 
+    #
     # @return [Array<GetReplicaResult>]
     def get_all_replicas(id, options = GetAllReplicasOptions.new) end
 
@@ -91,7 +91,7 @@ module Couchbase
     def get_any_replica(id, options = GetAnyReplicaOptions.new) end
 
     # Checks if the given document ID exists on the active partition.
-    # 
+    #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [ExistsOptions] options request customization
     #
@@ -112,7 +112,7 @@ module Couchbase
     end
 
     # Inserts a full document which does not exist yet
-    # 
+    #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Object] content the document content to insert
     # @param [InsertOptions] options request customization
@@ -121,7 +121,7 @@ module Couchbase
     def insert(id, content, options = InsertOptions.new) end
 
     # Upserts (inserts or updates) a full document which might or might not exist yet
-    # 
+    #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Object] content the document content to upsert
     # @param [UpsertOptions] options request customization
@@ -135,7 +135,7 @@ module Couchbase
     end
 
     # Replaces a full document which already exists
-    # 
+    #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Object] content the document content to upsert
     # @param [ReplaceOptions] options request customization
@@ -144,7 +144,7 @@ module Couchbase
     def replace(id, content, options = ReplaceOptions.new) end
 
     # Update the expiration of the document with the given id
-    # 
+    #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Integer] expiration new expiration time for the document
     # @param [TouchOptions] options request customization
@@ -153,7 +153,7 @@ module Couchbase
     def touch(id, expiration, options = TouchOptions.new) end
 
     # Unlocks a document if it has been locked previously
-    # 
+    #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Integer] cas CAS value which is needed to unlock the document
     # @param [TouchOptions] options request customization

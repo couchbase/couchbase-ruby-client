@@ -65,7 +65,6 @@ make_response(std::error_code ec, collection_create_request&, collection_create_
                 response.ec = std::make_error_code(error::management_errc::collection_exists);
                 break;
             case 404:
-                spdlog::critical("body: {}", encoded.body);
                 if (encoded.body.find("Scope with this name is not found") != std::string::npos) {
                     response.ec = std::make_error_code(error::common_errc::scope_not_found);
                 } else {

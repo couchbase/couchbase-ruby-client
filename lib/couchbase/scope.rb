@@ -23,7 +23,7 @@ module Couchbase
 
     # @param [Couchbase::Backend] backend
     # @param [String] bucket_name name of the bucket
-    # @param [String, :default] scope_name name of the scope
+    # @param [String, :_default] scope_name name of the scope
     def initialize(backend, bucket_name, scope_name)
       @backend = backend
       @bucket_name = bucket_name
@@ -34,7 +34,7 @@ module Couchbase
     #
     # @return [Collection]
     def default_collection
-      Collection.new(@backend, @bucket_name, @name, :default)
+      Collection.new(@backend, @bucket_name, @name, :_default)
     end
 
     # Opens the default collection for this scope

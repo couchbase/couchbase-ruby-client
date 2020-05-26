@@ -77,6 +77,10 @@ class upsert_request_body
     void id(const operations::document_id& id)
     {
         key_ = id.key;
+        if (id.collection_uid) {
+            unsigned_leb128<uint32_t> encoded(*id.collection_uid);
+            key_.insert(0, encoded.get());
+        }
     }
 
     void content(const std::string& content)

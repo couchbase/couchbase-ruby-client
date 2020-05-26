@@ -80,6 +80,7 @@ class hello_request_body
         // hello_feature::alt_request_support,
         // hello_feature::sync_replication,
         hello_feature::vattr,
+        hello_feature::collections,
     };
     std::vector<std::uint8_t> value_;
 

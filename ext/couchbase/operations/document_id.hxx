@@ -23,6 +23,7 @@ struct document_id {
     std::string bucket;
     std::string collection;
     std::string key;
+    std::optional<std::uint32_t> collection_uid; // filled with resolved UID during request lifetime
 };
 } // namespace couchbase::operations
 
