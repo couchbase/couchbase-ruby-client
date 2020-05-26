@@ -80,7 +80,7 @@ class cluster
     {
         session_->stop();
         for (auto& bucket : buckets_) {
-            bucket.second.close();
+            bucket.second->close();
         }
     }
 
@@ -99,7 +99,7 @@ class cluster
                                origin_.get_password(),
                                [this, name = bucket_name, new_session, h = std::forward<Handler>(handler)](std::error_code ec) mutable {
                                    if (!ec) {
-                                       bucket b(ctx_, name, new_session->config());
+                                       auto b = std::make_shared<bucket>(ctx_, name, new_session->config());
                                        size_t this_index = new_session->index();
                                        if (new_session->config().nodes.size() > 1) {
                                            for (const auto& n : new_session->config().nodes) {
@@ -109,17 +109,17 @@ class cluster
                                                                 std::to_string(*n.services_plain.key_value),
                                                                 origin_.get_username(),
                                                                 origin_.get_password(),
-                                                                [s, i = n.index, &b](std::error_code err) {
+                                                                [s, i = n.index, b](std::error_code err) {
                                                                     if (err) {
                                                                         spdlog::warn("unable to bootstrap node: {}", err.message());
                                                                     } else {
-                                                                        b.set_node(i, s);
+                                                                        b->set_node(i, s);
                                                                     }
                                                                 });
                                                }
                                            }
                                        }
-                                       b.set_node(this_index, std::move(new_session));
+                                       b->set_node(this_index, std::move(new_session));
                                        buckets_.emplace(name, std::move(b));
                                    }
                                    h(ec);
@@ -133,7 +133,7 @@ class cluster
         if (bucket == buckets_.end()) {
             return handler(operations::make_response(std::make_error_code(error::common_errc::bucket_not_found), request, {}));
         }
-        return bucket->second.execute(request, std::forward<Handler>(handler));
+        return bucket->second->execute(request, std::forward<Handler>(handler));
     }
 
     template<class Handler>
@@ -153,7 +153,7 @@ class cluster
     asio::executor_work_guard<asio::io_context::executor_type> work_;
     std::shared_ptr<io::key_value_session> session_;
     io::session_manager session_manager_;
-    std::map<std::string, bucket> buckets_;
+    std::map<std::string, std::shared_ptr<bucket>> buckets_;
     origin origin_;
 };
 } // namespace couchbase

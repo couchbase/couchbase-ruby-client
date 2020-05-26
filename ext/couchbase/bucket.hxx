@@ -35,6 +35,11 @@ class bucket
     {
     }
 
+    ~bucket()
+    {
+        close();
+    }
+
     [[nodiscard]] const std::string& name() const
     {
         return name_;
@@ -42,17 +47,18 @@ class bucket
 
     void set_node(size_t index, std::shared_ptr<io::key_value_session> session)
     {
+        if (closed_) {
+            return;
+        }
         sessions_.emplace(index, std::move(session));
-    }
-
-    [[nodiscard]] std::shared_ptr<io::key_value_session> get_node(size_t index)
-    {
-        return sessions_.at(index);
     }
 
     template<typename Request, typename Handler>
     void execute(Request request, Handler&& handler)
     {
+        if (closed_) {
+            return;
+        }
         auto cmd = std::make_shared<operations::command<Request>>(ctx_, std::move(request));
         size_t index = 0;
         std::tie(cmd->request.partition, index) = config_.map_key(request.id.key);
@@ -61,6 +67,10 @@ class bucket
 
     void close()
     {
+        if (closed_) {
+            return;
+        }
+        closed_ = true;
         for (auto& session : sessions_) {
             session.second->stop();
         }
@@ -70,6 +80,7 @@ class bucket
     asio::io_context& ctx_;
     std::string name_;
     configuration config_;
-    std::map<size_t, std::shared_ptr<io::key_value_session>> sessions_;
+    bool closed_{ false };
+    std::map<size_t, std::shared_ptr<io::key_value_session>> sessions_{};
 };
 } // namespace couchbase
