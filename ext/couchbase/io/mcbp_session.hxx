@@ -363,9 +363,6 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             if (stopped_ || !session_) {
                 return;
             }
-            if (session_->bootstrapped_) {
-                return;
-            }
             protocol::client_request<protocol::get_cluster_config_request_body> req;
             req.opaque(session_->next_opaque());
             session_->write_and_flush(req.data());
