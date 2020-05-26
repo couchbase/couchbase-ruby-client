@@ -72,13 +72,23 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
       private:
         std::shared_ptr<key_value_session> session_;
         sasl::ClientContext sasl_;
+        bool stopped_{ false };
 
       public:
         bootstrap_handler(bootstrap_handler&&) = default;
         ~bootstrap_handler() override = default;
 
+        void stop() override
+        {
+            if (stopped_) {
+                return;
+            }
+            stopped_ = true;
+            session_.reset();
+        }
+
         explicit bootstrap_handler(std::shared_ptr<key_value_session> session)
-          : session_(std::move(session))
+          : session_(session)
           , sasl_([this]() -> std::string { return session_->username_; },
                   [this]() -> std::string { return session_->password_; },
                   { "SCRAM-SHA512", "SCRAM-SHA256", "SCRAM-SHA1", "PLAIN" })
@@ -110,6 +120,9 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
 
         void complete(std::error_code ec)
         {
+            if (stopped_ || !session_) {
+                return;
+            }
             session_->invoke_bootstrap_handler(ec);
             if (!ec) {
                 session_->handler_ = std::make_unique<normal_handler>(session_);
@@ -118,7 +131,9 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
 
         void auth_success()
         {
-            spdlog::debug("{} authentication successful", sasl_.get_name());
+            if (stopped_ || !session_) {
+                return;
+            }
             session_->authenticated_ = true;
             if (session_->supports_feature(protocol::hello_feature::xerror)) {
                 protocol::client_request<protocol::get_error_map_request_body> errmap_req;
@@ -143,6 +158,9 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
 
         void handle(binary_message&& msg) override
         {
+            if (stopped_ || !session_) {
+                return;
+            }
             Expects(protocol::is_valid_client_opcode(msg.header.opcode));
             auto opcode = static_cast<protocol::client_opcode>(msg.header.opcode);
             switch (opcode) {
@@ -272,10 +290,12 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
 
         void stop() override
         {
-            if (!stopped_) {
-                heartbeat_timer_.cancel();
-                session_.reset();
+            if (stopped_) {
+                return;
             }
+            stopped_ = true;
+            heartbeat_timer_.cancel();
+            session_.reset();
         }
 
         void handle(binary_message&& msg) override
@@ -401,6 +421,9 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
 
     void stop()
     {
+        if (stopped_) {
+            return;
+        }
         stopped_ = true;
         deadline_timer_.cancel();
         resolver_.cancel();
@@ -643,6 +666,9 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
 
     void on_resolve(std::error_code ec, const asio::ip::tcp::resolver::results_type& endpoints)
     {
+        if (stopped_) {
+            return;
+        }
         if (ec) {
             spdlog::error("error on resolve: {}", ec.message());
             return invoke_bootstrap_handler(std::make_error_code(error::network_errc::resolve_failure));
@@ -654,6 +680,9 @@ class key_value_session : public std::enable_shared_from_this<key_value_session>
 
     void do_connect(asio::ip::tcp::resolver::results_type::iterator it)
     {
+        if (stopped_) {
+            return;
+        }
         if (it != endpoints_.end()) {
             spdlog::trace("connecting to {}:{}", it->endpoint().address().to_string(), it->endpoint().port());
             deadline_timer_.expires_after(std::chrono::seconds(10));

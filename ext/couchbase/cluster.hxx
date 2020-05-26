@@ -101,10 +101,12 @@ class cluster
                                    if (!ec) {
                                        auto b = std::make_shared<bucket>(ctx_, name, new_session->config());
                                        size_t this_index = new_session->index();
+                                       b->set_node(this_index, new_session);
                                        if (new_session->config().nodes.size() > 1) {
                                            for (const auto& n : new_session->config().nodes) {
                                                if (n.index != this_index) {
                                                    auto s = std::make_shared<io::key_value_session>(id_, ctx_, name);
+                                                   b->set_node(n.index, s);
                                                    s->bootstrap(n.hostname,
                                                                 std::to_string(*n.services_plain.key_value),
                                                                 origin_.get_username(),
@@ -112,14 +114,12 @@ class cluster
                                                                 [s, i = n.index, b](std::error_code err) {
                                                                     if (err) {
                                                                         spdlog::warn("unable to bootstrap node: {}", err.message());
-                                                                    } else {
-                                                                        b->set_node(i, s);
+                                                                        b->remove_node(i);
                                                                     }
                                                                 });
                                                }
                                            }
                                        }
-                                       b->set_node(this_index, std::move(new_session));
                                        buckets_.emplace(name, std::move(b));
                                    }
                                    h(ec);

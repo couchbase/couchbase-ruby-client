@@ -53,6 +53,14 @@ class bucket
         sessions_.emplace(index, std::move(session));
     }
 
+    void remove_node(size_t index)
+    {
+        if (closed_) {
+            return;
+        }
+        sessions_.erase(index);
+    }
+
     template<typename Request, typename Handler>
     void execute(Request request, Handler&& handler)
     {
