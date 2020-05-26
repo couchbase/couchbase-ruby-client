@@ -16,9 +16,6 @@ lib = File.expand_path("../lib", __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require "couchbase/version"
 
-build_version_path = File.join(__dir__, 'ext', 'build_version.hxx.in')
-File.write(build_version_path, File.read(build_version_path).gsub('@BACKEND_GIT_REVISION@', `git rev-parse HEAD`.strip))
-
 Gem::Specification.new do |spec|
   spec.name = "couchbase"
   spec.version = Couchbase::VERSION[:sdk]
