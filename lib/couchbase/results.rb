@@ -34,6 +34,7 @@ module Couchbase
       end
     end
 
+    # @yieldparam [QueryResult] self
     def initialize
       yield self if block_given?
       @transcoder = :json
@@ -62,6 +63,7 @@ module Couchbase
     # @return [List<QueryWarning>] list of warnings returned by the query engine
     attr_accessor :warnings
 
+    # @yieldparam [QueryMetaData] self
     def initialize
       yield self if block_given?
     end
@@ -134,6 +136,7 @@ module Couchbase
       end
     end
 
+    # @yieldparam [GetResult] self
     def initialize
       yield self if block_given?
       @transcoder = :json
@@ -170,6 +173,7 @@ module Couchbase
     # @return [MutationToken] if returned, holds the mutation token of the document after the mutation
     attr_accessor :mutation_token
 
+    # @yieldparam [MutationResult] self
     def initialize
       yield self if block_given?
     end
@@ -205,6 +209,7 @@ module Couchbase
     # @return [Array<SubDocumentField>] holds the encoded subdocument responses
     attr_accessor :encoded
 
+    # @yieldparam [LookupInResult] self
     def initialize
       yield self if block_given?
       @transcoder = :json
@@ -230,6 +235,7 @@ module Couchbase
       end
     end
 
+    # @yieldparam [MutateInResult] self
     def initialize
       yield self if block_given?
       @transcoder = :json

@@ -27,6 +27,7 @@ struct remove_response {
     document_id id;
     std::error_code ec{};
     std::uint64_t cas{};
+    mutation_token token{};
 };
 
 struct remove_request {
@@ -51,6 +52,8 @@ make_response(std::error_code ec, remove_request& request, remove_request::encod
     remove_response response{ request.id, ec };
     if (!ec) {
         response.cas = encoded.cas();
+        response.token = encoded.body().token();
+        response.token.partition_id = request.partition;
     }
     return response;
 }

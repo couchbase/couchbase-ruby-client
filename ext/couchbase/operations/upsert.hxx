@@ -27,6 +27,7 @@ struct upsert_response {
     document_id id;
     std::error_code ec{};
     std::uint64_t cas{};
+    mutation_token token{};
 };
 
 struct upsert_request {
@@ -53,6 +54,8 @@ make_response(std::error_code ec, upsert_request& request, upsert_request::encod
     upsert_response response{ request.id, ec };
     if (!ec) {
         response.cas = encoded.cas();
+        response.token = encoded.body().token();
+        response.token.partition_id = request.partition;
     }
     return response;
 }

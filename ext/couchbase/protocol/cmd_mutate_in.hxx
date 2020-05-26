@@ -38,11 +38,17 @@ class mutate_in_response_body
 
   private:
     std::vector<mutate_in_field> fields_;
+    mutation_token token_;
 
   public:
     std::vector<mutate_in_field>& fields()
     {
         return fields_;
+    }
+
+    mutation_token& token()
+    {
+        return token_;
     }
 
     bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
@@ -51,7 +57,17 @@ class mutate_in_response_body
         if (status == protocol::status::success || status == protocol::status::subdoc_multi_path_failure) {
             using offset_type = std::vector<uint8_t>::difference_type;
             uint8_t ext_size = header[4];
-            offset_type offset = ext_size;
+            offset_type offset = 0;
+            if (ext_size == 16) {
+                memcpy(&token_.partition_uuid, body.data() + offset, sizeof(token_.partition_uuid));
+                token_.partition_uuid = utils::byte_swap_64(token_.partition_uuid);
+                offset += 8;
+
+                memcpy(&token_.sequence_number, body.data() + offset, sizeof(token_.sequence_number));
+                token_.sequence_number = utils::byte_swap_64(token_.sequence_number);
+            } else {
+                offset += ext_size;
+            }
             fields_.reserve(16); /* we won't have more than 16 entries anyway */
             while (static_cast<std::size_t>(offset) < body.size()) {
                 mutate_in_field field;

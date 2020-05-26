@@ -30,10 +30,28 @@ class remove_response_body
   public:
     static const inline client_opcode opcode = client_opcode::remove;
 
+    mutation_token token_;
+
   public:
-    bool parse(protocol::status, const header_buffer& header, const std::vector<uint8_t>&, const cmd_info&)
+    mutation_token& token()
+    {
+        return token_;
+    }
+
+    bool parse(protocol::status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
+        using offset_type = std::vector<uint8_t>::difference_type;
+        uint8_t ext_size = header[4];
+        offset_type offset = 0;
+        if (ext_size == 16) {
+            memcpy(&token_.partition_uuid, body.data() + offset, sizeof(token_.partition_uuid));
+            token_.partition_uuid = utils::byte_swap_64(token_.partition_uuid);
+            offset += 8;
+
+            memcpy(&token_.sequence_number, body.data() + offset, sizeof(token_.sequence_number));
+            token_.sequence_number = utils::byte_swap_64(token_.sequence_number);
+        }
         return false;
     }
 };

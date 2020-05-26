@@ -15,6 +15,7 @@
 require 'couchbase/common_options'
 require 'couchbase/results'
 require 'couchbase/subdoc'
+require 'couchbase/mutation_state'
 
 module Couchbase
   class Collection
@@ -108,6 +109,12 @@ module Couchbase
       resp = @backend.remove(bucket_name, "#{@scope_name}.#{@name}", id)
       MutationResult.new do |res|
         res.cas = resp[:cas]
+        res.mutation_token = MutationToken.new do |token|
+          token.partition_id = resp[:mutation_token][:partition_id]
+          token.partition_uuid = resp[:mutation_token][:partition_uuid]
+          token.sequence_number = resp[:mutation_token][:sequence_number]
+          token.bucket_name = @bucket_name
+        end
       end
     end
 
@@ -131,6 +138,12 @@ module Couchbase
       resp = @backend.upsert(bucket_name, "#{@scope_name}.#{@name}", id, JSON.dump(content))
       MutationResult.new do |res|
         res.cas = resp[:cas]
+        res.mutation_token = MutationToken.new do |token|
+          token.partition_id = resp[:mutation_token][:partition_id]
+          token.partition_uuid = resp[:mutation_token][:partition_uuid]
+          token.sequence_number = resp[:mutation_token][:sequence_number]
+          token.bucket_name = @bucket_name
+        end
       end
     end
 
@@ -200,6 +213,12 @@ module Couchbase
       )
       MutateInResult.new do |res|
         res.cas = resp[:cas]
+        res.mutation_token = MutationToken.new do |token|
+          token.partition_id = resp[:mutation_token][:partition_id]
+          token.partition_uuid = resp[:mutation_token][:partition_uuid]
+          token.sequence_number = resp[:mutation_token][:sequence_number]
+          token.bucket_name = @bucket_name
+        end
         res.first_error_index = resp[:first_error_index]
         res.encoded = resp[:fields].map do |field|
           SubDocumentField.new do |f|

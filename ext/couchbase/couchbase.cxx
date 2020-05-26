@@ -601,11 +601,16 @@ cb_Backend_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE co
                               [barrier](couchbase::operations::upsert_response resp) mutable { barrier->set_value(resp); });
     auto resp = f.get();
     if (resp.ec) {
-        cb_raise_error_code(resp.ec, fmt::format("unable upsert {}", doc_id));
+        cb_raise_error_code(resp.ec, fmt::format("unable to upsert {}", doc_id));
     }
 
     VALUE res = rb_hash_new();
     rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
+    VALUE token = rb_hash_new();
+    rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
+    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULONG2NUM(resp.token.sequence_number));
+    rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id));
+    rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
     return res;
 }
 
@@ -639,6 +644,11 @@ cb_Backend_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id)
 
     VALUE res = rb_hash_new();
     rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
+    VALUE token = rb_hash_new();
+    rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
+    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULONG2NUM(resp.token.sequence_number));
+    rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id));
+    rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
     return res;
 }
 
@@ -913,6 +923,11 @@ cb_Backend_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE
 
     VALUE res = rb_hash_new();
     rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
+    VALUE token = rb_hash_new();
+    rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
+    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULONG2NUM(resp.token.sequence_number));
+    rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id));
+    rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
     if (resp.first_error_index) {
         rb_hash_aset(res, rb_id2sym(rb_intern("first_error_index")), ULONG2NUM(resp.first_error_index.value()));
     }

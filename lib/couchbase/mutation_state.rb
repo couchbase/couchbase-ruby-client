@@ -22,6 +22,11 @@ module Couchbase
     attr_accessor :sequence_number
     # @return [String] name of the bucket
     attr_accessor :bucket_name
+
+    # @yieldparam [MutationToken] self
+    def initialize
+      yield self if block_given?
+    end
   end
 
   class MutationState

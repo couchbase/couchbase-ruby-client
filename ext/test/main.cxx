@@ -47,7 +47,7 @@ p Couchbase::VERSION
 
     run_script(R"(
 B = Couchbase::Backend.new
-B.open("192.168.42.101", "Administrator", "password")
+B.open("localhost", "Administrator", "password")
 B.open_bucket("default")
 p B.upsert("default", "_default._default", "foo", '{"bar":42}')
 p B.upsert("default", "_default._default", "bar", '{"bar":42}')

@@ -34,6 +34,7 @@ struct mutate_in_response {
     document_id id;
     std::error_code ec{};
     std::uint64_t cas{};
+    mutation_token token{};
     std::vector<field> fields{};
     std::optional<std::size_t> first_error_index{};
 };
@@ -64,6 +65,8 @@ make_response(std::error_code ec, mutate_in_request& request, mutate_in_request:
     mutate_in_response response{ request.id, ec };
     if (!ec) {
         response.cas = encoded.cas();
+        response.token = encoded.body().token();
+        response.token.partition_id = request.partition;
         response.fields.resize(request.specs.entries.size());
         for (size_t i = 0; i < request.specs.entries.size(); ++i) {
             auto& req_entry = request.specs.entries[i];
