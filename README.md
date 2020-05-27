@@ -7,6 +7,10 @@ This repository contains the third generation of the official Couchbase SDK for 
 If you find an issue, please file it in [our JIRA issue tracker](http://couchbase.com/issues/browse/RCBC).
 Also you are always welcome on [our forum](https://forums.couchbase.com/c/ruby-sdk).
 
+Please attach version information to ticket/post. To obtain this information use the following command:
+
+    $ ruby -r couchbase -e 'p Couchbase::VERSION'
+
 ## Installation
 
 Add this line to your application's Gemfile:
