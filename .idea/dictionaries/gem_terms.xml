@@ -3,7 +3,9 @@
     <words>
       <w>adhoc</w>
       <w>datasets</w>
+      <w>datastores</w>
       <w>dataverse</w>
+      <w>keyspace</w>
       <w>libcouchbase</w>
       <w>opcode</w>
       <w>subdoc</w>

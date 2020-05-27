@@ -1,0 +1,106 @@
+/* -*- Mode: C++; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+/*
+ *     Copyright 2020 Couchbase, Inc.
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License");
+ *   you may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ */
+
+#pragma once
+
+#include <tao/json.hpp>
+
+#include <version.hxx>
+
+namespace couchbase::operations
+{
+struct query_index_get_all_response {
+    struct query_index {
+        bool is_primary{ false };
+        std::string id;
+        std::string name;
+        std::string state;
+        std::string datastore_id;
+        std::string keyspace_id;
+        std::string namespace_id;
+        std::string type;
+        std::vector<std::string> index_key{};
+        std::optional<std::string> condition{};
+    };
+    uuid::uuid_t client_context_id;
+    std::error_code ec;
+    std::string status{};
+    std::vector<query_index> indexes{};
+};
+
+struct query_index_get_all_request {
+    using response_type = query_index_get_all_response;
+    using encoded_request_type = io::http_request;
+    using encoded_response_type = io::http_response;
+
+    static const inline service_type type = service_type::query;
+
+    uuid::uuid_t client_context_id{ uuid::random() };
+    std::string bucket_name;
+
+    void encode_to(encoded_request_type& encoded)
+    {
+        encoded.headers["content-type"] = "application/json";
+        tao::json::value body{
+            { "statement",
+              fmt::format(
+                R"(SELECT idx.* FROM system:indexes AS idx WHERE keyspace_id = "{}" AND `using`="gsi" ORDER BY is_primary DESC, name ASC)",
+                bucket_name) },
+            { "client_context_id", uuid::to_string(client_context_id) }
+        };
+        encoded.method = "POST";
+        encoded.path = "/query/service";
+        encoded.body = tao::json::to_string(body);
+    }
+};
+
+query_index_get_all_response
+make_response(std::error_code ec, query_index_get_all_request& request, query_index_get_all_request::encoded_response_type encoded)
+{
+    query_index_get_all_response response{ request.client_context_id, ec };
+    if (!ec) {
+        if (encoded.status_code == 200) {
+            auto payload = tao::json::from_string(encoded.body);
+            response.status = payload.at("status").get_string();
+            if (response.status == "success") {
+                for (const auto& entry : payload.at("results").get_array()) {
+                    query_index_get_all_response::query_index index;
+                    index.id = entry.at("id").get_string();
+                    index.datastore_id = entry.at("datastore_id").get_string();
+                    index.namespace_id = entry.at("namespace_id").get_string();
+                    index.keyspace_id = entry.at("keyspace_id").get_string();
+                    index.type = entry.at("using").get_string();
+                    index.name = entry.at("name").get_string();
+                    index.state = entry.at("state").get_string();
+                    if (const auto* prop = entry.find("is_primary")) {
+                        index.is_primary = prop->get_boolean();
+                    }
+                    if (const auto* prop = entry.find("condition")) {
+                        index.condition = prop->get_string();
+                    }
+                    for (const auto& key : entry.at("index_key").get_array()) {
+                        index.index_key.emplace_back(key.get_string());
+                    }
+                    response.indexes.emplace_back(index);
+                }
+            }
+        }
+    }
+    return response;
+}
+
+} // namespace couchbase::operations

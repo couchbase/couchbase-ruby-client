@@ -1687,6 +1687,396 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
     return ULL2NUM(resp.uid);
 }
 
+static VALUE
+cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+
+    couchbase::operations::query_index_get_all_request req{};
+    req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_get_all_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(
+      req, [barrier](couchbase::operations::query_index_get_all_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to get list of the indexes of the bucket \"{}\"", req.bucket_name));
+    }
+
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+    VALUE indexes = rb_ary_new_capa(static_cast<long>(resp.indexes.size()));
+    for (const auto& idx : resp.indexes) {
+        VALUE index = rb_hash_new();
+        rb_hash_aset(index, rb_id2sym(rb_intern("id")), rb_str_new(idx.id.data(), static_cast<long>(idx.id.size())));
+        rb_hash_aset(index, rb_id2sym(rb_intern("state")), rb_str_new(idx.state.data(), static_cast<long>(idx.state.size())));
+        rb_hash_aset(index, rb_id2sym(rb_intern("name")), rb_str_new(idx.name.data(), static_cast<long>(idx.name.size())));
+        rb_hash_aset(
+          index, rb_id2sym(rb_intern("datastore_id")), rb_str_new(idx.datastore_id.data(), static_cast<long>(idx.datastore_id.size())));
+        rb_hash_aset(
+          index, rb_id2sym(rb_intern("keyspace_id")), rb_str_new(idx.keyspace_id.data(), static_cast<long>(idx.keyspace_id.size())));
+        rb_hash_aset(
+          index, rb_id2sym(rb_intern("namespace_id")), rb_str_new(idx.namespace_id.data(), static_cast<long>(idx.namespace_id.size())));
+        rb_hash_aset(index, rb_id2sym(rb_intern("type")), rb_str_new(idx.type.data(), static_cast<long>(idx.type.size())));
+        rb_hash_aset(index, rb_id2sym(rb_intern("is_primary")), idx.is_primary ? Qtrue : Qfalse);
+        VALUE index_key = rb_ary_new_capa(static_cast<long>(idx.index_key.size()));
+        for (const auto& key : idx.index_key) {
+            rb_ary_push(index_key, rb_str_new(key.data(), static_cast<long>(key.size())));
+        }
+        rb_hash_aset(index, rb_id2sym(rb_intern("index_key")), index_key);
+        if (idx.condition) {
+            rb_hash_aset(
+              index, rb_id2sym(rb_intern("condition")), rb_str_new(idx.condition->data(), static_cast<long>(idx.condition->size())));
+        }
+        rb_ary_push(indexes, index);
+    }
+
+    rb_hash_aset(res, rb_id2sym(rb_intern("indexes")), indexes);
+
+    return res;
+}
+
+static VALUE
+cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, VALUE fields, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(index_name, T_STRING);
+    Check_Type(fields, T_ARRAY);
+
+    couchbase::operations::query_index_create_request req{};
+    req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+    auto fields_num = static_cast<size_t>(RARRAY_LEN(fields));
+    req.fields.reserve(fields_num);
+    for (size_t i = 0; i < fields_num; ++i) {
+        VALUE entry = rb_ary_entry(fields, static_cast<long>(i));
+        Check_Type(entry, T_STRING);
+        req.fields.emplace_back(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry)));
+    }
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+        VALUE ignore_if_exists = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_exists")));
+        if (ignore_if_exists == Qtrue) {
+            req.ignore_if_exists = true;
+        } else if (ignore_if_exists == Qfalse) {
+            req.ignore_if_exists = false;
+        } /* else use backend default */
+        VALUE deferred = rb_hash_aref(options, rb_id2sym(rb_intern("deferred")));
+        if (deferred == Qtrue) {
+            req.deferred = true;
+        } else if (deferred == Qfalse) {
+            req.deferred = false;
+        } /* else use backend default */
+        VALUE num_replicas = rb_hash_aref(options, rb_id2sym(rb_intern("num_replicas")));
+        if (!NIL_P(num_replicas)) {
+            req.num_replicas = NUM2UINT(num_replicas);
+        } /* else use backend default */
+        VALUE condition = rb_hash_aref(options, rb_id2sym(rb_intern("condition")));
+        if (!NIL_P(condition)) {
+            req.condition.emplace(std::string(RSTRING_PTR(condition), static_cast<std::size_t>(RSTRING_LEN(condition))));
+        } /* else use backend default */
+    }
+
+    auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_create_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(
+      req, [barrier](couchbase::operations::query_index_create_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        if (!resp.errors.empty()) {
+            const auto& first_error = resp.errors.front();
+            cb_raise_error_code(resp.ec,
+                                fmt::format(R"(unable to create index "{}" on the bucket "{}" ({}: {}))",
+                                            req.index_name,
+                                            req.bucket_name,
+                                            first_error.code,
+                                            first_error.message));
+        } else {
+            cb_raise_error_code(resp.ec, fmt::format(R"(unable to create index "{}" on the bucket "{}")", req.index_name, req.bucket_name));
+        }
+    }
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+    if (!resp.errors.empty()) {
+        VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
+        for (const auto& err : resp.errors) {
+            VALUE error = rb_hash_new();
+            rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
+            rb_hash_aset(error, rb_id2sym(rb_intern("message")), rb_str_new(err.message.data(), static_cast<long>(err.message.size())));
+            rb_ary_push(errors, error);
+        }
+        rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
+    }
+    return res;
+}
+
+static VALUE
+cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(index_name, T_STRING);
+
+    couchbase::operations::query_index_drop_request req{};
+    req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+        VALUE ignore_if_does_not_exist = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_does_not_exist")));
+        if (ignore_if_does_not_exist == Qtrue) {
+            req.ignore_if_does_not_exist = true;
+        } else if (ignore_if_does_not_exist == Qfalse) {
+            req.ignore_if_does_not_exist = false;
+        } /* else use backend default */
+    }
+
+    auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_drop_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req,
+                                   [barrier](couchbase::operations::query_index_drop_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        if (!resp.errors.empty()) {
+            const auto& first_error = resp.errors.front();
+            cb_raise_error_code(resp.ec,
+                                fmt::format(R"(unable to drop index "{}" on the bucket "{}" ({}: {}))",
+                                            req.index_name,
+                                            req.bucket_name,
+                                            first_error.code,
+                                            first_error.message));
+        } else {
+            cb_raise_error_code(resp.ec, fmt::format(R"(unable to drop index "{}" on the bucket "{}")", req.index_name, req.bucket_name));
+        }
+    }
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+    if (!resp.errors.empty()) {
+        VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
+        for (const auto& err : resp.errors) {
+            VALUE error = rb_hash_new();
+            rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
+            rb_hash_aset(error, rb_id2sym(rb_intern("message")), rb_str_new(err.message.data(), static_cast<long>(err.message.size())));
+            rb_ary_push(errors, error);
+        }
+        rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
+    }
+    return res;
+}
+
+static VALUE
+cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    couchbase::operations::query_index_create_request req{};
+    req.is_primary = true;
+    req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+        VALUE ignore_if_exists = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_exists")));
+        if (ignore_if_exists == Qtrue) {
+            req.ignore_if_exists = true;
+        } else if (ignore_if_exists == Qfalse) {
+            req.ignore_if_exists = false;
+        } /* else use backend default */
+        VALUE deferred = rb_hash_aref(options, rb_id2sym(rb_intern("deferred")));
+        if (deferred == Qtrue) {
+            req.deferred = true;
+        } else if (deferred == Qfalse) {
+            req.deferred = false;
+        } /* else use backend default */
+        VALUE num_replicas = rb_hash_aref(options, rb_id2sym(rb_intern("num_replicas")));
+        if (!NIL_P(num_replicas)) {
+            req.num_replicas = NUM2UINT(num_replicas);
+        } /* else use backend default */
+        VALUE index_name = rb_hash_aref(options, rb_id2sym(rb_intern("index_name")));
+        if (!NIL_P(index_name)) {
+            req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        } /* else use backend default */
+    }
+
+    auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_create_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(
+      req, [barrier](couchbase::operations::query_index_create_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        if (!resp.errors.empty()) {
+            const auto& first_error = resp.errors.front();
+            cb_raise_error_code(
+              resp.ec,
+              fmt::format(
+                R"(unable to create primary index on the bucket "{}" ({}: {}))", req.bucket_name, first_error.code, first_error.message));
+        } else {
+            cb_raise_error_code(resp.ec,
+                                fmt::format(R"(unable to create primary index on the bucket "{}")", req.index_name, req.bucket_name));
+        }
+    }
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+    if (!resp.errors.empty()) {
+        VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
+        for (const auto& err : resp.errors) {
+            VALUE error = rb_hash_new();
+            rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
+            rb_hash_aset(error, rb_id2sym(rb_intern("message")), rb_str_new(err.message.data(), static_cast<long>(err.message.size())));
+            rb_ary_push(errors, error);
+        }
+        rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
+    }
+    return res;
+}
+
+static VALUE
+cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+
+    couchbase::operations::query_index_drop_request req{};
+    req.is_primary = true;
+    req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+        VALUE ignore_if_does_not_exist = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_does_not_exist")));
+        if (ignore_if_does_not_exist == Qtrue) {
+            req.ignore_if_does_not_exist = true;
+        } else if (ignore_if_does_not_exist == Qfalse) {
+            req.ignore_if_does_not_exist = false;
+        } /* else use backend default */
+        VALUE index_name = rb_hash_aref(options, rb_id2sym(rb_intern("index_name")));
+        if (!NIL_P(index_name)) {
+            Check_Type(options, T_STRING);
+            req.is_primary = false;
+            req.bucket_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        }
+    }
+
+    auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_drop_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req,
+                                   [barrier](couchbase::operations::query_index_drop_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        if (!resp.errors.empty()) {
+            const auto& first_error = resp.errors.front();
+            cb_raise_error_code(
+              resp.ec,
+              fmt::format(
+                R"(unable to drop primary index on the bucket "{}" ({}: {}))", req.bucket_name, first_error.code, first_error.message));
+        } else {
+            cb_raise_error_code(resp.ec, fmt::format(R"(unable to drop primary index on the bucket "{}")", req.bucket_name));
+        }
+    }
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+    if (!resp.errors.empty()) {
+        VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
+        for (const auto& err : resp.errors) {
+            VALUE error = rb_hash_new();
+            rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
+            rb_hash_aset(error, rb_id2sym(rb_intern("message")), rb_str_new(err.message.data(), static_cast<long>(err.message.size())));
+            rb_ary_push(errors, error);
+        }
+        rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
+    }
+    return res;
+}
+
+static VALUE
+cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    couchbase::operations::query_index_build_deferred_request req{};
+    req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_build_deferred_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(
+      req, [barrier](couchbase::operations::query_index_build_deferred_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        if (!resp.errors.empty()) {
+            const auto& first_error = resp.errors.front();
+            cb_raise_error_code(
+              resp.ec,
+              fmt::format(
+                R"(unable to drop primary index on the bucket "{}" ({}: {}))", req.bucket_name, first_error.code, first_error.message));
+
+        } else {
+            cb_raise_error_code(resp.ec,
+                                fmt::format("unable to trigger build for deferred indexes for the bucket \"{}\"", req.bucket_name));
+        }
+    }
+    return Qtrue;
+}
+
+static VALUE
+cb_Backend_query_index_watch(VALUE self, VALUE bucket_name, VALUE index_names, VALUE timeout, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(index_names, T_ARRAY);
+    Check_Type(timeout, T_FIXNUM);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    return Qtrue;
+}
+
 static void
 init_backend(VALUE mCouchbase)
 {
@@ -1716,6 +2106,14 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "scope_drop", VALUE_FUNC(cb_Backend_scope_drop), 2);
     rb_define_method(cBackend, "collection_create", VALUE_FUNC(cb_Backend_collection_create), 4);
     rb_define_method(cBackend, "collection_drop", VALUE_FUNC(cb_Backend_collection_drop), 3);
+
+    rb_define_method(cBackend, "query_index_get_all", VALUE_FUNC(cb_Backend_query_index_get_all), 1);
+    rb_define_method(cBackend, "query_index_create", VALUE_FUNC(cb_Backend_query_index_create), 4);
+    rb_define_method(cBackend, "query_index_create_primary", VALUE_FUNC(cb_Backend_query_index_create_primary), 2);
+    rb_define_method(cBackend, "query_index_drop", VALUE_FUNC(cb_Backend_query_index_drop), 3);
+    rb_define_method(cBackend, "query_index_drop_primary", VALUE_FUNC(cb_Backend_query_index_drop_primary), 2);
+    rb_define_method(cBackend, "query_index_build_deferred", VALUE_FUNC(cb_Backend_query_index_build_deferred), 2);
+    rb_define_method(cBackend, "query_index_watch", VALUE_FUNC(cb_Backend_query_index_watch), 4);
 }
 
 extern "C" {

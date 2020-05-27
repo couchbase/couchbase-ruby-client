@@ -47,7 +47,16 @@ p Couchbase::VERSION
 
     run_script(R"(
 B = Couchbase::Backend.new
-B.open("localhost", "Administrator", "password")
+B.open("192.168.42.101", "Administrator", "password")
+)");
+
+    run_script(R"(
+# p B.query_index_drop("travel-sample", "def_airportname", {})
+# p B.query_index_drop_primary("travel-sample", {})
+p B.query_index_get_all("travel-sample")
+p B.query_index_build_deferred("travel-sample", {})
+p B.query_index_get_all("travel-sample")
+# p B.query_index_create_primary("travel-sample", {deferred: true, ignore_if_exists: true})
 )");
 
     run_script(R"(

@@ -53,7 +53,6 @@ struct query_response_payload {
 
     query_meta_data meta_data{};
     std::vector<std::string> rows{};
-    std::string body;
 };
 } // namespace couchbase::operations
 
@@ -125,9 +124,9 @@ struct traits<couchbase::operations::query_response_payload> {
     }
 };
 } // namespace tao::json
+
 namespace couchbase::operations
 {
-
 struct query_response {
     uuid::uuid_t client_context_id;
     std::error_code ec;

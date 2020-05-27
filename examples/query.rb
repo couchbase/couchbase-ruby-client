@@ -1,5 +1,4 @@
 require 'couchbase'
-require 'byebug'
 
 include Couchbase
 

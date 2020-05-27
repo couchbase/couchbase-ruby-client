@@ -2,6 +2,7 @@
   <dictionary name="couchbase_terms">
     <words>
       <w>dataverse</w>
+      <w>keyspace</w>
       <w>opcode</w>
       <w>subdoc</w>
       <w>upsert</w>
