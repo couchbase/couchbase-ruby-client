@@ -21,6 +21,8 @@
 #include <arpa/inet.h>
 #endif
 
+#include <snappy.h>
+
 #include <gsl/gsl_util>
 #include <protocol/client_opcode.hxx>
 #include <protocol/magic.hxx>
@@ -77,14 +79,23 @@ class client_request
         return body_;
     }
 
-    std::vector<std::uint8_t>& data()
+    std::vector<std::uint8_t>& data(bool try_to_compress = false)
     {
-        write_payload();
+        switch (opcode_) {
+            case protocol::client_opcode::insert:
+            case protocol::client_opcode::upsert:
+            case protocol::client_opcode::replace:
+                write_payload(try_to_compress);
+                break;
+            default:
+                write_payload(false);
+                break;
+        }
         return payload_;
     }
 
   private:
-    void write_payload()
+    void write_payload(bool try_to_compress)
     {
         payload_.resize(header_size + body_.size(), 0);
         payload_[0] = static_cast<uint8_t>(magic_);
@@ -107,6 +118,23 @@ class client_request
         auto body_itr = payload_.begin() + header_size;
         body_itr = std::copy(body_.extension().begin(), body_.extension().end(), body_itr);
         body_itr = std::copy(body_.key().begin(), body_.key().end(), body_itr);
+
+        static const std::size_t min_size_to_compress = 32;
+        static const double min_ratio = 0.83;
+        if (try_to_compress && body_.value().size() > min_size_to_compress) {
+            std::string compressed;
+            std::size_t compressed_size =
+              snappy::Compress(reinterpret_cast<const char*>(body_.value().data()), body_.value().size(), &compressed);
+            if (gsl::narrow_cast<double>(compressed_size) / gsl::narrow_cast<double>(body().value().size()) < min_ratio) {
+                std::copy(compressed.begin(), compressed.end(), body_itr);
+                payload_[5] |= static_cast<uint8_t>(protocol::datatype::snappy);
+                size_t new_body_size = body_.size() - (body_.value().size() - compressed_size);
+                body_size = htonl(gsl::narrow_cast<uint32_t>(new_body_size));
+                memcpy(payload_.data() + 8, &body_size, sizeof(body_size));
+                payload_.resize(header_size + new_body_size);
+                return;
+            }
+        }
         std::copy(body_.value().begin(), body_.value().end(), body_itr);
     }
 };

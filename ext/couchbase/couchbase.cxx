@@ -23,6 +23,8 @@
 
 #include <http_parser.h>
 
+#include <snappy.h>
+
 #include <version.hxx>
 #include <cluster.hxx>
 #include <operations.hxx>
@@ -69,6 +71,8 @@ init_versions(VALUE mCouchbase)
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("spdlog")), rb_str_freeze(rb_str_new(ver.c_str(), static_cast<long>(ver.size()))));
     ver = fmt::format("{}.{}.{}", VERSION_SPLIT_(ASIO_VERSION));
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("asio")), rb_str_freeze(rb_str_new(ver.c_str(), static_cast<long>(ver.size()))));
+    ver = fmt::format("{}.{}.{}", SNAPPY_MAJOR, SNAPPY_MINOR, SNAPPY_PATCHLEVEL);
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("snappy")), rb_str_freeze(rb_str_new(ver.c_str(), static_cast<long>(ver.size()))));
     ver = fmt::format("{}.{}.{}", HTTP_PARSER_VERSION_MAJOR, HTTP_PARSER_VERSION_MINOR, HTTP_PARSER_VERSION_PATCH);
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("http_parser")), rb_str_freeze(rb_str_new(ver.c_str(), static_cast<long>(ver.size()))));
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_headers")), rb_str_freeze(rb_str_new_cstr(OPENSSL_VERSION_TEXT)));

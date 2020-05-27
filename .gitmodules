@@ -13,3 +13,6 @@
 [submodule "ext/third_party/asio"]
 	path = ext/third_party/asio
 	url = git://github.com/chriskohlhoff/asio.git
+[submodule "ext/third_party/snappy"]
+	path = ext/third_party/snappy
+	url = git://github.com/google/snappy.git

@@ -55,6 +55,15 @@ p B.upsert("default", "_default._default", "baz", '{"bar":42}')
 )");
 
     run_script(R"(
+p B.get("default", "_default._default", "foo")
+p B.upsert("default", "_default._default", "foo", "{\"bar\":\"#{'x'*1000}\"}")
+)");
+
+    run_script(R"(
+p B.get("default", "_default._default", "foo")
+)");
+
+    run_script(R"(
 B.close
 )");
 

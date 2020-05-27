@@ -42,14 +42,14 @@ struct command : public std::enable_shared_from_this<command<Request>> {
     {
         request.opaque = session->next_opaque();
         request.encode_to(encoded);
-        session->write_and_subscribe(request.opaque,
-                                     encoded.data(),
-                                     [self = this->shared_from_this(),
-                                      handler = std::forward<Handler>(handler)](std::error_code ec, io::mcbp_message&& msg) mutable {
-                                         encoded_response_type resp(msg);
-                                         self->deadline.cancel();
-                                         handler(make_response(ec, self->request, resp));
-                                     });
+        session->write_and_subscribe(
+          request.opaque,
+          encoded.data(session->supports_feature(protocol::hello_feature::snappy)),
+          [self = this->shared_from_this(), handler = std::forward<Handler>(handler)](std::error_code ec, io::mcbp_message&& msg) mutable {
+              encoded_response_type resp(msg);
+              self->deadline.cancel();
+              handler(make_response(ec, self->request, resp));
+          });
         deadline.expires_after(std::chrono::milliseconds(2500));
         deadline.async_wait(std::bind(&command<Request>::deadline_handler, this));
     }
