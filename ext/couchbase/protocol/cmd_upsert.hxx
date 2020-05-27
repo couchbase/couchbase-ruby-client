@@ -75,7 +75,7 @@ class upsert_request_body
 
   private:
     std::string key_{};
-    std::vector<std::uint8_t> ext_{};
+    std::vector<std::uint8_t> extras_{};
     std::vector<std::uint8_t> content_{};
     std::uint32_t flags_{};
     std::uint32_t expiration_{};
@@ -135,12 +135,12 @@ class upsert_request_body
         return framing_extras_;
     }
 
-    const std::vector<std::uint8_t>& extension()
+    const std::vector<std::uint8_t>& extras()
     {
-        if (ext_.empty()) {
+        if (extras_.empty()) {
             fill_extention();
         }
-        return ext_;
+        return extras_;
     }
 
     const std::vector<std::uint8_t>& value()
@@ -150,22 +150,22 @@ class upsert_request_body
 
     std::size_t size()
     {
-        if (ext_.empty()) {
+        if (extras_.empty()) {
             fill_extention();
         }
-        return framing_extras_.size() + ext_.size() + key_.size() + content_.size();
+        return framing_extras_.size() + extras_.size() + key_.size() + content_.size();
     }
 
   private:
     void fill_extention()
     {
-        ext_.resize(sizeof(flags_) + sizeof(expiration_));
+        extras_.resize(sizeof(flags_) + sizeof(expiration_));
 
         uint32_t field = htonl(flags_);
-        memcpy(ext_.data(), &field, sizeof(field));
+        memcpy(extras_.data(), &field, sizeof(field));
 
         field = htonl(expiration_);
-        memcpy(ext_.data() + sizeof(flags_), &field, sizeof(field));
+        memcpy(extras_.data() + sizeof(flags_), &field, sizeof(field));
     }
 };
 

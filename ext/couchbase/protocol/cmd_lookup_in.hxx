@@ -117,7 +117,7 @@ class lookup_in_request_body
 
   private:
     std::string key_;
-    std::vector<std::uint8_t> ext_{};
+    std::vector<std::uint8_t> extras_{};
     std::vector<std::uint8_t> value_{};
 
     std::uint8_t flags_{ 0 };
@@ -158,12 +158,12 @@ class lookup_in_request_body
         return empty;
     }
 
-    const std::vector<std::uint8_t>& extension()
+    const std::vector<std::uint8_t>& extras()
     {
-        if (ext_.empty()) {
+        if (extras_.empty()) {
             fill_extention();
         }
-        return ext_;
+        return extras_;
     }
 
     const std::vector<std::uint8_t>& value()
@@ -176,21 +176,21 @@ class lookup_in_request_body
 
     std::size_t size()
     {
-        if (ext_.empty()) {
+        if (extras_.empty()) {
             fill_extention();
         }
         if (value_.empty()) {
             fill_value();
         }
-        return key_.size() + ext_.size() + value_.size();
+        return key_.size() + extras_.size() + value_.size();
     }
 
   private:
     void fill_extention()
     {
         if (flags_ != 0) {
-            ext_.resize(sizeof(flags_));
-            ext_[0] = flags_;
+            extras_.resize(sizeof(flags_));
+            extras_[0] = flags_;
         }
     }
 

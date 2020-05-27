@@ -79,7 +79,7 @@ class sasl_list_mechs_request_body
         return empty;
     }
 
-    const std::vector<std::uint8_t>& extension()
+    const std::vector<std::uint8_t>& extras()
     {
         static std::vector<std::uint8_t> empty;
         return empty;

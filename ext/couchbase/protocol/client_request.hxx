@@ -113,7 +113,7 @@ class client_request
             payload_[3] = gsl::narrow_cast<std::uint8_t>(key_size);
         }
 
-        uint8_t ext_size = gsl::narrow_cast<uint8_t>(body_.extension().size());
+        uint8_t ext_size = gsl::narrow_cast<uint8_t>(body_.extras().size());
         memcpy(payload_.data() + 4, &ext_size, sizeof(ext_size));
 
         uint16_t vbucket = ntohs(gsl::narrow_cast<uint16_t>(partition_));
@@ -128,7 +128,7 @@ class client_request
         if (framing_extras.size() > 0) {
             body_itr = std::copy(framing_extras.begin(), framing_extras.end(), body_itr);
         }
-        body_itr = std::copy(body_.extension().begin(), body_.extension().end(), body_itr);
+        body_itr = std::copy(body_.extras().begin(), body_.extras().end(), body_itr);
         body_itr = std::copy(body_.key().begin(), body_.key().end(), body_itr);
 
         static const std::size_t min_size_to_compress = 32;
