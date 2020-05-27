@@ -63,8 +63,8 @@ struct mcbp_parser {
         if (is_compressed) {
             std::string uncompressed;
             size_t offset = header_size + prefix_size;
-            bool ok = snappy::Uncompress(reinterpret_cast<const char*>(buf.data() + offset), body_size - prefix_size, &uncompressed);
-            if (ok) {
+            bool success = snappy::Uncompress(reinterpret_cast<const char*>(buf.data() + offset), body_size - prefix_size, &uncompressed);
+            if (success) {
                 std::copy(uncompressed.begin(), uncompressed.end(), std::back_inserter(msg.body));
                 use_raw_value = false;
             }
