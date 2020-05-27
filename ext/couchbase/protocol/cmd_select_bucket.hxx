@@ -25,7 +25,13 @@ class select_bucket_response_body
     static const inline client_opcode opcode = client_opcode::select_bucket;
 
   public:
-    bool parse(protocol::status, const header_buffer& header, const std::vector<uint8_t>&, const cmd_info&)
+    bool parse(protocol::status,
+               const header_buffer& header,
+               std::uint8_t,
+               std::uint16_t,
+               std::uint8_t,
+               const std::vector<uint8_t>&,
+               const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         return false;

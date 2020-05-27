@@ -298,6 +298,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             Expects(protocol::is_valid_magic(msg.header.magic));
             switch (auto magic = static_cast<protocol::magic>(msg.header.magic)) {
                 case protocol::magic::client_response:
+                case protocol::magic::alt_client_response:
                     Expects(protocol::is_valid_client_opcode(msg.header.opcode));
                     switch (auto opcode = static_cast<protocol::client_opcode>(msg.header.opcode)) {
                         case protocol::client_opcode::get_cluster_config: {
@@ -348,9 +349,8 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                     break;
                 case protocol::magic::client_request:
                 case protocol::magic::alt_client_request:
-                case protocol::magic::alt_client_response:
                 case protocol::magic::server_response:
-                    spdlog::trace("unexpected magic: {}, opcode={}, opaque={}{}", magic, msg.header.opcode, msg.header.opaque);
+                    spdlog::trace("unexpected magic: {}, opcode={}, opaque={}", magic, msg.header.opcode, msg.header.opaque);
                     break;
             }
         }

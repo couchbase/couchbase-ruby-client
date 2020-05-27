@@ -42,11 +42,18 @@ class get_collections_manifest_response_body
         return manifest_;
     }
 
-    bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
+    bool parse(protocol::status status,
+               const header_buffer& header,
+               std::uint8_t framing_extras_size,
+               std::uint16_t key_size,
+               std::uint8_t extras_size,
+               const std::vector<uint8_t>& body,
+               const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success) {
-            manifest_ = tao::json::from_string(std::string(body.begin(), body.end())).as<collections_manifest>();
+            std::vector<uint8_t>::difference_type offset = framing_extras_size + key_size + extras_size;
+            manifest_ = tao::json::from_string(std::string(body.begin() + offset, body.end())).as<collections_manifest>();
             return true;
         }
         return false;

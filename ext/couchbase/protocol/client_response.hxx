@@ -39,14 +39,16 @@ template<typename Body>
 class client_response
 {
   private:
-    static const inline magic magic_ = magic::client_response;
-
     Body body_;
+    magic magic_;
     client_opcode opcode_{ client_opcode::invalid };
     header_buffer header_;
     uint8_t data_type_;
     std::vector<std::uint8_t> data_;
-    std::size_t body_size_;
+    std::uint16_t key_size_{ 0 };
+    std::uint8_t framing_extras_size_{ 0 };
+    std::uint8_t extras_size_{ 0 };
+    std::size_t body_size_{ 0 };
     protocol::status status_;
     std::optional<enhanced_error> error_;
     std::uint32_t opaque_;
@@ -58,8 +60,8 @@ class client_response
     explicit client_response(io::mcbp_message& msg)
     {
         std::memcpy(header_.data(), &msg.header, sizeof(msg.header));
-        verify_header();
         data_ = std::move(msg.body);
+        verify_header();
         parse_body();
     }
 
@@ -105,8 +107,10 @@ class client_response
 
     void verify_header()
     {
-        Expects(header_[0] == static_cast<std::uint8_t>(magic_));
+        Expects(header_[0] == static_cast<std::uint8_t>(magic::alt_client_response) ||
+                header_[0] == static_cast<std::uint8_t>(magic::client_response));
         Expects(header_[1] == static_cast<std::uint8_t>(Body::opcode));
+        magic_ = static_cast<magic>(header_[0]);
         opcode_ = static_cast<client_opcode>(header_[1]);
         data_type_ = header_[5];
 
@@ -115,6 +119,15 @@ class client_response
         status = ntohs(status);
         Expects(protocol::is_valid_status(status));
         status_ = static_cast<protocol::status>(status);
+
+        extras_size_ = header_[4];
+        if (magic_ == magic::alt_client_response) {
+            framing_extras_size_ = header_[2];
+            key_size_ = header_[3];
+        } else {
+            memcpy(&key_size_, header_.data() + 2, sizeof(key_size_));
+            key_size_ = ntohs(key_size_);
+        }
 
         uint32_t field = 0;
         memcpy(&field, header_.data() + 8, sizeof(field));
@@ -136,9 +149,9 @@ class client_response
 
     void parse_body()
     {
-        bool parsed = body_.parse(status_, header_, data_, info_);
+        bool parsed = body_.parse(status_, header_, framing_extras_size_, key_size_, extras_size_, data_, info_);
         if (status_ != protocol::status::success && !parsed && has_json_datatype(data_type_)) {
-            auto error = tao::json::from_string(std::string(data_.begin(), data_.end()));
+            auto error = tao::json::from_string(std::string(data_.begin() + framing_extras_size_ + extras_size_ + key_size_, data_.end()));
             if (error.is_object()) {
                 auto& err_obj = error["error"];
                 if (err_obj.is_object()) {

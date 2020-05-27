@@ -61,11 +61,18 @@ class get_cluster_config_response_body
         return config_;
     }
 
-    bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info& info)
+    bool parse(protocol::status status,
+               const header_buffer& header,
+               std::uint8_t framing_extras_size,
+               std::uint16_t key_size,
+               std::uint8_t extras_size,
+               const std::vector<uint8_t>& body,
+               const cmd_info& info)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success) {
-            config_ = tao::json::from_string<deduplicate_keys>(std::string(body.begin(), body.end())).as<configuration>();
+            std::vector<uint8_t>::difference_type offset = framing_extras_size + key_size + extras_size;
+            config_ = tao::json::from_string<deduplicate_keys>(std::string(body.begin() + offset, body.end())).as<configuration>();
             for (auto& node : config_.nodes) {
                 if (node.this_node && node.hostname.empty()) {
                     node.hostname = info.remote_endpoint.address().to_string();

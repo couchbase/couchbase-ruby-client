@@ -36,16 +36,25 @@ class hello_response_body
         return supported_features_;
     }
 
-    bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
+    bool parse(protocol::status status,
+               const header_buffer& header,
+               std::uint8_t framing_extras_size,
+               std::uint16_t key_size,
+               std::uint8_t extras_size,
+               const std::vector<uint8_t>& body,
+               const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success) {
-            Expects(body.size() % 2 == 0);
-            size_t num_features = body.size() / 2;
+            std::vector<uint8_t>::difference_type offset = framing_extras_size + key_size + extras_size;
+            size_t value_size = body.size() - static_cast<std::size_t>(offset);
+            Expects(value_size % 2 == 0);
+            size_t num_features = value_size / 2;
             supported_features_.reserve(num_features);
+            const auto* value = body.data() + offset;
             for (size_t i = 0; i < num_features; i++) {
                 std::uint16_t field = 0;
-                std::memcpy(&field, body.data() + i * 2, sizeof(std::uint16_t));
+                std::memcpy(&field, value + i * 2, sizeof(std::uint16_t));
                 field = ntohs(field);
                 if (is_valid_hello_feature(field)) {
                     supported_features_.push_back(static_cast<hello_feature>(field));
@@ -66,7 +75,6 @@ class hello_request_body
   private:
     std::string key_;
     std::vector<hello_feature> features_{
-        hello_feature::tls,
         hello_feature::tcp_nodelay,
         hello_feature::mutation_seqno,
         hello_feature::xattr,
@@ -77,8 +85,9 @@ class hello_request_body
         hello_feature::duplex,
         hello_feature::clustermap_change_notification,
         hello_feature::unordered_execution,
-        // hello_feature::alt_request_support,
-        // hello_feature::sync_replication,
+        hello_feature::alt_request_support,
+        hello_feature::tracing,
+        hello_feature::sync_replication,
         hello_feature::vattr,
         hello_feature::collections,
     };

@@ -38,13 +38,18 @@ class remove_response_body
         return token_;
     }
 
-    bool parse(protocol::status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
+    bool parse(protocol::status,
+               const header_buffer& header,
+               std::uint8_t framing_extras_size,
+               std::uint16_t,
+               std::uint8_t extras_size,
+               const std::vector<uint8_t>& body,
+               const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         using offset_type = std::vector<uint8_t>::difference_type;
-        uint8_t ext_size = header[4];
-        offset_type offset = 0;
-        if (ext_size == 16) {
+        offset_type offset = framing_extras_size;
+        if (extras_size == 16) {
             memcpy(&token_.partition_uuid, body.data() + offset, sizeof(token_.partition_uuid));
             token_.partition_uuid = utils::byte_swap_64(token_.partition_uuid);
             offset += 8;

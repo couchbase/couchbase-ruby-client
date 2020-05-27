@@ -30,11 +30,17 @@ class sasl_step_response_body
     std::string value_;
 
   public:
-    bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
+    bool parse(protocol::status status,
+               const header_buffer& header,
+               std::uint8_t framing_extras_size,
+               std::uint16_t key_size,
+               std::uint8_t extras_size,
+               const std::vector<uint8_t>& body,
+               const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success) {
-            value_ = { body.begin(), body.end() };
+            value_ = { body.begin() + framing_extras_size + extras_size + key_size, body.end() };
             return true;
         }
         return false;

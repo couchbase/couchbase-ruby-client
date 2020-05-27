@@ -44,13 +44,18 @@ class lookup_in_response_body
         return fields_;
     }
 
-    bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
+    bool parse(protocol::status status,
+               const header_buffer& header,
+               std::uint8_t framing_extras_size,
+               std::uint16_t key_size,
+               std::uint8_t extras_size,
+               const std::vector<uint8_t>& body,
+               const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success || status == protocol::status::subdoc_multi_path_failure) {
             using offset_type = std::vector<uint8_t>::difference_type;
-            uint8_t ext_size = header[4];
-            offset_type offset = ext_size;
+            offset_type offset = framing_extras_size + key_size + extras_size;
             fields_.reserve(16); /* we won't have more than 16 entries anyway */
             while (static_cast<std::size_t>(offset) < body.size()) {
                 lookup_in_field field;

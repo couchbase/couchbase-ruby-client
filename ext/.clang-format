@@ -8,7 +8,7 @@ UseTab: Never
 IndentWidth: 4
 ColumnLimit: 140
 AllowShortFunctionsOnASingleLine: None
-AllowShortBlocksOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty
 AllowShortCaseLabelsOnASingleLine: false
 BreakBeforeBraces: Linux
 SortIncludes: false

@@ -19,6 +19,7 @@
 
 #include <protocol/status.hxx>
 #include <protocol/client_opcode.hxx>
+#include <protocol/frame_info_id.hxx>
 #include <protocol/unsigned_leb128.h>
 #include <mutation_token.hxx>
 #include <utils/byteswap.hxx>
@@ -40,13 +41,18 @@ class upsert_response_body
         return token_;
     }
 
-    bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
+    bool parse(protocol::status status,
+               const header_buffer& header,
+               std::uint8_t framing_extras_size,
+               std::uint16_t,
+               std::uint8_t extras_size,
+               const std::vector<uint8_t>& body,
+               const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success) {
-            std::vector<uint8_t>::difference_type offset = 0;
-            uint8_t ext_size = header[4];
-            if (ext_size == 16) {
+            std::vector<uint8_t>::difference_type offset = framing_extras_size;
+            if (extras_size == 16) {
                 memcpy(&token_.partition_uuid, body.data() + offset, sizeof(token_.partition_uuid));
                 token_.partition_uuid = utils::byte_swap_64(token_.partition_uuid);
                 offset += 8;

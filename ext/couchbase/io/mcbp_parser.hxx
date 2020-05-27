@@ -56,6 +56,11 @@ struct mcbp_parser {
         msg.body.clear();
         msg.body.reserve(body_size);
         uint32_t prefix_size = msg.header.extlen + ntohs(msg.header.keylen);
+        if (msg.header.magic == static_cast<uint8_t>(protocol::magic::alt_client_response)) {
+            uint8_t framing_extras_size = msg.header.keylen & 0xfU;
+            uint8_t key_size = (msg.header.keylen & 0xf0U) >> 1U;
+            prefix_size = uint32_t(framing_extras_size) + uint32_t(msg.header.extlen) + uint32_t(key_size);
+        }
         std::copy(buf.begin() + header_size, buf.begin() + header_size + prefix_size, std::back_inserter(msg.body));
 
         bool is_compressed = (msg.header.datatype & static_cast<uint8_t>(protocol::datatype::snappy)) != 0;
@@ -70,8 +75,7 @@ struct mcbp_parser {
             }
         }
         if (use_raw_value) {
-            std::copy(
-              buf.begin() + header_size + prefix_size, buf.begin() + header_size + body_size, std::back_inserter(msg.body));
+            std::copy(buf.begin() + header_size + prefix_size, buf.begin() + header_size + body_size, std::back_inserter(msg.body));
         }
         buf.erase(buf.begin(), buf.begin() + header_size + body_size);
         if (!protocol::is_valid_magic(buf[0])) {

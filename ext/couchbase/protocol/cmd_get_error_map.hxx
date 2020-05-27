@@ -42,12 +42,19 @@ class get_error_map_response_body
         return errmap_;
     }
 
-    bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
+    bool parse(protocol::status status,
+               const header_buffer& header,
+               std::uint8_t framing_extras_size,
+               std::uint16_t key_size,
+               std::uint8_t extras_size,
+               const std::vector<uint8_t>& body,
+               const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success) {
             try {
-                errmap_ = tao::json::from_string(std::string(body.begin(), body.end())).as<error_map>();
+                std::vector<uint8_t>::difference_type offset = framing_extras_size + key_size + extras_size;
+                errmap_ = tao::json::from_string(std::string(body.begin() + offset, body.end())).as<error_map>();
             } catch (tao::json::pegtl::parse_error& e) {
                 spdlog::critical("unable to parse JSON: {}", std::string(body.begin(), body.end()));
             }

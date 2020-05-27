@@ -40,17 +40,25 @@ class get_response_body
         return value_;
     }
 
-    bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
+    bool parse(protocol::status status,
+               const header_buffer& header,
+               std::uint8_t framing_extras_size,
+               std::uint16_t key_size,
+               std::uint8_t extras_size,
+               const std::vector<uint8_t>& body,
+               const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success) {
-            std::vector<uint8_t>::difference_type offset = 0;
-            uint8_t ext_size = header[4];
-            if (ext_size == 4) {
-                memcpy(&flags_, body.data(), sizeof(flags_));
+            std::vector<uint8_t>::difference_type offset = framing_extras_size;
+            if (extras_size == 4) {
+                memcpy(&flags_, body.data() + offset, sizeof(flags_));
                 flags_ = ntohl(flags_);
                 offset += 4;
+            } else {
+                offset += extras_size;
             }
+            offset += key_size;
             value_.assign(body.begin() + offset, body.end());
             return true;
         }

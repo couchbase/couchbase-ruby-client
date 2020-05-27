@@ -36,12 +36,18 @@ class sasl_list_mechs_response_body
         return supported_mechs_;
     }
 
-    bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
+    bool parse(protocol::status status,
+               const header_buffer& header,
+               std::uint8_t framing_extras_size,
+               std::uint16_t key_size,
+               std::uint8_t extras_size,
+               const std::vector<uint8_t>& body,
+               const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success) {
             auto previous = body.begin();
-            auto current = std::find(body.begin(), body.end(), ' ');
+            auto current = std::find(body.begin() + framing_extras_size + extras_size + key_size, body.end(), ' ');
             while (current != body.end()) {
                 supported_mechs_.emplace_back(previous, current);
                 previous = current + 1;

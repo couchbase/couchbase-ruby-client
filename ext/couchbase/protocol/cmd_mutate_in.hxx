@@ -51,23 +51,30 @@ class mutate_in_response_body
         return token_;
     }
 
-    bool parse(protocol::status status, const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
+    bool parse(protocol::status status,
+               const header_buffer& header,
+               std::uint8_t framing_extras_size,
+               std::uint16_t key_size,
+               std::uint8_t extras_size,
+               const std::vector<uint8_t>& body,
+               const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success || status == protocol::status::subdoc_multi_path_failure) {
             using offset_type = std::vector<uint8_t>::difference_type;
-            uint8_t ext_size = header[4];
-            offset_type offset = 0;
-            if (ext_size == 16) {
+            offset_type offset = framing_extras_size;
+            if (extras_size == 16) {
                 memcpy(&token_.partition_uuid, body.data() + offset, sizeof(token_.partition_uuid));
                 token_.partition_uuid = utils::byte_swap_64(token_.partition_uuid);
                 offset += 8;
 
                 memcpy(&token_.sequence_number, body.data() + offset, sizeof(token_.sequence_number));
                 token_.sequence_number = utils::byte_swap_64(token_.sequence_number);
+                offset += 8;
             } else {
-                offset += ext_size;
+                offset += extras_size;
             }
+            offset += key_size;
             fields_.reserve(16); /* we won't have more than 16 entries anyway */
             while (static_cast<std::size_t>(offset) < body.size()) {
                 mutate_in_field field;
