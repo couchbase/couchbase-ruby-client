@@ -26,6 +26,7 @@
 #include <protocol/status.hxx>
 #include <protocol/datatype.hxx>
 #include <protocol/cmd_info.hxx>
+#include <protocol/frame_info_id.hxx>
 
 namespace couchbase::protocol
 {
@@ -40,20 +41,20 @@ class client_response
 {
   private:
     Body body_;
-    magic magic_;
+    magic magic_{ magic::client_response };
     client_opcode opcode_{ client_opcode::invalid };
-    header_buffer header_;
-    uint8_t data_type_;
-    std::vector<std::uint8_t> data_;
+    header_buffer header_{};
+    uint8_t data_type_{ 0 };
+    std::vector<std::uint8_t> data_{};
     std::uint16_t key_size_{ 0 };
     std::uint8_t framing_extras_size_{ 0 };
     std::uint8_t extras_size_{ 0 };
     std::size_t body_size_{ 0 };
-    protocol::status status_;
+    protocol::status status_{};
     std::optional<enhanced_error> error_;
-    std::uint32_t opaque_;
-    std::uint64_t cas_;
-    cmd_info info_;
+    std::uint32_t opaque_{};
+    std::uint64_t cas_{};
+    cmd_info info_{};
 
   public:
     client_response() = default;
@@ -149,6 +150,7 @@ class client_response
 
     void parse_body()
     {
+        parse_framing_extras();
         bool parsed = body_.parse(status_, header_, framing_extras_size_, key_size_, extras_size_, data_, info_);
         if (status_ != protocol::status::success && !parsed && has_json_datatype(data_type_)) {
             auto error = tao::json::from_string(std::string(data_.begin() + framing_extras_size_ + extras_size_ + key_size_, data_.end()));
@@ -167,6 +169,28 @@ class client_response
                     error_.emplace(err);
                 }
             }
+        }
+    }
+
+    void parse_framing_extras()
+    {
+        if (framing_extras_size_ == 0) {
+            return;
+        }
+        size_t offset = 0;
+        while (offset < framing_extras_size_) {
+            std::uint8_t frame_size = data_[offset] & 0xfU;
+            std::uint8_t frame_id = (static_cast<std::uint32_t>(data_[offset]) >> 4U) & 0xfU;
+            offset++;
+            if (frame_id == static_cast<std::uint8_t>(response_frame_info_id::server_duration)) {
+                if (frame_size == 2 && framing_extras_size_ - offset >= frame_size) {
+                    std::uint16_t encoded_duration{};
+                    std::memcpy(&encoded_duration, data_.data() + offset, sizeof(encoded_duration));
+                    encoded_duration = ntohs(encoded_duration);
+                    info_.server_duration_us = std::pow(encoded_duration, 1.74) / 2;
+                }
+            }
+            offset += frame_size;
         }
     }
 

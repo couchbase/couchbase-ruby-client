@@ -120,6 +120,11 @@ enum class response_frame_info_id : uint8_t {
      *       |0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|0 1 2 3 4 5 6 7|
      *       +---------------+---------------+---------------+
      *      0|  ID:0 | Len:2 |  Server Recv->Send Duration   |
+     *
+     * The duration in micros is encoded as:
+     *
+     *     encoded =  (micros * 2) ^ (1.0 / 1.74)
+     *     decoded =  (encoded ^ 1.74) / 2
      */
     server_duration = 0x00,
 };
