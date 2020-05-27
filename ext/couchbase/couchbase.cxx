@@ -552,7 +552,7 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket)
     auto f = barrier->get_future();
     backend->cluster->open_bucket(name, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
     if (auto ec = f.get()) {
-        cb_raise_error_code(ec, "unable open cluster");
+        cb_raise_error_code(ec, fmt::format("unable open bucket \"{}\"", name));
     }
 
     return Qtrue;
