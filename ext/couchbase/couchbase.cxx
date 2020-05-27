@@ -1607,8 +1607,17 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name)
     Check_Type(bucket_name, T_STRING);
     Check_Type(scope_name, T_STRING);
 
-    // DELETE /pools/default/buckets/{bucket}/collections/{scope_name}
-    return Qtrue;
+    couchbase::operations::scope_drop_request req{};
+    req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
+    auto barrier = std::make_shared<std::promise<couchbase::operations::scope_drop_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req, [barrier](couchbase::operations::scope_drop_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to drop the scope \"{}\" on the bucket \"{}\"", req.scope_name, req.bucket_name));
+    }
+    return ULL2NUM(resp.uid);
 }
 
 static VALUE
@@ -1648,8 +1657,6 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
 static VALUE
 cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name)
 {
-    return Qtrue;
-
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
 
@@ -1661,8 +1668,23 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
     Check_Type(scope_name, T_STRING);
     Check_Type(collection_name, T_STRING);
 
-    // DELETE /pools/default/buckets/{bucket}/collections/{scope_name}/{collection_name}
-    return Qtrue;
+    couchbase::operations::collection_drop_request req{};
+    req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+    req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
+    req.collection_name.assign(RSTRING_PTR(collection_name), static_cast<size_t>(RSTRING_LEN(collection_name)));
+
+    auto barrier = std::make_shared<std::promise<couchbase::operations::collection_drop_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute_http(req,
+                                   [barrier](couchbase::operations::collection_drop_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(
+          resp.ec,
+          fmt::format(
+            R"(unable to drop the collection  "{}.{}" on the bucket "{}")", req.scope_name, req.collection_name, req.bucket_name));
+    }
+    return ULL2NUM(resp.uid);
 }
 
 static void

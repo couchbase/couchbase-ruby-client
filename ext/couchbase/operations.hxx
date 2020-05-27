@@ -35,7 +35,9 @@
 
 #include <operations/scope_get_all.hxx>
 #include <operations/scope_create.hxx>
+#include <operations/scope_drop.hxx>
 #include <operations/collection_create.hxx>
+#include <operations/collection_drop.hxx>
 
 #include <operations/cluster_developer_preview_enable.hxx>
 
