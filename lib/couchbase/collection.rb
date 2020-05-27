@@ -106,7 +106,9 @@ module Couchbase
     #
     # @return [MutationResult]
     def remove(id, options = RemoveOptions.new)
-      resp = @backend.remove(bucket_name, "#{@scope_name}.#{@name}", id)
+      resp = @backend.remove(bucket_name, "#{@scope_name}.#{@name}", id, {
+          durability_level: options.durability_level
+      })
       MutationResult.new do |res|
         res.cas = resp[:cas]
         res.mutation_token = MutationToken.new do |token|
@@ -135,7 +137,9 @@ module Couchbase
     #
     # @return [MutationResult]
     def upsert(id, content, options = UpsertOptions.new)
-      resp = @backend.upsert(bucket_name, "#{@scope_name}.#{@name}", id, JSON.dump(content))
+      resp = @backend.upsert(bucket_name, "#{@scope_name}.#{@name}", id, JSON.dump(content), {
+          durability_level: options.durability_level
+      })
       MutationResult.new do |res|
         res.cas = resp[:cas]
         res.mutation_token = MutationToken.new do |token|
@@ -209,7 +213,9 @@ module Couchbase
       resp = @backend.mutate_in(
           bucket_name, "#{@scope_name}.#{@name}", id, options.access_deleted,
           specs.map { |s| {opcode: s.type, path: s.path, param: s.param,
-                           xattr: s.xattr?, expand_macros: s.expand_macros?, create_parents: s.create_parents?} }
+                           xattr: s.xattr?, expand_macros: s.expand_macros?, create_parents: s.create_parents?} }, {
+              durability_level: options.durability_level
+          }
       )
       MutateInResult.new do |res|
         res.cas = resp[:cas]
@@ -301,7 +307,12 @@ module Couchbase
       # @return [Integer] Specifies a CAS value that will be taken into account on the server side for optimistic concurrency
       attr_accessor :cas
 
+      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
+      attr_accessor :durability_level
+
+      # @yieldparam [RemoveOptions]
       def initialize
+        @durability_level = :none
         yield self if block_given?
       end
     end
@@ -313,7 +324,12 @@ module Couchbase
       # @return [Proc] transcoder used for encoding
       attr_accessor :transcoder
 
+      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
+      attr_accessor :durability_level
+
+      # @yieldparam [InsertOptions]
       def initialize
+        @durability_level = :none
         yield self if block_given?
       end
     end
@@ -325,7 +341,12 @@ module Couchbase
       # @return [Proc] transcoder used for encoding
       attr_accessor :transcoder
 
+      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
+      attr_accessor :durability_level
+
+      # @yieldparam [UpsertOptions]
       def initialize
+        @durability_level = :none
         yield self if block_given?
       end
     end
@@ -340,7 +361,12 @@ module Couchbase
       # @return [Integer] Specifies a CAS value that will be taken into account on the server side for optimistic concurrency
       attr_accessor :cas
 
+      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
+      attr_accessor :durability_level
+
+      # @yieldparam [ReplaceOptions]
       def initialize
+        @durability_level = :none
         yield self if block_given?
       end
     end
@@ -388,7 +414,12 @@ module Couchbase
       # @return [Boolean] For internal use only: allows creating documents in 'tombstone' form
       attr_accessor :create_as_deleted
 
+      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
+      attr_accessor :durability_level
+
+      # @yieldparam [MutateInOptions]
       def initialize
+        @durability_level = :none
         @store_semantics = :replace
         yield self if block_given?
       end

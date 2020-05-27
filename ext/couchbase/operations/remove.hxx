@@ -37,12 +37,17 @@ struct remove_request {
     document_id id;
     uint16_t partition{};
     uint32_t opaque{};
+    protocol::durability_level durability_level{ protocol::durability_level::none };
+    std::optional<std::uint16_t> durability_timeout{};
 
     void encode_to(encoded_request_type& encoded)
     {
         encoded.opaque(opaque);
         encoded.partition(partition);
         encoded.body().id(id);
+        if (durability_level != protocol::durability_level::none) {
+            encoded.body().durability(durability_level, durability_timeout);
+        }
     }
 };
 

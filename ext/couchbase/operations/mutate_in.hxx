@@ -48,6 +48,8 @@ struct mutate_in_request {
     uint32_t opaque{};
     bool access_deleted{ false };
     protocol::mutate_in_request_body::mutate_in_specs specs{};
+    protocol::durability_level durability_level{ protocol::durability_level::none };
+    std::optional<std::uint16_t> durability_timeout{};
 
     void encode_to(encoded_request_type& encoded)
     {
@@ -56,6 +58,9 @@ struct mutate_in_request {
         encoded.body().id(id);
         encoded.body().access_deleted(access_deleted);
         encoded.body().specs(specs);
+        if (durability_level != protocol::durability_level::none) {
+            encoded.body().durability(durability_level, durability_timeout);
+        }
     }
 };
 

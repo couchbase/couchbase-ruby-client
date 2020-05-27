@@ -167,8 +167,7 @@ struct query_request {
     void encode_to(encoded_request_type& encoded)
     {
         encoded.headers["content-type"] = "application/json";
-        tao::json::value body{ { "statement", statement },
-                               { "client_context_id", uuid::to_string(client_context_id) } };
+        tao::json::value body{ { "statement", statement }, { "client_context_id", uuid::to_string(client_context_id) } };
         if (positional_parameters.empty()) {
             for (auto& param : named_parameters) {
                 Expects(param.first.empty() == false);

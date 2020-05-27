@@ -593,7 +593,7 @@ cb_Backend_get(VALUE self, VALUE bucket, VALUE collection, VALUE id)
 }
 
 static VALUE
-cb_Backend_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content)
+cb_Backend_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -612,10 +612,33 @@ cb_Backend_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE co
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
     std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
+    couchbase::operations::upsert_request req{ doc_id, value };
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+        VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
+        if (!NIL_P(durability_level)) {
+            Check_Type(durability_level, T_SYMBOL);
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                rb_raise(rb_eArgError, "Unknown durability level");
+            }
+            VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
+            if (!NIL_P(durability_timeout)) {
+                Check_Type(durability_timeout, T_FIXNUM);
+                req.durability_timeout = FIX2UINT(durability_timeout);
+            }
+        }
+    }
+
     auto barrier = std::make_shared<std::promise<couchbase::operations::upsert_response>>();
     auto f = barrier->get_future();
-    backend->cluster->execute(couchbase::operations::upsert_request{ doc_id, value },
-                              [barrier](couchbase::operations::upsert_response resp) mutable { barrier->set_value(resp); });
+    backend->cluster->execute(req, [barrier](couchbase::operations::upsert_response resp) mutable { barrier->set_value(resp); });
     auto resp = f.get();
     if (resp.ec) {
         cb_raise_error_code(resp.ec, fmt::format("unable to upsert {}", doc_id));
@@ -632,7 +655,7 @@ cb_Backend_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE co
 }
 
 static VALUE
-cb_Backend_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id)
+cb_Backend_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -650,10 +673,33 @@ cb_Backend_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id)
     doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
+    couchbase::operations::remove_request req{ doc_id };
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+        VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
+        if (!NIL_P(durability_level)) {
+            Check_Type(durability_level, T_SYMBOL);
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                rb_raise(rb_eArgError, "Unknown durability level");
+            }
+            VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
+            if (!NIL_P(durability_timeout)) {
+                Check_Type(durability_timeout, T_FIXNUM);
+                req.durability_timeout = FIX2UINT(durability_timeout);
+            }
+        }
+    }
+
     auto barrier = std::make_shared<std::promise<couchbase::operations::remove_response>>();
     auto f = barrier->get_future();
-    backend->cluster->execute(couchbase::operations::remove_request{ doc_id },
-                              [barrier](couchbase::operations::remove_response resp) mutable { barrier->set_value(resp); });
+    backend->cluster->execute(req, [barrier](couchbase::operations::remove_response resp) mutable { barrier->set_value(resp); });
     auto resp = f.get();
     if (resp.ec) {
         cb_raise_error_code(resp.ec, fmt::format("unable to remove {}", doc_id));
@@ -849,7 +895,7 @@ cb_Backend_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE
 }
 
 static VALUE
-cb_Backend_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE access_deleted, VALUE specs)
+cb_Backend_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE access_deleted, VALUE specs, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -872,6 +918,28 @@ cb_Backend_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::mutate_in_request req{ doc_id };
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+        VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
+        if (!NIL_P(durability_level)) {
+            Check_Type(durability_level, T_SYMBOL);
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                rb_raise(rb_eArgError, "Unknown durability level");
+            }
+            VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
+            if (!NIL_P(durability_timeout)) {
+                Check_Type(durability_timeout, T_FIXNUM);
+                req.durability_timeout = FIX2UINT(durability_timeout);
+            }
+        }
+    }
     req.access_deleted = RTEST(access_deleted);
     auto entries_size = static_cast<size_t>(RARRAY_LEN(specs));
     req.specs.entries.reserve(entries_size);
@@ -1606,10 +1674,10 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "close", VALUE_FUNC(cb_Backend_close), 0);
     rb_define_method(cBackend, "open_bucket", VALUE_FUNC(cb_Backend_open_bucket), 1);
     rb_define_method(cBackend, "get", VALUE_FUNC(cb_Backend_get), 3);
-    rb_define_method(cBackend, "upsert", VALUE_FUNC(cb_Backend_upsert), 4);
-    rb_define_method(cBackend, "remove", VALUE_FUNC(cb_Backend_remove), 3);
+    rb_define_method(cBackend, "upsert", VALUE_FUNC(cb_Backend_upsert), 5);
+    rb_define_method(cBackend, "remove", VALUE_FUNC(cb_Backend_remove), 4);
     rb_define_method(cBackend, "lookup_in", VALUE_FUNC(cb_Backend_lookup_in), 5);
-    rb_define_method(cBackend, "mutate_in", VALUE_FUNC(cb_Backend_mutate_in), 5);
+    rb_define_method(cBackend, "mutate_in", VALUE_FUNC(cb_Backend_mutate_in), 6);
     rb_define_method(cBackend, "query", VALUE_FUNC(cb_Backend_query), 2);
 
     rb_define_method(cBackend, "bucket_create", VALUE_FUNC(cb_Backend_bucket_create), 1);

@@ -19,6 +19,7 @@
 
 #include <operations/document_id.hxx>
 #include <protocol/cmd_upsert.hxx>
+#include <protocol/durability_level.hxx>
 
 namespace couchbase::operations
 {
@@ -38,6 +39,8 @@ struct upsert_request {
     std::string value;
     uint16_t partition{};
     uint32_t opaque{};
+    protocol::durability_level durability_level{ protocol::durability_level::none };
+    std::optional<std::uint16_t> durability_timeout{};
 
     void encode_to(encoded_request_type& encoded)
     {
@@ -45,6 +48,9 @@ struct upsert_request {
         encoded.partition(partition);
         encoded.body().id(id);
         encoded.body().content(value);
+        if (durability_level != protocol::durability_level::none) {
+            encoded.body().durability(durability_level, durability_timeout);
+        }
     }
 };
 

@@ -69,6 +69,7 @@ class remove_request_body
 
   private:
     std::string key_;
+    std::vector<std::uint8_t> framing_extras_{};
 
   public:
     void id(const operations::document_id& id)
@@ -80,9 +81,33 @@ class remove_request_body
         }
     }
 
+    void durability(protocol::durability_level level, std::optional<std::uint16_t> timeout)
+    {
+        if (level == protocol::durability_level::none) {
+            return;
+        }
+        auto frame_id = static_cast<uint8_t>(protocol::request_frame_info_id::durability_requirement);
+        if (timeout) {
+            framing_extras_.resize(4);
+            framing_extras_[0] = static_cast<std::uint8_t>((static_cast<std::uint32_t>(frame_id) << 4U) | 3U);
+            framing_extras_[1] = static_cast<std::uint8_t>(level);
+            uint16_t val = htons(*timeout);
+            memcpy(framing_extras_.data() + 2, &val, sizeof(val));
+        } else {
+            framing_extras_.resize(2);
+            framing_extras_[0] = static_cast<std::uint8_t>(static_cast<std::uint32_t>(frame_id) << 4U | 1U);
+            framing_extras_[1] = static_cast<std::uint8_t>(level);
+        }
+    }
+
     const std::string& key()
     {
         return key_;
+    }
+
+    const std::vector<std::uint8_t>& framing_extras()
+    {
+        return framing_extras_;
     }
 
     const std::vector<std::uint8_t>& extension()

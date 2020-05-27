@@ -28,7 +28,7 @@ namespace couchbase::operations
 
 struct scope_create_response {
     std::error_code ec;
-    std::uint64_t uid{0};
+    std::uint64_t uid{ 0 };
 };
 
 struct scope_create_request {

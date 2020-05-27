@@ -104,6 +104,12 @@ class hello_request_body
         return key_;
     }
 
+    const std::vector<std::uint8_t>& framing_extras()
+    {
+        static std::vector<std::uint8_t> empty;
+        return empty;
+    }
+
     const std::vector<std::uint8_t>& extension()
     {
         static std::vector<std::uint8_t> empty;

@@ -39,8 +39,7 @@ class client_request
     using response_type = client_response<response_body_type>;
 
   private:
-    static const size_t header_size = 24;
-    static const magic magic_ = magic::client_request;
+    magic magic_{ magic::client_request };
 
     client_opcode opcode_{ Body::opcode };
     std::uint16_t partition_{ 0 };
@@ -101,8 +100,18 @@ class client_request
         payload_[0] = static_cast<uint8_t>(magic_);
         payload_[1] = static_cast<uint8_t>(opcode_);
 
-        uint16_t key_size = htons(gsl::narrow_cast<uint16_t>(body_.key().size()));
-        memcpy(payload_.data() + 2, &key_size, sizeof(key_size));
+        auto framing_extras = body_.framing_extras();
+
+        uint16_t key_size = gsl::narrow_cast<uint16_t>(body_.key().size());
+        if (framing_extras.size() == 0) {
+            key_size = htons(key_size);
+            memcpy(payload_.data() + 2, &key_size, sizeof(key_size));
+        } else {
+            magic_ = protocol::magic::alt_client_request;
+            payload_[0] = static_cast<uint8_t>(magic_);
+            payload_[2] = gsl::narrow_cast<std::uint8_t>(framing_extras.size());
+            payload_[3] = gsl::narrow_cast<std::uint8_t>(key_size);
+        }
 
         uint8_t ext_size = gsl::narrow_cast<uint8_t>(body_.extension().size());
         memcpy(payload_.data() + 4, &ext_size, sizeof(ext_size));
@@ -116,6 +125,9 @@ class client_request
         memcpy(payload_.data() + 12, &opaque_, sizeof(opaque_));
 
         auto body_itr = payload_.begin() + header_size;
+        if (framing_extras.size() > 0) {
+            body_itr = std::copy(framing_extras.begin(), framing_extras.end(), body_itr);
+        }
         body_itr = std::copy(body_.extension().begin(), body_.extension().end(), body_itr);
         body_itr = std::copy(body_.key().begin(), body_.key().end(), body_itr);
 
