@@ -12,6 +12,7 @@ def sys(*cmd)
   system(*cmd)
 end
 
+
 build_type = ENV["DEBUG"] ? "Debug" : "RelWithDebInfo"
 cmake_flags = [
   "-DCMAKE_BUILD_TYPE=#{build_type}",
@@ -19,6 +20,8 @@ cmake_flags = [
   "-DRUBY_ARCH_HDR_DIR=#{RbConfig::CONFIG["rubyarchhdrdir"]}",
   "-DTAOCPP_JSON_BUILD_TESTS=OFF",
   "-DTAOCPP_JSON_BUILD_EXAMPLES=OFF",
+  "-DSNAPPY_BUILD_TESTS=OFF",
+  "-DSNAPPY_INSTALL=OFF",
 ]
 openssl_root = `brew --prefix openssl 2> /dev/null`.strip
 unless openssl_root.empty?
