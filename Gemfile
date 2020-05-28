@@ -19,5 +19,6 @@ gemspec
 
 group :development do
   gem "byebug"
+  gem "rake"
 #  gem "sorbet"
 end

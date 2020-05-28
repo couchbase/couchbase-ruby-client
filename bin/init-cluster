@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+#    Copyright 2020 Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+HOST="localhost"
+USERNAME="Administrator"
+PASSWORD="password"
+CREDS="${USERNAME}:${PASSWORD}"
+
+sleep 1
+
+set -ex
+
+# Ping cluster
+curl -sS http://${HOST}:8091/pools
+
+# Initialize Node
+curl -sS -u ${CREDS} http://${HOST}:8091/nodes/self/controller/settings \
+     -d 'path=%2Fopt%2Fcouchbase%2Fvar%2Flib%2Fcouchbase%2Fdata' \
+     -d 'index_path=%2Fopt%2Fcouchbase%2Fvar%2Flib%2Fcouchbase%2Fdata'
+
+# Setup Services
+curl -sS -u ${CREDS} http://${HOST}:8091/node/controller/setupServices \
+     -d 'services=kv%2Cn1ql%2Cindex'
+
+# Setup Memory Quotas
+curl -sS -u ${CREDS} http://${HOST}:8091//pools/default \
+  -d 'memoryQuota=256' \
+  -d 'indexMemoryQuota=256'
+
+# Setup Administrator username and password
+curl -sS -u ${CREDS} http://${HOST}:8091/settings/web \
+     -d "password=${PASSWORD}" \
+     -d "username=${USERNAME}" \
+     -d "port=SAME"
+
+
+# Setup Bucket
+curl -sS -u ${CREDS} http://${HOST}:8091/pools/default/buckets \
+     -d 'flushEnabled=1' \
+     -d 'threadsNumber=3' \
+     -d 'replicaIndex=0' \
+     -d 'replicaNumber=0' \
+     -d 'evictionPolicy=valueOnly' \
+     -d 'ramQuotaMB=100' \
+     -d 'bucketType=membase' \
+     -d 'name=default'
+

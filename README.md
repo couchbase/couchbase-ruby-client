@@ -1,4 +1,4 @@
-# Couchbase Ruby Client
+# Couchbase Ruby Client [![tests](https://github.com/couchbase/couchbase-ruby-client/workflows/tests/badge.svg)](https://github.com/couchbase/couchbase-ruby-client/actions?query=workflow%3Atests)
 
 This repository contains the third generation of the official Couchbase SDK for Ruby (aka. SDKv3)
 

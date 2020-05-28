@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "test_helper"
+require_relative "test_helper"
 
 class CouchbaseTest < Minitest::Test
   def test_that_it_has_a_version_number
