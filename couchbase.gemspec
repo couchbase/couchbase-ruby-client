@@ -24,7 +24,7 @@ Gem::Specification.new do |spec|
   spec.summary = "SDK for Couchbase Server"
   spec.description = "Modern SDK for Couchbase Server"
   spec.homepage = "https://github.com/couchbase/couchbase.rb"
-  spec.license = "MIT"
+  spec.license = "Apache-2.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/couchbase/couchbase-ruby-client"
