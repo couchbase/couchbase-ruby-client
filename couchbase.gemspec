@@ -23,7 +23,7 @@ Gem::Specification.new do |spec|
   spec.email = ["sergey.avseyev@gmail.com"]
   spec.summary = "SDK for Couchbase Server"
   spec.description = "Modern SDK for Couchbase Server"
-  spec.homepage = "https://github.com/couchbase/couchbase.rb"
+  spec.homepage = "https://www.couchbase.com"
   spec.license = "Apache-2.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
