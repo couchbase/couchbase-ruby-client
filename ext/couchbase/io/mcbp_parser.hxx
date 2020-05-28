@@ -55,11 +55,12 @@ struct mcbp_parser {
         }
         msg.body.clear();
         msg.body.reserve(body_size);
-        uint32_t prefix_size = msg.header.extlen + ntohs(msg.header.keylen);
+        uint32_t key_size = ntohs(msg.header.keylen);
+        uint32_t prefix_size = uint32_t(msg.header.extlen) + key_size;
         if (msg.header.magic == static_cast<uint8_t>(protocol::magic::alt_client_response)) {
             uint8_t framing_extras_size = msg.header.keylen & 0xfU;
-            uint8_t key_size = (msg.header.keylen & 0xf0U) >> 8U;
-            prefix_size = uint32_t(framing_extras_size) + uint32_t(msg.header.extlen) + uint32_t(key_size);
+            key_size = (msg.header.keylen & 0xf0U) >> 8U;
+            prefix_size = uint32_t(framing_extras_size) + uint32_t(msg.header.extlen) + key_size;
         }
         std::copy(buf.begin() + header_size, buf.begin() + header_size + prefix_size, std::back_inserter(msg.body));
 

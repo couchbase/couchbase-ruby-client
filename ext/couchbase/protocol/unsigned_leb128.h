@@ -143,11 +143,11 @@ class unsigned_leb128<T, typename std::enable_if<std::is_unsigned<T>::value>::ty
             // In has more data?
             if (in > 0) {
                 byte |= 0x80;
-                encodedData[encodedSize - 1] = byte;
+                encodedData[encodedSize - 1U] = byte;
                 // Increase the size
                 encodedSize++;
             } else {
-                encodedData[encodedSize - 1] = byte;
+                encodedData[encodedSize - 1U] = byte;
             }
         }
     }
