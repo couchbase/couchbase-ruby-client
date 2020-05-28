@@ -24,7 +24,7 @@
 #include <io/session_manager.hxx>
 #include <bucket.hxx>
 #include <operations.hxx>
-#include <operations/query.hxx>
+#include <operations/document_query.hxx>
 
 namespace couchbase
 {

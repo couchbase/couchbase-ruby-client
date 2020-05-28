@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include <operations/document_id.hxx>
+#include <document_id.hxx>
 #include <protocol/cmd_get.hxx>
 
 namespace couchbase::operations

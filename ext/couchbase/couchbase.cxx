@@ -572,7 +572,7 @@ cb_Backend_get(VALUE self, VALUE bucket, VALUE collection, VALUE id)
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
 
-    couchbase::operations::document_id doc_id;
+    couchbase::document_id doc_id;
     doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
     doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
@@ -606,7 +606,7 @@ cb_Backend_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE co
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
 
-    couchbase::operations::document_id doc_id;
+    couchbase::document_id doc_id;
     doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
     doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
@@ -668,7 +668,7 @@ cb_Backend_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE op
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
 
-    couchbase::operations::document_id doc_id;
+    couchbase::document_id doc_id;
     doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
     doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
@@ -833,7 +833,7 @@ cb_Backend_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE
         rb_raise(rb_eArgError, "Array with specs cannot be empty");
     }
 
-    couchbase::operations::document_id doc_id;
+    couchbase::document_id doc_id;
     doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
     doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
@@ -912,7 +912,7 @@ cb_Backend_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE
         rb_raise(rb_eArgError, "Array with specs cannot be empty");
     }
 
-    couchbase::operations::document_id doc_id;
+    couchbase::document_id doc_id;
     doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
     doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));

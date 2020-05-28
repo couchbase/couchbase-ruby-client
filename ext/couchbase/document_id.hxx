@@ -17,7 +17,7 @@
 
 #pragma once
 
-namespace couchbase::operations
+namespace couchbase
 {
 struct document_id {
     std::string bucket;
@@ -25,12 +25,12 @@ struct document_id {
     std::string key;
     std::optional<std::uint32_t> collection_uid; // filled with resolved UID during request lifetime
 };
-} // namespace couchbase::operations
+} // namespace couchbase
 
 template<>
-struct fmt::formatter<couchbase::operations::document_id> : formatter<std::string> {
+struct fmt::formatter<couchbase::document_id> : formatter<std::string> {
     template<typename FormatContext>
-    auto format(const couchbase::operations::document_id& id, FormatContext& ctx)
+    auto format(const couchbase::document_id& id, FormatContext& ctx)
     {
         format_to(ctx.out(), "{}/{}/{}", id.bucket, id.collection, id.key);
         return formatter<std::string>::format("", ctx);

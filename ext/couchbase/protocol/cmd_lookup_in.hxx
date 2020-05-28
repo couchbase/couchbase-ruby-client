@@ -20,7 +20,7 @@
 #include <protocol/unsigned_leb128.h>
 
 #include <protocol/client_opcode.hxx>
-#include <operations/document_id.hxx>
+#include <document_id.hxx>
 
 namespace couchbase::protocol
 {
@@ -124,7 +124,7 @@ class lookup_in_request_body
     lookup_in_specs specs_;
 
   public:
-    void id(const operations::document_id& id)
+    void id(const document_id& id)
     {
         key_ = id.key;
         if (id.collection_uid) {

@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include <operations/document_id.hxx>
-#include <operations/get.hxx>
-#include <operations/upsert.hxx>
-#include <operations/remove.hxx>
-#include <operations/lookup_in.hxx>
-#include <operations/mutate_in.hxx>
+#include <document_id.hxx>
+#include <operations/document_get.hxx>
+#include <operations/document_upsert.hxx>
+#include <operations/document_remove.hxx>
+#include <operations/document_lookup_in.hxx>
+#include <operations/document_mutate_in.hxx>
 
-#include <operations/query.hxx>
+#include <operations/document_query.hxx>
 
 #include <operations/bucket_get_all.hxx>
 #include <operations/bucket_get.hxx>

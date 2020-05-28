@@ -17,24 +17,26 @@
 
 #pragma once
 
-#include <operations/document_id.hxx>
-#include <protocol/cmd_remove.hxx>
+#include <document_id.hxx>
+#include <protocol/cmd_upsert.hxx>
+#include <protocol/durability_level.hxx>
 
 namespace couchbase::operations
 {
 
-struct remove_response {
+struct upsert_response {
     document_id id;
     std::error_code ec{};
     std::uint64_t cas{};
     mutation_token token{};
 };
 
-struct remove_request {
-    using encoded_request_type = protocol::client_request<protocol::remove_request_body>;
-    using encoded_response_type = protocol::client_response<protocol::remove_response_body>;
+struct upsert_request {
+    using encoded_request_type = protocol::client_request<protocol::upsert_request_body>;
+    using encoded_response_type = protocol::client_response<protocol::upsert_response_body>;
 
     document_id id;
+    std::string value;
     uint16_t partition{};
     uint32_t opaque{};
     protocol::durability_level durability_level{ protocol::durability_level::none };
@@ -45,16 +47,17 @@ struct remove_request {
         encoded.opaque(opaque);
         encoded.partition(partition);
         encoded.body().id(id);
+        encoded.body().content(value);
         if (durability_level != protocol::durability_level::none) {
             encoded.body().durability(durability_level, durability_timeout);
         }
     }
 };
 
-remove_response
-make_response(std::error_code ec, remove_request& request, remove_request::encoded_response_type encoded)
+upsert_response
+make_response(std::error_code ec, upsert_request& request, upsert_request::encoded_response_type encoded)
 {
-    remove_response response{ request.id, ec };
+    upsert_response response{ request.id, ec };
     if (!ec) {
         response.cas = encoded.cas();
         response.token = encoded.body().token();

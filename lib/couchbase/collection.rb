@@ -245,6 +245,7 @@ module Couchbase
       # @return [Proc] transcoder used for decoding
       attr_accessor :transcoder
 
+      # @yieldparam [GetOptions] self
       def initialize
         yield self if block_given?
       end
@@ -265,6 +266,7 @@ module Couchbase
       # @return [Proc] transcoder used for decoding
       attr_accessor :transcoder
 
+      # @yieldparam [GetAndLockOptions] self
       def initialize
         yield self if block_given?
       end
@@ -274,6 +276,7 @@ module Couchbase
       # @return [Proc] transcoder used for decoding
       attr_accessor :transcoder
 
+      # @yieldparam [GetAndTouchOptions] self
       def initialize
         yield self if block_given?
       end
@@ -283,6 +286,7 @@ module Couchbase
       # @return [Proc] transcoder used for decoding
       attr_accessor :transcoder
 
+      # @yieldparam [GetAllReplicasOptions] self
       def initialize
         yield self if block_given?
       end
@@ -292,12 +296,14 @@ module Couchbase
       # @return [Proc] transcoder used for decoding
       attr_accessor :transcoder
 
+      # @yieldparam [GetAnyReplicaOptions] self
       def initialize
         yield self if block_given?
       end
     end
 
     class ExistsOptions < CommonOptions
+      # @yieldparam [ExistsOptions] self
       def initialize
         yield self if block_given?
       end
@@ -372,12 +378,14 @@ module Couchbase
     end
 
     class TouchOptions < CommonOptions
+      # @yieldparam [TouchOptions] self
       def initialize
         yield self if block_given?
       end
     end
 
     class UnlockOptions < CommonOptions
+      # @yieldparam [UnlockOptions] self
       def initialize
         yield self if block_given?
       end
@@ -387,6 +395,7 @@ module Couchbase
       # @return [Boolean] For internal use only: allows access to deleted documents that are in 'tombstone' form
       attr_accessor :access_deleted
 
+      # @yieldparam [LookupInOptions] self
       def initialize
         yield self if block_given?
       end

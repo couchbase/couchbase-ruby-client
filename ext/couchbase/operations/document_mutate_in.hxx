@@ -18,16 +18,15 @@
 #pragma once
 
 #include <gsl/gsl_assert>
-#include <operations/document_id.hxx>
-#include <protocol/cmd_lookup_in.hxx>
+#include <document_id.hxx>
+#include <protocol/cmd_mutate_in.hxx>
 
 namespace couchbase::operations
 {
 
-struct lookup_in_response {
+struct mutate_in_response {
     struct field {
         protocol::subdoc_opcode opcode;
-        bool exists;
         protocol::status status;
         std::string path;
         std::string value;
@@ -35,18 +34,22 @@ struct lookup_in_response {
     document_id id;
     std::error_code ec{};
     std::uint64_t cas{};
+    mutation_token token{};
     std::vector<field> fields{};
+    std::optional<std::size_t> first_error_index{};
 };
 
-struct lookup_in_request {
-    using encoded_request_type = protocol::client_request<protocol::lookup_in_request_body>;
-    using encoded_response_type = protocol::client_response<protocol::lookup_in_response_body>;
+struct mutate_in_request {
+    using encoded_request_type = protocol::client_request<protocol::mutate_in_request_body>;
+    using encoded_response_type = protocol::client_response<protocol::mutate_in_response_body>;
 
     document_id id;
     uint16_t partition{};
     uint32_t opaque{};
     bool access_deleted{ false };
-    protocol::lookup_in_request_body::lookup_in_specs specs{};
+    protocol::mutate_in_request_body::mutate_in_specs specs{};
+    protocol::durability_level durability_level{ protocol::durability_level::none };
+    std::optional<std::uint16_t> durability_timeout{};
 
     void encode_to(encoded_request_type& encoded)
     {
@@ -55,15 +58,20 @@ struct lookup_in_request {
         encoded.body().id(id);
         encoded.body().access_deleted(access_deleted);
         encoded.body().specs(specs);
+        if (durability_level != protocol::durability_level::none) {
+            encoded.body().durability(durability_level, durability_timeout);
+        }
     }
 };
 
-lookup_in_response
-make_response(std::error_code ec, lookup_in_request& request, lookup_in_request::encoded_response_type encoded)
+mutate_in_response
+make_response(std::error_code ec, mutate_in_request& request, mutate_in_request::encoded_response_type encoded)
 {
-    lookup_in_response response{ request.id, ec };
+    mutate_in_response response{ request.id, ec };
     if (!ec) {
         response.cas = encoded.cas();
+        response.token = encoded.body().token();
+        response.token.partition_id = request.partition;
         response.fields.resize(request.specs.entries.size());
         for (size_t i = 0; i < request.specs.entries.size(); ++i) {
             auto& req_entry = request.specs.entries[i];
@@ -71,12 +79,14 @@ make_response(std::error_code ec, lookup_in_request& request, lookup_in_request:
             response.fields[i].path = req_entry.path;
             response.fields[i].status = protocol::status::success;
         }
-        for (size_t i = 0; i < encoded.body().fields().size(); ++i) {
-            auto& res_entry = encoded.body().fields()[i];
-            response.fields[i].status = res_entry.status;
-            response.fields[i].exists =
-              res_entry.status == protocol::status::success || res_entry.status == protocol::status::subdoc_success_deleted;
-            response.fields[i].value = res_entry.value;
+        for (auto& entry : encoded.body().fields()) {
+            if (entry.status == protocol::status::success) {
+                response.fields[entry.index].value = entry.value;
+            } else {
+                response.fields[entry.index].status = entry.status;
+                response.first_error_index = entry.index;
+                break;
+            }
         }
     }
     return response;

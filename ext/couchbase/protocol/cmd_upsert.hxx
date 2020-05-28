@@ -82,7 +82,7 @@ class upsert_request_body
     std::vector<std::uint8_t> framing_extras_{};
 
   public:
-    void id(const operations::document_id& id)
+    void id(const document_id& id)
     {
         key_ = id.key;
         if (id.collection_uid) {
