@@ -39,6 +39,8 @@ struct upsert_request {
     std::string value;
     uint16_t partition{};
     uint32_t opaque{};
+    uint32_t flags{ 0 };
+    uint32_t expiration{ 0 };
     protocol::durability_level durability_level{ protocol::durability_level::none };
     std::optional<std::uint16_t> durability_timeout{};
 
@@ -47,6 +49,8 @@ struct upsert_request {
         encoded.opaque(opaque);
         encoded.partition(partition);
         encoded.body().id(id);
+        encoded.body().expiration(expiration);
+        encoded.body().flags(flags);
         encoded.body().content(value);
         if (durability_level != protocol::durability_level::none) {
             encoded.body().durability(durability_level, durability_timeout);

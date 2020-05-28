@@ -12,8 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require 'couchbase/scope'
-require 'couchbase/management/collection_manager'
+require "couchbase/scope"
+require "couchbase/management/collection_manager"
 
 module Couchbase
   class Bucket

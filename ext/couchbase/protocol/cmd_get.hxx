@@ -40,6 +40,11 @@ class get_response_body
         return value_;
     }
 
+    std::uint32_t flags()
+    {
+        return flags_;
+    }
+
     bool parse(protocol::status status,
                const header_buffer& header,
                std::uint8_t framing_extras_size,

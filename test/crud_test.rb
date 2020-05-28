@@ -18,8 +18,8 @@ module Couchbase
   class CrudTest < Minitest::Test
     def setup
       options = Cluster::ClusterOptions.new
-      options.authenticate("Administrator", "password")
-      @cluster = Cluster.connect("couchbase://localhost", options)
+      options.authenticate(TEST_USERNAME, TEST_PASSWORD)
+      @cluster = Cluster.connect(TEST_CONNECTION_STRING, options)
       @collection = @cluster.bucket("default").default_collection
     end
 
@@ -38,7 +38,7 @@ module Couchbase
       document = {"value" => 42}
       @collection.upsert(doc_id(:foo), document)
       res = @collection.get(doc_id(:foo))
-      assert_equal document, res.content_as(:json)
+      assert_equal document, res.content
     end
 
     def test_that_it_removes_documents

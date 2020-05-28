@@ -12,6 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "collection"
+
 module Couchbase
   class BinaryCollection
     alias_method :inspect, :to_s
@@ -22,12 +24,12 @@ module Couchbase
     end
 
     # Appends binary content to the document
-    # 
+    #
     # @param [String] id the document id which is used to uniquely identify it
     # @param [String] content the binary content to append to the document
     # @param [AppendOptions] options custom options to customize the request
     #
-    # @return [MutationResult]
+    # @return [Collection::MutationResult]
     def append(id, content, options = AppendOptions.new) end
 
     # Prepends binary content to the document
@@ -36,11 +38,11 @@ module Couchbase
     # @param [String] content the binary content to prepend to the document
     # @param [PrependOptions] options custom options to customize the request
     #
-    # @return [MutationResult]
+    # @return [Collection::MutationResult]
     def prepend(id, content, options = PrependOptions.new) end
 
     # Increments the counter document by one of the number defined in the options
-    # 
+    #
     # @param [String] id the document id which is used to uniquely identify it
     # @param [IncrementOptions] options custom options to customize the request
     #

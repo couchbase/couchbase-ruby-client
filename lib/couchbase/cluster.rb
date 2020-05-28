@@ -12,14 +12,14 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require 'couchbase/authenticator'
-require 'couchbase/bucket'
+require "couchbase/authenticator"
+require "couchbase/bucket"
 
-require 'couchbase/management/user_manager'
-require 'couchbase/management/bucket_manager'
-require 'couchbase/management/query_index_manager'
-require 'couchbase/management/analytics_index_manager'
-require 'couchbase/management/search_index_manager'
+require "couchbase/management/user_manager"
+require "couchbase/management/bucket_manager"
+require "couchbase/management/query_index_manager"
+require "couchbase/management/analytics_index_manager"
+require "couchbase/management/search_index_manager"
 
 module Couchbase
   class Cluster
@@ -46,7 +46,7 @@ module Couchbase
     #
     # @return [QueryResult]
     def query(statement, options = QueryOptions.new)
-      resp = @backend.query(statement, {
+      resp = @backend.document_query(statement, {
           adhoc: options.adhoc,
           client_context_id: options.client_context_id,
           max_parallelism: options.max_parallelism,
@@ -219,6 +219,105 @@ module Couchbase
       def named_parameters(named)
         @named_parameters = named
         @positional_parameters = nil
+      end
+    end
+
+    class QueryResult
+      # @return [QueryMetaData] returns object representing additional metadata associated with this query
+      attr_accessor :meta_data
+
+      attr_accessor :transcoder
+
+      # Returns all rows converted using a transcoder
+      #
+      # @return [Array]
+      def rows(transcoder = self.transcoder)
+        @rows.lazy.map do |row|
+          if transcoder == :json
+            JSON.parse(row)
+          else
+            transcoder.call(row)
+          end
+        end
+      end
+
+      # @yieldparam [QueryResult] self
+      def initialize
+        yield self if block_given?
+        @transcoder = :json
+      end
+    end
+
+    class QueryMetaData
+      # @return [String] returns the request identifier string of the query request
+      attr_accessor :request_id
+
+      # @return [String] returns the client context identifier string set of the query request
+      attr_accessor :client_context_id
+
+      # @return [Symbol] returns raw query execution status as returned by the query engine
+      attr_accessor :status
+
+      # @return [Hash] returns the signature as returned by the query engine which is then decoded as JSON object
+      attr_accessor :signature
+
+      # @return [Hash] returns the profiling information returned by the query engine which is then decoded as JSON object
+      attr_accessor :profile
+
+      # @return [QueryMetrics] metrics as returned by the query engine, if enabled
+      attr_accessor :metrics
+
+      # @return [List<QueryWarning>] list of warnings returned by the query engine
+      attr_accessor :warnings
+
+      # @yieldparam [QueryMetaData] self
+      def initialize
+        yield self if block_given?
+      end
+    end
+
+    class QueryMetrics
+      # @return [Integer] The total time taken for the request, that is the time from when the request was received until the results were returned
+      attr_accessor :elapsed_time
+
+      # @return [Integer] The time taken for the execution of the request, that is the time from when query execution started until the results were returned
+      attr_accessor :execution_time
+
+      # @return [Integer] the total number of results selected by the engine before restriction through LIMIT clause.
+      attr_accessor :sort_count
+
+      # @return [Integer] The total number of objects in the results.
+      attr_accessor :result_count
+
+      # @return [Integer] The total number of bytes in the results.
+      attr_accessor :result_size
+
+      # @return [Integer] The number of mutations that were made during the request.
+      attr_accessor :mutation_count
+
+      # @return [Integer] The number of errors that occurred during the request.
+      attr_accessor :error_count
+
+      # @return [Integer] The number of warnings that occurred during the request.
+      attr_accessor :warning_count
+
+      # @yieldparam [QueryMetrics] self
+      def initialize
+        yield self if block_given?
+      end
+    end
+
+    # Represents a single warning returned from the query engine.
+    class QueryWarning
+      # @return [Integer]
+      attr_accessor :code
+
+      # @return [String]
+      attr_accessor :message
+
+      def initialize(code, message)
+        @code = code
+        @message = message
       end
     end
 

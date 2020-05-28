@@ -12,10 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require 'couchbase/common_options'
-require 'couchbase/results'
-require 'couchbase/subdoc'
-require 'couchbase/mutation_state'
+require "couchbase/json_transcoder"
+require "couchbase/common_options"
+require "couchbase/subdoc"
+require "couchbase/mutation_state"
 
 module Couchbase
   class Collection
@@ -50,10 +50,12 @@ module Couchbase
     #
     # @return [GetResult]
     def get(id, options = GetOptions.new)
-      resp = @backend.get(bucket_name, "#{@scope_name}.#{@name}", id)
+      resp = @backend.document_get(bucket_name, "#{@scope_name}.#{@name}", id)
       GetResult.new do |res|
+        res.transcoder = options.transcoder
         res.cas = resp[:cas]
-        res.content = resp[:content]
+        res.flags = resp[:flags]
+        res.encoded = resp[:content]
       end
     end
 
@@ -106,7 +108,7 @@ module Couchbase
     #
     # @return [MutationResult]
     def remove(id, options = RemoveOptions.new)
-      resp = @backend.remove(bucket_name, "#{@scope_name}.#{@name}", id, {
+      resp = @backend.document_remove(bucket_name, "#{@scope_name}.#{@name}", id, {
           durability_level: options.durability_level
       })
       MutationResult.new do |res|
@@ -137,8 +139,10 @@ module Couchbase
     #
     # @return [MutationResult]
     def upsert(id, content, options = UpsertOptions.new)
-      resp = @backend.upsert(bucket_name, "#{@scope_name}.#{@name}", id, JSON.dump(content), {
-          durability_level: options.durability_level
+      blob, flags = options.transcoder.encode(content)
+      resp = @backend.document_upsert(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, {
+          durability_level: options.durability_level,
+          expiration: options.expiration,
       })
       MutationResult.new do |res|
         res.cas = resp[:cas]
@@ -173,7 +177,7 @@ module Couchbase
     #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Integer] cas CAS value which is needed to unlock the document
-    # @param [TouchOptions] options request customization
+    # @param [UnlockOptions] options request customization
     def unlock(id, cas, options = UnlockOptions.new) end
 
     # Performs lookups to document fragments
@@ -184,11 +188,12 @@ module Couchbase
     #
     # @return [LookupInResult]
     def lookup_in(id, specs, options = LookupInOptions.new)
-      resp = @backend.lookup_in(
+      resp = @backend.document_lookup_in(
           bucket_name, "#{@scope_name}.#{@name}", id, options.access_deleted,
           specs.map { |s| {opcode: s.type, xattr: s.xattr?, path: s.path} }
       )
       LookupInResult.new do |res|
+        res.transcoder = options.transcoder
         res.cas = resp[:cas]
         res.encoded = resp[:fields].map do |field|
           SubDocumentField.new do |f|
@@ -210,7 +215,7 @@ module Couchbase
     #
     # @return [MutateInResult]
     def mutate_in(id, specs, options = MutateInOptions.new)
-      resp = @backend.mutate_in(
+      resp = @backend.document_mutate_in(
           bucket_name, "#{@scope_name}.#{@name}", id, options.access_deleted,
           specs.map { |s| {opcode: s.type, path: s.path, param: s.param,
                            xattr: s.xattr?, expand_macros: s.expand_macros?, create_parents: s.create_parents?} }, {
@@ -218,6 +223,7 @@ module Couchbase
           }
       )
       MutateInResult.new do |res|
+        res.transcoder = options.transcoder
         res.cas = resp[:cas]
         res.mutation_token = MutationToken.new do |token|
           token.partition_id = resp[:mutation_token][:partition_id]
@@ -242,11 +248,12 @@ module Couchbase
       # @return [Boolean] if the expiration should also fetched with get
       attr_accessor :with_expiry
 
-      # @return [Proc] transcoder used for decoding
+      # @return [JsonTranscoder] transcoder used for decoding
       attr_accessor :transcoder
 
       # @yieldparam [GetOptions] self
       def initialize
+        @transcoder = JsonTranscoder.new
         yield self if block_given?
       end
 
@@ -282,8 +289,39 @@ module Couchbase
       end
     end
 
+    class GetResult
+      # @return [Integer] holds the CAS value of the fetched document
+      attr_accessor :cas
+
+      # @return [Integer] the expiration if fetched and present
+      attr_accessor :expiration
+
+      # @return [String] The encoded content when loading the document
+      attr_accessor :encoded
+
+      # Decodes the content of the document using given (or default transcoder)
+      #
+      # @param [JsonTranscoder] transcoder custom transcoder
+      #
+      # @return [Object]
+      def content(transcoder = self.transcoder)
+        transcoder.decode(@encoded, @flags)
+      end
+
+      # @yieldparam [GetResult] self
+      def initialize
+        yield self if block_given?
+      end
+
+      # @return [Integer] The flags from the operation
+      attr_accessor :flags
+
+      # @return [JsonTranscoder] The default transcoder which should be used
+      attr_accessor :transcoder
+    end
+
     class GetAllReplicasOptions < CommonOptions
-      # @return [Proc] transcoder used for decoding
+      # @return [JsonTranscoder] transcoder used for decoding
       attr_accessor :transcoder
 
       # @yieldparam [GetAllReplicasOptions] self
@@ -293,7 +331,7 @@ module Couchbase
     end
 
     class GetAnyReplicaOptions < CommonOptions
-      # @return [Proc] transcoder used for decoding
+      # @return [JsonTranscoder] transcoder used for decoding
       attr_accessor :transcoder
 
       # @yieldparam [GetAnyReplicaOptions] self
@@ -302,11 +340,26 @@ module Couchbase
       end
     end
 
+    class GetReplicaResult < GetResult
+      # @return [Boolean] true if this result came from a replica
+      attr_accessor :is_replica
+      alias_method :replica?, :is_replica
+    end
+
     class ExistsOptions < CommonOptions
       # @yieldparam [ExistsOptions] self
       def initialize
         yield self if block_given?
       end
+    end
+
+    class ExistsResult
+      # @return [Integer] holds the CAS value of the fetched document
+      attr_accessor :cas
+
+      # @return [Boolean] Holds the boolean if the document actually exists
+      attr_accessor :exists
+      alias_method :exists?, :exists
     end
 
     class RemoveOptions < CommonOptions
@@ -344,7 +397,7 @@ module Couchbase
       # @return [Integer] expiration time to associate with the document
       attr_accessor :expiration
 
-      # @return [Proc] transcoder used for encoding
+      # @return [JsonTranscoder] transcoder used for encoding
       attr_accessor :transcoder
 
       # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
@@ -352,6 +405,7 @@ module Couchbase
 
       # @yieldparam [UpsertOptions]
       def initialize
+        @transcoder = JsonTranscoder.new
         @durability_level = :none
         yield self if block_given?
       end
@@ -361,7 +415,7 @@ module Couchbase
       # @return [Integer] expiration time to associate with the document
       attr_accessor :expiration
 
-      # @return [Proc] transcoder used for encoding
+      # @return [JsonTranscoder] transcoder used for encoding
       attr_accessor :transcoder
 
       # @return [Integer] Specifies a CAS value that will be taken into account on the server side for optimistic concurrency
@@ -373,6 +427,19 @@ module Couchbase
       # @yieldparam [ReplaceOptions]
       def initialize
         @durability_level = :none
+        yield self if block_given?
+      end
+    end
+
+    class MutationResult
+      # @return [Integer] holds the CAS value of the document after the mutation
+      attr_accessor :cas
+
+      # @return [MutationToken] if returned, holds the mutation token of the document after the mutation
+      attr_accessor :mutation_token
+
+      # @yieldparam [MutationResult] self
+      def initialize
         yield self if block_given?
       end
     end
@@ -395,10 +462,48 @@ module Couchbase
       # @return [Boolean] For internal use only: allows access to deleted documents that are in 'tombstone' form
       attr_accessor :access_deleted
 
+      # @return [JsonTranscoder] transcoder used for decoding
+      attr_accessor :transcoder
+
       # @yieldparam [LookupInOptions] self
+      def initialize
+        @transcoder = JsonTranscoder.new
+        yield self if block_given?
+      end
+    end
+
+    class LookupInResult
+      # @return [Integer] holds the CAS value of the fetched document
+      attr_accessor :cas
+
+      # Decodes the content at the given index
+      #
+      # @param [Integer] index the index of the subdocument value to decode
+      #
+      # @return [Object] the decoded
+      def content(index, transcoder = self.transcoder)
+        transcoder.decode(encoded[index].value, :json)
+      end
+
+      # Allows to check if a value at the given index exists
+      #
+      # @param [Integer] index the index of the subdocument value to check
+      #
+      # @return [Boolean] true if a value is present at the index, false otherwise
+      def exists?(index)
+        encoded[index].exists
+      end
+
+      # @return [Array<SubDocumentField>] holds the encoded subdocument responses
+      attr_accessor :encoded
+
+      # @yieldparam [LookupInResult] self
       def initialize
         yield self if block_given?
       end
+
+      # @return [JsonTranscoder] The default transcoder which should be used
+      attr_accessor :transcoder
     end
 
     class MutateInOptions < CommonOptions
@@ -430,6 +535,100 @@ module Couchbase
       def initialize
         @durability_level = :none
         @store_semantics = :replace
+        @transcoder = JsonTranscoder.new
+        yield self if block_given?
+      end
+
+      attr_accessor :transcoder
+    end
+
+    class MutateInResult < MutationResult
+      # Decodes the content at the given index
+      #
+      # @param [Integer] index the index of the subdocument value to decode
+      #
+      # @return [Object] the decoded
+      def content(index, transcoder = self.transcoder)
+        transcoder.decode(encoded[index].value, :json)
+      end
+
+      # @yieldparam [MutateInResult] self
+      def initialize
+        yield self if block_given?
+      end
+
+      def success?
+        !!first_error_index
+      end
+
+      # @return [Array<SubDocumentField>] holds the encoded subdocument responses
+      attr_accessor :encoded
+
+      # @return [Integer, nil] index of first operation entry that generated an error
+      attr_accessor :first_error_index
+
+      # @return [JsonTranscoder] The default transcoder which should be used
+      attr_accessor :transcoder
+    end
+
+    # @api private
+    class SubDocumentField
+      attr_accessor :error
+
+      # @return [Boolean] true if the path exists in the document
+      attr_accessor :exists
+
+      # @return [String] value
+      attr_accessor :value
+
+      # @return [String] path
+      attr_accessor :path
+
+      # Operation type
+      #
+      # * +:set_doc+
+      # * +:counter+
+      # * +:replace+
+      # * +:dict_add+
+      # * +:dict_upsert+
+      # * +:array_push_first+
+      # * +:array_push_last+
+      # * +:array_add_unique+
+      # * +:array_insert+
+      # * +:delete+
+      # * +:get+
+      # * +:exists+
+      # * +:count+
+      # * +:get_doc+
+      #
+      # @return [Symbol]
+      attr_accessor :type
+
+      # Status of the subdocument path operation.
+      #
+      # [+:success+] Indicates a successful response in general.
+      # [+:path_not_found+] The provided path does not exist in the document
+      # [+:path_mismatch+] One of path components treats a non-dictionary as a dictionary, or a non-array as an array, or value the path points to is not a number
+      # [+:path_invalid+] The path's syntax was incorrect
+      # [+:path_too_big+] The path provided is too large: either the string is too long, or it contains too many components
+      # [+:value_cannot_insert+] The value provided will invalidate the JSON if inserted
+      # [+:doc_not_json+] The existing document is not valid JSON
+      # [+:num_range+] The existing number is out of the valid range for arithmetic operations
+      # [+:delta_invalid+] The operation would result in a number outside the valid range
+      # [+:path_exists+] The requested operation requires the path to not already exist, but it exists
+      # [+:value_too_deep+] Inserting the value would cause the document to be too deep
+      # [+:invalid_combo+] An invalid combination of commands was specified
+      # [+:xattr_invalid_flag_combo+] An invalid combination of operations, using macros when not using extended attributes
+      # [+:xattr_invalid_key_combo+] Only single xattr key may be accessed at the same time
+      # [+:xattr_unknown_macro+] The server has no knowledge of the requested macro
+      # [+:xattr_unknown_vattr+] Unknown virtual attribute.
+      # [+:xattr_cannot_modify_vattr+] Cannot modify this virtual attribute.
+      # [+:unknown+] Unknown error.
+      #
+      # @return [Symbol]
+      attr_accessor :status
+
+      def initialize
         yield self if block_given?
       end
     end

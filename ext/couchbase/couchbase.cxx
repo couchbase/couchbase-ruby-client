@@ -559,7 +559,7 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket)
 }
 
 static VALUE
-cb_Backend_get(VALUE self, VALUE bucket, VALUE collection, VALUE id)
+cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -592,8 +592,22 @@ cb_Backend_get(VALUE self, VALUE bucket, VALUE collection, VALUE id)
     return res;
 }
 
+template<typename Response>
 static VALUE
-cb_Backend_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE options)
+cb__extract_mutation_result(Response resp)
+{
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
+    VALUE token = rb_hash_new();
+    rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
+    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULONG2NUM(resp.token.sequence_number));
+    rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id));
+    rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
+    return res;
+}
+
+static VALUE
+cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE flags, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -605,6 +619,8 @@ cb_Backend_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE co
     Check_Type(bucket, T_STRING);
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
+    Check_Type(content, T_STRING);
+    Check_Type(flags, T_FIXNUM);
 
     couchbase::document_id doc_id;
     doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
@@ -613,6 +629,8 @@ cb_Backend_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE co
     std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
     couchbase::operations::upsert_request req{ doc_id, value };
+    req.flags = FIX2UINT(flags);
+
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
         VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
@@ -634,6 +652,11 @@ cb_Backend_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE co
                 req.durability_timeout = FIX2UINT(durability_timeout);
             }
         }
+        VALUE expiration = rb_hash_aref(options, rb_id2sym(rb_intern("expiration")));
+        if (!NIL_P(expiration)) {
+            Check_Type(expiration, T_FIXNUM);
+            req.expiration = FIX2UINT(expiration);
+        }
     }
 
     auto barrier = std::make_shared<std::promise<couchbase::operations::upsert_response>>();
@@ -644,18 +667,11 @@ cb_Backend_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE co
         cb_raise_error_code(resp.ec, fmt::format("unable to upsert {}", doc_id));
     }
 
-    VALUE res = rb_hash_new();
-    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
-    VALUE token = rb_hash_new();
-    rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
-    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULONG2NUM(resp.token.sequence_number));
-    rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id));
-    rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
-    return res;
+    return cb__extract_mutation_result(resp);
 }
 
 static VALUE
-cb_Backend_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
+cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -704,15 +720,7 @@ cb_Backend_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE op
     if (resp.ec) {
         cb_raise_error_code(resp.ec, fmt::format("unable to remove {}", doc_id));
     }
-
-    VALUE res = rb_hash_new();
-    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
-    VALUE token = rb_hash_new();
-    rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
-    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULONG2NUM(resp.token.sequence_number));
-    rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id));
-    rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
-    return res;
+    return cb__extract_mutation_result(resp);
 }
 
 static VALUE
@@ -816,7 +824,7 @@ cb__map_subdoc_status(couchbase::protocol::status status)
 }
 
 static VALUE
-cb_Backend_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE access_deleted, VALUE specs)
+cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE access_deleted, VALUE specs)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -895,7 +903,7 @@ cb_Backend_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE
 }
 
 static VALUE
-cb_Backend_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE access_deleted, VALUE specs, VALUE options)
+cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE access_deleted, VALUE specs, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1006,13 +1014,7 @@ cb_Backend_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE
         cb_raise_error_code(resp.ec, fmt::format("unable to mutate {}", doc_id));
     }
 
-    VALUE res = rb_hash_new();
-    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
-    VALUE token = rb_hash_new();
-    rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
-    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULONG2NUM(resp.token.sequence_number));
-    rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id));
-    rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
+    VALUE res = cb__extract_mutation_result(resp);
     if (resp.first_error_index) {
         rb_hash_aset(res, rb_id2sym(rb_intern("first_error_index")), ULONG2NUM(resp.first_error_index.value()));
     }
@@ -1049,7 +1051,7 @@ cb__for_each_named_param(VALUE key, VALUE value, VALUE arg)
 }
 
 static VALUE
-cb_Backend_query(VALUE self, VALUE statement, VALUE options)
+cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2085,12 +2087,13 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "open", VALUE_FUNC(cb_Backend_open), 3);
     rb_define_method(cBackend, "close", VALUE_FUNC(cb_Backend_close), 0);
     rb_define_method(cBackend, "open_bucket", VALUE_FUNC(cb_Backend_open_bucket), 1);
-    rb_define_method(cBackend, "get", VALUE_FUNC(cb_Backend_get), 3);
-    rb_define_method(cBackend, "upsert", VALUE_FUNC(cb_Backend_upsert), 5);
-    rb_define_method(cBackend, "remove", VALUE_FUNC(cb_Backend_remove), 4);
-    rb_define_method(cBackend, "lookup_in", VALUE_FUNC(cb_Backend_lookup_in), 5);
-    rb_define_method(cBackend, "mutate_in", VALUE_FUNC(cb_Backend_mutate_in), 6);
-    rb_define_method(cBackend, "query", VALUE_FUNC(cb_Backend_query), 2);
+
+    rb_define_method(cBackend, "document_get", VALUE_FUNC(cb_Backend_document_get), 3);
+    rb_define_method(cBackend, "document_upsert", VALUE_FUNC(cb_Backend_document_upsert), 6);
+    rb_define_method(cBackend, "document_remove", VALUE_FUNC(cb_Backend_document_remove), 4);
+    rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 5);
+    rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 6);
+    rb_define_method(cBackend, "document_query", VALUE_FUNC(cb_Backend_document_query), 2);
 
     rb_define_method(cBackend, "bucket_create", VALUE_FUNC(cb_Backend_bucket_create), 1);
     rb_define_method(cBackend, "bucket_update", VALUE_FUNC(cb_Backend_bucket_update), 1);

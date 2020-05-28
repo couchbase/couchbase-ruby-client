@@ -18,8 +18,8 @@ module Couchbase
   class QueryTest < Minitest::Test
     def setup
       options = Cluster::ClusterOptions.new
-      options.authenticate("Administrator", "password")
-      @cluster = Cluster.connect("couchbase://localhost", options)
+      options.authenticate(TEST_USERNAME, TEST_PASSWORD)
+      @cluster = Cluster.connect(TEST_CONNECTION_STRING, options)
     end
 
     def teardown

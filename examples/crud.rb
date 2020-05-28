@@ -11,7 +11,7 @@ res = collection.upsert("foo", {"bar" => 42})
 p res.cas
 
 res = collection.get("foo")
-p res.content_as :json
+p res.content
 p res.cas
 
 res = collection.remove("foo")

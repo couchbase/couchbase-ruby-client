@@ -28,6 +28,7 @@ struct get_response {
     std::error_code ec{};
     std::string value{};
     std::uint64_t cas{};
+    std::uint32_t flags{};
 };
 
 struct get_request {
@@ -53,6 +54,7 @@ make_response(std::error_code ec, get_request& request, get_request::encoded_res
     if (!ec) {
         response.value = std::move(encoded.body().value());
         response.cas = encoded.cas();
+        response.flags = encoded.body().flags();
     }
     return response;
 }

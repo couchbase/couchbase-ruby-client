@@ -12,21 +12,21 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-$LOAD_PATH.unshift File.expand_path("../../lib", __FILE__)
-require "couchbase"
+require "json"
 
 module Couchbase
-  TEST_CONNECTION_STRING = ENV["TEST_CONNECTION_STRING"] || "couchbase://localhost"
-  TEST_USERNAME = ENV["TEST_USERNAME"] || "Administrator"
-  TEST_PASSWORD = ENV["TEST_PASSWORD"] || "password"
+  class JsonTranscoder
+    # @param [Object] document
+    # @return [Array<String, Integer>] pair of encoded document and flags
+    def encode(document)
+      [JSON.generate(document), (0x02 << 24) | 0x06]
+    end
+
+    # @param [String] blob string of bytes, containing encoded representation of the document
+    # @param [Integer, :json] flags bit field, describing how the data encoded
+    # @return Object decoded document
+    def decode(blob, flags)
+      JSON.parse(blob)
+    end
+  end
 end
-
-require "minitest/autorun"
-
-require "minitest/reporters"
-Minitest::Reporters.use!(
-    [
-        Minitest::Reporters::SpecReporter.new,
-        Minitest::Reporters::JUnitReporter.new
-    ]
-)
