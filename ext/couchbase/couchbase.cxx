@@ -577,10 +577,10 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id)
     doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
+    couchbase::operations::get_request req{ doc_id };
     auto barrier = std::make_shared<std::promise<couchbase::operations::get_response>>();
     auto f = barrier->get_future();
-    backend->cluster->execute(couchbase::operations::get_request{ doc_id },
-                              [barrier](couchbase::operations::get_response resp) mutable { barrier->set_value(resp); });
+    backend->cluster->execute(req, [barrier](couchbase::operations::get_response resp) mutable { barrier->set_value(resp); });
     auto resp = f.get();
     if (resp.ec) {
         cb_raise_error_code(resp.ec, fmt::format("unable fetch {}", doc_id));
@@ -588,7 +588,46 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id)
 
     VALUE res = rb_hash_new();
     rb_hash_aset(res, rb_id2sym(rb_intern("content")), rb_str_new(resp.value.data(), static_cast<long>(resp.value.size())));
-    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
+    rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
+    return res;
+}
+
+static VALUE
+cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE lock_time)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+    Check_Type(lock_time, T_FIXNUM);
+
+    couchbase::document_id doc_id;
+    doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
+    doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
+    doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
+
+    couchbase::operations::get_and_lock_request req{ doc_id };
+    req.lock_time = NUM2UINT(lock_time);
+
+    auto barrier = std::make_shared<std::promise<couchbase::operations::get_and_lock_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute(req, [barrier](couchbase::operations::get_and_lock_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable lock and fetch {}", doc_id));
+    }
+
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("content")), rb_str_new(resp.value.data(), static_cast<long>(resp.value.size())));
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
+    rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
     return res;
 }
 
@@ -597,7 +636,7 @@ static VALUE
 cb__extract_mutation_result(Response resp)
 {
     VALUE res = rb_hash_new();
-    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
     VALUE token = rb_hash_new();
     rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
     rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULONG2NUM(resp.token.sequence_number));
@@ -638,7 +677,7 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
     }
 
     VALUE res = rb_hash_new();
-    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
     return res;
 }
 
@@ -672,7 +711,7 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id)
     }
 
     VALUE res = rb_hash_new();
-    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
     rb_hash_aset(res, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.partition_id));
     switch (resp.status) {
         case couchbase::operations::exists_response::observe_status::invalid:
@@ -691,6 +730,42 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id)
             rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("logically_deleted")));
             break;
     }
+    return res;
+}
+
+static VALUE
+cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE cas)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+    Check_Type(cas, T_FIXNUM);
+
+    couchbase::document_id doc_id;
+    doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
+    doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
+    doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
+
+    couchbase::operations::unlock_request req{ doc_id };
+    req.cas = NUM2ULL(cas);
+
+    auto barrier = std::make_shared<std::promise<couchbase::operations::unlock_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute(req, [barrier](couchbase::operations::unlock_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to unlock {}", doc_id));
+    }
+
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
     return res;
 }
 
@@ -969,7 +1044,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
     }
 
     VALUE res = rb_hash_new();
-    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
     VALUE fields = rb_ary_new_capa(static_cast<long>(resp.fields.size()));
     rb_hash_aset(res, rb_id2sym(rb_intern("fields")), fields);
     for (size_t i = 0; i < resp.fields.size(); ++i) {
@@ -2177,6 +2252,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "open_bucket", VALUE_FUNC(cb_Backend_open_bucket), 1);
 
     rb_define_method(cBackend, "document_get", VALUE_FUNC(cb_Backend_document_get), 3);
+    rb_define_method(cBackend, "document_get_and_lock", VALUE_FUNC(cb_Backend_document_get_and_lock), 4);
     rb_define_method(cBackend, "document_upsert", VALUE_FUNC(cb_Backend_document_upsert), 6);
     rb_define_method(cBackend, "document_remove", VALUE_FUNC(cb_Backend_document_remove), 4);
     rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 5);
@@ -2184,6 +2260,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_query", VALUE_FUNC(cb_Backend_document_query), 2);
     rb_define_method(cBackend, "document_touch", VALUE_FUNC(cb_Backend_document_touch), 4);
     rb_define_method(cBackend, "document_exists", VALUE_FUNC(cb_Backend_document_exists), 3);
+    rb_define_method(cBackend, "document_unlock", VALUE_FUNC(cb_Backend_document_unlock), 4);
 
     rb_define_method(cBackend, "bucket_create", VALUE_FUNC(cb_Backend_bucket_create), 1);
     rb_define_method(cBackend, "bucket_update", VALUE_FUNC(cb_Backend_bucket_update), 1);

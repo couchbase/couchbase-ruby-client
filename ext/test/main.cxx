@@ -52,8 +52,15 @@ B.open("192.168.42.101", "Administrator", "password")
 
     run_script(R"(
 p B.open_bucket("default")
-p B.document_get("default", "_default._default", "foo") rescue nil
-p B.document_exists("default", "_default._default", "foo")
+puts "upsert the document"
+res = B.document_upsert("default", "_default._default", "foo", "bar", 0, {})
+p "lock the document" => res[:cas].to_s(16)
+res = B.document_get_and_lock("default", "_default._default", "foo", 5)
+p "locked" => res[:cas].to_s(16)
+res = B.document_unlock("default", "_default._default", "foo", res[:cas])
+p "unlocked" => res
+res = B.document_upsert("default", "_default._default", "foo", "bar", 0, {})
+p "update" => res
 )");
 
     run_script(R"(

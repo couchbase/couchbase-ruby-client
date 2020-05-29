@@ -312,10 +312,12 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                             }
                         } break;
                         case protocol::client_opcode::get:
+                        case protocol::client_opcode::get_and_lock:
                         case protocol::client_opcode::touch:
                         case protocol::client_opcode::upsert:
                         case protocol::client_opcode::remove:
                         case protocol::client_opcode::observe:
+                        case protocol::client_opcode::unlock:
                         case protocol::client_opcode::subdoc_multi_lookup:
                         case protocol::client_opcode::subdoc_multi_mutation: {
                             std::uint32_t opaque = msg.header.opaque;

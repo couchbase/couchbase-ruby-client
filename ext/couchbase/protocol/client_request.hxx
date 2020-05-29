@@ -44,6 +44,7 @@ class client_request
     client_opcode opcode_{ Body::opcode };
     std::uint16_t partition_{ 0 };
     std::uint32_t opaque_{ 0 };
+    std::uint64_t cas_{ 0 };
     Body body_;
     std::vector<std::uint8_t> payload_;
 
@@ -56,6 +57,11 @@ class client_request
     void opaque(std::uint32_t val)
     {
         opaque_ = val;
+    }
+
+    void cas(std::uint64_t val)
+    {
+        cas_ = val;
     }
 
     std::uint32_t opaque()
@@ -123,6 +129,7 @@ class client_request
         memcpy(payload_.data() + 8, &body_size, sizeof(body_size));
 
         memcpy(payload_.data() + 12, &opaque_, sizeof(opaque_));
+        memcpy(payload_.data() + 16, &cas_, sizeof(cas_));
 
         auto body_itr = payload_.begin() + header_size;
         if (framing_extras.size() > 0) {

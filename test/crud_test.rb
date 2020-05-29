@@ -27,55 +27,76 @@ module Couchbase
       @cluster.disconnect
     end
 
-    def doc_id(name)
-      @ids_ ||= {}
-      test_name = caller_locations[0].label
-      @ids_[test_name] ||= {}
-      @ids_[test_name][name] ||= "#{name}_#{Time.now.to_i}"
+    def uniq_id(name)
+      "#{name}_#{Time.now.to_f}"
     end
 
     def test_that_it_create_documents
+      doc_id = uniq_id(:foo)
       document = {"value" => 42}
-      @collection.upsert(doc_id(:foo), document)
-      res = @collection.get(doc_id(:foo))
+      @collection.upsert(doc_id, document)
+      res = @collection.get(doc_id)
       assert_equal document, res.content
     end
 
     def test_that_it_removes_documents
+      doc_id = uniq_id(:foo)
       document = {"value" => 42}
-      @collection.upsert(doc_id(:foo), document)
+      @collection.upsert(doc_id, document)
 
-      @collection.remove(doc_id(:foo))
+      @collection.remove(doc_id)
 
       assert_raises(Couchbase::Error::DocumentNotFound) do
-        @collection.get(doc_id(:foo))
+        @collection.get(doc_id)
       end
     end
 
     def test_that_touch_sets_expiration
       document = {"value" => 42}
-      @collection.upsert(doc_id(:foo), document)
+      doc_id = uniq_id(:foo)
 
-      @collection.touch(doc_id(:foo), 1)
+      @collection.upsert(doc_id, document)
 
-      sleep(1)
+      @collection.touch(doc_id, 1)
+
+      sleep(2)
 
       assert_raises(Couchbase::Error::DocumentNotFound) do
-        @collection.get(doc_id(:foo))
+        @collection.get(doc_id)
       end
     end
 
     def test_that_exists_allows_to_check_document_existence
-      res = @collection.exists(doc_id(:foo))
+      doc_id = uniq_id(:foo)
+
+      res = @collection.exists(doc_id)
       refute res.exists?
 
       document = {"value" => 42}
-      res = @collection.upsert(doc_id(:foo), document)
+      res = @collection.upsert(doc_id, document)
       cas = res.cas
 
-      res = @collection.exists(doc_id(:foo))
+      res = @collection.exists(doc_id)
       assert res.exists?
       assert_equal cas, res.cas
+    end
+
+    def test_that_get_and_lock_protects_document_from_mutations
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document)
+
+      res = @collection.get_and_lock(doc_id, 1)
+      cas = res.cas
+
+      document["value"] += 1
+      assert_raises(Couchbase::Error::DocumentLocked) do
+        @collection.upsert(doc_id, document)
+      end
+
+      @collection.unlock(doc_id, cas)
+
+      @collection.upsert(doc_id, document)
     end
   end
 end

@@ -16,6 +16,7 @@ require "couchbase/json_transcoder"
 require "couchbase/common_options"
 require "couchbase/subdoc"
 require "couchbase/mutation_state"
+require "couchbase/errors"
 
 module Couchbase
   class Collection
@@ -66,7 +67,15 @@ module Couchbase
     # @param [GetAndLockOptions] options request customization
     #
     # @return [GetResult]
-    def get_and_lock(id, lock_time, options = GetAndLockOptions.new) end
+    def get_and_lock(id, lock_time, options = GetAndLockOptions.new)
+      resp = @backend.document_get_and_lock(bucket_name, "#{@scope_name}.#{@name}", id, lock_time)
+      GetResult.new do |res|
+        res.transcoder = options.transcoder
+        res.cas = resp[:cas]
+        res.flags = resp[:flags]
+        res.encoded = resp[:content]
+      end
+    end
 
     # Fetches a full document and resets its expiration time to the expiration duration provided
     #
@@ -180,7 +189,11 @@ module Couchbase
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Integer] cas CAS value which is needed to unlock the document
     # @param [UnlockOptions] options request customization
-    def unlock(id, cas, options = UnlockOptions.new) end
+    #
+    # @raise [Error::DocumentNotFound]
+    def unlock(id, cas, options = UnlockOptions.new)
+      @backend.document_unlock(bucket_name, "#{@scope_name}.#{@name}", id, cas)
+    end
 
     # Performs lookups to document fragments
     #
