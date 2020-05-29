@@ -52,9 +52,10 @@ B.open("192.168.42.101", "Administrator", "password")
 
     run_script(R"(
 p B.open_bucket("default")
-puts "upsert the document"
-res = B.document_upsert("default", "_default._default", "foo", "bar", 0, {})
-p "lock the document" => res[:cas].to_s(16)
+res = B.document_insert("default", "_default._default", "foo", "bar", 0, {})
+p "insert the document" => res
+res = B.document_insert("default", "_default._default", "foo", "bar", 0, {})
+p "insert the document second time" => res
 res = B.document_get_and_touch("default", "_default._default", "foo", 1)
 p "get and touch" => res
 sleep(2)

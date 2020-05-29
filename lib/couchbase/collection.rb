@@ -148,7 +148,17 @@ module Couchbase
     # @param [InsertOptions] options request customization
     #
     # @return [MutationResult]
-    def insert(id, content, options = InsertOptions.new) end
+    def insert(id, content, options = InsertOptions.new)
+      blob, flags = options.transcoder.encode(content)
+      resp = @backend.document_insert(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, {
+          durability_level: options.durability_level,
+          expiration: options.expiration,
+      })
+      MutationResult.new do |res|
+        res.cas = resp[:cas]
+        res.mutation_token = extract_mutation_token(resp)
+      end
+    end
 
     # Upserts (inserts or updates) a full document which might or might not exist yet
     #
@@ -422,6 +432,7 @@ module Couchbase
 
       # @yieldparam [InsertOptions]
       def initialize
+        @transcoder = JsonTranscoder.new
         @durability_level = :none
         yield self if block_given?
       end
@@ -460,6 +471,7 @@ module Couchbase
 
       # @yieldparam [ReplaceOptions]
       def initialize
+        @transcoder = JsonTranscoder.new
         @durability_level = :none
         yield self if block_given?
       end

@@ -70,8 +70,7 @@ module Couchbase
       document = {"value" => 42}
       doc_id = uniq_id(:foo)
 
-      res = @collection.upsert(doc_id, document)
-      cas = res.cas
+      @collection.upsert(doc_id, document)
 
       res = @collection.get_and_touch(doc_id, 1)
       assert_equal 42, res.content["value"]
@@ -114,6 +113,16 @@ module Couchbase
       @collection.unlock(doc_id, cas)
 
       @collection.upsert(doc_id, document)
+    end
+
+    def test_that_insert_fails_when_document_exists_already
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.insert(doc_id, document)
+
+      assert_raises(Couchbase::Error::DocumentExists) do
+        @collection.insert(doc_id, document)
+      end
     end
   end
 end
