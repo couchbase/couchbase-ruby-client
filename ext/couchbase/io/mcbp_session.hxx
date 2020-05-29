@@ -313,6 +313,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                         } break;
                         case protocol::client_opcode::get:
                         case protocol::client_opcode::get_and_lock:
+                        case protocol::client_opcode::get_and_touch:
                         case protocol::client_opcode::touch:
                         case protocol::client_opcode::upsert:
                         case protocol::client_opcode::remove:

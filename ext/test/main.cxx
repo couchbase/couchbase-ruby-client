@@ -55,12 +55,11 @@ p B.open_bucket("default")
 puts "upsert the document"
 res = B.document_upsert("default", "_default._default", "foo", "bar", 0, {})
 p "lock the document" => res[:cas].to_s(16)
-res = B.document_get_and_lock("default", "_default._default", "foo", 5)
-p "locked" => res[:cas].to_s(16)
-res = B.document_unlock("default", "_default._default", "foo", res[:cas])
-p "unlocked" => res
-res = B.document_upsert("default", "_default._default", "foo", "bar", 0, {})
-p "update" => res
+res = B.document_get_and_touch("default", "_default._default", "foo", 1)
+p "get and touch" => res
+sleep(2)
+res = B.document_get("default", "_default._default", "foo")
+p "get after sleep" => res
 )");
 
     run_script(R"(

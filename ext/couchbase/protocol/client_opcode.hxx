@@ -29,6 +29,7 @@ enum class client_opcode : uint8_t {
     replace = 0x03,
     remove = 0x04,
     touch = 0x1c,
+    get_and_touch = 0x1d,
     hello = 0x1f,
     sasl_list_mechs = 0x20,
     sasl_auth = 0x21,
@@ -87,6 +88,7 @@ is_valid_client_opcode(uint8_t code)
         case client_opcode::observe:
         case client_opcode::get_and_lock:
         case client_opcode::unlock:
+        case client_opcode::get_and_touch:
             return true;
     }
     return false;
@@ -180,6 +182,9 @@ struct fmt::formatter<couchbase::protocol::client_opcode> : formatter<string_vie
                 break;
             case couchbase::protocol::client_opcode::unlock:
                 name = "unlock";
+                break;
+            case couchbase::protocol::client_opcode::get_and_touch:
+                name = "get_and_touch";
                 break;
         }
         return formatter<string_view>::format(name, ctx);

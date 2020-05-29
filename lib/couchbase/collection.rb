@@ -84,7 +84,15 @@ module Couchbase
     # @param [GetAndTouchOptions] options request customization
     #
     # @return [GetResult]
-    def get_and_touch(id, expiration, options = GetAndTouchOptions.new) end
+    def get_and_touch(id, expiration, options = GetAndTouchOptions.new)
+      resp = @backend.document_get_and_touch(bucket_name, "#{@scope_name}.#{@name}", id, expiration)
+      GetResult.new do |res|
+        res.transcoder = options.transcoder
+        res.cas = resp[:cas]
+        res.flags = resp[:flags]
+        res.encoded = resp[:content]
+      end
+    end
 
     # Reads from all available replicas and the active node and returns the results
     #
@@ -280,21 +288,23 @@ module Couchbase
     end
 
     class GetAndLockOptions < CommonOptions
-      # @return [Proc] transcoder used for decoding
+      # @return [JsonTranscoder] transcoder used for decoding
       attr_accessor :transcoder
 
       # @yieldparam [GetAndLockOptions] self
       def initialize
+        @transcoder = JsonTranscoder.new
         yield self if block_given?
       end
     end
 
     class GetAndTouchOptions < CommonOptions
-      # @return [Proc] transcoder used for decoding
+      # @return [JsonTranscoder] transcoder used for decoding
       attr_accessor :transcoder
 
       # @yieldparam [GetAndTouchOptions] self
       def initialize
+        @transcoder = JsonTranscoder.new
         yield self if block_given?
       end
     end

@@ -21,6 +21,7 @@
 
 #include <operations/document_get.hxx>
 #include <operations/document_get_and_lock.hxx>
+#include <operations/document_get_and_touch.hxx>
 #include <operations/document_upsert.hxx>
 #include <operations/document_remove.hxx>
 #include <operations/document_lookup_in.hxx>

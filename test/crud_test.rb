@@ -66,6 +66,23 @@ module Couchbase
       end
     end
 
+    def test_that_get_can_also_set_expiration
+      document = {"value" => 42}
+      doc_id = uniq_id(:foo)
+
+      res = @collection.upsert(doc_id, document)
+      cas = res.cas
+
+      res = @collection.get_and_touch(doc_id, 1)
+      assert_equal 42, res.content["value"]
+
+      sleep(2)
+
+      assert_raises(Couchbase::Error::DocumentNotFound) do
+        @collection.get(doc_id)
+      end
+    end
+
     def test_that_exists_allows_to_check_document_existence
       doc_id = uniq_id(:foo)
 
