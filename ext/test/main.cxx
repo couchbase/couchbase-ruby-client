@@ -52,7 +52,8 @@ B.open("192.168.42.101", "Administrator", "password")
 
     run_script(R"(
 p B.open_bucket("default")
-p B.document_touch("default", "_default._default", "foo", 12)
+p B.document_get("default", "_default._default", "foo") rescue nil
+p B.document_exists("default", "_default._default", "foo")
 )");
 
     run_script(R"(

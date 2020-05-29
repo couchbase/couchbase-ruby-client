@@ -25,6 +25,7 @@
 #include <operations/document_lookup_in.hxx>
 #include <operations/document_mutate_in.hxx>
 #include <operations/document_touch.hxx>
+#include <operations/document_exists.hxx>
 
 #include <operations/document_query.hxx>
 

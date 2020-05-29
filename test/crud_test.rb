@@ -64,5 +64,18 @@ module Couchbase
         @collection.get(doc_id(:foo))
       end
     end
+
+    def test_that_exists_allows_to_check_document_existence
+      res = @collection.exists(doc_id(:foo))
+      refute res.exists?
+
+      document = {"value" => 42}
+      res = @collection.upsert(doc_id(:foo), document)
+      cas = res.cas
+
+      res = @collection.exists(doc_id(:foo))
+      assert res.exists?
+      assert_equal cas, res.cas
+    end
   end
 end

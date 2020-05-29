@@ -99,7 +99,14 @@ module Couchbase
     # @param [ExistsOptions] options request customization
     #
     # @return [ExistsResult]
-    def exists(id, options = ExistsOptions.new) end
+    def exists(id, options = ExistsOptions.new)
+      resp = @backend.document_exists(bucket_name, "#{@scope_name}.#{@name}", id)
+      ExistsResult.new do |res|
+        res.status = resp[:status]
+        res.partition_id = resp[:partition_id]
+        res.cas = resp[:cas] if res.status != :not_found
+      end
+    end
 
     # Removes a document from the collection
     #
@@ -347,9 +354,23 @@ module Couchbase
       # @return [Integer] holds the CAS value of the fetched document
       attr_accessor :cas
 
-      # @return [Boolean] Holds the boolean if the document actually exists
-      attr_accessor :exists
-      alias_method :exists?, :exists
+      # @api private
+      # @return [:found, :not_found, :persisted, :logically_deleted]
+      attr_accessor :status
+
+      def exists?
+        status == :found || status == :persisted
+      end
+
+      # @yieldparam [ExistsResult]
+      def initialize
+        @durability_level = :none
+        yield self if block_given?
+      end
+
+      # @api private
+      # @return [Integer] holds the index of the partition, to which the given key is mapped
+      attr_accessor :partition_id
     end
 
     class RemoveOptions < CommonOptions
