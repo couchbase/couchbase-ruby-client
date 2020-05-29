@@ -316,6 +316,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                         case protocol::client_opcode::get_and_touch:
                         case protocol::client_opcode::touch:
                         case protocol::client_opcode::insert:
+                        case protocol::client_opcode::replace:
                         case protocol::client_opcode::upsert:
                         case protocol::client_opcode::remove:
                         case protocol::client_opcode::observe:

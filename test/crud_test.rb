@@ -124,5 +124,46 @@ module Couchbase
         @collection.insert(doc_id, document)
       end
     end
+
+    def test_that_replace_fails_when_document_does_not_exist_yet
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+
+      assert_raises(Couchbase::Error::DocumentNotFound) do
+        @collection.replace(doc_id, document)
+      end
+
+      @collection.upsert(doc_id, document)
+
+      document["value"] = 43
+      @collection.replace(doc_id, document)
+
+      res = @collection.get(doc_id)
+
+      assert_equal 43, res.content["value"]
+    end
+
+    def test_that_replace_supports_optimistic_locking
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+
+      res = @collection.upsert(doc_id, document)
+      cas = res.cas
+
+      options = Collection::ReplaceOptions.new
+      options.cas = cas + 1 # incorrect CAS
+
+      document["value"] = 43
+      assert_raises(Couchbase::Error::CasMismatch) do
+        @collection.replace(doc_id, document, options)
+      end
+
+      options.cas = cas # correct CAS
+      @collection.replace(doc_id, document, options)
+
+      res = @collection.get(doc_id)
+
+      assert_equal 43, res.content["value"]
+    end
   end
 end

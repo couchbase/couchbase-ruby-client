@@ -24,6 +24,7 @@
 #include <operations/document_get_and_touch.hxx>
 #include <operations/document_insert.hxx>
 #include <operations/document_upsert.hxx>
+#include <operations/document_replace.hxx>
 #include <operations/document_remove.hxx>
 #include <operations/document_lookup_in.hxx>
 #include <operations/document_mutate_in.hxx>

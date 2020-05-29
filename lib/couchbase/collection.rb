@@ -186,7 +186,18 @@ module Couchbase
     # @param [ReplaceOptions] options request customization
     #
     # @return [MutationResult]
-    def replace(id, content, options = ReplaceOptions.new) end
+    def replace(id, content, options = ReplaceOptions.new)
+      blob, flags = options.transcoder.encode(content)
+      resp = @backend.document_replace(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, {
+          durability_level: options.durability_level,
+          expiration: options.expiration,
+          cas: options.cas,
+      })
+      MutationResult.new do |res|
+        res.cas = resp[:cas]
+        res.mutation_token = extract_mutation_token(resp)
+      end
+    end
 
     # Update the expiration of the document with the given id
     #
