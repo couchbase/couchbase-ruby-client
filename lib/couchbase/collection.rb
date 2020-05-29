@@ -113,12 +113,7 @@ module Couchbase
       })
       MutationResult.new do |res|
         res.cas = resp[:cas]
-        res.mutation_token = MutationToken.new do |token|
-          token.partition_id = resp[:mutation_token][:partition_id]
-          token.partition_uuid = resp[:mutation_token][:partition_uuid]
-          token.sequence_number = resp[:mutation_token][:sequence_number]
-          token.bucket_name = @bucket_name
-        end
+        res.mutation_token = extract_mutation_token(resp)
       end
     end
 
@@ -146,12 +141,7 @@ module Couchbase
       })
       MutationResult.new do |res|
         res.cas = resp[:cas]
-        res.mutation_token = MutationToken.new do |token|
-          token.partition_id = resp[:mutation_token][:partition_id]
-          token.partition_uuid = resp[:mutation_token][:partition_uuid]
-          token.sequence_number = resp[:mutation_token][:sequence_number]
-          token.bucket_name = @bucket_name
-        end
+        res.mutation_token = extract_mutation_token(resp)
       end
     end
 
@@ -171,7 +161,12 @@ module Couchbase
     # @param [TouchOptions] options request customization
     #
     # @return [MutationResult]
-    def touch(id, expiration, options = TouchOptions.new) end
+    def touch(id, expiration, options = TouchOptions.new)
+      resp = @backend.document_touch(bucket_name, "#{@scope_name}.#{@name}", id, expiration)
+      MutationResult.new do |res|
+        res.cas = resp[:cas]
+      end
+    end
 
     # Unlocks a document if it has been locked previously
     #
@@ -225,12 +220,7 @@ module Couchbase
       MutateInResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
-        res.mutation_token = MutationToken.new do |token|
-          token.partition_id = resp[:mutation_token][:partition_id]
-          token.partition_uuid = resp[:mutation_token][:partition_uuid]
-          token.sequence_number = resp[:mutation_token][:sequence_number]
-          token.bucket_name = @bucket_name
-        end
+        res.mutation_token = extract_mutation_token(resp)
         res.first_error_index = resp[:first_error_index]
         res.encoded = resp[:fields].map do |field|
           SubDocumentField.new do |f|
@@ -630,6 +620,17 @@ module Couchbase
 
       def initialize
         yield self if block_given?
+      end
+    end
+
+    private
+
+    def extract_mutation_token(resp)
+      MutationToken.new do |token|
+        token.partition_id = resp[:mutation_token][:partition_id]
+        token.partition_uuid = resp[:mutation_token][:partition_uuid]
+        token.sequence_number = resp[:mutation_token][:sequence_number]
+        token.bucket_name = @bucket_name
       end
     end
   end

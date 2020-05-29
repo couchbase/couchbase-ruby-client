@@ -51,7 +51,8 @@ B.open("192.168.42.101", "Administrator", "password")
 )");
 
     run_script(R"(
-p B.query_index_get_all("beer-sample")
+p B.open_bucket("default")
+p B.document_touch("default", "_default._default", "foo", 12)
 )");
 
     run_script(R"(

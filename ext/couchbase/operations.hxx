@@ -18,11 +18,13 @@
 #pragma once
 
 #include <document_id.hxx>
+
 #include <operations/document_get.hxx>
 #include <operations/document_upsert.hxx>
 #include <operations/document_remove.hxx>
 #include <operations/document_lookup_in.hxx>
 #include <operations/document_mutate_in.hxx>
+#include <operations/document_touch.hxx>
 
 #include <operations/document_query.hxx>
 

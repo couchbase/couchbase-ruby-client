@@ -312,6 +312,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                             }
                         } break;
                         case protocol::client_opcode::get:
+                        case protocol::client_opcode::touch:
                         case protocol::client_opcode::upsert:
                         case protocol::client_opcode::remove:
                         case protocol::client_opcode::subdoc_multi_lookup:
@@ -323,11 +324,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                 handler->second(session_->map_status_code(opcode, status), std::move(msg));
                                 session_->command_handlers_.erase(handler);
                             } else {
-                                spdlog::trace("unexpected orphan response opcode={}, opaque={}", msg.header.opcode, msg.header.opaque);
+                                spdlog::debug("unexpected orphan response opcode={}, opaque={}", msg.header.opcode, msg.header.opaque);
                             }
                         } break;
                         default:
-                            spdlog::trace("unexpected client response: {}", opcode);
+                            spdlog::warn("unexpected client response: {}", opcode);
                     }
                     break;
                 case protocol::magic::server_request:
@@ -344,13 +345,13 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                             }
                         } break;
                         default:
-                            spdlog::trace("unexpected server request: {}", opcode);
+                            spdlog::warn("unexpected server request: {}", opcode);
                     }
                     break;
                 case protocol::magic::client_request:
                 case protocol::magic::alt_client_request:
                 case protocol::magic::server_response:
-                    spdlog::trace("unexpected magic: {}, opcode={}, opaque={}", magic, msg.header.opcode, msg.header.opaque);
+                    spdlog::warn("unexpected magic: {}, opcode={}, opaque={}", magic, msg.header.opcode, msg.header.opaque);
                     break;
             }
         }

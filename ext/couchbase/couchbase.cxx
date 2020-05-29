@@ -607,6 +607,42 @@ cb__extract_mutation_result(Response resp)
 }
 
 static VALUE
+cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE expiration)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+    Check_Type(expiration, T_FIXNUM);
+
+    couchbase::document_id doc_id;
+    doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
+    doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
+    doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
+
+    couchbase::operations::touch_request req{ doc_id };
+    req.expiration = NUM2UINT(expiration);
+
+    auto barrier = std::make_shared<std::promise<couchbase::operations::touch_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute(req, [barrier](couchbase::operations::touch_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to touch {}", doc_id));
+    }
+
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULONG2NUM(resp.cas));
+    return res;
+}
+
+static VALUE
 cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE flags, VALUE options)
 {
     cb_backend_data* backend = nullptr;
@@ -2094,6 +2130,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 5);
     rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 6);
     rb_define_method(cBackend, "document_query", VALUE_FUNC(cb_Backend_document_query), 2);
+    rb_define_method(cBackend, "document_touch", VALUE_FUNC(cb_Backend_document_touch), 4);
 
     rb_define_method(cBackend, "bucket_create", VALUE_FUNC(cb_Backend_bucket_create), 1);
     rb_define_method(cBackend, "bucket_update", VALUE_FUNC(cb_Backend_bucket_update), 1);

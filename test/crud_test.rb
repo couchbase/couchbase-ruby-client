@@ -51,5 +51,18 @@ module Couchbase
         @collection.get(doc_id(:foo))
       end
     end
+
+    def test_that_touch_sets_expiration
+      document = {"value" => 42}
+      @collection.upsert(doc_id(:foo), document)
+
+      @collection.touch(doc_id(:foo), 1)
+
+      sleep(1)
+
+      assert_raises(Couchbase::Error::DocumentNotFound) do
+        @collection.get(doc_id(:foo))
+      end
+    end
   end
 end

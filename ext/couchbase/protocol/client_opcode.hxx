@@ -28,6 +28,7 @@ enum class client_opcode : uint8_t {
     insert = 0x02,
     replace = 0x03,
     remove = 0x04,
+    touch = 0x1c,
     hello = 0x1f,
     sasl_list_mechs = 0x20,
     sasl_auth = 0x21,
@@ -79,6 +80,7 @@ is_valid_client_opcode(uint8_t code)
         case client_opcode::get_error_map:
         case client_opcode::invalid:
         case client_opcode::get_collections_manifest:
+        case client_opcode::touch:
             return true;
     }
     return false;
@@ -160,6 +162,9 @@ struct fmt::formatter<couchbase::protocol::client_opcode> : formatter<string_vie
                 break;
             case couchbase::protocol::client_opcode::get_collections_manifest:
                 name = "get_collections_manifest";
+                break;
+            case couchbase::protocol::client_opcode::touch:
+                name = "touch";
                 break;
         }
         return formatter<string_view>::format(name, ctx);
