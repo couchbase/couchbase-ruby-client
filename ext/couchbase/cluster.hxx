@@ -150,6 +150,9 @@ class cluster
     void execute_http(Request request, Handler&& handler)
     {
         auto session = session_manager_->check_out(Request::type, origin_.username, origin_.password);
+        if (!session) {
+            return handler(operations::make_response(std::make_error_code(error::common_errc::service_not_available), request, {}));
+        }
         auto cmd = std::make_shared<operations::command<Request>>(ctx_, std::move(request));
         cmd->send_to(session, [this, session, handler = std::forward<Handler>(handler)](typename Request::response_type resp) mutable {
             handler(std::move(resp));

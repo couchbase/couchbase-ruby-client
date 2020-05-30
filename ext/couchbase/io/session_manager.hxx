@@ -52,7 +52,9 @@ class session_manager
             std::string hostname;
             std::uint16_t port = 0;
             std::tie(hostname, port) = next_node(type);
-            Expects(port != 0); // FIXME: service_not_available
+            if (port == 0) {
+                return nullptr;
+            }
             config_.nodes.size();
             auto session = std::make_shared<http_session>(client_id_, ctx_, username, password, hostname, std::to_string(port));
             busy_sessions_[type].push_back(session);
@@ -71,27 +73,40 @@ class session_manager
   private:
     std::pair<std::string, std::uint16_t> next_node(service_type type)
     {
-        auto cur_index = next_index_;
-        next_index_ = (next_index_ + 1) % config_.nodes.size();
-        auto& node = config_.nodes[cur_index];
-        switch (type) {
-            case service_type::query:
-                return { node.hostname, node.services_plain.query.value_or(0) };
+        auto candidates = config_.nodes.size();
+        while (candidates > 0) {
+            --candidates;
+            auto& node = config_.nodes[next_index_];
+            next_index_ = (next_index_ + 1) % config_.nodes.size();
+            std::uint16_t port = 0;
+            switch (type) {
+                case service_type::query:
+                    port = node.services_plain.query.value_or(0);
+                    break;
 
-            case service_type::analytics:
-                return { node.hostname, node.services_plain.analytics.value_or(0) };
+                case service_type::analytics:
+                    port = node.services_plain.analytics.value_or(0);
+                    break;
 
-            case service_type::search:
-                return { node.hostname, node.services_plain.search.value_or(0) };
+                case service_type::search:
+                    port = node.services_plain.search.value_or(0);
+                    break;
 
-            case service_type::views:
-                return { node.hostname, node.services_plain.views.value_or(0) };
+                case service_type::views:
+                    port = node.services_plain.views.value_or(0);
+                    break;
 
-            case service_type::management:
-                return { node.hostname, node.services_plain.management.value_or(0) };
+                case service_type::management:
+                    port = node.services_plain.management.value_or(0);
+                    break;
 
-            case service_type::kv:
-                return { node.hostname, node.services_plain.key_value.value_or(0) };
+                case service_type::kv:
+                    port = node.services_plain.key_value.value_or(0);
+                    break;
+            }
+            if (port != 0) {
+                return { node.hostname, port };
+            }
         }
         return { "", 0 };
     }
