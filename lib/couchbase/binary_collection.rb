@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "collection"
+require "couchbase/binary_collection_options"
 
 module Couchbase
   class BinaryCollection
@@ -21,6 +21,7 @@ module Couchbase
     # @param [Couchbase::Collection] collection parent collection
     def initialize(collection)
       @collection = collection
+      @backend = collection.instance_variable_get("@backend")
     end
 
     # Appends binary content to the document
@@ -47,83 +48,37 @@ module Couchbase
     # @param [IncrementOptions] options custom options to customize the request
     #
     # @return [CounterResult]
-    def increment(id, options = IncrementOptions.new) end
+    def increment(id, options = IncrementOptions.new)
+      resp = @backend.document_increment(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}", id, {
+          delta: options.delta,
+          initial_value: options.initial,
+          expiration: options.expiration,
+          durability_level: options.durability_level,
+      })
+      CounterResult.new do |res|
+        res.cas = resp[:cas]
+        res.content = resp[:content]
+        res.mutation_token = @collection.send(:extract_mutation_token, resp)
+      end
+    end
 
     # Decrements the counter document by one of the number defined in the options
     #
     # @param [String] id the document id which is used to uniquely identify it
-    # @param [IncrementOptions] options custom options to customize the request
+    # @param [DecrementOptions] options custom options to customize the request
     #
     # @return [CounterResult]
-    def decrement(id, options = DecrementOptions.new) end
-
-    class AppendOptions < CommonOptions
-      # @return [Integer] The default CAS used (0 means no CAS in this context)
-      attr_accessor :cas
-
-      def initialize
-        yield self if block_given?
-      end
-    end
-
-    class PrependOptions < CommonOptions
-      # @return [Integer] The default CAS used (0 means no CAS in this context)
-      attr_accessor :cas
-
-      def initialize
-        yield self if block_given?
-      end
-    end
-
-    class IncrementOptions < CommonOptions
-      # @return [Integer] the delta for the operation
-      attr_reader :delta
-
-      # @return [Integer] if present, holds the initial value
-      attr_accessor :initial
-
-      # @return [Integer] if set, holds the expiration for the operation
-      attr_accessor :expiration
-
-      # @return [Integer] if set, holds the CAS value for this operation
-      attr_accessor :cas
-
-      def initialize
-        @delta = 1
-        yield self if block_given?
-      end
-
-      def delta=(value)
-        if delta < 0
-          raise ArgumentError, "the delta cannot be less than 0"
-        end
-        @delta = value
-      end
-    end
-
-    class DecrementOptions < CommonOptions
-      # @return [Integer] the delta for the operation
-      attr_reader :delta
-
-      # @return [Integer] if present, holds the initial value
-      attr_accessor :initial
-
-      # @return [Integer] if set, holds the expiration for the operation
-      attr_accessor :expiration
-
-      # @return [Integer] if set, holds the CAS value for this operation
-      attr_accessor :cas
-
-      def initialize
-        @delta = 1
-        yield self if block_given?
-      end
-
-      def delta=(value)
-        if delta < 0
-          raise ArgumentError, "the delta cannot be less than 0"
-        end
-        @delta = value
+    def decrement(id, options = DecrementOptions.new)
+      resp = @backend.document_decrement(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}", id, {
+          delta: options.delta,
+          initial_value: options.initial,
+          expiration: options.expiration,
+          durability_level: options.durability_level,
+      })
+      CounterResult.new do |res|
+        res.cas = resp[:cas]
+        res.content = resp[:content]
+        res.mutation_token = @collection.send(:extract_mutation_token, resp)
       end
     end
   end

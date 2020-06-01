@@ -200,9 +200,11 @@ module Couchbase
         @timeout = 75_000 # ms
         @adhoc = true
         @raw_parameters = {}
-        yield self if block_given?
         @positional_parameters = nil
         @named_parameters = nil
+        @scan_consistency = nil
+        @mutation_state = nil
+        yield self if block_given?
       end
 
       # Allows providing custom JSON key/value pairs for advanced usage

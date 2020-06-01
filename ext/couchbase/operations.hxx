@@ -31,6 +31,8 @@
 #include <operations/document_touch.hxx>
 #include <operations/document_exists.hxx>
 #include <operations/document_unlock.hxx>
+#include <operations/document_increment.hxx>
+#include <operations/document_decrement.hxx>
 
 #include <operations/document_query.hxx>
 

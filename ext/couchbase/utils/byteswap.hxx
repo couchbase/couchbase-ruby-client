@@ -22,7 +22,6 @@ namespace couchbase::utils
 static inline std::uint64_t
 byte_swap_64(std::uint64_t val)
 {
-    ;
     std::uint64_t ret = 0U;
     for (std::size_t i = 0; i < sizeof(std::uint64_t); ++i) {
         ret <<= 8U;

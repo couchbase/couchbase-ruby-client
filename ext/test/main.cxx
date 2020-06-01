@@ -52,17 +52,10 @@ B.open("localhost", "Administrator", "password")
 )");
 
     run_script(R"(
-#p B.open_bucket("default")
-p B.document_query("select random() ", {})
-# res = B.document_upsert("default", "_default._default", "foo", "bar", 0, {})
-# p "upsert the document" => res
-# res = B.document_replace("default", "_default._default", "foo", "bar", 0, {cas: res[:cas]})
-# p "replace the document" => res
-# res = B.document_get_and_touch("default", "_default._default", "foo", 1)
-# p "get and touch" => res
-# sleep(2)
-# res = B.document_get("default", "_default._default", "foo")
-# p "get after sleep" => res
+p B.open_bucket("default")
+p B.document_increment("default", "_default._default", "foo", {:initial_value => 32, :expiration => 42})
+p B.document_get("default", "_default._default", "foo")
+p B.document_decrement("default", "_default._default", "foo", {:initial_value => 32, :expiration => 42})
 )");
 
     run_script(R"(

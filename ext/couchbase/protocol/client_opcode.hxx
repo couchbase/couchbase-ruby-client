@@ -28,6 +28,8 @@ enum class client_opcode : uint8_t {
     insert = 0x02,
     replace = 0x03,
     remove = 0x04,
+    increment = 0x05,
+    decrement = 0x06,
     touch = 0x1c,
     get_and_touch = 0x1d,
     hello = 0x1f,
@@ -89,6 +91,8 @@ is_valid_client_opcode(uint8_t code)
         case client_opcode::get_and_lock:
         case client_opcode::unlock:
         case client_opcode::get_and_touch:
+        case client_opcode::increment:
+        case client_opcode::decrement:
             return true;
     }
     return false;
@@ -185,6 +189,12 @@ struct fmt::formatter<couchbase::protocol::client_opcode> : formatter<string_vie
                 break;
             case couchbase::protocol::client_opcode::get_and_touch:
                 name = "get_and_touch";
+                break;
+            case couchbase::protocol::client_opcode::increment:
+                name = "increment";
+                break;
+            case couchbase::protocol::client_opcode::decrement:
+                name = "decrement";
                 break;
         }
         return formatter<string_view>::format(name, ctx);

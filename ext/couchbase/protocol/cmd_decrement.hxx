@@ -25,14 +25,21 @@
 namespace couchbase::protocol
 {
 
-class remove_response_body
+class decrement_response_body
 {
   public:
-    static const inline client_opcode opcode = client_opcode::remove;
+    static const inline client_opcode opcode = client_opcode::decrement;
 
+  private:
     mutation_token token_;
+    std::uint64_t content_;
 
   public:
+    std::uint64_t content()
+    {
+        return content_;
+    }
+
     mutation_token& token()
     {
         return token_;
@@ -57,22 +64,29 @@ class remove_response_body
 
                 memcpy(&token_.sequence_number, body.data() + offset, sizeof(token_.sequence_number));
                 token_.sequence_number = utils::byte_swap_64(token_.sequence_number);
+                offset += 8;
             }
+            memcpy(&content_, body.data() + offset, sizeof(content_));
+            content_ = utils::byte_swap_64(content_);
             return true;
         }
         return false;
     }
 };
 
-class remove_request_body
+class decrement_request_body
 {
   public:
-    using response_body_type = remove_response_body;
-    static const inline client_opcode opcode = client_opcode::remove;
+    using response_body_type = decrement_response_body;
+    static const inline client_opcode opcode = client_opcode::decrement;
 
   private:
     std::string key_;
     std::vector<std::uint8_t> framing_extras_{};
+    std::uint64_t delta_{ 1 };
+    std::uint64_t initial_value_{ 0 };
+    std::uint32_t expiration_{ 0 };
+    std::vector<std::uint8_t> extras_{};
 
   public:
     void id(const document_id& id)
@@ -82,6 +96,21 @@ class remove_request_body
             unsigned_leb128<uint32_t> encoded(*id.collection_uid);
             key_.insert(0, encoded.get());
         }
+    }
+
+    void delta(std::uint64_t value)
+    {
+        delta_ = value;
+    }
+
+    void initial_value(std::uint64_t value)
+    {
+        initial_value_ = value;
+    }
+
+    void expiration(std::uint32_t value)
+    {
+        expiration_ = value;
     }
 
     void durability(protocol::durability_level level, std::optional<std::uint16_t> timeout)
@@ -115,8 +144,10 @@ class remove_request_body
 
     const std::vector<std::uint8_t>& extras()
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        if (extras_.empty()) {
+            fill_extras();
+        }
+        return extras_;
     }
 
     const std::vector<std::uint8_t>& value()
@@ -125,9 +156,31 @@ class remove_request_body
         return empty;
     }
 
-    std::size_t size()
+    [[nodiscard]] std::size_t size()
     {
-        return key_.size();
+        if (extras_.empty()) {
+            fill_extras();
+        }
+        return extras_.size() + key_.size();
+    }
+
+  private:
+    void fill_extras()
+    {
+        extras_.resize(sizeof(delta_) + sizeof(initial_value_) + sizeof(expiration_));
+        using offset_type = std::vector<uint8_t>::difference_type;
+        offset_type offset = 0;
+
+        std::uint64_t num = utils::byte_swap_64(delta_);
+        memcpy(extras_.data() + offset, &num, sizeof(num));
+        offset += static_cast<offset_type>(sizeof(delta_));
+
+        num = utils::byte_swap_64(initial_value_);
+        memcpy(extras_.data() + offset, &num, sizeof(num));
+        offset += static_cast<offset_type>(sizeof(delta_));
+
+        std::uint32_t ttl = htonl(expiration_);
+        memcpy(extras_.data() + offset, &ttl, sizeof(ttl));
     }
 };
 

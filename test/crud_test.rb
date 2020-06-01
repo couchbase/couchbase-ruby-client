@@ -165,5 +165,112 @@ module Couchbase
 
       assert_equal 43, res.content["value"]
     end
+
+    class BinaryTranscoder
+      def encode(blob)
+        [blob, 0]
+      end
+
+      def decode(blob, _flags)
+        blob
+      end
+    end
+
+    def test_that_it_increments_and_decrements_existing_binary_document
+      doc_id = uniq_id(:foo)
+      document = "42"
+
+      options = Collection::UpsertOptions.new
+      options.transcoder = BinaryTranscoder.new
+      @collection.upsert(doc_id, document, options)
+
+      res = @collection.binary.increment(doc_id)
+      assert_equal 43, res.content
+
+      options = Collection::GetOptions.new
+      options.transcoder = BinaryTranscoder.new
+      res = @collection.get(doc_id, options)
+      assert_equal "43", res.content
+
+      res = @collection.binary.decrement(doc_id)
+      assert_equal 42, res.content
+
+      options = Collection::GetOptions.new
+      options.transcoder = BinaryTranscoder.new
+      res = @collection.get(doc_id, options)
+      assert_equal "42", res.content
+    end
+
+    def test_that_it_fails_to_increment_and_decrement_missing_document
+      doc_id = uniq_id(:foo)
+
+      assert_raises(Couchbase::Error::DocumentNotFound) do
+        @collection.binary.increment(doc_id)
+      end
+
+      assert_raises(Couchbase::Error::DocumentNotFound) do
+        @collection.binary.decrement(doc_id)
+      end
+    end
+
+    def test_that_it_increment_and_decrement_can_initialize_document
+      doc_id = uniq_id(:foo)
+
+      options = BinaryCollection::IncrementOptions.new
+      options.initial = 42
+      res = @collection.binary.increment(doc_id, options)
+      assert_equal 42, res.content
+      res = @collection.binary.increment(doc_id, options)
+      assert_equal 43, res.content
+
+      options = Collection::GetOptions.new
+      options.transcoder = BinaryTranscoder.new
+      res = @collection.get(doc_id, options)
+      assert_equal "43", res.content
+
+      doc_id = uniq_id(:bar)
+      options = BinaryCollection::DecrementOptions.new
+      options.initial = 142
+      res = @collection.binary.decrement(doc_id, options)
+      assert_equal 142, res.content
+      res = @collection.binary.decrement(doc_id, options)
+      assert_equal 141, res.content
+
+      options = Collection::GetOptions.new
+      options.transcoder = BinaryTranscoder.new
+      res = @collection.get(doc_id, options)
+      assert_equal "141", res.content
+    end
+
+    def test_that_it_increment_and_decrement_can_use_custom_delta
+      doc_id = uniq_id(:foo)
+
+      options = BinaryCollection::IncrementOptions.new
+      options.initial = 42
+      options.delta = 50
+      res = @collection.binary.increment(doc_id, options)
+      assert_equal 42, res.content
+      res = @collection.binary.increment(doc_id, options)
+      assert_equal 92, res.content
+
+      options = Collection::GetOptions.new
+      options.transcoder = BinaryTranscoder.new
+      res = @collection.get(doc_id, options)
+      assert_equal "92", res.content
+
+      doc_id = uniq_id(:bar)
+      options = BinaryCollection::DecrementOptions.new
+      options.initial = 142
+      options.delta = 20
+      res = @collection.binary.decrement(doc_id, options)
+      assert_equal 142, res.content
+      res = @collection.binary.decrement(doc_id, options)
+      assert_equal 122, res.content
+
+      options = Collection::GetOptions.new
+      options.transcoder = BinaryTranscoder.new
+      res = @collection.get(doc_id, options)
+      assert_equal "122", res.content
+    end
   end
 end

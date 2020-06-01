@@ -1073,6 +1073,171 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 }
 
 static VALUE
+cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+
+    couchbase::document_id doc_id;
+    doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
+    doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
+    doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
+
+    couchbase::operations::increment_request req{ doc_id };
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+        VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
+        if (!NIL_P(durability_level)) {
+            Check_Type(durability_level, T_SYMBOL);
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                rb_raise(rb_eArgError, "Unknown durability level");
+            }
+            VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
+            if (!NIL_P(durability_timeout)) {
+                Check_Type(durability_timeout, T_FIXNUM);
+                req.durability_timeout = FIX2UINT(durability_timeout);
+            }
+        }
+        VALUE delta = rb_hash_aref(options, rb_id2sym(rb_intern("delta")));
+        if (!NIL_P(delta)) {
+            switch (TYPE(delta)) {
+                case T_FIXNUM:
+                case T_BIGNUM:
+                    req.delta = NUM2ULL(delta);
+                    break;
+                default:
+                    rb_raise(rb_eArgError, "delta must be an Integer");
+            }
+        }
+        VALUE initial_value = rb_hash_aref(options, rb_id2sym(rb_intern("initial_value")));
+        if (!NIL_P(initial_value)) {
+            switch (TYPE(initial_value)) {
+                case T_FIXNUM:
+                case T_BIGNUM:
+                    req.initial_value = NUM2ULL(initial_value);
+                    break;
+                default:
+                    rb_raise(rb_eArgError, "initial_value must be an Integer");
+            }
+        }
+        VALUE expiration = rb_hash_aref(options, rb_id2sym(rb_intern("expiration")));
+        if (!NIL_P(expiration)) {
+            Check_Type(expiration, T_FIXNUM);
+            req.expiration = FIX2UINT(expiration);
+        }
+    }
+
+    auto barrier = std::make_shared<std::promise<couchbase::operations::increment_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute(req, [barrier](couchbase::operations::increment_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to increment {} by {}", doc_id, req.delta));
+    }
+    VALUE res = cb__extract_mutation_result(resp);
+    rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content));
+    return res;
+}
+
+static VALUE
+cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+    Check_Type(options, T_HASH);
+
+    couchbase::document_id doc_id;
+    doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
+    doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
+    doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
+
+    couchbase::operations::decrement_request req{ doc_id };
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+        VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
+        if (!NIL_P(durability_level)) {
+            Check_Type(durability_level, T_SYMBOL);
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                rb_raise(rb_eArgError, "Unknown durability level");
+            }
+            VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
+            if (!NIL_P(durability_timeout)) {
+                Check_Type(durability_timeout, T_FIXNUM);
+                req.durability_timeout = FIX2UINT(durability_timeout);
+            }
+        }
+        VALUE delta = rb_hash_aref(options, rb_id2sym(rb_intern("delta")));
+        if (!NIL_P(delta)) {
+            switch (TYPE(delta)) {
+                case T_FIXNUM:
+                case T_BIGNUM:
+                    req.delta = NUM2ULL(delta);
+                    break;
+                default:
+                    rb_raise(rb_eArgError, "delta must be an Integer");
+            }
+        }
+        VALUE initial_value = rb_hash_aref(options, rb_id2sym(rb_intern("initial_value")));
+        if (!NIL_P(initial_value)) {
+            switch (TYPE(initial_value)) {
+                case T_FIXNUM:
+                case T_BIGNUM:
+                    req.initial_value = NUM2ULL(initial_value);
+                    break;
+                default:
+                    rb_raise(rb_eArgError, "initial_value must be an Integer");
+            }
+        }
+        VALUE expiration = rb_hash_aref(options, rb_id2sym(rb_intern("expiration")));
+        if (!NIL_P(expiration)) {
+            Check_Type(expiration, T_FIXNUM);
+            req.expiration = FIX2UINT(expiration);
+        }
+    }
+
+    auto barrier = std::make_shared<std::promise<couchbase::operations::decrement_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute(req, [barrier](couchbase::operations::decrement_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable to decrement {} by {}", doc_id, req.delta));
+    }
+    VALUE res = cb__extract_mutation_result(resp);
+    rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content));
+    return res;
+}
+
+static VALUE
 cb__map_subdoc_opcode(couchbase::protocol::subdoc_opcode opcode)
 {
     switch (opcode) {
@@ -2548,6 +2713,8 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_touch", VALUE_FUNC(cb_Backend_document_touch), 4);
     rb_define_method(cBackend, "document_exists", VALUE_FUNC(cb_Backend_document_exists), 3);
     rb_define_method(cBackend, "document_unlock", VALUE_FUNC(cb_Backend_document_unlock), 4);
+    rb_define_method(cBackend, "document_increment", VALUE_FUNC(cb_Backend_document_increment), 4);
+    rb_define_method(cBackend, "document_decrement", VALUE_FUNC(cb_Backend_document_decrement), 4);
 
     rb_define_method(cBackend, "bucket_create", VALUE_FUNC(cb_Backend_bucket_create), 1);
     rb_define_method(cBackend, "bucket_update", VALUE_FUNC(cb_Backend_bucket_update), 1);
