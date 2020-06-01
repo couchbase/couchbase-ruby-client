@@ -251,6 +251,13 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                     if (resp.status() == protocol::status::success) {
                         session_->update_configuration(resp.body().config());
                         complete({});
+                    } else if (resp.status() == protocol::status::no_bucket && !session_->bucket_name_) {
+                        // bucket-less session, but the server wants bucket
+                        session_->supports_gcccp_ = false;
+                        spdlog::warn("this server does not support GCCCP, open bucket before making any cluster-level command");
+                        session_->update_configuration(
+                          make_blank_configuration(session_->endpoint_.address().to_string(), session_->endpoint_.port(), 0));
+                        complete({});
                     } else {
                         spdlog::warn("unexpected message status during bootstrap: {} (opcode={})", resp.error_message(), opcode);
                         return complete(std::make_error_code(error::network_errc::protocol_error));
@@ -277,7 +284,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
           : session_(session)
           , heartbeat_timer_(session_->ctx_)
         {
-            fetch_config({});
+            if (session_->supports_gcccp_) {
+                fetch_config({});
+            }
         }
 
         void stop() override
@@ -480,6 +489,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     bool supports_feature(protocol::hello_feature feature)
     {
         return std::find(supported_features_.begin(), supported_features_.end(), feature) != supported_features_.end();
+    }
+
+    bool supports_gcccp()
+    {
+        return supports_gcccp_;
     }
 
     [[nodiscard]] bool has_config() const
@@ -822,6 +836,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     std::atomic_bool stopped_{ false };
     bool authenticated_{ false };
     bool bucket_selected_{ false };
+    bool supports_gcccp_{ true };
 
     std::atomic<std::uint32_t> opaque_{ 0 };
 

@@ -20,6 +20,7 @@ module Couchbase
       options = Cluster::ClusterOptions.new
       options.authenticate(TEST_USERNAME, TEST_PASSWORD)
       @cluster = Cluster.connect(TEST_CONNECTION_STRING, options)
+      @cluster.bucket("default") unless TEST_SERVER_VERSION.supports_gcccp?
     end
 
     def teardown

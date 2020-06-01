@@ -6,6 +6,8 @@ options = Cluster::ClusterOptions.new
 options.authenticate("Administrator", "password")
 cluster = Cluster.connect("couchbase://localhost", options)
 
+cluster.bucket("travel-sample") # this is necessary for 6.0.x
+
 options = Cluster::QueryOptions.new
 options.named_parameters({type: "hotel"})
 options.metrics = true

@@ -1,0 +1,49 @@
+name: tests-6.0.3
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    services:
+      couchbase:
+        image: couchbase:enterprise-6.0.3
+        ports:
+          - 8091-8094:8091-8094
+          - 11210:11210
+
+    steps:
+      - name: Install build environment
+        run: sudo apt-get install -y libssl-dev cmake gcc g++ curl
+
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Set up ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.6
+
+      - name: Install dependencies
+        run: bundle install
+
+      - name: Initialize couchbase
+        run: ./bin/init-cluster
+
+      - name: Compile extension
+        run: bundle exec rake compile
+
+      - name: Display library version
+        run: bundle exec ruby -I lib -r couchbase -e 'pp Couchbase::VERSION'
+
+      - name: Run tests
+        run: bundle exec rake test
+        env:
+          TEST_SERVER_VERSION: 6.0.3

@@ -84,6 +84,20 @@ struct configuration {
         return std::make_pair(vbucket, static_cast<std::size_t>(vbmap->at(vbucket)[0]));
     }
 };
+
+configuration
+make_blank_configuration(const std::string& hostname, std::uint16_t plain_port, std::uint16_t tls_port)
+{
+    configuration result;
+    result.id = couchbase::uuid::random();
+    result.rev = 0;
+    result.nodes.resize(1);
+    result.nodes[0].hostname = hostname;
+    result.nodes[0].this_node = true;
+    result.nodes[0].services_plain.key_value = plain_port;
+    result.nodes[0].services_tls.key_value = tls_port;
+    return result;
+}
 } // namespace couchbase
 
 template<>

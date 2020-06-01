@@ -520,7 +520,7 @@ cb_Backend_open(VALUE self, VALUE hostname, VALUE username, VALUE password)
     auto f = barrier->get_future();
     backend->cluster->open(options, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
     if (auto ec = f.get()) {
-        cb_raise_error_code(ec, "unable open cluster");
+        cb_raise_error_code(ec, fmt::format("unable open cluster at {}", options.hostname));
     }
 
     return Qnil;

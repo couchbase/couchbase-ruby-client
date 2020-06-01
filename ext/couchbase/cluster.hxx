@@ -109,6 +109,9 @@ class cluster
           origin_.get_password(),
           [this, name = bucket_name, new_session, h = std::forward<Handler>(handler)](std::error_code ec, configuration cfg) mutable {
               if (!ec) {
+                  if (!session_->supports_gcccp()) {
+                      session_manager_->set_configuration(cfg);
+                  }
                   auto b = std::make_shared<bucket>(ctx_, name, cfg);
                   size_t this_index = new_session->index();
                   b->set_node(this_index, new_session);
