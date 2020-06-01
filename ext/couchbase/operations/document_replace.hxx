@@ -68,6 +68,7 @@ make_response(std::error_code ec, replace_request& request, replace_request::enc
         response.cas = encoded.cas();
         response.token = encoded.body().token();
         response.token.partition_id = request.partition;
+        response.token.bucket_name = response.id.bucket;
     }
     return response;
 }

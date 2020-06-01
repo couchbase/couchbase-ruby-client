@@ -30,10 +30,15 @@ module Couchbase
   end
 
   class MutationState
+    attr_accessor :tokens
+
     # Create a mutation state from one or more MutationTokens
     #
     # @param [Array<MutationToken>] mutation_tokens the mutation tokens
-    def initialize(*mutation_tokens) end
+    def initialize(*mutation_tokens)
+      @tokens = []
+      add(*mutation_tokens)
+    end
 
     # Add one or more Mutation tokens to this state
     #

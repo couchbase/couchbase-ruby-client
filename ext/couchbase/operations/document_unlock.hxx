@@ -27,7 +27,6 @@ struct unlock_response {
     document_id id;
     std::error_code ec{};
     std::uint64_t cas{};
-    mutation_token token{};
 };
 
 struct unlock_request {

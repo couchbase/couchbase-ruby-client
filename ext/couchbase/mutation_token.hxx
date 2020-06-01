@@ -23,6 +23,7 @@ struct mutation_token {
     uint64_t partition_uuid{ 0 };
     uint64_t sequence_number{ 0 };
     uint16_t partition_id{ 0 };
+    std::string bucket_name {};
 };
 } // namespace couchbase
 
@@ -31,7 +32,7 @@ struct fmt::formatter<couchbase::mutation_token> : formatter<std::string> {
     template<typename FormatContext>
     auto format(const couchbase::mutation_token& token, FormatContext& ctx)
     {
-        format_to(ctx.out(), "{}:{}:{}", token.partition_id, token.partition_uuid, token.sequence_number);
+        format_to(ctx.out(), "{}:{}:{}:{}", token.bucket_name, token.partition_id, token.partition_uuid, token.sequence_number);
         return formatter<std::string>::format("", ctx);
     }
 };

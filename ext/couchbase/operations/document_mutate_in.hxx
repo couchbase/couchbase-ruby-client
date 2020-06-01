@@ -72,6 +72,7 @@ make_response(std::error_code ec, mutate_in_request& request, mutate_in_request:
         response.cas = encoded.cas();
         response.token = encoded.body().token();
         response.token.partition_id = request.partition;
+        response.token.bucket_name = response.id.bucket;
         response.fields.resize(request.specs.entries.size());
         for (size_t i = 0; i < request.specs.entries.size(); ++i) {
             auto& req_entry = request.specs.entries[i];

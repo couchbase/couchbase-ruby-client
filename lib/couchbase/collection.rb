@@ -697,7 +697,7 @@ module Couchbase
         token.partition_id = resp[:mutation_token][:partition_id]
         token.partition_uuid = resp[:mutation_token][:partition_uuid]
         token.sequence_number = resp[:mutation_token][:sequence_number]
-        token.bucket_name = @bucket_name
+        token.bucket_name = resp[:mutation_token][:bucket_name]
       end
     end
   end

@@ -47,17 +47,29 @@ module Couchbase
     # @return [QueryResult]
     def query(statement, options = QueryOptions.new)
       resp = @backend.document_query(statement, {
+          timeout: options.timeout,
           adhoc: options.adhoc,
           client_context_id: options.client_context_id,
           max_parallelism: options.max_parallelism,
           readonly: options.readonly,
+          scan_wait: options.scan_wait,
           scan_cap: options.scan_cap,
           pipeline_batch: options.pipeline_batch,
           pipeline_cap: options.pipeline_cap,
           metrics: options.metrics,
           profile: options.profile,
           positional_parameters: options.instance_variable_get("@positional_parameters")&.map { |p| JSON.dump(p) },
-          named_parameters: options.instance_variable_get("@named_parameters")&.each_with_object({}) { |(n, v), o| o[n.to_s] = JSON.dump(v) }
+          named_parameters: options.instance_variable_get("@named_parameters")&.each_with_object({}) { |(n, v), o| o[n.to_s] = JSON.dump(v) },
+          raw_parameters: options.instance_variable_get("@raw_parameters"),
+          scan_consistency: options.instance_variable_get("@scan_consistency"),
+          mutation_state: options.instance_variable_get("@mutation_state")&.tokens&.map { |t|
+            {
+                bucket_name: t.bucket_name,
+                partition_id: t.partition_id,
+                partition_uuid: t.partition_uuid,
+                sequence_number: t.sequence_number,
+            }
+          },
       })
 
       QueryResult.new do |res|
@@ -146,6 +158,9 @@ module Couchbase
     end
 
     class QueryOptions
+      # @return [Integer] Timeout in milliseconds
+      attr_accessor :timeout
+
       # @return [Boolean] Allows turning this request into a prepared statement query
       attr_accessor :adhoc
 
@@ -157,6 +172,14 @@ module Couchbase
 
       # @return [Boolean] Allows explicitly marking a query as being readonly and not mutating and documents on the server side.
       attr_accessor :readonly
+
+      # Allows customizing how long (in milliseconds) the query engine is willing to wait until the index catches up to whatever scan consistency is asked for in this query.
+      #
+      # @note that if +:not_bounded+ consistency level is used, this method doesn't do anything
+      # at all. If no value is provided to this method, the server default is used.
+      #
+      # @return [Integer] The maximum duration (in milliseconds) the query engine is willing to wait before failing.
+      attr_accessor :scan_wait
 
       # @return [Integer] Supports customizing the maximum buffered channel size between the indexer and the query service
       attr_accessor :scan_cap
@@ -174,7 +197,9 @@ module Couchbase
       attr_accessor :profile
 
       def initialize
+        @timeout = 75_000 # ms
         @adhoc = true
+        @raw_parameters = {}
         yield self if block_given?
         @positional_parameters = nil
         @named_parameters = nil
@@ -184,24 +209,31 @@ module Couchbase
       #
       # @param [String] key the parameter name (key of the JSON property)
       # @param [Object] value the parameter value (value of the JSON property)
-      def raw(key, value) end
+      def raw(key, value)
+        @raw_parameters[key] = JSON.generate(value)
+      end
 
       # Customizes the consistency guarantees for this query
       #
-      # * +:not_bounded+ The indexer will return whatever state it has to the query engine at the time of query. This is the default (for single-statement requests).
+      # @note overrides consistency level set by {#consistent_with}
       #
-      # * +:request_plus+ The indexer will wait until all mutations have been processed at the time of request before returning to the query engine.
+      # [+:not_bounded+] The indexer will return whatever state it has to the query engine at the time of query. This is the default (for single-statement requests).
+      #
+      # [+:request_plus+] The indexer will wait until all mutations have been processed at the time of request before returning to the query engine.
       #
       # @param [:not_bounded, :request_plus] level the index scan consistency to be used for this query
       def scan_consistency=(level)
+        @mutation_state = nil if @mutation_state
         @scan_consistency = level
       end
 
       # Sets the mutation tokens this query should be consistent with
       #
+      # @note overrides consistency level set by {#scan_consistency=}
       #
       # @param [MutationState] mutation_state the mutation state containing the mutation tokens
       def consistent_with(mutation_state)
+        @scan_consistency = nil if @scan_consistency
         @mutation_state = mutation_state
       end
 

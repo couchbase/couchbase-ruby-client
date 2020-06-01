@@ -128,7 +128,7 @@ struct traits<couchbase::operations::query_response_payload> {
 namespace couchbase::operations
 {
 struct query_response {
-    uuid::uuid_t client_context_id;
+    std::string client_context_id;
     std::error_code ec;
     query_response_payload payload{};
 };
@@ -138,10 +138,13 @@ struct query_request {
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
 
+    enum class scan_consistency_type { not_bounded, request_plus };
+
     static const inline service_type type = service_type::query;
 
+    std::uint64_t timeout{ 75'000 }; // milliseconds
     std::string statement;
-    uuid::uuid_t client_context_id{ uuid::random() };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
 
     bool adhoc{ true };
     bool metrics{ false };
@@ -149,8 +152,11 @@ struct query_request {
 
     std::optional<std::uint64_t> max_parallelism{};
     std::optional<std::uint64_t> scan_cap{};
+    std::optional<std::uint64_t> scan_wait{};
     std::optional<std::uint64_t> pipeline_batch{};
     std::optional<std::uint64_t> pipeline_cap{};
+    std::optional<scan_consistency_type> scan_consistency{};
+    std::vector<mutation_token> mutation_state{};
 
     enum class profile_mode {
         off,
@@ -166,7 +172,9 @@ struct query_request {
     void encode_to(encoded_request_type& encoded)
     {
         encoded.headers["content-type"] = "application/json";
-        tao::json::value body{ { "statement", statement }, { "client_context_id", uuid::to_string(client_context_id) } };
+        tao::json::value body{ { "statement", statement },
+                               { "client_context_id", client_context_id },
+                               { "timeout", fmt::format("{}ms", timeout) } };
         if (positional_parameters.empty()) {
             for (auto& param : named_parameters) {
                 Expects(param.first.empty() == false);
@@ -207,12 +215,43 @@ struct query_request {
         if (readonly) {
             body["readonly"] = true;
         }
+        bool check_scan_wait = false;
+        if (scan_consistency) {
+            switch (scan_consistency.value()) {
+                case scan_consistency_type::not_bounded:
+                    body["scan_consistency"] = "not_bounded";
+                    break;
+                case scan_consistency_type::request_plus:
+                    check_scan_wait = true;
+                    body["scan_consistency"] = "request_plus";
+                    break;
+            }
+        } else if (!mutation_state.empty()) {
+            check_scan_wait = true;
+            body["scan_consistency"] = "at_plus";
+            tao::json::value scan_vectors = tao::json::empty_object;
+            for (const auto& token : mutation_state) {
+                auto* bucket = scan_vectors.find(token.bucket_name);
+                if (!bucket) {
+                    scan_vectors[token.bucket_name] = tao::json::empty_object;
+                    bucket = scan_vectors.find(token.bucket_name);
+                }
+                auto& bucket_obj = bucket->get_object();
+                bucket_obj[std::to_string(token.partition_id)] =
+                  std::vector<tao::json::value>{ token.sequence_number, std::to_string(token.partition_uuid) };
+            }
+            body["scan_vectors"] = scan_vectors;
+        }
+        if (check_scan_wait && scan_wait) {
+            body["scan_wait"] = scan_wait.value();
+        }
         for (auto& param : raw) {
             body[param.first] = param.second;
         }
         encoded.method = "POST";
         encoded.path = "/query/service";
         encoded.body = tao::json::to_string(body);
+        spdlog::trace("query request: {}", encoded.body);
     }
 };
 
@@ -223,7 +262,62 @@ make_response(std::error_code ec, query_request& request, query_request::encoded
     if (!ec) {
         spdlog::trace("query response: {}", encoded.body);
         response.payload = tao::json::from_string(encoded.body).as<query_response_payload>();
-        Expects(response.payload.meta_data.client_context_id == uuid::to_string(request.client_context_id));
+        Expects(response.payload.meta_data.client_context_id == request.client_context_id);
+        if (response.payload.meta_data.status != "success") {
+            bool prepared_statement_failure = false;
+            bool index_not_found = false;
+            bool index_failure = false;
+            bool planning_failure = false;
+            bool syntax_error = false;
+            bool server_timeout = false;
+
+            if (response.payload.meta_data.errors) {
+                for (const auto& error : *response.payload.meta_data.errors) {
+                    switch (error.code) {
+                        case 1080: /* IKey: "timeout" */
+                            server_timeout = true;
+                            break;
+                        case 3000: /* IKey: "parse.syntax_error" */
+                            syntax_error = true;
+                            break;
+                        case 4040: /* IKey: "plan.build_prepared.no_such_name" */
+                        case 4050: /* IKey: "plan.build_prepared.unrecognized_prepared" */
+                        case 4060: /* IKey: "plan.build_prepared.no_such_name" */
+                        case 4070: /* IKey: "plan.build_prepared.decoding" */
+                        case 4080: /* IKey: "plan.build_prepared.name_encoded_plan_mismatch" */
+                        case 4090: /* IKey: "plan.build_prepared.name_not_in_encoded_plan" */
+                            prepared_statement_failure = true;
+                            break;
+                        case 12004: /* IKey: "datastore.couchbase.primary_idx_not_found" */
+                        case 12016: /* IKey: "datastore.couchbase.index_not_found" */
+                            index_not_found = true;
+                            break;
+                        default:
+                            if ((error.code >= 12000 && error.code < 13000) || (error.code >= 14000 && error.code < 15000)) {
+                                index_failure = true;
+                            } else if (error.code >= 4000 && error.code < 5000) {
+                                planning_failure = true;
+                            }
+                            break;
+                    }
+                }
+            }
+            if (syntax_error) {
+                response.ec = std::make_error_code(error::common_errc::parsing_failure);
+            } else if (server_timeout) {
+                response.ec = std::make_error_code(error::common_errc::unambiguous_timeout);
+            } else if (prepared_statement_failure) {
+                response.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
+            } else if (index_failure) {
+                response.ec = std::make_error_code(error::query_errc::index_failure);
+            } else if (planning_failure) {
+                response.ec = std::make_error_code(error::query_errc::planning_failure);
+            } else if (index_not_found) {
+                response.ec = std::make_error_code(error::common_errc::index_not_found);
+            } else {
+                response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            }
+        }
     }
     return response;
 }

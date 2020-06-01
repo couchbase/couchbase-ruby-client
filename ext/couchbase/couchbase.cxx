@@ -679,6 +679,9 @@ cb__extract_mutation_result(Response resp)
     rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
     rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULONG2NUM(resp.token.sequence_number));
     rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id));
+    rb_hash_aset(token,
+                 rb_id2sym(rb_intern("bucket_name")),
+                 rb_str_new(resp.token.bucket_name.c_str(), static_cast<long>(resp.token.bucket_name.size())));
     rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
     return res;
 }
@@ -1411,6 +1414,22 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
 
     couchbase::operations::query_request req;
     req.statement.assign(RSTRING_PTR(statement), static_cast<size_t>(RSTRING_LEN(statement)));
+    VALUE client_context_id = rb_hash_aref(options, rb_id2sym(rb_intern("client_context_id")));
+    if (!NIL_P(client_context_id)) {
+        Check_Type(client_context_id, T_STRING);
+        req.client_context_id.assign(RSTRING_PTR(client_context_id), static_cast<size_t>(RSTRING_LEN(client_context_id)));
+    }
+    VALUE timeout = rb_hash_aref(options, rb_id2sym(rb_intern("timeout")));
+    if (!NIL_P(timeout)) {
+        switch (TYPE(timeout)) {
+            case T_FIXNUM:
+            case T_BIGNUM:
+                break;
+            default:
+                rb_raise(rb_eArgError, "timeout must be an Integer");
+        }
+        req.timeout = NUM2ULL(timeout);
+    }
     VALUE adhoc = rb_hash_aref(options, rb_id2sym(rb_intern("adhoc")));
     if (!NIL_P(adhoc)) {
         req.adhoc = RTEST(adhoc);
@@ -1422,6 +1441,26 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
     VALUE readonly = rb_hash_aref(options, rb_id2sym(rb_intern("readonly")));
     if (!NIL_P(readonly)) {
         req.readonly = RTEST(readonly);
+    }
+    VALUE scan_cap = rb_hash_aref(options, rb_id2sym(rb_intern("scan_cap")));
+    if (!NIL_P(scan_cap)) {
+        req.scan_cap = NUM2ULONG(scan_cap);
+    }
+    VALUE scan_wait = rb_hash_aref(options, rb_id2sym(rb_intern("scan_wait")));
+    if (!NIL_P(scan_wait)) {
+        req.scan_wait = NUM2ULONG(scan_wait);
+    }
+    VALUE max_parallelism = rb_hash_aref(options, rb_id2sym(rb_intern("max_parallelism")));
+    if (!NIL_P(max_parallelism)) {
+        req.max_parallelism = NUM2ULONG(max_parallelism);
+    }
+    VALUE pipeline_cap = rb_hash_aref(options, rb_id2sym(rb_intern("pipeline_cap")));
+    if (!NIL_P(pipeline_cap)) {
+        req.pipeline_cap = NUM2ULONG(pipeline_cap);
+    }
+    VALUE pipeline_batch = rb_hash_aref(options, rb_id2sym(rb_intern("pipeline_batch")));
+    if (!NIL_P(pipeline_batch)) {
+        req.pipeline_batch = NUM2ULONG(pipeline_batch);
     }
     VALUE profile = rb_hash_aref(options, rb_id2sym(rb_intern("profile")));
     if (!NIL_P(profile)) {
@@ -1452,13 +1491,75 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         Check_Type(named_params, T_HASH);
         rb_hash_foreach(named_params, INT_FUNC(cb__for_each_named_param), reinterpret_cast<VALUE>(&req));
     }
+    VALUE scan_consistency = rb_hash_aref(options, rb_id2sym(rb_intern("scan_consistency")));
+    if (!NIL_P(scan_consistency)) {
+        Check_Type(scan_consistency, T_SYMBOL);
+        ID type = rb_sym2id(scan_consistency);
+        if (type == rb_intern("not_bounded")) {
+            req.scan_consistency = couchbase::operations::query_request::scan_consistency_type::not_bounded;
+        } else if (type == rb_intern("request_plus")) {
+            req.scan_consistency = couchbase::operations::query_request::scan_consistency_type::request_plus;
+        }
+    }
+    VALUE mutation_state = rb_hash_aref(options, rb_id2sym(rb_intern("mutation_state")));
+    if (!NIL_P(mutation_state)) {
+        Check_Type(mutation_state, T_ARRAY);
+        auto state_size = static_cast<size_t>(RARRAY_LEN(mutation_state));
+        req.mutation_state.reserve(state_size);
+        for (size_t i = 0; i < state_size; ++i) {
+            VALUE token = rb_ary_entry(mutation_state, static_cast<long>(i));
+            Check_Type(token, T_HASH);
+            VALUE bucket_name = rb_hash_aref(token, rb_id2sym(rb_intern("bucket_name")));
+            Check_Type(bucket_name, T_STRING);
+            VALUE partition_id = rb_hash_aref(token, rb_id2sym(rb_intern("partition_id")));
+            Check_Type(partition_id, T_FIXNUM);
+            VALUE partition_uuid = rb_hash_aref(token, rb_id2sym(rb_intern("partition_uuid")));
+            switch (TYPE(partition_uuid)) {
+                case T_FIXNUM:
+                case T_BIGNUM:
+                    break;
+                default:
+                    rb_raise(rb_eArgError, "partition_uuid must be an Integer");
+            }
+            VALUE sequence_number = rb_hash_aref(token, rb_id2sym(rb_intern("sequence_number")));
+            switch (TYPE(sequence_number)) {
+                case T_FIXNUM:
+                case T_BIGNUM:
+                    break;
+                default:
+                    rb_raise(rb_eArgError, "sequence_number must be an Integer");
+            }
+            req.mutation_state.emplace_back(
+              couchbase::mutation_token{ NUM2ULL(partition_uuid),
+                                         NUM2ULL(sequence_number),
+                                         gsl::narrow_cast<std::uint16_t>(NUM2UINT(partition_id)),
+                                         std::string(RSTRING_PTR(bucket_name), static_cast<std::size_t>(RSTRING_LEN(bucket_name))) });
+        }
+    }
+
+    VALUE raw_params = rb_hash_aref(options, rb_id2sym(rb_intern("raw_parameters")));
+    if (!NIL_P(raw_params)) {
+        Check_Type(raw_params, T_HASH);
+        rb_hash_foreach(raw_params, INT_FUNC(cb__for_each_named_param), reinterpret_cast<VALUE>(&req));
+    }
 
     auto barrier = std::make_shared<std::promise<couchbase::operations::query_response>>();
     auto f = barrier->get_future();
     backend->cluster->execute_http(req, [barrier](couchbase::operations::query_response resp) mutable { barrier->set_value(resp); });
     auto resp = f.get();
     if (resp.ec) {
-        cb_raise_error_code(resp.ec, fmt::format("unable to query: {}", req.statement.substr(0, 50)));
+        if (resp.payload.meta_data.errors && !resp.payload.meta_data.errors->empty()) {
+            const auto& first_error = resp.payload.meta_data.errors->front();
+            cb_raise_error_code(resp.ec,
+                                fmt::format("unable to query: \"{}{}\" ({}: {})",
+                                            req.statement.substr(0, 50),
+                                            req.statement.size() > 50 ? "..." : "",
+                                            first_error.code,
+                                            first_error.message));
+        } else {
+            cb_raise_error_code(
+              resp.ec, fmt::format("unable to query: \"{}{}\"", req.statement.substr(0, 50), req.statement.size() > 50 ? "..." : ""));
+        }
     }
     VALUE res = rb_hash_new();
     VALUE rows = rb_ary_new_capa(static_cast<long>(resp.payload.rows.size()));

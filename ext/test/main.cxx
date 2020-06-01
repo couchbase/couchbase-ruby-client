@@ -47,20 +47,22 @@ p Couchbase::VERSION
 
     run_script(R"(
 B = Couchbase::Backend.new
-B.open("192.168.42.101", "Administrator", "password")
+#B.open("192.168.42.101", "Administrator", "password")
+B.open("localhost", "Administrator", "password")
 )");
 
     run_script(R"(
-p B.open_bucket("default")
-res = B.document_upsert("default", "_default._default", "foo", "bar", 0, {})
-p "upsert the document" => res
-res = B.document_replace("default", "_default._default", "foo", "bar", 0, {cas: res[:cas]})
-p "replace the document" => res
-res = B.document_get_and_touch("default", "_default._default", "foo", 1)
-p "get and touch" => res
-sleep(2)
-res = B.document_get("default", "_default._default", "foo")
-p "get after sleep" => res
+#p B.open_bucket("default")
+p B.document_query("select random() ", {})
+# res = B.document_upsert("default", "_default._default", "foo", "bar", 0, {})
+# p "upsert the document" => res
+# res = B.document_replace("default", "_default._default", "foo", "bar", 0, {cas: res[:cas]})
+# p "replace the document" => res
+# res = B.document_get_and_touch("default", "_default._default", "foo", 1)
+# p "get and touch" => res
+# sleep(2)
+# res = B.document_get("default", "_default._default", "foo")
+# p "get after sleep" => res
 )");
 
     run_script(R"(

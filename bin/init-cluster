@@ -27,28 +27,31 @@ set -ex
 curl -sS http://${HOST}:8091/pools
 
 # Initialize Node
-curl -sS -u ${CREDS} http://${HOST}:8091/nodes/self/controller/settings \
+curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/nodes/self/controller/settings \
      -d 'path=%2Fopt%2Fcouchbase%2Fvar%2Flib%2Fcouchbase%2Fdata' \
      -d 'index_path=%2Fopt%2Fcouchbase%2Fvar%2Flib%2Fcouchbase%2Fdata'
 
 # Setup Services
-curl -sS -u ${CREDS} http://${HOST}:8091/node/controller/setupServices \
+curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/node/controller/setupServices \
      -d 'services=kv%2Cn1ql%2Cindex'
 
 # Setup Memory Quotas
-curl -sS -u ${CREDS} http://${HOST}:8091//pools/default \
+curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/pools/default \
   -d 'memoryQuota=256' \
   -d 'indexMemoryQuota=256'
 
 # Setup Administrator username and password
-curl -sS -u ${CREDS} http://${HOST}:8091/settings/web \
+curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/settings/web \
      -d "password=${PASSWORD}" \
      -d "username=${USERNAME}" \
      -d "port=SAME"
 
+# Setup index settings
+curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/settings/indexes \
+     -d "storageMode=plasma"
 
 # Setup Bucket
-curl -sS -u ${CREDS} http://${HOST}:8091/pools/default/buckets \
+curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/pools/default/buckets \
      -d 'flushEnabled=1' \
      -d 'threadsNumber=3' \
      -d 'replicaIndex=0' \
@@ -57,4 +60,3 @@ curl -sS -u ${CREDS} http://${HOST}:8091/pools/default/buckets \
      -d 'ramQuotaMB=100' \
      -d 'bucketType=membase' \
      -d 'name=default'
-
