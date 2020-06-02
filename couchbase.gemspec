@@ -29,6 +29,7 @@ Gem::Specification.new do |spec|
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/couchbase/couchbase-ruby-client"
   spec.metadata["changelog_uri"] = "#{spec.metadata["source_code_uri"]}/releases"
+  spec.metadata["github_repo"] = "ssh://github.com/couchbase/couchbase-ruby-client"
 
   spec.files = Dir.chdir(File.expand_path("..", __FILE__)) do
     `git ls-files --recurse-submodules -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
