@@ -73,6 +73,8 @@ struct mcbp_parser {
             if (success) {
                 std::copy(uncompressed.begin(), uncompressed.end(), std::back_inserter(msg.body));
                 use_raw_value = false;
+                // patch header with new body size
+                msg.header.bodylen = htonl(static_cast<std::uint32_t>(prefix_size + uncompressed.size()));
             }
         }
         if (use_raw_value) {

@@ -15,7 +15,7 @@
 require_relative "test_helper"
 
 module Couchbase
-  class CrudTest < Minitest::Test
+  class CrudTest < BaseTest
     def setup
       options = Cluster::ClusterOptions.new
       options.authenticate(TEST_USERNAME, TEST_PASSWORD)
@@ -31,7 +31,7 @@ module Couchbase
       "#{name}_#{Time.now.to_f}"
     end
 
-    def test_that_it_create_documents
+    def test_create_documents
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       @collection.upsert(doc_id, document)
@@ -39,7 +39,7 @@ module Couchbase
       assert_equal document, res.content
     end
 
-    def test_that_it_removes_documents
+    def test_removes_documents
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       @collection.upsert(doc_id, document)
@@ -51,7 +51,7 @@ module Couchbase
       end
     end
 
-    def test_that_touch_sets_expiration
+    def test_touch_sets_expiration
       document = {"value" => 42}
       doc_id = uniq_id(:foo)
 
@@ -66,7 +66,7 @@ module Couchbase
       end
     end
 
-    def test_that_get_can_also_set_expiration
+    def test_get_can_also_set_expiration
       document = {"value" => 42}
       doc_id = uniq_id(:foo)
 
@@ -82,7 +82,7 @@ module Couchbase
       end
     end
 
-    def test_that_exists_allows_to_check_document_existence
+    def test_exists_allows_to_check_document_existence
       doc_id = uniq_id(:foo)
 
       res = @collection.exists(doc_id)
@@ -97,7 +97,7 @@ module Couchbase
       assert_equal cas, res.cas
     end
 
-    def test_that_get_and_lock_protects_document_from_mutations
+    def test_get_and_lock_protects_document_from_mutations
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       @collection.upsert(doc_id, document)
@@ -115,7 +115,7 @@ module Couchbase
       @collection.upsert(doc_id, document)
     end
 
-    def test_that_insert_fails_when_document_exists_already
+    def test_insert_fails_when_document_exists_already
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       @collection.insert(doc_id, document)
@@ -125,7 +125,7 @@ module Couchbase
       end
     end
 
-    def test_that_replace_fails_when_document_does_not_exist_yet
+    def test_replace_fails_when_document_does_not_exist_yet
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
 
@@ -143,7 +143,7 @@ module Couchbase
       assert_equal 43, res.content["value"]
     end
 
-    def test_that_replace_supports_optimistic_locking
+    def test_replace_supports_optimistic_locking
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
 
@@ -176,7 +176,7 @@ module Couchbase
       end
     end
 
-    def test_that_it_increments_and_decrements_existing_binary_document
+    def test_increments_and_decrements_existing_binary_document
       doc_id = uniq_id(:foo)
       document = "42"
 
@@ -201,7 +201,7 @@ module Couchbase
       assert_equal "42", res.content
     end
 
-    def test_that_it_fails_to_increment_and_decrement_missing_document
+    def test_fails_to_increment_and_decrement_missing_document
       doc_id = uniq_id(:foo)
 
       assert_raises(Couchbase::Error::DocumentNotFound) do
@@ -213,7 +213,7 @@ module Couchbase
       end
     end
 
-    def test_that_it_increment_and_decrement_can_initialize_document
+    def test_increment_and_decrement_can_initialize_document
       doc_id = uniq_id(:foo)
 
       options = BinaryCollection::IncrementOptions.new
@@ -242,7 +242,7 @@ module Couchbase
       assert_equal "141", res.content
     end
 
-    def test_that_it_increment_and_decrement_can_use_custom_delta
+    def test_increment_and_decrement_can_use_custom_delta
       doc_id = uniq_id(:foo)
 
       options = BinaryCollection::IncrementOptions.new
@@ -271,6 +271,20 @@ module Couchbase
       options.transcoder = BinaryTranscoder.new
       res = @collection.get(doc_id, options)
       assert_equal "122", res.content
+    end
+
+    def test_insert_bigger_document_and_get_full
+      doc_id = uniq_id(:project_doc)
+      person = load_json_test_dataset("projection_doc")
+
+      res = @collection.upsert(doc_id, person)
+      assert_kind_of Integer, res.cas
+      refute_equal 0, res.cas
+      cas = res.cas
+
+      res = @collection.get(doc_id)
+      assert_equal cas, res.cas
+      assert_equal person, res.content
     end
   end
 end
