@@ -49,12 +49,19 @@ module Couchbase
     #
     # @return [GetResult]
     def get(id, options = GetOptions.new)
-      resp = @backend.document_get(bucket_name, "#{@scope_name}.#{@name}", id)
+      resp = if options.need_projected_get?
+               @backend.document_get_projected(bucket_name, "#{@scope_name}.#{@name}", id,
+                                               options.with_expiration, options.projections,
+                                               options.preserve_array_indexes)
+             else
+               @backend.document_get(bucket_name, "#{@scope_name}.#{@name}", id)
+             end
       GetResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
         res.flags = resp[:flags]
         res.encoded = resp[:content]
+        res.expiration = resp[:expiration] if resp.key?(:expiration)
       end
     end
 

@@ -594,6 +594,63 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id)
 }
 
 static VALUE
+cb_Backend_document_get_projected(VALUE self,
+                                  VALUE bucket,
+                                  VALUE collection,
+                                  VALUE id,
+                                  VALUE with_expiration,
+                                  VALUE projections,
+                                  VALUE preserve_array_indexes)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+
+    couchbase::document_id doc_id;
+    doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
+    doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
+    doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
+
+    couchbase::operations::get_projected_request req{ doc_id };
+    req.with_expiration = RTEST(with_expiration);
+    req.preserve_array_indexes = RTEST(preserve_array_indexes);
+    if (!NIL_P(projections)) {
+        Check_Type(projections, T_ARRAY);
+        auto entries_num = static_cast<size_t>(RARRAY_LEN(projections));
+        req.projections.reserve(entries_num);
+        for (size_t i = 0; i < entries_num; ++i) {
+            VALUE entry = rb_ary_entry(projections, static_cast<long>(i));
+            Check_Type(entry, T_STRING);
+            req.projections.emplace_back(std::string(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry))));
+        }
+    }
+
+    auto barrier = std::make_shared<std::promise<couchbase::operations::get_projected_response>>();
+    auto f = barrier->get_future();
+    backend->cluster->execute(req, [barrier](couchbase::operations::get_projected_response resp) mutable { barrier->set_value(resp); });
+    auto resp = f.get();
+    if (resp.ec) {
+        cb_raise_error_code(resp.ec, fmt::format("unable fetch with projections {}", doc_id));
+    }
+
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("content")), rb_str_new(resp.value.data(), static_cast<long>(resp.value.size())));
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
+    rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
+    if (resp.expiration) {
+        rb_hash_aset(res, rb_id2sym(rb_intern("expiration")), UINT2NUM(resp.expiration.value()));
+    }
+    return res;
+}
+
+static VALUE
 cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE lock_time)
 {
     cb_backend_data* backend = nullptr;
@@ -1276,6 +1333,9 @@ cb__map_subdoc_opcode(couchbase::protocol::subdoc_opcode opcode)
 
         case couchbase::protocol::subdoc_opcode::get_count:
             return rb_id2sym(rb_intern("count"));
+
+        case couchbase::protocol::subdoc_opcode::get_doc:
+            return rb_id2sym(rb_intern("get_doc"));
     }
     return rb_id2sym(rb_intern("unknown"));
 }
@@ -1371,7 +1431,9 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         Check_Type(operation, T_SYMBOL);
         ID operation_id = rb_sym2id(operation);
         couchbase::protocol::subdoc_opcode opcode;
-        if (operation_id == rb_intern("get") || operation_id == rb_intern("get_doc")) {
+        if (operation_id == rb_intern("get_doc")) {
+            opcode = couchbase::protocol::subdoc_opcode::get_doc;
+        } else if (operation_id == rb_intern("get")) {
             opcode = couchbase::protocol::subdoc_opcode::get;
         } else if (operation_id == rb_intern("exists")) {
             opcode = couchbase::protocol::subdoc_opcode::exists;
@@ -2701,6 +2763,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "open_bucket", VALUE_FUNC(cb_Backend_open_bucket), 1);
 
     rb_define_method(cBackend, "document_get", VALUE_FUNC(cb_Backend_document_get), 3);
+    rb_define_method(cBackend, "document_get_projected", VALUE_FUNC(cb_Backend_document_get_projected), 6);
     rb_define_method(cBackend, "document_get_and_lock", VALUE_FUNC(cb_Backend_document_get_and_lock), 4);
     rb_define_method(cBackend, "document_get_and_touch", VALUE_FUNC(cb_Backend_document_get_and_touch), 4);
     rb_define_method(cBackend, "document_insert", VALUE_FUNC(cb_Backend_document_insert), 6);

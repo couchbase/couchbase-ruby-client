@@ -52,6 +52,7 @@ enum class client_opcode : uint8_t {
  * subdocument opcodes are listed separately, because we are not going to implement/support single-op messages
  */
 enum class subdoc_opcode : uint8_t {
+    get_doc = 0x00,
     get = 0xc5,
     exists = 0xc6,
     dict_add = 0xc7,
@@ -114,6 +115,7 @@ is_valid_subdoc_opcode(uint8_t code)
         case subdoc_opcode::array_add_unique:
         case subdoc_opcode::counter:
         case subdoc_opcode::get_count:
+        case subdoc_opcode::get_doc:
             return true;
     }
     return false;
@@ -243,6 +245,9 @@ struct fmt::formatter<couchbase::protocol::subdoc_opcode> : formatter<string_vie
                 break;
             case couchbase::protocol::subdoc_opcode::get_count:
                 name = "get_count";
+                break;
+            case couchbase::protocol::subdoc_opcode::get_doc:
+                name = "get_doc";
                 break;
         }
         return formatter<string_view>::format(name, ctx);

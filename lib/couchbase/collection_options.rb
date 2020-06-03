@@ -21,7 +21,7 @@ module Couchbase
   class Collection
     class GetOptions < CommonOptions
       # @return [Boolean] if the expiration should also fetched with get
-      attr_accessor :with_expiry
+      attr_accessor :with_expiration
 
       # @return [JsonTranscoder] transcoder used for decoding
       attr_accessor :transcoder
@@ -29,6 +29,9 @@ module Couchbase
       # @yieldparam [GetOptions] self
       def initialize
         @transcoder = JsonTranscoder.new
+        @preserve_array_indexes = false
+        @with_expiration = nil
+        @projections = nil
         yield self if block_given?
       end
 
@@ -40,7 +43,21 @@ module Couchbase
       # @param [String, Array<String>] paths a path that should be loaded if present.
       def project(*paths)
         @projections ||= []
-        @projections |= paths # union with current projections
+        @projections |= paths.flatten # union with current projections
+      end
+
+      # @api private
+      # @return [Boolean] whether to use sparse arrays (default false)
+      attr_accessor :preserve_array_indexes
+
+      # @api private
+      # @return [Array<String>] list of paths to project
+      attr_accessor :projections
+
+      # @api private
+      # @return [Boolean]
+      def need_projected_get?
+        @with_expiration || !@projections.nil?
       end
     end
 

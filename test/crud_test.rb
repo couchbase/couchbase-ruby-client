@@ -286,5 +286,440 @@ module Couchbase
       assert_equal cas, res.cas
       assert_equal person, res.content
     end
+
+    def test_error_not_existent
+      doc_id = uniq_id(:does_not_exist)
+
+      assert_raises(Couchbase::Error::DocumentNotFound) do
+        @collection.get(doc_id)
+      end
+    end
+
+    def test_error_double_insert
+      doc_id = uniq_id(:does_not_exist)
+
+      @collection.insert(doc_id, "test")
+
+      assert_raises(Couchbase::Error::DocumentExists) do
+        @collection.insert(doc_id, "test")
+      end
+    end
+
+    def test_error_insert_get_with_expiration
+      doc_id = uniq_id(:expiry_doc)
+      doc = load_json_test_dataset("beer_sample_single")
+
+      options = Collection::InsertOptions.new
+      options.expiration = 10
+      res = @collection.insert(doc_id, doc, options)
+      refute_equal 0, res.cas
+
+      options = Collection::GetOptions.new
+      options.with_expiration = true
+      res = @collection.get(doc_id, options)
+
+      assert_equal doc, res.content
+      assert_kind_of Integer, res.expiration
+      refute_equal 0, res.expiration
+    end
+
+    def test_insert_get_projection
+      doc_id = uniq_id(:project_doc)
+      person = load_json_test_dataset("projection_doc")
+
+      res = @collection.upsert(doc_id, person)
+      refute_equal 0, res.cas
+
+      test_cases = [
+          {name: "string", project: "name",
+           expected:
+               {
+                   "name" => person["name"]
+               }
+          },
+
+          {name: "int", project: "age",
+           expected:
+               {
+                   "age" => person["age"]
+               }
+          },
+
+          {name: "array", project: "animals",
+           expected:
+               {
+                   "animals" => person["animals"]
+               }
+          },
+
+          {name: "array-index1", project: "animals[0]",
+           expected:
+               {
+                   "animals" => [
+                       person["animals"][0]
+                   ]
+               }
+          },
+
+          {name: "array-index2", project: "animals[1]",
+           expected:
+               {
+                   "animals" => [
+                       person["animals"][1]
+                   ]
+               }
+          },
+
+          {name: "array-index3", project: "animals[2]",
+           expected:
+               {
+                   "animals" => [
+                       person["animals"][2]
+                   ]
+               }
+          },
+
+          {name: "full-object-field", project: "attributes",
+           expected:
+               {
+                   "attributes" => person["attributes"]
+               }
+          },
+
+          {name: "nested-object-field1", project: "attributes.hair",
+           expected:
+               {
+                   "attributes" => {
+                       "hair" => person["attributes"]["hair"]
+                   }
+               }
+          },
+
+          {name: "nested-object-field2", project: "attributes.dimensions",
+           expected:
+               {
+                   "attributes" => {
+                       "dimensions" => person["attributes"]["dimensions"]
+                   }
+               }
+          },
+
+          {name: "nested-object-field3", project: "attributes.dimensions.height",
+           expected:
+               {
+                   "attributes" => {
+                       "dimensions" => {
+                           "height" => person["attributes"]["dimensions"]["height"]
+                       }
+                   }
+               }
+          },
+
+          {name: "nested-object-field4", project: "attributes.dimensions.weight",
+           expected:
+               {
+                   "attributes" => {
+                       "dimensions" => {
+                           "weight" => person["attributes"]["dimensions"]["weight"]
+                       }
+                   }
+               }
+          },
+
+          {name: "nested-object-field5", project: "attributes.hobbies",
+           expected:
+               {
+                   "attributes" => {
+                       "hobbies" => person["attributes"]["hobbies"]
+                   }
+               }
+          },
+
+          {name: "nested-array-object-field1", project: "attributes.hobbies[0].type",
+           expected:
+               {
+                   "attributes" => {
+                       "hobbies" => [
+                           {
+                               "type" => person["attributes"]["hobbies"][0]["type"]
+                           }
+                       ]
+                   }
+               }
+          },
+
+          {name: "nested-array-object-field2", project: "attributes.hobbies[1].type",
+           expected:
+               {
+                   "attributes" => {
+                       "hobbies" => [
+                           {
+                               "type" => person["attributes"]["hobbies"][1]["type"]
+                           }
+                       ]
+                   }
+               }
+          },
+
+          {name: "nested-array-object-field3", project: "attributes.hobbies[0].name",
+           expected:
+               {
+                   "attributes" => {
+                       "hobbies" => [
+                           {
+                               "name" => person["attributes"]["hobbies"][0]["name"]
+                           }
+                       ]
+                   }
+               }
+          },
+
+          {name: "nested-array-object-field4", project: "attributes.hobbies[1].name",
+           expected:
+               {
+                   "attributes" => {
+                       "hobbies" => [
+                           {
+                               "name" => person["attributes"]["hobbies"][1]["name"]
+                           }
+                       ]
+                   }
+               }
+          },
+
+          {name: "nested-array-object-field5", project: "attributes.hobbies[1].details",
+           expected:
+               {
+                   "attributes" => {
+                       "hobbies" => [
+                           {
+                               "details" => person["attributes"]["hobbies"][1]["details"]
+                           }
+                       ]
+                   }
+               }
+          },
+
+          {name: "nested-array-object-nested-field1", project: "attributes.hobbies[1].details.location",
+           expected:
+               {
+                   "attributes" => {
+                       "hobbies" => [
+                           {
+                               "details" => {
+                                   "location" => person["attributes"]["hobbies"][1]["details"]["location"]
+                               }
+                           }
+                       ]
+                   }
+               }
+          },
+
+          {name: "nested-array-object-nested-nested-field1", project: "attributes.hobbies[1].details.location.lat",
+           expected:
+               {
+                   "attributes" => {
+                       "hobbies" => [
+                           {
+                               "details" => {
+                                   "location" => {
+                                       "lat" => person["attributes"]["hobbies"][1]["details"]["location"]["lat"]
+                                   }
+                               }
+                           }
+                       ]
+                   }
+               }
+          },
+
+          {name: "nested-array-object-nested-nested-field2", project: "attributes.hobbies[1].details.location.long",
+           expected:
+               {
+                   "attributes" => {
+                       "hobbies" => [
+                           {
+                               "details" => {
+                                   "location" => {
+                                       "long" => person["attributes"]["hobbies"][1]["details"]["location"]["long"]
+                                   }
+                               }
+                           }
+                       ]
+                   }
+               }
+          },
+
+          {name: "array-of-arrays-object", project: "tracking.locations[1][1].lat",
+           expected:
+               {
+                   "tracking" => {
+                       "locations" => [
+                           [
+                               {"lat" => person["tracking"]["locations"][1][1]["lat"]}
+                           ]
+                       ]
+                   }
+               }
+          },
+
+          {name: "array-of-arrays-native", project: "tracking.raw[1][1]",
+           expected:
+               {
+                   "tracking" => {
+                       "raw" => [
+                           [
+                               person["tracking"]["raw"][1][1]
+                           ]
+                       ]
+                   }
+               }
+          },
+      ]
+
+      test_cases.each do |test_case|
+        options = Collection::GetOptions.new
+        options.project(test_case[:project])
+        res = @collection.get(doc_id, options)
+        assert_equal(test_case[:expected], res.content,
+                     "unexpected content for case #{test_case[:name]} with projections #{test_case[:project].inspect}")
+      end
+    end
+
+    def test_projection_few_paths
+      doc_id = uniq_id(:project_doc)
+      person = load_json_test_dataset("projection_doc")
+
+      res = @collection.upsert(doc_id, person)
+      refute_equal 0, res.cas
+
+      test_cases = [
+          {name: "simple", project: %w[name age animals],
+           expected:
+               {
+                   "name" => person["name"],
+                   "age" => person["age"],
+                   "animals" => person["animals"]
+               }
+          },
+          {name: "array entries", project: %w[animals[1] animals[0]],
+           expected:
+               {
+                   "animals" => [
+                       person["animals"][1],
+                       person["animals"][0]
+                   ]
+               }
+          },
+      ]
+
+      test_cases.each do |test_case|
+        options = Collection::GetOptions.new
+        options.project(*test_case[:project])
+        res = @collection.get(doc_id, options)
+        assert_equal(test_case[:expected], res.content,
+                     "unexpected content for case #{test_case[:name]} with projections #{test_case[:project].inspect}")
+      end
+    end
+
+    def test_projection_preserve_array_indexes
+      doc_id = uniq_id(:project_doc)
+      person = load_json_test_dataset("projection_doc")
+
+      res = @collection.upsert(doc_id, person)
+      refute_equal 0, res.cas
+
+      test_cases = [
+          {name: "array entries", project: %w[animals[1] animals[0]],
+           expected:
+               {
+                   "animals" => [
+                       person["animals"][0],
+                       person["animals"][1]
+                   ]
+               }
+          },
+          {name: "with inner array", project: %w[attributes.hobbies[1].details.location.lat],
+           expected:
+               {
+                   "attributes" => {
+                       "hobbies" => [
+                           nil,
+                           {
+                               "details" => {
+                                   "location" => {
+                                       "lat" => person["attributes"]["hobbies"][1]["details"]["location"]["lat"]
+                                   }
+                               }
+                           }
+                       ]
+                   }
+               }
+          },
+      ]
+
+      test_cases.each do |test_case|
+        options = Collection::GetOptions.new
+        options.project(*test_case[:project])
+        options.preserve_array_indexes = true
+        res = @collection.get(doc_id, options)
+        assert_equal(test_case[:expected], res.content,
+                     "unexpected content for case #{test_case[:name]} with projections #{test_case[:project].inspect}")
+      end
+    end
+
+    def test_insert_get_projection_18_fields
+      doc_id = uniq_id(:project_too_many_fields)
+      doc = (1..18).each_with_object({}) do |n, obj|
+        obj["field#{n}"] = n
+      end
+
+      res = @collection.insert(doc_id, doc)
+      refute_equal 0, res.cas
+
+      options = Collection::GetOptions.new
+      options.project((1..17).map {|n| "field#{n}"})
+      res = @collection.get(doc_id, options)
+      expected = (1..17).each_with_object({}) do |n, obj|
+        obj["field#{n}"] = n
+      end
+      assert_equal(expected, res.content, "expected result do not include field18")
+    end
+
+    def test_upsert_get_projection_16_fields_and_expiry
+      doc_id = uniq_id(:project_too_many_fields)
+      doc = (1..18).each_with_object({}) do |n, obj|
+        obj["field#{n}"] = n
+      end
+
+      options = Collection::UpsertOptions.new
+      options.expiration = 60
+      res = @collection.upsert(doc_id, doc, options)
+      refute_equal 0, res.cas
+
+      options = Collection::GetOptions.new
+      options.project((1..16).map {|n| "field#{n}"})
+      options.with_expiration = true
+      res = @collection.get(doc_id, options)
+      expected = (1..16).each_with_object({}) do |n, obj|
+        obj["field#{n}"] = n
+      end
+      assert_equal(expected, res.content, "expected result do not include field17, field18")
+      assert_kind_of(Integer, res.expiration)
+      refute_equal(0, res.expiration)
+    end
+
+    def test_upsert_get_projection_missing_path
+      doc_id = uniq_id(:project_doc)
+      person = load_json_test_dataset("projection_doc")
+
+      res = @collection.upsert(doc_id, person)
+      refute_equal 0, res.cas
+
+      options = Collection::GetOptions.new
+      options.project("this_field_does_not_exist")
+      assert_raises(Error::PathNotFound) do
+        @collection.get(doc_id, options)
+      end
+    end
   end
 end
