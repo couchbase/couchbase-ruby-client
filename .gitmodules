@@ -16,3 +16,6 @@
 [submodule "ext/third_party/snappy"]
 	path = ext/third_party/snappy
 	url = git://github.com/google/snappy.git
+[submodule "test_data/sdk_test_cases"]
+	path = test_data/sdk_test_cases
+	url = git://github.com/couchbaselabs/sdk-testcases

@@ -8,5 +8,6 @@
     <mapping directory="$PROJECT_DIR$/ext/third_party/json" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ext/third_party/snappy" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ext/third_party/spdlog" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/test_data/sdk_test_cases" vcs="Git" />
   </component>
 </project>

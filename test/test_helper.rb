@@ -38,14 +38,26 @@ class ServerVersion
 end
 
 require "couchbase"
+require "json"
+
+require "minitest/autorun"
+
 module Couchbase
   TEST_CONNECTION_STRING = ENV["TEST_CONNECTION_STRING"] || "couchbase://localhost"
   TEST_USERNAME = ENV["TEST_USERNAME"] || "Administrator"
   TEST_PASSWORD = ENV["TEST_PASSWORD"] || "password"
   TEST_SERVER_VERSION = ServerVersion.new(ENV["TEST_SERVER_VERSION"] || "6.5.1")
-end
 
-require "minitest/autorun"
+  class BaseTest < Minitest::Test
+    def load_raw_test_dataset(dataset)
+      File.read(File.join(__dir__, "..", "test_data", "#{dataset}.json"))
+    end
+
+    def load_json_test_dataset(dataset)
+      JSON.parse(load_raw_test_dataset(dataset))
+    end
+  end
+end
 
 require "minitest/reporters"
 Minitest::Reporters.use!(
