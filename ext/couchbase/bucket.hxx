@@ -24,7 +24,6 @@
 
 namespace couchbase
 {
-
 class bucket
 {
   public:
@@ -51,16 +50,6 @@ class bucket
             return;
         }
 
-        auto session_manifest = session->manifest();
-        if (!manifest_cache_) {
-            if (session_manifest) {
-                manifest_cache_ = session_manifest.value();
-            }
-        } else {
-            if (session_manifest && session_manifest->uid > manifest_cache_->uid) {
-                manifest_cache_ = session->manifest().value();
-            }
-        }
         sessions_.emplace(index, std::move(session));
     }
 
@@ -81,14 +70,6 @@ class bucket
         size_t index = 0;
         std::tie(request.partition, index) = config_.map_key(request.id.key);
         auto session = sessions_.at(index);
-        if (manifest_cache_) {
-            request.id.collection_uid = get_collection_uid(request.id.collection);
-        } else {
-            if (!request.id.collection.empty() && request.id.collection != "_default._default") {
-                handler(make_response(std::make_error_code(error::common_errc::unsupported_operation), request, {}));
-                return;
-            }
-        }
         auto cmd = std::make_shared<operations::command<Request>>(ctx_, std::move(request));
         cmd->send_to(session, std::forward<Handler>(handler));
     }
@@ -105,32 +86,11 @@ class bucket
     }
 
   private:
-    [[nodiscard]] uint32_t get_collection_uid(const std::string& collection_path)
-    {
-        Expects(manifest_cache_.has_value());
-        Expects(!collection_path.empty());
-        auto dot = collection_path.find('.');
-        Expects(dot != std::string::npos);
-        std::string scope = collection_path.substr(0, dot);
-        std::string collection = collection_path.substr(dot + 1);
-        for (const auto& s : manifest_cache_->scopes) {
-            if (s.name == scope) {
-                for (const auto& c : s.collections) {
-                    if (c.name == collection) {
-                        return gsl::narrow_cast<std::uint32_t>(c.uid);
-                    }
-                }
-            }
-        }
-        Ensures(false); // FIXME: return collection not found
-        return 0;
-    }
 
     asio::io_context& ctx_;
     std::string name_;
     configuration config_;
     bool closed_{ false };
-    std::optional<collections_manifest> manifest_cache_{};
     std::map<size_t, std::shared_ptr<io::mcbp_session>> sessions_{};
 };
 } // namespace couchbase

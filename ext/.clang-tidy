@@ -17,4 +17,5 @@ Checks: |-
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -modernize-use-trailing-return-type,
+  -llvmlibc-callee-namespace,
   -fuchsia-*

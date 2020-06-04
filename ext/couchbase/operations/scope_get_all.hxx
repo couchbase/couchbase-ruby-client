@@ -21,6 +21,7 @@
 
 #include <version.hxx>
 #include <operations/bucket_settings.hxx>
+#include <collections_manifest.hxx>
 
 namespace couchbase::operations
 {

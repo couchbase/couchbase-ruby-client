@@ -63,7 +63,11 @@ make_response(std::error_code ec, collection_create_request&, collection_create_
     if (!ec) {
         switch (encoded.status_code) {
             case 400:
-                response.ec = std::make_error_code(error::management_errc::collection_exists);
+                if (encoded.body.find("Collection with this name already exists") != std::string::npos) {
+                    response.ec = std::make_error_code(error::management_errc::collection_exists);
+                } else {
+                    response.ec = std::make_error_code(error::common_errc::invalid_argument);
+                }
                 break;
             case 404:
                 if (encoded.body.find("Scope with this name is not found") != std::string::npos) {

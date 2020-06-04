@@ -2364,7 +2364,9 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
                                    [barrier](couchbase::operations::collection_create_response resp) mutable { barrier->set_value(resp); });
     auto resp = f.get();
     if (resp.ec) {
-        cb_raise_error_code(resp.ec, fmt::format("unable to create the collection on the bucket \"{}\"", req.bucket_name));
+        cb_raise_error_code(
+          resp.ec,
+          fmt::format(R"(unable create the collection "{}.{}" on the bucket "{}")", req.scope_name, req.collection_name, req.bucket_name));
     }
     return ULL2NUM(resp.uid);
 }

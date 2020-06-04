@@ -15,9 +15,11 @@
 $LOAD_PATH.unshift File.expand_path("../../lib", __FILE__)
 
 require "rubygems/version"
+
 class ServerVersion
-  def initialize(version_string)
+  def initialize(version_string, developer_preview = false)
     @version = Gem::Version.create(version_string)
+    @developer_preview = developer_preview
   end
 
   def supports_gcccp?
@@ -35,6 +37,10 @@ class ServerVersion
   def cheshire_cat?
     @version >= Gem::Version.create("7.0.0")
   end
+
+  def supports_collections?
+    (mad_hatter? && @developer_preview) || cheshire_cat?
+  end
 end
 
 require "couchbase"
@@ -46,7 +52,9 @@ module Couchbase
   TEST_CONNECTION_STRING = ENV["TEST_CONNECTION_STRING"] || "couchbase://localhost"
   TEST_USERNAME = ENV["TEST_USERNAME"] || "Administrator"
   TEST_PASSWORD = ENV["TEST_PASSWORD"] || "password"
-  TEST_SERVER_VERSION = ServerVersion.new(ENV["TEST_SERVER_VERSION"] || "6.5.1")
+  TEST_BUCKET = ENV["TEST_BUCKET"] || "default"
+  TEST_DEVELOPER_PREVIEW = ENV.key?("TEST_DEVELOPER_PREVIEW")
+  TEST_SERVER_VERSION = ServerVersion.new(ENV["TEST_SERVER_VERSION"] || "6.5.1", TEST_DEVELOPER_PREVIEW)
 
   class BaseTest < Minitest::Test
     def load_raw_test_dataset(dataset)

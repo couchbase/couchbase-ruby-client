@@ -20,7 +20,8 @@ module Couchbase
       options = Cluster::ClusterOptions.new
       options.authenticate(TEST_USERNAME, TEST_PASSWORD)
       @cluster = Cluster.connect(TEST_CONNECTION_STRING, options)
-      @collection = @cluster.bucket("default").default_collection
+      @bucket = @cluster.bucket(TEST_BUCKET)
+      @collection = @bucket.default_collection
     end
 
     def teardown
@@ -677,7 +678,7 @@ module Couchbase
       refute_equal 0, res.cas
 
       options = Collection::GetOptions.new
-      options.project((1..17).map {|n| "field#{n}"})
+      options.project((1..17).map { |n| "field#{n}" })
       res = @collection.get(doc_id, options)
       expected = (1..17).each_with_object({}) do |n, obj|
         obj["field#{n}"] = n
@@ -697,7 +698,7 @@ module Couchbase
       refute_equal 0, res.cas
 
       options = Collection::GetOptions.new
-      options.project((1..16).map {|n| "field#{n}"})
+      options.project((1..16).map { |n| "field#{n}" })
       options.with_expiration = true
       res = @collection.get(doc_id, options)
       expected = (1..16).each_with_object({}) do |n, obj|
@@ -720,6 +721,46 @@ module Couchbase
       assert_raises(Error::PathNotFound) do
         @collection.get(doc_id, options)
       end
+    end
+
+    # Following test tests that if a collection is deleted and recreated midway through a set of operations then the
+    # operations will still succeed due to the cid being refreshed under the hood.
+    def test_collection_retry
+      unless TEST_SERVER_VERSION.supports_collections?
+        skip("The server does not support collections (#{TEST_SERVER_VERSION}, dp=#{TEST_DEVELOPER_PREVIEW}")
+      end
+      doc_id = uniq_id(:project_too_many_fields)
+      doc = load_json_test_dataset("beer_sample_single")
+
+      collection_name = uniq_id(:collection).gsub('.', '')[0..30]
+
+      manager = @bucket.collections
+
+      spec = Management::CollectionSpec.new
+      spec.scope_name = "_default"
+      spec.name = collection_name
+      manager.create_collection(spec)
+      sleep(1)
+
+      collection = @bucket.collection(collection_name)
+
+      # make sure we've connected to the collection
+      res = collection.upsert(doc_id, doc)
+      refute_equal 0, res.cas
+
+      # the following delete and create will recreate a collection with the same name but a different collection ID.
+      manager.drop_collection(spec)
+      manager.create_collection(spec)
+
+      # we've wiped the collection so we need to recreate this doc
+      # we know that this operation can take a bit longer than normal as collections take time to come online
+      options = Collection::UpsertOptions.new
+      options.timeout = 15_000
+      res = collection.upsert(doc_id, doc, options)
+      refute_equal 0, res.cas
+
+      res = collection.get(doc_id)
+      assert_equal doc, res.content
     end
   end
 end

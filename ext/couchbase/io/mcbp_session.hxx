@@ -41,7 +41,6 @@
 #include <protocol/cmd_select_bucket.hxx>
 #include <protocol/cmd_get_cluster_config.hxx>
 #include <protocol/cmd_get_error_map.hxx>
-#include <protocol/cmd_get_collections_manifest.hxx>
 #include <protocol/cmd_get.hxx>
 #include <protocol/cmd_cluster_map_change_notification.hxx>
 
@@ -57,6 +56,35 @@ namespace couchbase::io
 
 class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 {
+    class collection_cache
+    {
+      private:
+        std::map<std::string, std::uint32_t> cid_map_{ { "_default._default", 0 } };
+
+      public:
+        [[nodiscard]] std::optional<std::uint32_t> get(const std::string& path)
+        {
+            Expects(!path.empty());
+            auto ptr = cid_map_.find(path);
+            if (ptr != cid_map_.end()) {
+                return ptr->second;
+            }
+            return {};
+        }
+
+        void update(const std::string& path, std::uint32_t id)
+        {
+            Expects(!path.empty());
+            cid_map_[path] = id;
+        }
+
+        void reset()
+        {
+            cid_map_.clear();
+            cid_map_["_default._default"] = 0;
+        }
+    };
+
     class message_handler
     {
       public:
@@ -140,10 +168,6 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 sb_req.opaque(session_->next_opaque());
                 sb_req.body().bucket_name(session_->bucket_name_.value());
                 session_->write(sb_req.data());
-
-                protocol::client_request<protocol::get_collections_manifest_request_body> gcm_req;
-                gcm_req.opaque(session_->next_opaque());
-                session_->write(gcm_req.data());
             }
             protocol::client_request<protocol::get_cluster_config_request_body> cfg_req;
             cfg_req.opaque(session_->next_opaque());
@@ -213,21 +237,6 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                     protocol::client_response<protocol::get_error_map_response_body> resp(msg);
                     if (resp.status() == protocol::status::success) {
                         session_->errmap_.emplace(resp.body().errmap());
-                    } else {
-                        spdlog::warn("unexpected message status during bootstrap: {} (opcode={})", resp.error_message(), opcode);
-                        return complete(std::make_error_code(error::network_errc::protocol_error));
-                    }
-                } break;
-                case protocol::client_opcode::get_collections_manifest: {
-                    protocol::client_response<protocol::get_collections_manifest_response_body> resp(msg);
-                    if (resp.status() == protocol::status::success) {
-                        session_->manifest_.emplace(resp.body().manifest());
-                        spdlog::trace(
-                          "collections manifest for bucket \"{}\": {}", session_->bucket_name_.value_or(""), *session_->manifest_);
-                    } else if (resp.status() == protocol::status::no_collections_manifest) {
-                        spdlog::trace("collection manifest is not available for bucket \"{}\": {}",
-                                      session_->bucket_name_.value_or(""),
-                                      resp.error_message());
                     } else {
                         spdlog::warn("unexpected message status during bootstrap: {} (opcode={})", resp.error_message(), opcode);
                         return complete(std::make_error_code(error::network_errc::protocol_error));
@@ -322,6 +331,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                 spdlog::warn("unexpected message status: {}", resp.error_message());
                             }
                         } break;
+                        case protocol::client_opcode::get_collection_id:
                         case protocol::client_opcode::get:
                         case protocol::client_opcode::get_and_lock:
                         case protocol::client_opcode::get_and_touch:
@@ -493,11 +503,6 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             handler->second(ec, {});
             command_handlers_.erase(handler);
         }
-    }
-
-    [[nodiscard]] std::optional<collections_manifest> manifest()
-    {
-        return manifest_;
     }
 
     bool supports_feature(protocol::hello_feature feature)
@@ -675,6 +680,16 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             config_.emplace(config);
             spdlog::trace("received new configuration: {}", config_.value());
         }
+    }
+
+    std::optional<std::uint32_t> get_collection_uid(const std::string& collection_path)
+    {
+        return collection_cache_.get(collection_path);
+    }
+
+    void update_collection_uid(const std::string& path, std::uint32_t uid)
+    {
+        collection_cache_.update(path, uid);
     }
 
   private:
@@ -866,7 +881,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     std::vector<protocol::hello_feature> supported_features_;
     std::optional<configuration> config_;
     std::optional<error_map> errmap_;
-    std::optional<collections_manifest> manifest_;
+    collection_cache collection_cache_;
 
     std::atomic_bool reading_{ false };
 };

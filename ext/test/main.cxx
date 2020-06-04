@@ -47,12 +47,19 @@ p Couchbase::VERSION
 
     run_script(R"(
 B = Couchbase::Backend.new
-#B.open("192.168.42.101", "Administrator", "password")
 B.open("localhost", "Administrator", "password")
 )");
 
     run_script(R"(
-p B.bucket_flush("default", 75_000)
+p collection_create: (B.collection_create("default", "_default", "my_collection", nil, nil) rescue nil)
+p collection_create: (B.collection_create("default", "_default", "my_collection", nil, nil) rescue nil)
+p open_bucket: B.open_bucket("default")
+p document_upsert: B.document_upsert("default", "_default.my_collection", "foo", nil, "bar", 0, nil)
+p collection_drop: (B.collection_drop("default", "_default", "my_collection", nil) rescue nil)
+p collection_create: (B.collection_create("default", "_default", "my_collection", nil, nil) rescue nil)
+start = Time.now
+p document_get: (begin;B.document_get("default", "_default.my_collection", "foo", 15_000); rescue => ex; ex.message; end)
+puts spent: Time.now - start
 )");
 
     run_script(R"(

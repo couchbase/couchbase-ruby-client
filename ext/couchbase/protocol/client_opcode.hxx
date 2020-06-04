@@ -41,6 +41,7 @@ enum class client_opcode : uint8_t {
     get_and_lock = 0x94,
     unlock = 0x95,
     get_collections_manifest = 0xba,
+    get_collection_id = 0xbb,
     subdoc_multi_lookup = 0xd0,
     subdoc_multi_mutation = 0xd1,
     get_cluster_config = 0xb5,
@@ -94,6 +95,7 @@ is_valid_client_opcode(uint8_t code)
         case client_opcode::get_and_touch:
         case client_opcode::increment:
         case client_opcode::decrement:
+        case client_opcode::get_collection_id:
             return true;
     }
     return false;
@@ -197,6 +199,9 @@ struct fmt::formatter<couchbase::protocol::client_opcode> : formatter<string_vie
                 break;
             case couchbase::protocol::client_opcode::decrement:
                 name = "decrement";
+                break;
+            case couchbase::protocol::client_opcode::get_collection_id:
+                name = "get_collection_uid";
                 break;
         }
         return formatter<string_view>::format(name, ctx);
