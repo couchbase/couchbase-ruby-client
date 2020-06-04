@@ -32,7 +32,7 @@ Gem::Specification.new do |spec|
   spec.metadata["github_repo"] = "ssh://github.com/couchbase/couchbase-ruby-client"
 
   spec.files = Dir.chdir(File.expand_path("..", __FILE__)) do
-    `git ls-files --recurse-submodules -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
+    `git ls-files --recurse-submodules -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features|test_data)/}) }
   end
   spec.bindir = "exe"
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
