@@ -17,8 +17,10 @@
 
 #pragma once
 
-#include <document_id.hxx>
 #include <protocol/cmd_increment.hxx>
+#include <protocol/durability_level.hxx>
+#include <operations.hxx>
+#include <protocol/client_response.hxx>
 
 namespace couchbase::operations
 {
@@ -43,6 +45,7 @@ struct increment_request {
     std::optional<std::uint64_t> initial_value{};
     protocol::durability_level durability_level{ protocol::durability_level::none };
     std::optional<std::uint16_t> durability_timeout{};
+    std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

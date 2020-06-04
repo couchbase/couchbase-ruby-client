@@ -46,6 +46,7 @@ struct query_index_drop_request {
     std::string index_name;
     bool is_primary{ false };
     bool ignore_if_does_not_exist{ false };
+    std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

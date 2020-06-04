@@ -47,6 +47,7 @@ struct lookup_in_request {
     uint32_t opaque{};
     bool access_deleted{ false };
     protocol::lookup_in_request_body::lookup_in_specs specs{};
+    std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

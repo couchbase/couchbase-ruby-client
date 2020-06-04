@@ -39,6 +39,7 @@ struct bucket_create_request {
     static const inline service_type type = service_type::management;
 
     bucket_settings bucket{};
+    std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

@@ -38,6 +38,7 @@ struct bucket_update_request {
     using encoded_response_type = io::http_response;
 
     static const inline service_type type = service_type::management;
+    std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
     bucket_settings bucket{};
 

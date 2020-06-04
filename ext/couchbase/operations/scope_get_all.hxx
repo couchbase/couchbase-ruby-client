@@ -38,6 +38,7 @@ struct scope_get_all_request {
     static const inline service_type type = service_type::management;
 
     std::string bucket_name;
+    std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

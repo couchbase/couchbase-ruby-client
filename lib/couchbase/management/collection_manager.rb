@@ -32,7 +32,7 @@ module Couchbase
       #
       # @return [Array<ScopeSpec>]
       def get_all_scopes(options = GetAllScopesOptions.new)
-        res = @backend.scope_get_all(@bucket_name)
+        res = @backend.scope_get_all(@bucket_name, options.timeout)
         res[:scopes].map do |s|
           ScopeSpec.new do |scope|
             scope.name = s[:name]
@@ -55,7 +55,8 @@ module Couchbase
       #
       # @raise [Error::ScopeNotFound]
       def get_scope(scope_name, options = GetScopeOptions.new)
-        get_all_scopes.find { |scope| scope.name == scope_name } or raise Error::ScopeNotFound, "unable to find scope #{scope_name}"
+        get_all_scopes(GetAllScopesOptions.new {|o| o.timeout = options.timeout })
+            .find { |scope| scope.name == scope_name } or raise Error::ScopeNotFound, "unable to find scope #{scope_name}"
       end
 
       # Creates a new scope
@@ -65,7 +66,7 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def create_scope(scope_name, options = CreateScopeOptions.new)
-        @backend.scope_create(@bucket_name, scope_name)
+        @backend.scope_create(@bucket_name, scope_name, options.timeout)
       end
 
       # Removes a scope
@@ -75,7 +76,7 @@ module Couchbase
       #
       # @raise [Error::ScopeNotFound]
       def drop_scope(scope_name, options = DropScopeOptions.new)
-        @backend.scope_drop(@bucket_name, scope_name)
+        @backend.scope_drop(@bucket_name, scope_name, options.timeout)
       end
 
       # Creates a new collection
@@ -87,7 +88,7 @@ module Couchbase
       # @raise [Error::CollectionExist]
       # @raise [Error::ScopeNotFound]
       def create_collection(collection, options = CreateCollectionOptions.new)
-        @backend.collection_create(@bucket_name, collection.scope_name, collection.name, collection.max_expiry)
+        @backend.collection_create(@bucket_name, collection.scope_name, collection.name, collection.max_expiry, options.timeout)
       end
 
       # Removes a collection
@@ -97,7 +98,7 @@ module Couchbase
       #
       # @raise [Error::CollectionNotFound]
       def drop_collection(collection, options = DropCollectionOptions.new)
-        @backend.collection_drop(@bucket_name, collection.scope_name, collection.name)
+        @backend.collection_drop(@bucket_name, collection.scope_name, collection.name, options.timeout)
       end
 
       class GetScopeOptions

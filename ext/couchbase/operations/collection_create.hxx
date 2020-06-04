@@ -42,6 +42,7 @@ struct collection_create_request {
     std::string scope_name;
     std::string collection_name;
     std::uint32_t max_expiry{ 0 };
+    std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

@@ -40,6 +40,7 @@ struct scope_drop_request {
 
     std::string bucket_name;
     std::string scope_name;
+    std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

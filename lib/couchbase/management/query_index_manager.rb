@@ -33,7 +33,7 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def get_all_indexes(bucket_name, options = GetAllIndexOptions.new)
-        res = @backend.query_index_get_all(bucket_name)
+        res = @backend.query_index_get_all(bucket_name, options.timeout)
         res[:indexes].map do |idx|
           QueryIndex.new do |index|
             index.name = idx[:name]
@@ -63,7 +63,7 @@ module Couchbase
             condition: options.condition,
             deferred: options.deferred,
             num_replicas: options.num_replicas,
-        })
+        }, options.timeout)
       end
 
       # Creates new primary index
@@ -78,7 +78,7 @@ module Couchbase
             ignore_if_exists: options.ignore_if_exists,
             deferred: options.deferred,
             num_replicas: options.num_replicas,
-        })
+        }, options.timeout)
       end
 
       # Drops the index
@@ -92,7 +92,7 @@ module Couchbase
       def drop_index(bucket_name, index_name, options = DropIndexOptions.new)
         @backend.query_index_drop(bucket_name, index_name, {
             ignore_if_does_not_exist: options.ignore_if_does_not_exist,
-        })
+        }, options.timeout)
         true
       end
 
@@ -107,7 +107,7 @@ module Couchbase
         @backend.query_index_drop_primary(bucket_name, {
             ignore_if_does_not_exist: options.ignore_if_does_not_exist,
             index_name: options.index_name,
-        })
+        }, options.timeout)
         true
       end
 
@@ -118,7 +118,7 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def build_deferred_indexes(bucket_name, options = BuildDeferredIndexOptions.new)
-        @backend.query_index_build_deferred(bucket_name, {})
+        @backend.query_index_build_deferred(bucket_name, options.timeout)
       end
 
       # Polls indexes until they are online

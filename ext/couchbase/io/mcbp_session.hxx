@@ -28,6 +28,8 @@
 #include <io/mcbp_message.hxx>
 #include <io/mcbp_parser.hxx>
 
+#include <timeout_defaults.hxx>
+
 #include <protocol/hello_feature.hxx>
 #include <protocol/client_request.hxx>
 #include <protocol/client_response.hxx>
@@ -481,6 +483,18 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
     }
 
+    void cancel(uint32_t opaque, std::error_code ec)
+    {
+        if (stopped_) {
+            return;
+        }
+        auto handler = command_handlers_.find(opaque);
+        if (handler != command_handlers_.end()) {
+            handler->second(ec, {});
+            command_handlers_.erase(handler);
+        }
+    }
+
     [[nodiscard]] std::optional<collections_manifest> manifest()
     {
         return manifest_;
@@ -704,7 +718,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         if (it != endpoints_.end()) {
             spdlog::trace("connecting to {}:{}", it->endpoint().address().to_string(), it->endpoint().port());
-            deadline_timer_.expires_after(std::chrono::seconds(10));
+            deadline_timer_.expires_after(timeout_defaults::connect_timeout);
             socket_.async_connect(it->endpoint(), std::bind(&mcbp_session::on_connect, this, std::placeholders::_1, it));
         } else {
             spdlog::error("no more endpoints left to connect");

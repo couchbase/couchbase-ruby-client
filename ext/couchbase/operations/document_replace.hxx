@@ -44,6 +44,7 @@ struct replace_request {
     uint64_t cas{ 0 };
     protocol::durability_level durability_level{ protocol::durability_level::none };
     std::optional<std::uint16_t> durability_timeout{};
+    std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

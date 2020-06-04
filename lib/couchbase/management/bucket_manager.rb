@@ -33,16 +33,19 @@ module Couchbase
       # @raise [Error::BucketExists]
       def create_bucket(settings, options = CreateBucketOptions.new)
         @backend.bucket_create(
-            name: settings.name,
-            flush_enabled: settings.flush_enabled,
-            ram_quota_mb: settings.ram_quota_mb,
-            num_replicas: settings.num_replicas,
-            replica_indexes: settings.replica_indexes,
-            bucket_type: settings.bucket_type,
-            ejection_policy: settings.ejection_policy,
-            max_expiry: settings.max_expiry,
-            compression_mode: settings.compression_mode,
-            conflict_resolution_type: settings.conflict_resolution_type,
+            {
+
+                name: settings.name,
+                flush_enabled: settings.flush_enabled,
+                ram_quota_mb: settings.ram_quota_mb,
+                num_replicas: settings.num_replicas,
+                replica_indexes: settings.replica_indexes,
+                bucket_type: settings.bucket_type,
+                ejection_policy: settings.ejection_policy,
+                max_expiry: settings.max_expiry,
+                compression_mode: settings.compression_mode,
+                conflict_resolution_type: settings.conflict_resolution_type,
+            }, options.timeout
         )
       end
 
@@ -55,15 +58,17 @@ module Couchbase
       # @raise [Error::BucketNotFound]
       def update_bucket(settings, options = UpdateBucketOptions.new)
         @backend.bucket_update(
-            name: settings.name,
-            flush_enabled: settings.flush_enabled,
-            ram_quota_mb: settings.ram_quota_mb,
-            num_replicas: settings.num_replicas,
-            replica_indexes: settings.replica_indexes,
-            bucket_type: settings.bucket_type,
-            ejection_policy: settings.ejection_policy,
-            max_expiry: settings.max_expiry,
-            compression_mode: settings.compression_mode,
+            {
+                name: settings.name,
+                flush_enabled: settings.flush_enabled,
+                ram_quota_mb: settings.ram_quota_mb,
+                num_replicas: settings.num_replicas,
+                replica_indexes: settings.replica_indexes,
+                bucket_type: settings.bucket_type,
+                ejection_policy: settings.ejection_policy,
+                max_expiry: settings.max_expiry,
+                compression_mode: settings.compression_mode,
+            }, options.timeout
         )
       end
 
@@ -75,7 +80,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
       def drop_bucket(bucket_name, options = DropBucketOptions.new)
-        @backend.bucket_drop(bucket_name)
+        @backend.bucket_drop(bucket_name, options.timeout)
       end
 
       # Fetch settings of the bucket
@@ -88,7 +93,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
       def get_bucket(bucket_name, options = GetBucketOptions.new)
-        res = @backend.bucket_get(bucket_name)
+        res = @backend.bucket_get(bucket_name, options.timeout)
         extract_bucket_settings(res)
       end
 
@@ -97,7 +102,7 @@ module Couchbase
       # @param [GetAllBucketsOptions] options
       # @return [Array<BucketSettings>]
       def get_all_buckets(options = GetAllBucketsOptions.new)
-        res = @backend.bucket_get_all
+        res = @backend.bucket_get_all(options.timeout)
         res.map(&method(:extract_bucket_settings))
       end
 
@@ -106,7 +111,7 @@ module Couchbase
       # @raise [Error::BucketNotFound]
       # @raise [Error::BucketNotFlushable]
       def flush_bucket(bucket_name, options = FlushBucketOptions.new)
-        @backend.bucket_flush(bucket_name)
+        @backend.bucket_flush(bucket_name, options.timeout)
       end
 
       class CreateBucketOptions

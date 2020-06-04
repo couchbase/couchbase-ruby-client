@@ -39,6 +39,7 @@ struct get_and_lock_request {
     uint16_t partition{};
     uint32_t opaque{};
     uint32_t lock_time{};
+    std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

@@ -52,10 +52,7 @@ B.open("localhost", "Administrator", "password")
 )");
 
     run_script(R"(
-p B.open_bucket("default")
-p B.document_increment("default", "_default._default", "foo", {:initial_value => 32, :expiration => 42})
-p B.document_get("default", "_default._default", "foo")
-p B.document_decrement("default", "_default._default", "foo", {:initial_value => 32, :expiration => 42})
+p B.bucket_flush("default", 75_000)
 )");
 
     run_script(R"(

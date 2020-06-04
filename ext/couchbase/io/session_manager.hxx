@@ -25,7 +25,7 @@
 namespace couchbase::io
 {
 
-class session_manager
+class session_manager : public std::enable_shared_from_this<session_manager>
 {
   public:
     session_manager(uuid::uuid_t client_id, asio::io_context& ctx)
@@ -57,6 +57,10 @@ class session_manager
             }
             config_.nodes.size();
             auto session = std::make_shared<http_session>(client_id_, ctx_, username, password, hostname, std::to_string(port));
+            session->on_stop([type, id = session->id(), self = this->shared_from_this()]() {
+                self->busy_sessions_[type].remove_if([id](const auto& s) -> bool { return s->id() == id; });
+                self->idle_sessions_[type].remove_if([id](const auto& s) -> bool { return s->id() == id; });
+            });
             busy_sessions_[type].push_back(session);
             return session;
         }

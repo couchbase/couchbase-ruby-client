@@ -17,9 +17,20 @@
 
 #pragma once
 
+#include <gsl/gsl>
+
+#include <spdlog/spdlog.h>
+
 #include <tao/json.hpp>
 
 #include <version.hxx>
+
+#include <errors.hxx>
+#include <mutation_token.hxx>
+#include <service_type.hxx>
+#include <platform/uuid.h>
+#include <timeout_defaults.hxx>
+#include <io/http_message.hxx>
 
 namespace couchbase::operations
 {
@@ -142,7 +153,6 @@ struct query_request {
 
     static const inline service_type type = service_type::query;
 
-    std::uint64_t timeout{ 75'000 }; // milliseconds
     std::string statement;
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
@@ -157,6 +167,7 @@ struct query_request {
     std::optional<std::uint64_t> pipeline_cap{};
     std::optional<scan_consistency_type> scan_consistency{};
     std::vector<mutation_token> mutation_state{};
+    std::chrono::milliseconds timeout{ timeout_defaults::query_timeout };
 
     enum class profile_mode {
         off,
@@ -174,7 +185,7 @@ struct query_request {
         encoded.headers["content-type"] = "application/json";
         tao::json::value body{ { "statement", statement },
                                { "client_context_id", client_context_id },
-                               { "timeout", fmt::format("{}ms", timeout) } };
+                               { "timeout", fmt::format("{}ms", timeout.count()) } };
         if (positional_parameters.empty()) {
             for (auto& param : named_parameters) {
                 Expects(param.first.empty() == false);

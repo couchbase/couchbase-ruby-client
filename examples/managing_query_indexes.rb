@@ -28,7 +28,7 @@ bucket_name = "beer-sample"
 
 options = Cluster::ClusterOptions.new
 options.authenticate("Administrator", "password")
-cluster = Cluster.connect("couchbase://192.168.42.101", options)
+cluster = Cluster.connect("couchbase://localhost", options)
 
 display_indexes(cluster.query_indexes.get_all_indexes(bucket_name), bucket_name)
 

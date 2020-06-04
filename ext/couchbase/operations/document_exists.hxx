@@ -40,6 +40,7 @@ struct exists_request {
     document_id id;
     std::uint16_t partition{};
     std::uint32_t opaque{};
+    std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

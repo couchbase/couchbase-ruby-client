@@ -51,10 +51,12 @@ module Couchbase
     def get(id, options = GetOptions.new)
       resp = if options.need_projected_get?
                @backend.document_get_projected(bucket_name, "#{@scope_name}.#{@name}", id,
-                                               options.with_expiration, options.projections,
+                                               options.timeout,
+                                               options.with_expiration,
+                                               options.projections,
                                                options.preserve_array_indexes)
              else
-               @backend.document_get(bucket_name, "#{@scope_name}.#{@name}", id)
+               @backend.document_get(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout)
              end
       GetResult.new do |res|
         res.transcoder = options.transcoder
@@ -73,7 +75,7 @@ module Couchbase
     #
     # @return [GetResult]
     def get_and_lock(id, lock_time, options = GetAndLockOptions.new)
-      resp = @backend.document_get_and_lock(bucket_name, "#{@scope_name}.#{@name}", id, lock_time)
+      resp = @backend.document_get_and_lock(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, lock_time)
       GetResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
@@ -90,7 +92,7 @@ module Couchbase
     #
     # @return [GetResult]
     def get_and_touch(id, expiration, options = GetAndTouchOptions.new)
-      resp = @backend.document_get_and_touch(bucket_name, "#{@scope_name}.#{@name}", id, expiration)
+      resp = @backend.document_get_and_touch(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, expiration)
       GetResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
@@ -122,7 +124,7 @@ module Couchbase
     #
     # @return [ExistsResult]
     def exists(id, options = ExistsOptions.new)
-      resp = @backend.document_exists(bucket_name, "#{@scope_name}.#{@name}", id)
+      resp = @backend.document_exists(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout)
       ExistsResult.new do |res|
         res.status = resp[:status]
         res.partition_id = resp[:partition_id]
@@ -137,7 +139,7 @@ module Couchbase
     #
     # @return [MutationResult]
     def remove(id, options = RemoveOptions.new)
-      resp = @backend.document_remove(bucket_name, "#{@scope_name}.#{@name}", id, {
+      resp = @backend.document_remove(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, {
           durability_level: options.durability_level
       })
       MutationResult.new do |res|
@@ -155,7 +157,7 @@ module Couchbase
     # @return [MutationResult]
     def insert(id, content, options = InsertOptions.new)
       blob, flags = options.transcoder.encode(content)
-      resp = @backend.document_insert(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, {
+      resp = @backend.document_insert(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
           durability_level: options.durability_level,
           expiration: options.expiration,
       })
@@ -174,7 +176,7 @@ module Couchbase
     # @return [MutationResult]
     def upsert(id, content, options = UpsertOptions.new)
       blob, flags = options.transcoder.encode(content)
-      resp = @backend.document_upsert(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, {
+      resp = @backend.document_upsert(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
           durability_level: options.durability_level,
           expiration: options.expiration,
       })
@@ -193,7 +195,7 @@ module Couchbase
     # @return [MutationResult]
     def replace(id, content, options = ReplaceOptions.new)
       blob, flags = options.transcoder.encode(content)
-      resp = @backend.document_replace(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, {
+      resp = @backend.document_replace(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
           durability_level: options.durability_level,
           expiration: options.expiration,
           cas: options.cas,
@@ -212,7 +214,7 @@ module Couchbase
     #
     # @return [MutationResult]
     def touch(id, expiration, options = TouchOptions.new)
-      resp = @backend.document_touch(bucket_name, "#{@scope_name}.#{@name}", id, expiration)
+      resp = @backend.document_touch(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, expiration)
       MutationResult.new do |res|
         res.cas = resp[:cas]
       end
@@ -226,7 +228,7 @@ module Couchbase
     #
     # @raise [Error::DocumentNotFound]
     def unlock(id, cas, options = UnlockOptions.new)
-      @backend.document_unlock(bucket_name, "#{@scope_name}.#{@name}", id, cas)
+      @backend.document_unlock(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, cas)
     end
 
     # Performs lookups to document fragments
@@ -238,8 +240,14 @@ module Couchbase
     # @return [LookupInResult]
     def lookup_in(id, specs, options = LookupInOptions.new)
       resp = @backend.document_lookup_in(
-          bucket_name, "#{@scope_name}.#{@name}", id, options.access_deleted,
-          specs.map { |s| {opcode: s.type, xattr: s.xattr?, path: s.path} }
+          bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, options.access_deleted,
+          specs.map { |s|
+            {
+                opcode: s.type,
+                xattr: s.xattr?,
+                path: s.path
+            }
+          }
       )
       LookupInResult.new do |res|
         res.transcoder = options.transcoder
@@ -265,9 +273,18 @@ module Couchbase
     # @return [MutateInResult]
     def mutate_in(id, specs, options = MutateInOptions.new)
       resp = @backend.document_mutate_in(
-          bucket_name, "#{@scope_name}.#{@name}", id, options.access_deleted,
-          specs.map { |s| {opcode: s.type, path: s.path, param: s.param,
-                           xattr: s.xattr?, expand_macros: s.expand_macros?, create_parents: s.create_parents?} }, {
+          bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, options.access_deleted,
+          specs.map { |s|
+            {
+                opcode: s.type,
+                path: s.path,
+                param: s.param,
+                xattr: s.xattr?,
+                expand_macros: s.expand_macros?,
+                create_parents: s.create_parents?
+            }
+          },
+          {
               durability_level: options.durability_level
           }
       )

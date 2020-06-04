@@ -20,6 +20,7 @@ module Couchbase
       # @return [Integer] The default CAS used (0 means no CAS in this context)
       attr_accessor :cas
 
+      # @yieldparam [AppendOptions] self
       def initialize
         yield self if block_given?
       end
@@ -29,6 +30,7 @@ module Couchbase
       # @return [Integer] The default CAS used (0 means no CAS in this context)
       attr_accessor :cas
 
+      # @yieldparam [PrependOptions] self
       def initialize
         yield self if block_given?
       end
@@ -47,6 +49,7 @@ module Couchbase
       # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
       attr_accessor :durability_level
 
+      # @yieldparam [IncrementOptions] self
       def initialize
         @delta = 1
         yield self if block_given?
@@ -73,6 +76,7 @@ module Couchbase
       # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
       attr_accessor :durability_level
 
+      # @yieldparam [DecrementOptions] self
       def initialize
         @delta = 1
         yield self if block_given?

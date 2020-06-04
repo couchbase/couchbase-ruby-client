@@ -49,12 +49,14 @@ module Couchbase
     #
     # @return [CounterResult]
     def increment(id, options = IncrementOptions.new)
-      resp = @backend.document_increment(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}", id, {
-          delta: options.delta,
-          initial_value: options.initial,
-          expiration: options.expiration,
-          durability_level: options.durability_level,
-      })
+      resp = @backend.document_increment(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}", id,
+                                         options.timeout,
+                                         {
+                                             delta: options.delta,
+                                             initial_value: options.initial,
+                                             expiration: options.expiration,
+                                             durability_level: options.durability_level,
+                                         })
       CounterResult.new do |res|
         res.cas = resp[:cas]
         res.content = resp[:content]
@@ -69,12 +71,14 @@ module Couchbase
     #
     # @return [CounterResult]
     def decrement(id, options = DecrementOptions.new)
-      resp = @backend.document_decrement(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}", id, {
-          delta: options.delta,
-          initial_value: options.initial,
-          expiration: options.expiration,
-          durability_level: options.durability_level,
-      })
+      resp = @backend.document_decrement(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}", id,
+                                         options.timeout,
+                                         {
+                                             delta: options.delta,
+                                             initial_value: options.initial,
+                                             expiration: options.expiration,
+                                             durability_level: options.durability_level,
+                                         })
       CounterResult.new do |res|
         res.cas = resp[:cas]
         res.content = resp[:content]

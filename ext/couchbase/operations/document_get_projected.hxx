@@ -43,6 +43,7 @@ struct get_projected_request {
     bool with_expiration{ false };
     std::vector<std::string> effective_projections{};
     bool preserve_array_indexes{ false };
+    std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

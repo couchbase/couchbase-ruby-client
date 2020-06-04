@@ -18,6 +18,7 @@
 #pragma once
 
 #include <document_id.hxx>
+#include <timeout_defaults.hxx>
 
 #include <operations/document_get.hxx>
 #include <operations/document_get_and_lock.hxx>

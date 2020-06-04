@@ -50,6 +50,7 @@ struct query_index_create_request {
     std::optional<std::string> condition{};
     std::optional<bool> deferred{};
     std::optional<int> num_replicas{};
+    std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

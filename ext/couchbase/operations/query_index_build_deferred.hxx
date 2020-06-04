@@ -43,6 +43,7 @@ struct query_index_build_deferred_request {
 
     uuid::uuid_t client_context_id{ uuid::random() };
     std::string bucket_name;
+    std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
     void encode_to(encoded_request_type& encoded)
     {

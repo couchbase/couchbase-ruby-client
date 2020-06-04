@@ -33,6 +33,7 @@
 #include <io/http_parser.hxx>
 #include <io/http_message.hxx>
 #include <platform/base64.h>
+#include <timeout_defaults.hxx>
 
 namespace couchbase::io
 {
@@ -73,9 +74,14 @@ class http_session : public std::enable_shared_from_this<http_session>
         stop();
     }
 
-    [[nodiscard]] std::string id()
+    [[nodiscard]] uuid::uuid_t id()
     {
-        return uuid::to_string(id_);
+        return id_;
+    }
+
+    void on_stop(std::function<void()> handler)
+    {
+        on_stop_handler_ = std::move(handler);
     }
 
     void stop()
@@ -85,6 +91,16 @@ class http_session : public std::enable_shared_from_this<http_session>
             socket_.close();
         }
         deadline_timer_.cancel();
+
+        for (auto &handler : command_handlers_) {
+            handler(std::make_error_code(error::common_errc::ambiguous_timeout), {});
+        }
+        command_handlers_.clear();
+
+        if (on_stop_handler_) {
+            on_stop_handler_();
+            on_stop_handler_ = nullptr;
+        }
     }
 
     bool is_stopped()
@@ -155,7 +171,7 @@ class http_session : public std::enable_shared_from_this<http_session>
     {
         if (it != endpoints_.end()) {
             spdlog::trace("connecting to {}:{}", it->endpoint().address().to_string(), it->endpoint().port());
-            deadline_timer_.expires_after(std::chrono::seconds(10));
+            deadline_timer_.expires_after(timeout_defaults::connect_timeout);
             socket_.async_connect(it->endpoint(), std::bind(&http_session::on_connect, this, std::placeholders::_1, it));
         } else {
             spdlog::error("no more endpoints left to connect");
@@ -272,6 +288,8 @@ class http_session : public std::enable_shared_from_this<http_session>
 
     bool stopped_{ false };
     bool connected_{ false };
+
+    std::function<void()> on_stop_handler_{ nullptr };
 
     std::list<std::function<void(std::error_code, io::http_response&&)>> command_handlers_{};
     http_parser parser_{};

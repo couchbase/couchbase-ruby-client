@@ -40,18 +40,28 @@ struct command : public std::enable_shared_from_this<command<Request>> {
     template<typename Handler>
     void send_to(std::shared_ptr<io::mcbp_session> session, Handler&& handler)
     {
-        request.opaque = session->next_opaque();
+        auto opaque = session->next_opaque();
+        request.opaque = opaque;
         request.encode_to(encoded);
         session->write_and_subscribe(
           request.opaque,
           encoded.data(session->supports_feature(protocol::hello_feature::snappy)),
           [self = this->shared_from_this(), handler = std::forward<Handler>(handler)](std::error_code ec, io::mcbp_message&& msg) mutable {
-              encoded_response_type resp(msg);
+              if (ec == asio::error::operation_aborted) {
+                  handler(make_response(std::make_error_code(error::common_errc::ambiguous_timeout), self->request, {}));
+                  return;
+              }
               self->deadline.cancel();
+              encoded_response_type resp(msg);
               handler(make_response(ec, self->request, resp));
           });
-        deadline.expires_after(std::chrono::milliseconds(2500));
-        deadline.async_wait(std::bind(&command<Request>::deadline_handler, this));
+        deadline.expires_after(request.timeout);
+        deadline.async_wait([session, opaque](std::error_code ec) {
+            if (ec == asio::error::operation_aborted) {
+                return;
+            }
+            session->cancel(opaque, asio::error::operation_aborted);
+        });
     }
 
     template<typename Handler>
@@ -65,12 +75,13 @@ struct command : public std::enable_shared_from_this<command<Request>> {
               self->deadline.cancel();
               handler(make_response(ec, self->request, resp));
           });
-        deadline.expires_after(std::chrono::milliseconds(2500));
-        deadline.async_wait(std::bind(&command<Request>::deadline_handler, this));
-    }
-
-    void deadline_handler()
-    {
+        deadline.expires_after(request.timeout);
+        deadline.async_wait([session](std::error_code ec) {
+            if (ec == asio::error::operation_aborted) {
+                return;
+            }
+            session->stop();
+          });
     }
 };
 

@@ -558,8 +558,24 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket)
     return Qtrue;
 }
 
+template<typename Request>
+void
+cb__extract_timeout(Request& req, VALUE timeout)
+{
+    if (!NIL_P(timeout)) {
+        switch (TYPE(timeout)) {
+            case T_FIXNUM:
+            case T_BIGNUM:
+                req.timeout = std::chrono::milliseconds(NUM2ULL(timeout));
+                break;
+            default:
+                rb_raise(rb_eArgError, "timeout must be an Integer");
+        }
+    }
+}
+
 static VALUE
-cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id)
+cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -578,6 +594,7 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id)
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::get_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
     auto barrier = std::make_shared<std::promise<couchbase::operations::get_response>>();
     auto f = barrier->get_future();
     backend->cluster->execute(req, [barrier](couchbase::operations::get_response resp) mutable { barrier->set_value(resp); });
@@ -598,6 +615,7 @@ cb_Backend_document_get_projected(VALUE self,
                                   VALUE bucket,
                                   VALUE collection,
                                   VALUE id,
+                                  VALUE timeout,
                                   VALUE with_expiration,
                                   VALUE projections,
                                   VALUE preserve_array_indexes)
@@ -619,6 +637,7 @@ cb_Backend_document_get_projected(VALUE self,
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::get_projected_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
     req.with_expiration = RTEST(with_expiration);
     req.preserve_array_indexes = RTEST(preserve_array_indexes);
     if (!NIL_P(projections)) {
@@ -651,7 +670,7 @@ cb_Backend_document_get_projected(VALUE self,
 }
 
 static VALUE
-cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE lock_time)
+cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE lock_time)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -671,6 +690,7 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VAL
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::get_and_lock_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
     req.lock_time = NUM2UINT(lock_time);
 
     auto barrier = std::make_shared<std::promise<couchbase::operations::get_and_lock_response>>();
@@ -689,7 +709,7 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VAL
 }
 
 static VALUE
-cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE expiration)
+cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE expiration)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -709,6 +729,7 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VA
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::get_and_touch_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
     req.expiration = NUM2UINT(expiration);
 
     auto barrier = std::make_shared<std::promise<couchbase::operations::get_and_touch_response>>();
@@ -744,7 +765,7 @@ cb__extract_mutation_result(Response resp)
 }
 
 static VALUE
-cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE expiration)
+cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE expiration)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -764,6 +785,7 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::touch_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
     req.expiration = NUM2UINT(expiration);
 
     auto barrier = std::make_shared<std::promise<couchbase::operations::touch_response>>();
@@ -780,7 +802,7 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
 }
 
 static VALUE
-cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id)
+cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -799,6 +821,7 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id)
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::exists_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
 
     auto barrier = std::make_shared<std::promise<couchbase::operations::exists_response>>();
     auto f = barrier->get_future();
@@ -832,7 +855,7 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id)
 }
 
 static VALUE
-cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE cas)
+cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE cas)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -851,6 +874,7 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id,
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::unlock_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
     switch (TYPE(cas)) {
         case T_FIXNUM:
         case T_BIGNUM:
@@ -874,7 +898,7 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 }
 
 static VALUE
-cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE flags, VALUE options)
+cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE content, VALUE flags, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -896,6 +920,7 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
     std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
     couchbase::operations::upsert_request req{ doc_id, value };
+    cb__extract_timeout(req, timeout);
     req.flags = FIX2UINT(flags);
 
     if (!NIL_P(options)) {
@@ -938,7 +963,7 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 }
 
 static VALUE
-cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE flags, VALUE options)
+cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE content, VALUE flags, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -960,6 +985,7 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
     std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
     couchbase::operations::replace_request req{ doc_id, value };
+    cb__extract_timeout(req, timeout);
     req.flags = FIX2UINT(flags);
 
     if (!NIL_P(options)) {
@@ -1013,7 +1039,7 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
 }
 
 static VALUE
-cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE flags, VALUE options)
+cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE content, VALUE flags, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1035,6 +1061,7 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
     std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
     couchbase::operations::insert_request req{ doc_id, value };
+    cb__extract_timeout(req, timeout);
     req.flags = FIX2UINT(flags);
 
     if (!NIL_P(options)) {
@@ -1077,7 +1104,7 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 }
 
 static VALUE
-cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
+cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1096,6 +1123,7 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::remove_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
         VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
@@ -1130,7 +1158,7 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 }
 
 static VALUE
-cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
+cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1149,6 +1177,7 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::increment_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
         VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
@@ -1212,7 +1241,7 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
 }
 
 static VALUE
-cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
+cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1232,6 +1261,7 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::decrement_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
         VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
@@ -1398,7 +1428,7 @@ cb__map_subdoc_status(couchbase::protocol::status status)
 }
 
 static VALUE
-cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE access_deleted, VALUE specs)
+cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE access_deleted, VALUE specs)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1421,6 +1451,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::lookup_in_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
     req.access_deleted = RTEST(access_deleted);
     auto entries_size = static_cast<size_t>(RARRAY_LEN(specs));
     req.specs.entries.reserve(entries_size);
@@ -1479,7 +1510,14 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
 }
 
 static VALUE
-cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE access_deleted, VALUE specs, VALUE options)
+cb_Backend_document_mutate_in(VALUE self,
+                              VALUE bucket,
+                              VALUE collection,
+                              VALUE id,
+                              VALUE timeout,
+                              VALUE access_deleted,
+                              VALUE specs,
+                              VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1502,6 +1540,7 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
     doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
     couchbase::operations::mutate_in_request req{ doc_id };
+    cb__extract_timeout(req, timeout);
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
         VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
@@ -1646,17 +1685,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         Check_Type(client_context_id, T_STRING);
         req.client_context_id.assign(RSTRING_PTR(client_context_id), static_cast<size_t>(RSTRING_LEN(client_context_id)));
     }
-    VALUE timeout = rb_hash_aref(options, rb_id2sym(rb_intern("timeout")));
-    if (!NIL_P(timeout)) {
-        switch (TYPE(timeout)) {
-            case T_FIXNUM:
-            case T_BIGNUM:
-                break;
-            default:
-                rb_raise(rb_eArgError, "timeout must be an Integer");
-        }
-        req.timeout = NUM2ULL(timeout);
-    }
+    cb__extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
     VALUE adhoc = rb_hash_aref(options, rb_id2sym(rb_intern("adhoc")));
     if (!NIL_P(adhoc)) {
         req.adhoc = RTEST(adhoc);
@@ -1940,7 +1969,7 @@ cb__generate_bucket_settings(VALUE bucket, couchbase::operations::bucket_setting
 }
 
 static VALUE
-cb_Backend_bucket_create(VALUE self, VALUE bucket_settings)
+cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1951,6 +1980,7 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings)
 
     Check_Type(bucket_settings, T_HASH);
     couchbase::operations::bucket_create_request req{};
+    cb__extract_timeout(req, timeout);
     cb__generate_bucket_settings(bucket_settings, req.bucket, true);
     auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_create_response>>();
     auto f = barrier->get_future();
@@ -1966,7 +1996,7 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings)
 }
 
 static VALUE
-cb_Backend_bucket_update(VALUE self, VALUE bucket_settings)
+cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1977,6 +2007,7 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings)
 
     Check_Type(bucket_settings, T_HASH);
     couchbase::operations::bucket_update_request req{};
+    cb__extract_timeout(req, timeout);
     cb__generate_bucket_settings(bucket_settings, req.bucket, false);
     auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_update_response>>();
     auto f = barrier->get_future();
@@ -1992,7 +2023,7 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings)
 }
 
 static VALUE
-cb_Backend_bucket_drop(VALUE self, VALUE bucket_name)
+cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2004,6 +2035,7 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name)
     Check_Type(bucket_name, T_STRING);
 
     couchbase::operations::bucket_drop_request req{};
+    cb__extract_timeout(req, timeout);
     req.name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_drop_response>>();
     auto f = barrier->get_future();
@@ -2017,7 +2049,7 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name)
 }
 
 static VALUE
-cb_Backend_bucket_flush(VALUE self, VALUE bucket_name)
+cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2029,6 +2061,7 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name)
     Check_Type(bucket_name, T_STRING);
 
     couchbase::operations::bucket_flush_request req{};
+    cb__extract_timeout(req, timeout);
     req.name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_flush_response>>();
     auto f = barrier->get_future();
@@ -2118,7 +2151,7 @@ cb__extract_bucket_settings(const couchbase::operations::bucket_settings& entry,
 }
 
 static VALUE
-cb_Backend_bucket_get_all(VALUE self)
+cb_Backend_bucket_get_all(VALUE self, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2128,6 +2161,7 @@ cb_Backend_bucket_get_all(VALUE self)
     }
 
     couchbase::operations::bucket_get_all_request req{};
+    cb__extract_timeout(req, timeout);
     auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_get_all_response>>();
     auto f = barrier->get_future();
     backend->cluster->execute_http(req,
@@ -2148,7 +2182,7 @@ cb_Backend_bucket_get_all(VALUE self)
 }
 
 static VALUE
-cb_Backend_bucket_get(VALUE self, VALUE bucket_name)
+cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2160,6 +2194,7 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name)
     Check_Type(bucket_name, T_STRING);
 
     couchbase::operations::bucket_get_request req{};
+    cb__extract_timeout(req, timeout);
     req.name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_get_response>>();
     auto f = barrier->get_future();
@@ -2200,7 +2235,7 @@ cb_Backend_cluster_enable_developer_preview(VALUE self)
 }
 
 static VALUE
-cb_Backend_scope_get_all(VALUE self, VALUE bucket_name)
+cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2212,6 +2247,7 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name)
     Check_Type(bucket_name, T_STRING);
 
     couchbase::operations::scope_get_all_request req{};
+    cb__extract_timeout(req, timeout);
     req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     auto barrier = std::make_shared<std::promise<couchbase::operations::scope_get_all_response>>();
     auto f = barrier->get_future();
@@ -2245,7 +2281,7 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name)
 }
 
 static VALUE
-cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name)
+cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2258,6 +2294,7 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name)
     Check_Type(scope_name, T_STRING);
 
     couchbase::operations::scope_create_request req{};
+    cb__extract_timeout(req, timeout);
     req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
     auto barrier = std::make_shared<std::promise<couchbase::operations::scope_create_response>>();
@@ -2271,7 +2308,7 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name)
 }
 
 static VALUE
-cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name)
+cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2284,6 +2321,7 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name)
     Check_Type(scope_name, T_STRING);
 
     couchbase::operations::scope_drop_request req{};
+    cb__extract_timeout(req, timeout);
     req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
     auto barrier = std::make_shared<std::promise<couchbase::operations::scope_drop_response>>();
@@ -2297,7 +2335,7 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name)
 }
 
 static VALUE
-cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE max_expiry)
+cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE max_expiry, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2311,6 +2349,7 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
     Check_Type(collection_name, T_STRING);
 
     couchbase::operations::collection_create_request req{};
+    cb__extract_timeout(req, timeout);
     req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
     req.collection_name.assign(RSTRING_PTR(collection_name), static_cast<size_t>(RSTRING_LEN(collection_name)));
@@ -2331,7 +2370,7 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
 }
 
 static VALUE
-cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name)
+cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2345,6 +2384,7 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
     Check_Type(collection_name, T_STRING);
 
     couchbase::operations::collection_drop_request req{};
+    cb__extract_timeout(req, timeout);
     req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
     req.collection_name.assign(RSTRING_PTR(collection_name), static_cast<size_t>(RSTRING_LEN(collection_name)));
@@ -2364,7 +2404,7 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
 }
 
 static VALUE
-cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name)
+cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2376,6 +2416,7 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name)
     Check_Type(bucket_name, T_STRING);
 
     couchbase::operations::query_index_get_all_request req{};
+    cb__extract_timeout(req, timeout);
     req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_get_all_response>>();
     auto f = barrier->get_future();
@@ -2420,7 +2461,7 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name)
 }
 
 static VALUE
-cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, VALUE fields, VALUE options)
+cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, VALUE fields, VALUE options, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2434,6 +2475,7 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
     Check_Type(fields, T_ARRAY);
 
     couchbase::operations::query_index_create_request req{};
+    cb__extract_timeout(req, timeout);
     req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
     auto fields_num = static_cast<size_t>(RARRAY_LEN(fields));
@@ -2501,7 +2543,7 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
 }
 
 static VALUE
-cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VALUE options)
+cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VALUE options, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2514,6 +2556,7 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
     Check_Type(index_name, T_STRING);
 
     couchbase::operations::query_index_drop_request req{};
+    cb__extract_timeout(req, timeout);
     req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
     if (!NIL_P(options)) {
@@ -2560,7 +2603,7 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
 }
 
 static VALUE
-cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE options)
+cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE options, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2575,6 +2618,7 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
     }
 
     couchbase::operations::query_index_create_request req{};
+    cb__extract_timeout(req, timeout);
     req.is_primary = true;
     req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     if (!NIL_P(options)) {
@@ -2634,7 +2678,7 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
 }
 
 static VALUE
-cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options)
+cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2646,6 +2690,7 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
     Check_Type(bucket_name, T_STRING);
 
     couchbase::operations::query_index_drop_request req{};
+    cb__extract_timeout(req, timeout);
     req.is_primary = true;
     req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     if (!NIL_P(options)) {
@@ -2696,7 +2741,7 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
 }
 
 static VALUE
-cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE options)
+cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -2706,11 +2751,9 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE optio
     }
 
     Check_Type(bucket_name, T_STRING);
-    if (!NIL_P(options)) {
-        Check_Type(options, T_HASH);
-    }
 
     couchbase::operations::query_index_build_deferred_request req{};
+    cb__extract_timeout(req, timeout);
     req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
     auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_build_deferred_response>>();
     auto f = barrier->get_future();
@@ -2762,43 +2805,43 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "close", VALUE_FUNC(cb_Backend_close), 0);
     rb_define_method(cBackend, "open_bucket", VALUE_FUNC(cb_Backend_open_bucket), 1);
 
-    rb_define_method(cBackend, "document_get", VALUE_FUNC(cb_Backend_document_get), 3);
-    rb_define_method(cBackend, "document_get_projected", VALUE_FUNC(cb_Backend_document_get_projected), 6);
-    rb_define_method(cBackend, "document_get_and_lock", VALUE_FUNC(cb_Backend_document_get_and_lock), 4);
-    rb_define_method(cBackend, "document_get_and_touch", VALUE_FUNC(cb_Backend_document_get_and_touch), 4);
-    rb_define_method(cBackend, "document_insert", VALUE_FUNC(cb_Backend_document_insert), 6);
-    rb_define_method(cBackend, "document_replace", VALUE_FUNC(cb_Backend_document_replace), 6);
-    rb_define_method(cBackend, "document_upsert", VALUE_FUNC(cb_Backend_document_upsert), 6);
-    rb_define_method(cBackend, "document_remove", VALUE_FUNC(cb_Backend_document_remove), 4);
-    rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 5);
-    rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 6);
+    rb_define_method(cBackend, "document_get", VALUE_FUNC(cb_Backend_document_get), 4);
+    rb_define_method(cBackend, "document_get_projected", VALUE_FUNC(cb_Backend_document_get_projected), 7);
+    rb_define_method(cBackend, "document_get_and_lock", VALUE_FUNC(cb_Backend_document_get_and_lock), 5);
+    rb_define_method(cBackend, "document_get_and_touch", VALUE_FUNC(cb_Backend_document_get_and_touch), 5);
+    rb_define_method(cBackend, "document_insert", VALUE_FUNC(cb_Backend_document_insert), 7);
+    rb_define_method(cBackend, "document_replace", VALUE_FUNC(cb_Backend_document_replace), 7);
+    rb_define_method(cBackend, "document_upsert", VALUE_FUNC(cb_Backend_document_upsert), 7);
+    rb_define_method(cBackend, "document_remove", VALUE_FUNC(cb_Backend_document_remove), 5);
+    rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 6);
+    rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 7);
     rb_define_method(cBackend, "document_query", VALUE_FUNC(cb_Backend_document_query), 2);
-    rb_define_method(cBackend, "document_touch", VALUE_FUNC(cb_Backend_document_touch), 4);
-    rb_define_method(cBackend, "document_exists", VALUE_FUNC(cb_Backend_document_exists), 3);
-    rb_define_method(cBackend, "document_unlock", VALUE_FUNC(cb_Backend_document_unlock), 4);
-    rb_define_method(cBackend, "document_increment", VALUE_FUNC(cb_Backend_document_increment), 4);
-    rb_define_method(cBackend, "document_decrement", VALUE_FUNC(cb_Backend_document_decrement), 4);
+    rb_define_method(cBackend, "document_touch", VALUE_FUNC(cb_Backend_document_touch), 5);
+    rb_define_method(cBackend, "document_exists", VALUE_FUNC(cb_Backend_document_exists), 4);
+    rb_define_method(cBackend, "document_unlock", VALUE_FUNC(cb_Backend_document_unlock), 5);
+    rb_define_method(cBackend, "document_increment", VALUE_FUNC(cb_Backend_document_increment), 5);
+    rb_define_method(cBackend, "document_decrement", VALUE_FUNC(cb_Backend_document_decrement), 5);
 
-    rb_define_method(cBackend, "bucket_create", VALUE_FUNC(cb_Backend_bucket_create), 1);
-    rb_define_method(cBackend, "bucket_update", VALUE_FUNC(cb_Backend_bucket_update), 1);
-    rb_define_method(cBackend, "bucket_drop", VALUE_FUNC(cb_Backend_bucket_drop), 1);
-    rb_define_method(cBackend, "bucket_flush", VALUE_FUNC(cb_Backend_bucket_flush), 1);
-    rb_define_method(cBackend, "bucket_get_all", VALUE_FUNC(cb_Backend_bucket_get_all), 0);
-    rb_define_method(cBackend, "bucket_get", VALUE_FUNC(cb_Backend_bucket_get), 1);
+    rb_define_method(cBackend, "bucket_create", VALUE_FUNC(cb_Backend_bucket_create), 2);
+    rb_define_method(cBackend, "bucket_update", VALUE_FUNC(cb_Backend_bucket_update), 2);
+    rb_define_method(cBackend, "bucket_drop", VALUE_FUNC(cb_Backend_bucket_drop), 2);
+    rb_define_method(cBackend, "bucket_flush", VALUE_FUNC(cb_Backend_bucket_flush), 2);
+    rb_define_method(cBackend, "bucket_get_all", VALUE_FUNC(cb_Backend_bucket_get_all), 1);
+    rb_define_method(cBackend, "bucket_get", VALUE_FUNC(cb_Backend_bucket_get), 2);
 
     rb_define_method(cBackend, "cluster_enable_developer_preview!", VALUE_FUNC(cb_Backend_cluster_enable_developer_preview), 0);
 
-    rb_define_method(cBackend, "scope_get_all", VALUE_FUNC(cb_Backend_scope_get_all), 1);
-    rb_define_method(cBackend, "scope_create", VALUE_FUNC(cb_Backend_scope_create), 2);
-    rb_define_method(cBackend, "scope_drop", VALUE_FUNC(cb_Backend_scope_drop), 2);
-    rb_define_method(cBackend, "collection_create", VALUE_FUNC(cb_Backend_collection_create), 4);
-    rb_define_method(cBackend, "collection_drop", VALUE_FUNC(cb_Backend_collection_drop), 3);
+    rb_define_method(cBackend, "scope_get_all", VALUE_FUNC(cb_Backend_scope_get_all), 2);
+    rb_define_method(cBackend, "scope_create", VALUE_FUNC(cb_Backend_scope_create), 3);
+    rb_define_method(cBackend, "scope_drop", VALUE_FUNC(cb_Backend_scope_drop), 3);
+    rb_define_method(cBackend, "collection_create", VALUE_FUNC(cb_Backend_collection_create), 5);
+    rb_define_method(cBackend, "collection_drop", VALUE_FUNC(cb_Backend_collection_drop), 4);
 
-    rb_define_method(cBackend, "query_index_get_all", VALUE_FUNC(cb_Backend_query_index_get_all), 1);
-    rb_define_method(cBackend, "query_index_create", VALUE_FUNC(cb_Backend_query_index_create), 4);
-    rb_define_method(cBackend, "query_index_create_primary", VALUE_FUNC(cb_Backend_query_index_create_primary), 2);
-    rb_define_method(cBackend, "query_index_drop", VALUE_FUNC(cb_Backend_query_index_drop), 3);
-    rb_define_method(cBackend, "query_index_drop_primary", VALUE_FUNC(cb_Backend_query_index_drop_primary), 2);
+    rb_define_method(cBackend, "query_index_get_all", VALUE_FUNC(cb_Backend_query_index_get_all), 2);
+    rb_define_method(cBackend, "query_index_create", VALUE_FUNC(cb_Backend_query_index_create), 5);
+    rb_define_method(cBackend, "query_index_create_primary", VALUE_FUNC(cb_Backend_query_index_create_primary), 3);
+    rb_define_method(cBackend, "query_index_drop", VALUE_FUNC(cb_Backend_query_index_drop), 4);
+    rb_define_method(cBackend, "query_index_drop_primary", VALUE_FUNC(cb_Backend_query_index_drop_primary), 3);
     rb_define_method(cBackend, "query_index_build_deferred", VALUE_FUNC(cb_Backend_query_index_build_deferred), 2);
     rb_define_method(cBackend, "query_index_watch", VALUE_FUNC(cb_Backend_query_index_watch), 4);
 }
