@@ -92,7 +92,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         }
         deadline_timer_.cancel();
 
-        for (auto &handler : command_handlers_) {
+        for (auto& handler : command_handlers_) {
             handler(std::make_error_code(error::common_errc::ambiguous_timeout), {});
         }
         command_handlers_.clear();
@@ -121,7 +121,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         if (stopped_) {
             return;
         }
-        output_buffer_.emplace_back(buf.begin(), buf.end());
+        output_buffer_.emplace_back(std::vector<uint8_t>{ buf.begin(), buf.end() });
     }
 
     void flush()
@@ -229,9 +229,11 @@ class http_session : public std::enable_shared_from_this<http_session>
               switch (self->parser_.feed(reinterpret_cast<const char*>(self->input_buffer_.data()), bytes_transferred)) {
                   case http_parser::status::ok:
                       if (self->parser_.complete) {
-                          auto handler = self->command_handlers_.front();
-                          self->command_handlers_.pop_front();
-                          handler({}, std::move(self->parser_.response));
+                          if (!self->command_handlers_.empty()) {
+                              auto handler = self->command_handlers_.front();
+                              self->command_handlers_.pop_front();
+                              handler({}, std::move(self->parser_.response));
+                          }
                           self->parser_.reset();
                           return;
                       }

@@ -66,6 +66,7 @@ class session_manager : public std::enable_shared_from_this<session_manager>
         }
         auto session = idle_sessions_[type].front();
         idle_sessions_[type].pop_front();
+        busy_sessions_[type].push_back(session);
         return session;
     }
 
