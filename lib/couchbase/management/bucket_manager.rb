@@ -29,6 +29,8 @@ module Couchbase
       # @param [BucketSettings] settings bucket settings
       # @param [CreateBucketOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::BucketExists]
       def create_bucket(settings, options = CreateBucketOptions.new)
@@ -54,6 +56,8 @@ module Couchbase
       # @param [BucketSettings] settings bucket settings
       # @param [UpdateBucketOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
       def update_bucket(settings, options = UpdateBucketOptions.new)
@@ -76,6 +80,8 @@ module Couchbase
       #
       # @param [String] bucket_name name of the bucket
       # @param [DropBucketOptions] options
+      #
+      # @return void
       #
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
@@ -107,6 +113,9 @@ module Couchbase
       end
 
       # @param [String] bucket_name name of the bucket
+      #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
       # @raise [Error::BucketNotFlushable]

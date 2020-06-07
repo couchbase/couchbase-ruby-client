@@ -36,7 +36,7 @@ curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/nodes/self/controller/settings 
 
 # Setup Services
 curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/node/controller/setupServices \
-     -d 'services=kv%2Cn1ql%2Cindex'
+     -d 'services=kv%2Cn1ql%2Cindex%2Cfts'
 
 # Setup Memory Quotas
 curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/pools/default \

@@ -3028,6 +3028,554 @@ cb_Backend_query_index_watch(VALUE self, VALUE bucket_name, VALUE index_names, V
 }
 
 static void
+cb__extract_search_index(VALUE index, const couchbase::operations::search_index& idx)
+{
+    rb_hash_aset(index, rb_id2sym(rb_intern("uuid")), rb_str_new(idx.uuid.data(), static_cast<long>(idx.uuid.size())));
+    rb_hash_aset(index, rb_id2sym(rb_intern("name")), rb_str_new(idx.name.data(), static_cast<long>(idx.name.size())));
+    rb_hash_aset(index, rb_id2sym(rb_intern("type")), rb_str_new(idx.type.data(), static_cast<long>(idx.type.size())));
+    if (!idx.params_json.empty()) {
+        rb_hash_aset(index, rb_id2sym(rb_intern("params")), rb_str_new(idx.params_json.data(), static_cast<long>(idx.params_json.size())));
+    }
+
+    if (!idx.source_uuid.empty()) {
+        rb_hash_aset(
+          index, rb_id2sym(rb_intern("source_uuid")), rb_str_new(idx.source_uuid.data(), static_cast<long>(idx.source_uuid.size())));
+    }
+    if (!idx.source_name.empty()) {
+        rb_hash_aset(
+          index, rb_id2sym(rb_intern("source_name")), rb_str_new(idx.source_name.data(), static_cast<long>(idx.source_name.size())));
+    }
+    rb_hash_aset(index, rb_id2sym(rb_intern("source_type")), rb_str_new(idx.source_type.data(), static_cast<long>(idx.source_type.size())));
+    if (!idx.source_params_json.empty()) {
+        rb_hash_aset(index,
+                     rb_id2sym(rb_intern("source_params")),
+                     rb_str_new(idx.source_params_json.data(), static_cast<long>(idx.source_params_json.size())));
+    }
+    if (!idx.plan_params_json.empty()) {
+        rb_hash_aset(index,
+                     rb_id2sym(rb_intern("plan_params")),
+                     rb_str_new(idx.plan_params_json.data(), static_cast<long>(idx.plan_params_json.size())));
+    }
+}
+
+static VALUE
+cb_Backend_search_index_get_all(VALUE self, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_get_all_request req{};
+        cb__extract_timeout(req, timeout);
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_get_all_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_get_all_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, "unable to get list of the search indexes");
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(
+          res, rb_id2sym(rb_intern("impl_version")), rb_str_new(resp.impl_version.data(), static_cast<long>(resp.impl_version.size())));
+        VALUE indexes = rb_ary_new_capa(static_cast<long>(resp.indexes.size()));
+        for (const auto& idx : resp.indexes) {
+            VALUE index = rb_hash_new();
+            cb__extract_search_index(index, idx);
+            rb_ary_push(indexes, index);
+        }
+        rb_hash_aset(res, rb_id2sym(rb_intern("indexes")), indexes);
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_index_get(VALUE self, VALUE index_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_get_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_get_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_get_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to get search index \"{}\"", req.index_name));
+            } else {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to get search index \"{}\": {}", req.index_name, resp.error));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        cb__extract_search_index(res, resp.index);
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_index_upsert(VALUE self, VALUE index_definition, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_definition, T_HASH);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_upsert_request req{};
+        cb__extract_timeout(req, timeout);
+
+        VALUE index_name = rb_hash_aref(index_definition, rb_id2sym(rb_intern("name")));
+        Check_Type(index_name, T_STRING);
+        req.index.name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+
+        VALUE index_type = rb_hash_aref(index_definition, rb_id2sym(rb_intern("type")));
+        Check_Type(index_type, T_STRING);
+        req.index.type.assign(RSTRING_PTR(index_type), static_cast<size_t>(RSTRING_LEN(index_type)));
+
+        VALUE index_uuid = rb_hash_aref(index_definition, rb_id2sym(rb_intern("uuid")));
+        if (!NIL_P(index_uuid)) {
+            Check_Type(index_uuid, T_STRING);
+            req.index.uuid.assign(RSTRING_PTR(index_uuid), static_cast<size_t>(RSTRING_LEN(index_uuid)));
+        }
+
+        VALUE index_params = rb_hash_aref(index_definition, rb_id2sym(rb_intern("params")));
+        if (!NIL_P(index_params)) {
+            Check_Type(index_params, T_STRING);
+            req.index.params_json.assign(std::string(RSTRING_PTR(index_params), static_cast<size_t>(RSTRING_LEN(index_params))));
+        }
+
+        VALUE source_name = rb_hash_aref(index_definition, rb_id2sym(rb_intern("source_name")));
+        if (!NIL_P(source_name)) {
+            Check_Type(source_name, T_STRING);
+            req.index.source_name.assign(RSTRING_PTR(source_name), static_cast<size_t>(RSTRING_LEN(source_name)));
+        }
+
+        VALUE source_type = rb_hash_aref(index_definition, rb_id2sym(rb_intern("source_type")));
+        Check_Type(source_type, T_STRING);
+        req.index.source_type.assign(RSTRING_PTR(source_type), static_cast<size_t>(RSTRING_LEN(source_type)));
+
+        VALUE source_uuid = rb_hash_aref(index_definition, rb_id2sym(rb_intern("source_uuid")));
+        if (!NIL_P(source_uuid)) {
+            Check_Type(source_uuid, T_STRING);
+            req.index.source_uuid.assign(RSTRING_PTR(source_uuid), static_cast<size_t>(RSTRING_LEN(source_uuid)));
+        }
+
+        VALUE source_params = rb_hash_aref(index_definition, rb_id2sym(rb_intern("source_params")));
+        if (!NIL_P(source_params)) {
+            Check_Type(source_params, T_STRING);
+            req.index.source_params_json.assign(std::string(RSTRING_PTR(source_params), static_cast<size_t>(RSTRING_LEN(source_params))));
+        }
+
+        VALUE plan_params = rb_hash_aref(index_definition, rb_id2sym(rb_intern("plan_params")));
+        if (!NIL_P(plan_params)) {
+            Check_Type(plan_params, T_STRING);
+            req.index.plan_params_json.assign(std::string(RSTRING_PTR(plan_params), static_cast<size_t>(RSTRING_LEN(plan_params))));
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_upsert_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_upsert_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to upsert the search index \"{}\"", req.index.name));
+            } else {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to upsert the search index \"{}\": {}", req.index.name, resp.error));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_index_drop(VALUE self, VALUE index_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_drop_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_drop_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_drop_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to drop the search index \"{}\"", req.index_name));
+            } else {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to drop the search index \"{}\": {}", req.index_name, resp.error));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_index_get_documents_count(VALUE self, VALUE index_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_get_documents_count_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_get_documents_count_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_get_documents_count_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(
+                  resp.ec, fmt::format("unable to get number of the indexed documents for the search index \"{}\"", req.index_name));
+            } else {
+                exc = cb__map_error_code(
+                  resp.ec,
+                  fmt::format("unable to get number of the indexed documents for the search index \"{}\": {}", req.index_name, resp.error));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("count")), ULL2NUM(resp.count));
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_index_pause_ingest(VALUE self, VALUE index_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_control_ingest_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        req.pause = true;
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_ingest_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_control_ingest_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to pause ingest for the search index \"{}\"", req.index_name));
+            } else {
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format("unable to pause ingest for the search index \"{}\": {}", req.index_name, resp.error));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_index_resume_ingest(VALUE self, VALUE index_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_control_ingest_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        req.pause = false;
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_ingest_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_control_ingest_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to resume ingest for the search index \"{}\"", req.index_name));
+            } else {
+                exc = cb__map_error_code(
+                  resp.ec, fmt::format("unable to resume ingest for the search index \"{}\": {}", req.index_name, resp.error));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_index_allow_querying(VALUE self, VALUE index_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_control_query_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        req.allow = true;
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_query_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_control_query_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to allow querying for the search index \"{}\"", req.index_name));
+            } else {
+                exc = cb__map_error_code(
+                  resp.ec, fmt::format("unable to allow querying for the search index \"{}\": {}", req.index_name, resp.error));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_index_disallow_querying(VALUE self, VALUE index_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_control_query_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        req.allow = false;
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_query_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_control_query_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to disallow querying for the search index \"{}\"", req.index_name));
+            } else {
+                exc = cb__map_error_code(
+                  resp.ec, fmt::format("unable to disallow querying for the search index \"{}\": {}", req.index_name, resp.error));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_index_freeze_plan(VALUE self, VALUE index_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_control_plan_freeze_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        req.freeze = true;
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_plan_freeze_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_control_plan_freeze_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to freeze for the search index \"{}\"", req.index_name));
+            } else {
+                exc =
+                  cb__map_error_code(resp.ec, fmt::format("unable to freeze for the search index \"{}\": {}", req.index_name, resp.error));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_index_unfreeze_plan(VALUE self, VALUE index_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_control_plan_freeze_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        req.freeze = false;
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_plan_freeze_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_control_plan_freeze_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to unfreeze plan for the search index \"{}\"", req.index_name));
+            } else {
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format("unable to unfreeze for the search index \"{}\": {}", req.index_name, resp.error));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE encoded_document, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    Check_Type(encoded_document, T_STRING);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_analyze_document_request req{};
+        cb__extract_timeout(req, timeout);
+
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        req.encoded_document.assign(RSTRING_PTR(encoded_document), static_cast<size_t>(RSTRING_LEN(encoded_document)));
+
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_analyze_document_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_analyze_document_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to analyze document using the search index \"{}\"", req.index_name));
+            } else {
+                exc = cb__map_error_code(
+                  resp.ec, fmt::format("unable to analyze document using the search index \"{}\": {}", req.index_name, resp.error));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("analysis")), rb_str_new(resp.analysis.data(), static_cast<long>(resp.analysis.size())));
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static void
 init_backend(VALUE mCouchbase)
 {
     VALUE cBackend = rb_define_class_under(mCouchbase, "Backend", rb_cBasicObject);
@@ -3075,6 +3623,19 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "query_index_drop_primary", VALUE_FUNC(cb_Backend_query_index_drop_primary), 3);
     rb_define_method(cBackend, "query_index_build_deferred", VALUE_FUNC(cb_Backend_query_index_build_deferred), 2);
     rb_define_method(cBackend, "query_index_watch", VALUE_FUNC(cb_Backend_query_index_watch), 4);
+
+    rb_define_method(cBackend, "search_index_get_all", VALUE_FUNC(cb_Backend_search_index_get_all), 1);
+    rb_define_method(cBackend, "search_index_get", VALUE_FUNC(cb_Backend_search_index_get), 2);
+    rb_define_method(cBackend, "search_index_upsert", VALUE_FUNC(cb_Backend_search_index_upsert), 2);
+    rb_define_method(cBackend, "search_index_drop", VALUE_FUNC(cb_Backend_search_index_drop), 2);
+    rb_define_method(cBackend, "search_index_get_documents_count", VALUE_FUNC(cb_Backend_search_index_get_documents_count), 2);
+    rb_define_method(cBackend, "search_index_pause_ingest", VALUE_FUNC(cb_Backend_search_index_pause_ingest), 2);
+    rb_define_method(cBackend, "search_index_resume_ingest", VALUE_FUNC(cb_Backend_search_index_resume_ingest), 2);
+    rb_define_method(cBackend, "search_index_allow_querying", VALUE_FUNC(cb_Backend_search_index_allow_querying), 2);
+    rb_define_method(cBackend, "search_index_disallow_querying", VALUE_FUNC(cb_Backend_search_index_disallow_querying), 2);
+    rb_define_method(cBackend, "search_index_freeze_plan", VALUE_FUNC(cb_Backend_search_index_freeze_plan), 2);
+    rb_define_method(cBackend, "search_index_unfreeze_plan", VALUE_FUNC(cb_Backend_search_index_unfreeze_plan), 2);
+    rb_define_method(cBackend, "search_index_analyze_document", VALUE_FUNC(cb_Backend_search_index_analyze_document), 3);
 }
 
 extern "C" {

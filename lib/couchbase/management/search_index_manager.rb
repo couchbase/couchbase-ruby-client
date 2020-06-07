@@ -34,7 +34,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def get_index(index_name, options = GetIndexOptions.new)
-        # GET /api/index/{name}
+        res = @backend.search_index_get(index_name, options.timeout)
+        extract_search_index(res)
       end
 
       # Fetches all indexes from the server
@@ -43,7 +44,8 @@ module Couchbase
       #
       # @return [Array<SearchIndex>]
       def get_all_indexes(options = GetAllIndexesOptions.new)
-        # GET /api/index
+        res = @backend.search_index_get_all(options.timeout)
+        res[:indexes].map { |idx| extract_search_index(idx) }
       end
 
       # Creates or updates the index
@@ -51,9 +53,22 @@ module Couchbase
       # @param [SearchIndex] index_definition the index definition
       # @param [UpsertIndexOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError] if name, type or source_type is empty
       def upsert_index(index_definition, options = UpsertIndexOptions.new)
-        # PUT /api/index/{index_name} "cache-control: no-cache"
+        @backend.search_index_upsert(
+            {
+                name: index_definition.name,
+                type: index_definition.type,
+                uuid: index_definition.uuid,
+                params: (JSON.generate(index_definition.params) if index_definition.params),
+                source_name: index_definition.source_name,
+                source_type: index_definition.source_type,
+                source_uuid: index_definition.source_uuid,
+                source_params: (JSON.generate(index_definition.source_params) if index_definition.source_params),
+                plan_params: (JSON.generate(index_definition.plan_params) if index_definition.plan_params),
+            }, options.timeout)
       end
 
       # Drops the index
@@ -61,23 +76,26 @@ module Couchbase
       # @param [String] index_name name of the index
       # @param [DropIndexOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def drop_index(index_name, options = DropIndexOptions.new)
-        # DELETE /api/index/{index_name}
+        @backend.search_index_drop(index_name, options.timeout)
       end
 
       # Retrieves the number of documents that have been indexed for an index
       #
       # @param [String] index_name name of the index
-      # @param [GetIndexedDocumentsOptions] options
+      # @param [GetIndexedDocumentsCountOptions] options
       #
       # @return [Integer]
       #
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def get_indexed_documents_count(index_name, options = GetIndexedDocumentsCountOptions.new)
-        # GET /api/index/{index_name}/count
+        res = @backend.search_index_get_documents_count(index_name, options.timeout)
+        res[:count]
       end
 
       # Pauses updates and maintenance for the index
@@ -85,10 +103,12 @@ module Couchbase
       # @param [String] index_name name of the index
       # @param [PauseIngestOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def pause_ingest(index_name, options = PauseIngestOptions.new)
-        # POST /api/index/{index_name}/ingestControl/pause
+        @backend.search_index_pause_ingest(index_name, options.timeout)
       end
 
       # Resumes updates and maintenance for an index
@@ -96,10 +116,12 @@ module Couchbase
       # @param [String] index_name name of the index
       # @param [ResumeIngestOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def resume_ingest(index_name, options = ResumeIngestOptions.new)
-        # POST /api/index/{index_name}/ingestControl/resume
+        @backend.search_index_resume_ingest(index_name, options.timeout)
       end
 
       # Allows querying against the index
@@ -107,10 +129,12 @@ module Couchbase
       # @param [String] index_name name of the index
       # @param [AllowQueryingOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def allow_querying(index_name, options = AllowQueryingOptions.new)
-        # POST /api/index/{index_name}/queryControl/allow
+        @backend.search_index_allow_querying(index_name, options.timeout)
       end
 
       # Disallows querying against the index
@@ -118,10 +142,12 @@ module Couchbase
       # @param [String] index_name name of the index
       # @param [DisallowQueryingOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def disallow_querying(index_name, options = DisallowQueryingOptions.new)
-        # POST /api/index/{index_name}/queryControl/disallow
+        @backend.search_index_disallow_querying(index_name, options.timeout)
       end
 
       # Freeze the assignment of index partitions to nodes
@@ -129,10 +155,12 @@ module Couchbase
       # @param [String] index_name name of the index
       # @param [FreezePlanOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def freeze_plan(index_name, options = FreezePlanOptions.new)
-        # POST /api/index/{index_name}/planFreezeControl/freeze
+        @backend.search_index_freeze_plan(index_name, options.timeout)
       end
 
       # Unfreeze the assignment of index partitions to nodes
@@ -140,10 +168,12 @@ module Couchbase
       # @param [String] index_name name of the index
       # @param [UnfreezePlanOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def unfreeze_plan(index_name, options = UnfreezePlanOptions.new)
-        # POST /api/index/{index_name}/planFreezeControl/unfreeze
+        @backend.search_index_unfreeze_plan(index_name, options.timeout)
       end
 
       # Allows to see how a document is analyzed against a specific index
@@ -156,7 +186,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def analyze_document(index_name, document, options = AnalyzeDocumentOptions.new)
-        # POST /api/index/{index_name}/analyzeDoc
+        res = @backend.search_index_analyze_document(index_name, JSON.generate(document), options.timeout)
+        JSON.parse(res[:analysis])
       end
 
       class GetIndexOptions
@@ -199,7 +230,7 @@ module Couchbase
         end
       end
 
-      class GetIndexedDocumentsOptions
+      class GetIndexedDocumentsCountOptions
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
@@ -276,6 +307,22 @@ module Couchbase
         # @yieldparam [AnalyzeDocumentOptions] self
         def initialize
           yield self if block_given?
+        end
+      end
+
+      private
+
+      def extract_search_index(resp)
+        SearchIndex.new do |index|
+          index.name = resp[:name]
+          index.type = resp[:type]
+          index.uuid = resp[:uuid]
+          index.params = resp[:params] ? JSON.parse(resp[:params]) : {}
+          index.source_name = resp[:source_name]
+          index.source_type = resp[:source_type]
+          index.source_uuid = resp[:source_uuid]
+          index.source_params = resp[:source_params] ? JSON.parse(resp[:source_params]) : {}
+          index.plan_params = resp[:plan_params] ? JSON.parse(resp[:plan_params]) : {}
         end
       end
     end

@@ -55,6 +55,8 @@ module Couchbase
       # @param [Array<String>] fields the lists of fields to create th index over
       # @param [CreateIndexOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::IndexExists]
       def create_index(bucket_name, index_name, fields, options = CreateIndexOptions.new)
@@ -70,6 +72,8 @@ module Couchbase
       #
       # @param [String] bucket_name name of the bucket
       # @param [CreatePrimaryIndexOptions] options
+      #
+      # @return void
       #
       # @raise [ArgumentError]
       # @raise [Error::IndexExists]
@@ -87,6 +91,8 @@ module Couchbase
       # @param [String] index_name name of the index
       # @param [DropIndexOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def drop_index(bucket_name, index_name, options = DropIndexOptions.new)
@@ -100,6 +106,8 @@ module Couchbase
       #
       # @param [String] bucket_name name of the bucket
       # @param [DropPrimaryIndexOptions] options
+      #
+      # @return void
       #
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
@@ -115,6 +123,8 @@ module Couchbase
       #
       # @param [String] bucket_name name of the bucket
       # @param [BuildDeferredIndexOptions] options
+      #
+      # @return void
       #
       # @raise [ArgumentError]
       def build_deferred_indexes(bucket_name, options = BuildDeferredIndexOptions.new)

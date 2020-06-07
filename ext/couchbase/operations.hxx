@@ -58,4 +58,14 @@
 #include <operations/query_index_create.hxx>
 #include <operations/query_index_build_deferred.hxx>
 
+#include <operations/search_index_get_all.hxx>
+#include <operations/search_index_get.hxx>
+#include <operations/search_index_get_documents_count.hxx>
+#include <operations/search_index_upsert.hxx>
+#include <operations/search_index_drop.hxx>
+#include <operations/search_index_control_ingest.hxx>
+#include <operations/search_index_control_query.hxx>
+#include <operations/search_index_control_plan_freeze.hxx>
+#include <operations/search_index_analyze_document.hxx>
+
 #include <operations/command.hxx>

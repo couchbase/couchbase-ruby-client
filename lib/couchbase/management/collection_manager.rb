@@ -64,6 +64,8 @@ module Couchbase
       # @param [String] scope_name name of the scope
       # @param [CreateScopeOptions] options
       #
+      # @return void
+      #
       # @raise [ArgumentError]
       def create_scope(scope_name, options = CreateScopeOptions.new)
         @backend.scope_create(@bucket_name, scope_name, options.timeout)
@@ -74,6 +76,8 @@ module Couchbase
       # @param [String] scope_name name of the scope
       # @param [DropScopeOptions] options
       #
+      # @return void
+      #
       # @raise [Error::ScopeNotFound]
       def drop_scope(scope_name, options = DropScopeOptions.new)
         @backend.scope_drop(@bucket_name, scope_name, options.timeout)
@@ -83,6 +87,8 @@ module Couchbase
       #
       # @param [CollectionSpec] collection specification of the collection
       # @param [CreateCollectionOptions] options
+      #
+      # @return void
       #
       # @raise [ArgumentError]
       # @raise [Error::CollectionExist]
@@ -95,6 +101,8 @@ module Couchbase
       #
       # @param [CollectionSpec] collection specification of the collection
       # @param [DropCollectionOptions] options
+      #
+      # @return void
       #
       # @raise [Error::CollectionNotFound]
       def drop_collection(collection, options = DropCollectionOptions.new)
