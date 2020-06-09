@@ -41,6 +41,7 @@ main()
     ruby_init_loadpath();
 
     rb_require(LIBCOUCHBASE_EXT_PATH);
+    rb_require("json");
     run_script(R"(
 p Couchbase::VERSION
 )");
@@ -50,8 +51,11 @@ B = Couchbase::Backend.new
 B.open("localhost", "Administrator", "password")
 )");
 
-       run_script(R"(
-p B.search_index_get_all(nil)
+    run_script(R"(
+query = {
+    query: "hello"
+}
+p B.document_search("beers", JSON.generate(query), {})
 )");
 
     run_script(R"(

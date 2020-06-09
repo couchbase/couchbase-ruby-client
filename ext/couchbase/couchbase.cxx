@@ -3575,6 +3575,317 @@ cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE enc
     return Qnil;
 }
 
+static VALUE
+cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    Check_Type(query, T_STRING);
+    Check_Type(options, T_HASH);
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_request req;
+        VALUE client_context_id = rb_hash_aref(options, rb_id2sym(rb_intern("client_context_id")));
+        if (!NIL_P(client_context_id)) {
+            Check_Type(client_context_id, T_STRING);
+            req.client_context_id.assign(RSTRING_PTR(client_context_id), static_cast<size_t>(RSTRING_LEN(client_context_id)));
+        }
+        cb__extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        req.query = tao::json::from_string(std::string(RSTRING_PTR(query), static_cast<size_t>(RSTRING_LEN(query))));
+
+        VALUE explain = rb_hash_aref(options, rb_id2sym(rb_intern("explain")));
+        if (!NIL_P(explain)) {
+            req.explain = RTEST(explain);
+        }
+
+        VALUE skip = rb_hash_aref(options, rb_id2sym(rb_intern("skip")));
+        if (!NIL_P(skip)) {
+            Check_Type(skip, T_FIXNUM);
+            req.skip = FIX2ULONG(skip);
+        }
+
+        VALUE limit = rb_hash_aref(options, rb_id2sym(rb_intern("limit")));
+        if (!NIL_P(limit)) {
+            Check_Type(limit, T_FIXNUM);
+            req.limit = FIX2ULONG(limit);
+        }
+
+        VALUE highlight_style = rb_hash_aref(options, rb_id2sym(rb_intern("highlight_style")));
+        if (!NIL_P(highlight_style)) {
+            Check_Type(highlight_style, T_SYMBOL);
+            ID type = rb_sym2id(highlight_style);
+            if (type == rb_intern("html")) {
+                req.highlight_style = couchbase::operations::search_request::highlight_style_type::html;
+            } else if (type == rb_intern("ansi")) {
+                req.highlight_style = couchbase::operations::search_request::highlight_style_type::ansi;
+            }
+        }
+
+        VALUE highlight_fields = rb_hash_aref(options, rb_id2sym(rb_intern("highlight_fields")));
+        if (!NIL_P(highlight_fields)) {
+            Check_Type(highlight_fields, T_ARRAY);
+            auto highlight_fields_size = static_cast<size_t>(RARRAY_LEN(highlight_fields));
+            req.highlight_fields.reserve(highlight_fields_size);
+            for (size_t i = 0; i < highlight_fields_size; ++i) {
+                VALUE field = rb_ary_entry(highlight_fields, static_cast<long>(i));
+                Check_Type(field, T_STRING);
+                req.highlight_fields.emplace_back(std::string(RSTRING_PTR(field), static_cast<std::size_t>(RSTRING_LEN(field))));
+            }
+        }
+
+        VALUE scan_consistency = rb_hash_aref(options, rb_id2sym(rb_intern("scan_consistency")));
+        if (!NIL_P(scan_consistency)) {
+            Check_Type(scan_consistency, T_SYMBOL);
+            ID type = rb_sym2id(scan_consistency);
+            if (type == rb_intern("not_bounded")) {
+                req.scan_consistency = couchbase::operations::search_request::scan_consistency_type::not_bounded;
+            }
+        }
+
+        VALUE mutation_state = rb_hash_aref(options, rb_id2sym(rb_intern("mutation_state")));
+        if (!NIL_P(mutation_state)) {
+            Check_Type(mutation_state, T_ARRAY);
+            auto state_size = static_cast<size_t>(RARRAY_LEN(mutation_state));
+            req.mutation_state.reserve(state_size);
+            for (size_t i = 0; i < state_size; ++i) {
+                VALUE token = rb_ary_entry(mutation_state, static_cast<long>(i));
+                Check_Type(token, T_HASH);
+                VALUE bucket_name = rb_hash_aref(token, rb_id2sym(rb_intern("bucket_name")));
+                Check_Type(bucket_name, T_STRING);
+                VALUE partition_id = rb_hash_aref(token, rb_id2sym(rb_intern("partition_id")));
+                Check_Type(partition_id, T_FIXNUM);
+                VALUE partition_uuid = rb_hash_aref(token, rb_id2sym(rb_intern("partition_uuid")));
+                switch (TYPE(partition_uuid)) {
+                    case T_FIXNUM:
+                    case T_BIGNUM:
+                        break;
+                    default:
+                        rb_raise(rb_eArgError, "partition_uuid must be an Integer");
+                }
+                VALUE sequence_number = rb_hash_aref(token, rb_id2sym(rb_intern("sequence_number")));
+                switch (TYPE(sequence_number)) {
+                    case T_FIXNUM:
+                    case T_BIGNUM:
+                        break;
+                    default:
+                        rb_raise(rb_eArgError, "sequence_number must be an Integer");
+                }
+                req.mutation_state.emplace_back(
+                  couchbase::mutation_token{ NUM2ULL(partition_uuid),
+                                             NUM2ULL(sequence_number),
+                                             gsl::narrow_cast<std::uint16_t>(NUM2UINT(partition_id)),
+                                             std::string(RSTRING_PTR(bucket_name), static_cast<std::size_t>(RSTRING_LEN(bucket_name))) });
+            }
+        }
+
+        VALUE fields = rb_hash_aref(options, rb_id2sym(rb_intern("fields")));
+        if (!NIL_P(fields)) {
+            Check_Type(fields, T_ARRAY);
+            auto fields_size = static_cast<size_t>(RARRAY_LEN(fields));
+            req.fields.reserve(fields_size);
+            for (size_t i = 0; i < fields_size; ++i) {
+                VALUE field = rb_ary_entry(fields, static_cast<long>(i));
+                Check_Type(field, T_STRING);
+                req.fields.emplace_back(std::string(RSTRING_PTR(field), static_cast<std::size_t>(RSTRING_LEN(field))));
+            }
+        }
+
+        VALUE sort = rb_hash_aref(options, rb_id2sym(rb_intern("sort")));
+        if (!NIL_P(sort)) {
+            Check_Type(sort, T_ARRAY);
+            for (size_t i = 0; i < static_cast<std::size_t>(RARRAY_LEN(sort)); ++i) {
+                VALUE sort_spec = rb_ary_entry(sort, static_cast<long>(i));
+                req.sort_specs.emplace_back(std::string(RSTRING_PTR(sort_spec), static_cast<std::size_t>(RSTRING_LEN(sort_spec))));
+            }
+        }
+
+        VALUE facets = rb_hash_aref(options, rb_id2sym(rb_intern("facets")));
+        if (!NIL_P(facets)) {
+            Check_Type(facets, T_ARRAY);
+            for (size_t i = 0; i < static_cast<std::size_t>(RARRAY_LEN(facets)); ++i) {
+                VALUE facet_pair = rb_ary_entry(facets, static_cast<long>(i));
+                Check_Type(facet_pair, T_ARRAY);
+                if (RARRAY_LEN(facet_pair) == 2) {
+                    VALUE facet_name = rb_ary_entry(facet_pair, 0);
+                    Check_Type(facet_name, T_STRING);
+                    VALUE facet_definition = rb_ary_entry(facet_pair, 1);
+                    Check_Type(facet_definition, T_STRING);
+                    req.facets.emplace(std::string(RSTRING_PTR(facet_name), static_cast<std::size_t>(RSTRING_LEN(facet_name))),
+                                       std::string(RSTRING_PTR(facet_definition), static_cast<std::size_t>(RSTRING_LEN(facet_definition))));
+                }
+            }
+        }
+
+        VALUE raw_params = rb_hash_aref(options, rb_id2sym(rb_intern("raw_parameters")));
+        if (!NIL_P(raw_params)) {
+            Check_Type(raw_params, T_HASH);
+            rb_hash_foreach(raw_params, INT_FUNC(cb__for_each_named_param), reinterpret_cast<VALUE>(&req));
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req, [barrier](couchbase::operations::search_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to perform search query for index \"{}\"", req.index_name));
+            break;
+        }
+        VALUE res = rb_hash_new();
+
+        VALUE meta_data = rb_hash_new();
+        rb_hash_aset(meta_data,
+                     rb_id2sym(rb_intern("client_context_id")),
+                     rb_str_new(resp.meta_data.client_context_id.data(), static_cast<long>(resp.meta_data.client_context_id.size())));
+
+        VALUE metrics = rb_hash_new();
+        rb_hash_aset(metrics,
+                     rb_id2sym(rb_intern("took")),
+                     LONG2NUM(std::chrono::duration_cast<std::chrono::milliseconds>(resp.meta_data.metrics.took).count()));
+        rb_hash_aset(metrics, rb_id2sym(rb_intern("total_rows")), ULL2NUM(resp.meta_data.metrics.total_rows));
+        rb_hash_aset(metrics, rb_id2sym(rb_intern("max_score")), DBL2NUM(resp.meta_data.metrics.max_score));
+        rb_hash_aset(metrics, rb_id2sym(rb_intern("success_partition_count")), ULL2NUM(resp.meta_data.metrics.success_partition_count));
+        rb_hash_aset(metrics, rb_id2sym(rb_intern("error_partition_count")), ULL2NUM(resp.meta_data.metrics.error_partition_count));
+        rb_hash_aset(meta_data, rb_id2sym(rb_intern("metrics")), metrics);
+
+        if (!resp.meta_data.errors.empty()) {
+            VALUE errors = rb_hash_new();
+            for (auto err : resp.meta_data.errors) {
+                rb_hash_aset(errors,
+                             rb_str_new(err.first.data(), static_cast<long>(err.first.size())),
+                             rb_str_new(err.second.data(), static_cast<long>(err.second.size())));
+            }
+            rb_hash_aset(meta_data, rb_id2sym(rb_intern("errors")), errors);
+        }
+
+        rb_hash_aset(res, rb_id2sym(rb_intern("meta_data")), meta_data);
+
+        VALUE rows = rb_ary_new_capa(static_cast<long>(resp.rows.size()));
+        for (const auto& entry : resp.rows) {
+            VALUE row = rb_hash_new();
+            rb_hash_aset(row, rb_id2sym(rb_intern("index")), rb_str_new(entry.index.data(), static_cast<long>(entry.index.size())));
+            rb_hash_aset(row, rb_id2sym(rb_intern("id")), rb_str_new(entry.id.data(), static_cast<long>(entry.id.size())));
+            rb_hash_aset(row, rb_id2sym(rb_intern("score")), DBL2NUM(entry.score));
+            VALUE locations = rb_ary_new_capa(static_cast<long>(entry.locations.size()));
+            for (const auto& loc : entry.locations) {
+                VALUE location = rb_hash_new();
+                rb_hash_aset(row, rb_id2sym(rb_intern("field")), rb_str_new(loc.field.data(), static_cast<long>(loc.field.size())));
+                rb_hash_aset(row, rb_id2sym(rb_intern("term")), rb_str_new(loc.term.data(), static_cast<long>(loc.term.size())));
+                rb_hash_aset(row, rb_id2sym(rb_intern("pos")), ULL2NUM(loc.position));
+                rb_hash_aset(row, rb_id2sym(rb_intern("start_offset")), ULL2NUM(loc.start_offset));
+                rb_hash_aset(row, rb_id2sym(rb_intern("end_offset")), ULL2NUM(loc.end_offset));
+                if (loc.array_positions) {
+                    VALUE ap = rb_ary_new_capa(static_cast<long>(loc.array_positions->size()));
+                    for (const auto& pos : *loc.array_positions) {
+                        rb_ary_push(ap, ULL2NUM(pos));
+                    }
+                    rb_hash_aset(row, rb_id2sym(rb_intern("array_positions")), ap);
+                }
+                rb_ary_push(locations, location);
+            }
+            rb_hash_aset(row, rb_id2sym(rb_intern("locations")), locations);
+            if (!entry.fragments.empty()) {
+                VALUE fragments = rb_hash_new();
+                for (const auto& field_fragments : entry.fragments) {
+                    VALUE fragments_list = rb_ary_new_capa(static_cast<long>(field_fragments.second.size()));
+                    for (const auto& fragment : field_fragments.second) {
+                        rb_ary_push(fragments_list, rb_str_new(fragment.data(), static_cast<long>(fragment.size())));
+                    }
+                    rb_hash_aset(
+                      fragments, rb_str_new(field_fragments.first.data(), static_cast<long>(field_fragments.first.size())), fragments_list);
+                }
+                rb_hash_aset(row, rb_id2sym(rb_intern("fragments")), fragments);
+            }
+            if (!entry.fields.empty()) {
+                rb_hash_aset(row, rb_id2sym(rb_intern("fields")), rb_str_new(entry.fields.data(), static_cast<long>(entry.fields.size())));
+            }
+            if (!entry.explanation.empty()) {
+                rb_hash_aset(row,
+                             rb_id2sym(rb_intern("explanation")),
+                             rb_str_new(entry.explanation.data(), static_cast<long>(entry.explanation.size())));
+            }
+            rb_ary_push(rows, row);
+        }
+        rb_hash_aset(res, rb_id2sym(rb_intern("rows")), rows);
+
+        if (!resp.facets.empty()) {
+            VALUE result_facets = rb_hash_new();
+            for (const auto& entry : resp.facets) {
+                VALUE facet = rb_hash_new();
+                VALUE facet_name = rb_str_new(entry.name.data(), static_cast<long>(entry.name.size()));
+                rb_hash_aset(facet, rb_id2sym(rb_intern("name")), facet_name);
+                rb_hash_aset(facet, rb_id2sym(rb_intern("field")), rb_str_new(entry.field.data(), static_cast<long>(entry.field.size())));
+                rb_hash_aset(facet, rb_id2sym(rb_intern("total")), ULL2NUM(entry.total));
+                rb_hash_aset(facet, rb_id2sym(rb_intern("missing")), ULL2NUM(entry.missing));
+                rb_hash_aset(facet, rb_id2sym(rb_intern("other")), ULL2NUM(entry.other));
+                if (!entry.terms.empty()) {
+                    VALUE terms = rb_ary_new_capa(static_cast<long>(entry.terms.size()));
+                    for (const auto& item : entry.terms) {
+                        VALUE term = rb_hash_new();
+                        rb_hash_aset(term, rb_id2sym(rb_intern("term")), rb_str_new(item.term.data(), static_cast<long>(item.term.size())));
+                        rb_hash_aset(term, rb_id2sym(rb_intern("count")), ULL2NUM(item.count));
+                        rb_ary_push(terms, term);
+                    }
+                    rb_hash_aset(facet, rb_id2sym(rb_intern("terms")), terms);
+                } else if (!entry.date_ranges.empty()) {
+                    VALUE date_ranges = rb_ary_new_capa(static_cast<long>(entry.date_ranges.size()));
+                    for (const auto& item : entry.date_ranges) {
+                        VALUE date_range = rb_hash_new();
+                        rb_hash_aset(
+                          date_range, rb_id2sym(rb_intern("name")), rb_str_new(item.name.data(), static_cast<long>(item.name.size())));
+                        rb_hash_aset(date_range, rb_id2sym(rb_intern("count")), ULL2NUM(item.count));
+                        if (item.start) {
+                            rb_hash_aset(date_range,
+                                         rb_id2sym(rb_intern("start_time")),
+                                         rb_str_new(item.start->data(), static_cast<long>(item.start->size())));
+                        }
+                        if (item.end) {
+                            rb_hash_aset(date_range,
+                                         rb_id2sym(rb_intern("end_time")),
+                                         rb_str_new(item.end->data(), static_cast<long>(item.end->size())));
+                        }
+                        rb_ary_push(date_ranges, date_range);
+                    }
+                    rb_hash_aset(facet, rb_id2sym(rb_intern("date_ranges")), date_ranges);
+                } else if (!entry.numeric_ranges.empty()) {
+                    VALUE numeric_ranges = rb_ary_new_capa(static_cast<long>(entry.numeric_ranges.size()));
+                    for (const auto& item : entry.numeric_ranges) {
+                        VALUE numeric_range = rb_hash_new();
+                        rb_hash_aset(
+                          numeric_range, rb_id2sym(rb_intern("name")), rb_str_new(item.name.data(), static_cast<long>(item.name.size())));
+                        rb_hash_aset(numeric_range, rb_id2sym(rb_intern("count")), ULL2NUM(item.count));
+                        if (std::holds_alternative<double>(item.min)) {
+                            rb_hash_aset(numeric_range, rb_id2sym(rb_intern("min")), DBL2NUM(std::get<double>(item.min)));
+                        } else if (std::holds_alternative<std::uint64_t>(item.min)) {
+                            rb_hash_aset(numeric_range, rb_id2sym(rb_intern("min")), ULL2NUM(std::get<std::uint64_t>(item.min)));
+                        }
+                        if (std::holds_alternative<double>(item.max)) {
+                            rb_hash_aset(numeric_range, rb_id2sym(rb_intern("max")), DBL2NUM(std::get<double>(item.max)));
+                        } else if (std::holds_alternative<std::uint64_t>(item.max)) {
+                            rb_hash_aset(numeric_range, rb_id2sym(rb_intern("max")), ULL2NUM(std::get<std::uint64_t>(item.max)));
+                        }
+                        rb_ary_push(numeric_ranges, numeric_range);
+                    }
+                    rb_hash_aset(facet, rb_id2sym(rb_intern("numeric_ranges")), numeric_ranges);
+                }
+                rb_hash_aset(result_facets, facet_name, facet);
+            }
+            rb_hash_aset(res, rb_id2sym(rb_intern("facets")), result_facets);
+        }
+
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
 static void
 init_backend(VALUE mCouchbase)
 {
@@ -3600,6 +3911,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_unlock", VALUE_FUNC(cb_Backend_document_unlock), 5);
     rb_define_method(cBackend, "document_increment", VALUE_FUNC(cb_Backend_document_increment), 5);
     rb_define_method(cBackend, "document_decrement", VALUE_FUNC(cb_Backend_document_decrement), 5);
+    rb_define_method(cBackend, "document_search", VALUE_FUNC(cb_Backend_document_search), 3);
 
     rb_define_method(cBackend, "bucket_create", VALUE_FUNC(cb_Backend_bucket_create), 2);
     rb_define_method(cBackend, "bucket_update", VALUE_FUNC(cb_Backend_bucket_update), 2);

@@ -22,11 +22,11 @@ module Couchbase
       [JSON.generate(document), (0x02 << 24) | 0x06]
     end
 
-    # @param [String] blob string of bytes, containing encoded representation of the document
+    # @param [String, nil] blob string of bytes, containing encoded representation of the document
     # @param [Integer, :json] flags bit field, describing how the data encoded
     # @return Object decoded document
     def decode(blob, flags)
-      JSON.parse(blob)
+      JSON.parse(blob) unless blob.nil?
     end
   end
 end

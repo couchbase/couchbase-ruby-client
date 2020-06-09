@@ -37,6 +37,7 @@
 #include <operations/document_get_projected.hxx>
 
 #include <operations/document_query.hxx>
+#include <operations/document_search.hxx>
 
 #include <operations/bucket_get_all.hxx>
 #include <operations/bucket_get.hxx>

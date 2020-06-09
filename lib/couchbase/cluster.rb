@@ -21,6 +21,8 @@ require "couchbase/management/query_index_manager"
 require "couchbase/management/analytics_index_manager"
 require "couchbase/management/search_index_manager"
 
+require "couchbase/search_options"
+
 module Couchbase
   class Cluster
     alias_method :inspect, :to_s
@@ -110,8 +112,92 @@ module Couchbase
     # @param [SearchQuery] query the query tree
     # @param [SearchOptions] options the query tree
     #
-    # @return [QueryResult]
-    def search_query(index_name, query, options = SearchOptions.new) end
+    # @return [SearchResult]
+    def search_query(index_name, query, options = SearchOptions.new)
+      resp = @backend.document_search(index_name, JSON.generate(query), {
+          timeout: options.timeout,
+          limit: options.limit,
+          skip: options.skip,
+          explain: options.explain,
+          highlight_style: options.highlight_style,
+          highlight_fields: options.highlight_fields,
+          fields: options.fields,
+          sort: options.sort&.map { |v| JSON.generate(v) },
+          facets: options.facets&.map { |(k, v)| [k, JSON.generate(v)] },
+          scan_consistency: options.instance_variable_get("@scan_consistency"),
+          mutation_state: options.instance_variable_get("@mutation_state")&.tokens&.map { |t|
+            {
+                bucket_name: t.bucket_name,
+                partition_id: t.partition_id,
+                partition_uuid: t.partition_uuid,
+                sequence_number: t.sequence_number,
+            }
+          },
+      })
+
+      SearchResult.new do |res|
+        res.meta_data = SearchMetaData.new do |meta|
+          meta.metrics.max_score = resp[:meta_data][:metrics][:max_score]
+          meta.metrics.error_partition_count = resp[:meta_data][:metrics][:error_partition_count]
+          meta.metrics.success_partition_count = resp[:meta_data][:metrics][:success_partition_count]
+          meta.metrics.took = resp[:meta_data][:metrics][:took]
+          meta.metrics.total_rows = resp[:meta_data][:metrics][:total_rows]
+        end
+        res.rows = resp[:rows].map do |r|
+          SearchRow.new do |row|
+            row.transcoder = options.transcoder
+            row.index = r[:index]
+            row.id = r[:id]
+            row.score = r[:score]
+            row.fragments = r[:fragments]
+            row.locations = SearchRowLocations.new(
+                r[:locations].map do |loc|
+                  SearchRowLocation.new do |location|
+                    location.field = loc[:field]
+                    location.term = loc[:term]
+                    location.position = loc[:position]
+                    location.start_offset = loc[:start_offset]
+                    location.end_offset = loc[:end_offset]
+                    location.array_positions = loc[:array_positions]
+                  end
+                end
+            )
+            row.instance_variable_set("@fields", r[:fields])
+            row.explanation = JSON.parse(r[:explanation]) if r[:explanation]
+          end
+        end
+        res.facets = resp[:facets]&.each_with_object({}) do |(k, v), o|
+          facet = case options.facets[k]
+                  when SearchFacet::SearchFacetTerm
+                    SearchFacetResult::TermFacetResult.new do |f|
+                      f.terms = v[:terms]&.map do |t|
+                        SearchFacetResult::TermFacetResult::TermFacet.new(t[:term], t[:count])
+                      end || []
+                    end
+                  when SearchFacet::SearchFacetDateRange
+                    SearchFacetResult::DateRangeFacetResult.new do |f|
+                      f.date_ranges = v[:date_ranges]&.map do |r|
+                        SearchFacetResult::DateRangeFacetResult::DateRangeFacet.new(r[:name], r[:count], r[:start_time], r[:end_time])
+                      end || []
+                    end
+                  when SearchFacet::SearchFacetNumericRange
+                    SearchFacetResult::NumericRangeFacetResult.new do |f|
+                      f.numeric_ranges = v[:numeric_ranges]&.map do |r|
+                        SearchFacetResult::NumericRangeFacetResult::NumericRangeFacet.new(r[:name], r[:count], r[:min], r[:max])
+                      end || []
+                    end
+                  else
+                    next # ignore unknown facet result
+                  end
+          facet.name = v[:name]
+          facet.field = v[:field]
+          facet.total = v[:total]
+          facet.missing = v[:missing]
+          facet.other = v[:other]
+          o[k] = facet
+        end
+      end
+    end
 
     # @return [Management::UserManager]
     def users
@@ -356,12 +442,6 @@ module Couchbase
     end
 
     class AnalyticsOptions
-      def initialize
-        yield self if block_given?
-      end
-    end
-
-    class SearchOptions
       def initialize
         yield self if block_given?
       end
