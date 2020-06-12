@@ -18,7 +18,7 @@
 #pragma once
 
 #define BACKEND_VERSION_MAJOR 0
-#define BACKEND_VERSION_MINOR 2
+#define BACKEND_VERSION_MINOR 3
 #define BACKEND_VERSION_PATCH 0
 
 #include <build_version.hxx>
