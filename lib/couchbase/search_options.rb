@@ -304,7 +304,7 @@ module Couchbase
         #
         # @note The lower boundary is considered inclusive by default on the server side.
         #
-        # @param [Time, String] time_point start time. When {Time} object is passed {#date_time_parser} must be +nil+ (to use server default)
+        # @param [Time, String] time_point start time. When +Time+ object is passed {#date_time_parser} must be +nil+ (to use server default)
         # @param [Boolean] inclusive
         def start_time(time_point, inclusive = nil)
           @start_time = time_point
@@ -315,7 +315,7 @@ module Couchbase
         #
         # @note The upper boundary is considered exclusive by default on the server side.
         #
-        # @param [Time, String] time_point end time. When {Time} object is passed {#date_time_parser} must be +nil+ (to use server default)
+        # @param [Time, String] time_point end time. When +Time+ object is passed {#date_time_parser} must be +nil+ (to use server default)
         # @param [Boolean] inclusive
         def end_time(time_point, inclusive = nil)
           @end_time = time_point
