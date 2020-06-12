@@ -23,6 +23,7 @@ require "couchbase/management/search_index_manager"
 
 require "couchbase/search_options"
 require "couchbase/query_options"
+require "couchbase/analytics_options"
 
 module Couchbase
   class Cluster
@@ -88,6 +89,7 @@ module Couchbase
               metrics.execution_time = resp[:meta][:metrics][:execution_time]
               metrics.sort_count = resp[:meta][:metrics][:sort_count]
               metrics.result_count = resp[:meta][:metrics][:result_count]
+              metrics.result_size = resp[:meta][:metrics][:result_size]
               metrics.mutation_count = resp[:meta][:metrics][:mutation_count]
               metrics.error_count = resp[:meta][:metrics][:error_count]
               metrics.warning_count = resp[:meta][:metrics][:warning_count]
@@ -105,7 +107,42 @@ module Couchbase
     # @param [AnalyticsOptions] options the custom options for this query
     #
     # @return [AnalyticsResult]
-    def analytics_query(statement, options = AnalyticsOptions.new) end
+    def analytics_query(statement, options = AnalyticsOptions.new)
+      resp = @backend.document_analytics(statement, {
+          timeout: options.timeout,
+          client_context_id: options.client_context_id,
+          scan_consistency: options.scan_consistency,
+          readonly: options.readonly,
+          priority: options.priority,
+          positional_parameters: options.instance_variable_get("@positional_parameters")&.map { |p| JSON.dump(p) },
+          named_parameters: options.instance_variable_get("@named_parameters")&.each_with_object({}) { |(n, v), o| o[n.to_s] = JSON.dump(v) },
+          raw_parameters: options.instance_variable_get("@raw_parameters"),
+      })
+
+      AnalyticsResult.new do |res|
+        res.transcoder = options.transcoder
+        res.meta_data = AnalyticsMetaData.new do |meta|
+          meta.status = resp[:meta][:status]
+          meta.request_id = resp[:meta][:request_id]
+          meta.client_context_id = resp[:meta][:client_context_id]
+          meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
+          meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
+          meta.metrics = AnalyticsMetrics.new do |metrics|
+            if resp[:meta][:metrics]
+              metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
+              metrics.execution_time = resp[:meta][:metrics][:execution_time]
+              metrics.result_count = resp[:meta][:metrics][:result_count]
+              metrics.result_size = resp[:meta][:metrics][:result_size]
+              metrics.error_count = resp[:meta][:metrics][:error_count]
+              metrics.warning_count = resp[:meta][:metrics][:warning_count]
+              metrics.processed_objects = resp[:meta][:metrics][:processed_objects]
+            end
+          end
+          res[:warnings] = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
+        end
+        res.instance_variable_set("@rows", resp[:rows])
+      end
+    end
 
     # Performs a Full Text Search (FTS) query
     #
@@ -241,12 +278,6 @@ module Couchbase
       def authenticate(username, password)
         @authenticator = PasswordAuthenticator.new(username, password)
         self
-      end
-    end
-
-    class AnalyticsOptions
-      def initialize
-        yield self if block_given?
       end
     end
 

@@ -86,7 +86,6 @@ class bucket
     }
 
   private:
-
     asio::io_context& ctx_;
     std::string name_;
     configuration config_;

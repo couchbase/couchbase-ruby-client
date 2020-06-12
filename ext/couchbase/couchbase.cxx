@@ -4456,6 +4456,159 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE link_name, VALUE datavers
     return Qnil;
 }
 
+static int
+cb__for_each_named_param__analytics(VALUE key, VALUE value, VALUE arg)
+{
+    auto* preq = reinterpret_cast<couchbase::operations::analytics_request*>(arg);
+    Check_Type(key, T_STRING);
+    Check_Type(value, T_STRING);
+    preq->named_parameters.emplace(
+      std::string_view(RSTRING_PTR(key), static_cast<std::size_t>(RSTRING_LEN(key))),
+      tao::json::from_string(std::string_view(RSTRING_PTR(value), static_cast<std::size_t>(RSTRING_LEN(value)))));
+    return ST_CONTINUE;
+}
+
+static VALUE
+cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(statement, T_STRING);
+    Check_Type(options, T_HASH);
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_request req;
+        req.statement.assign(RSTRING_PTR(statement), static_cast<size_t>(RSTRING_LEN(statement)));
+        VALUE client_context_id = rb_hash_aref(options, rb_id2sym(rb_intern("client_context_id")));
+        if (!NIL_P(client_context_id)) {
+            Check_Type(client_context_id, T_STRING);
+            req.client_context_id.assign(RSTRING_PTR(client_context_id), static_cast<size_t>(RSTRING_LEN(client_context_id)));
+        }
+        cb__extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+        VALUE readonly = rb_hash_aref(options, rb_id2sym(rb_intern("readonly")));
+        if (!NIL_P(readonly)) {
+            req.readonly = RTEST(readonly);
+        }
+        VALUE positional_params = rb_hash_aref(options, rb_id2sym(rb_intern("positional_parameters")));
+        if (!NIL_P(positional_params)) {
+            Check_Type(positional_params, T_ARRAY);
+            auto entries_num = static_cast<size_t>(RARRAY_LEN(positional_params));
+            req.positional_parameters.reserve(entries_num);
+            for (size_t i = 0; i < entries_num; ++i) {
+                VALUE entry = rb_ary_entry(positional_params, static_cast<long>(i));
+                Check_Type(entry, T_STRING);
+                req.positional_parameters.emplace_back(
+                  tao::json::from_string(std::string_view(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry)))));
+            }
+        }
+        VALUE named_params = rb_hash_aref(options, rb_id2sym(rb_intern("named_parameters")));
+        if (!NIL_P(named_params)) {
+            Check_Type(named_params, T_HASH);
+            rb_hash_foreach(named_params, INT_FUNC(cb__for_each_named_param__analytics), reinterpret_cast<VALUE>(&req));
+        }
+        VALUE scan_consistency = rb_hash_aref(options, rb_id2sym(rb_intern("scan_consistency")));
+        if (!NIL_P(scan_consistency)) {
+            Check_Type(scan_consistency, T_SYMBOL);
+            ID type = rb_sym2id(scan_consistency);
+            if (type == rb_intern("not_bounded")) {
+                req.scan_consistency = couchbase::operations::analytics_request::scan_consistency_type::not_bounded;
+            } else if (type == rb_intern("request_plus")) {
+                req.scan_consistency = couchbase::operations::analytics_request::scan_consistency_type::request_plus;
+            }
+        }
+
+        VALUE raw_params = rb_hash_aref(options, rb_id2sym(rb_intern("raw_parameters")));
+        if (!NIL_P(raw_params)) {
+            Check_Type(raw_params, T_HASH);
+            rb_hash_foreach(raw_params, INT_FUNC(cb__for_each_named_param__analytics), reinterpret_cast<VALUE>(&req));
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req, [barrier](couchbase::operations::analytics_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.payload.meta_data.errors && !resp.payload.meta_data.errors->empty()) {
+                const auto& first_error = resp.payload.meta_data.errors->front();
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format("unable to execute analytics query: \"{}{}\" ({}: {})",
+                                                     req.statement.substr(0, 50),
+                                                     req.statement.size() > 50 ? "..." : "",
+                                                     first_error.code,
+                                                     first_error.message));
+            } else {
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format("unable to execute analytics query: \"{}{}\"",
+                                                     req.statement.substr(0, 50),
+                                                     req.statement.size() > 50 ? "..." : ""));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        VALUE rows = rb_ary_new_capa(static_cast<long>(resp.payload.rows.size()));
+        rb_hash_aset(res, rb_id2sym(rb_intern("rows")), rows);
+        for (auto& row : resp.payload.rows) {
+            rb_ary_push(rows, rb_str_new(row.data(), static_cast<long>(row.size())));
+        }
+        VALUE meta = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("meta")), meta);
+        rb_hash_aset(meta,
+                     rb_id2sym(rb_intern("status")),
+                     rb_id2sym(rb_intern2(resp.payload.meta_data.status.data(), static_cast<long>(resp.payload.meta_data.status.size()))));
+        rb_hash_aset(meta,
+                     rb_id2sym(rb_intern("request_id")),
+                     rb_str_new(resp.payload.meta_data.request_id.data(), static_cast<long>(resp.payload.meta_data.request_id.size())));
+        rb_hash_aset(
+          meta,
+          rb_id2sym(rb_intern("client_context_id")),
+          rb_str_new(resp.payload.meta_data.client_context_id.data(), static_cast<long>(resp.payload.meta_data.client_context_id.size())));
+        if (resp.payload.meta_data.signature) {
+            rb_hash_aset(meta,
+                         rb_id2sym(rb_intern("signature")),
+                         rb_str_new(resp.payload.meta_data.signature->data(), static_cast<long>(resp.payload.meta_data.signature->size())));
+        }
+        if (resp.payload.meta_data.profile) {
+            rb_hash_aset(meta,
+                         rb_id2sym(rb_intern("profile")),
+                         rb_str_new(resp.payload.meta_data.profile->data(), static_cast<long>(resp.payload.meta_data.profile->size())));
+        }
+        VALUE metrics = rb_hash_new();
+        rb_hash_aset(meta, rb_id2sym(rb_intern("metrics")), metrics);
+        rb_hash_aset(metrics,
+                     rb_id2sym(rb_intern("elapsed_time")),
+                     rb_str_new(resp.payload.meta_data.metrics.elapsed_time.data(),
+                                static_cast<long>(resp.payload.meta_data.metrics.elapsed_time.size())));
+        rb_hash_aset(metrics,
+                     rb_id2sym(rb_intern("execution_time")),
+                     rb_str_new(resp.payload.meta_data.metrics.execution_time.data(),
+                                static_cast<long>(resp.payload.meta_data.metrics.execution_time.size())));
+        rb_hash_aset(metrics, rb_id2sym(rb_intern("result_count")), ULL2NUM(resp.payload.meta_data.metrics.result_count));
+        rb_hash_aset(metrics, rb_id2sym(rb_intern("result_size")), ULL2NUM(resp.payload.meta_data.metrics.result_count));
+        if (resp.payload.meta_data.metrics.sort_count) {
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("sort_count")), ULL2NUM(*resp.payload.meta_data.metrics.sort_count));
+        }
+        if (resp.payload.meta_data.metrics.mutation_count) {
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("mutation_count")), ULL2NUM(*resp.payload.meta_data.metrics.mutation_count));
+        }
+        if (resp.payload.meta_data.metrics.error_count) {
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("error_count")), ULL2NUM(*resp.payload.meta_data.metrics.error_count));
+        }
+        if (resp.payload.meta_data.metrics.warning_count) {
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("warning_count")), ULL2NUM(*resp.payload.meta_data.metrics.warning_count));
+        }
+
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
 static void
 init_backend(VALUE mCouchbase)
 {
@@ -4482,6 +4635,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_increment", VALUE_FUNC(cb_Backend_document_increment), 5);
     rb_define_method(cBackend, "document_decrement", VALUE_FUNC(cb_Backend_document_decrement), 5);
     rb_define_method(cBackend, "document_search", VALUE_FUNC(cb_Backend_document_search), 3);
+    rb_define_method(cBackend, "document_analytics", VALUE_FUNC(cb_Backend_document_analytics), 2);
 
     rb_define_method(cBackend, "bucket_create", VALUE_FUNC(cb_Backend_bucket_create), 2);
     rb_define_method(cBackend, "bucket_update", VALUE_FUNC(cb_Backend_bucket_update), 2);
