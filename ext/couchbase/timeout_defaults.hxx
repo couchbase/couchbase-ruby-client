@@ -29,4 +29,6 @@ constexpr std::chrono::milliseconds query_timeout{ 75'000 };
 constexpr std::chrono::milliseconds analytics_timeout{ 75'000 };
 constexpr std::chrono::milliseconds search_timeout{ 75'000 };
 constexpr std::chrono::milliseconds management_timeout{ 75'000 };
+
+constexpr std::chrono::milliseconds dns_srv_timeout{ 500 };
 } // namespace couchbase::timeout_defaults

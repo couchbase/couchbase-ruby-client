@@ -29,6 +29,8 @@
 #include <cluster.hxx>
 #include <operations.hxx>
 
+#include <io/dns_client.hxx>
+
 #include <ruby.h>
 #if defined(HAVE_RUBY_VERSION_H)
 #include <ruby/version.h>
@@ -3901,6 +3903,58 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
 }
 
 static VALUE
+cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
+{
+    (void)self;
+    Check_Type(hostname, T_STRING);
+    Check_Type(service, T_SYMBOL);
+
+    bool tls = false;
+
+    ID type = rb_sym2id(service);
+    if (type == rb_intern("couchbase")) {
+        tls = false;
+    } else if (type == rb_intern("couchbases")) {
+        tls = true;
+    } else {
+        rb_raise(rb_eArgError, "Unsupported service type: %+" PRIsVALUE, service);
+    }
+    VALUE exc = Qnil;
+    do {
+        asio::io_context ctx;
+
+        couchbase::io::dns::dns_client client(ctx);
+        std::string host_name(RSTRING_PTR(hostname), static_cast<size_t>(RSTRING_LEN(hostname)));
+        std::string service_name("_couchbase");
+        if (tls) {
+            service_name = "_couchbases";
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::io::dns::dns_client::dns_srv_response>>();
+        auto f = barrier->get_future();
+        client.query_srv(
+          host_name, service_name, [barrier](couchbase::io::dns::dns_client::dns_srv_response resp) mutable { barrier->set_value(resp); });
+        ctx.run();
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, fmt::format("DNS SRV query failure for name \"{}\" (service: {})", host_name, service_name));
+            break;
+        }
+
+        VALUE res = rb_ary_new();
+        for (const auto& target : resp.targets) {
+            VALUE addr = rb_hash_new();
+            rb_hash_aset(
+              addr, rb_id2sym(rb_intern("hostname")), rb_str_new(target.hostname.data(), static_cast<long>(target.hostname.size())));
+            rb_hash_aset(addr, rb_id2sym(rb_intern("port")), UINT2NUM(target.port));
+            rb_ary_push(res, addr);
+        }
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
 cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
@@ -4706,6 +4760,8 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "analytics_index_drop", VALUE_FUNC(cb_Backend_analytics_index_drop), 5);
     rb_define_method(cBackend, "analytics_link_connect", VALUE_FUNC(cb_Backend_analytics_link_connect), 4);
     rb_define_method(cBackend, "analytics_link_disconnect", VALUE_FUNC(cb_Backend_analytics_link_disconnect), 3);
+
+    rb_define_singleton_method(cBackend, "dns_srv", VALUE_FUNC(cb_Backend_dns_srv), 2);
 }
 
 extern "C" {

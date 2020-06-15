@@ -44,23 +44,9 @@ main()
     rb_require("json");
     run_script(R"(
 p Couchbase::VERSION
+p Couchbase::Backend.dns_srv("deep.avsej.net", :couchbase)
 )");
 
-    run_script(R"(
-B = Couchbase::Backend.new
-B.open("localhost", "Administrator", "password")
-)");
-
-    run_script(R"(
-query = {
-    query: "hello"
-}
-p B.document_search("beers", JSON.generate(query), {})
-)");
-
-    run_script(R"(
-B.close
-)");
 
     ruby_finalize();
     return 0;
