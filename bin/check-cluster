@@ -27,4 +27,5 @@ set -ex
 curl -sS -w "\n" -u${CREDS} http://${HOST}:8091/pools
 curl -sS -w "\n" -u${CREDS} http://${HOST}:8091/pools/default
 curl -sS -w "\n" -u${CREDS} http://${HOST}:8091/pools/default/buckets/default
+curl -sS -w "\n" -u${CREDS} http://${HOST}:8091/pools/default/b/default
 

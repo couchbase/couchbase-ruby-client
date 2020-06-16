@@ -34,14 +34,14 @@ curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/nodes/self/controller/settings 
      -d 'path=%2Fopt%2Fcouchbase%2Fvar%2Flib%2Fcouchbase%2Fdata' \
      -d 'index_path=%2Fopt%2Fcouchbase%2Fvar%2Flib%2Fcouchbase%2Fdata'
 
-# Setup Services
-curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/node/controller/setupServices \
-     -d 'services=kv%2Cn1ql%2Cindex%2Cfts'
-
 # Setup Memory Quotas
 curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/pools/default \
   -d "memoryQuota=${QUOTA}" \
   -d 'indexMemoryQuota=256'
+
+# Setup Services
+curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/node/controller/setupServices \
+     -d 'services=kv%2Cn1ql%2Cindex%2Cfts%2Ccbas'
 
 # Setup Administrator username and password
 curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/settings/web \

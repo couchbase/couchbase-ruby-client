@@ -15,7 +15,7 @@ jobs:
       couchbase:
         image: couchbase:enterprise-6.5.1
         ports:
-          - 8091-8094:8091-8094
+          - 8091-8095:8091-8095
           - 11210:11210
 
     steps:

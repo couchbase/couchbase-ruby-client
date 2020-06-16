@@ -166,7 +166,7 @@ module Couchbase
       # @return [String] name
       attr_accessor :name
 
-      # @return [Hash<String, View>]
+      # @return [Hash<String => View>]
       attr_accessor :views
 
       # @yieldparam [DesignDocument] self

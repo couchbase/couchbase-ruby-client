@@ -1203,7 +1203,7 @@ module Couchbase
 
       # Facets allow to aggregate information collected on a particular result set
       #
-      # @return [Hash<String, SearchFacet]
+      # @return [Hash<String => SearchFacet>]
       attr_accessor :facets
 
       # @return [JsonTranscoder] transcoder to use for the results
@@ -1420,7 +1420,7 @@ module Couchbase
       # @return [Hash]
       attr_accessor :explanation
 
-      # @return [Hash<String, Array<String>>]
+      # @return [Hash<String => Array<String>>]
       attr_accessor :fragments
 
       # @return [JsonTranscoder] transcoder to use for the fields
@@ -1463,7 +1463,7 @@ module Couchbase
       # @return [SearchMetrics]
       attr_accessor :metrics
 
-      # @return [Hash<String, String>]
+      # @return [Hash<String => String>]
       attr_accessor :errors
 
       # @yieldparam [SearchMetaData] self
@@ -1477,7 +1477,7 @@ module Couchbase
       # @return [Array<SearchRow>]
       attr_accessor :rows
 
-      # @return [Hash<String, SearchFacetResult>]
+      # @return [Hash<String => SearchFacetResult>]
       attr_accessor :facets
 
       # @return [SearchMetaData]

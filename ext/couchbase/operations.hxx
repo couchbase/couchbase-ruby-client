@@ -69,4 +69,16 @@
 #include <operations/search_index_control_plan_freeze.hxx>
 #include <operations/search_index_analyze_document.hxx>
 
+#include <operations/analytics_get_pending_mutations.hxx>
+#include <operations/analytics_dataverse_create.hxx>
+#include <operations/analytics_dataverse_drop.hxx>
+#include <operations/analytics_dataset_create.hxx>
+#include <operations/analytics_dataset_drop.hxx>
+#include <operations/analytics_dataset_get_all.hxx>
+#include <operations/analytics_index_get_all.hxx>
+#include <operations/analytics_index_create.hxx>
+#include <operations/analytics_index_drop.hxx>
+#include <operations/analytics_link_connect.hxx>
+#include <operations/analytics_link_disconnect.hxx>
+
 #include <operations/command.hxx>

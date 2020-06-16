@@ -3886,6 +3886,576 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
     return Qnil;
 }
 
+static VALUE
+cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_get_pending_mutations_request req{};
+        cb__extract_timeout(req, timeout);
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_get_pending_mutations_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_get_pending_mutations_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.errors.empty()) {
+                exc = cb__map_error_code(resp.ec, "unable to get pending mutations for the analytics service");
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc = cb__map_error_code(
+                  resp.ec,
+                  fmt::format("unable to get pending mutations for the analytics service ({}: {})", first_error.code, first_error.message));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+        for (const auto& entry : resp.stats) {
+            rb_hash_aset(res, rb_str_new(entry.first.data(), static_cast<long>(entry.first.size())), ULL2NUM(entry.second));
+        }
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_dataset_get_all(VALUE self, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_dataset_get_all_request req{};
+        cb__extract_timeout(req, timeout);
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataset_get_all_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_dataset_get_all_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.errors.empty()) {
+                exc = cb__map_error_code(resp.ec, "unable to fetch all datasets");
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc =
+                  cb__map_error_code(resp.ec, fmt::format("unable to fetch all datasets ({}: {})", first_error.code, first_error.message));
+            }
+            break;
+        }
+        VALUE res = rb_ary_new_capa(static_cast<long>(resp.datasets.size()));
+        for (const auto& ds : resp.datasets) {
+            VALUE dataset = rb_hash_new();
+            rb_hash_aset(dataset, rb_id2sym(rb_intern("name")), rb_str_new(ds.name.data(), static_cast<long>(ds.name.size())));
+            rb_hash_aset(dataset,
+                         rb_id2sym(rb_intern("dataverse_name")),
+                         rb_str_new(ds.dataverse_name.data(), static_cast<long>(ds.dataverse_name.size())));
+            rb_hash_aset(
+              dataset, rb_id2sym(rb_intern("link_name")), rb_str_new(ds.link_name.data(), static_cast<long>(ds.link_name.size())));
+            rb_hash_aset(
+              dataset, rb_id2sym(rb_intern("bucket_name")), rb_str_new(ds.bucket_name.data(), static_cast<long>(ds.bucket_name.size())));
+            rb_ary_push(res, dataset);
+        }
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE dataverse_name, VALUE ignore_if_does_not_exist, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(dataset_name, T_STRING);
+    if (!NIL_P(dataverse_name)) {
+        Check_Type(dataverse_name, T_STRING);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_dataset_drop_request req{};
+        cb__extract_timeout(req, timeout);
+        req.dataset_name.assign(RSTRING_PTR(dataset_name), static_cast<size_t>(RSTRING_LEN(dataset_name)));
+        if (!NIL_P(dataverse_name)) {
+            req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
+        }
+        if (!NIL_P(ignore_if_does_not_exist)) {
+            req.ignore_if_does_not_exist = RTEST(ignore_if_does_not_exist);
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataset_drop_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_dataset_drop_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.errors.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to drop dataset `{}`.`{}`", req.dataverse_name, req.dataset_name));
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format("unable to drop dataset `{}`.`{}` ({}: {})",
+                                                     req.dataverse_name,
+                                                     req.dataset_name,
+                                                     first_error.code,
+                                                     first_error.message));
+            }
+            break;
+        }
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_dataset_create(VALUE self,
+                                    VALUE dataset_name,
+                                    VALUE bucket_name,
+                                    VALUE condition,
+                                    VALUE dataverse_name,
+                                    VALUE ignore_if_exists,
+                                    VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(dataset_name, T_STRING);
+    Check_Type(bucket_name, T_STRING);
+    if (!NIL_P(condition)) {
+        Check_Type(condition, T_STRING);
+    }
+    if (!NIL_P(dataverse_name)) {
+        Check_Type(dataverse_name, T_STRING);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_dataset_create_request req{};
+        cb__extract_timeout(req, timeout);
+        req.dataset_name.assign(RSTRING_PTR(dataset_name), static_cast<size_t>(RSTRING_LEN(dataset_name)));
+        req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+        if (!NIL_P(condition)) {
+            req.condition.emplace(std::string(RSTRING_PTR(condition), static_cast<size_t>(RSTRING_LEN(condition))));
+        }
+        if (!NIL_P(dataverse_name)) {
+            req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
+        }
+        if (!NIL_P(ignore_if_exists)) {
+            req.ignore_if_exists = RTEST(ignore_if_exists);
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataset_create_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_dataset_create_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.errors.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to create dataset `{}`.`{}`", req.dataverse_name, req.dataset_name));
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format("unable to create dataset `{}`.`{}` ({}: {})",
+                                                     req.dataverse_name,
+                                                     req.dataset_name,
+                                                     first_error.code,
+                                                     first_error.message));
+            }
+            break;
+        }
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE ignore_if_does_not_exist, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(dataverse_name, T_STRING);
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_dataverse_drop_request req{};
+        cb__extract_timeout(req, timeout);
+        req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
+        if (!NIL_P(ignore_if_does_not_exist)) {
+            req.ignore_if_does_not_exist = RTEST(ignore_if_does_not_exist);
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataverse_drop_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_dataverse_drop_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.errors.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to drop dataverse `{}`", req.dataverse_name));
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc = cb__map_error_code(
+                  resp.ec,
+                  fmt::format("unable to drop dataverse `{}` ({}: {})", req.dataverse_name, first_error.code, first_error.message));
+            }
+            break;
+        }
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE ignore_if_exists, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(dataverse_name, T_STRING);
+    if (!NIL_P(dataverse_name)) {
+        Check_Type(dataverse_name, T_STRING);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_dataverse_create_request req{};
+        cb__extract_timeout(req, timeout);
+        req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
+        if (!NIL_P(ignore_if_exists)) {
+            req.ignore_if_exists = RTEST(ignore_if_exists);
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataverse_create_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_dataverse_create_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.errors.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to create dataverse `{}`", req.dataverse_name));
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc = cb__map_error_code(
+                  resp.ec,
+                  fmt::format("unable to create dataverse `{}` ({}: {})", req.dataverse_name, first_error.code, first_error.message));
+            }
+            break;
+        }
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_index_get_all(VALUE self, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_index_get_all_request req{};
+        cb__extract_timeout(req, timeout);
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_index_get_all_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_index_get_all_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.errors.empty()) {
+                exc = cb__map_error_code(resp.ec, "unable to fetch all indexes");
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc =
+                  cb__map_error_code(resp.ec, fmt::format("unable to fetch all indexes ({}: {})", first_error.code, first_error.message));
+            }
+            break;
+        }
+        VALUE res = rb_ary_new_capa(static_cast<long>(resp.indexes.size()));
+        for (const auto& idx : resp.indexes) {
+            VALUE index = rb_hash_new();
+            rb_hash_aset(index, rb_id2sym(rb_intern("name")), rb_str_new(idx.name.data(), static_cast<long>(idx.name.size())));
+            rb_hash_aset(
+              index, rb_id2sym(rb_intern("dataset_name")), rb_str_new(idx.dataset_name.data(), static_cast<long>(idx.dataset_name.size())));
+            rb_hash_aset(index,
+                         rb_id2sym(rb_intern("dataverse_name")),
+                         rb_str_new(idx.dataverse_name.data(), static_cast<long>(idx.dataverse_name.size())));
+            rb_hash_aset(index, rb_id2sym(rb_intern("is_primary")), idx.is_primary ? Qtrue : Qfalse);
+            rb_ary_push(res, index);
+        }
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_index_create(VALUE self,
+                                  VALUE index_name,
+                                  VALUE dataset_name,
+                                  VALUE fields,
+                                  VALUE dataverse_name,
+                                  VALUE ignore_if_exists,
+                                  VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    Check_Type(dataset_name, T_STRING);
+    Check_Type(fields, T_ARRAY);
+    if (!NIL_P(dataverse_name)) {
+        Check_Type(dataverse_name, T_STRING);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_index_create_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        req.dataset_name.assign(RSTRING_PTR(dataset_name), static_cast<size_t>(RSTRING_LEN(dataset_name)));
+        auto fields_num = static_cast<size_t>(RARRAY_LEN(fields));
+        for (size_t i = 0; i < fields_num; ++i) {
+            VALUE entry = rb_ary_entry(fields, static_cast<long>(i));
+            Check_Type(entry, T_ARRAY);
+            if (RARRAY_LEN(entry) == 2) {
+                VALUE field = rb_ary_entry(entry, 0);
+                VALUE type = rb_ary_entry(entry, 1);
+                req.fields.emplace(std::string(RSTRING_PTR(field), static_cast<std::size_t>(RSTRING_LEN(field))),
+                                   std::string(RSTRING_PTR(type), static_cast<std::size_t>(RSTRING_LEN(type))));
+            }
+        }
+        if (!NIL_P(dataverse_name)) {
+            req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
+        }
+        if (!NIL_P(ignore_if_exists)) {
+            req.ignore_if_exists = RTEST(ignore_if_exists);
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_index_create_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_index_create_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.errors.empty()) {
+                exc = cb__map_error_code(
+                  resp.ec, fmt::format("unable to create index `{}` on `{}`.`{}`", req.index_name, req.dataverse_name, req.dataset_name));
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format("unable to create index `{}` on `{}`.`{}` ({}: {})",
+                                                     req.index_name,
+                                                     req.dataverse_name,
+                                                     req.dataset_name,
+                                                     first_error.code,
+                                                     first_error.message));
+            }
+            break;
+        }
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_index_drop(VALUE self,
+                                VALUE index_name,
+                                VALUE dataset_name,
+                                VALUE dataverse_name,
+                                VALUE ignore_if_does_not_exist,
+                                VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    Check_Type(dataset_name, T_STRING);
+    if (!NIL_P(dataverse_name)) {
+        Check_Type(dataverse_name, T_STRING);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_index_drop_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        req.dataset_name.assign(RSTRING_PTR(dataset_name), static_cast<size_t>(RSTRING_LEN(dataset_name)));
+        if (!NIL_P(dataverse_name)) {
+            req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
+        }
+        if (!NIL_P(ignore_if_does_not_exist)) {
+            req.ignore_if_does_not_exist = RTEST(ignore_if_does_not_exist);
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_index_drop_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_index_drop_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.errors.empty()) {
+                exc = cb__map_error_code(
+                  resp.ec, fmt::format("unable to drop index `{}`.`{}`.`{}`", req.dataverse_name, req.dataset_name, req.index_name));
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format("unable to drop index `{}`.`{}`.`{}` ({}: {})",
+                                                     req.dataverse_name,
+                                                     req.dataset_name,
+                                                     req.index_name,
+                                                     first_error.code,
+                                                     first_error.message));
+            }
+            break;
+        }
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_link_connect(VALUE self, VALUE link_name, VALUE force, VALUE dataverse_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(link_name, T_STRING);
+    if (!NIL_P(dataverse_name)) {
+        Check_Type(dataverse_name, T_STRING);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_link_connect_request req{};
+        cb__extract_timeout(req, timeout);
+        req.link_name.assign(RSTRING_PTR(link_name), static_cast<size_t>(RSTRING_LEN(link_name)));
+        if (!NIL_P(dataverse_name)) {
+            req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
+        }
+        if (!NIL_P(force)) {
+            req.force = RTEST(force);
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_connect_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_link_connect_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.errors.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to connect link `{}` on `{}`", req.link_name, req.dataverse_name));
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format("unable to connect link `{}` on `{}` ({}: {})",
+                                                     req.link_name,
+                                                     req.dataverse_name,
+                                                     first_error.code,
+                                                     first_error.message));
+            }
+            break;
+        }
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_link_disconnect(VALUE self, VALUE link_name, VALUE dataverse_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(link_name, T_STRING);
+    if (!NIL_P(dataverse_name)) {
+        Check_Type(dataverse_name, T_STRING);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_link_disconnect_request req{};
+        cb__extract_timeout(req, timeout);
+        req.link_name.assign(RSTRING_PTR(link_name), static_cast<size_t>(RSTRING_LEN(link_name)));
+        if (!NIL_P(dataverse_name)) {
+            req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_disconnect_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_link_disconnect_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.errors.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to disconnect link `{}` on `{}`", req.link_name, req.dataverse_name));
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format("unable to disconnect link `{}` on `{}` ({}: {})",
+                                                     req.link_name,
+                                                     req.dataverse_name,
+                                                     first_error.code,
+                                                     first_error.message));
+            }
+            break;
+        }
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
 static void
 init_backend(VALUE mCouchbase)
 {
@@ -3948,6 +4518,18 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "search_index_freeze_plan", VALUE_FUNC(cb_Backend_search_index_freeze_plan), 2);
     rb_define_method(cBackend, "search_index_unfreeze_plan", VALUE_FUNC(cb_Backend_search_index_unfreeze_plan), 2);
     rb_define_method(cBackend, "search_index_analyze_document", VALUE_FUNC(cb_Backend_search_index_analyze_document), 3);
+
+    rb_define_method(cBackend, "analytics_get_pending_mutations", VALUE_FUNC(cb_Backend_analytics_get_pending_mutations), 1);
+    rb_define_method(cBackend, "analytics_dataverse_drop", VALUE_FUNC(cb_Backend_analytics_dataverse_drop), 3);
+    rb_define_method(cBackend, "analytics_dataverse_create", VALUE_FUNC(cb_Backend_analytics_dataverse_create), 3);
+    rb_define_method(cBackend, "analytics_dataset_create", VALUE_FUNC(cb_Backend_analytics_dataset_create), 6);
+    rb_define_method(cBackend, "analytics_dataset_drop", VALUE_FUNC(cb_Backend_analytics_dataset_drop), 4);
+    rb_define_method(cBackend, "analytics_dataset_get_all", VALUE_FUNC(cb_Backend_analytics_dataset_get_all), 1);
+    rb_define_method(cBackend, "analytics_index_get_all", VALUE_FUNC(cb_Backend_analytics_index_get_all), 1);
+    rb_define_method(cBackend, "analytics_index_create", VALUE_FUNC(cb_Backend_analytics_index_create), 6);
+    rb_define_method(cBackend, "analytics_index_drop", VALUE_FUNC(cb_Backend_analytics_index_drop), 5);
+    rb_define_method(cBackend, "analytics_link_connect", VALUE_FUNC(cb_Backend_analytics_link_connect), 4);
+    rb_define_method(cBackend, "analytics_link_disconnect", VALUE_FUNC(cb_Backend_analytics_link_disconnect), 3);
 }
 
 extern "C" {
