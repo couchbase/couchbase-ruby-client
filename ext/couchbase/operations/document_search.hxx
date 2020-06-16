@@ -131,7 +131,11 @@ struct search_request {
     {
         encoded.headers["content-type"] = "application/json";
         encoded.headers["client-context-id"] = client_context_id;
-        tao::json::value body{ { "query", query }, { "explain", explain }, { "timeout", fmt::format("{}ms", timeout.count()) } };
+        tao::json::value body{
+            { "query", query },
+            { "explain", explain },
+            { "ctl", { { "timeout", timeout.count() } } },
+        };
         if (limit) {
             body["size"] = *limit;
         }
@@ -169,6 +173,20 @@ struct search_request {
             for (const auto& facet : facets) {
                 body["facets"][facet.first] = tao::json::from_string(facet.second);
             }
+        }
+        if (!mutation_state.empty()) {
+            tao::json::value scan_vectors = tao::json::empty_object;
+            for (const auto& token : mutation_state) {
+                auto key = fmt::format("{}/{}", token.partition_id, token.partition_uuid);
+                auto* old_val = scan_vectors.find(key);
+                if (old_val == nullptr || (old_val->is_integer() && old_val->get_unsigned() < token.sequence_number)) {
+                    scan_vectors[key] = token.sequence_number;
+                }
+            }
+            body["ctl"]["consistency"] = tao::json::value{
+                { "level", "at_plus" },
+                { "vectors", { { index_name, scan_vectors } } },
+            };
         }
 
         encoded.method = "POST";
