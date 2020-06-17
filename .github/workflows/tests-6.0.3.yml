@@ -43,6 +43,9 @@ jobs:
       - name: Display library version
         run: bundle exec ruby -I lib -r couchbase -e 'pp Couchbase::VERSION'
 
+      - name: Check couchbase
+        run: ./bin/check-cluster
+
       - name: Run tests
         run: bundle exec rake test
         env:
