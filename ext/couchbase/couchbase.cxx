@@ -989,6 +989,8 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
                 ID level = rb_sym2id(durability_level);
                 if (level == rb_intern("none")) {
                     req.durability_level = couchbase::protocol::durability_level::none;
+                } else if (level == rb_intern("majority")) {
+                    req.durability_level = couchbase::protocol::durability_level::majority;
                 } else if (level == rb_intern("majority_and_persist_to_active")) {
                     req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
                 } else if (level == rb_intern("persist_to_majority")) {
@@ -1060,6 +1062,8 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
                 ID level = rb_sym2id(durability_level);
                 if (level == rb_intern("none")) {
                     req.durability_level = couchbase::protocol::durability_level::none;
+                } else if (level == rb_intern("majority")) {
+                    req.durability_level = couchbase::protocol::durability_level::majority;
                 } else if (level == rb_intern("majority_and_persist_to_active")) {
                     req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
                 } else if (level == rb_intern("persist_to_majority")) {
@@ -1142,6 +1146,8 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
                 ID level = rb_sym2id(durability_level);
                 if (level == rb_intern("none")) {
                     req.durability_level = couchbase::protocol::durability_level::none;
+                } else if (level == rb_intern("majority")) {
+                    req.durability_level = couchbase::protocol::durability_level::majority;
                 } else if (level == rb_intern("majority_and_persist_to_active")) {
                     req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
                 } else if (level == rb_intern("persist_to_majority")) {
@@ -1208,6 +1214,8 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
                 ID level = rb_sym2id(durability_level);
                 if (level == rb_intern("none")) {
                     req.durability_level = couchbase::protocol::durability_level::none;
+                } else if (level == rb_intern("majority")) {
+                    req.durability_level = couchbase::protocol::durability_level::majority;
                 } else if (level == rb_intern("majority_and_persist_to_active")) {
                     req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
                 } else if (level == rb_intern("persist_to_majority")) {
@@ -1268,6 +1276,8 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
                 ID level = rb_sym2id(durability_level);
                 if (level == rb_intern("none")) {
                     req.durability_level = couchbase::protocol::durability_level::none;
+                } else if (level == rb_intern("majority")) {
+                    req.durability_level = couchbase::protocol::durability_level::majority;
                 } else if (level == rb_intern("majority_and_persist_to_active")) {
                     req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
                 } else if (level == rb_intern("persist_to_majority")) {
@@ -1358,6 +1368,8 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
                 ID level = rb_sym2id(durability_level);
                 if (level == rb_intern("none")) {
                     req.durability_level = couchbase::protocol::durability_level::none;
+                } else if (level == rb_intern("majority")) {
+                    req.durability_level = couchbase::protocol::durability_level::majority;
                 } else if (level == rb_intern("majority_and_persist_to_active")) {
                     req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
                 } else if (level == rb_intern("persist_to_majority")) {
@@ -1650,6 +1662,8 @@ cb_Backend_document_mutate_in(VALUE self,
                 ID level = rb_sym2id(durability_level);
                 if (level == rb_intern("none")) {
                     req.durability_level = couchbase::protocol::durability_level::none;
+                } else if (level == rb_intern("majority")) {
+                    req.durability_level = couchbase::protocol::durability_level::majority;
                 } else if (level == rb_intern("majority_and_persist_to_active")) {
                     req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
                 } else if (level == rb_intern("persist_to_majority")) {
