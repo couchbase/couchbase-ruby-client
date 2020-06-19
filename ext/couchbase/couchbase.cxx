@@ -30,6 +30,7 @@
 #include <operations.hxx>
 
 #include <io/dns_client.hxx>
+#include <utils/connection_string.hxx>
 
 #include <ruby.h>
 #if defined(HAVE_RUBY_VERSION_H)
@@ -4607,7 +4608,8 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req, [barrier](couchbase::operations::analytics_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(req,
+                                       [barrier](couchbase::operations::analytics_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.payload.meta_data.errors && !resp.payload.meta_data.errors->empty()) {
@@ -4683,6 +4685,85 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
     } while (false);
     rb_exc_raise(exc);
     return Qnil;
+}
+
+static VALUE
+cb_Backend_parse_connection_string(VALUE self, VALUE connection_string)
+{
+    (void)self;
+    Check_Type(connection_string, T_STRING);
+
+    std::string input(RSTRING_PTR(connection_string), static_cast<size_t>(RSTRING_LEN(connection_string)));
+    auto connstr = couchbase::utils::parse_connection_string(input);
+
+    VALUE res = rb_hash_new();
+    if (!connstr.scheme.empty()) {
+        rb_hash_aset(res, rb_id2sym(rb_intern("scheme")), rb_str_new(connstr.scheme.data(), static_cast<long>(connstr.scheme.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("tls")), connstr.tls ? Qtrue : Qfalse);
+    }
+
+    VALUE nodes = rb_ary_new_capa(static_cast<long>(connstr.bootstrap_nodes.size()));
+    for (const auto& entry : connstr.bootstrap_nodes) {
+        VALUE node = rb_hash_new();
+        rb_hash_aset(node, rb_id2sym(rb_intern("address")), rb_str_new(entry.address.data(), static_cast<long>(entry.address.size())));
+        if (entry.port > 0) {
+            rb_hash_aset(node, rb_id2sym(rb_intern("port")), UINT2NUM(entry.port));
+        }
+        switch (entry.mode) {
+            case couchbase::utils::connection_string::bootstrap_mode::gcccp:
+                rb_hash_aset(node, rb_id2sym(rb_intern("mode")), rb_id2sym(rb_intern("gcccp")));
+                break;
+            case couchbase::utils::connection_string::bootstrap_mode::http:
+                rb_hash_aset(node, rb_id2sym(rb_intern("mode")), rb_id2sym(rb_intern("http")));
+                break;
+            case couchbase::utils::connection_string::bootstrap_mode::unspecified:
+                break;
+        }
+        switch (entry.type) {
+            case couchbase::utils::connection_string::address_type::ipv4:
+                rb_hash_aset(node, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern("ipv4")));
+                break;
+            case couchbase::utils::connection_string::address_type::ipv6:
+                rb_hash_aset(node, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern("ipv6")));
+                break;
+            case couchbase::utils::connection_string::address_type::dns:
+                rb_hash_aset(node, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern("dns")));
+                break;
+        }
+        rb_ary_push(nodes, node);
+    }
+    rb_hash_aset(res, rb_id2sym(rb_intern("nodes")), nodes);
+
+    VALUE params = rb_hash_new();
+    for (const auto& param : connstr.params) {
+        rb_hash_aset(params,
+                     rb_str_new(param.first.data(), static_cast<long>(param.first.size())),
+                     rb_str_new(param.second.data(), static_cast<long>(param.second.size())));
+    }
+    rb_hash_aset(res, rb_id2sym(rb_intern("params")), params);
+
+    if (connstr.default_bucket_name) {
+        rb_hash_aset(res,
+                     rb_id2sym(rb_intern("default_bucket_name")),
+                     rb_str_new(connstr.default_bucket_name->data(), static_cast<long>(connstr.default_bucket_name->size())));
+    }
+    if (connstr.default_port > 0) {
+        rb_hash_aset(res, rb_id2sym(rb_intern("default_port")), UINT2NUM(connstr.default_port));
+    }
+    switch (connstr.default_mode) {
+        case couchbase::utils::connection_string::bootstrap_mode::gcccp:
+            rb_hash_aset(res, rb_id2sym(rb_intern("default_mode")), rb_id2sym(rb_intern("gcccp")));
+            break;
+        case couchbase::utils::connection_string::bootstrap_mode::http:
+            rb_hash_aset(res, rb_id2sym(rb_intern("default_mode")), rb_id2sym(rb_intern("http")));
+            break;
+        case couchbase::utils::connection_string::bootstrap_mode::unspecified:
+            break;
+    }
+    if (connstr.error) {
+        rb_hash_aset(res, rb_id2sym(rb_intern("error")), rb_str_new(connstr.error->data(), static_cast<long>(connstr.error->size())));
+    }
+    return res;
 }
 
 static void
@@ -4762,6 +4843,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "analytics_link_disconnect", VALUE_FUNC(cb_Backend_analytics_link_disconnect), 3);
 
     rb_define_singleton_method(cBackend, "dns_srv", VALUE_FUNC(cb_Backend_dns_srv), 2);
+    rb_define_singleton_method(cBackend, "parse_connection_string", VALUE_FUNC(cb_Backend_parse_connection_string), 1);
 }
 
 extern "C" {

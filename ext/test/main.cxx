@@ -44,7 +44,9 @@ main()
     rb_require("json");
     run_script(R"(
 p Couchbase::VERSION
-p Couchbase::Backend.dns_srv("deep.avsej.net", :couchbase)
+connection_string = "couchbase://localhost:8091/default?foo=bar&baz="
+connection_string = "couchbase://localhost:8091;example.com,127.0.0.1/default?foo=bar&baz=bla&baz=42"
+pp Couchbase::Backend.parse_connection_string(connection_string)
 )");
 
 

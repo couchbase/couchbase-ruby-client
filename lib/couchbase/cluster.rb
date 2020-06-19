@@ -292,9 +292,14 @@ module Couchbase
 
     private
 
+    # Initialize {Cluster} object
+    #
+    # @param [String] connection_string connection string used to locate the Couchbase Cluster
+    # @param [ClusterOptions] options custom options when creating the cluster connection
     def initialize(connection_string, options)
-      hostname = connection_string[%r{^couchbase://(.*)}, 1]
-      raise ArgumentError, "missing hostname" unless hostname
+      conn_info = Backend.parse_connection_string(connection_string)
+      raise ArgumentError, "missing hostname" if conn_info[:nodes].empty?
+      hostname = conn_info[:nodes].first[:address]
       raise ArgumentError, "options must have authenticator configured" unless options.authenticator
       username = options.authenticator.username
       raise ArgumentError, "missing username" unless username
