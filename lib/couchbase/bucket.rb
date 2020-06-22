@@ -14,6 +14,7 @@
 
 require "couchbase/scope"
 require "couchbase/management/collection_manager"
+require "couchbase/management/view_index_manager"
 
 module Couchbase
   class Bucket
@@ -63,10 +64,16 @@ module Couchbase
       Management::CollectionManager.new(@backend, @name)
     end
 
+    # @return [Management::ViewIndexManager]
+    def view_indexes
+      Management::ViewIndexManager.new(@backend, @name)
+    end
+
     # Performs application-level ping requests against services in the couchbase cluster
     #
     # @return [PingResult]
-    def ping(options = PingOptions.new) end
+    def ping(options = PingOptions.new)
+    end
 
     class PingOptions
       # @return [String] Holds custom report id.

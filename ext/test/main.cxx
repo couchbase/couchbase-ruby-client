@@ -44,9 +44,12 @@ main()
     rb_require("json");
     run_script(R"(
 p Couchbase::VERSION
-connection_string = "couchbase://localhost:8091/default?foo=bar&baz="
-connection_string = "couchbase://localhost:8091;example.com,127.0.0.1/default?foo=bar&baz=bla&baz=42"
-pp Couchbase::Backend.parse_connection_string(connection_string)
+B = Couchbase::Backend.new
+B.open("localhost", "Administrator", "password")
+# pp B.view_index_get("beer-sample", "beer", :production, nil)
+# pp B.view_index_get("beer-sample", "test2", :development, nil)
+pp B.view_index_drop("beer-sample", "test", :development, nil)
+# pp B.view_index_get_all("beer-sample", :production, nil)
 )");
 
 

@@ -34,6 +34,9 @@ module Couchbase
     class ViewIndexManager
       alias_method :inspect, :to_s
 
+      # @return [String] name of the bucket
+      attr_accessor :bucket_name
+
       # @param [Couchbase::Backend] backend
       # @param [String] bucket_name
       def initialize(backend, bucket_name)
@@ -51,7 +54,8 @@ module Couchbase
       #
       # @raise [Error::DesignDocumentNotFound]
       def get_design_document(name, namespace, options = GetDesignDocumentOptions.new)
-        # GET /{bucket_name}/_design/{namespace}_{name}
+        resp = @backend.view_index_get(@bucket_name, name, namespace, options.timeout)
+        extract_design_document(resp)
       end
 
       # Fetches all design documents from the server
@@ -61,7 +65,10 @@ module Couchbase
       #
       # @return [Array<DesignDocument>]
       def get_all_design_documents(namespace, options = GetAllDesignDocumentsOptions.new)
-        # GET /pools/default/buckets/{bucket_name}/ddocs
+        resp = @backend.view_index_get_all(@bucket_name, namespace, options.timeout)
+        resp.map do |entry|
+          extract_design_document(entry)
+        end
       end
 
       # Updates or inserts the design document
@@ -69,8 +76,13 @@ module Couchbase
       # @param [DesignDocument] document
       # @param [:production, :development] namespace the namespace
       # @param [UpsertDesignDocumentOptions] options
+      #
+      # @return [void]
       def upsert_design_document(document, namespace, options = UpsertDesignDocumentOptions.new)
-        # PUT /{bucket_name}/_design/{namespace}_{name}
+        @backend.view_index_upsert(@bucket_name, {
+            name: document.name,
+            views: document.views.map { |name, view| {name: name, map: view.map_function, reduce: view.reduce_function} }
+        }, namespace, options.timeout)
       end
 
       # Removes the design document
@@ -79,9 +91,11 @@ module Couchbase
       # @param [:production, :development] namespace the namespace
       # @param [DropDesignDocumentOptions] options
       #
+      # @return [void]
+      #
       # @raise [Error::DesignDocumentNotFound]
       def drop_design_document(name, namespace, options = DropDesignDocumentOptions.new)
-        # DELETE /{bucket_name}/_design/{namespace}_{name}
+        @backend.view_index_drop(@bucket_name, name, namespace, options.timeout)
       end
 
       # Publishes the design document.
@@ -92,9 +106,13 @@ module Couchbase
       # @param [String] name design document name
       # @param [PublishDesignDocumentOptions] options
       #
+      # @return [void]
+      #
       # @raise [ArgumentError]
       # @raise [Error::DesignDocumentNotFound]
       def publish_design_document(name, options = PublishDesignDocumentOptions.new)
+        document = get_design_document(name, :development, GetDesignDocumentOptions.new { |o| o.timeout = options.timeout })
+        upsert_design_document(document, :production, UpsertDesignDocumentOptions.new { |o| o.timeout = options.timeout })
       end
 
       class GetDesignDocumentOptions
@@ -147,17 +165,48 @@ module Couchbase
         end
       end
 
+      private
+
+      def extract_design_document(resp)
+        DesignDocument.new do |design_document|
+          design_document.name = resp[:name]
+          design_document.namespace = resp[:namespace]
+          resp[:views].each do |name, view_resp|
+            design_document.views[name] = View.new(view_resp[:map], view_resp[:reduce])
+          end
+        end
+      end
     end
 
     class View
-      # @return [String] map function in javascript
-      attr_accessor :map
+      # @return [String] name of the view
+      attr_accessor :view
 
-      # @return [String] reduce function in javascript
-      attr_accessor :reduce
+      # @return [String] map function in javascript as String
+      attr_accessor :map_function
+      alias_method :map, :map_function
 
+      # @return [String] reduce function in javascript as String
+      attr_accessor :reduce_function
+      alias_method :reduce, :reduce_function
+
+      # @return [Boolean] true if map function is defined
+      def has_map?
+        !@map_function.nil?
+      end
+
+      # @return [Boolean] true if map function is defined
+      def has_reduce?
+        !@reduce_function.nil?
+      end
+
+      # @param [String] map
+      # @param [String] reduce
+      #
       # @yieldparam [View] self
-      def initialize
+      def initialize(map = nil, reduce = nil)
+        @map_function = map
+        @reduce_function = reduce
         yield self if block_given?
       end
     end
@@ -169,8 +218,12 @@ module Couchbase
       # @return [Hash<String => View>]
       attr_accessor :views
 
+      # @return [:production, :development]
+      attr_accessor :namespace
+
       # @yieldparam [DesignDocument] self
       def initialize
+        @views = {}
         yield self if block_given?
       end
     end

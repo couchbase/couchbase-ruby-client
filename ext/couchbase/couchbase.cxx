@@ -4766,6 +4766,287 @@ cb_Backend_parse_connection_string(VALUE self, VALUE connection_string)
     return res;
 }
 
+static VALUE
+cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(name_space, T_SYMBOL);
+
+    couchbase::operations::design_document::name_space ns;
+    ID type = rb_sym2id(name_space);
+    if (type == rb_intern("development")) {
+        ns = couchbase::operations::design_document::name_space::development;
+    } else if (type == rb_intern("production")) {
+        ns = couchbase::operations::design_document::name_space::production;
+    } else {
+        rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::view_index_get_all_request req{};
+        req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+        req.name_space = ns;
+        cb__extract_timeout(req, timeout);
+        auto barrier = std::make_shared<std::promise<couchbase::operations::view_index_get_all_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::view_index_get_all_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, "unable to get list of the design documents");
+            break;
+        }
+        VALUE res = rb_ary_new_capa(static_cast<long>(resp.design_documents.size()));
+        for (const auto& entry : resp.design_documents) {
+            VALUE dd = rb_hash_new();
+            rb_hash_aset(dd, rb_id2sym(rb_intern("name")), rb_str_new(entry.name.data(), static_cast<long>(entry.name.size())));
+            rb_hash_aset(dd, rb_id2sym(rb_intern("rev")), rb_str_new(entry.rev.data(), static_cast<long>(entry.rev.size())));
+            switch (entry.ns) {
+                case couchbase::operations::design_document::name_space::development:
+                    rb_hash_aset(dd, rb_id2sym(rb_intern("namespace")), rb_id2sym(rb_intern("development")));
+                    break;
+                case couchbase::operations::design_document::name_space::production:
+                    rb_hash_aset(dd, rb_id2sym(rb_intern("namespace")), rb_id2sym(rb_intern("production")));
+                    break;
+            }
+            VALUE views = rb_hash_new();
+            for (const auto& view_entry : entry.views) {
+                VALUE view_name = rb_str_new(view_entry.first.data(), static_cast<long>(view_entry.first.size()));
+                VALUE view = rb_hash_new();
+                rb_hash_aset(view, rb_id2sym(rb_intern("name")), view_name);
+                if (view_entry.second.map) {
+                    rb_hash_aset(view,
+                                 rb_id2sym(rb_intern("map")),
+                                 rb_str_new(view_entry.second.map->data(), static_cast<long>(view_entry.second.map->size())));
+                }
+                if (view_entry.second.reduce) {
+                    rb_hash_aset(view,
+                                 rb_id2sym(rb_intern("reduce")),
+                                 rb_str_new(view_entry.second.reduce->data(), static_cast<long>(view_entry.second.reduce->size())));
+                }
+                rb_hash_aset(views, view_name, view);
+            }
+            rb_hash_aset(dd, rb_id2sym(rb_intern("views")), views);
+            rb_ary_push(res, dd);
+        }
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VALUE name_space, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(document_name, T_STRING);
+    Check_Type(name_space, T_SYMBOL);
+
+    couchbase::operations::design_document::name_space ns;
+    ID type = rb_sym2id(name_space);
+    if (type == rb_intern("development")) {
+        ns = couchbase::operations::design_document::name_space::development;
+    } else if (type == rb_intern("production")) {
+        ns = couchbase::operations::design_document::name_space::production;
+    } else {
+        rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::view_index_get_request req{};
+        req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+        req.document_name.assign(RSTRING_PTR(document_name), static_cast<size_t>(RSTRING_LEN(document_name)));
+        req.name_space = ns;
+        cb__extract_timeout(req, timeout);
+        auto barrier = std::make_shared<std::promise<couchbase::operations::view_index_get_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::view_index_get_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(
+              resp.ec,
+              fmt::format(
+                "unable to get design document \"{}\" ({}) on bucket \"{}\"", req.document_name, req.name_space, req.bucket_name));
+            break;
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(
+          res, rb_id2sym(rb_intern("name")), rb_str_new(resp.document.name.data(), static_cast<long>(resp.document.name.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("rev")), rb_str_new(resp.document.rev.data(), static_cast<long>(resp.document.rev.size())));
+        switch (resp.document.ns) {
+            case couchbase::operations::design_document::name_space::development:
+                rb_hash_aset(res, rb_id2sym(rb_intern("namespace")), rb_id2sym(rb_intern("development")));
+                break;
+            case couchbase::operations::design_document::name_space::production:
+                rb_hash_aset(res, rb_id2sym(rb_intern("namespace")), rb_id2sym(rb_intern("production")));
+                break;
+        }
+        VALUE views = rb_hash_new();
+        for (const auto& view_entry : resp.document.views) {
+            VALUE view_name = rb_str_new(view_entry.first.data(), static_cast<long>(view_entry.first.size()));
+            VALUE view = rb_hash_new();
+            rb_hash_aset(view, rb_id2sym(rb_intern("name")), view_name);
+            if (view_entry.second.map) {
+                rb_hash_aset(view,
+                             rb_id2sym(rb_intern("map")),
+                             rb_str_new(view_entry.second.map->data(), static_cast<long>(view_entry.second.map->size())));
+            }
+            if (view_entry.second.reduce) {
+                rb_hash_aset(view,
+                             rb_id2sym(rb_intern("reduce")),
+                             rb_str_new(view_entry.second.reduce->data(), static_cast<long>(view_entry.second.reduce->size())));
+            }
+            rb_hash_aset(views, view_name, view);
+        }
+        rb_hash_aset(res, rb_id2sym(rb_intern("views")), views);
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, VALUE name_space, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(document_name, T_STRING);
+    Check_Type(name_space, T_SYMBOL);
+
+    couchbase::operations::design_document::name_space ns;
+    ID type = rb_sym2id(name_space);
+    if (type == rb_intern("development")) {
+        ns = couchbase::operations::design_document::name_space::development;
+    } else if (type == rb_intern("production")) {
+        ns = couchbase::operations::design_document::name_space::production;
+    } else {
+        rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::view_index_drop_request req{};
+        req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+        req.document_name.assign(RSTRING_PTR(document_name), static_cast<size_t>(RSTRING_LEN(document_name)));
+        req.name_space = ns;
+        cb__extract_timeout(req, timeout);
+        auto barrier = std::make_shared<std::promise<couchbase::operations::view_index_drop_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::view_index_drop_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(
+              resp.ec,
+              fmt::format(
+                "unable to drop design document \"{}\" ({}) on bucket \"{}\"", req.document_name, req.name_space, req.bucket_name));
+            break;
+        }
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALUE name_space, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(document, T_HASH);
+    Check_Type(name_space, T_SYMBOL);
+
+    couchbase::operations::design_document::name_space ns;
+    ID type = rb_sym2id(name_space);
+    if (type == rb_intern("development")) {
+        ns = couchbase::operations::design_document::name_space::development;
+    } else if (type == rb_intern("production")) {
+        ns = couchbase::operations::design_document::name_space::production;
+    } else {
+        rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::view_index_upsert_request req{};
+        req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+        req.document.ns = ns;
+        VALUE document_name = rb_hash_aref(document, rb_id2sym(rb_intern("name")));
+        if (!NIL_P(document_name)) {
+            Check_Type(document_name, T_STRING);
+            req.document.name.assign(RSTRING_PTR(document_name), static_cast<size_t>(RSTRING_LEN(document_name)));
+        }
+        VALUE views = rb_hash_aref(document, rb_id2sym(rb_intern("views")));
+        if (!NIL_P(views)) {
+            Check_Type(views, T_ARRAY);
+            auto entries_num = static_cast<size_t>(RARRAY_LEN(views));
+            for (size_t i = 0; i < entries_num; ++i) {
+                VALUE entry = rb_ary_entry(views, static_cast<long>(i));
+                Check_Type(entry, T_HASH);
+                couchbase::operations::design_document::view view;
+                VALUE name = rb_hash_aref(entry, rb_id2sym(rb_intern("name")));
+                Check_Type(name, T_STRING);
+                view.name.assign(RSTRING_PTR(name), static_cast<std::size_t>(RSTRING_LEN(name)));
+                VALUE map = rb_hash_aref(entry, rb_id2sym(rb_intern("map")));
+                if (!NIL_P(map)) {
+                    view.map.emplace(std::string(RSTRING_PTR(map), static_cast<std::size_t>(RSTRING_LEN(map))));
+                }
+                VALUE reduce = rb_hash_aref(entry, rb_id2sym(rb_intern("reduce")));
+                if (!NIL_P(reduce)) {
+                    view.reduce.emplace(std::string(RSTRING_PTR(reduce), static_cast<std::size_t>(RSTRING_LEN(reduce))));
+                }
+                req.document.views[view.name] = view;
+            }
+        }
+
+        cb__extract_timeout(req, timeout);
+        auto barrier = std::make_shared<std::promise<couchbase::operations::view_index_upsert_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::view_index_upsert_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(
+              resp.ec,
+              fmt::format(
+                "unable to store design document \"{}\" ({}) on bucket \"{}\"", req.document.name, req.document.ns, req.bucket_name));
+            break;
+        }
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
 static void
 init_backend(VALUE mCouchbase)
 {
@@ -4841,6 +5122,11 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "analytics_index_drop", VALUE_FUNC(cb_Backend_analytics_index_drop), 5);
     rb_define_method(cBackend, "analytics_link_connect", VALUE_FUNC(cb_Backend_analytics_link_connect), 4);
     rb_define_method(cBackend, "analytics_link_disconnect", VALUE_FUNC(cb_Backend_analytics_link_disconnect), 3);
+
+    rb_define_method(cBackend, "view_index_get_all", VALUE_FUNC(cb_Backend_view_index_get_all), 3);
+    rb_define_method(cBackend, "view_index_get", VALUE_FUNC(cb_Backend_view_index_get), 4);
+    rb_define_method(cBackend, "view_index_drop", VALUE_FUNC(cb_Backend_view_index_drop), 4);
+    rb_define_method(cBackend, "view_index_upsert", VALUE_FUNC(cb_Backend_view_index_upsert), 4);
 
     rb_define_singleton_method(cBackend, "dns_srv", VALUE_FUNC(cb_Backend_dns_srv), 2);
     rb_define_singleton_method(cBackend, "parse_connection_string", VALUE_FUNC(cb_Backend_parse_connection_string), 1);
