@@ -16,7 +16,7 @@ Please attach version information to ticket/post. To obtain this information use
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "couchbase", "3.0.0.alpha.3"
+gem "couchbase", "3.0.0.alpha.4"
 ```
 
 And then execute:
