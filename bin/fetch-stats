@@ -1,0 +1,19 @@
+#!/usr/bin/ruby
+
+require "json"
+require "net/http"
+require "pp"
+
+Net::HTTP.start("rubygems.org", use_ssl: true) do |client|
+  case resp = client.get("/api/v1/versions/couchbase.json")
+  when Net::HTTPSuccess
+    versions = JSON.parse(resp.body)
+    stats = Hash.new(0)
+    versions.each { |version| stats[version["number"]] += version["downloads_count"] }
+    puts JSON.pretty_generate(
+      versions: stats,
+      total: stats.values.sum,
+      total_3: stats.filter_map { |version, downloads| downloads if version =~ /^3.0.0/ }.sum,
+    )
+  end
+end
