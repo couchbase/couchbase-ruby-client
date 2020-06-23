@@ -4882,8 +4882,7 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
         if (resp.ec) {
             exc = cb__map_error_code(
               resp.ec,
-              fmt::format(
-                "unable to get design document \"{}\" ({}) on bucket \"{}\"", req.document_name, req.name_space, req.bucket_name));
+              fmt::format(R"(unable to get design document "{}" ({}) on bucket "{}")", req.document_name, req.name_space, req.bucket_name));
             break;
         }
         VALUE res = rb_hash_new();
@@ -4962,7 +4961,7 @@ cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, V
             exc = cb__map_error_code(
               resp.ec,
               fmt::format(
-                "unable to drop design document \"{}\" ({}) on bucket \"{}\"", req.document_name, req.name_space, req.bucket_name));
+                R"(unable to drop design document "{}" ({}) on bucket "{}")", req.document_name, req.name_space, req.bucket_name));
             break;
         }
         return Qtrue;
@@ -5038,10 +5037,194 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
             exc = cb__map_error_code(
               resp.ec,
               fmt::format(
-                "unable to store design document \"{}\" ({}) on bucket \"{}\"", req.document.name, req.document.ns, req.bucket_name));
+                R"(unable to store design document "{}" ({}) on bucket "{}")", req.document.name, req.document.ns, req.bucket_name));
             break;
         }
         return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_name, VALUE view_name, VALUE name_space, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(design_document_name, T_STRING);
+    Check_Type(view_name, T_STRING);
+    Check_Type(name_space, T_SYMBOL);
+    couchbase::operations::design_document::name_space ns;
+    ID type = rb_sym2id(name_space);
+    if (type == rb_intern("development")) {
+        ns = couchbase::operations::design_document::name_space::development;
+    } else if (type == rb_intern("production")) {
+        ns = couchbase::operations::design_document::name_space::production;
+    } else {
+        rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
+    }
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::document_view_request req{};
+        req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+        req.document_name.assign(RSTRING_PTR(design_document_name), static_cast<size_t>(RSTRING_LEN(design_document_name)));
+        req.view_name.assign(RSTRING_PTR(view_name), static_cast<size_t>(RSTRING_LEN(view_name)));
+        req.name_space = ns;
+        if (!NIL_P(options)) {
+            cb__extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+            VALUE debug = rb_hash_aref(options, rb_id2sym(rb_intern("debug")));
+            if (!NIL_P(debug)) {
+                req.debug = RTEST(debug);
+            }
+            VALUE limit = rb_hash_aref(options, rb_id2sym(rb_intern("limit")));
+            if (!NIL_P(limit)) {
+                Check_Type(limit, T_FIXNUM);
+                req.limit = FIX2ULONG(limit);
+            }
+            VALUE skip = rb_hash_aref(options, rb_id2sym(rb_intern("skip")));
+            if (!NIL_P(skip)) {
+                Check_Type(skip, T_FIXNUM);
+                req.skip = FIX2ULONG(skip);
+            }
+            VALUE scan_consistency = rb_hash_aref(options, rb_id2sym(rb_intern("scan_consistency")));
+            if (!NIL_P(scan_consistency)) {
+                Check_Type(scan_consistency, T_SYMBOL);
+                ID consistency = rb_sym2id(scan_consistency);
+                if (consistency == rb_intern("request_plus")) {
+                    req.consistency = couchbase::operations::document_view_request::scan_consistency::request_plus;
+                } else if (consistency == rb_intern("update_after")) {
+                    req.consistency = couchbase::operations::document_view_request::scan_consistency::update_after;
+                } else if (consistency == rb_intern("not_bounded")) {
+                    req.consistency = couchbase::operations::document_view_request::scan_consistency::not_bounded;
+                }
+            }
+            VALUE key = rb_hash_aref(options, rb_id2sym(rb_intern("key")));
+            if (!NIL_P(key)) {
+                Check_Type(key, T_STRING);
+                req.key.emplace(RSTRING_PTR(key), static_cast<size_t>(RSTRING_LEN(key)));
+            }
+            VALUE start_key = rb_hash_aref(options, rb_id2sym(rb_intern("start_key")));
+            if (!NIL_P(start_key)) {
+                Check_Type(start_key, T_STRING);
+                req.start_key.emplace(RSTRING_PTR(start_key), static_cast<size_t>(RSTRING_LEN(start_key)));
+            }
+            VALUE end_key = rb_hash_aref(options, rb_id2sym(rb_intern("end_key")));
+            if (!NIL_P(end_key)) {
+                Check_Type(end_key, T_STRING);
+                req.end_key.emplace(RSTRING_PTR(end_key), static_cast<size_t>(RSTRING_LEN(end_key)));
+            }
+            VALUE start_key_doc_id = rb_hash_aref(options, rb_id2sym(rb_intern("start_key_doc_id")));
+            if (!NIL_P(start_key_doc_id)) {
+                Check_Type(start_key_doc_id, T_STRING);
+                req.start_key_doc_id.emplace(RSTRING_PTR(start_key_doc_id), static_cast<size_t>(RSTRING_LEN(start_key_doc_id)));
+            }
+            VALUE end_key_doc_id = rb_hash_aref(options, rb_id2sym(rb_intern("end_key_doc_id")));
+            if (!NIL_P(end_key_doc_id)) {
+                Check_Type(end_key_doc_id, T_STRING);
+                req.end_key_doc_id.emplace(RSTRING_PTR(end_key_doc_id), static_cast<size_t>(RSTRING_LEN(end_key_doc_id)));
+            }
+            VALUE inclusive_end = rb_hash_aref(options, rb_id2sym(rb_intern("inclusive_end")));
+            if (!NIL_P(inclusive_end)) {
+                req.inclusive_end = RTEST(inclusive_end);
+            }
+            VALUE reduce = rb_hash_aref(options, rb_id2sym(rb_intern("reduce")));
+            if (!NIL_P(reduce)) {
+                req.reduce = RTEST(reduce);
+            }
+            VALUE group = rb_hash_aref(options, rb_id2sym(rb_intern("group")));
+            if (!NIL_P(group)) {
+                req.group = RTEST(group);
+            }
+            VALUE group_level = rb_hash_aref(options, rb_id2sym(rb_intern("group_level")));
+            if (!NIL_P(group_level)) {
+                Check_Type(group_level, T_FIXNUM);
+                req.group_level = FIX2ULONG(group_level);
+            }
+            VALUE sort_order = rb_hash_aref(options, rb_id2sym(rb_intern("order")));
+            if (!NIL_P(sort_order)) {
+                Check_Type(sort_order, T_SYMBOL);
+                ID order = rb_sym2id(sort_order);
+                if (order == rb_intern("ascending")) {
+                    req.order = couchbase::operations::document_view_request::sort_order::ascending;
+                } else if (order == rb_intern("descending")) {
+                    req.order = couchbase::operations::document_view_request::sort_order::descending;
+                }
+            }
+            VALUE keys = rb_hash_aref(options, rb_id2sym(rb_intern("keys")));
+            if (!NIL_P(keys)) {
+                Check_Type(keys, T_ARRAY);
+                auto entries_num = static_cast<size_t>(RARRAY_LEN(keys));
+                req.keys.reserve(entries_num);
+                for (size_t i = 0; i < entries_num; ++i) {
+                    VALUE entry = rb_ary_entry(keys, static_cast<long>(i));
+                    Check_Type(entry, T_STRING);
+                    req.keys.emplace_back(std::string(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry))));
+                }
+            }
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::operations::document_view_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req,
+                                       [barrier](couchbase::operations::document_view_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error) {
+                exc = cb__map_error_code(
+                  resp.ec,
+                  fmt::format(R"(unable to execute query for view "{}" of design document "{}" ({}) on bucket "{}": {} ({}))",
+                              req.view_name,
+                              req.document_name,
+                              req.name_space,
+                              req.bucket_name,
+                              resp.error->code,
+                              resp.error->message));
+            } else {
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format(R"(unable to execute query for view "{}" of design document "{}" ({}) on bucket "{}")",
+                                                     req.view_name,
+                                                     req.document_name,
+                                                     req.name_space,
+                                                     req.bucket_name));
+            }
+            break;
+        }
+        VALUE res = rb_hash_new();
+
+        VALUE meta = rb_hash_new();
+        if (resp.meta_data.total_rows) {
+            rb_hash_aset(meta, rb_id2sym(rb_intern("total_rows")), ULL2NUM(*resp.meta_data.total_rows));
+        }
+        if (resp.meta_data.debug_info) {
+            rb_hash_aset(meta,
+                         rb_id2sym(rb_intern("debug_info")),
+                         rb_str_new(resp.meta_data.debug_info->data(), static_cast<long>(resp.meta_data.debug_info->size())));
+        }
+        rb_hash_aset(res, rb_id2sym(rb_intern("meta")), meta);
+
+        VALUE rows = rb_ary_new_capa(static_cast<long>(resp.rows.size()));
+        for (const auto& entry : resp.rows) {
+            VALUE row = rb_hash_new();
+            if (entry.id) {
+                rb_hash_aset(row, rb_id2sym(rb_intern("id")), rb_str_new(entry.id->data(), static_cast<long>(entry.id->size())));
+            }
+            rb_hash_aset(row, rb_id2sym(rb_intern("key")), rb_str_new(entry.key.data(), static_cast<long>(entry.key.size())));
+            rb_hash_aset(row, rb_id2sym(rb_intern("value")), rb_str_new(entry.value.data(), static_cast<long>(entry.value.size())));
+            rb_ary_push(rows, row);
+        }
+        rb_hash_aset(res, rb_id2sym(rb_intern("rows")), rows);
+
+        return res;
     } while (false);
     rb_exc_raise(exc);
     return Qnil;
@@ -5074,6 +5257,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_decrement", VALUE_FUNC(cb_Backend_document_decrement), 5);
     rb_define_method(cBackend, "document_search", VALUE_FUNC(cb_Backend_document_search), 3);
     rb_define_method(cBackend, "document_analytics", VALUE_FUNC(cb_Backend_document_analytics), 2);
+    rb_define_method(cBackend, "document_view", VALUE_FUNC(cb_Backend_document_view), 5);
 
     rb_define_method(cBackend, "bucket_create", VALUE_FUNC(cb_Backend_bucket_create), 2);
     rb_define_method(cBackend, "bucket_update", VALUE_FUNC(cb_Backend_bucket_update), 2);

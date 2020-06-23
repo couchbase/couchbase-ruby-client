@@ -19,6 +19,8 @@ USERNAME=${USERNAME:-Administrator}
 PASSWORD=${PASSWOWRD:-password}
 QUOTA=${QUOTA:-256}
 DEVELOPER_PREVIEW=${DEVELOPER_PREVIEW:-no}
+BEER_SAMPLE=${BEER_SAMPLE:-no}
+TRAVEL_SAMPLE=${TRAVEL_SAMPLE:-no}
 
 CREDS="${USERNAME}:${PASSWORD}"
 
@@ -63,6 +65,16 @@ curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/pools/default/buckets \
      -d 'ramQuotaMB=100' \
      -d 'bucketType=membase' \
      -d 'name=default'
+
+if [ "x${BEER_SAMPLE}" != "xno" ]; then
+curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/sampleBuckets/install \
+     -d '["beer-sample"]'
+fi
+
+if [ "x${TRAVEL_SAMPLE}" != "xno" ]; then
+curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/sampleBuckets/install \
+     -d '["travel-sample"]'
+fi
 
 if [ "x${DEVELOPER_PREVIEW}" != "xno" ]; then
 curl -sS -w "\n" -u ${CREDS} http://${HOST}:8091/settings/developerPreview \

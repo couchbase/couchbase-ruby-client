@@ -15,6 +15,7 @@
 require "couchbase/scope"
 require "couchbase/management/collection_manager"
 require "couchbase/management/view_index_manager"
+require "couchbase/view_options"
 
 module Couchbase
   class Bucket
@@ -59,6 +60,48 @@ module Couchbase
       default_scope.default_collection
     end
 
+    # Performs query to view index.
+    #
+    # @param [String] design_document_name name of the design document
+    # @param [String] view_name name of the view to query
+    # @param [ViewOptions] options
+    #
+    # @return [ViewQueryResult]
+    def view_query(design_document_name, view_name, options = ViewOptions.new)
+      resp = @backend.document_view(@name, design_document_name, view_name, options.namespace, {
+          timeout: options.timeout,
+          scan_consistency: options.scan_consistency,
+          skip: options.skip,
+          limit: options.limit,
+          start_key: (JSON.generate(options.start_key) unless options.start_key.nil?),
+          end_key: (JSON.generate(options.end_key) unless options.end_key.nil?),
+          start_key_doc_id: options.start_key_doc_id,
+          end_key_doc_id: options.end_key_doc_id,
+          inclusive_end: options.inclusive_end,
+          group: options.group,
+          group_level: options.group_level,
+          key: (JSON.generate(options.key) unless options.key.nil?),
+          keys: options.keys&.map { |key| JSON.generate(key) },
+          order: options.order,
+          reduce: options.reduce,
+          on_error: options.on_error,
+          debug: options.debug,
+      })
+      ViewResult.new do |res|
+        res.meta_data = ViewMetaData.new do |meta|
+          meta.total_rows = resp[:meta][:total_rows]
+          meta.debug_info = resp[:meta][:debug_info]
+        end
+        res.rows = resp[:rows].map do |entry|
+          ViewRow.new do |row|
+            row.id = entry[:id] if entry.key?(:id)
+            row.key = JSON.parse(entry[:key])
+            row.value = JSON.parse(entry[:value])
+          end
+        end
+      end
+    end
+
     # @return [Management::CollectionManager]
     def collections
       Management::CollectionManager.new(@backend, @name)
@@ -72,8 +115,7 @@ module Couchbase
     # Performs application-level ping requests against services in the couchbase cluster
     #
     # @return [PingResult]
-    def ping(options = PingOptions.new)
-    end
+    def ping(options = PingOptions.new) end
 
     class PingOptions
       # @return [String] Holds custom report id.

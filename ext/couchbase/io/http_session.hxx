@@ -222,7 +222,11 @@ class http_session : public std::enable_shared_from_this<http_session>
                   return;
               }
               if (ec && ec != asio::error::operation_aborted) {
-                  spdlog::error("IO error while reading from the socket: {}", ec.message());
+                  spdlog::error("[{}] [{}:{}] IO error while reading from the socket: {}",
+                                uuid::to_string(self->id_),
+                                self->endpoint_.address().to_string(),
+                                self->endpoint_.port(),
+                                ec.message());
                   return self->stop();
               }
 
@@ -235,10 +239,14 @@ class http_session : public std::enable_shared_from_this<http_session>
                               handler({}, std::move(self->parser_.response));
                           }
                           self->parser_.reset();
-                          return;
+                          return self->stop();
                       }
                       return self->do_read();
                   case http_parser::status::failure:
+                      spdlog::error("[{}] [{}:{}] failed to parse HTTP response",
+                                    uuid::to_string(self->id_),
+                                    self->endpoint_.address().to_string(),
+                                    self->endpoint_.port());
                       return self->stop();
               }
           });
@@ -263,7 +271,11 @@ class http_session : public std::enable_shared_from_this<http_session>
                 return;
             }
             if (ec) {
-                spdlog::error("IO error while writing to the socket: {}", ec.message());
+                spdlog::error("[{}] [{}:{}] IO error while writing to the socket: {}",
+                              uuid::to_string(self->id_),
+                              self->endpoint_.address().to_string(),
+                              self->endpoint_.port(),
+                              ec.message());
                 return self->stop();
             }
             self->writing_buffer_.clear();

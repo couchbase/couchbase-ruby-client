@@ -790,9 +790,10 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                         return;
                                     }
                                     if (ec) {
-                                        spdlog::error("[{}] [{}] IO error while reading from the socket: {}",
+                                        spdlog::error("[{}] [{}:{}] IO error while reading from the socket: {}",
                                                       uuid::to_string(self->id_),
                                                       self->endpoint_.address().to_string(),
+                                                      self->endpoint_.port(),
                                                       ec.message());
                                         return self->stop();
                                     }

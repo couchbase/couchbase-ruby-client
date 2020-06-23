@@ -46,10 +46,10 @@ main()
 p Couchbase::VERSION
 B = Couchbase::Backend.new
 B.open("localhost", "Administrator", "password")
-# pp B.view_index_get("beer-sample", "beer", :production, nil)
-# pp B.view_index_get("beer-sample", "test2", :development, nil)
-pp B.view_index_drop("beer-sample", "test", :development, nil)
-# pp B.view_index_get_all("beer-sample", :production, nil)
+
+pp B.document_view("beer-sample", "test", "get_all", :development, {
+   keys: [JSON.generate("21st_amendment_brewery_cafe-563_stout")]
+})
 )");
 
 
