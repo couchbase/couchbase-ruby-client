@@ -16,10 +16,17 @@ module Couchbase
   class LookupInSpec
     # Fetches the content from a field (if present) at the given path
     #
-    # @param [String] path the path identifying where to get the value
+    # @param [String, Symbol] path the path identifying where to get the value. When path is a symbol, the library will try to expand it as macro.
     # @return [LookupInSpec]
     def self.get(path)
-      new(path.empty? ? :get_doc : :get, path)
+      case path
+      when Symbol
+        new(:get, expand_macro(path))
+      when ""
+        new(:get_doc, "")
+      else
+        new(:get, path)
+      end
     end
 
     # Checks if a value at the given path exists in the document
@@ -52,9 +59,37 @@ module Couchbase
 
     private
 
+    # @api private
+    #
+    # @param [Symbol] macro
+    # @raise [Error::XattrUnknownMacro] if the macro cannot be expanded
+    def self.expand_macro(macro)
+      case macro
+      when :document
+        "$document"
+      when :expiry_time, :expiration_time
+        "$document.exptime"
+      when :cas
+        "$document.CAS"
+      when :seq_no, :sequence_number
+        "$document.seqno"
+      when :last_modified
+        "$document.last_modified"
+      when :is_deleted
+        "$document.deleted"
+      when :value_size_bytes
+        "$document.value_bytes"
+      when :rev_id, :revision_id
+        "$document.revid"
+      else
+        raise Error::XattrUnknownMacro, "unknown macro #{macro}"
+      end
+    end
+
     # @param [:get_doc, :get, :exists, :count] type of the lookup
     # @param [String] path
     def initialize(type, path)
+      @xattr = false
       @type = type
       @path = path
     end
@@ -67,11 +102,12 @@ module Couchbase
     # error if the last element of the path does not exist.
     #
     # @param [String] path the path identifying where to replace the value.
-    # @param [Object] value the value to replace with.
+    # @param [Object, Symbol] value the value to replace with.
+    #   When symbol specified and it is matches to known macro, it will be expanded
     #
     # @return [MutateInSpec]
     def self.replace(path, value)
-      new(:replace, path, value)
+      new(path.empty? ? :set_doc : :replace, path, value)
     end
 
     # Creates a command with the intention of inserting a new value in a JSON object.
@@ -79,10 +115,11 @@ module Couchbase
     # Will error if the last element of the path already exists.
     #
     # @param [String] path the path identifying where to insert the value.
-    # @param [Object] value the value to insert
+    # @param [Object, Symbol] value the value to insert.
+    #   When symbol specified and it is matches to known macro, it will be expanded
     #
     # @return [MutateInSpec]
-    def self.dict_add(path, value)
+    def self.insert(path, value)
       new(:dict_add, path, value)
     end
 
@@ -102,10 +139,11 @@ module Couchbase
     # That is, the value will be replaced if the path already exists, or inserted if not.
     #
     # @param [String] path the path identifying where to upsert the value.
-    # @param [Object] value the value to upsert.
+    # @param [Object, Symbol] value the value to upsert.
+    #   When symbol specified and it is matches to known macro, it will be expanded
     #
     # @return [MutateInSpec]
-    def self.dict_upsert(path, value)
+    def self.upsert(path, value)
       new(:dict_upsert, path, value)
     end
 
@@ -118,7 +156,7 @@ module Couchbase
     #
     # @return [MutateInSpec]
     def self.array_append(path, values)
-      new(:array_append, path, values)
+      new(:array_push_last, path, values)
     end
 
     # Creates a command with the intention of prepending a value to an existing JSON array.
@@ -130,7 +168,7 @@ module Couchbase
     #
     # @return [MutateInSpec]
     def self.array_prepend(path, values)
-      new(:array_prepend, path, values)
+      new(:array_push_first, path, values)
     end
 
     # Creates a command with the intention of inserting a value into an existing JSON array.
@@ -151,7 +189,7 @@ module Couchbase
     # Will error if the last element of the path does not exist or is not an array.
     #
     # @param [String] path the path identifying an array to which to append the value, and an index.  E.g. "foo.bar[3]"
-    # @param [Object] value the value to insert.
+    # @param [Object, Symbol] value the value to insert.
     #
     # @return [MutateInSpec]
     def self.array_add_unique(path, value)
@@ -187,8 +225,8 @@ module Couchbase
       self
     end
 
-    def create_parents
-      @create_parents = true
+    def create_path
+      @create_path = true
       self
     end
 
@@ -196,8 +234,8 @@ module Couchbase
       @xattr
     end
 
-    def create_parents?
-      @create_parents
+    def create_path?
+      @create_path
     end
 
     def expand_macros?
@@ -206,7 +244,7 @@ module Couchbase
 
     CAS = "${Mutation.CAS}"
     SEQ_NO = "${Mutation.seqno}"
-    VALUE_CRC_32C = "${Mutation.value_crc32c}"
+    VALUE_CRC32C = "${Mutation.value_crc32c}"
 
     attr_reader :type
     attr_reader :path
@@ -215,11 +253,34 @@ module Couchbase
     private
 
     def initialize(type, path, param)
+      @create_path = false
+      @param = nil
+      @xattr = false
       @type = type
       @path = path
-      @expand_macros = [CAS, SEQ_NO, VALUE_CRC_32C].include?(@param)
-      if !@expand_macros && !param.nil?
-        @param = type == :counter ? param.to_i : JSON.generate(param)
+      @param =
+          case param
+          when :cas
+            CAS
+          when :seq_no, :sequence_number
+            SEQ_NO
+          when :value_crc32c, :value_crc
+            VALUE_CRC32C
+          else
+            param
+          end
+      @expand_macros = [CAS, SEQ_NO, VALUE_CRC32C].include?(@param)
+      @xattr = true if @expand_macros
+      unless @param.nil?
+        @param =
+            case type
+            when :counter
+              @param.to_i
+            when :array_push_first, :array_push_last, :array_insert
+              @param.map { |entry| JSON.generate(entry) }.join(",")
+            else
+              JSON.generate(@param)
+            end
       end
     end
   end

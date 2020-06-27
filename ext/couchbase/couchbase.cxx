@@ -261,7 +261,7 @@ init_exceptions(VALUE mCouchbase)
     eIndexFailure = rb_define_class_under(mError, "IndexFailure", rb_eStandardError);
     eIndexNotFound = rb_define_class_under(mError, "IndexNotFound", rb_eStandardError);
     eInternalServerFailure = rb_define_class_under(mError, "InternalServerFailure", rb_eStandardError);
-    eInvalidArgument = rb_define_class_under(mError, "InvalidArgument", rb_eStandardError);
+    eInvalidArgument = rb_define_class_under(mError, "InvalidArgument", rb_eArgError);
     eJobQueueFull = rb_define_class_under(mError, "JobQueueFull", rb_eStandardError);
     eLinkNotFound = rb_define_class_under(mError, "LinkNotFound", rb_eStandardError);
     eNumberTooBig = rb_define_class_under(mError, "NumberTooBig", rb_eStandardError);
@@ -1473,64 +1473,132 @@ cb__map_subdoc_opcode(couchbase::protocol::subdoc_opcode opcode)
 
         case couchbase::protocol::subdoc_opcode::get_doc:
             return rb_id2sym(rb_intern("get_doc"));
+
+        case couchbase::protocol::subdoc_opcode::set_doc:
+            return rb_id2sym(rb_intern("set_doc"));
     }
     return rb_id2sym(rb_intern("unknown"));
 }
 
-static VALUE
-cb__map_subdoc_status(couchbase::protocol::status status)
+static void
+cb__map_subdoc_status(couchbase::protocol::status status, std::size_t index, const std::string& path, VALUE entry)
 {
     switch (status) {
         case couchbase::protocol::status::success:
-            return rb_id2sym(rb_intern("success"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("success")));
+            return;
+
+        case couchbase::protocol::status::subdoc_path_not_found:
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("path_not_found")));
+            rb_hash_aset(
+              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(ePathNotFound, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_path_mismatch:
-            return rb_id2sym(rb_intern("path_mismatch"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("path_mismatch")));
+            rb_hash_aset(
+              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(ePathMismatch, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_path_invalid:
-            return rb_id2sym(rb_intern("path_invalid"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("path_invalid")));
+            rb_hash_aset(
+              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(ePathInvalid, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_path_too_big:
-            return rb_id2sym(rb_intern("path_too_big"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("path_too_big")));
+            rb_hash_aset(
+              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(ePathTooBig, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_value_cannot_insert:
-            return rb_id2sym(rb_intern("value_cannot_insert"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("value_cannot_insert")));
+            rb_hash_aset(
+              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(eValueInvalid, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_doc_not_json:
-            return rb_id2sym(rb_intern("doc_not_json"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("doc_not_json")));
+            rb_hash_aset(entry,
+                         rb_id2sym(rb_intern("error")),
+                         rb_exc_new_cstr(eDocumentNotJson, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_num_range_error:
-            return rb_id2sym(rb_intern("num_range"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("num_range")));
+            rb_hash_aset(
+              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(eNumberTooBig, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_delta_invalid:
-            return rb_id2sym(rb_intern("delta_invalid"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("delta_invalid")));
+            rb_hash_aset(
+              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(eDeltaInvalid, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_path_exists:
-            return rb_id2sym(rb_intern("path_exists"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("path_exists")));
+            rb_hash_aset(
+              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(ePathExists, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_value_too_deep:
-            return rb_id2sym(rb_intern("value_too_deep"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("value_too_deep")));
+            rb_hash_aset(
+              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(eValueTooDeep, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_invalid_combo:
-            return rb_id2sym(rb_intern("invalid_combo"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("invalid_combo")));
+            rb_hash_aset(entry,
+                         rb_id2sym(rb_intern("error")),
+                         rb_exc_new_cstr(eInvalidArgument, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_xattr_invalid_flag_combo:
-            return rb_id2sym(rb_intern("xattr_invalid_flag_combo"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("xattr_invalid_flag_combo")));
+            rb_hash_aset(entry,
+                         rb_id2sym(rb_intern("error")),
+                         rb_exc_new_cstr(eXattrInvalidKeyCombo, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_xattr_invalid_key_combo:
-            return rb_id2sym(rb_intern("xattr_invalid_key_combo"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("xattr_invalid_key_combo")));
+            rb_hash_aset(entry,
+                         rb_id2sym(rb_intern("error")),
+                         rb_exc_new_cstr(eXattrInvalidKeyCombo, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_xattr_unknown_macro:
-            return rb_id2sym(rb_intern("xattr_unknown_macro"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("xattr_unknown_macro")));
+            rb_hash_aset(entry,
+                         rb_id2sym(rb_intern("error")),
+                         rb_exc_new_cstr(eXattrUnknownMacro, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_xattr_unknown_vattr:
-            return rb_id2sym(rb_intern("xattr_unknown_vattr"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("xattr_unknown_vattr")));
+            rb_hash_aset(entry,
+                         rb_id2sym(rb_intern("error")),
+                         rb_exc_new_cstr(eXattrUnknownVirtualAttribute, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         case couchbase::protocol::status::subdoc_xattr_cannot_modify_vattr:
-            return rb_id2sym(rb_intern("xattr_cannot_modify_vattr"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("xattr_cannot_modify_vattr")));
+            rb_hash_aset(entry,
+                         rb_id2sym(rb_intern("error")),
+                         rb_exc_new_cstr(eXattrCannotModifyVirtualAttribute, fmt::format("index={}, path={}", index, path).c_str()));
+            return;
 
         default:
-            return rb_id2sym(rb_intern("unknown"));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("unknown")));
+            rb_hash_aset(
+              entry,
+              rb_id2sym(rb_intern("error")),
+              rb_exc_new_cstr(eInternalServerFailure,
+                              fmt::format("unknown subdocument error status={}, index={}, path={}", status, index, path).c_str()));
+            return;
     }
 }
 
@@ -1603,13 +1671,14 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         rb_hash_aset(res, rb_id2sym(rb_intern("fields")), fields);
         for (size_t i = 0; i < resp.fields.size(); ++i) {
             VALUE entry = rb_hash_new();
+            rb_hash_aset(entry, rb_id2sym(rb_intern("index")), ULL2NUM(i));
             rb_hash_aset(entry, rb_id2sym(rb_intern("exists")), resp.fields[i].exists ? Qtrue : Qfalse);
             rb_hash_aset(
               entry, rb_id2sym(rb_intern("path")), rb_str_new(resp.fields[i].path.data(), static_cast<long>(resp.fields[i].path.size())));
             rb_hash_aset(entry,
                          rb_id2sym(rb_intern("value")),
                          rb_str_new(resp.fields[i].value.data(), static_cast<long>(resp.fields[i].value.size())));
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), cb__map_subdoc_status(resp.fields[i].status));
+            cb__map_subdoc_status(resp.fields[i].status, i, resp.fields[i].path, entry);
             if (resp.fields[i].opcode == couchbase::protocol::subdoc_opcode::get && resp.fields[i].path.empty()) {
                 rb_hash_aset(entry, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern("get_doc")));
             } else {
@@ -1624,14 +1693,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
 }
 
 static VALUE
-cb_Backend_document_mutate_in(VALUE self,
-                              VALUE bucket,
-                              VALUE collection,
-                              VALUE id,
-                              VALUE timeout,
-                              VALUE access_deleted,
-                              VALUE specs,
-                              VALUE options)
+cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE specs, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1680,8 +1742,39 @@ cb_Backend_document_mutate_in(VALUE self,
                     req.durability_timeout = FIX2UINT(durability_timeout);
                 }
             }
+            VALUE access_deleted = rb_hash_aref(options, rb_id2sym(rb_intern("access_deleted")));
+            if (!NIL_P(access_deleted)) {
+                req.access_deleted = RTEST(access_deleted);
+            }
+            VALUE store_semantics = rb_hash_aref(options, rb_id2sym(rb_intern("store_semantics")));
+            if (!NIL_P(store_semantics)) {
+                Check_Type(store_semantics, T_SYMBOL);
+                ID semantics = rb_sym2id(store_semantics);
+                if (semantics == rb_intern("replace")) {
+                    req.store_semantics = couchbase::protocol::mutate_in_request_body::store_semantics_type::replace;
+                } else if (semantics == rb_intern("insert")) {
+                    req.store_semantics = couchbase::protocol::mutate_in_request_body::store_semantics_type::insert;
+                } else if (semantics == rb_intern("upsert")) {
+                    req.store_semantics = couchbase::protocol::mutate_in_request_body::store_semantics_type::upsert;
+                }
+            }
+            VALUE expiration = rb_hash_aref(options, rb_id2sym(rb_intern("expiration")));
+            if (!NIL_P(expiration)) {
+                Check_Type(expiration, T_FIXNUM);
+                req.expiration = FIX2UINT(expiration);
+            }
+            VALUE cas = rb_hash_aref(options, rb_id2sym(rb_intern("cas")));
+            if (!NIL_P(cas)) {
+                switch (TYPE(cas)) {
+                    case T_FIXNUM:
+                    case T_BIGNUM:
+                        req.cas = NUM2ULL(cas);
+                        break;
+                    default:
+                        rb_raise(rb_eArgError, "CAS must be an Integer");
+                }
+            }
         }
-        req.access_deleted = RTEST(access_deleted);
         auto entries_size = static_cast<size_t>(RARRAY_LEN(specs));
         req.specs.entries.reserve(entries_size);
         for (size_t i = 0; i < entries_size; ++i) {
@@ -1709,11 +1802,13 @@ cb_Backend_document_mutate_in(VALUE self,
                 opcode = couchbase::protocol::subdoc_opcode::array_add_unique;
             } else if (operation_id == rb_intern("counter")) {
                 opcode = couchbase::protocol::subdoc_opcode::counter;
+            } else if (operation_id == rb_intern("set_doc")) {
+                opcode = couchbase::protocol::subdoc_opcode::set_doc;
             } else {
                 rb_raise(rb_eArgError, "Unsupported operation for subdocument mutation: %+" PRIsVALUE, operation);
             }
             bool xattr = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("xattr"))));
-            bool create_parents = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("create_parents"))));
+            bool create_path = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("create_path"))));
             bool expand_macros = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("expand_macros"))));
             VALUE path = rb_hash_aref(entry, rb_id2sym(rb_intern("path")));
             Check_Type(path, T_STRING);
@@ -1724,7 +1819,7 @@ cb_Backend_document_mutate_in(VALUE self,
                 Check_Type(param, T_FIXNUM);
                 req.specs.add_spec(opcode,
                                    xattr,
-                                   create_parents,
+                                   create_path,
                                    expand_macros,
                                    std::string(RSTRING_PTR(path), static_cast<size_t>(RSTRING_LEN(path))),
                                    FIX2LONG(param));
@@ -1732,7 +1827,7 @@ cb_Backend_document_mutate_in(VALUE self,
                 Check_Type(param, T_STRING);
                 req.specs.add_spec(opcode,
                                    xattr,
-                                   create_parents,
+                                   create_path,
                                    expand_macros,
                                    std::string(RSTRING_PTR(path), static_cast<size_t>(RSTRING_LEN(path))),
                                    std::string(RSTRING_PTR(param), static_cast<size_t>(RSTRING_LEN(param))));
@@ -1756,16 +1851,22 @@ cb_Backend_document_mutate_in(VALUE self,
         rb_hash_aset(res, rb_id2sym(rb_intern("fields")), fields);
         for (size_t i = 0; i < resp.fields.size(); ++i) {
             VALUE entry = rb_hash_new();
+            rb_hash_aset(entry, rb_id2sym(rb_intern("index")), ULL2NUM(i));
             rb_hash_aset(
               entry, rb_id2sym(rb_intern("path")), rb_str_new(resp.fields[i].path.data(), static_cast<long>(resp.fields[i].path.size())));
-            if (resp.fields[i].opcode == couchbase::protocol::subdoc_opcode::counter) {
-                rb_hash_aset(entry, rb_id2sym(rb_intern("value")), LONG2NUM(std::stoll(resp.fields[i].value)));
-            } else {
-                rb_hash_aset(entry,
-                             rb_id2sym(rb_intern("value")),
-                             rb_str_new(resp.fields[i].value.data(), static_cast<long>(resp.fields[i].value.size())));
+            if (resp.fields[i].status == couchbase::protocol::status::success ||
+                resp.fields[i].status == couchbase::protocol::status::subdoc_success_deleted) {
+                if (resp.fields[i].opcode == couchbase::protocol::subdoc_opcode::counter) {
+                    if (resp.fields[i].value.size() > 0) {
+                        rb_hash_aset(entry, rb_id2sym(rb_intern("value")), LONG2NUM(std::stoll(resp.fields[i].value)));
+                    }
+                } else {
+                    rb_hash_aset(entry,
+                                 rb_id2sym(rb_intern("value")),
+                                 rb_str_new(resp.fields[i].value.data(), static_cast<long>(resp.fields[i].value.size())));
+                }
             }
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), cb__map_subdoc_status(resp.fields[i].status));
+            cb__map_subdoc_status(resp.fields[i].status, i, resp.fields[i].path, entry);
             rb_hash_aset(entry, rb_id2sym(rb_intern("type")), cb__map_subdoc_opcode(resp.fields[i].opcode));
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
@@ -5248,7 +5349,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_upsert", VALUE_FUNC(cb_Backend_document_upsert), 7);
     rb_define_method(cBackend, "document_remove", VALUE_FUNC(cb_Backend_document_remove), 5);
     rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 6);
-    rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 7);
+    rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 6);
     rb_define_method(cBackend, "document_query", VALUE_FUNC(cb_Backend_document_query), 2);
     rb_define_method(cBackend, "document_touch", VALUE_FUNC(cb_Backend_document_touch), 5);
     rb_define_method(cBackend, "document_exists", VALUE_FUNC(cb_Backend_document_exists), 4);

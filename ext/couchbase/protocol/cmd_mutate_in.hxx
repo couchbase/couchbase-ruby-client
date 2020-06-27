@@ -116,7 +116,26 @@ class mutate_in_request_body
     using response_body_type = mutate_in_response_body;
     static const inline client_opcode opcode = client_opcode::subdoc_multi_mutation;
 
-    static const inline uint8_t doc_flag_access_deleted = 0x04;
+    enum class store_semantics_type {
+        /**
+         * Replace the document, fail if it does not exist. This is the default.
+         */
+        replace,
+
+        /**
+         * Replace the document or create it if it does not exist.
+         */
+        upsert,
+
+        /**
+         * Replace the document or create it if it does not exist.
+         */
+        insert,
+    };
+
+    static const inline uint8_t doc_flag_access_deleted = 0b0000'0100;
+    static const inline uint8_t doc_flag_mkdoc = 0b0000'0001;
+    static const inline uint8_t doc_flag_add = 0b0000'0010;
 
     struct mutate_in_specs {
         static const inline uint8_t path_flag_create_parents = 0x01;
@@ -128,6 +147,7 @@ class mutate_in_request_body
             std::uint8_t flags;
             std::string path;
             std::string param;
+            std::size_t original_index{};
         };
         std::vector<entry> entries;
 
@@ -188,6 +208,7 @@ class mutate_in_request_body
     std::vector<std::uint8_t> extras_{};
     std::vector<std::uint8_t> value_{};
 
+    std::uint32_t expiration_{ 0 };
     std::uint8_t flags_{ 0 };
     mutate_in_specs specs_;
     std::vector<std::uint8_t> framing_extras_{};
@@ -202,12 +223,33 @@ class mutate_in_request_body
         }
     }
 
+    void expiration(uint32_t value)
+    {
+        expiration_ = value;
+    }
+
     void access_deleted(bool value)
     {
         if (value) {
-            flags_ = doc_flag_access_deleted;
+            flags_ |= doc_flag_access_deleted;
         } else {
-            flags_ = 0;
+            flags_ &= static_cast<std::uint8_t>(~doc_flag_access_deleted);
+        }
+    }
+
+    void store_semantics(store_semantics_type semantics)
+    {
+        flags_ &= 0b1111'1100; /* reset first two bits */
+        switch (semantics) {
+            case store_semantics_type::replace:
+                /* leave bits as zeros */
+                break;
+            case store_semantics_type::upsert:
+                flags_ |= doc_flag_mkdoc;
+                break;
+            case store_semantics_type::insert:
+                flags_ |= doc_flag_add;
+                break;
         }
     }
 
@@ -275,9 +317,15 @@ class mutate_in_request_body
   private:
     void fill_extention()
     {
+        if (expiration_ != 0) {
+            extras_.resize(sizeof(expiration_));
+            std::uint32_t field = htonl(expiration_);
+            memcpy(extras_.data(), &field, sizeof(field));
+        }
         if (flags_ != 0) {
-            extras_.resize(sizeof(flags_));
-            extras_[0] = flags_;
+            std::size_t offset = extras_.size();
+            extras_.resize(offset + sizeof(flags_));
+            extras_[offset] = flags_;
         }
     }
 

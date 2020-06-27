@@ -18,8 +18,17 @@
 #pragma once
 
 #include <gsl/gsl_assert>
-#include <document_id.hxx>
+#include <algorithm>
+
 #include <protocol/cmd_mutate_in.hxx>
+#include <protocol/status.hxx>
+#include <protocol/durability_level.hxx>
+#include <protocol/client_request.hxx>
+
+#include <mutation_token.hxx>
+#include <document_id.hxx>
+#include <timeout_defaults.hxx>
+#include <errors.hxx>
 
 namespace couchbase::operations
 {
@@ -30,6 +39,7 @@ struct mutate_in_response {
         protocol::status status;
         std::string path;
         std::string value;
+        std::size_t original_index;
     };
     document_id id;
     std::error_code ec{};
@@ -46,7 +56,12 @@ struct mutate_in_request {
     document_id id;
     uint16_t partition{};
     uint32_t opaque{};
+    uint64_t cas{ 0 };
     bool access_deleted{ false };
+    std::optional<std::uint32_t> expiration{};
+    protocol::mutate_in_request_body::store_semantics_type store_semantics{
+        protocol::mutate_in_request_body::store_semantics_type::replace
+    };
     protocol::mutate_in_request_body::mutate_in_specs specs{};
     protocol::durability_level durability_level{ protocol::durability_level::none };
     std::optional<std::uint16_t> durability_timeout{};
@@ -54,10 +69,27 @@ struct mutate_in_request {
 
     void encode_to(encoded_request_type& encoded)
     {
+        for (std::size_t i = 0; i < specs.entries.size(); ++i) {
+            auto& entry = specs.entries[i];
+            entry.original_index = i;
+        }
+        std::stable_sort(specs.entries.begin(),
+                         specs.entries.end(),
+                         [](const protocol::mutate_in_request_body::mutate_in_specs::entry& lhs,
+                            const protocol::mutate_in_request_body::mutate_in_specs::entry& rhs) -> bool {
+                             return (lhs.flags & protocol::mutate_in_request_body::mutate_in_specs::path_flag_xattr) >
+                                    (rhs.flags & protocol::mutate_in_request_body::mutate_in_specs::path_flag_xattr);
+                         });
+
         encoded.opaque(opaque);
         encoded.partition(partition);
         encoded.body().id(id);
+        encoded.cas(cas);
+        if (expiration) {
+            encoded.body().expiration(*expiration);
+        }
         encoded.body().access_deleted(access_deleted);
+        encoded.body().store_semantics(store_semantics);
         encoded.body().specs(specs);
         if (durability_level != protocol::durability_level::none) {
             encoded.body().durability(durability_level, durability_timeout);
@@ -77,6 +109,7 @@ make_response(std::error_code ec, mutate_in_request& request, mutate_in_request:
         response.fields.resize(request.specs.entries.size());
         for (size_t i = 0; i < request.specs.entries.size(); ++i) {
             auto& req_entry = request.specs.entries[i];
+            response.fields[i].original_index = req_entry.original_index;
             response.fields[i].opcode = static_cast<protocol::subdoc_opcode>(req_entry.opcode);
             response.fields[i].path = req_entry.path;
             response.fields[i].status = protocol::status::success;
@@ -90,6 +123,14 @@ make_response(std::error_code ec, mutate_in_request& request, mutate_in_request:
                 break;
             }
         }
+        std::sort(response.fields.begin(),
+                  response.fields.end(),
+                  [](const mutate_in_response::field& lhs, const mutate_in_response::field& rhs) -> bool {
+                      return lhs.original_index < rhs.original_index;
+                  });
+    } else if (request.store_semantics == protocol::mutate_in_request_body::store_semantics_type::insert &&
+               ec == std::make_error_code(error::common_errc::cas_mismatch)) {
+        response.ec = std::make_error_code(error::key_value_errc::document_exists);
     }
     return response;
 }

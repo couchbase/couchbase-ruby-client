@@ -123,7 +123,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                   { "SCRAM-SHA512", "SCRAM-SHA256", "SCRAM-SHA1", "PLAIN" })
         {
             tao::json::value user_agent{
-                { "a", fmt::format("ruby_sdk/{}.{}.{}", BACKEND_VERSION_MAJOR, BACKEND_VERSION_MINOR, BACKEND_VERSION_PATCH) },
+                { "a", fmt::format("ruby/{}.{}.{}", BACKEND_VERSION_MAJOR, BACKEND_VERSION_MINOR, BACKEND_VERSION_PATCH) },
                 { "i", fmt::format("{}/{}", uuid::to_string(session_->client_id_), uuid::to_string(session_->id_)) }
             };
             protocol::client_request<protocol::hello_request_body> hello_req;
@@ -505,12 +505,12 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
     }
 
-    bool supports_feature(protocol::hello_feature feature)
+    [[nodiscard]] bool supports_feature(protocol::hello_feature feature)
     {
         return std::find(supported_features_.begin(), supported_features_.end(), feature) != supported_features_.end();
     }
 
-    bool supports_gcccp()
+    [[nodiscard]] bool supports_gcccp()
     {
         return supports_gcccp_;
     }
@@ -550,16 +550,17 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 return std::make_error_code(error::key_value_errc::document_not_found);
 
             case protocol::status::exists:
-                if (opcode == protocol::client_opcode::replace || opcode == protocol::client_opcode::remove) {
-                    return std::make_error_code(error::common_errc::cas_mismatch);
+                if (opcode == protocol::client_opcode::insert) {
+                    return std::make_error_code(error::key_value_errc::document_exists);
                 }
-                return std::make_error_code(error::key_value_errc::document_exists);
+                return std::make_error_code(error::common_errc::cas_mismatch);
 
             case protocol::status::too_big:
                 return std::make_error_code(error::key_value_errc::value_too_large);
 
             case protocol::status::invalid:
             case protocol::status::xattr_invalid:
+            case protocol::status::subdoc_invalid_combo:
                 return std::make_error_code(error::common_errc::invalid_argument);
 
             case protocol::status::delta_bad_value:
@@ -643,7 +644,6 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             case protocol::status::subdoc_value_too_deep:
                 return std::make_error_code(error::key_value_errc::value_too_deep);
 
-            case protocol::status::subdoc_invalid_combo:
             case protocol::status::subdoc_xattr_invalid_flag_combo:
             case protocol::status::subdoc_xattr_invalid_key_combo:
                 return std::make_error_code(error::key_value_errc::xattr_invalid_key_combo);
@@ -809,7 +809,6 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                                 self->reading_ = false;
                                                 return self->do_read();
                                             case mcbp_parser::failure:
-                                                ec = std::make_error_code(error::common_errc::parsing_failure);
                                                 return self->stop();
                                         }
                                     }

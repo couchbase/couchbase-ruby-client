@@ -54,6 +54,7 @@ enum class client_opcode : uint8_t {
  */
 enum class subdoc_opcode : uint8_t {
     get_doc = 0x00,
+    set_doc = 0x01,
     get = 0xc5,
     exists = 0xc6,
     dict_add = 0xc7,
@@ -118,6 +119,7 @@ is_valid_subdoc_opcode(uint8_t code)
         case subdoc_opcode::counter:
         case subdoc_opcode::get_count:
         case subdoc_opcode::get_doc:
+        case subdoc_opcode::set_doc:
             return true;
     }
     return false;
@@ -253,6 +255,9 @@ struct fmt::formatter<couchbase::protocol::subdoc_opcode> : formatter<string_vie
                 break;
             case couchbase::protocol::subdoc_opcode::get_doc:
                 name = "get_doc";
+                break;
+            case couchbase::protocol::subdoc_opcode::set_doc:
+                name = "set_doc";
                 break;
         }
         return formatter<string_view>::format(name, ctx);

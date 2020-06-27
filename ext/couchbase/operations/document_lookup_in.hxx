@@ -31,6 +31,7 @@ struct lookup_in_response {
         protocol::status status;
         std::string path;
         std::string value;
+        std::size_t original_index;
     };
     document_id id;
     std::error_code ec{};
@@ -51,6 +52,18 @@ struct lookup_in_request {
 
     void encode_to(encoded_request_type& encoded)
     {
+        for (std::size_t i = 0; i < specs.entries.size(); ++i) {
+            auto& entry = specs.entries[i];
+            entry.original_index = i;
+        }
+        std::stable_sort(specs.entries.begin(),
+                         specs.entries.end(),
+                         [](const protocol::lookup_in_request_body::lookup_in_specs::entry& lhs,
+                            const protocol::lookup_in_request_body::lookup_in_specs::entry& rhs) -> bool {
+                           return (lhs.flags & protocol::lookup_in_request_body::lookup_in_specs::path_flag_xattr) >
+                                  (rhs.flags & protocol::lookup_in_request_body::lookup_in_specs::path_flag_xattr);
+                         });
+
         encoded.opaque(opaque);
         encoded.partition(partition);
         encoded.body().id(id);
@@ -68,6 +81,7 @@ make_response(std::error_code ec, lookup_in_request& request, lookup_in_request:
         response.fields.resize(request.specs.entries.size());
         for (size_t i = 0; i < request.specs.entries.size(); ++i) {
             auto& req_entry = request.specs.entries[i];
+            response.fields[i].original_index = req_entry.original_index;
             response.fields[i].opcode = static_cast<protocol::subdoc_opcode>(req_entry.opcode);
             response.fields[i].path = req_entry.path;
             response.fields[i].status = protocol::status::success;
@@ -79,6 +93,11 @@ make_response(std::error_code ec, lookup_in_request& request, lookup_in_request:
               res_entry.status == protocol::status::success || res_entry.status == protocol::status::subdoc_success_deleted;
             response.fields[i].value = res_entry.value;
         }
+        std::sort(response.fields.begin(),
+                  response.fields.end(),
+                  [](const lookup_in_response::field& lhs, const lookup_in_response::field& rhs) -> bool {
+                    return lhs.original_index < rhs.original_index;
+                  });
     }
     return response;
 }

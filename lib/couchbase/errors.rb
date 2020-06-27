@@ -19,7 +19,7 @@ module Couchbase
     class RequestCanceled < StandardError
     end
 
-    class InvalidArgument < StandardError
+    class InvalidArgument < ArgumentError
     end
 
     class ServiceNotAvailable < StandardError

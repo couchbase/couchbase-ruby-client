@@ -292,7 +292,7 @@ module Couchbase
       #
       # @return [Object] the decoded
       def content(index, transcoder = self.transcoder)
-        transcoder.decode(encoded[index].value, :json)
+        transcoder.decode(get_field_at_index(index).value, :json)
       end
 
       # Allows to check if a value at the given index exists
@@ -301,7 +301,7 @@ module Couchbase
       #
       # @return [Boolean] true if a value is present at the index, false otherwise
       def exists?(index)
-        encoded[index].exists
+        encoded[index]&.exists
       end
 
       # @return [Array<SubDocumentField>] holds the encoded subdocument responses
@@ -314,6 +314,18 @@ module Couchbase
 
       # @return [JsonTranscoder] The default transcoder which should be used
       attr_accessor :transcoder
+
+      private
+
+      def get_field_at_index(index)
+        if index >= 0 && index < encoded.size
+          field = encoded[index]
+          raise field.error unless field.success?
+          field
+        else
+          raise Error::PathInvalid, "Index is out of bounds: #{index}"
+        end
+      end
     end
 
     class MutateInOptions < CommonOptions
@@ -359,7 +371,12 @@ module Couchbase
       #
       # @return [Object] the decoded
       def content(index, transcoder = self.transcoder)
-        transcoder.decode(encoded[index].value, :json)
+        field = get_field_at_index(index)
+        if field.type == :counter
+          field.value
+        else
+          transcoder.decode(field.value, :json)
+        end
       end
 
       # @yieldparam [MutateInResult] self
@@ -368,7 +385,11 @@ module Couchbase
       end
 
       def success?
-        !!first_error_index
+        first_error_index.nil?
+      end
+
+      def first_error
+        encoded[first_error_index].error
       end
 
       # @return [Array<SubDocumentField>] holds the encoded subdocument responses
@@ -379,17 +400,30 @@ module Couchbase
 
       # @return [JsonTranscoder] The default transcoder which should be used
       attr_accessor :transcoder
+
+      private
+
+      def get_field_at_index(index)
+        if index >= 0 && index < encoded.size
+          field = encoded[index]
+          raise field.error unless field.success?
+          field
+        else
+          raise Error::PathInvalid, "Index is out of bounds: #{index}"
+        end
+      end
     end
 
-# @api private
+    # @api private
     class SubDocumentField
-      attr_accessor :error
-
       # @return [Boolean] true if the path exists in the document
       attr_accessor :exists
 
       # @return [String] value
       attr_accessor :value
+
+      # @return [Integer] index
+      attr_accessor :index
 
       # @return [String] path
       attr_accessor :path
@@ -438,9 +472,18 @@ module Couchbase
       # @return [Symbol]
       attr_accessor :status
 
+      # @return [nil, Exception]
+      attr_accessor :error
+
       # @yieldparam [SubDocumentField] self
       def initialize
+        @status = :unknown
         yield self if block_given?
+      end
+
+      # @return [Boolean] true if the path does not have associated error
+      def success?
+        status == :success
       end
     end
   end

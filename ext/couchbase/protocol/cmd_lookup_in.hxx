@@ -100,6 +100,7 @@ class lookup_in_request_body
             std::uint8_t opcode;
             std::uint8_t flags;
             std::string path;
+            std::size_t original_index{};
         };
         std::vector<entry> entries;
 

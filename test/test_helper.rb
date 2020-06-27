@@ -41,6 +41,10 @@ class ServerVersion
   def supports_collections?
     (mad_hatter? && @developer_preview) || cheshire_cat?
   end
+
+  def supports_sync_replication?
+    mad_hatter? || cheshire_cat?
+  end
 end
 
 require "couchbase"

@@ -30,12 +30,12 @@ document = {
 collection.upsert("customer123", document)
 
 res = collection.mutate_in("customer123", [
-    MutateInSpec.dict_upsert("fax", "311-555-0151")
+    MutateInSpec.upsert("fax", "311-555-0151")
 ])
 puts "The document has been modified successfully: cas=#{res.cas}"
 
 res = collection.mutate_in("customer123", [
-    MutateInSpec.dict_upsert("_framework.model_type", "Customer").xattr,
+    MutateInSpec.upsert("_framework.model_type", "Customer").xattr,
     MutateInSpec.remove("addresses.billing[2]"),
     MutateInSpec.replace("email", "dougr96@hotmail.com"),
 ])

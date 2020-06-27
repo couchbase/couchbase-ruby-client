@@ -58,7 +58,7 @@ class http_session : public std::enable_shared_from_this<http_session>
       , password_(password)
       , hostname_(hostname)
       , service_(service)
-      , user_agent_(fmt::format("ruby_sdk/{}.{}.{}; client/{}; session/{}",
+      , user_agent_(fmt::format("ruby/{}.{}.{}; client/{}; session/{}",
                                 BACKEND_VERSION_MAJOR,
                                 BACKEND_VERSION_MINOR,
                                 BACKEND_VERSION_PATCH,

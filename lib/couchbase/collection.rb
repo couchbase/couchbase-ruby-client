@@ -255,10 +255,12 @@ module Couchbase
         res.encoded = resp[:fields].map do |field|
           SubDocumentField.new do |f|
             f.exists = field[:exists]
+            f.index = field[:index]
             f.path = field[:path]
             f.status = field[:status]
+            f.error = field[:error]
             f.value = field[:value]
-            f.type = field[:opcode]
+            f.type = field[:type]
           end
         end
       end
@@ -273,7 +275,7 @@ module Couchbase
     # @return [MutateInResult]
     def mutate_in(id, specs, options = MutateInOptions.new)
       resp = @backend.document_mutate_in(
-          bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, options.access_deleted,
+          bucket_name, "#{@scope_name}.#{@name}", id, options.timeout,
           specs.map { |s|
             {
                 opcode: s.type,
@@ -281,14 +283,18 @@ module Couchbase
                 param: s.param,
                 xattr: s.xattr?,
                 expand_macros: s.expand_macros?,
-                create_parents: s.create_parents?
+                create_path: s.create_path?
             }
           },
           {
-              durability_level: options.durability_level
+              durability_level: options.durability_level,
+              store_semantics: options.store_semantics,
+              access_deleted: options.access_deleted,
+              cas: options.cas,
+              expiration: options.expiration,
           }
       )
-      MutateInResult.new do |res|
+      res = MutateInResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
         res.mutation_token = extract_mutation_token(resp)
@@ -298,10 +304,16 @@ module Couchbase
             f.exists = field[:exists]
             f.path = field[:path]
             f.status = field[:status]
+            f.error = field[:error]
             f.value = field[:value]
-            f.type = field[:opcode]
+            f.type = field[:type]
           end
         end
+      end
+      if res.success?
+        res
+      else
+        raise res.first_error
       end
     end
 
