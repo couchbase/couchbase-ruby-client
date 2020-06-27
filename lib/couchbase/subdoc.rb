@@ -219,7 +219,7 @@ module Couchbase
       @path = path
       @expand_macros = [CAS, SEQ_NO, VALUE_CRC_32C].include?(@param)
       if !@expand_macros && !param.nil?
-        @param = JSON.generate(param)
+        @param = type == :counter ? param.to_i : JSON.generate(param)
       end
     end
   end
