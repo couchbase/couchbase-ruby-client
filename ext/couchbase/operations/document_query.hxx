@@ -208,16 +208,16 @@ struct query_request {
                 break;
         }
         if (max_parallelism) {
-            body["max_parallelism"] = max_parallelism.value();
+            body["max_parallelism"] = std::to_string(max_parallelism.value());
         }
         if (pipeline_cap) {
-            body["pipeline_cap"] = pipeline_cap.value();
+            body["pipeline_cap"] = std::to_string(pipeline_cap.value());
         }
         if (pipeline_batch) {
-            body["pipeline_batch"] = pipeline_batch.value();
+            body["pipeline_batch"] = std::to_string(pipeline_batch.value());
         }
         if (scan_cap) {
-            body["scan_cap"] = scan_cap.value();
+            body["scan_cap"] = std::to_string(scan_cap.value());
         }
         if (!metrics) {
             body["metrics"] = false;

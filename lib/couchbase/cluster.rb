@@ -39,6 +39,11 @@ module Couchbase
       Cluster.new(connection_string, options)
     end
 
+    # Returns an instance of the {Bucket}
+    #
+    # @param [String] name name of the bucket
+    #
+    # @return [Bucket]
     def bucket(name)
       Bucket.new(@backend, name)
     end

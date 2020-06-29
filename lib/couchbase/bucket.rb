@@ -19,6 +19,9 @@ require "couchbase/view_options"
 
 module Couchbase
   class Bucket
+    # @return [String] name of the bucket
+    attr_reader :name
+
     alias_method :inspect, :to_s
 
     # @param [Couchbase::Backend] backend

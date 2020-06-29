@@ -25,7 +25,10 @@ CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7.1}
 
 CLUSTER_ID=$(cbdyncluster allocate --num-nodes=3 --server-version=${CB_VERSION})
 SERVICES="kv,index,n1ql,fts"
-cbdyncluster setup ${CLUSTER_ID} --bucket=default --enable-developer-preview \
+cbdyncluster setup ${CLUSTER_ID} \
+    --bucket=default \
+    --enable-developer-preview \
+    --storage-mode=plasma \
     --node=${SERVICES} \
     --node=${SERVICES} \
     --node=${SERVICES}
