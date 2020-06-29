@@ -17,11 +17,10 @@
 
 #pragma once
 
+#include <io/mcbp_message.hxx>
+
 namespace couchbase::protocol
 {
-static const size_t header_size = 24;
-using header_buffer = std::array<std::uint8_t, header_size>;
-
 enum class client_opcode : uint8_t {
     get = 0x00,
     upsert = 0x01,

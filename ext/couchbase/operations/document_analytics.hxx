@@ -169,10 +169,6 @@ struct analytics_request {
 
     void encode_to(encoded_request_type& encoded)
     {
-        encoded.headers["content-type"] = "application/json";
-        if (priority) {
-            encoded.headers["analytics-priority"] = "-1";
-        }
         tao::json::value body{ { "statement", statement },
                                { "client_context_id", client_context_id },
                                { "timeout", fmt::format("{}ms", timeout.count()) } };
@@ -207,10 +203,14 @@ struct analytics_request {
         for (auto& param : raw) {
             body[param.first] = param.second;
         }
+        encoded.type = type;
+        encoded.headers["content-type"] = "application/json";
+        if (priority) {
+            encoded.headers["analytics-priority"] = "-1";
+        }
         encoded.method = "POST";
         encoded.path = "/query/service";
         encoded.body = tao::json::to_string(body);
-        spdlog::trace("analytics request: {}", encoded.body);
     }
 };
 
@@ -219,7 +219,6 @@ make_response(std::error_code ec, analytics_request& request, analytics_request:
 {
     analytics_response response{ request.client_context_id, ec };
     if (!ec) {
-        spdlog::trace("analytics response: {}", encoded.body);
         response.payload = tao::json::from_string(encoded.body).as<analytics_response_payload>();
         Expects(response.payload.meta_data.client_context_id == request.client_context_id);
         if (response.payload.meta_data.status != "success") {

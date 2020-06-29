@@ -26,6 +26,7 @@ namespace couchbase::operations
 
 struct insert_response {
     document_id id;
+    std::uint32_t opaque;
     std::error_code ec{};
     std::uint64_t cas{};
     mutation_token token{};
@@ -62,7 +63,7 @@ struct insert_request {
 insert_response
 make_response(std::error_code ec, insert_request& request, insert_request::encoded_response_type encoded)
 {
-    insert_response response{ request.id, ec };
+    insert_response response{ request.id, encoded.opaque(), ec };
     if (!ec) {
         response.cas = encoded.cas();
         response.token = encoded.body().token();

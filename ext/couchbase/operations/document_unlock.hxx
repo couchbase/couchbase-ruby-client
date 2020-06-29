@@ -25,6 +25,7 @@ namespace couchbase::operations
 
 struct unlock_response {
     document_id id;
+    std::uint32_t opaque;
     std::error_code ec{};
     std::uint64_t cas{};
 };
@@ -51,7 +52,7 @@ struct unlock_request {
 unlock_response
 make_response(std::error_code ec, unlock_request& request, unlock_request::encoded_response_type encoded)
 {
-    unlock_response response{ request.id, ec };
+    unlock_response response{ request.id, encoded.opaque(), ec };
     if (!ec) {
         response.cas = encoded.cas();
     }

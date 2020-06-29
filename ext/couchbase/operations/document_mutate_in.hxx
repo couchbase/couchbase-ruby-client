@@ -42,6 +42,7 @@ struct mutate_in_response {
         std::size_t original_index;
     };
     document_id id;
+    std::uint32_t opaque;
     std::error_code ec{};
     std::uint64_t cas{};
     mutation_token token{};
@@ -100,7 +101,7 @@ struct mutate_in_request {
 mutate_in_response
 make_response(std::error_code ec, mutate_in_request& request, mutate_in_request::encoded_response_type encoded)
 {
-    mutate_in_response response{ request.id, ec };
+    mutate_in_response response{ request.id, encoded.opaque(), ec };
     if (!ec) {
         response.cas = encoded.cas();
         response.token = encoded.body().token();

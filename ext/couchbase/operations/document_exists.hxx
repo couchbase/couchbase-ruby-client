@@ -27,6 +27,7 @@ struct exists_response {
     enum class observe_status { invalid, found, not_found, persisted, logically_deleted };
 
     document_id id;
+    std::uint32_t opaque;
     std::error_code ec{};
     std::uint16_t partition_id{};
     std::uint64_t cas{};
@@ -52,7 +53,7 @@ struct exists_request {
 exists_response
 make_response(std::error_code ec, exists_request& request, exists_request::encoded_response_type encoded)
 {
-    exists_response response{ request.id, ec, request.partition };
+    exists_response response{ request.id, encoded.opaque(), ec, request.partition };
     if (!ec) {
         response.cas = encoded.body().cas();
         response.partition_id = encoded.body().partition_id();

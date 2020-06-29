@@ -29,7 +29,7 @@ unless openssl_root.empty?
 end
 
 project_path = File.expand_path(File.join(__dir__))
-build_dir = File.join(Dir.tmpdir, "couchbase-rubygem-#{build_type}-#{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}")
+build_dir = ENV['EXT_BUILD_DIR'] || File.join(Dir.tmpdir, "couchbase-rubygem-#{build_type}-#{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}")
 FileUtils.mkdir_p(build_dir)
 Dir.chdir(build_dir) do
   sys("cmake", *cmake_flags, project_path)

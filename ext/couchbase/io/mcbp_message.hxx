@@ -19,8 +19,17 @@
 
 #include <cstdint>
 #include <vector>
+#include <array>
 
-namespace couchbase::io
+namespace couchbase
+{
+namespace protocol
+{
+static const size_t header_size = 24;
+using header_buffer = std::array<std::uint8_t, header_size>;
+} // namespace protocol
+
+namespace io
 {
 struct binary_header {
     std::uint8_t magic;
@@ -37,5 +46,13 @@ struct binary_header {
 struct mcbp_message {
     binary_header header;
     std::vector<std::uint8_t> body;
+
+    protocol::header_buffer header_data()
+    {
+        protocol::header_buffer buf;
+        std::memcpy(buf.data(), &header, sizeof(header));
+        return buf;
+    }
 };
-} // namespace couchbase::io
+} // namespace io
+} // namespace couchbase

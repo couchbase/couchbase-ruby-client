@@ -162,6 +162,7 @@ struct document_view_request {
             body["keys"] = keys_array;
         }
 
+        encoded.type = type;
         encoded.method = "POST";
         encoded.headers["content-type"] = "application/json";
         encoded.path = fmt::format("/{}/_design/{}{}/_view/{}?{}",
@@ -193,7 +194,7 @@ make_response(std::error_code ec, document_view_request& request, document_view_
             if (rows != nullptr && rows->is_array()) {
                 for (const auto& entry : rows->get_array()) {
                     document_view_response::row row{};
-                    const auto *id = entry.find("id");
+                    const auto* id = entry.find("id");
                     if (id != nullptr && id->is_string()) {
                         row.id = id->get_string();
                     }

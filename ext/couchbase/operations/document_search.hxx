@@ -129,8 +129,6 @@ struct search_request {
 
     void encode_to(encoded_request_type& encoded)
     {
-        encoded.headers["content-type"] = "application/json";
-        encoded.headers["client-context-id"] = client_context_id;
         tao::json::value body{
             { "query", query },
             { "explain", explain },
@@ -189,6 +187,9 @@ struct search_request {
             };
         }
 
+        encoded.type = type;
+        encoded.headers["content-type"] = "application/json";
+        encoded.headers["client-context-id"] = client_context_id;
         encoded.method = "POST";
         encoded.path = fmt::format("/api/index/{}/query", index_name);
         encoded.body = tao::json::to_string(body);

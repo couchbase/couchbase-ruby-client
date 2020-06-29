@@ -25,6 +25,7 @@ namespace couchbase::operations
 
 struct get_projected_response {
     document_id id;
+    std::uint32_t opaque;
     std::error_code ec{};
     std::string value{};
     std::uint64_t cas{};
@@ -196,7 +197,7 @@ subdoc_apply_projection(tao::json::value& root, const std::string& path, tao::js
 get_projected_response
 make_response(std::error_code ec, get_projected_request& request, get_projected_request::encoded_response_type encoded)
 {
-    get_projected_response response{ request.id, ec };
+    get_projected_response response{ request.id, encoded.opaque(), ec };
     if (!ec) {
         response.cas = encoded.cas();
         if (request.with_expiration) {

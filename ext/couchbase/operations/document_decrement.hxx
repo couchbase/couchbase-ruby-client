@@ -25,6 +25,7 @@ namespace couchbase::operations
 
 struct decrement_response {
     document_id id;
+    std::uint32_t opaque;
     std::error_code ec{};
     std::uint64_t content{};
     std::uint64_t cas{};
@@ -67,7 +68,7 @@ struct decrement_request {
 decrement_response
 make_response(std::error_code ec, decrement_request& request, decrement_request::encoded_response_type encoded)
 {
-    decrement_response response{ request.id, ec };
+    decrement_response response{ request.id, encoded.opaque(), ec };
     if (!ec) {
         response.cas = encoded.cas();
         response.content = encoded.body().content();

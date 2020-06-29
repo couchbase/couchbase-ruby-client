@@ -34,6 +34,7 @@ struct lookup_in_response {
         std::size_t original_index;
     };
     document_id id;
+    std::uint32_t opaque;
     std::error_code ec{};
     std::uint64_t cas{};
     std::vector<field> fields{};
@@ -60,8 +61,8 @@ struct lookup_in_request {
                          specs.entries.end(),
                          [](const protocol::lookup_in_request_body::lookup_in_specs::entry& lhs,
                             const protocol::lookup_in_request_body::lookup_in_specs::entry& rhs) -> bool {
-                           return (lhs.flags & protocol::lookup_in_request_body::lookup_in_specs::path_flag_xattr) >
-                                  (rhs.flags & protocol::lookup_in_request_body::lookup_in_specs::path_flag_xattr);
+                             return (lhs.flags & protocol::lookup_in_request_body::lookup_in_specs::path_flag_xattr) >
+                                    (rhs.flags & protocol::lookup_in_request_body::lookup_in_specs::path_flag_xattr);
                          });
 
         encoded.opaque(opaque);
@@ -75,7 +76,7 @@ struct lookup_in_request {
 lookup_in_response
 make_response(std::error_code ec, lookup_in_request& request, lookup_in_request::encoded_response_type encoded)
 {
-    lookup_in_response response{ request.id, ec };
+    lookup_in_response response{ request.id, encoded.opaque(), ec };
     if (!ec) {
         response.cas = encoded.cas();
         response.fields.resize(request.specs.entries.size());
@@ -96,7 +97,7 @@ make_response(std::error_code ec, lookup_in_request& request, lookup_in_request:
         std::sort(response.fields.begin(),
                   response.fields.end(),
                   [](const lookup_in_response::field& lhs, const lookup_in_response::field& rhs) -> bool {
-                    return lhs.original_index < rhs.original_index;
+                      return lhs.original_index < rhs.original_index;
                   });
     }
     return response;

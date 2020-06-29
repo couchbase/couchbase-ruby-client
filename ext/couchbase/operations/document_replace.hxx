@@ -26,6 +26,7 @@ namespace couchbase::operations
 
 struct replace_response {
     document_id id;
+    std::uint32_t opaque;
     std::error_code ec{};
     std::uint64_t cas{};
     mutation_token token{};
@@ -64,7 +65,7 @@ struct replace_request {
 replace_response
 make_response(std::error_code ec, replace_request& request, replace_request::encoded_response_type encoded)
 {
-    replace_response response{ request.id, ec };
+    replace_response response{ request.id, encoded.opaque(), ec };
     if (!ec) {
         response.cas = encoded.cas();
         response.token = encoded.body().token();

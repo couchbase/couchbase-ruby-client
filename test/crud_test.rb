@@ -745,6 +745,8 @@ module Couchbase
       collection = @bucket.collection(collection_name)
 
       # make sure we've connected to the collection
+      options = Collection::UpsertOptions.new
+      options.timeout = 15_000
       res = collection.upsert(doc_id, doc)
       refute_equal 0, res.cas
 

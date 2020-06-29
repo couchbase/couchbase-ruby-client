@@ -99,6 +99,16 @@ class hello_request_body
         key_ = std::move(val);
     }
 
+    [[nodiscard]] const std::string& user_agent() const
+    {
+        return key_;
+    }
+
+    [[nodiscard]] const std::vector<hello_feature>& features() const
+    {
+        return features_;
+    }
+
     const std::string& key()
     {
         return key_;

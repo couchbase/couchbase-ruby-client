@@ -25,6 +25,7 @@ namespace couchbase::operations
 
 struct get_response {
     document_id id;
+    std::uint32_t opaque;
     std::error_code ec{};
     std::string value{};
     std::uint64_t cas{};
@@ -51,7 +52,7 @@ struct get_request {
 get_response
 make_response(std::error_code ec, get_request& request, get_request::encoded_response_type encoded)
 {
-    get_response response{ request.id, ec };
+    get_response response{ request.id, encoded.opaque(), ec };
     if (!ec) {
         response.value = std::move(encoded.body().value());
         response.cas = encoded.cas();

@@ -26,6 +26,7 @@ namespace couchbase::operations
 
 struct upsert_response {
     document_id id;
+    std::uint32_t opaque;
     std::error_code ec{};
     std::uint64_t cas{};
     mutation_token token{};
@@ -62,7 +63,7 @@ struct upsert_request {
 upsert_response
 make_response(std::error_code ec, upsert_request& request, upsert_request::encoded_response_type encoded)
 {
-    upsert_response response{ request.id, ec };
+    upsert_response response{ request.id, encoded.opaque(), ec };
     if (!ec) {
         response.cas = encoded.cas();
         response.token = encoded.body().token();

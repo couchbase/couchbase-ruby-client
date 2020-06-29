@@ -25,10 +25,10 @@
 namespace couchbase::io
 {
 
-class session_manager : public std::enable_shared_from_this<session_manager>
+class http_session_manager : public std::enable_shared_from_this<http_session_manager>
 {
   public:
-    session_manager(uuid::uuid_t client_id, asio::io_context& ctx)
+    http_session_manager(const std::string& client_id, asio::io_context& ctx)
       : client_id_(client_id)
       , ctx_(ctx)
     {
@@ -116,7 +116,7 @@ class session_manager : public std::enable_shared_from_this<session_manager>
         return { "", 0 };
     }
 
-    uuid::uuid_t client_id_;
+    std::string client_id_;
     asio::io_context& ctx_;
 
     configuration config_{};

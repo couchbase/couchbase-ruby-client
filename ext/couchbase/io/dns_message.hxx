@@ -313,12 +313,9 @@ struct dns_header {
 
         [[nodiscard]] std::uint16_t encode() const
         {
-            return std::uint16_t((static_cast<std::uint32_t>(qr) & 1U) << 15U |
-                                 (static_cast<std::uint32_t>(opcode) & 15U) << 11U |
-                                 (static_cast<std::uint32_t>(aa) & 1U) << 10U |
-                                 (static_cast<std::uint32_t>(tc) & 1U) << 9U |
-                                 (static_cast<std::uint32_t>(rd) & 1U) << 8U |
-                                 (static_cast<std::uint32_t>(ra) & 1U) << 7U |
+            return std::uint16_t((static_cast<std::uint32_t>(qr) & 1U) << 15U | (static_cast<std::uint32_t>(opcode) & 15U) << 11U |
+                                 (static_cast<std::uint32_t>(aa) & 1U) << 10U | (static_cast<std::uint32_t>(tc) & 1U) << 9U |
+                                 (static_cast<std::uint32_t>(rd) & 1U) << 8U | (static_cast<std::uint32_t>(ra) & 1U) << 7U |
                                  (static_cast<std::uint32_t>(rcode) & 15U));
         }
 

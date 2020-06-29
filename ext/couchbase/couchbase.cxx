@@ -86,6 +86,10 @@ init_versions(VALUE mCouchbase)
 #endif
 
 #undef VERSION_SPLIT_
+
+    VALUE version_info = rb_inspect(cb_Version);
+    spdlog::info("couchbase backend has been initialized: {}",
+                 std::string_view(RSTRING_PTR(version_info), static_cast<std::size_t>(RSTRING_LEN(version_info))));
 }
 
 struct cb_backend_data {
@@ -619,7 +623,7 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VA
         backend->cluster->execute(req, [barrier](couchbase::operations::get_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -681,7 +685,7 @@ cb_Backend_document_get_projected(VALUE self,
         backend->cluster->execute(req, [barrier](couchbase::operations::get_projected_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch with projections {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch with projections {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -729,7 +733,7 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VAL
         backend->cluster->execute(req, [barrier](couchbase::operations::get_and_lock_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable lock and fetch {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable lock and fetch {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -774,7 +778,7 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VA
         backend->cluster->execute(req, [barrier](couchbase::operations::get_and_touch_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch and touch {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch and touch {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -836,7 +840,7 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
         backend->cluster->execute(req, [barrier](couchbase::operations::touch_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to touch {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to touch {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -877,7 +881,7 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         backend->cluster->execute(req, [barrier](couchbase::operations::exists_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to exists {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to exists {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -944,7 +948,7 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         backend->cluster->execute(req, [barrier](couchbase::operations::unlock_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to unlock {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to unlock {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -1019,7 +1023,7 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         backend->cluster->execute(req, [barrier](couchbase::operations::upsert_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to upsert {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to upsert {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -1103,7 +1107,7 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
         backend->cluster->execute(req, [barrier](couchbase::operations::replace_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to replace {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to replace {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -1176,7 +1180,7 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         backend->cluster->execute(req, [barrier](couchbase::operations::insert_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to insert {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to insert {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -1239,7 +1243,7 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         backend->cluster->execute(req, [barrier](couchbase::operations::remove_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to remove {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to remove {} (opaque={})", doc_id, resp.opaque));
             break;
         }
         return cb__extract_mutation_result(resp);
@@ -1328,7 +1332,7 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
         backend->cluster->execute(req, [barrier](couchbase::operations::increment_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to increment {} by {}", doc_id, req.delta));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to increment {} by {} (opaque={})", doc_id, req.delta, resp.opaque));
             break;
         }
         VALUE res = cb__extract_mutation_result(resp);
@@ -1420,7 +1424,7 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
         backend->cluster->execute(req, [barrier](couchbase::operations::decrement_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to decrement {} by {}", doc_id, req.delta));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to decrement {} by {} (opaque={})", doc_id, req.delta, resp.opaque));
             break;
         }
         VALUE res = cb__extract_mutation_result(resp);
@@ -1661,7 +1665,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         backend->cluster->execute(req, [barrier](couchbase::operations::lookup_in_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -1839,7 +1843,7 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         backend->cluster->execute(req, [barrier](couchbase::operations::mutate_in_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to mutate {}", doc_id));
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to mutate {} (opaque={})", doc_id, resp.opaque));
             break;
         }
 
@@ -5417,17 +5421,25 @@ init_backend(VALUE mCouchbase)
     rb_define_singleton_method(cBackend, "parse_connection_string", VALUE_FUNC(cb_Backend_parse_connection_string), 1);
 }
 
+void
+init_logger()
+{
+    spdlog::set_pattern("[%Y-%m-%d %T.%e] [%P,%t] [%^%l%$] %v");
+
+    auto env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_LOG_LEVEL");
+    if (env_val.empty()) {
+        spdlog::set_level(spdlog::level::critical);
+    } else {
+        auto levels = spdlog::cfg::helpers::extract_levels(env_val);
+        spdlog::details::registry::instance().update_levels(std::move(levels));
+    }
+}
+
 extern "C" {
 void
 Init_libcouchbase(void)
 {
-    auto env_val = spdlog::details::os::getenv("SPDLOG_LEVEL");
-    if (env_val.empty()) {
-        spdlog::set_level(spdlog::level::critical);
-    } else {
-        spdlog::cfg::load_env_levels();
-    }
-    spdlog::set_pattern("[%Y-%m-%d %T.%e] [%P,%t] [%^%l%$] %v");
+    init_logger();
 
     VALUE mCouchbase = rb_define_module("Couchbase");
     init_versions(mCouchbase);

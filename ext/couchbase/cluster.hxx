@@ -21,7 +21,7 @@
 #include <thread>
 
 #include <io/mcbp_session.hxx>
-#include <io/session_manager.hxx>
+#include <io/http_session_manager.hxx>
 #include <bucket.hxx>
 #include <operations.hxx>
 #include <operations/document_query.hxx>
@@ -53,11 +53,11 @@ class cluster
 {
   public:
     explicit cluster(asio::io_context& ctx)
-      : id_(uuid::random())
+      : id_(uuid::to_string(uuid::random()))
       , ctx_(ctx)
       , work_(asio::make_work_guard(ctx_))
       , session_(std::make_shared<io::mcbp_session>(id_, ctx_))
-      , session_manager_(std::make_shared<io::session_manager>(id_, ctx_))
+      , session_manager_(std::make_shared<io::http_session_manager>(id_, ctx_))
     {
     }
 
@@ -100,43 +100,44 @@ class cluster
             return handler(std::make_error_code(error::common_errc::invalid_argument));
         }
         configuration config = session_->config();
+        auto known_features = session_->supported_features();
         auto& node = config.nodes.front();
-        auto new_session = std::make_shared<io::mcbp_session>(id_, ctx_, bucket_name);
-        new_session->bootstrap(
-          node.hostname,
-          std::to_string(*node.services_plain.key_value),
-          origin_.get_username(),
-          origin_.get_password(),
-          [this, name = bucket_name, new_session, h = std::forward<Handler>(handler)](std::error_code ec, configuration cfg) mutable {
-              if (!ec) {
-                  if (!session_->supports_gcccp()) {
-                      session_manager_->set_configuration(cfg);
-                  }
-                  auto b = std::make_shared<bucket>(ctx_, name, cfg);
-                  size_t this_index = new_session->index();
-                  b->set_node(this_index, new_session);
-                  if (cfg.nodes.size() > 1) {
-                      for (const auto& n : cfg.nodes) {
-                          if (n.index != this_index) {
-                              auto s = std::make_shared<io::mcbp_session>(id_, ctx_, name);
-                              b->set_node(n.index, s);
-                              s->bootstrap(n.hostname,
-                                           std::to_string(*n.services_plain.key_value),
-                                           origin_.get_username(),
-                                           origin_.get_password(),
-                                           [s, i = n.index, b](std::error_code err, configuration /*config*/) {
-                                               if (err) {
-                                                   spdlog::warn("unable to bootstrap node: {}", err.message());
-                                                   b->remove_node(i);
+        auto new_session = std::make_shared<io::mcbp_session>(id_, ctx_, bucket_name, known_features);
+        new_session->bootstrap(node.hostname,
+                               std::to_string(*node.services_plain.key_value),
+                               origin_.get_username(),
+                               origin_.get_password(),
+                               [this, name = bucket_name, new_session, known_features, h = std::forward<Handler>(handler)](
+                                 std::error_code ec, configuration cfg) mutable {
+                                   if (!ec) {
+                                       if (!session_->supports_gcccp()) {
+                                           session_manager_->set_configuration(cfg);
+                                       }
+                                       auto b = std::make_shared<bucket>(ctx_, name, cfg);
+                                       size_t this_index = new_session->index();
+                                       b->set_node(this_index, new_session);
+                                       if (cfg.nodes.size() > 1) {
+                                           for (const auto& n : cfg.nodes) {
+                                               if (n.index != this_index) {
+                                                   auto s = std::make_shared<io::mcbp_session>(id_, ctx_, name, known_features);
+                                                   b->set_node(n.index, s);
+                                                   s->bootstrap(n.hostname,
+                                                                std::to_string(*n.services_plain.key_value),
+                                                                origin_.get_username(),
+                                                                origin_.get_password(),
+                                                                [s, i = n.index, b](std::error_code err, configuration /*config*/) {
+                                                                    if (err) {
+                                                                        spdlog::warn("unable to bootstrap node: {}", err.message());
+                                                                        b->remove_node(i);
+                                                                    }
+                                                                });
                                                }
-                                           });
-                          }
-                      }
-                  }
-                  buckets_.emplace(name, std::move(b));
-              }
-              h(ec);
-          });
+                                           }
+                                       }
+                                       buckets_.emplace(name, std::move(b));
+                                   }
+                                   h(ec);
+                               });
     }
 
     template<class Request, class Handler>
@@ -164,11 +165,11 @@ class cluster
     }
 
   private:
-    uuid::uuid_t id_;
+    std::string id_;
     asio::io_context& ctx_;
     asio::executor_work_guard<asio::io_context::executor_type> work_;
     std::shared_ptr<io::mcbp_session> session_;
-    std::shared_ptr<io::session_manager> session_manager_;
+    std::shared_ptr<io::http_session_manager> session_manager_;
     std::map<std::string, std::shared_ptr<bucket>> buckets_;
     origin origin_;
 };

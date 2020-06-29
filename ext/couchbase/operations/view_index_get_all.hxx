@@ -87,7 +87,7 @@ make_response(std::error_code ec, view_index_get_all_request& request, view_inde
                         continue;
                     }
 
-                    const auto *json = dd->find("json");
+                    const auto* json = dd->find("json");
                     if (json == nullptr || !json->is_object()) {
                         continue;
                     }

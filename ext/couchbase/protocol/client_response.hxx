@@ -60,7 +60,7 @@ class client_response
     client_response() = default;
     explicit client_response(io::mcbp_message& msg)
     {
-        std::memcpy(header_.data(), &msg.header, sizeof(msg.header));
+        header_ = msg.header_data();
         data_ = std::move(msg.body);
         verify_header();
         parse_body();

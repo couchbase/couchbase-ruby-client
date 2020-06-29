@@ -32,7 +32,33 @@ Gem::Specification.new do |spec|
   spec.metadata["github_repo"] = "ssh://github.com/couchbase/couchbase-ruby-client"
 
   spec.files = Dir.chdir(File.expand_path("..", __FILE__)) do
-    `git ls-files --recurse-submodules -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features|test_data)/}) }
+    exclude_paths = %w[
+        test
+        spec
+        features
+        test_data
+        ext/third_party/asio/asio/src/examples
+        ext/third_party/asio/asio/src/tests
+        ext/third_party/asio/asio/src/tools
+        ext/third_party/gsl/tests
+        ext/third_party/http_parser/contrib
+        ext/third_party/http_parser/fuzzers
+        ext/third_party/json/contrib
+        ext/third_party/json/doc
+        ext/third_party/json/src/example
+        ext/third_party/json/src/perf
+        ext/third_party/json/src/test
+        ext/third_party/json/tests
+        ext/third_party/snappy/testdata
+        ext/third_party/spdlog/bench
+        ext/third_party/spdlog/example
+        ext/third_party/spdlog/logos
+        ext/third_party/spdlog/scripts
+        ext/third_party/spdlog/tests
+    ]
+    `git ls-files --recurse-submodules -z`
+      .split("\x0")
+      .reject { |f| f.match(%r{^(#{Regexp.union(exclude_paths)})/}) }
   end
   spec.bindir = "exe"
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }

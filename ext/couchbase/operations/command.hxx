@@ -132,13 +132,24 @@ struct command : public std::enable_shared_from_this<command<Request>> {
     void send_to(std::shared_ptr<io::http_session> session, Handler&& handler)
     {
         request.encode_to(encoded);
-        session->write_and_subscribe(
-          encoded,
-          [self = this->shared_from_this(), handler = std::forward<Handler>(handler)](std::error_code ec, io::http_response&& msg) mutable {
-              encoded_response_type resp(msg);
-              self->deadline.cancel();
-              handler(make_response(ec, self->request, resp));
-          });
+        spdlog::trace("{} HTTP request: {}, method={}, path={}{:a}",
+                      session->log_prefix(),
+                      encoded.type,
+                      encoded.method,
+                      encoded.path,
+                      spdlog::to_hex(encoded.body));
+        session->write_and_subscribe(encoded,
+                                     [self = this->shared_from_this(), session, handler = std::forward<Handler>(handler)](
+                                       std::error_code ec, io::http_response&& msg) mutable {
+                                         encoded_response_type resp(msg);
+                                         self->deadline.cancel();
+                                         spdlog::trace("{} HTTP response: {}, status={}{:a}",
+                                                       session->log_prefix(),
+                                                       self->request.type,
+                                                       resp.status_code,
+                                                       spdlog::to_hex(resp.body));
+                                         handler(make_response(ec, self->request, resp));
+                                     });
         deadline.expires_after(request.timeout);
         deadline.async_wait([session](std::error_code ec) {
             if (ec == asio::error::operation_aborted) {

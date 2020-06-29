@@ -41,14 +41,14 @@ namespace couchbase::io
 class http_session : public std::enable_shared_from_this<http_session>
 {
   public:
-    http_session(uuid::uuid_t client_id,
+    http_session(const std::string& client_id,
                  asio::io_context& ctx,
                  const std::string& username,
                  const std::string& password,
                  const std::string& hostname,
                  const std::string& service)
       : client_id_(client_id)
-      , id_(uuid::random())
+      , id_(uuid::to_string(uuid::random()))
       , ctx_(ctx)
       , resolver_(ctx_)
       , strand_(asio::make_strand(ctx_))
@@ -58,13 +58,16 @@ class http_session : public std::enable_shared_from_this<http_session>
       , password_(password)
       , hostname_(hostname)
       , service_(service)
-      , user_agent_(fmt::format("ruby/{}.{}.{}; client/{}; session/{}",
+      , user_agent_(fmt::format("ruby/{}.{}.{}/{}; client/{}; session/{}; {}",
                                 BACKEND_VERSION_MAJOR,
                                 BACKEND_VERSION_MINOR,
                                 BACKEND_VERSION_PATCH,
-                                uuid::to_string(client_id_),
-                                uuid::to_string(id_)))
+                                BACKEND_GIT_REVISION,
+                                client_id_,
+                                id_,
+                                BACKEND_SYSTEM))
     {
+        log_prefix_ = fmt::format("[{}/{}]", client_id_, id_);
         resolver_.async_resolve(
           hostname, service, std::bind(&http_session::on_resolve, this, std::placeholders::_1, std::placeholders::_2));
     }
@@ -74,9 +77,19 @@ class http_session : public std::enable_shared_from_this<http_session>
         stop();
     }
 
-    [[nodiscard]] uuid::uuid_t id()
+    [[nodiscard]] const std::string& log_prefix() const
+    {
+        return log_prefix_;
+    }
+
+    [[nodiscard]] const std::string& id() const
     {
         return id_;
+    }
+
+    [[nodiscard]] const asio::ip::tcp::endpoint& endpoint() const
+    {
+        return endpoint_;
     }
 
     void on_stop(std::function<void()> handler)
@@ -159,7 +172,7 @@ class http_session : public std::enable_shared_from_this<http_session>
     void on_resolve(std::error_code ec, const asio::ip::tcp::resolver::results_type& endpoints)
     {
         if (ec) {
-            spdlog::error("error on resolve: {}", ec.message());
+            spdlog::error("{} error on resolve: {}", log_prefix_, ec.message());
             return;
         }
         endpoints_ = endpoints;
@@ -170,11 +183,11 @@ class http_session : public std::enable_shared_from_this<http_session>
     void do_connect(asio::ip::tcp::resolver::results_type::iterator it)
     {
         if (it != endpoints_.end()) {
-            spdlog::trace("connecting to {}:{}", it->endpoint().address().to_string(), it->endpoint().port());
+            spdlog::debug("{} connecting to {}:{}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port());
             deadline_timer_.expires_after(timeout_defaults::connect_timeout);
             socket_.async_connect(it->endpoint(), std::bind(&http_session::on_connect, this, std::placeholders::_1, it));
         } else {
-            spdlog::error("no more endpoints left to connect");
+            spdlog::error("{} no more endpoints left to connect", log_prefix_);
             stop();
         }
     }
@@ -189,7 +202,8 @@ class http_session : public std::enable_shared_from_this<http_session>
         } else {
             connected_ = true;
             endpoint_ = it->endpoint();
-            spdlog::trace("connected to {}:{}", it->endpoint().address().to_string(), it->endpoint().port());
+            spdlog::debug("{} connected to {}:{}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port());
+            log_prefix_ = fmt::format("[{}/{}] <{}:{}>", client_id_, id_, endpoint_.address().to_string(), endpoint_.port());
             deadline_timer_.expires_at(asio::steady_timer::time_point::max());
             deadline_timer_.cancel();
             flush();
@@ -222,11 +236,7 @@ class http_session : public std::enable_shared_from_this<http_session>
                   return;
               }
               if (ec && ec != asio::error::operation_aborted) {
-                  spdlog::error("[{}] [{}:{}] IO error while reading from the socket: {}",
-                                uuid::to_string(self->id_),
-                                self->endpoint_.address().to_string(),
-                                self->endpoint_.port(),
-                                ec.message());
+                  spdlog::error("{} IO error while reading from the socket: {}", self->log_prefix_, ec.message());
                   return self->stop();
               }
 
@@ -243,10 +253,7 @@ class http_session : public std::enable_shared_from_this<http_session>
                       }
                       return self->do_read();
                   case http_parser::status::failure:
-                      spdlog::error("[{}] [{}:{}] failed to parse HTTP response",
-                                    uuid::to_string(self->id_),
-                                    self->endpoint_.address().to_string(),
-                                    self->endpoint_.port());
+                      spdlog::error("{} failed to parse HTTP response", self->log_prefix_);
                       return self->stop();
               }
           });
@@ -271,11 +278,7 @@ class http_session : public std::enable_shared_from_this<http_session>
                 return;
             }
             if (ec) {
-                spdlog::error("[{}] [{}:{}] IO error while writing to the socket: {}",
-                              uuid::to_string(self->id_),
-                              self->endpoint_.address().to_string(),
-                              self->endpoint_.port(),
-                              ec.message());
+                spdlog::error("{} IO error while writing to the socket: {}", self->log_prefix_, ec.message());
                 return self->stop();
             }
             self->writing_buffer_.clear();
@@ -286,8 +289,8 @@ class http_session : public std::enable_shared_from_this<http_session>
         });
     }
 
-    uuid::uuid_t client_id_;
-    uuid::uuid_t id_;
+    std::string client_id_;
+    std::string id_;
     asio::io_context& ctx_;
     asio::ip::tcp::resolver resolver_;
     asio::strand<asio::io_context::executor_type> strand_;
@@ -312,5 +315,7 @@ class http_session : public std::enable_shared_from_this<http_session>
     std::vector<std::vector<std::uint8_t>> writing_buffer_{};
     asio::ip::tcp::endpoint endpoint_{}; // connected endpoint
     asio::ip::tcp::resolver::results_type endpoints_;
+
+    std::string log_prefix_{};
 };
 } // namespace couchbase::io
