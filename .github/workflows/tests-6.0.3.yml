@@ -47,6 +47,7 @@ jobs:
         run: ./bin/check-cluster
 
       - name: Run tests
+        timeout-minutes: 15
         run: bundle exec rake test
         env:
           TEST_SERVER_VERSION: 6.0.3
