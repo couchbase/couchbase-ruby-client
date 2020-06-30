@@ -27,6 +27,7 @@ namespace couchbase::operations
 {
 
 struct scope_get_all_response {
+    std::string client_context_id;
     std::error_code ec;
     collections_manifest manifest{};
 };
@@ -40,6 +41,7 @@ struct scope_get_all_request {
 
     std::string bucket_name;
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
 
     void encode_to(encoded_request_type& encoded)
     {
@@ -49,9 +51,9 @@ struct scope_get_all_request {
 };
 
 scope_get_all_response
-make_response(std::error_code ec, scope_get_all_request&, scope_get_all_request::encoded_response_type encoded)
+make_response(std::error_code ec, scope_get_all_request& request, scope_get_all_request::encoded_response_type encoded)
 {
-    scope_get_all_response response{ ec };
+    scope_get_all_response response{ request.client_context_id, ec };
     if (!ec) {
         switch (encoded.status_code) {
             case 400:

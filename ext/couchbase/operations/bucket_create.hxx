@@ -27,6 +27,7 @@ namespace couchbase::operations
 {
 
 struct bucket_create_response {
+    std::string client_context_id;
     std::error_code ec;
     std::string error_message{};
 };
@@ -40,6 +41,7 @@ struct bucket_create_request {
 
     bucket_settings bucket{};
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
 
     void encode_to(encoded_request_type& encoded)
     {
@@ -103,9 +105,9 @@ struct bucket_create_request {
 };
 
 bucket_create_response
-make_response(std::error_code ec, bucket_create_request&, bucket_create_request::encoded_response_type encoded)
+make_response(std::error_code ec, bucket_create_request& request, bucket_create_request::encoded_response_type encoded)
 {
-    bucket_create_response response{ ec };
+    bucket_create_response response{ request.client_context_id, ec };
     if (!ec) {
         switch (encoded.status_code) {
             case 404:

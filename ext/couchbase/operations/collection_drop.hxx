@@ -27,6 +27,7 @@ namespace couchbase::operations
 {
 
 struct collection_drop_response {
+    std::string client_context_id;
     std::error_code ec;
     std::uint64_t uid{ 0 };
 };
@@ -42,6 +43,7 @@ struct collection_drop_request {
     std::string scope_name;
     std::string collection_name;
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
 
     void encode_to(encoded_request_type& encoded)
     {
@@ -51,9 +53,9 @@ struct collection_drop_request {
 };
 
 collection_drop_response
-make_response(std::error_code ec, collection_drop_request&, collection_drop_request::encoded_response_type encoded)
+make_response(std::error_code ec, collection_drop_request& request, collection_drop_request::encoded_response_type encoded)
 {
-    collection_drop_response response{ ec };
+    collection_drop_response response{ request.client_context_id, ec };
     if (!ec) {
         switch (encoded.status_code) {
             case 400:

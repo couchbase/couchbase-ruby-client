@@ -37,7 +37,12 @@ sleep 30
 source /usr/local/share/chruby/chruby.sh
 chruby ruby-${CB_RUBY_VERSION}
 
-export COUCHBASE_BACKEND_LOG_LEVEL=debug
+FIRST_NODE=$(cbdyncluster ips ${CLUSTER_ID} | ruby -e 'puts STDIN.read.split(",")[0]')
+curl -sS -u Administrator:password http://${FIRST_NODE}:8093/query/service \
+     -d 'statement=CREATE PRIMARY INDEX ON `default` USING GSI'
+sleep 30
+
+export COUCHBASE_BACKEND_LOG_LEVEL=info
 # CB_TEST_NAME=test_exists_allows_to_check_document_existence
 
 if [ ! -z $CB_TEST_NAME ]
@@ -54,5 +59,7 @@ STATUS=$?
 set -e
 
 cbdyncluster rm ${CLUSTER_ID}
+
+date
 
 exit ${STATUS}

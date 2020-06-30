@@ -116,6 +116,10 @@ class http_session : public std::enable_shared_from_this<http_session>
         }
     }
 
+    bool keep_alive() {
+        return keep_alive_;
+    }
+
     bool is_stopped()
     {
         return stopped_;
@@ -198,6 +202,8 @@ class http_session : public std::enable_shared_from_this<http_session>
             return;
         }
         if (!socket_.is_open() || ec) {
+            spdlog::warn(
+              "{} unable to connect to {}:{}: {}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port(), ec.message());
             do_connect(++it);
         } else {
             connected_ = true;
@@ -232,10 +238,10 @@ class http_session : public std::enable_shared_from_this<http_session>
         }
         socket_.async_read_some(
           asio::buffer(input_buffer_), [self = shared_from_this()](std::error_code ec, std::size_t bytes_transferred) {
-              if (self->stopped_) {
+              if (ec == asio::error::operation_aborted || self->stopped_) {
                   return;
               }
-              if (ec && ec != asio::error::operation_aborted) {
+              if (ec) {
                   spdlog::error("{} IO error while reading from the socket: {}", self->log_prefix_, ec.message());
                   return self->stop();
               }
@@ -274,7 +280,7 @@ class http_session : public std::enable_shared_from_this<http_session>
             buffers.emplace_back(asio::buffer(buf));
         }
         asio::async_write(socket_, buffers, [self = shared_from_this()](std::error_code ec, std::size_t /* bytes_transferred */) {
-            if (self->stopped_) {
+            if (ec == asio::error::operation_aborted || self->stopped_) {
                 return;
             }
             if (ec) {
@@ -305,6 +311,7 @@ class http_session : public std::enable_shared_from_this<http_session>
 
     bool stopped_{ false };
     bool connected_{ false };
+    bool keep_alive_{ false };
 
     std::function<void()> on_stop_handler_{ nullptr };
 

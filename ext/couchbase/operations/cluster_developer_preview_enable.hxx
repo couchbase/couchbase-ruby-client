@@ -26,6 +26,7 @@ namespace couchbase::operations
 {
 
 struct cluster_developer_preview_enable_response {
+    std::string client_context_id;
     std::error_code ec;
 };
 
@@ -36,6 +37,7 @@ struct cluster_developer_preview_enable_request {
 
     static const inline service_type type = service_type::management;
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
 
     void encode_to(encoded_request_type& encoded)
     {
@@ -47,9 +49,9 @@ struct cluster_developer_preview_enable_request {
 };
 
 cluster_developer_preview_enable_response
-make_response(std::error_code ec, cluster_developer_preview_enable_request&, scope_get_all_request::encoded_response_type encoded)
+make_response(std::error_code ec, cluster_developer_preview_enable_request& request, scope_get_all_request::encoded_response_type encoded)
 {
-    cluster_developer_preview_enable_response response{ ec };
+    cluster_developer_preview_enable_response response{ request.client_context_id, ec };
     if (!ec) {
         if (encoded.status_code != 200) {
             response.ec = std::make_error_code(error::common_errc::internal_server_failure);

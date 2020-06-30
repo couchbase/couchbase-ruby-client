@@ -70,7 +70,7 @@ class bucket
         size_t index = 0;
         std::tie(request.partition, index) = config_.map_key(request.id.key);
         auto session = sessions_.at(index);
-        auto cmd = std::make_shared<operations::command<Request>>(ctx_, std::move(request));
+        auto cmd = std::make_shared<operations::command<Request>>(ctx_, request);
         cmd->send_to(session, std::forward<Handler>(handler));
     }
 

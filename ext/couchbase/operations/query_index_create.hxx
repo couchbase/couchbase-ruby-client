@@ -28,7 +28,7 @@ struct query_index_create_response {
         std::uint64_t code;
         std::string message;
     };
-    uuid::uuid_t client_context_id;
+    std::string client_context_id;
     std::error_code ec;
     std::string status{};
     std::vector<query_problem> errors{};
@@ -41,7 +41,7 @@ struct query_index_create_request {
 
     static const inline service_type type = service_type::query;
 
-    uuid::uuid_t client_context_id{ uuid::random() };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::string bucket_name;
     std::string index_name{};
     std::vector<std::string> fields;
@@ -81,7 +81,7 @@ struct query_index_create_request {
                                                           fmt::join(fields, ", "),
                                                           where_clause,
                                                           with_clause) },
-                               { "client_context_id", uuid::to_string(client_context_id) } };
+                               { "client_context_id", client_context_id } };
         encoded.method = "POST";
         encoded.path = "/query/service";
         encoded.body = tao::json::to_string(body);

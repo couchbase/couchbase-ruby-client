@@ -155,10 +155,8 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
         void complete(std::error_code ec)
         {
+            stopped_ = true;
             session_->invoke_bootstrap_handler(ec);
-            if (!ec) {
-                session_->handler_ = std::make_unique<normal_handler>(session_);
-            }
         }
 
         void auth_success()
@@ -452,6 +450,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         stop();
     }
 
+    [[nodiscard]] const std::string& log_prefix() const
+    {
+        return log_prefix_;
+    }
+
     void bootstrap(const std::string& hostname,
                    const std::string& service,
                    const std::string& username,
@@ -481,9 +484,19 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (socket_.is_open()) {
             socket_.close();
         }
+        auto ec = std::make_error_code(error::common_errc::request_canceled);
+        if (!bootstrapped_ && bootstrap_handler_) {
+            bootstrap_handler_(ec, {});
+            bootstrap_handler_ = nullptr;
+        }
         if (handler_) {
             handler_->stop();
         }
+        for (auto& handler : command_handlers_) {
+            spdlog::debug("{} MCBP cancel operation, opaque={}, ec={}", log_prefix_, handler.first, ec.message());
+            handler.second(ec, {});
+        }
+        command_handlers_.clear();
     }
 
     void write(const std::vector<uint8_t>& buf)
@@ -491,6 +504,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (stopped_) {
             return;
         }
+        std::uint32_t opaque{ 0 };
+        std::memcpy(&opaque, buf.data() + 12, sizeof(opaque));
+        spdlog::debug("{} MCBP send, opaque={}, {:n}", log_prefix_, opaque, spdlog::to_hex(buf.begin(), buf.begin() + 24));
+        SPDLOG_TRACE("{} MCBP send, opaque={}{:a}", log_prefix_, opaque, spdlog::to_hex(data));
+        std::scoped_lock lock(output_buffer_mutex_);
         output_buffer_.push_back(buf);
     }
 
@@ -516,14 +534,15 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                              std::function<void(std::error_code, io::mcbp_message&&)> handler)
     {
         if (stopped_) {
+            spdlog::warn("{} MCBP cancel operation, while trying to write to closed session opaque={}", log_prefix_, opaque);
+            handler(std::make_error_code(error::common_errc::request_canceled), {});
             return;
         }
-        spdlog::trace(
-          "{} MCBP send, opaque={}{:a}", log_prefix_, endpoint_.address().to_string(), endpoint_.port(), opaque, spdlog::to_hex(data));
         command_handlers_.emplace(opaque, std::move(handler));
         if (bootstrapped_ && socket_.is_open()) {
             write_and_flush(data);
         } else {
+            std::scoped_lock lock(pending_buffer_mutex_);
             pending_buffer_.push_back(data);
         }
     }
@@ -717,6 +736,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
     void update_configuration(configuration&& config)
     {
+        if (stopped_) {
+            return;
+        }
         if (!config_ || config.rev > config_->rev) {
             config_.emplace(config);
             spdlog::debug("{} received new configuration: {}", log_prefix_, config_.value());
@@ -730,6 +752,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
     void update_collection_uid(const std::string& path, std::uint32_t uid)
     {
+        if (stopped_) {
+            return;
+        }
         collection_cache_.update(path, uid);
     }
 
@@ -740,10 +765,12 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             bootstrap_handler_(ec, config_.value_or(configuration{}));
             bootstrap_handler_ = nullptr;
         }
-        bootstrapped_ = true;
         if (ec) {
-            stop();
+            return stop();
         }
+        bootstrapped_ = true;
+        handler_ = std::make_unique<normal_handler>(shared_from_this());
+        std::scoped_lock lock(pending_buffer_mutex_);
         if (!pending_buffer_.empty()) {
             for (const auto& buf : pending_buffer_) {
                 write(buf);
@@ -778,8 +805,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             socket_.async_connect(it->endpoint(), std::bind(&mcbp_session::on_connect, this, std::placeholders::_1, it));
         } else {
             spdlog::error("{} no more endpoints left to connect", log_prefix_);
-            invoke_bootstrap_handler(std::make_error_code(error::network_errc::no_endpoints_left));
-            stop();
+            return invoke_bootstrap_handler(std::make_error_code(error::network_errc::no_endpoints_left));
         }
     }
 
@@ -789,6 +815,8 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             return;
         }
         if (!socket_.is_open() || ec) {
+            spdlog::warn(
+              "{} unable to connect to {}:{}: {}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port(), ec.message());
             do_connect(++it);
         } else {
             socket_.set_option(asio::ip::tcp::no_delay{ true });
@@ -827,36 +855,44 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             return;
         }
         reading_ = true;
-        socket_.async_read_some(asio::buffer(input_buffer_),
-                                [self = shared_from_this()](std::error_code ec, std::size_t bytes_transferred) {
-                                    if (ec == asio::error::operation_aborted || self->stopped_) {
-                                        return;
-                                    }
-                                    if (ec) {
-                                        spdlog::error("{} IO error while reading from the socket: {}", self->log_prefix_, ec.message());
-                                        return self->stop();
-                                    }
-                                    self->parser_.feed(self->input_buffer_.data(), self->input_buffer_.data() + ssize_t(bytes_transferred));
+        socket_.async_read_some(
+          asio::buffer(input_buffer_), [self = shared_from_this()](std::error_code ec, std::size_t bytes_transferred) {
+              if (ec == asio::error::operation_aborted || self->stopped_) {
+                  return;
+              }
+              if (ec) {
+                  spdlog::error("{} IO error while reading from the socket: {}", self->log_prefix_, ec.message());
+                  return self->stop();
+              }
+              self->parser_.feed(self->input_buffer_.data(), self->input_buffer_.data() + ssize_t(bytes_transferred));
 
-                                    for (;;) {
-                                        mcbp_message msg{};
-                                        switch (self->parser_.next(msg)) {
-                                            case mcbp_parser::ok:
-                                                spdlog::trace("{} MCBP recv, opaque={}{:a}{:a}",
-                                                              self->log_prefix_,
-                                                              msg.header.opaque,
-                                                              spdlog::to_hex(msg.header_data()),
-                                                              spdlog::to_hex(msg.body));
-                                                self->handler_->handle(std::move(msg));
-                                                break;
-                                            case mcbp_parser::need_data:
-                                                self->reading_ = false;
-                                                return self->do_read();
-                                            case mcbp_parser::failure:
-                                                return self->stop();
-                                        }
-                                    }
-                                });
+              for (;;) {
+                  mcbp_message msg{};
+                  switch (self->parser_.next(msg)) {
+                      case mcbp_parser::ok:
+                          spdlog::debug(
+                            "{} MCBP recv, opaque={}, {:n}", self->log_prefix_, msg.header.opaque, spdlog::to_hex(msg.header_data()));
+                          SPDLOG_TRACE("{} MCBP recv, opaque={}{:a}{:a}",
+                                       self->log_prefix_,
+                                       msg.header.opaque,
+                                       spdlog::to_hex(msg.header_data()),
+                                       spdlog::to_hex(msg.body));
+                          self->handler_->handle(std::move(msg));
+                          if (self->stopped_) {
+                              return;
+                          }
+                          break;
+                      case mcbp_parser::need_data:
+                          self->reading_ = false;
+                          if (!self->stopped_) {
+                              self->do_read();
+                          }
+                          return;
+                      case mcbp_parser::failure:
+                          return self->stop();
+                  }
+              }
+          });
     }
 
     void do_write()
@@ -864,7 +900,8 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (stopped_) {
             return;
         }
-        if (!writing_buffer_.empty()) {
+        std::scoped_lock lock(writing_buffer_mutex_, output_buffer_mutex_);
+        if (!writing_buffer_.empty() || output_buffer_.empty()) {
             return;
         }
         std::swap(writing_buffer_, output_buffer_);
@@ -874,17 +911,18 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             buffers.emplace_back(asio::buffer(buf));
         }
         asio::async_write(socket_, buffers, [self = shared_from_this()](std::error_code ec, std::size_t /*unused*/) {
-            if (self->stopped_) {
+            if (ec == asio::error::operation_aborted || self->stopped_) {
                 return;
             }
             if (ec) {
                 spdlog::error("{} IO error while writing to the socket: {}", self->log_prefix_, ec.message());
                 return self->stop();
             }
-            self->writing_buffer_.clear();
-            if (!self->output_buffer_.empty()) {
-                self->do_write();
+            {
+                std::scoped_lock inner_lock(self->writing_buffer_mutex_);
+                self->writing_buffer_.clear();
             }
+            self->do_write();
             self->do_read();
         });
     }
@@ -917,6 +955,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     std::vector<std::vector<std::uint8_t>> output_buffer_{};
     std::vector<std::vector<std::uint8_t>> pending_buffer_{};
     std::vector<std::vector<std::uint8_t>> writing_buffer_{};
+    std::mutex output_buffer_mutex_{};
+    std::mutex pending_buffer_mutex_{};
+    std::mutex writing_buffer_mutex_{};
     asio::ip::tcp::endpoint endpoint_{}; // connected endpoint
     asio::ip::tcp::resolver::results_type endpoints_;
     std::vector<protocol::hello_feature> supported_features_;

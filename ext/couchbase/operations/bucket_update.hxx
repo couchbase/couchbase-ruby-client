@@ -27,6 +27,7 @@ namespace couchbase::operations
 {
 
 struct bucket_update_response {
+    std::string client_context_id;
     std::error_code ec;
     bucket_settings bucket{};
     std::string error_message{};
@@ -39,6 +40,7 @@ struct bucket_update_request {
 
     static const inline service_type type = service_type::management;
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
 
     bucket_settings bucket{};
 
@@ -80,9 +82,9 @@ struct bucket_update_request {
 };
 
 bucket_update_response
-make_response(std::error_code ec, bucket_update_request&, bucket_update_request::encoded_response_type encoded)
+make_response(std::error_code ec, bucket_update_request& request, bucket_update_request::encoded_response_type encoded)
 {
-    bucket_update_response response{ ec };
+    bucket_update_response response{ request.client_context_id, ec };
     if (!ec) {
         switch (encoded.status_code) {
             case 404:

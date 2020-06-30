@@ -20,13 +20,14 @@
 #include <spdlog/spdlog.h>
 
 #include <ruby.h>
+#include <ruby/encoding.h>
 
 void
-run_script(const char* script)
+run_script(const std::string & script)
 {
     spdlog::info("run script:\n----------------------------------------{}---------------------------------------\n", script);
     int status = 0;
-    rb_eval_string_protect(script, &status);
+    rb_eval_string_protect(script.c_str(), &status);
     if (status != 0) {
         VALUE rbError = rb_funcall(rb_gv_get("$!"), rb_intern("message"), 0);
         spdlog::critical("ruby execution failure: {}", StringValuePtr(rbError));
@@ -34,25 +35,74 @@ run_script(const char* script)
     }
 }
 
+extern "C" {
+void rb_encdb_declare(const char *name);
+int rb_encdb_alias(const char *alias, const char *orig);
+}
+
 int
-main()
+main(int argc, char **argv)
 {
-    ruby_init();
-    ruby_init_loadpath();
+    ruby_sysinit(&argc, &argv);
+    {
+        RUBY_INIT_STACK;
 
-    rb_require(LIBCOUCHBASE_EXT_PATH);
-    rb_require("json");
-    run_script(R"(
+        ruby_init();
+        ruby_init_loadpath();
+
+        rb_encdb_declare("ASCII-8BIT");
+        rb_encdb_declare("US-ASCII");
+        rb_encdb_declare("UTF-8");
+        rb_encdb_alias("BINARY", "ASCII-8BIT");
+        rb_encdb_alias("ASCII", "US-ASCII");
+
+
+        rb_require(LIBCOUCHBASE_EXT_PATH);
+        run_script(R"(
+require "rubygems"
+require "json"
 p Couchbase::VERSION
-B = Couchbase::Backend.new
-B.open("localhost", "Administrator", "password")
+include Couchbase
 
-pp B.document_view("beer-sample", "test", "get_all", :development, {
-   keys: [JSON.generate("21st_amendment_brewery_cafe-563_stout")]
-})
+# backend = Backend.new
+# begin
+#   p open: backend.open("localhost", "Administrator", "password")
+# rescue => ex
+#   p err: ex
+#   puts ex.backtrace
+# end
+# backend.close
+
+# 100.times do |idx|
+#   puts "------ #{idx} -----"
+#   backend = Backend.new
+#   p open: backend.open("192.168.42.101", "Administrator", "password")
+#   p bucket: backend.open_bucket("default")
+#   p set: backend.document_upsert("default", "_default._default", "hello", nil, JSON.generate(foo: "bar"), 0, nil)
+#   p get: backend.document_get("default", "_default._default", "hello", nil)
+#   p close: backend.close
+# end
+
+# backend = Backend.new
+# p open: backend.open("localhost", "Administrator", "password")
+# p query1: (begin; backend.document_query('select curl("https://rubygems.org/api/v1/versions/couchbase.json")', {timeout: 100})[:meta]; rescue => ex; ex; end)
+# p query2: backend.document_query('select curl("https://rubygems.org/api/v1/versions/couchbase.json")', {})[:meta]
+# p query3: backend.document_query('select curl("https://rubygems.org/api/v1/versions/couchbase.json")', {})[:meta]
+# p close: backend.close
+
+100.times do
+  %w[query crud subdoc].each do |suite|
+    begin
+      load "/home/avsej/code/couchbase-ruby-client/test/#{suite}_test.rb"
+    rescue => ex
+      p ex
+      puts ex.backtrace
+    end
+  end
+end
 )");
 
-
-    ruby_finalize();
+        ruby_finalize();
+    }
     return 0;
 }

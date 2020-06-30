@@ -28,7 +28,7 @@ struct query_index_build_deferred_response {
         std::uint64_t code;
         std::string message;
     };
-    uuid::uuid_t client_context_id;
+    std::string client_context_id;
     std::error_code ec;
     std::string status{};
     std::vector<query_problem> errors{};
@@ -41,7 +41,7 @@ struct query_index_build_deferred_request {
 
     static const inline service_type type = service_type::query;
 
-    uuid::uuid_t client_context_id{ uuid::random() };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::string bucket_name;
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
@@ -53,7 +53,7 @@ struct query_index_build_deferred_request {
               fmt::format(R"(BUILD INDEX ON `{}` ((SELECT RAW name FROM system:indexes WHERE keyspace_id = "{}" AND state = "deferred")))",
                           bucket_name,
                           bucket_name) },
-            { "client_context_id", uuid::to_string(client_context_id) }
+            { "client_context_id", client_context_id }
         };
         encoded.method = "POST";
         encoded.path = "/query/service";

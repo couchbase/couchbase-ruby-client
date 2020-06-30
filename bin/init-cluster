@@ -80,3 +80,9 @@ if [ "x${CB_DEVELOPER_PREVIEW}" != "xno" ]; then
 curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:8091/settings/developerPreview \
      -d "enabled=true"
 fi
+
+sleep 3
+
+curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:8093/query/service \
+     -d 'statement=CREATE PRIMARY INDEX ON `default` USING GSI'
+

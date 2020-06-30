@@ -59,20 +59,20 @@ struct search_response {
 
     struct search_facet {
         struct term_facet {
-            std::string term;
-            std::uint64_t count;
+            std::string term{};
+            std::uint64_t count{};
         };
 
         struct date_range_facet {
-            std::string name;
-            std::uint64_t count;
+            std::string name{};
+            std::uint64_t count{};
             std::optional<std::string> start{};
             std::optional<std::string> end{};
         };
 
         struct numeric_range_facet {
-            std::string name;
-            std::uint64_t count;
+            std::string name{};
+            std::uint64_t count{};
             std::variant<std::monostate, std::uint64_t, double> min{};
             std::variant<std::monostate, std::uint64_t, double> max{};
         };
@@ -189,7 +189,6 @@ struct search_request {
 
         encoded.type = type;
         encoded.headers["content-type"] = "application/json";
-        encoded.headers["client-context-id"] = client_context_id;
         encoded.method = "POST";
         encoded.path = fmt::format("/api/index/{}/query", index_name);
         encoded.body = tao::json::to_string(body);

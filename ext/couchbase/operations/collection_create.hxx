@@ -27,6 +27,7 @@ namespace couchbase::operations
 {
 
 struct collection_create_response {
+    std::string client_context_id;
     std::error_code ec;
     std::uint64_t uid{ 0 };
 };
@@ -43,6 +44,7 @@ struct collection_create_request {
     std::string collection_name;
     std::uint32_t max_expiry{ 0 };
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
 
     void encode_to(encoded_request_type& encoded)
     {
@@ -57,9 +59,9 @@ struct collection_create_request {
 };
 
 collection_create_response
-make_response(std::error_code ec, collection_create_request&, collection_create_request::encoded_response_type encoded)
+make_response(std::error_code ec, collection_create_request& request, collection_create_request::encoded_response_type encoded)
 {
-    collection_create_response response{ ec };
+    collection_create_response response{ request.client_context_id, ec };
     if (!ec) {
         switch (encoded.status_code) {
             case 400:

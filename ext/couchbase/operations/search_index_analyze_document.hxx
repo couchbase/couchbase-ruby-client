@@ -24,7 +24,7 @@
 namespace couchbase::operations
 {
 struct search_index_analyze_document_response {
-    uuid::uuid_t client_context_id;
+    std::string client_context_id;
     std::error_code ec;
     std::string status{};
     std::string error{};
@@ -38,7 +38,7 @@ struct search_index_analyze_document_request {
 
     static const inline service_type type = service_type::search;
 
-    uuid::uuid_t client_context_id{ uuid::random() };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
     std::string index_name;

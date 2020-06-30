@@ -106,10 +106,10 @@ cb__backend_close(cb_backend_data* backend)
         auto f = barrier->get_future();
         backend->cluster->close([barrier]() { barrier->set_value(); });
         f.wait();
-        backend->cluster.reset(nullptr);
         if (backend->worker.joinable()) {
             backend->worker.join();
         }
+        backend->cluster.reset(nullptr);
         backend->ctx.reset(nullptr);
     }
 }

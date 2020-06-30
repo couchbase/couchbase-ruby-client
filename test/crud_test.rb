@@ -729,7 +729,7 @@ module Couchbase
       unless TEST_SERVER_VERSION.supports_collections?
         skip("The server does not support collections (#{TEST_SERVER_VERSION}, dp=#{TEST_DEVELOPER_PREVIEW}")
       end
-      doc_id = uniq_id(:project_too_many_fields)
+      doc_id = uniq_id(:test_collection_retry)
       doc = load_json_test_dataset("beer_sample_single")
 
       collection_name = uniq_id(:collection).gsub('.', '')[0..30]

@@ -26,6 +26,7 @@ namespace couchbase::operations
 {
 
 struct bucket_get_all_response {
+    std::string client_context_id;
     std::error_code ec;
     std::vector<bucket_settings> buckets{};
 };
@@ -37,6 +38,7 @@ struct bucket_get_all_request {
 
     static const inline service_type type = service_type::management;
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
 
     void encode_to(encoded_request_type& encoded)
     {
@@ -46,9 +48,9 @@ struct bucket_get_all_request {
 };
 
 bucket_get_all_response
-make_response(std::error_code ec, bucket_get_all_request&, bucket_get_all_request::encoded_response_type encoded)
+make_response(std::error_code ec, bucket_get_all_request& request, bucket_get_all_request::encoded_response_type encoded)
 {
-    bucket_get_all_response response{ ec };
+    bucket_get_all_response response{ request.client_context_id, ec };
     if (!ec) {
         auto payload = tao::json::from_string(encoded.body);
         const auto& entries = payload.get_array();

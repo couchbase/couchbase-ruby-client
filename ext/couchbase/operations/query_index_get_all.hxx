@@ -36,7 +36,7 @@ struct query_index_get_all_response {
         std::vector<std::string> index_key{};
         std::optional<std::string> condition{};
     };
-    uuid::uuid_t client_context_id;
+    std::string client_context_id;
     std::error_code ec;
     std::string status{};
     std::vector<query_index> indexes{};
@@ -49,7 +49,7 @@ struct query_index_get_all_request {
 
     static const inline service_type type = service_type::query;
 
-    uuid::uuid_t client_context_id{ uuid::random() };
+    std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::string bucket_name;
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
@@ -61,7 +61,7 @@ struct query_index_get_all_request {
               fmt::format(
                 R"(SELECT idx.* FROM system:indexes AS idx WHERE keyspace_id = "{}" AND `using`="gsi" ORDER BY is_primary DESC, name ASC)",
                 bucket_name) },
-            { "client_context_id", uuid::to_string(client_context_id) }
+            { "client_context_id", client_context_id }
         };
         encoded.method = "POST";
         encoded.path = "/query/service";
