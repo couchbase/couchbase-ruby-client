@@ -54,6 +54,9 @@ export TEST_DEVELOPER_PREVIEW=yes
 export TEST_CONNECTION_STRING=$(cbdyncluster connstr ${CLUSTER_ID})
 set +e
 
+echo "${PWD}/core.%h.%e.%t" | sudo tee /proc/sys/kernel/core_pattern
+ulimit -c unlimited
+
 bundle exec rake test
 STATUS=$?
 set -e
@@ -61,5 +64,14 @@ set -e
 cbdyncluster rm ${CLUSTER_ID}
 
 date
+for i in "${PWD}/core*"
+do
+   if [ -f $i ]
+   then
+     echo $i
+     file $i
+     gdb $(bundle exec which ruby) $i --batch -ex "thread apply all bt"
+   fi
+done
 
 exit ${STATUS}

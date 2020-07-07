@@ -18,8 +18,12 @@ jobs:
           - 11210:11210
 
     steps:
+      - name: Configure core dump capturing
+        run: |
+          echo '/tmp/core.%h.%e.%t' | sudo tee /proc/sys/kernel/core_pattern
+
       - name: Install build environment
-        run: sudo apt-get install -y libssl-dev cmake gcc g++ curl
+        run: sudo apt-get install -y libssl-dev cmake gcc g++ curl gdb
 
       - uses: actions/checkout@v2
         with:
@@ -47,4 +51,19 @@ jobs:
 
       - name: Run tests
         timeout-minutes: 15
-        run: bundle exec rake test
+        run: |
+          ulimit -c unlimited
+          bundle exec rake test
+
+      - name: Display core dumps
+        if: ${{ failure() }}
+        run: |
+          for i in /tmp/core*
+          do
+             if [ -f $i ]
+             then
+               echo $i
+               file $i
+               gdb $(bundle exec which ruby) $i --batch -ex "thread apply all bt"
+             fi
+          done
