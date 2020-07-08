@@ -19,18 +19,25 @@
 
 #include <utility>
 
-#include <configuration_monitor.hxx>
 #include <operations.hxx>
+#include <origin.hxx>
 
 namespace couchbase
 {
-class bucket
+class bucket : public std::enable_shared_from_this<bucket>
 {
   public:
-    explicit bucket(asio::io_context& ctx, std::string name, configuration config)
-      : ctx_(ctx)
+    explicit bucket(const std::string& client_id,
+                    asio::io_context& ctx,
+                    std::string name,
+                    couchbase::origin origin,
+                    const std::vector<protocol::hello_feature>& known_features)
+
+      : client_id_(client_id)
+      , ctx_(ctx)
       , name_(std::move(name))
-      , config_(std::move(config))
+      , origin_(std::move(origin))
+      , known_features_(known_features)
     {
     }
 
@@ -61,6 +68,46 @@ class bucket
         sessions_.erase(index);
     }
 
+    template<typename Handler>
+    void bootstrap(Handler&& handler)
+    {
+        auto address = origin_.get_address();
+
+        auto new_session = std::make_shared<io::mcbp_session>(client_id_, ctx_, name_, known_features_);
+        new_session->bootstrap(
+          address.first,
+          address.second,
+          origin_.get_username(),
+          origin_.get_password(),
+          [self = shared_from_this(), new_session, h = std::forward<Handler>(handler)](std::error_code ec, configuration cfg) mutable {
+              if (!ec) {
+                  // TODO: publish configuration for non-GCCCP HTTP services
+                  self->config_ = cfg;
+                  size_t this_index = new_session->index();
+                  self->set_node(this_index, std::move(new_session));
+                  if (cfg.nodes.size() > 1) {
+                      for (const auto& n : cfg.nodes) {
+                          if (n.index != this_index) {
+                              auto s = std::make_shared<io::mcbp_session>(self->client_id_, self->ctx_, self->name_, self->known_features_);
+                              s->bootstrap(n.hostname,
+                                           std::to_string(*n.services_plain.key_value),
+                                           self->origin_.get_username(),
+                                           self->origin_.get_password(),
+                                           [host = n.hostname, bucket = self->name_](std::error_code err, configuration /*config*/) {
+                                               // TODO: retry, we know that auth is correct
+                                               if (err) {
+                                                   spdlog::warn("unable to bootstrap node {} ({}): {}", host, bucket, err.message());
+                                               }
+                                           });
+                              self->set_node(n.index, std::move(s));
+                          }
+                      }
+                  }
+              }
+              h(ec, cfg);
+          });
+    }
+
     template<typename Request, typename Handler>
     void execute(Request request, Handler&& handler)
     {
@@ -86,9 +133,14 @@ class bucket
     }
 
   private:
+    std::string client_id_;
     asio::io_context& ctx_;
     std::string name_;
-    configuration config_;
+    origin origin_;
+
+    configuration config_{};
+    std::vector<protocol::hello_feature> known_features_;
+
     bool closed_{ false };
     std::map<size_t, std::shared_ptr<io::mcbp_session>> sessions_{};
 };

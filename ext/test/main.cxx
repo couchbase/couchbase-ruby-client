@@ -75,12 +75,12 @@ include Couchbase
 
 # 100.times do |idx|
 #   puts "------ #{idx} -----"
-#   backend = Backend.new
-#   p open: backend.open("192.168.42.101", "Administrator", "password")
-#   p bucket: backend.open_bucket("default")
-#   p set: backend.document_upsert("default", "_default._default", "hello", nil, JSON.generate(foo: "bar"), 0, nil)
-#   p get: backend.document_get("default", "_default._default", "hello", nil)
-#   p close: backend.close
+    backend = Backend.new
+    p open: backend.open("192.168.42.101", "Administrator", "password")
+    p bucket: backend.open_bucket("default")
+    p set: backend.document_upsert("default", "_default._default", "hello", nil, JSON.generate(foo: "bar"), 0, nil)
+    p get: backend.document_get("default", "_default._default", "hello", nil)
+    p close: backend.close
 # end
 
 # backend = Backend.new
@@ -90,16 +90,16 @@ include Couchbase
 # p query3: backend.document_query('select curl("https://rubygems.org/api/v1/versions/couchbase.json")', {})[:meta]
 # p close: backend.close
 
-100.times do
-  %w[query crud subdoc].each do |suite|
-    begin
-      load "/home/avsej/code/couchbase-ruby-client/test/#{suite}_test.rb"
-    rescue => ex
-      p ex
-      puts ex.backtrace
-    end
-  end
-end
+# 100.times do
+#   %w[query crud subdoc].each do |suite|
+#     begin
+#       load "/home/avsej/code/couchbase-ruby-client/test/#{suite}_test.rb"
+#     rescue => ex
+#       p ex
+#       puts ex.backtrace
+#     end
+#   end
+# end
 )");
 
         ruby_finalize();

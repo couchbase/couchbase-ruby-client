@@ -23,33 +23,13 @@
 #include <io/mcbp_session.hxx>
 #include <io/http_session_manager.hxx>
 #include <io/http_command.hxx>
+#include <origin.hxx>
 #include <bucket.hxx>
 #include <operations.hxx>
 #include <operations/document_query.hxx>
 
 namespace couchbase
 {
-struct origin {
-    std::string username;
-    std::string password;
-    std::string hostname;
-
-    [[nodiscard]] const std::string& get_username() const
-    {
-        return username;
-    }
-
-    [[nodiscard]] const std::string& get_password() const
-    {
-        return password;
-    }
-
-    [[nodiscard]] std::pair<std::string, std::string> get_address() const
-    {
-        return { hostname, "11210" };
-    }
-};
-
 class cluster
 {
   public:
@@ -97,48 +77,18 @@ class cluster
     template<typename Handler>
     void open_bucket(const std::string& bucket_name, Handler&& handler)
     {
-        if (!session_ || !session_->has_config()) {
-            return handler(std::make_error_code(error::common_errc::invalid_argument));
+        std::vector<protocol::hello_feature> known_features;
+        if (session_ && session_->has_config()) {
+            known_features = session_->supported_features();
         }
-        configuration config = session_->config();
-        auto known_features = session_->supported_features();
-        auto& node = config.nodes.front();
-        auto new_session = std::make_shared<io::mcbp_session>(id_, ctx_, bucket_name, known_features);
-        new_session->bootstrap(
-          node.hostname,
-          std::to_string(*node.services_plain.key_value),
-          origin_.get_username(),
-          origin_.get_password(),
-          [this, name = bucket_name, new_session, known_features, h = std::forward<Handler>(handler)](std::error_code ec,
-                                                                                                      configuration cfg) mutable {
-              if (!ec) {
-                  if (!session_->supports_gcccp()) {
-                      session_manager_->set_configuration(cfg);
-                  }
-                  auto b = std::make_shared<bucket>(ctx_, name, cfg);
-                  size_t this_index = new_session->index();
-                  b->set_node(this_index, std::move(new_session));
-                  if (cfg.nodes.size() > 1) {
-                      for (const auto& n : cfg.nodes) {
-                          if (n.index != this_index) {
-                              auto s = std::make_shared<io::mcbp_session>(id_, ctx_, name, known_features);
-                              s->bootstrap(n.hostname,
-                                           std::to_string(*n.services_plain.key_value),
-                                           origin_.get_username(),
-                                           origin_.get_password(),
-                                           [host = n.hostname, bucket = name](std::error_code err, configuration /*config*/) {
-                                               if (err) {
-                                                   spdlog::warn("unable to bootstrap node {} ({}): {}", host, bucket, err.message());
-                                               }
-                                           });
-                              b->set_node(n.index, std::move(s));
-                          }
-                      }
-                  }
-                  buckets_.emplace(name, std::move(b));
-              }
-              h(ec);
-          });
+        auto b = std::make_shared<bucket>(id_, ctx_, bucket_name, origin_, known_features);
+        b->bootstrap([this, handler = std::forward<Handler>(handler)](std::error_code ec, const configuration& config) mutable {
+            if (!ec && !session_->supports_gcccp()) {
+                session_manager_->set_configuration(config);
+            }
+            handler(ec);
+        });
+        buckets_.emplace(bucket_name, b);
     }
 
     template<class Request, class Handler>
