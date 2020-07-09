@@ -169,6 +169,9 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
 
     void send_to(std::shared_ptr<io::mcbp_session> session)
     {
+        if (!handler_) {
+            return;
+        }
         session_ = std::move(session);
         send();
     }

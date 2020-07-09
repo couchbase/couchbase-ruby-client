@@ -18,6 +18,7 @@
 #pragma once
 
 #include <utility>
+#include <queue>
 
 #include <operations.hxx>
 #include <origin.hxx>
@@ -51,23 +52,6 @@ class bucket : public std::enable_shared_from_this<bucket>
         return name_;
     }
 
-    void set_node(size_t index, std::shared_ptr<io::mcbp_session> session)
-    {
-        if (closed_) {
-            return;
-        }
-
-        sessions_.emplace(index, std::move(session));
-    }
-
-    void remove_node(size_t index)
-    {
-        if (closed_) {
-            return;
-        }
-        sessions_.erase(index);
-    }
-
     template<typename Handler>
     void bootstrap(Handler&& handler)
     {
@@ -81,10 +65,9 @@ class bucket : public std::enable_shared_from_this<bucket>
           origin_.get_password(),
           [self = shared_from_this(), new_session, h = std::forward<Handler>(handler)](std::error_code ec, configuration cfg) mutable {
               if (!ec) {
-                  // TODO: publish configuration for non-GCCCP HTTP services
                   self->config_ = cfg;
                   size_t this_index = new_session->index();
-                  self->set_node(this_index, std::move(new_session));
+                  self->sessions_.emplace(this_index, std::move(new_session));
                   if (cfg.nodes.size() > 1) {
                       for (const auto& n : cfg.nodes) {
                           if (n.index != this_index) {
@@ -99,9 +82,13 @@ class bucket : public std::enable_shared_from_this<bucket>
                                                    spdlog::warn("unable to bootstrap node {} ({}): {}", host, bucket, err.message());
                                                }
                                            });
-                              self->set_node(n.index, std::move(s));
+                              self->sessions_.emplace(n.index, std::move(s));
                           }
                       }
+                  }
+                  while (!self->deferred_commands_.empty()) {
+                      self->deferred_commands_.front()();
+                      self->deferred_commands_.pop();
                   }
               }
               h(ec, cfg);
@@ -114,15 +101,16 @@ class bucket : public std::enable_shared_from_this<bucket>
         if (closed_) {
             return;
         }
-        size_t index = 0;
-        std::tie(request.partition, index) = config_.map_key(request.id.key);
-        auto session = sessions_.at(index);
         auto cmd = std::make_shared<operations::mcbp_command<Request>>(ctx_, request);
         cmd->start([cmd, handler = std::forward<Handler>(handler)](std::error_code ec, std::optional<io::mcbp_message> msg) mutable {
             using encoded_response_type = typename Request::encoded_response_type;
             handler(make_response(ec, cmd->request, msg ? encoded_response_type(*msg) : encoded_response_type{}));
         });
-        cmd->send_to(session);
+        if (config_) {
+            map_and_send(cmd);
+        } else {
+            deferred_commands_.emplace([self = shared_from_this(), cmd]() { self->map_and_send(cmd); });
+        }
     }
 
     void close()
@@ -136,14 +124,25 @@ class bucket : public std::enable_shared_from_this<bucket>
         }
     }
 
+    template<typename Request>
+    void map_and_send(std::shared_ptr<operations::mcbp_command<Request>> cmd)
+    {
+        size_t index = 0;
+        std::tie(cmd->request.partition, index) = config_->map_key(cmd->request.id.key);
+        auto session = sessions_.at(index);
+        cmd->send_to(session);
+    }
+
   private:
     std::string client_id_;
     asio::io_context& ctx_;
     std::string name_;
     origin origin_;
 
-    configuration config_{};
+    std::optional<configuration> config_{};
     std::vector<protocol::hello_feature> known_features_;
+
+    std::queue<std::function<void()>> deferred_commands_{};
 
     bool closed_{ false };
     std::map<size_t, std::shared_ptr<io::mcbp_session>> sessions_{};
