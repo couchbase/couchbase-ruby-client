@@ -31,6 +31,8 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
     asio::steady_timer retry_backoff;
     Request request;
     encoded_request_type encoded;
+    std::optional<std::uint32_t> opaque_{};
+    std::shared_ptr<io::mcbp_session> session_{};
 
     mcbp_command(asio::io_context& ctx, Request req)
       : deadline(ctx)
@@ -39,23 +41,40 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
     {
     }
 
+    void start()
+    {
+        deadline.expires_after(request.timeout);
+        deadline.async_wait([self = this->shared_from_this()](std::error_code ec) {
+            if (ec == asio::error::operation_aborted) {
+                return;
+            }
+            self->cancel();
+        });
+    }
+
+    void cancel()
+    {
+        if (opaque_ && session_) {
+            session_->cancel(opaque_.value(), asio::error::operation_aborted);
+        }
+    }
+
     template<typename Handler>
-    void request_collection_id(std::shared_ptr<io::mcbp_session> session, Handler&& handler)
+    void request_collection_id(Handler&& handler)
     {
         protocol::client_request<protocol::get_collection_id_request_body> req;
-        req.opaque(session->next_opaque());
+        req.opaque(session_->next_opaque());
         req.body().collection_path(request.id.collection);
-        session->write_and_subscribe(
+        session_->write_and_subscribe(
           req.opaque(),
-          req.data(session->supports_feature(protocol::hello_feature::snappy)),
-          [self = this->shared_from_this(), session, handler = std::forward<Handler>(handler)](std::error_code ec,
-                                                                                               io::mcbp_message&& msg) mutable {
+          req.data(session_->supports_feature(protocol::hello_feature::snappy)),
+          [self = this->shared_from_this(), handler = std::forward<Handler>(handler)](std::error_code ec, io::mcbp_message&& msg) mutable {
               if (ec == asio::error::operation_aborted) {
                   return handler(make_response(std::make_error_code(error::common_errc::ambiguous_timeout), self->request, {}));
               }
               if (ec == std::make_error_code(error::common_errc::collection_not_found)) {
                   if (self->request.id.collection_uid) {
-                      return self->handle_unknown_collection(std::move(session), std::forward<Handler>(handler));
+                      return self->handle_unknown_collection(std::forward<Handler>(handler));
                   }
                   return handler(make_response(ec, self->request, {}));
               }
@@ -63,19 +82,19 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
                   return handler(make_response(ec, self->request, {}));
               }
               protocol::client_response<protocol::get_collection_id_response_body> resp(msg);
-              session->update_collection_uid(self->request.id.collection, resp.body().collection_uid());
+              self->session_->update_collection_uid(self->request.id.collection, resp.body().collection_uid());
               self->request.id.collection_uid = resp.body().collection_uid();
-              return self->send_to(std::move(session), std::forward<Handler>(handler));
+              return self->send_to(self->session_, std::forward<Handler>(handler));
           });
     }
 
     template<typename Handler>
-    void handle_unknown_collection(std::shared_ptr<io::mcbp_session> session, Handler&& handler)
+    void handle_unknown_collection(Handler&& handler)
     {
         auto backoff = std::chrono::milliseconds(500);
         auto time_left = deadline.expiry() - std::chrono::steady_clock::now();
         spdlog::debug("{} unknown collection response for \"{}/{}/{}\", time_left={}ms",
-                      session->log_prefix(),
+                      session_->log_prefix(),
                       request.id.bucket,
                       request.id.collection,
                       request.id.key,
@@ -84,33 +103,33 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
             return handler(make_response(std::make_error_code(error::common_errc::ambiguous_timeout), request, {}));
         }
         retry_backoff.expires_after(backoff);
-        retry_backoff.async_wait(
-          [self = this->shared_from_this(), session, handler = std::forward<Handler>(handler)](std::error_code ec) mutable {
-              if (ec == asio::error::operation_aborted) {
-                  return;
-              }
-              self->request_collection_id(std::move(session), std::forward<Handler>(handler));
-          });
+        retry_backoff.async_wait([self = this->shared_from_this(), handler = std::forward<Handler>(handler)](std::error_code ec) mutable {
+            if (ec == asio::error::operation_aborted) {
+                return;
+            }
+            self->request_collection_id(std::forward<Handler>(handler));
+        });
     }
 
     template<typename Handler>
     void send_to(std::shared_ptr<io::mcbp_session> session, Handler&& handler)
     {
-        auto opaque = session->next_opaque();
-        request.opaque = opaque;
+        session_ = session;
+        opaque_ = session_->next_opaque();
+        request.opaque = *opaque_;
         if (!request.id.collection_uid) {
-            if (session->supports_feature(protocol::hello_feature::collections)) {
-                auto collection_id = session->get_collection_uid(request.id.collection);
+            if (session_->supports_feature(protocol::hello_feature::collections)) {
+                auto collection_id = session_->get_collection_uid(request.id.collection);
                 if (collection_id) {
                     request.id.collection_uid = *collection_id;
                 } else {
                     spdlog::debug("{} no cache entry for collection, resolve collection id for \"{}/{}/{}\", timeout={}ms",
-                                  session->log_prefix(),
+                                  session_->log_prefix(),
                                   request.id.bucket,
                                   request.id.collection,
                                   request.id.key,
                                   request.timeout.count());
-                    return request_collection_id(std::move(session), std::forward<Handler>(handler));
+                    return request_collection_id(std::forward<Handler>(handler));
                 }
             } else {
                 if (!request.id.collection.empty() && request.id.collection != "_default._default") {
@@ -120,11 +139,10 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
         }
         request.encode_to(encoded);
 
-        session->write_and_subscribe(
+        session_->write_and_subscribe(
           request.opaque,
-          encoded.data(session->supports_feature(protocol::hello_feature::snappy)),
-          [self = this->shared_from_this(), session, handler = std::forward<Handler>(handler)](std::error_code ec,
-                                                                                               io::mcbp_message&& msg) mutable {
+          encoded.data(session_->supports_feature(protocol::hello_feature::snappy)),
+          [self = this->shared_from_this(), handler = std::forward<Handler>(handler)](std::error_code ec, io::mcbp_message&& msg) mutable {
               self->retry_backoff.cancel();
               if (ec == asio::error::operation_aborted) {
                   return handler(make_response(std::make_error_code(error::common_errc::ambiguous_timeout), self->request, {}));
@@ -134,21 +152,11 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
               }
               encoded_response_type resp(msg);
               if (resp.status() == protocol::status::unknown_collection) {
-                  return self->handle_unknown_collection(session, std::forward<Handler>(handler));
+                  return self->handle_unknown_collection(std::forward<Handler>(handler));
               }
               self->deadline.cancel();
               handler(make_response(ec, self->request, resp));
           });
-
-        if (deadline.expiry().time_since_epoch() == std::chrono::milliseconds::zero()) {
-            deadline.expires_after(request.timeout);
-            deadline.async_wait([session, opaque](std::error_code ec) {
-                if (ec == asio::error::operation_aborted) {
-                    return;
-                }
-                session->cancel(opaque, asio::error::operation_aborted);
-            });
-        }
     }
 };
 

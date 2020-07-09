@@ -118,6 +118,7 @@ class bucket : public std::enable_shared_from_this<bucket>
         std::tie(request.partition, index) = config_.map_key(request.id.key);
         auto session = sessions_.at(index);
         auto cmd = std::make_shared<operations::mcbp_command<Request>>(ctx_, request);
+        cmd->start();
         cmd->send_to(session, std::forward<Handler>(handler));
     }
 
