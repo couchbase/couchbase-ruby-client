@@ -88,4 +88,4 @@
 #include <operations/view_index_drop.hxx>
 #include <operations/view_index_upsert.hxx>
 
-#include <operations/command.hxx>
+#include <io/mcbp_command.hxx>

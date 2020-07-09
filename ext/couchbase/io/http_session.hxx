@@ -116,7 +116,8 @@ class http_session : public std::enable_shared_from_this<http_session>
         }
     }
 
-    bool keep_alive() {
+    bool keep_alive()
+    {
         return keep_alive_;
     }
 

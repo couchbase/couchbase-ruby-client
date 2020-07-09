@@ -22,6 +22,7 @@
 
 #include <io/mcbp_session.hxx>
 #include <io/http_session_manager.hxx>
+#include <io/http_command.hxx>
 #include <bucket.hxx>
 #include <operations.hxx>
 #include <operations/document_query.hxx>
@@ -157,7 +158,7 @@ class cluster
         if (!session) {
             return handler(operations::make_response(std::make_error_code(error::common_errc::service_not_available), request, {}));
         }
-        auto cmd = std::make_shared<operations::command<Request>>(ctx_, request);
+        auto cmd = std::make_shared<operations::http_command<Request>>(ctx_, request);
         cmd->send_to(session, [this, session, handler = std::forward<Handler>(handler)](typename Request::response_type resp) mutable {
             handler(std::move(resp));
             session_manager_->check_in(Request::type, session);

@@ -18,14 +18,13 @@
 #pragma once
 
 #include <io/mcbp_session.hxx>
-#include <io/http_session.hxx>
 #include <protocol/cmd_get_collection_id.hxx>
 
 namespace couchbase::operations
 {
 
 template<typename Request>
-struct command : public std::enable_shared_from_this<command<Request>> {
+struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>> {
     using encoded_request_type = typename Request::encoded_request_type;
     using encoded_response_type = typename Request::encoded_response_type;
     asio::steady_timer deadline;
@@ -33,7 +32,7 @@ struct command : public std::enable_shared_from_this<command<Request>> {
     Request request;
     encoded_request_type encoded;
 
-    command(asio::io_context& ctx, Request req)
+    mcbp_command(asio::io_context& ctx, Request req)
       : deadline(ctx)
       , retry_backoff(ctx)
       , request(req)
@@ -150,56 +149,6 @@ struct command : public std::enable_shared_from_this<command<Request>> {
                 session->cancel(opaque, asio::error::operation_aborted);
             });
         }
-    }
-
-    template<typename Handler>
-    void send_to(std::shared_ptr<io::http_session> session, Handler&& handler)
-    {
-        encoded.type = Request::type;
-        request.encode_to(encoded);
-        encoded.headers["client-context-id"] = request.client_context_id;
-        auto log_prefix = session->log_prefix();
-        spdlog::debug("{} HTTP request: {}, method={}, path={}, client_context_id={}, timeout={}ms",
-                      log_prefix,
-                      encoded.type,
-                      encoded.method,
-                      encoded.path,
-                      request.client_context_id,
-                      request.timeout.count());
-        SPDLOG_TRACE("{} HTTP request: {}, method={}, path={}, client_context_id={}, timeout={}ms{:a}",
-                     log_prefix,
-                     encoded.type,
-                     encoded.method,
-                     encoded.path,
-                     request.client_context_id,
-                     request.timeout.count(),
-                     spdlog::to_hex(encoded.body));
-        session->write_and_subscribe(
-          encoded,
-          [self = this->shared_from_this(), log_prefix, handler = std::forward<Handler>(handler)](std::error_code ec,
-                                                                                                  io::http_response&& msg) mutable {
-              self->deadline.cancel();
-              encoded_response_type resp(msg);
-              spdlog::debug("{} HTTP response: {}, client_context_id={}, status={}",
-                            log_prefix,
-                            self->request.type,
-                            self->request.client_context_id,
-                            resp.status_code);
-              SPDLOG_TRACE("{} HTTP response: {}, client_context_id={}, status={}{:a}",
-                           log_prefix,
-                           self->request.type,
-                           self->request.client_context_id,
-                           resp.status_code,
-                           spdlog::to_hex(resp.body));
-              handler(make_response(ec, self->request, resp));
-          });
-        deadline.expires_after(request.timeout);
-        deadline.async_wait([session](std::error_code ec) {
-            if (ec == asio::error::operation_aborted) {
-                return;
-            }
-            session->stop();
-        });
     }
 };
 
