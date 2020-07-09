@@ -68,13 +68,17 @@ class http_session : public std::enable_shared_from_this<http_session>
                                 BACKEND_SYSTEM))
     {
         log_prefix_ = fmt::format("[{}/{}]", client_id_, id_);
-        resolver_.async_resolve(
-          hostname, service, std::bind(&http_session::on_resolve, this, std::placeholders::_1, std::placeholders::_2));
     }
 
     ~http_session()
     {
         stop();
+    }
+
+    void start()
+    {
+        resolver_.async_resolve(
+          hostname_, service_, std::bind(&http_session::on_resolve, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     }
 
     [[nodiscard]] const std::string& log_prefix() const
@@ -182,7 +186,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         }
         endpoints_ = endpoints;
         do_connect(endpoints_.begin());
-        deadline_timer_.async_wait(std::bind(&http_session::check_deadline, this, std::placeholders::_1));
+        deadline_timer_.async_wait(std::bind(&http_session::check_deadline, shared_from_this(), std::placeholders::_1));
     }
 
     void do_connect(asio::ip::tcp::resolver::results_type::iterator it)
@@ -190,7 +194,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         if (it != endpoints_.end()) {
             spdlog::debug("{} connecting to {}:{}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port());
             deadline_timer_.expires_after(timeout_defaults::connect_timeout);
-            socket_.async_connect(it->endpoint(), std::bind(&http_session::on_connect, this, std::placeholders::_1, it));
+            socket_.async_connect(it->endpoint(), std::bind(&http_session::on_connect, shared_from_this(), std::placeholders::_1, it));
         } else {
             spdlog::error("{} no more endpoints left to connect", log_prefix_);
             stop();
@@ -229,7 +233,7 @@ class http_session : public std::enable_shared_from_this<http_session>
             socket_.close();
             deadline_timer_.expires_at(asio::steady_timer::time_point::max());
         }
-        deadline_timer_.async_wait(std::bind(&http_session::check_deadline, this, std::placeholders::_1));
+        deadline_timer_.async_wait(std::bind(&http_session::check_deadline, shared_from_this(), std::placeholders::_1));
     }
 
     void do_read()

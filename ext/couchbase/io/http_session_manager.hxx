@@ -58,6 +58,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
             }
             config_.nodes.size();
             auto session = std::make_shared<http_session>(client_id_, ctx_, username, password, hostname, std::to_string(port));
+            session->start();
             session->on_stop([type, id = session->id(), self = this->shared_from_this()]() {
                 std::scoped_lock inner_lock(self->sessions_mutex_);
                 self->busy_sessions_[type].remove_if([id](const auto& s) -> bool { return s->id() == id; });

@@ -372,8 +372,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                               opaque,
                                               status,
                                               ec.message());
-                                handler->second(ec, std::move(msg));
+                                auto fun = handler->second;
                                 session_->command_handlers_.erase(handler);
+                                fun(ec, std::move(msg));
                             } else {
                                 spdlog::debug("{} unexpected orphan response opcode={}, opaque={}",
                                               session_->log_prefix_,
@@ -465,7 +466,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         password_ = password;
         bootstrap_handler_ = std::move(handler);
         resolver_.async_resolve(
-          hostname, service, std::bind(&mcbp_session::on_resolve, this, std::placeholders::_1, std::placeholders::_2));
+          hostname, service, std::bind(&mcbp_session::on_resolve, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     }
 
     [[nodiscard]] const std::string& id() const
@@ -791,7 +792,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         endpoints_ = endpoints;
         do_connect(endpoints_.begin());
-        deadline_timer_.async_wait(std::bind(&mcbp_session::check_deadline, this, std::placeholders::_1));
+        deadline_timer_.async_wait(std::bind(&mcbp_session::check_deadline, shared_from_this(), std::placeholders::_1));
     }
 
     void do_connect(asio::ip::tcp::resolver::results_type::iterator it)
@@ -802,7 +803,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (it != endpoints_.end()) {
             spdlog::debug("{} connecting to {}:{}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port());
             deadline_timer_.expires_after(timeout_defaults::connect_timeout);
-            socket_.async_connect(it->endpoint(), std::bind(&mcbp_session::on_connect, this, std::placeholders::_1, it));
+            socket_.async_connect(it->endpoint(), std::bind(&mcbp_session::on_connect, shared_from_this(), std::placeholders::_1, it));
         } else {
             spdlog::error("{} no more endpoints left to connect", log_prefix_);
             return invoke_bootstrap_handler(std::make_error_code(error::network_errc::no_endpoints_left));
@@ -843,7 +844,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             socket_.close();
             deadline_timer_.expires_at(asio::steady_timer::time_point::max());
         }
-        deadline_timer_.async_wait(std::bind(&mcbp_session::check_deadline, this, std::placeholders::_1));
+        deadline_timer_.async_wait(std::bind(&mcbp_session::check_deadline, shared_from_this(), std::placeholders::_1));
     }
 
     void do_read()
