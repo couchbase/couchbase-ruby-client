@@ -41,6 +41,11 @@ struct binary_header {
     std::uint32_t bodylen;
     std::uint32_t opaque;
     std::uint64_t cas;
+
+    std::uint16_t status()
+    {
+        return htons(specific);
+    }
 };
 
 struct mcbp_message {
