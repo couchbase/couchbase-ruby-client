@@ -44,19 +44,14 @@ class cluster
     template<typename Handler>
     void open(const couchbase::origin& origin, Handler&& handler)
     {
-        auto address = origin.get_address();
         origin_ = origin;
-        session_ = std::make_shared<io::mcbp_session>(id_, ctx_);
-        session_->bootstrap(address.first,
-                            address.second,
-                            origin.get_username(),
-                            origin.get_password(),
-                            [this, handler = std::forward<Handler>(handler)](std::error_code ec, configuration config) mutable {
-                                if (!ec) {
-                                    session_manager_->set_configuration(config);
-                                }
-                                handler(ec);
-                            });
+        session_ = std::make_shared<io::mcbp_session>(id_, ctx_, origin_);
+        session_->bootstrap([this, handler = std::forward<Handler>(handler)](std::error_code ec, const configuration& config) mutable {
+            if (!ec) {
+                session_manager_->set_configuration(config);
+            }
+            handler(ec);
+        });
     }
 
     template<typename Handler>
@@ -104,7 +99,7 @@ class cluster
     template<class Request, class Handler>
     void execute_http(Request request, Handler&& handler)
     {
-        auto session = session_manager_->check_out(Request::type, origin_.username, origin_.password);
+        auto session = session_manager_->check_out(Request::type, origin_.get_username(), origin_.get_password());
         if (!session) {
             return handler(operations::make_response(std::make_error_code(error::common_errc::service_not_available), request, {}));
         }
@@ -122,6 +117,6 @@ class cluster
     std::shared_ptr<io::http_session_manager> session_manager_;
     std::shared_ptr<io::mcbp_session> session_{};
     std::map<std::string, std::shared_ptr<bucket>> buckets_{};
-    origin origin_{};
+    couchbase::origin origin_{};
 };
 } // namespace couchbase

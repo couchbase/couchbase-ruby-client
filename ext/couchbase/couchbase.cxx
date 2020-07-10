@@ -507,7 +507,7 @@ cb__map_error_code(std::error_code ec, const std::string& message)
 }
 
 static VALUE
-cb_Backend_open(VALUE self, VALUE hostname, VALUE username, VALUE password)
+cb_Backend_open(VALUE self, VALUE connection_string, VALUE username, VALUE password)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -515,22 +515,23 @@ cb_Backend_open(VALUE self, VALUE hostname, VALUE username, VALUE password)
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
     }
+    Check_Type(connection_string, T_STRING);
+    Check_Type(username, T_STRING);
+    Check_Type(password, T_STRING);
+
     VALUE exc = Qnil;
-
     {
-        Check_Type(hostname, T_STRING);
-        Check_Type(username, T_STRING);
-        Check_Type(password, T_STRING);
+        std::string input(RSTRING_PTR(connection_string), static_cast<size_t>(RSTRING_LEN(connection_string)));
+        auto connstr = couchbase::utils::parse_connection_string(input);
 
-        couchbase::origin options;
-        options.hostname.assign(RSTRING_PTR(hostname), static_cast<size_t>(RSTRING_LEN(hostname)));
-        options.username.assign(RSTRING_PTR(username), static_cast<size_t>(RSTRING_LEN(username)));
-        options.password.assign(RSTRING_PTR(password), static_cast<size_t>(RSTRING_LEN(password)));
+        std::string user(RSTRING_PTR(username), static_cast<size_t>(RSTRING_LEN(username)));
+        std::string pass(RSTRING_PTR(password), static_cast<size_t>(RSTRING_LEN(password)));
+        couchbase::origin origin(user, pass, connstr);
         auto barrier = std::make_shared<std::promise<std::error_code>>();
         auto f = barrier->get_future();
-        backend->cluster->open(options, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
+        backend->cluster->open(origin, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
         if (auto ec = f.get()) {
-            exc = cb__map_error_code(ec, fmt::format("unable open cluster at {}", options.hostname));
+            exc = cb__map_error_code(ec, fmt::format("unable open cluster at {}", origin.next_address().first));
         }
     }
     if (!NIL_P(exc)) {

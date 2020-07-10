@@ -55,44 +55,37 @@ class bucket : public std::enable_shared_from_this<bucket>
     template<typename Handler>
     void bootstrap(Handler&& handler)
     {
-        auto address = origin_.get_address();
-
-        auto new_session = std::make_shared<io::mcbp_session>(client_id_, ctx_, name_, known_features_);
-        new_session->bootstrap(
-          address.first,
-          address.second,
-          origin_.get_username(),
-          origin_.get_password(),
-          [self = shared_from_this(), new_session, h = std::forward<Handler>(handler)](std::error_code ec, configuration cfg) mutable {
-              if (!ec) {
-                  self->config_ = cfg;
-                  size_t this_index = new_session->index();
-                  self->sessions_.emplace(this_index, std::move(new_session));
-                  if (cfg.nodes.size() > 1) {
-                      for (const auto& n : cfg.nodes) {
-                          if (n.index != this_index) {
-                              auto s = std::make_shared<io::mcbp_session>(self->client_id_, self->ctx_, self->name_, self->known_features_);
-                              s->bootstrap(n.hostname,
-                                           std::to_string(*n.services_plain.key_value),
-                                           self->origin_.get_username(),
-                                           self->origin_.get_password(),
-                                           [host = n.hostname, bucket = self->name_](std::error_code err, configuration /*config*/) {
-                                               // TODO: retry, we know that auth is correct
-                                               if (err) {
-                                                   spdlog::warn("unable to bootstrap node {} ({}): {}", host, bucket, err.message());
-                                               }
-                                           });
-                              self->sessions_.emplace(n.index, std::move(s));
-                          }
-                      }
-                  }
-                  while (!self->deferred_commands_.empty()) {
-                      self->deferred_commands_.front()();
-                      self->deferred_commands_.pop();
-                  }
-              }
-              h(ec, cfg);
-          });
+        auto new_session = std::make_shared<io::mcbp_session>(client_id_, ctx_, origin_, name_, known_features_);
+        new_session->bootstrap([self = shared_from_this(), new_session, h = std::forward<Handler>(handler)](
+                                 std::error_code ec, const configuration& cfg) mutable {
+            if (!ec) {
+                self->config_ = cfg;
+                size_t this_index = new_session->index();
+                self->sessions_.emplace(this_index, std::move(new_session));
+                if (cfg.nodes.size() > 1) {
+                    for (const auto& n : cfg.nodes) {
+                        if (n.index != this_index) {
+                            couchbase::origin origin(
+                              self->origin_.get_username(), self->origin_.get_password(), n.hostname, *n.services_plain.key_value);
+                            auto s =
+                              std::make_shared<io::mcbp_session>(self->client_id_, self->ctx_, origin, self->name_, self->known_features_);
+                            s->bootstrap([host = n.hostname, bucket = self->name_](std::error_code err, const configuration& /*config*/) {
+                                // TODO: retry, we know that auth is correct
+                                if (err) {
+                                    spdlog::warn("unable to bootstrap node {} ({}): {}", host, bucket, err.message());
+                                }
+                            });
+                            self->sessions_.emplace(n.index, std::move(s));
+                        }
+                    }
+                }
+                while (!self->deferred_commands_.empty()) {
+                    self->deferred_commands_.front()();
+                    self->deferred_commands_.pop();
+                }
+            }
+            h(ec, cfg);
+        });
     }
 
     template<typename Request, typename Handler>

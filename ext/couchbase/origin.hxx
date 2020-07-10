@@ -19,27 +19,111 @@
 
 #include <string>
 
+#include <utils/connection_string.hxx>
+
 namespace couchbase
 {
 struct origin {
-    std::string username;
-    std::string password;
-    std::string hostname;
+    using node_list = std::vector<std::pair<std::string, std::string>>;
+
+    origin() = default;
+
+    origin(origin&& other) = default;
+
+    origin(const origin& other)
+      : username_(other.username_)
+      , password_(other.password_)
+      , nodes_(other.nodes_)
+      , next_node_(nodes_.begin())
+      ,exhausted_{false}
+    {
+    }
+
+    origin(std::string username, std::string password, node_list nodes)
+      : username_(std::move(username))
+      , password_(std::move(password))
+      , nodes_(std::move(nodes))
+      , next_node_(nodes_.begin())
+      ,exhausted_{false}
+    {
+    }
+
+    origin& operator=(const origin& other)
+    {
+        username_ = other.username_;
+        password_ = other.password_;
+        nodes_ = other.nodes_;
+        next_node_ = nodes_.begin();
+        exhausted_ = false;
+        return *this;
+    }
+
+    origin(std::string username, std::string password, const std::string& hostname, std::uint16_t port = 11210)
+      : username_(std::move(username))
+      , password_(std::move(password))
+      , nodes_{ { hostname, std::to_string(port) } }
+      , next_node_(nodes_.begin())
+    ,exhausted_{false}
+    {
+    }
+
+    origin(std::string username, std::string password, const utils::connection_string& connstr)
+      : username_(std::move(username))
+      , password_(std::move(password))
+    {
+        nodes_.reserve(connstr.bootstrap_nodes.size());
+        for (const auto& node : connstr.bootstrap_nodes) {
+            nodes_.emplace_back(
+              std::make_pair(node.address, node.port > 0 ? std::to_string(node.port) : std::to_string(connstr.default_port)));
+        }
+        next_node_ = nodes_.begin();
+    }
 
     [[nodiscard]] const std::string& get_username() const
     {
-        return username;
+        return username_;
     }
 
     [[nodiscard]] const std::string& get_password() const
     {
-        return password;
+        return password_;
     }
 
-    [[nodiscard]] std::pair<std::string, std::string> get_address() const
+    [[nodiscard]] const node_list & get_nodes() const
     {
-        return { hostname, "11210" };
+        return nodes_;
     }
+
+    [[nodiscard]] std::pair<std::string, std::string> next_address()
+    {
+        if (exhausted_) {
+            restart();
+        }
+
+        auto address = *next_node_;
+        if (++next_node_ == nodes_.end()) {
+            exhausted_ = true;
+        }
+        return address;
+    }
+
+    [[nodiscard]] bool exhausted() const
+    {
+        return exhausted_;
+    }
+
+    void restart()
+    {
+        exhausted_ = false;
+        next_node_ = nodes_.begin();
+    }
+
+  private:
+    std::string username_{};
+    std::string password_{};
+    node_list nodes_{};
+    node_list::iterator next_node_{};
+    bool exhausted_{ false };
 };
 
 } // namespace couchbase

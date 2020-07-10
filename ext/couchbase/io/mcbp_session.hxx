@@ -48,6 +48,7 @@
 
 #include <spdlog/fmt/bin_to_hex.h>
 
+#include <origin.hxx>
 #include <errors.hxx>
 #include <version.hxx>
 
@@ -118,8 +119,8 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
         explicit bootstrap_handler(std::shared_ptr<mcbp_session> session)
           : session_(session)
-          , sasl_([this]() -> std::string { return session_->username_; },
-                  [this]() -> std::string { return session_->password_; },
+          , sasl_([origin = session_->origin_]() -> std::string { return origin.get_username(); },
+                  [origin = session_->origin_]() -> std::string { return origin.get_password(); },
                   { "SCRAM-SHA512", "SCRAM-SHA256", "SCRAM-SHA1", "PLAIN" })
         {
             tao::json::value user_agent{
@@ -414,10 +415,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
         void fetch_config(std::error_code ec)
         {
-            if (ec == asio::error::operation_aborted) {
-                return;
-            }
-            if (stopped_ || !session_) {
+            if (ec == asio::error::operation_aborted || stopped_ || !session_) {
                 return;
             }
             protocol::client_request<protocol::get_cluster_config_request_body> req;
@@ -429,8 +427,10 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     };
 
   public:
+    mcbp_session() = delete;
     mcbp_session(const std::string& client_id,
                  asio::io_context& ctx,
+                 const couchbase::origin& origin,
                  std::optional<std::string> bucket_name = {},
                  std::vector<protocol::hello_feature> known_features = {})
       : client_id_(client_id)
@@ -439,7 +439,10 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
       , resolver_(ctx_)
       , strand_(asio::make_strand(ctx_))
       , socket_(strand_)
-      , deadline_timer_(ctx_)
+      , bootstrap_deadline_(ctx_)
+      , connection_deadline_(ctx_)
+      , retry_backoff_(ctx_)
+      , origin_(origin)
       , bucket_name_(std::move(bucket_name))
       , supported_features_(known_features)
     {
@@ -456,15 +459,45 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         return log_prefix_;
     }
 
-    void bootstrap(const std::string& hostname,
-                   const std::string& service,
-                   const std::string& username,
-                   const std::string& password,
-                   std::function<void(std::error_code, configuration)>&& handler)
+    void bootstrap(std::function<void(std::error_code, configuration)>&& handler)
     {
-        username_ = username;
-        password_ = password;
         bootstrap_handler_ = std::move(handler);
+        bootstrap_deadline_.expires_after(timeout_defaults::bootstrap_timeout);
+        bootstrap_deadline_.async_wait([self = shared_from_this()](std::error_code ec) {
+            if (ec == asio::error::operation_aborted || self->stopped_) {
+                return;
+            }
+            spdlog::warn("{} unable to bootstrap in time", self->log_prefix_);
+            self->bootstrap_handler_(std::make_error_code(error::common_errc::unambiguous_timeout), {});
+            self->bootstrap_handler_ = nullptr;
+            self->stop();
+        });
+        initiate_bootstrap();
+    }
+
+    void initiate_bootstrap()
+    {
+        if (stopped_) {
+            return;
+        }
+        if (origin_.exhausted()) {
+            auto backoff = std::chrono::milliseconds(500);
+            spdlog::debug("{} reached the end of list of bootstrap nodes, waiting for {}ms before restart", log_prefix_, backoff.count());
+            retry_backoff_.expires_after(backoff);
+            retry_backoff_.async_wait([self = shared_from_this()](std::error_code ec) mutable {
+                if (ec == asio::error::operation_aborted || self->stopped_) {
+                    return;
+                }
+                self->origin_.restart();
+                self->initiate_bootstrap();
+            });
+            return;
+        }
+        std::string hostname;
+        std::string service;
+        std::tie(hostname, service) = origin_.next_address();
+        log_prefix_ = fmt::format("[{}/{}/{}] <{}:{}>", client_id_, id_, bucket_name_.value_or("-"), hostname, service);
+        spdlog::debug("{} attempt to establish MCBP connection", log_prefix_);
         resolver_.async_resolve(
           hostname, service, std::bind(&mcbp_session::on_resolve, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     }
@@ -480,7 +513,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             return;
         }
         stopped_ = true;
-        deadline_timer_.cancel();
+        bootstrap_deadline_.cancel();
+        connection_deadline_.cancel();
+        retry_backoff_.cancel();
         resolver_.cancel();
         if (socket_.is_open()) {
             socket_.close();
@@ -763,6 +798,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     void invoke_bootstrap_handler(std::error_code ec)
     {
         if (!bootstrapped_ && bootstrap_handler_) {
+            bootstrap_deadline_.cancel();
             bootstrap_handler_(ec, config_.value_or(configuration{}));
             bootstrap_handler_ = nullptr;
         }
@@ -788,11 +824,12 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         if (ec) {
             spdlog::error("{} error on resolve: {}", log_prefix_, ec.message());
-            return invoke_bootstrap_handler(std::make_error_code(error::network_errc::resolve_failure));
+            return initiate_bootstrap();
         }
         endpoints_ = endpoints;
         do_connect(endpoints_.begin());
-        deadline_timer_.async_wait(std::bind(&mcbp_session::check_deadline, shared_from_this(), std::placeholders::_1));
+        connection_deadline_.expires_after(timeout_defaults::connect_timeout);
+        connection_deadline_.async_wait(std::bind(&mcbp_session::check_deadline, shared_from_this(), std::placeholders::_1));
     }
 
     void do_connect(asio::ip::tcp::resolver::results_type::iterator it)
@@ -802,11 +839,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         if (it != endpoints_.end()) {
             spdlog::debug("{} connecting to {}:{}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port());
-            deadline_timer_.expires_after(timeout_defaults::connect_timeout);
+            connection_deadline_.expires_after(timeout_defaults::connect_timeout);
             socket_.async_connect(it->endpoint(), std::bind(&mcbp_session::on_connect, shared_from_this(), std::placeholders::_1, it));
         } else {
-            spdlog::error("{} no more endpoints left to connect", log_prefix_);
-            return invoke_bootstrap_handler(std::make_error_code(error::network_errc::no_endpoints_left));
+            spdlog::error("{} no more endpoints left to connect, will try another address", log_prefix_);
+            return initiate_bootstrap();
         }
     }
 
@@ -827,24 +864,21 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             log_prefix_ = fmt::format(
               "[{}/{}/{}] <{}:{}>", client_id_, id_, bucket_name_.value_or("-"), endpoint_.address().to_string(), endpoint_.port());
             handler_ = std::make_unique<bootstrap_handler>(shared_from_this());
-            deadline_timer_.expires_at(asio::steady_timer::time_point::max());
-            deadline_timer_.cancel();
+            connection_deadline_.expires_at(asio::steady_timer::time_point::max());
+            connection_deadline_.cancel();
         }
     }
 
     void check_deadline(std::error_code ec)
     {
-        if (ec == asio::error::operation_aborted) {
+        if (ec == asio::error::operation_aborted || stopped_) {
             return;
         }
-        if (stopped_) {
-            return;
-        }
-        if (deadline_timer_.expiry() <= asio::steady_timer::clock_type::now()) {
+        if (connection_deadline_.expiry() <= asio::steady_timer::clock_type::now()) {
             socket_.close();
-            deadline_timer_.expires_at(asio::steady_timer::time_point::max());
+            connection_deadline_.expires_at(asio::steady_timer::time_point::max());
         }
-        deadline_timer_.async_wait(std::bind(&mcbp_session::check_deadline, shared_from_this(), std::placeholders::_1));
+        connection_deadline_.async_wait(std::bind(&mcbp_session::check_deadline, shared_from_this(), std::placeholders::_1));
     }
 
     void do_read()
@@ -934,11 +968,14 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     asio::ip::tcp::resolver resolver_;
     asio::strand<asio::io_context::executor_type> strand_;
     asio::ip::tcp::socket socket_;
-    asio::steady_timer deadline_timer_;
+    asio::steady_timer bootstrap_deadline_;
+    asio::steady_timer connection_deadline_;
+    asio::steady_timer retry_backoff_;
+    couchbase::origin origin_;
     std::optional<std::string> bucket_name_;
     mcbp_parser parser_;
     std::unique_ptr<message_handler> handler_;
-    std::function<void(std::error_code, configuration)> bootstrap_handler_;
+    std::function<void(std::error_code, const configuration&)> bootstrap_handler_;
     std::map<uint32_t, std::function<void(std::error_code, io::mcbp_message&&)>> command_handlers_{};
 
     bool bootstrapped_{ false };
@@ -948,9 +985,6 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     bool supports_gcccp_{ true };
 
     std::atomic<std::uint32_t> opaque_{ 0 };
-
-    std::string username_;
-    std::string password_;
 
     std::array<std::uint8_t, 16384> input_buffer_{};
     std::vector<std::vector<std::uint8_t>> output_buffer_{};
