@@ -281,7 +281,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                         spdlog::warn("{} this server does not support GCCCP, open bucket before making any cluster-level command",
                                      session_->log_prefix_);
                         session_->update_configuration(
-                          make_blank_configuration(session_->endpoint_.address().to_string(), session_->endpoint_.port(), 0));
+                          make_blank_configuration(session_->endpoint_address_, session_->endpoint_.port(), 0));
                         complete({});
                     } else {
                         spdlog::warn("{} unexpected message status during bootstrap: {} (opcode={})",
@@ -776,6 +776,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             return;
         }
         if (!config_ || config.rev > config_->rev) {
+            for (auto& node : config.nodes) {
+                if (node.this_node && node.hostname.empty()) {
+                    node.hostname = endpoint_address_;
+                }
+            }
             config_.emplace(config);
             spdlog::debug("{} received new configuration: {}", log_prefix_, config_.value());
         }
@@ -860,9 +865,10 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             socket_.set_option(asio::ip::tcp::no_delay{ true });
             socket_.set_option(asio::socket_base::keep_alive{ true });
             endpoint_ = it->endpoint();
-            spdlog::debug("{} connected to {}:{}", log_prefix_, endpoint_.address().to_string(), it->endpoint().port());
-            log_prefix_ = fmt::format(
-              "[{}/{}/{}] <{}:{}>", client_id_, id_, bucket_name_.value_or("-"), endpoint_.address().to_string(), endpoint_.port());
+            endpoint_address_ = endpoint_.address().to_string();
+            spdlog::debug("{} connected to {}:{}", log_prefix_, endpoint_address_, it->endpoint().port());
+            log_prefix_ =
+              fmt::format("[{}/{}/{}] <{}:{}>", client_id_, id_, bucket_name_.value_or("-"), endpoint_address_, endpoint_.port());
             handler_ = std::make_unique<bootstrap_handler>(shared_from_this());
             connection_deadline_.expires_at(asio::steady_timer::time_point::max());
             connection_deadline_.cancel();
@@ -994,6 +1000,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     std::mutex pending_buffer_mutex_{};
     std::mutex writing_buffer_mutex_{};
     asio::ip::tcp::endpoint endpoint_{}; // connected endpoint
+    std::string endpoint_address_{};     // cached string with endpoint address
     asio::ip::tcp::resolver::results_type endpoints_;
     std::vector<protocol::hello_feature> supported_features_;
     std::optional<configuration> config_;

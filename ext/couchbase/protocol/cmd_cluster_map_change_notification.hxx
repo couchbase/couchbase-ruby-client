@@ -53,7 +53,7 @@ class cluster_map_change_notification_request_body
         return config_;
     }
 
-    bool parse(const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info& info)
+    bool parse(const header_buffer& header, const std::vector<uint8_t>& body, const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         using offset_type = std::vector<uint8_t>::difference_type;
@@ -69,11 +69,6 @@ class cluster_map_change_notification_request_body
         bucket_.assign(body.begin() + offset, body.begin() + offset + key_size);
         offset += key_size;
         config_ = tao::json::from_string<deduplicate_keys>(std::string(body.begin() + offset, body.end())).as<configuration>();
-        for (auto& node : config_.nodes) {
-            if (node.this_node && node.hostname.empty()) {
-                node.hostname = info.remote_endpoint.address().to_string();
-            }
-        }
         return true;
     }
 };

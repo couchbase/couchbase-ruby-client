@@ -20,17 +20,6 @@
 namespace couchbase::protocol
 {
 struct cmd_info {
-    asio::ip::tcp::endpoint local_endpoint{};
-    asio::ip::tcp::endpoint remote_endpoint{};
     double server_duration_us{ 0 };
-
-    template<class AsyncStream>
-    void extract_from_stream(AsyncStream& stream)
-    {
-        std::error_code err;
-        local_endpoint = stream.local_endpoint(err);
-        remote_endpoint = stream.remote_endpoint(err);
-        (void)err;
-    }
 };
 } // namespace couchbase::protocol

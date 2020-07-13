@@ -20,7 +20,6 @@
 #include <spdlog/spdlog.h>
 
 #include <ruby.h>
-#include <ruby/encoding.h>
 
 void
 run_script(const std::string & script)

@@ -5430,7 +5430,7 @@ init_backend(VALUE mCouchbase)
 void
 init_logger()
 {
-    spdlog::set_pattern("[%Y-%m-%d %T.%e] [%P,%t] [%^%l%$] %v");
+    spdlog::set_pattern("[%Y-%m-%d %T.%e] [%P,%t] [%^%l%$] %oms %v");
 
     auto env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_LOG_LEVEL");
     if (env_val.empty()) {
