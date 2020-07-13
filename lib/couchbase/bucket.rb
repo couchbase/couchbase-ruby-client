@@ -26,7 +26,7 @@ module Couchbase
 
     # @param [Couchbase::Backend] backend
     def initialize(backend, name)
-      backend.open_bucket(name)
+      backend.open_bucket(name, true)
       @backend = backend
       @name = name
     end

@@ -551,7 +551,7 @@ cb_Backend_close(VALUE self)
 }
 
 static VALUE
-cb_Backend_open_bucket(VALUE self, VALUE bucket)
+cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -561,23 +561,28 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket)
     }
 
     Check_Type(bucket, T_STRING);
+    bool wait = RTEST(wait_until_ready);
 
     VALUE exc = Qnil;
     {
         std::string name(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
 
-        auto barrier = std::make_shared<std::promise<std::error_code>>();
-        auto f = barrier->get_future();
-        backend->cluster->open_bucket(name, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
-        if (auto ec = f.get()) {
-            exc = cb__map_error_code(ec, fmt::format("unable open bucket \"{}\"", name));
+        if (wait) {
+            auto barrier = std::make_shared<std::promise<std::error_code>>();
+            auto f = barrier->get_future();
+            backend->cluster->open_bucket(name, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
+            if (auto ec = f.get()) {
+                exc = cb__map_error_code(ec, fmt::format("unable open bucket \"{}\"", name));
+            }
+        } else {
+            backend->cluster->open_bucket(name, [](std::error_code) {});
         }
     }
     if (!NIL_P(exc)) {
         rb_exc_raise(exc);
     }
 
-    return Qtrue;
+    return Qnil;
 }
 
 template<typename Request>
@@ -5343,7 +5348,7 @@ init_backend(VALUE mCouchbase)
     rb_define_alloc_func(cBackend, cb_Backend_allocate);
     rb_define_method(cBackend, "open", VALUE_FUNC(cb_Backend_open), 3);
     rb_define_method(cBackend, "close", VALUE_FUNC(cb_Backend_close), 0);
-    rb_define_method(cBackend, "open_bucket", VALUE_FUNC(cb_Backend_open_bucket), 1);
+    rb_define_method(cBackend, "open_bucket", VALUE_FUNC(cb_Backend_open_bucket), 2);
 
     rb_define_method(cBackend, "document_get", VALUE_FUNC(cb_Backend_document_get), 4);
     rb_define_method(cBackend, "document_get_projected", VALUE_FUNC(cb_Backend_document_get_projected), 7);
