@@ -198,6 +198,9 @@ get_projected_response
 make_response(std::error_code ec, get_projected_request& request, get_projected_request::encoded_response_type encoded)
 {
     get_projected_response response{ request.id, encoded.opaque(), ec };
+    if (ec && response.opaque == 0) {
+        response.opaque = request.opaque;
+    }
     if (!ec) {
         response.cas = encoded.cas();
         if (request.with_expiration) {

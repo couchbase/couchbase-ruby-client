@@ -53,6 +53,9 @@ get_response
 make_response(std::error_code ec, get_request& request, get_request::encoded_response_type encoded)
 {
     get_response response{ request.id, encoded.opaque(), ec };
+    if (ec && response.opaque == 0) {
+        response.opaque = request.opaque;
+    }
     if (!ec) {
         response.value = std::move(encoded.body().value());
         response.cas = encoded.cas();

@@ -529,7 +529,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             handler_->stop();
         }
         for (auto& handler : command_handlers_) {
-            spdlog::debug("{} MCBP cancel operation, opaque={}, ec={}", log_prefix_, handler.first, ec.message());
+            spdlog::debug("{} MCBP cancel operation during session close, opaque={}, ec={}", log_prefix_, handler.first, ec.message());
             handler.second(ec, {});
         }
         command_handlers_.clear();

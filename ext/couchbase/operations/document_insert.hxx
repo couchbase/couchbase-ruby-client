@@ -64,6 +64,9 @@ insert_response
 make_response(std::error_code ec, insert_request& request, insert_request::encoded_response_type encoded)
 {
     insert_response response{ request.id, encoded.opaque(), ec };
+    if (ec && response.opaque == 0) {
+        response.opaque = request.opaque;
+    }
     if (!ec) {
         response.cas = encoded.cas();
         response.token = encoded.body().token();

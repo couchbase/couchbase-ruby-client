@@ -53,6 +53,9 @@ unlock_response
 make_response(std::error_code ec, unlock_request& request, unlock_request::encoded_response_type encoded)
 {
     unlock_response response{ request.id, encoded.opaque(), ec };
+    if (ec && response.opaque == 0) {
+        response.opaque = request.opaque;
+    }
     if (!ec) {
         response.cas = encoded.cas();
     }

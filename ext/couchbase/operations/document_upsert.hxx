@@ -64,6 +64,9 @@ upsert_response
 make_response(std::error_code ec, upsert_request& request, upsert_request::encoded_response_type encoded)
 {
     upsert_response response{ request.id, encoded.opaque(), ec };
+    if (ec && response.opaque == 0) {
+        response.opaque = request.opaque;
+    }
     if (!ec) {
         response.cas = encoded.cas();
         response.token = encoded.body().token();
