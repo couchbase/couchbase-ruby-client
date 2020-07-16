@@ -21,9 +21,22 @@ set -e
 
 CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7.1}
 
-export PATH="$(realpath ~/.cmake-3.17.2/bin):$PATH"
+if [ "$(uname -s)" = "Linux" ]
+then
+  export PATH="$(realpath ~/.cmake-3.17.2/bin):$PATH"
+fi
 
-source /usr/local/share/chruby/chruby.sh
+if [ "$(uname -s)" = "Linux" ]
+then
+  source /usr/local/share/chruby/chruby.sh
+fi
+if [ "$(uname -s)" = "Darwin" ]
+then
+  source $(brew --prefix chruby)/share/chruby/chruby.sh
+  cc_prefix=$(brew --prefix gcc@10)
+  export CB_CC="${cc_prefix}/bin/gcc-10"
+  export CB_CXX="${cc_prefix}/bin/g++-10"
+fi
 chruby ruby-${CB_RUBY_VERSION}
 
 ruby --version

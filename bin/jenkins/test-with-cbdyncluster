@@ -34,7 +34,14 @@ cbdyncluster setup ${CLUSTER_ID} \
     --node=${SERVICES}
 sleep 30
 
-source /usr/local/share/chruby/chruby.sh
+if [ "$(uname -s)" = "Linux" ]
+then
+  source /usr/local/share/chruby/chruby.sh
+fi
+if [ "$(uname -s)" = "Darwin" ]
+then
+  source $(brew --prefix chruby)/share/chruby/chruby.sh
+fi
 chruby ruby-${CB_RUBY_VERSION}
 
 FIRST_NODE=$(cbdyncluster ips ${CLUSTER_ID} | ruby -e 'puts STDIN.read.split(",")[0]')

@@ -23,6 +23,14 @@ cmake_flags = [
   "-DSNAPPY_BUILD_TESTS=OFF",
   "-DSNAPPY_INSTALL=OFF",
 ]
+
+if ENV["CB_CC"]
+  cmake_flags << "-DCMAKE_C_COMPILER=#{ENV["CB_CC"]}"
+end
+if ENV["CB_CXX"]
+  cmake_flags << "-DCMAKE_CXX_COMPILER=#{ENV["CB_CXX"]}"
+end
+
 openssl_root = `brew --prefix openssl 2> /dev/null`.strip
 unless openssl_root.empty?
   cmake_flags << "-DOPENSSL_ROOT_DIR=#{openssl_root}"
