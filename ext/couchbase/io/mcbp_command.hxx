@@ -18,6 +18,8 @@
 #pragma once
 
 #include <io/mcbp_session.hxx>
+#include <io/retry_orchestrator.hxx>
+
 #include <protocol/cmd_get_collection_id.hxx>
 #include <functional>
 #include <utility>
@@ -27,8 +29,8 @@ namespace couchbase::operations
 
 using mcbp_command_handler = std::function<void(std::error_code, std::optional<io::mcbp_message>)>;
 
-template<typename Request>
-struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>> {
+template<typename Manager, typename Request>
+struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, Request>> {
     using encoded_request_type = typename Request::encoded_request_type;
     using encoded_response_type = typename Request::encoded_response_type;
     asio::steady_timer deadline;
@@ -38,11 +40,13 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
     std::optional<std::uint32_t> opaque_{};
     std::shared_ptr<io::mcbp_session> session_{};
     mcbp_command_handler handler_{};
+    std::shared_ptr<Manager> manager_{};
 
-    mcbp_command(asio::io_context& ctx, Request req)
+    mcbp_command(asio::io_context& ctx, std::shared_ptr<Manager> manager, Request req)
       : deadline(ctx)
       , retry_backoff(ctx)
       , request(req)
+      , manager_(manager)
     {
     }
 
@@ -54,16 +58,21 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
             if (ec == asio::error::operation_aborted) {
                 return;
             }
-            self->cancel();
+            self->cancel(io::retry_reason::do_not_retry);
         });
     }
 
-    void cancel()
+    void cancel(io::retry_reason reason)
     {
         if (opaque_ && session_) {
-            session_->cancel(opaque_.value(), asio::error::operation_aborted);
+            if (session_->cancel(opaque_.value(), asio::error::operation_aborted, reason)) {
+                handler_ = nullptr;
+            }
         }
-        handler_ = nullptr;
+        invoke_handler(std::make_error_code(request.retries.idempotent ? error::common_errc::unambiguous_timeout
+                                                                       : error::common_errc::ambiguous_timeout));
+        retry_backoff.cancel();
+        deadline.cancel();
     }
 
     void invoke_handler(std::error_code ec, std::optional<io::mcbp_message> msg = {})
@@ -79,26 +88,27 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
         protocol::client_request<protocol::get_collection_id_request_body> req;
         req.opaque(session_->next_opaque());
         req.body().collection_path(request.id.collection);
-        session_->write_and_subscribe(req.opaque(),
-                                      req.data(session_->supports_feature(protocol::hello_feature::snappy)),
-                                      [self = this->shared_from_this()](std::error_code ec, io::mcbp_message&& msg) mutable {
-                                          if (ec == asio::error::operation_aborted) {
-                                              return self->invoke_handler(std::make_error_code(error::common_errc::ambiguous_timeout));
-                                          }
-                                          if (ec == std::make_error_code(error::common_errc::collection_not_found)) {
-                                              if (self->request.id.collection_uid) {
-                                                  return self->handle_unknown_collection();
-                                              }
-                                              return self->invoke_handler(ec);
-                                          }
-                                          if (ec) {
-                                              return self->invoke_handler(ec);
-                                          }
-                                          protocol::client_response<protocol::get_collection_id_response_body> resp(msg);
-                                          self->session_->update_collection_uid(self->request.id.collection, resp.body().collection_uid());
-                                          self->request.id.collection_uid = resp.body().collection_uid();
-                                          return self->send();
-                                      });
+        session_->write_and_subscribe(
+          req.opaque(),
+          req.data(session_->supports_feature(protocol::hello_feature::snappy)),
+          [self = this->shared_from_this()](std::error_code ec, io::retry_reason /* reason */, io::mcbp_message&& msg) mutable {
+              if (ec == asio::error::operation_aborted) {
+                  return self->invoke_handler(std::make_error_code(error::common_errc::ambiguous_timeout));
+              }
+              if (ec == std::make_error_code(error::common_errc::collection_not_found)) {
+                  if (self->request.id.collection_uid) {
+                      return self->handle_unknown_collection();
+                  }
+                  return self->invoke_handler(ec);
+              }
+              if (ec) {
+                  return self->invoke_handler(ec);
+              }
+              protocol::client_response<protocol::get_collection_id_response_body> resp(msg);
+              self->session_->update_collection_uid(self->request.id.collection, resp.body().collection_uid());
+              self->request.id.collection_uid = resp.body().collection_uid();
+              return self->send();
+          });
     }
 
     void handle_unknown_collection()
@@ -112,7 +122,8 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
                       request.id.key,
                       std::chrono::duration_cast<std::chrono::milliseconds>(time_left).count());
         if (time_left < backoff) {
-            return invoke_handler(std::make_error_code(error::common_errc::ambiguous_timeout));
+            return invoke_handler(std::make_error_code(request.retries.idempotent ? error::common_errc::unambiguous_timeout
+                                                                                  : error::common_errc::ambiguous_timeout));
         }
         retry_backoff.expires_after(backoff);
         retry_backoff.async_wait([self = this->shared_from_this()](std::error_code ec) mutable {
@@ -149,22 +160,68 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Request>>
         }
         request.encode_to(encoded);
 
-        session_->write_and_subscribe(request.opaque,
-                                      encoded.data(session_->supports_feature(protocol::hello_feature::snappy)),
-                                      [self = this->shared_from_this()](std::error_code ec, io::mcbp_message&& msg) mutable {
-                                          self->retry_backoff.cancel();
-                                          if (ec == asio::error::operation_aborted) {
-                                              return self->invoke_handler(std::make_error_code(error::common_errc::ambiguous_timeout));
-                                          }
-                                          if (ec == std::make_error_code(error::common_errc::request_canceled)) {
-                                              return self->invoke_handler(ec);
-                                          }
-                                          if (msg.header.status() == static_cast<std::uint16_t>(protocol::status::unknown_collection)) {
-                                              return self->handle_unknown_collection();
-                                          }
-                                          self->deadline.cancel();
-                                          self->invoke_handler(ec, msg);
-                                      });
+        session_->write_and_subscribe(
+          request.opaque,
+          encoded.data(session_->supports_feature(protocol::hello_feature::snappy)),
+          [self = this->shared_from_this()](std::error_code ec, io::retry_reason reason, io::mcbp_message&& msg) mutable {
+              self->retry_backoff.cancel();
+              if (ec == asio::error::operation_aborted) {
+                  return self->invoke_handler(std::make_error_code(
+                    self->request.retries.idempotent ? error::common_errc::unambiguous_timeout : error::common_errc::ambiguous_timeout));
+              }
+              if (ec == std::make_error_code(error::common_errc::request_canceled)) {
+                  if (reason == io::retry_reason::do_not_retry) {
+                      return self->invoke_handler(ec);
+                  }
+                  return io::retry_orchestrator::maybe_retry(self->manager_, self, reason, ec);
+              }
+              protocol::status status = protocol::status::invalid;
+              std::optional<error_map::error_info> error_code{};
+              if (protocol::is_valid_status(msg.header.status())) {
+                  status = static_cast<protocol::status>(msg.header.status());
+              } else {
+                  error_code = self->session_->decode_error_code(msg.header.status());
+              }
+              if (status == protocol::status::not_my_vbucket) {
+                  self->session_->handle_not_my_vbucket(std::move(msg));
+                  return io::retry_orchestrator::maybe_retry(self->manager_, self, io::retry_reason::kv_not_my_vbucket, ec);
+              }
+              if (status == protocol::status::unknown_collection) {
+                  return self->handle_unknown_collection();
+              }
+              if (error_code && error_code.value().has_retry_attribute()) {
+                  reason = io::retry_reason::kv_error_map_retry_indicated;
+              } else {
+                  switch (status) {
+                      case protocol::status::locked:
+                          if (encoded_request_type::body_type::opcode != protocol::client_opcode::unlock) {
+                              /**
+                               * special case for unlock command, when it should not be retried, because it does not make sense
+                               * (someone else unlocked the document)
+                               */
+                              reason = io::retry_reason::kv_locked;
+                          }
+                          break;
+                      case protocol::status::temporary_failure:
+                          reason = io::retry_reason::kv_temporary_failure;
+                          break;
+                      case protocol::status::sync_write_in_progress:
+                          reason = io::retry_reason::kv_sync_write_in_progress;
+                          break;
+                      case protocol::status::sync_write_re_commit_in_progress:
+                          reason = io::retry_reason::kv_sync_write_re_commit_in_progress;
+                          break;
+                      default:
+                          break;
+                  }
+              }
+              if (reason == io::retry_reason::do_not_retry) {
+                  self->deadline.cancel();
+                  self->invoke_handler(ec, msg);
+              } else {
+                  io::retry_orchestrator::maybe_retry(self->manager_, self, reason, ec);
+              }
+          });
     }
 
     void send_to(std::shared_ptr<io::mcbp_session> session)

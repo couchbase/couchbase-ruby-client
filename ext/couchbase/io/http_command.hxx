@@ -45,7 +45,7 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
         request.encode_to(encoded);
         encoded.headers["client-context-id"] = request.client_context_id;
         auto log_prefix = session->log_prefix();
-        spdlog::debug("{} HTTP request: {}, method={}, path={}, client_context_id={}, timeout={}ms",
+        spdlog::trace("{} HTTP request: {}, method={}, path={}, client_context_id={}, timeout={}ms",
                       log_prefix,
                       encoded.type,
                       encoded.method,
@@ -65,7 +65,7 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
                                        std::error_code ec, io::http_response&& msg) mutable {
                                          self->deadline.cancel();
                                          encoded_response_type resp(msg);
-                                         spdlog::debug("{} HTTP response: {}, client_context_id={}, status={}",
+                                         spdlog::trace("{} HTTP response: {}, client_context_id={}, status={}",
                                                        log_prefix,
                                                        self->request.type,
                                                        self->request.client_context_id,

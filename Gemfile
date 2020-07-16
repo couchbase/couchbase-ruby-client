@@ -21,7 +21,9 @@ gem "rake"
 
 group :development do
   gem "rubocop"
+  gem "rubocop-minitest"
   gem "rubocop-performance"
+  gem "standard"
   gem "yard"
   platforms :mri do
     gem "byebug"

@@ -45,7 +45,7 @@ enum class status : uint16_t {
     not_supported = 0x83,
     internal = 0x84,
     busy = 0x85,
-    temp_failure = 0x86,
+    temporary_failure = 0x86,
     xattr_invalid = 0x87,
     unknown_collection = 0x88,
     no_collections_manifest = 0x89,
@@ -108,7 +108,7 @@ is_valid_status(uint16_t code)
         case status::not_supported:
         case status::internal:
         case status::busy:
-        case status::temp_failure:
+        case status::temporary_failure:
         case status::xattr_invalid:
         case status::unknown_collection:
         case status::no_collections_manifest:
@@ -146,6 +146,16 @@ is_valid_status(uint16_t code)
     }
     return false;
 }
+
+[[nodiscard]] std::string
+status_to_string(uint16_t code)
+{
+    if (is_valid_status(code)) {
+        return fmt::format("{} ({})", code, static_cast<status>(code));
+    }
+    return fmt::format("{} (unknown)", code);
+}
+
 } // namespace protocol
 } // namespace couchbase
 
@@ -225,8 +235,8 @@ struct fmt::formatter<couchbase::protocol::status> : formatter<string_view> {
             case couchbase::protocol::status::busy:
                 name = "busy";
                 break;
-            case couchbase::protocol::status::temp_failure:
-                name = "temp_failure";
+            case couchbase::protocol::status::temporary_failure:
+                name = "temporary_failure";
                 break;
             case couchbase::protocol::status::xattr_invalid:
                 name = "xattr_invalid";

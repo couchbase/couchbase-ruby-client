@@ -64,33 +64,81 @@ p Couchbase::VERSION
 include Couchbase
 
 # begin
-#   load "/home/avsej/code/couchbase-ruby-client/test/query_test.rb"
+#   load "/home/avsej/code/couchbase-ruby-client/test/crud_test.rb"
 # rescue => ex
 #   p ex
 #   puts ex.backtrace
-#   raise
+#   rescue
 # end
 
 backend = Backend.new
-begin
-  options = {
-  }
-  connstr = "couchbases://192.168.42.101?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
-  # curl http://localhost:8091/pools/default/certificate > /tmp/couchbase-ssl-certificate.pem
-  connstr = "couchbases://localhost.avsej.net?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
-  connstr = "couchbases://mars.local?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
-  p open: backend.open(connstr, "Administrator", "password", options)
+connstr = "couchbase://localhost"
+p open: backend.open(connstr, "Administrator", "password", {})
+p bucket: backend.open_bucket("default", true)
+p set: backend.document_upsert("default", "_default._default", "foo", 10_000, JSON.generate(foo: "bar"), 0, {})
+p mutate: begin
+backend.document_mutate_in(
+    "default", "_default._default", "foo", 10_000,
+    [
+      {:opcode => :dict_add, :path => "foo1",  :param => "bar1"},
+      {:opcode => :dict_add, :path => "foo2",  :param => "bar2"},
+      {:opcode => :dict_add, :path => "foo3",  :param => "bar3"},
+      {:opcode => :dict_add, :path => "foo4",  :param => "bar4"},
+      {:opcode => :dict_add, :path => "foo5",  :param => "bar5"},
+      {:opcode => :dict_add, :path => "foo6",  :param => "bar6"},
+      {:opcode => :dict_add, :path => "foo7",  :param => "bar7"},
+      {:opcode => :dict_add, :path => "foo8",  :param => "bar8"},
+      {:opcode => :dict_add, :path => "foo9",  :param => "bar9"},
+      {:opcode => :dict_add, :path => "foo10", :param => "bar10"},
+      {:opcode => :dict_add, :path => "foo11", :param => "bar11"},
+      {:opcode => :dict_add, :path => "foo12", :param => "bar12"},
+      {:opcode => :dict_add, :path => "foo13", :param => "bar13"},
+      {:opcode => :dict_add, :path => "foo14", :param => "bar14"},
+      {:opcode => :dict_add, :path => "foo15", :param => "bar15"},
+      {:opcode => :dict_add, :path => "foo16", :param => "bar16"},
+      {:opcode => :dict_add, :path => "foo17", :param => "bar17"},
+    ], {})
 rescue => ex
-  p err: ex
-  puts ex.backtrace
+ex
 end
-# p bucket: backend.open_bucket("default", true)
-# ('aaa'..'zzz').to_a.sample(10).each do |key|
-#     p set: backend.document_upsert("default", "_default._default", key, 10_000, JSON.generate(foo: "bar"), 0, {})
-#     p get: backend.document_get("default", "_default._default", key, nil)
-# end
-p query: backend.document_query('select "ruby rules" as greeting', {})
+puts
+sleep(1)
 p close: backend.close
+
+# backend = Backend.new
+# begin
+#   options = {
+#   }
+#   connstr = "couchbases://192.168.42.101?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
+#   # curl http://localhost:8091/pools/default/certificate > /tmp/couchbase-ssl-certificate.pem
+#   connstr = "couchbases://localhost.avsej.net?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
+#   connstr = "couchbases://mars.local?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
+#   connstr = "couchbase://127.0.0.1:12000"
+#   connstr = "couchbase://localhost"
+#   p open: backend.open(connstr, "Administrator", "password", options)
+# rescue => ex
+#   p err: ex
+#   puts ex.backtrace
+# end
+# p bucket: backend.open_bucket("default", true)
+# keys = ('aaa'..'zzz').to_a.sample(10)
+# keys.each do |key|
+#     STDERR.puts("........ #{key} .........")
+#     p set: backend.document_upsert("default", "_default._default", key, 10_000, JSON.generate(foo: "bar"), 0, {})
+#     p get: (backend.document_get("default", "_default._default", key, nil) rescue nil)
+# end
+# (1..10000).to_a.reverse.each do |i|
+#   sleep(1)
+#   STDERR.puts("........ #{i} .........")
+# end
+# keys.each do |key|
+#     STDERR.puts("........ #{key} .........")
+#   #  p set: backend.document_upsert("default", "_default._default", key, 10_000, JSON.generate(foo: "bar"), 0, {})
+#     p get: (backend.document_get("default", "_default._default", key, nil) rescue nil)
+# end
+# p query: backend.document_query('select "ruby rules" as greeting', {})
+# STDERR.puts("prepare to close backend")
+# p close: backend.close
 
 # backend = Backend.new
 # begin

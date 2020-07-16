@@ -42,6 +42,7 @@ class bucket : public std::enable_shared_from_this<bucket>
       , origin_(std::move(origin))
       , known_features_(known_features)
     {
+        log_prefix_ = fmt::format("[{}/{}]", client_id_, name_);
     }
 
     ~bucket()
@@ -52,6 +53,142 @@ class bucket : public std::enable_shared_from_this<bucket>
     [[nodiscard]] const std::string& name() const
     {
         return name_;
+    }
+
+    /**
+     * copies nodes from rhs that are not in lhs to output vector
+     */
+    static void diff_nodes(const std::vector<configuration::node>& lhs,
+                           const std::vector<configuration::node>& rhs,
+                           std::vector<configuration::node>& output)
+    {
+        for (const auto& re : rhs) {
+            bool known = false;
+            for (const auto& le : lhs) {
+                if (le.hostname == re.hostname && le.services_plain.management.value_or(0) == re.services_plain.management.value_or(0)) {
+                    known = true;
+                    break;
+                }
+            }
+            if (!known) {
+                output.push_back(re);
+            }
+        }
+    }
+
+    void update_config(const configuration& config)
+    {
+        if (!config_) {
+            spdlog::debug("{} initialize configuration rev={}", log_prefix_, config.rev);
+        } else if (config.rev > config_->rev) {
+            spdlog::debug("{} will update the configuration old={} -> new={}", log_prefix_, config_->rev, config.rev);
+        } else {
+            return;
+        }
+
+        std::vector<configuration::node> added{};
+        std::vector<configuration::node> removed{};
+        if (config_) {
+            diff_nodes(config_->nodes, config.nodes, added);
+            diff_nodes(config.nodes, config_->nodes, removed);
+        } else {
+            added = config.nodes;
+        }
+        config_ = config;
+        if (!added.empty() || removed.empty()) {
+            std::map<size_t, std::shared_ptr<io::mcbp_session>> new_sessions{};
+
+            for (auto entry : sessions_) {
+                std::size_t new_index = config.nodes.size() + 1;
+                for (const auto& node : config.nodes) {
+                    if (entry.second->bootstrap_hostname() == node.hostname_for(origin_.options().network) &&
+                        entry.second->bootstrap_port() ==
+                          std::to_string(node.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0))) {
+                        new_index = node.index;
+                        break;
+                    }
+                }
+                if (new_index < config.nodes.size()) {
+                    spdlog::debug(R"({} rev={}, preserve session="{}", address="{}:{}")",
+                                  log_prefix_,
+                                  config.rev,
+                                  entry.second->id(),
+                                  entry.second->bootstrap_hostname(),
+                                  entry.second->bootstrap_port());
+                    new_sessions.emplace(new_index, std::move(entry.second));
+                } else {
+                    spdlog::debug(R"({} rev={}, drop session="{}", address="{}:{}")",
+                                  log_prefix_,
+                                  config.rev,
+                                  entry.second->id(),
+                                  entry.second->bootstrap_hostname(),
+                                  entry.second->bootstrap_port());
+                    entry.second.reset();
+                }
+            }
+
+            for (const auto& node : config.nodes) {
+                if (new_sessions.find(node.index) != new_sessions.end()) {
+                    continue;
+                }
+
+                auto hostname = node.hostname_for(origin_.options().network);
+                auto port = node.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0);
+                couchbase::origin origin(origin_.get_username(), origin_.get_password(), hostname, port, origin_.options());
+                std::shared_ptr<io::mcbp_session> session;
+                if (origin_.options().enable_tls) {
+                    session = std::make_shared<io::mcbp_session>(client_id_, ctx_, tls_, origin, name_, known_features_);
+                } else {
+                    session = std::make_shared<io::mcbp_session>(client_id_, ctx_, origin, name_, known_features_);
+                }
+                spdlog::debug(R"({} rev={}, add session="{}", address="{}:{}")", log_prefix_, config.rev, session->id(), hostname, port);
+                session->bootstrap(
+                  [self = shared_from_this(), session](std::error_code err, const configuration& cfg) {
+                      if (!err) {
+                          self->update_config(cfg);
+                          session->on_configuration_update([self](const configuration& new_config) { self->update_config(new_config); });
+                          session->on_stop([index = session->index(), self](io::retry_reason reason) {
+                              if (reason == io::retry_reason::socket_closed_while_in_flight) {
+                                  self->restart_node(index);
+                              }
+                          });
+                      }
+                  },
+                  true);
+                new_sessions.emplace(node.index, std::move(session));
+            }
+            sessions_ = new_sessions;
+        }
+    }
+
+    void restart_node(std::size_t index)
+    {
+        auto ptr = sessions_.find(index);
+        if (ptr == sessions_.end()) {
+            spdlog::debug(R"({} requested to restart session idx={}, which does not exist, ignoring)", log_prefix_, index);
+            return;
+        }
+        auto& old_session = ptr->second;
+        auto hostname = old_session->bootstrap_hostname();
+        auto port = old_session->bootstrap_port();
+        spdlog::debug(R"({} restarting session idx={}, id="{}", address="{}")", log_prefix_, index, old_session->id(), hostname, port);
+        couchbase::origin origin(origin_.get_username(), origin_.get_password(), hostname, port, origin_.options());
+        sessions_.erase(ptr);
+        std::shared_ptr<io::mcbp_session> session;
+        if (origin_.options().enable_tls) {
+            session = std::make_shared<io::mcbp_session>(client_id_, ctx_, tls_, origin, name_, known_features_);
+        } else {
+            session = std::make_shared<io::mcbp_session>(client_id_, ctx_, origin, name_, known_features_);
+        }
+        session->bootstrap(
+          [self = shared_from_this(), session](std::error_code err, const configuration& config) {
+              if (!err) {
+                  self->update_config(config);
+                  session->on_configuration_update([self](const configuration& new_config) { self->update_config(new_config); });
+              }
+          },
+          true);
+        sessions_.emplace(index, std::move(session));
     }
 
     template<typename Handler>
@@ -66,43 +203,28 @@ class bucket : public std::enable_shared_from_this<bucket>
         new_session->bootstrap([self = shared_from_this(), new_session, h = std::forward<Handler>(handler)](
                                  std::error_code ec, const configuration& cfg) mutable {
             if (!ec) {
-                self->config_ = cfg;
                 size_t this_index = new_session->index();
-                self->sessions_.emplace(this_index, std::move(new_session));
-                if (cfg.nodes.size() > 1) {
-                    for (const auto& n : cfg.nodes) {
-                        if (n.index != this_index) {
-                            couchbase::origin origin(
-                              self->origin_.get_username(),
-                              self->origin_.get_password(),
-                              n.hostname_for(self->origin_.options().network),
-                              n.port_or(self->origin_.options().network, service_type::kv, self->origin_.options().enable_tls, 0),
-                              self->origin_.options());
-                            std::shared_ptr<io::mcbp_session> s;
-                            if (self->origin_.options().enable_tls) {
-                                s = std::make_shared<io::mcbp_session>(
-                                  self->client_id_, self->ctx_, self->tls_, origin, self->name_, self->known_features_);
-                            } else {
-                                s = std::make_shared<io::mcbp_session>(
-                                  self->client_id_, self->ctx_, origin, self->name_, self->known_features_);
-                            }
-                            s->bootstrap([host = n.hostname, bucket = self->name_](std::error_code err, const configuration& /*config*/) {
-                                // TODO: retry, we know that auth is correct
-                                if (err) {
-                                    spdlog::warn("unable to bootstrap node {} ({}): {}", host, bucket, err.message());
-                                }
-                            });
-                            self->sessions_.emplace(n.index, std::move(s));
-                        }
+                new_session->on_configuration_update([self](const configuration& config) { self->update_config(config); });
+                new_session->on_stop([this_index, self](io::retry_reason reason) {
+                    if (reason == io::retry_reason::socket_closed_while_in_flight) {
+                        self->restart_node(this_index);
                     }
-                }
-                while (!self->deferred_commands_.empty()) {
-                    self->deferred_commands_.front()();
-                    self->deferred_commands_.pop();
-                }
+                });
+
+                self->sessions_.emplace(this_index, std::move(new_session));
+                self->update_config(cfg);
+                self->drain_deferred_queue();
             }
             h(ec, cfg);
         });
+    }
+
+    void drain_deferred_queue()
+    {
+        while (!deferred_commands_.empty()) {
+            deferred_commands_.front()();
+            deferred_commands_.pop();
+        }
     }
 
     template<typename Request, typename Handler>
@@ -111,7 +233,7 @@ class bucket : public std::enable_shared_from_this<bucket>
         if (closed_) {
             return;
         }
-        auto cmd = std::make_shared<operations::mcbp_command<Request>>(ctx_, request);
+        auto cmd = std::make_shared<operations::mcbp_command<bucket, Request>>(ctx_, shared_from_this(), request);
         cmd->start([cmd, handler = std::forward<Handler>(handler)](std::error_code ec, std::optional<io::mcbp_message> msg) mutable {
             using encoded_response_type = typename Request::encoded_response_type;
             handler(make_response(ec, cmd->request, msg ? encoded_response_type(*msg) : encoded_response_type{}));
@@ -129,18 +251,46 @@ class bucket : public std::enable_shared_from_this<bucket>
             return;
         }
         closed_ = true;
+
+        drain_deferred_queue();
         for (auto& session : sessions_) {
-            session.second->stop();
+            session.second->stop(io::retry_reason::do_not_retry);
         }
     }
 
     template<typename Request>
-    void map_and_send(std::shared_ptr<operations::mcbp_command<Request>> cmd)
+    void map_and_send(std::shared_ptr<operations::mcbp_command<bucket, Request>> cmd)
     {
-        size_t index = 0;
+        if (closed_) {
+            return cmd->cancel(io::retry_reason::do_not_retry);
+        }
+        std::int16_t index = 0;
         std::tie(cmd->request.partition, index) = config_->map_key(cmd->request.id.key);
-        auto session = sessions_.at(index);
-        cmd->send_to(session);
+        if (index < 0) {
+            return io::retry_orchestrator::maybe_retry(
+              cmd->manager_, cmd, io::retry_reason::node_not_available, std::make_error_code(error::common_errc::request_canceled));
+        }
+        cmd->send_to(sessions_.at(static_cast<std::size_t>(index)));
+    }
+
+    template<typename Request>
+    void schedule_for_retry(std::shared_ptr<operations::mcbp_command<bucket, Request>> cmd, std::chrono::milliseconds duration)
+    {
+        if (closed_) {
+            return cmd->cancel(io::retry_reason::do_not_retry);
+        }
+        cmd->retry_backoff.expires_after(duration);
+        cmd->retry_backoff.async_wait([self = shared_from_this(), cmd](std::error_code ec) mutable {
+            if (ec == asio::error::operation_aborted) {
+                return;
+            }
+            self->map_and_send(cmd);
+        });
+    }
+
+    [[nodiscard]] const std::string& log_prefix()
+    {
+        return log_prefix_;
     }
 
   private:
@@ -157,5 +307,7 @@ class bucket : public std::enable_shared_from_this<bucket>
 
     bool closed_{ false };
     std::map<size_t, std::shared_ptr<io::mcbp_session>> sessions_{};
+
+    std::string log_prefix_{};
 };
 } // namespace couchbase

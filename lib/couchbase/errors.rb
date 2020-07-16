@@ -67,10 +67,13 @@ module Couchbase
     class UnsupportedOperation < CouchbaseError
     end
 
-    class AmbiguousTimeout < CouchbaseError
+    class Timeout < CouchbaseError
     end
 
-    class UnambiguousTimeout < CouchbaseError
+    class AmbiguousTimeout < Timeout
+    end
+
+    class UnambiguousTimeout < Timeout
     end
 
     class FeatureNotAvailable < CouchbaseError

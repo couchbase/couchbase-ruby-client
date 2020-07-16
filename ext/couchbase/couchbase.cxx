@@ -167,6 +167,7 @@ cb_Backend_allocate(VALUE klass)
 }
 
 static VALUE eCouchbaseError;
+static VALUE eTimeout;
 static VALUE eAmbiguousTimeout;
 static VALUE eAuthenticationFailure;
 static VALUE eBucketExists;
@@ -238,7 +239,9 @@ init_exceptions(VALUE mCouchbase)
     VALUE mError = rb_define_module_under(mCouchbase, "Error");
     eCouchbaseError = rb_define_class_under(mError, "CouchbaseError", rb_eStandardError);
 
-    eAmbiguousTimeout = rb_define_class_under(mError, "AmbiguousTimeout", eCouchbaseError);
+    eTimeout = rb_define_class_under(mError, "Timeout", eCouchbaseError);
+
+    eAmbiguousTimeout = rb_define_class_under(mError, "AmbiguousTimeout", eTimeout);
     eAuthenticationFailure = rb_define_class_under(mError, "AuthenticationFailure", eCouchbaseError);
     eBucketExists = rb_define_class_under(mError, "BucketExists", eCouchbaseError);
     eBucketNotFlushable = rb_define_class_under(mError, "BucketNotFlushable", eCouchbaseError);
@@ -290,7 +293,7 @@ init_exceptions(VALUE mCouchbase)
     eScopeNotFound = rb_define_class_under(mError, "ScopeNotFound", eCouchbaseError);
     eServiceNotAvailable = rb_define_class_under(mError, "ServiceNotAvailable", eCouchbaseError);
     eTemporaryFailure = rb_define_class_under(mError, "TemporaryFailure", eCouchbaseError);
-    eUnambiguousTimeout = rb_define_class_under(mError, "UnambiguousTimeout", eCouchbaseError);
+    eUnambiguousTimeout = rb_define_class_under(mError, "UnambiguousTimeout", eTimeout);
     eUnsupportedOperation = rb_define_class_under(mError, "UnsupportedOperation", eCouchbaseError);
     eUserNotFound = rb_define_class_under(mError, "UserNotFound", eCouchbaseError);
     eUserExists = rb_define_class_under(mError, "UserExists", eCouchbaseError);

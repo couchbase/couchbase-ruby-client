@@ -19,6 +19,7 @@
 
 #include <document_id.hxx>
 #include <protocol/cmd_exists.hxx>
+#include <io/retry_context.hxx>
 
 namespace couchbase::operations
 {
@@ -42,6 +43,7 @@ struct exists_request {
     std::uint16_t partition{};
     std::uint32_t opaque{};
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
+    io::retry_context<io::retry_strategy::best_effort> retries{ false };
 
     void encode_to(encoded_request_type& encoded)
     {

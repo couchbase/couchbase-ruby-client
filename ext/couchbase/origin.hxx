@@ -49,6 +49,15 @@ struct origin {
     {
     }
 
+    origin(std::string username, std::string password, const std::string& hostname, const std::string& port, const cluster_options& options)
+      : options_(options)
+      , username_(std::move(username))
+      , password_(std::move(password))
+      , nodes_{ { hostname, port } }
+      , next_node_(nodes_.begin())
+    {
+    }
+
     origin(std::string username, std::string password, const utils::connection_string& connstr)
       : options_(connstr.options)
       , username_(std::move(username))
@@ -89,7 +98,7 @@ struct origin {
     {
         std::vector<std::string> res;
         res.reserve(nodes_.size());
-        for (const auto &node : nodes_) {
+        for (const auto& node : nodes_) {
             res.emplace_back(fmt::format("\"{}:{}\"", node.first, node.second));
         }
         return res;

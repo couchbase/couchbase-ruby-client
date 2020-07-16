@@ -30,25 +30,25 @@ namespace couchbase
 {
 struct configuration {
     struct port_map {
-        std::optional<std::uint16_t> key_value;
-        std::optional<std::uint16_t> management;
-        std::optional<std::uint16_t> analytics;
-        std::optional<std::uint16_t> search;
-        std::optional<std::uint16_t> views;
-        std::optional<std::uint16_t> query;
+        std::optional<std::uint16_t> key_value{};
+        std::optional<std::uint16_t> management{};
+        std::optional<std::uint16_t> analytics{};
+        std::optional<std::uint16_t> search{};
+        std::optional<std::uint16_t> views{};
+        std::optional<std::uint16_t> query{};
     };
     struct alternate_address {
-        std::string name;
-        std::string hostname;
+        std::string name{};
+        std::string hostname{};
         port_map services_plain{};
         port_map services_tls{};
     };
     struct node {
         bool this_node{ false };
-        size_t index;
-        std::string hostname;
-        port_map services_plain;
-        port_map services_tls;
+        size_t index{};
+        std::string hostname{};
+        port_map services_plain{};
+        port_map services_tls{};
         std::map<std::string, alternate_address> alt{};
 
         [[nodiscard]] std::uint16_t port_or(service_type type, bool is_tls, std::uint16_t default_value) const
@@ -211,14 +211,14 @@ struct configuration {
         throw std::runtime_error("no nodes marked as this_node");
     }
 
-    std::pair<uint16_t, size_t> map_key(const std::string& key)
+    std::pair<std::uint16_t, std::int16_t> map_key(const std::string& key)
     {
         if (!vbmap.has_value()) {
             throw std::runtime_error("cannot map key: partition map is not available");
         }
         uint32_t crc = utils::hash_crc32(key.data(), key.size());
         uint16_t vbucket = uint16_t(crc % vbmap->size());
-        return std::make_pair(vbucket, static_cast<std::size_t>(vbmap->at(vbucket)[0]));
+        return std::make_pair(vbucket, vbmap->at(vbucket)[0]);
     }
 };
 

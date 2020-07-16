@@ -47,6 +47,11 @@ struct deduplicate_keys : Consumer {
 };
 } // namespace
 
+template<typename Iterator>
+configuration parse_config(Iterator begin, Iterator end) {
+    return tao::json::from_string<deduplicate_keys>(std::string(begin, end)).as<configuration>();
+}
+
 class get_cluster_config_response_body
 {
   public:
@@ -72,7 +77,7 @@ class get_cluster_config_response_body
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success) {
             std::vector<uint8_t>::difference_type offset = framing_extras_size + key_size + extras_size;
-            config_ = tao::json::from_string<deduplicate_keys>(std::string(body.begin() + offset, body.end())).as<configuration>();
+            config_ = parse_config(body.begin() + offset, body.end());
             return true;
         }
         return false;

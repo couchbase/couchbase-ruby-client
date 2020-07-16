@@ -20,6 +20,7 @@
 #include <gsl/gsl_assert>
 #include <document_id.hxx>
 #include <protocol/cmd_lookup_in.hxx>
+#include <io/retry_context.hxx>
 
 namespace couchbase::operations
 {
@@ -50,6 +51,7 @@ struct lookup_in_request {
     bool access_deleted{ false };
     protocol::lookup_in_request_body::lookup_in_specs specs{};
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
+    io::retry_context<io::retry_strategy::best_effort> retries{ false };
 
     void encode_to(encoded_request_type& encoded)
     {

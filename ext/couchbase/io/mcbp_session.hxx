@@ -28,6 +28,7 @@
 #include <io/mcbp_message.hxx>
 #include <io/mcbp_parser.hxx>
 #include <io/streams.hxx>
+#include <io/retry_orchestrator.hxx>
 
 #include <timeout_defaults.hxx>
 
@@ -246,7 +247,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 case protocol::client_opcode::get_error_map: {
                     protocol::client_response<protocol::get_error_map_response_body> resp(msg);
                     if (resp.status() == protocol::status::success) {
-                        session_->errmap_.emplace(resp.body().errmap());
+                        session_->error_map_.emplace(resp.body().errmap());
                     } else {
                         spdlog::warn("{} unexpected message status during bootstrap: {} (opcode={})",
                                      session_->log_prefix_,
@@ -369,16 +370,16 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                             auto handler = session_->command_handlers_.find(opaque);
                             if (handler != session_->command_handlers_.end()) {
                                 auto ec = session_->map_status_code(opcode, status);
-                                spdlog::debug("{} MCBP invoke operation handler, opaque={}, status={}, ec={}",
+                                spdlog::trace("{} MCBP invoke operation handler: opaque={}, status={}, ec={}",
                                               session_->log_prefix_,
                                               opaque,
-                                              status,
+                                              protocol::status_to_string(status),
                                               ec.message());
                                 auto fun = handler->second;
                                 session_->command_handlers_.erase(handler);
-                                fun(ec, std::move(msg));
+                                fun(ec, retry_reason::do_not_retry, std::move(msg));
                             } else {
-                                spdlog::debug("{} unexpected orphan response opcode={}, opaque={}",
+                                spdlog::debug("{} unexpected orphan response: opcode={}, opaque={}",
                                               session_->log_prefix_,
                                               msg.header.opcode,
                                               msg.header.opaque);
@@ -472,7 +473,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
     ~mcbp_session()
     {
-        stop();
+        stop(retry_reason::do_not_retry);
     }
 
     [[nodiscard]] const std::string& log_prefix() const
@@ -480,8 +481,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         return log_prefix_;
     }
 
-    void bootstrap(std::function<void(std::error_code, configuration)>&& handler)
+    void bootstrap(std::function<void(std::error_code, configuration)>&& handler, bool retry_on_bucket_not_found = false)
     {
+        retry_bootstrap_on_bucket_not_found_ = retry_on_bucket_not_found;
         bootstrap_handler_ = std::move(handler);
         bootstrap_deadline_.expires_after(timeout_defaults::bootstrap_timeout);
         bootstrap_deadline_.async_wait([self = shared_from_this()](std::error_code ec) {
@@ -491,7 +493,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             spdlog::warn("{} unable to bootstrap in time", self->log_prefix_);
             self->bootstrap_handler_(std::make_error_code(error::common_errc::unambiguous_timeout), {});
             self->bootstrap_handler_ = nullptr;
-            self->stop();
+            self->stop(retry_reason::socket_closed_while_in_flight);
         });
         initiate_bootstrap();
     }
@@ -514,13 +516,17 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             });
             return;
         }
-        std::string service;
-        std::tie(bootstrap_hostname_, service) = origin_.next_address();
-        log_prefix_ = fmt::format(
-          "[{}/{}/{}/{}] <{}:{}>", stream_->log_prefix(), client_id_, id_, bucket_name_.value_or("-"), bootstrap_hostname_, service);
+        std::tie(bootstrap_hostname_, bootstrap_port_) = origin_.next_address();
+        log_prefix_ = fmt::format("[{}/{}/{}/{}] <{}:{}>",
+                                  stream_->log_prefix(),
+                                  client_id_,
+                                  id_,
+                                  bucket_name_.value_or("-"),
+                                  bootstrap_hostname_,
+                                  bootstrap_port_);
         spdlog::debug("{} attempt to establish MCBP connection", log_prefix_);
         resolver_.async_resolve(bootstrap_hostname_,
-                                service,
+                                bootstrap_port_,
                                 std::bind(&mcbp_session::on_resolve, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     }
 
@@ -529,11 +535,17 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         return id_;
     }
 
-    void stop()
+    void on_stop(std::function<void(io::retry_reason)> handler)
+    {
+        on_stop_handler_ = std::move(handler);
+    }
+
+    void stop(retry_reason reason)
     {
         if (stopped_) {
             return;
         }
+        spdlog::debug("{} stop MCBP connection, reason={}", log_prefix_, reason);
         stopped_ = true;
         bootstrap_deadline_.cancel();
         connection_deadline_.cancel();
@@ -552,9 +564,14 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         for (auto& handler : command_handlers_) {
             spdlog::debug("{} MCBP cancel operation during session close, opaque={}, ec={}", log_prefix_, handler.first, ec.message());
-            handler.second(ec, {});
+            handler.second(ec, reason, {});
         }
         command_handlers_.clear();
+        config_listeners_.clear();
+        if (on_stop_handler_) {
+            on_stop_handler_(reason);
+        }
+        on_stop_handler_ = nullptr;
     }
 
     void write(const std::vector<uint8_t>& buf)
@@ -564,7 +581,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         std::uint32_t opaque{ 0 };
         std::memcpy(&opaque, buf.data() + 12, sizeof(opaque));
-        spdlog::debug("{} MCBP send, opaque={}, {:n}", log_prefix_, opaque, spdlog::to_hex(buf.begin(), buf.begin() + 24));
+        spdlog::trace("{} MCBP send, opaque={}, {:n}", log_prefix_, opaque, spdlog::to_hex(buf.begin(), buf.begin() + 24));
         SPDLOG_TRACE("{} MCBP send, opaque={}{:a}", log_prefix_, opaque, spdlog::to_hex(data));
         std::scoped_lock lock(output_buffer_mutex_);
         output_buffer_.push_back(buf);
@@ -589,33 +606,36 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
     void write_and_subscribe(uint32_t opaque,
                              std::vector<std::uint8_t>& data,
-                             std::function<void(std::error_code, io::mcbp_message&&)> handler)
+                             std::function<void(std::error_code, retry_reason, io::mcbp_message&&)> handler)
     {
         if (stopped_) {
-            spdlog::warn("{} MCBP cancel operation, while trying to write to closed session opaque={}", log_prefix_, opaque);
-            handler(std::make_error_code(error::common_errc::request_canceled), {});
+            spdlog::warn("{} MCBP cancel operation, while trying to write to closed session, opaque={}", log_prefix_, opaque);
+            handler(std::make_error_code(error::common_errc::request_canceled), retry_reason::socket_closed_while_in_flight, {});
             return;
         }
         command_handlers_.emplace(opaque, std::move(handler));
         if (bootstrapped_ && stream_->is_open()) {
             write_and_flush(data);
         } else {
+            spdlog::debug("{} the stream is not ready yet, put the message into pending buffer, opaque={}", log_prefix_, opaque);
             std::scoped_lock lock(pending_buffer_mutex_);
             pending_buffer_.push_back(data);
         }
     }
 
-    void cancel(uint32_t opaque, std::error_code ec)
+    [[nodiscard]] bool cancel(uint32_t opaque, std::error_code ec, retry_reason reason)
     {
         if (stopped_) {
-            return;
+            return false;
         }
         auto handler = command_handlers_.find(opaque);
         if (handler != command_handlers_.end()) {
             spdlog::debug("{} MCBP cancel operation, opaque={}, ec={}", log_prefix_, opaque, ec.message());
-            handler->second(ec, {});
+            handler->second(ec, reason, {});
             command_handlers_.erase(handler);
+            return true;
         }
+        return false;
     }
 
     [[nodiscard]] bool supports_feature(protocol::hello_feature feature)
@@ -652,6 +672,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     [[nodiscard]] const std::string& bootstrap_hostname() const
     {
         return bootstrap_hostname_;
+    }
+
+    [[nodiscard]] const std::string& bootstrap_port() const
+    {
+        return bootstrap_port_;
     }
 
     [[nodiscard]] uint32_t next_opaque()
@@ -708,7 +733,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 return std::make_error_code(error::common_errc::internal_server_failure);
 
             case protocol::status::busy:
-            case protocol::status::temp_failure:
+            case protocol::status::temporary_failure:
             case protocol::status::no_memory:
             case protocol::status::not_initialized:
                 return std::make_error_code(error::common_errc::temporary_failure);
@@ -793,8 +818,24 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 break;
         }
         // FIXME: use error map here
-        spdlog::warn("{} unknown status code: {} (opcode={})", log_prefix_, status, opcode);
+        spdlog::warn("{} unknown status code: {} (opcode={})", log_prefix_, protocol::status_to_string(status), opcode);
         return std::make_error_code(error::network_errc::protocol_error);
+    }
+
+    std::optional<error_map::error_info> decode_error_code(std::uint16_t code)
+    {
+        if (error_map_) {
+            auto info = error_map_->errors.find(code);
+            if (info != error_map_->errors.end()) {
+                return info->second;
+            }
+        }
+        return {};
+    }
+
+    void on_configuration_update(std::function<void(const configuration&)> handler)
+    {
+        config_listeners_.emplace_back(std::move(handler));
     }
 
     void update_configuration(configuration&& config)
@@ -804,12 +845,45 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         if (!config_ || config.rev > config_->rev) {
             for (auto& node : config.nodes) {
-                if (node.this_node && node.hostname.empty()) {
-                    node.hostname = endpoint_address_;
+                if (node.hostname.empty()) {
+                    node.hostname = bootstrap_hostname_;
                 }
             }
             config_.emplace(config);
             spdlog::debug("{} received new configuration: {}", log_prefix_, config_.value());
+            for (auto& listener : config_listeners_) {
+                listener(*config_);
+            }
+        }
+    }
+
+    void handle_not_my_vbucket(io::mcbp_message&& msg)
+    {
+        if (stopped_) {
+            return;
+        }
+        Expects(msg.header.magic == static_cast<std::uint8_t>(protocol::magic::alt_client_response) ||
+                msg.header.magic == static_cast<std::uint8_t>(protocol::magic::client_response));
+        if (protocol::has_json_datatype(msg.header.datatype)) {
+            auto magic = static_cast<protocol::magic>(msg.header.magic);
+            uint8_t extras_size = msg.header.extlen;
+            uint8_t framing_extras_size = 0;
+            uint16_t key_size = htons(msg.header.keylen);
+            if (magic == protocol::magic::alt_client_response) {
+                framing_extras_size = static_cast<std::uint8_t>(msg.header.keylen >> 8U);
+                key_size = msg.header.keylen & 0xffU;
+            }
+
+            std::vector<uint8_t>::difference_type offset = framing_extras_size + key_size + extras_size;
+            if (ntohl(msg.header.bodylen) - offset > 0) {
+                auto config = protocol::parse_config(msg.body.begin() + offset, msg.body.end());
+                spdlog::debug("{} received not_my_vbucket status for {}, opaque={} with config rev={} in the payload",
+                              log_prefix_,
+                              static_cast<protocol::client_opcode>(msg.header.opcode),
+                              msg.header.opaque,
+                              config.rev);
+                update_configuration(std::move(config));
+            }
         }
     }
 
@@ -829,13 +903,18 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
   private:
     void invoke_bootstrap_handler(std::error_code ec)
     {
+        if (retry_bootstrap_on_bucket_not_found_ && ec == std::make_error_code(error::common_errc::bucket_not_found)) {
+            spdlog::debug(R"({} server returned {}, it must be transient condition, retrying)", log_prefix_, ec.message());
+            return initiate_bootstrap();
+        }
+
         if (!bootstrapped_ && bootstrap_handler_) {
             bootstrap_deadline_.cancel();
             bootstrap_handler_(ec, config_.value_or(configuration{}));
             bootstrap_handler_ = nullptr;
         }
         if (ec) {
-            return stop();
+            return stop(retry_reason::node_not_available);
         }
         bootstrapped_ = true;
         handler_ = std::make_unique<normal_handler>(shared_from_this());
@@ -934,8 +1013,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                   return;
               }
               if (ec) {
-                  spdlog::error("{} IO error while reading from the socket: {}", self->log_prefix_, ec.message());
-                  return self->stop();
+                  spdlog::error("{} IO error while reading from the socket: {}, pending_handlers={}",
+                                self->log_prefix_,
+                                ec.message(),
+                                self->command_handlers_.size());
+                  return self->stop(retry_reason::socket_closed_while_in_flight);
               }
               self->parser_.feed(self->input_buffer_.data(), self->input_buffer_.data() + ssize_t(bytes_transferred));
 
@@ -943,7 +1025,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                   mcbp_message msg{};
                   switch (self->parser_.next(msg)) {
                       case mcbp_parser::ok:
-                          spdlog::debug(
+                          spdlog::trace(
                             "{} MCBP recv, opaque={}, {:n}", self->log_prefix_, msg.header.opaque, spdlog::to_hex(msg.header_data()));
                           SPDLOG_TRACE("{} MCBP recv, opaque={}{:a}{:a}",
                                        self->log_prefix_,
@@ -962,7 +1044,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                           }
                           return;
                       case mcbp_parser::failure:
-                          return self->stop();
+                          return self->stop(retry_reason::kv_temporary_failure);
                   }
               }
           });
@@ -988,8 +1070,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 return;
             }
             if (ec) {
-                spdlog::error("{} IO error while writing to the socket: {}", self->log_prefix_, ec.message());
-                return self->stop();
+                spdlog::error("{} IO error while writing to the socket: {}, pending_handlers={}",
+                              self->log_prefix_,
+                              ec.message(),
+                              self->command_handlers_.size());
+                return self->stop(retry_reason::socket_closed_while_in_flight);
             }
             {
                 std::scoped_lock inner_lock(self->writing_buffer_mutex_);
@@ -1013,13 +1098,16 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     mcbp_parser parser_;
     std::unique_ptr<message_handler> handler_;
     std::function<void(std::error_code, const configuration&)> bootstrap_handler_{};
-    std::map<uint32_t, std::function<void(std::error_code, io::mcbp_message&&)>> command_handlers_{};
+    std::map<uint32_t, std::function<void(std::error_code, retry_reason, io::mcbp_message&&)>> command_handlers_{};
+    std::vector<std::function<void(const configuration&)>> config_listeners_{};
+    std::function<void(io::retry_reason)> on_stop_handler_{};
 
     bool bootstrapped_{ false };
     std::atomic_bool stopped_{ false };
     bool authenticated_{ false };
     bool bucket_selected_{ false };
     bool supports_gcccp_{ true };
+    bool retry_bootstrap_on_bucket_not_found_{ false };
 
     std::atomic<std::uint32_t> opaque_{ 0 };
 
@@ -1031,12 +1119,13 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     std::mutex pending_buffer_mutex_{};
     std::mutex writing_buffer_mutex_{};
     std::string bootstrap_hostname_{};
+    std::string bootstrap_port_{};
     asio::ip::tcp::endpoint endpoint_{}; // connected endpoint
     std::string endpoint_address_{};     // cached string with endpoint address
     asio::ip::tcp::resolver::results_type endpoints_;
     std::vector<protocol::hello_feature> supported_features_;
     std::optional<configuration> config_;
-    std::optional<error_map> errmap_;
+    std::optional<error_map> error_map_;
     collection_cache collection_cache_;
 
     std::atomic_bool reading_{ false };

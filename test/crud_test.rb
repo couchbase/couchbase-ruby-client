@@ -99,11 +99,11 @@ module Couchbase
       document = {"value" => 42}
       @collection.upsert(doc_id, document)
 
-      res = @collection.get_and_lock(doc_id, 1)
+      res = @collection.get_and_lock(doc_id, 5)
       cas = res.cas
 
       document["value"] += 1
-      assert_raises(Couchbase::Error::DocumentLocked) do
+      assert_raises(Couchbase::Error::Timeout) do
         @collection.upsert(doc_id, document)
       end
 

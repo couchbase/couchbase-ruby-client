@@ -74,7 +74,7 @@ require "json"
 require "minitest/autorun"
 
 module Couchbase
-  TEST_CONNECTION_STRING = ENV["TEST_CONNECTION_STRING"] || "couchbase://localhost"
+  TEST_CONNECTION_STRING = ENV["TEST_CONNECTION_STRING"] || "couchbase://127.0.0.1"
   TEST_USERNAME = ENV["TEST_USERNAME"] || "Administrator"
   TEST_PASSWORD = ENV["TEST_PASSWORD"] || "password"
   TEST_BUCKET = ENV["TEST_BUCKET"] || "default"
@@ -85,7 +85,9 @@ module Couchbase
     # rubocop:disable Minitest/TestMethodName
 
     def uniq_id(name)
-      "#{name}_#{Time.now.to_f}"
+      parent = caller_locations&.first
+      prefix = "#{File.basename(parent&.path, '.rb')}_#{parent&.lineno}"
+      "#{prefix}_#{name}_#{Time.now.to_f}"
     end
 
     def load_raw_test_dataset(dataset)

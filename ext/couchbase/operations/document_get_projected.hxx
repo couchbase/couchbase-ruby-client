@@ -19,6 +19,7 @@
 
 #include <document_id.hxx>
 #include <protocol/cmd_lookup_in.hxx>
+#include <io/retry_context.hxx>
 
 namespace couchbase::operations
 {
@@ -45,6 +46,7 @@ struct get_projected_request {
     std::vector<std::string> effective_projections{};
     bool preserve_array_indexes{ false };
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
+    io::retry_context<io::retry_strategy::best_effort> retries{ true };
 
     void encode_to(encoded_request_type& encoded)
     {
