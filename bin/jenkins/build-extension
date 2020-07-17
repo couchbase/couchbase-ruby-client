@@ -39,7 +39,7 @@ then
 fi
 chruby ruby-${CB_RUBY_VERSION}
 
-gem install bundler
+gem install bundler gem-compiler
 
 ruby --version
 bundle --version
@@ -47,4 +47,14 @@ bundle config set --local path ${PROJECT_ROOT}/vendor/bundle
 
 bundle install
 export EXT_BUILD_DIR="${PROJECT_ROOT}/build-${RUBY_VERSION}-${BUILD_NUMBER}"
-bundle exec rake compile
+${PROJECT_ROOT}/bin/jenkins/patch-version ${BUILD_NUMBER}
+
+bundle exec rake build
+full_version=$(ruby -r${PROJECT_ROOT}/lib/couchbase/version.rb -e "puts Couchbase::VERSION[:sdk]")
+source="${PROJECT_ROOT}/pkg/couchbase-${full_version}.gem"
+precompiled="${PROJECT_ROOT}/pkg/binary"
+mkdir -p ${precompiled}
+gem compile --verbose --output ${precompiled} ${source}
+ruby -rrbconfig -rfileutils \
+     -e 'FileUtils.mv(ARGV[0], ARGV[0].gsub(/\.gem$/, "-#{RbConfig::CONFIG["ruby_version"]}.gem"))' \
+     ${precompiled}/*.gem
