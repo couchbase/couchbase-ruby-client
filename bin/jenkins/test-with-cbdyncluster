@@ -23,12 +23,14 @@ cbdyncluster ps -a
 CB_VERSION=${CB_VERSION:-6.5.1}
 CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7.1}
 
+extra_options=$(ruby -e 'print "--enable-developer-preview" if ENV["CB_VERSION"] =~ /^6\.5/')
+
 CLUSTER_ID=$(cbdyncluster allocate --num-nodes=3 --server-version=${CB_VERSION})
 SERVICES="kv,index,n1ql,fts"
 cbdyncluster setup ${CLUSTER_ID} \
     --bucket=default \
-    --enable-developer-preview \
     --storage-mode=plasma \
+    ${extra_options} \
     --node=${SERVICES} \
     --node=${SERVICES} \
     --node=${SERVICES}
