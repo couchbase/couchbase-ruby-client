@@ -12,7 +12,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-$LOAD_PATH.unshift File.expand_path("../../lib", __FILE__)
+library_directory = File.expand_path("../../lib", __FILE__)
+if File.directory?(library_directory)
+  $LOAD_PATH.unshift(library_directory)
+else
+  STDERR.puts("using system library path")
+end
 
 require "rubygems/version"
 

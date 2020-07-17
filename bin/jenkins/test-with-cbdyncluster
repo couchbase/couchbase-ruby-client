@@ -64,7 +64,18 @@ set +e
 echo "${PWD}/core.%h.%e.%t" | sudo tee /proc/sys/kernel/core_pattern
 ulimit -c unlimited
 
-bundle exec rake test
+gem install minitest-reporters
+
+cat <<EOF > Rakefile
+require "rake/testtask"
+
+Rake::TestTask.new(:test) do |t|
+  t.libs << "test"
+  t.test_files = FileList["test/**/*_test.rb"]
+end
+EOF
+
+rake test
 STATUS=$?
 set -e
 
