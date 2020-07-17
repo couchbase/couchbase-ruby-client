@@ -39,11 +39,12 @@ then
 fi
 chruby ruby-${CB_RUBY_VERSION}
 
+gem install bundler
+
 ruby --version
 bundle --version
 bundle config set --local path ${PROJECT_ROOT}/vendor/bundle
 
-gem install bundler
 bundle install
 export EXT_BUILD_DIR="${PROJECT_ROOT}/build-${RUBY_VERSION}-${BUILD_NUMBER}"
 bundle exec rake compile
