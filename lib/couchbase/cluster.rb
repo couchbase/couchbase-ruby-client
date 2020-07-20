@@ -67,18 +67,18 @@ module Couchbase
           pipeline_cap: options.pipeline_cap,
           metrics: options.metrics,
           profile: options.profile,
-          positional_parameters: options.instance_variable_get("@positional_parameters")&.map { |p| JSON.dump(p) },
-          named_parameters: options.instance_variable_get("@named_parameters")&.each_with_object({}) { |(n, v), o| o[n.to_s] = JSON.dump(v) },
-          raw_parameters: options.instance_variable_get("@raw_parameters"),
-          scan_consistency: options.instance_variable_get("@scan_consistency"),
-          mutation_state: options.instance_variable_get("@mutation_state")&.tokens&.map { |t|
+          positional_parameters: options.export_positional_parameters,
+          named_parameters: options.export_named_parameters,
+          raw_parameters: options.raw_parameters,
+          scan_consistency: options.scan_consistency,
+          mutation_state: (options.mutation_state.tokens.map { |t|
             {
                 bucket_name: t.bucket_name,
                 partition_id: t.partition_id,
                 partition_uuid: t.partition_uuid,
                 sequence_number: t.sequence_number,
             }
-          },
+          } if options.mutation_state),
       })
 
       QueryResult.new do |res|
@@ -119,9 +119,9 @@ module Couchbase
           scan_consistency: options.scan_consistency,
           readonly: options.readonly,
           priority: options.priority,
-          positional_parameters: options.instance_variable_get("@positional_parameters")&.map { |p| JSON.dump(p) },
-          named_parameters: options.instance_variable_get("@named_parameters")&.each_with_object({}) { |(n, v), o| o[n.to_s] = JSON.dump(v) },
-          raw_parameters: options.instance_variable_get("@raw_parameters"),
+          positional_parameters: options.export_positional_parameters,
+          named_parameters: options.export_named_parameters,
+          raw_parameters: options.raw_parameters,
       })
 
       AnalyticsResult.new do |res|
@@ -165,17 +165,17 @@ module Couchbase
           highlight_style: options.highlight_style,
           highlight_fields: options.highlight_fields,
           fields: options.fields,
-          sort: options.sort&.map { |v| JSON.generate(v) },
-          facets: options.facets&.map { |(k, v)| [k, JSON.generate(v)] },
-          scan_consistency: options.instance_variable_get("@scan_consistency"),
-          mutation_state: options.instance_variable_get("@mutation_state")&.tokens&.map { |t|
+          sort: (options.sort.map { |v| JSON.generate(v) } if options.sort),
+          facets: (options.facets.map { |(k, v)| [k, JSON.generate(v)] } if options.facets),
+          scan_consistency: options.scan_consistency,
+          mutation_state: (options.mutation_state.tokens.map { |t|
             {
                 bucket_name: t.bucket_name,
                 partition_id: t.partition_id,
                 partition_uuid: t.partition_uuid,
                 sequence_number: t.sequence_number,
             }
-          },
+          } if options.mutation_state),
       })
 
       SearchResult.new do |res|
@@ -209,35 +209,52 @@ module Couchbase
             row.explanation = JSON.parse(r[:explanation]) if r[:explanation]
           end
         end
-        res.facets = resp[:facets]&.each_with_object({}) do |(k, v), o|
-          facet = case options.facets[k]
-                  when SearchFacet::SearchFacetTerm
-                    SearchFacetResult::TermFacetResult.new do |f|
-                      f.terms = v[:terms]&.map do |t|
-                        SearchFacetResult::TermFacetResult::TermFacet.new(t[:term], t[:count])
-                      end || []
+        if resp[:facets]
+          res.facets = resp[:facets].each_with_object({}) do |(k, v), o|
+            facet = case options.facets[k]
+                    when SearchFacet::SearchFacetTerm
+                      SearchFacetResult::TermFacetResult.new do |f|
+                        f.terms =
+                            if v[:terms]
+                              v[:terms].map do |t|
+                                SearchFacetResult::TermFacetResult::TermFacet.new(t[:term], t[:count])
+                              end
+                            else
+                              []
+                            end
+                      end
+                    when SearchFacet::SearchFacetDateRange
+                      SearchFacetResult::DateRangeFacetResult.new do |f|
+                        f.date_ranges =
+                            if v[:date_ranges]
+                              v[:date_ranges].map do |r|
+                                SearchFacetResult::DateRangeFacetResult::DateRangeFacet.new(r[:name], r[:count], r[:start_time], r[:end_time])
+                              end
+                            else
+                              []
+                            end
+                      end
+                    when SearchFacet::SearchFacetNumericRange
+                      SearchFacetResult::NumericRangeFacetResult.new do |f|
+                        f.numeric_ranges =
+                            if v[:numeric_ranges]
+                              v[:numeric_ranges].map do |r|
+                                SearchFacetResult::NumericRangeFacetResult::NumericRangeFacet.new(r[:name], r[:count], r[:min], r[:max])
+                              end
+                            else
+                              []
+                            end
+                      end
+                    else
+                      next # ignore unknown facet result
                     end
-                  when SearchFacet::SearchFacetDateRange
-                    SearchFacetResult::DateRangeFacetResult.new do |f|
-                      f.date_ranges = v[:date_ranges]&.map do |r|
-                        SearchFacetResult::DateRangeFacetResult::DateRangeFacet.new(r[:name], r[:count], r[:start_time], r[:end_time])
-                      end || []
-                    end
-                  when SearchFacet::SearchFacetNumericRange
-                    SearchFacetResult::NumericRangeFacetResult.new do |f|
-                      f.numeric_ranges = v[:numeric_ranges]&.map do |r|
-                        SearchFacetResult::NumericRangeFacetResult::NumericRangeFacet.new(r[:name], r[:count], r[:min], r[:max])
-                      end || []
-                    end
-                  else
-                    next # ignore unknown facet result
-                  end
-          facet.name = v[:name]
-          facet.field = v[:field]
-          facet.total = v[:total]
-          facet.missing = v[:missing]
-          facet.other = v[:other]
-          o[k] = facet
+            facet.name = v[:name]
+            facet.field = v[:field]
+            facet.total = v[:total]
+            facet.missing = v[:missing]
+            facet.other = v[:other]
+            o[k] = facet
+          end
         end
       end
     end

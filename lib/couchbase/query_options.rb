@@ -56,6 +56,17 @@ module Couchbase
       # @return [:off, :phases, :timings] Customize server profile level for this query
       attr_accessor :profile
 
+      # @return [:not_bounded, :request_plus]
+      attr_reader :scan_consistency
+
+      # @api private
+      # @return [MutationState]
+      attr_reader :mutation_state
+
+      # @api private
+      # @return [Hash<String => #to_json>]
+      attr_reader :raw_parameters
+
       # @yieldparam [QueryOptions] self
       def initialize
         @timeout = 75_000 # ms
@@ -108,12 +119,24 @@ module Couchbase
         @named_parameters = nil
       end
 
+      # @api private
+      # @return [Array<String>, nil]
+      def export_positional_parameters
+        @positional_parameters.map { |p| JSON.dump(p) } if @positional_parameters
+      end
+
       # Sets named parameters for the query
       #
       # @param [Hash] named the key/value map of the parameters to substitute in the statement
       def named_parameters(named)
         @named_parameters = named
         @positional_parameters = nil
+      end
+
+      # @api private
+      # @return [Hash<String => String>, nil]
+      def export_named_parameters
+        @named_parameters.each_with_object({}) { |(n, v), o| o[n.to_s] = JSON.dump(v) } if @named_parameters
       end
     end
 

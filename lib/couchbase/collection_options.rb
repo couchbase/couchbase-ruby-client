@@ -301,7 +301,7 @@ module Couchbase
       #
       # @return [Boolean] true if a value is present at the index, false otherwise
       def exists?(index)
-        encoded[index]&.exists
+        !encoded[index].nil? && encoded[index].exists
       end
 
       # @return [Array<SubDocumentField>] holds the encoded subdocument responses

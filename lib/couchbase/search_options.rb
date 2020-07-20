@@ -1164,6 +1164,13 @@ module Couchbase
       # @return [Array<String>] list of field values which should be retrieved for result documents, provided they were stored while indexing
       attr_accessor :fields
 
+      # @return [:not_bounded] specifies level of consistency for the query
+      attr_reader :scan_consistency
+
+      # @api private
+      # @return [MutationState]
+      attr_reader :mutation_state
+
       # Customizes the consistency guarantees for this query
       #
       # @note overrides consistency level set by {#consistent_with}

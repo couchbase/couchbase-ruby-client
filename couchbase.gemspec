@@ -64,7 +64,7 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
   spec.extensions = ["ext/extconf.rb"]
-  spec.rdoc_options.append('--exclude', 'ext/')
+  spec.rdoc_options << "--exclude" << "ext/"
 
   spec.add_development_dependency "bundler", "~> 2.1"
   spec.add_development_dependency "rake", "~> 13.0"

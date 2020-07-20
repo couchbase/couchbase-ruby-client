@@ -30,6 +30,7 @@ module Couchbase
   end
 
   class MutationState
+    # @return [Array<MutationToken>]
     attr_accessor :tokens
 
     # Create a mutation state from one or more MutationTokens

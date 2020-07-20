@@ -38,6 +38,10 @@ module Couchbase
       # @return [JsonTranscoder] transcoder to use on rows
       attr_accessor :transcoder
 
+      # @api private
+      # @return [Hash<String => #to_json>]
+      attr_reader :raw_parameters
+
       # @yieldparam [AnalyticsOptions] self
       def initialize
         @transcoder = JsonTranscoder.new
@@ -56,6 +60,13 @@ module Couchbase
         @named_parameters = nil
       end
 
+      # @api private
+      # @return [Array<String>, nil]
+      def export_positional_parameters
+        @positional_parameters.map { |p| JSON.dump(p) } if @positional_parameters
+      end
+
+
       # Sets named parameters for the query
       #
       # @param [Hash] named the key/value map of the parameters to substitute in the statement
@@ -70,6 +81,12 @@ module Couchbase
       # @param [Object] value the parameter value (value of the JSON property)
       def raw(key, value)
         @raw_parameters[key] = JSON.generate(value)
+      end
+
+      # @api private
+      # @return [Hash<String => String>, nil]
+      def export_named_parameters
+        @named_parameters.each_with_object({}) { |(n, v), o| o[n.to_s] = JSON.dump(v) } if @named_parameters
       end
     end
 

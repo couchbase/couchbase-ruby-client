@@ -84,7 +84,7 @@ module Couchbase
           group: options.group,
           group_level: options.group_level,
           key: (JSON.generate(options.key) unless options.key.nil?),
-          keys: options.keys&.map { |key| JSON.generate(key) },
+          keys: (options.keys.map { |key| JSON.generate(key) } if options.keys),
           order: options.order,
           reduce: options.reduce,
           on_error: options.on_error,

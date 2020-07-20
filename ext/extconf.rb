@@ -30,6 +30,9 @@ end
 if ENV["CB_CXX"]
   cmake_flags << "-DCMAKE_CXX_COMPILER=#{ENV["CB_CXX"]}"
 end
+if ENV["CB_STATIC"]
+  cmake_flags << "-DSTATIC_STDLIB=ON"
+end
 
 openssl_root = `brew --prefix openssl 2> /dev/null`.strip
 unless openssl_root.empty?
@@ -43,7 +46,7 @@ Dir.chdir(build_dir) do
   sys("cmake", *cmake_flags, project_path)
   sys("make -j4 VERBOSE=1")
 end
-extension_name = "libcouchbase.#{RbConfig::CONFIG["SOEXT"]}"
+extension_name = "libcouchbase.#{RbConfig::CONFIG["SOEXT"] || RbConfig::CONFIG["DLEXT"]}"
 extension_path = File.expand_path(File.join(build_dir, extension_name))
 unless File.file?(extension_path)
   abort "ERROR: failed to build extension in #{extension_path}"

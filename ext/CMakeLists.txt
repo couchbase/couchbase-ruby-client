@@ -29,7 +29,7 @@ if(MSVC)
     target_compile_options(project_warnings INTERFACE /W4 /WX "/permissive-")
 else()
     option(ONLY_COVERAGE "Build only tests necessary for coverage" FALSE)
-    option(LIBCPP "Build with libc++" FALSE)
+    option(STATIC_STDLIB "Statically link C++ standard library" FALSE)
     option(ENABLE_COVERAGE "Enable coverage reporting for gcc/clang" FALSE)
     option(ENABLE_FUZZERS "Enable fuzz testing tools" FALSE)
 
@@ -50,6 +50,11 @@ else()
     if(ENABLE_TSAN)
         target_compile_options(project_options INTERFACE -fsanitize=thread)
         target_link_libraries(project_options INTERFACE -fsanitize=thread)
+    endif()
+
+    if(STATIC_STDLIB)
+        target_compile_options(project_options INTERFACE -static-libgcc -static-libstdc++)
+        target_link_options(project_options INTERFACE -static-libgcc -static-libstdc++)
     endif()
 
     target_compile_options(
