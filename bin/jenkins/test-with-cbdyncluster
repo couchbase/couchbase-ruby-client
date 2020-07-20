@@ -66,7 +66,7 @@ set +e
 echo "${PWD}/core.%h.%e.%t" | sudo tee /proc/sys/kernel/core_pattern
 ulimit -c unlimited
 
-gem install minitest-reporters
+gem install minitest-reporters simplecov-cobertura
 
 cat <<EOF > Rakefile
 require "rake/testtask"

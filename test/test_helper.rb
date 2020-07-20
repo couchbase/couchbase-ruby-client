@@ -19,6 +19,14 @@ else
   STDERR.puts("using system library path")
 end
 
+begin
+  require "simplecov-cobertura"
+  SimpleCov.formatter = SimpleCov::Formatter::CoberturaFormatter
+  SimpleCov.start
+rescue LoadError
+  STDERR.puts("running tests without coverage")
+end
+
 require "rubygems/version"
 
 class ServerVersion
