@@ -17,8 +17,17 @@ git_source(:github) { |repo_name| "https://github.com/#{repo_name}" }
 
 gemspec
 
+gem "rake"
+
 group :development do
-  gem "byebug"
-  gem "rake"
-#  gem "sorbet"
+  gem "yard"
+  platforms :mri do
+    gem "byebug"
+  end
+end
+
+group :test do
+  gem "minitest"
+  gem "minitest-reporters"
+  gem "simplecov-cobertura"
 end
