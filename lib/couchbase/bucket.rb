@@ -69,7 +69,7 @@ module Couchbase
     # @param [String] view_name name of the view to query
     # @param [ViewOptions] options
     #
-    # @return [ViewQueryResult]
+    # @return [ViewResult]
     def view_query(design_document_name, view_name, options = ViewOptions.new)
       resp = @backend.document_view(@name, design_document_name, view_name, options.namespace, {
           timeout: options.timeout,
