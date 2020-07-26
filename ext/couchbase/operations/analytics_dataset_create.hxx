@@ -61,7 +61,7 @@ struct analytics_dataset_create_request {
         tao::json::value body{
             { "statement",
               fmt::format(
-                "CREATE DATASET `{}`.`{}` ON `{}` {} {}", dataverse_name, dataset_name, bucket_name, where_clause, if_not_exists_clause) },
+                "CREATE DATASET {} `{}`.`{}` ON `{}` {}", if_not_exists_clause, dataverse_name, dataset_name, bucket_name, where_clause) },
         };
         encoded.headers["content-type"] = "application/json";
         encoded.method = "POST";
