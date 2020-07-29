@@ -208,7 +208,7 @@ class mutate_in_request_body
     std::vector<std::uint8_t> extras_{};
     std::vector<std::uint8_t> value_{};
 
-    std::uint32_t expiration_{ 0 };
+    std::uint32_t expiry_{ 0 };
     std::uint8_t flags_{ 0 };
     mutate_in_specs specs_;
     std::vector<std::uint8_t> framing_extras_{};
@@ -223,9 +223,9 @@ class mutate_in_request_body
         }
     }
 
-    void expiration(uint32_t value)
+    void expiry(uint32_t value)
     {
-        expiration_ = value;
+        expiry_ = value;
     }
 
     void access_deleted(bool value)
@@ -317,9 +317,9 @@ class mutate_in_request_body
   private:
     void fill_extention()
     {
-        if (expiration_ != 0) {
-            extras_.resize(sizeof(expiration_));
-            std::uint32_t field = htonl(expiration_);
+        if (expiry_ != 0) {
+            extras_.resize(sizeof(expiry_));
+            std::uint32_t field = htonl(expiry_);
             memcpy(extras_.data(), &field, sizeof(field));
         }
         if (flags_ != 0) {

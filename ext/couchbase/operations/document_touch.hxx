@@ -37,7 +37,7 @@ struct touch_request {
     document_id id;
     std::uint16_t partition{};
     std::uint32_t opaque{};
-    std::uint32_t expiration{};
+    std::uint32_t expiry{};
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
 
     void encode_to(encoded_request_type& encoded)
@@ -45,7 +45,7 @@ struct touch_request {
         encoded.opaque(opaque);
         encoded.partition(partition);
         encoded.body().id(id);
-        encoded.body().expiration(expiration);
+        encoded.body().expiry(expiry);
     }
 };
 

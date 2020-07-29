@@ -78,7 +78,7 @@ class upsert_request_body
     std::vector<std::uint8_t> extras_{};
     std::vector<std::uint8_t> content_{};
     std::uint32_t flags_{};
-    std::uint32_t expiration_{};
+    std::uint32_t expiry_{};
     std::vector<std::uint8_t> framing_extras_{};
 
   public:
@@ -120,9 +120,9 @@ class upsert_request_body
         flags_ = flags;
     }
 
-    void expiration(uint32_t value)
+    void expiry(uint32_t value)
     {
-        expiration_ = value;
+        expiry_ = value;
     }
 
     const std::string& key()
@@ -159,12 +159,12 @@ class upsert_request_body
   private:
     void fill_extention()
     {
-        extras_.resize(sizeof(flags_) + sizeof(expiration_));
+        extras_.resize(sizeof(flags_) + sizeof(expiry_));
 
         uint32_t field = htonl(flags_);
         memcpy(extras_.data(), &field, sizeof(field));
 
-        field = htonl(expiration_);
+        field = htonl(expiry_);
         memcpy(extras_.data() + sizeof(flags_), &field, sizeof(field));
     }
 };

@@ -85,7 +85,7 @@ class decrement_request_body
     std::vector<std::uint8_t> framing_extras_{};
     std::uint64_t delta_{ 1 };
     std::uint64_t initial_value_{ 0 };
-    std::uint32_t expiration_{ 0 };
+    std::uint32_t expiry_{ 0 };
     std::vector<std::uint8_t> extras_{};
 
   public:
@@ -108,9 +108,9 @@ class decrement_request_body
         initial_value_ = value;
     }
 
-    void expiration(std::uint32_t value)
+    void expiry(std::uint32_t value)
     {
-        expiration_ = value;
+        expiry_ = value;
     }
 
     void durability(protocol::durability_level level, std::optional<std::uint16_t> timeout)
@@ -167,7 +167,7 @@ class decrement_request_body
   private:
     void fill_extras()
     {
-        extras_.resize(sizeof(delta_) + sizeof(initial_value_) + sizeof(expiration_));
+        extras_.resize(sizeof(delta_) + sizeof(initial_value_) + sizeof(expiry_));
         using offset_type = std::vector<uint8_t>::difference_type;
         offset_type offset = 0;
 
@@ -179,7 +179,7 @@ class decrement_request_body
         memcpy(extras_.data() + offset, &num, sizeof(num));
         offset += static_cast<offset_type>(sizeof(delta_));
 
-        std::uint32_t ttl = htonl(expiration_);
+        std::uint32_t ttl = htonl(expiry_);
         memcpy(extras_.data() + offset, &ttl, sizeof(ttl));
     }
 };

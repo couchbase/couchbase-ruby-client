@@ -21,7 +21,7 @@ module Couchbase
   class Collection
     class GetOptions < CommonOptions
       # @return [Boolean] if the expiration should also fetched with get
-      attr_accessor :with_expiration
+      attr_accessor :with_expiry
 
       # @return [JsonTranscoder] transcoder used for decoding
       attr_accessor :transcoder
@@ -30,7 +30,7 @@ module Couchbase
       def initialize
         @transcoder = JsonTranscoder.new
         @preserve_array_indexes = false
-        @with_expiration = nil
+        @with_expiry = nil
         @projections = nil
         yield self if block_given?
       end
@@ -57,7 +57,7 @@ module Couchbase
       # @api private
       # @return [Boolean]
       def need_projected_get?
-        @with_expiration || !@projections.nil?
+        @with_expiry || !@projections.nil?
       end
     end
 
@@ -88,7 +88,7 @@ module Couchbase
       attr_accessor :cas
 
       # @return [Integer] the expiration if fetched and present
-      attr_accessor :expiration
+      attr_accessor :expiry
 
       # @return [String] The encoded content when loading the document
       attr_accessor :encoded
@@ -186,7 +186,7 @@ module Couchbase
 
     class InsertOptions < CommonOptions
       # @return [Integer] expiration time to associate with the document
-      attr_accessor :expiration
+      attr_accessor :expiry
 
       # @return [Proc] transcoder used for encoding
       attr_accessor :transcoder
@@ -204,7 +204,7 @@ module Couchbase
 
     class UpsertOptions < CommonOptions
       # @return [Integer] expiration time to associate with the document
-      attr_accessor :expiration
+      attr_accessor :expiry
 
       # @return [JsonTranscoder] transcoder used for encoding
       attr_accessor :transcoder
@@ -222,7 +222,7 @@ module Couchbase
 
     class ReplaceOptions < CommonOptions
       # @return [Integer] expiration time to associate with the document
-      attr_accessor :expiration
+      attr_accessor :expiry
 
       # @return [JsonTranscoder] transcoder used for encoding
       attr_accessor :transcoder
@@ -330,7 +330,7 @@ module Couchbase
 
     class MutateInOptions < CommonOptions
       # @return [Integer] expiration time to associate with the document
-      attr_accessor :expiration
+      attr_accessor :expiry
 
       # Describes how the outer document store semantics on subdoc should act
       #

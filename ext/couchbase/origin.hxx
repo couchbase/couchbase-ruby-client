@@ -35,7 +35,7 @@ struct origin {
       , password_(other.password_)
       , nodes_(other.nodes_)
       , next_node_(nodes_.begin())
-      ,exhausted_{false}
+      , exhausted_{ false }
     {
     }
 
@@ -44,7 +44,7 @@ struct origin {
       , password_(std::move(password))
       , nodes_(std::move(nodes))
       , next_node_(nodes_.begin())
-      ,exhausted_{false}
+      , exhausted_{ false }
     {
     }
 
@@ -63,7 +63,7 @@ struct origin {
       , password_(std::move(password))
       , nodes_{ { hostname, std::to_string(port) } }
       , next_node_(nodes_.begin())
-    ,exhausted_{false}
+      , exhausted_{ false }
     {
     }
 
@@ -89,7 +89,7 @@ struct origin {
         return password_;
     }
 
-    [[nodiscard]] const node_list & get_nodes() const
+    [[nodiscard]] const node_list& get_nodes() const
     {
         return nodes_;
     }

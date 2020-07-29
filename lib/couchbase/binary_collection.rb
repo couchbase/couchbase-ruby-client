@@ -54,7 +54,7 @@ module Couchbase
                                          {
                                              delta: options.delta,
                                              initial_value: options.initial,
-                                             expiration: options.expiration,
+                                             expiry: options.expiry,
                                              durability_level: options.durability_level,
                                          })
       CounterResult.new do |res|
@@ -76,7 +76,7 @@ module Couchbase
                                          {
                                              delta: options.delta,
                                              initial_value: options.initial,
-                                             expiration: options.expiration,
+                                             expiry: options.expiry,
                                              durability_level: options.durability_level,
                                          })
       CounterResult.new do |res|

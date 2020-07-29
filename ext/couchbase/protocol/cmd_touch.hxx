@@ -64,7 +64,7 @@ class touch_request_body
         }
     }
 
-    void expiration(std::uint32_t seconds)
+    void expiry(std::uint32_t seconds)
     {
         extras_.resize(sizeof(seconds));
         seconds = htonl(seconds);

@@ -59,7 +59,7 @@ struct mutate_in_request {
     uint32_t opaque{};
     uint64_t cas{ 0 };
     bool access_deleted{ false };
-    std::optional<std::uint32_t> expiration{};
+    std::optional<std::uint32_t> expiry{};
     protocol::mutate_in_request_body::store_semantics_type store_semantics{
         protocol::mutate_in_request_body::store_semantics_type::replace
     };
@@ -86,8 +86,8 @@ struct mutate_in_request {
         encoded.partition(partition);
         encoded.body().id(id);
         encoded.cas(cas);
-        if (expiration) {
-            encoded.body().expiration(*expiration);
+        if (expiry) {
+            encoded.body().expiry(*expiry);
         }
         encoded.body().access_deleted(access_deleted);
         encoded.body().store_semantics(store_semantics);

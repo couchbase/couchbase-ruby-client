@@ -52,7 +52,7 @@ module Couchbase
       resp = if options.need_projected_get?
                @backend.document_get_projected(bucket_name, "#{@scope_name}.#{@name}", id,
                                                options.timeout,
-                                               options.with_expiration,
+                                               options.with_expiry,
                                                options.projections,
                                                options.preserve_array_indexes)
              else
@@ -63,7 +63,7 @@ module Couchbase
         res.cas = resp[:cas]
         res.flags = resp[:flags]
         res.encoded = resp[:content]
-        res.expiration = resp[:expiration] if resp.key?(:expiration)
+        res.expiry = resp[:expiry] if resp.key?(:expiry)
       end
     end
 
@@ -84,15 +84,15 @@ module Couchbase
       end
     end
 
-    # Fetches a full document and resets its expiration time to the expiration duration provided
+    # Fetches a full document and resets its expiration time to the duration provided
     #
     # @param [String] id the document id which is used to uniquely identify it.
-    # @param [Integer] expiration the new expiration time for the document
+    # @param [Integer] expiry the new expiration time for the document
     # @param [GetAndTouchOptions] options request customization
     #
     # @return [GetResult]
-    def get_and_touch(id, expiration, options = GetAndTouchOptions.new)
-      resp = @backend.document_get_and_touch(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, expiration)
+    def get_and_touch(id, expiry, options = GetAndTouchOptions.new)
+      resp = @backend.document_get_and_touch(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, expiry)
       GetResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
@@ -159,7 +159,7 @@ module Couchbase
       blob, flags = options.transcoder.encode(content)
       resp = @backend.document_insert(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
           durability_level: options.durability_level,
-          expiration: options.expiration,
+          expiry: options.expiry,
       })
       MutationResult.new do |res|
         res.cas = resp[:cas]
@@ -178,7 +178,7 @@ module Couchbase
       blob, flags = options.transcoder.encode(content)
       resp = @backend.document_upsert(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
           durability_level: options.durability_level,
-          expiration: options.expiration,
+          expiry: options.expiry,
       })
       MutationResult.new do |res|
         res.cas = resp[:cas]
@@ -197,7 +197,7 @@ module Couchbase
       blob, flags = options.transcoder.encode(content)
       resp = @backend.document_replace(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
           durability_level: options.durability_level,
-          expiration: options.expiration,
+          expiry: options.expiry,
           cas: options.cas,
       })
       MutationResult.new do |res|
@@ -209,12 +209,12 @@ module Couchbase
     # Update the expiration of the document with the given id
     #
     # @param [String] id the document id which is used to uniquely identify it.
-    # @param [Integer] expiration new expiration time for the document
+    # @param [Integer] expiry new expiration time for the document
     # @param [TouchOptions] options request customization
     #
     # @return [MutationResult]
-    def touch(id, expiration, options = TouchOptions.new)
-      resp = @backend.document_touch(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, expiration)
+    def touch(id, expiry, options = TouchOptions.new)
+      resp = @backend.document_touch(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, expiry)
       MutationResult.new do |res|
         res.cas = resp[:cas]
       end
@@ -291,7 +291,7 @@ module Couchbase
               store_semantics: options.store_semantics,
               access_deleted: options.access_deleted,
               cas: options.cas,
-              expiration: options.expiration,
+              expiry: options.expiry,
           }
       )
       res = MutateInResult.new do |res|

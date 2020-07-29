@@ -79,7 +79,7 @@ class get_and_touch_request_body
 
   private:
     std::string key_;
-    std::uint32_t expiration_;
+    std::uint32_t expiry_;
     std::vector<std::uint8_t> extras_{};
 
   public:
@@ -92,9 +92,9 @@ class get_and_touch_request_body
         }
     }
 
-    void expiration(std::uint32_t seconds)
+    void expiry(std::uint32_t seconds)
     {
-        expiration_ = seconds;
+        expiry_ = seconds;
     }
 
     const std::string& key()
@@ -133,8 +133,8 @@ class get_and_touch_request_body
   private:
     void fill_extras()
     {
-        extras_.resize(sizeof(expiration_));
-        uint32_t field = htonl(expiration_);
+        extras_.resize(sizeof(expiry_));
+        uint32_t field = htonl(expiry_);
         memcpy(extras_.data(), &field, sizeof(field));
     }
 };

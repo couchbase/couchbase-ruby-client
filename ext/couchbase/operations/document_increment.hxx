@@ -41,7 +41,7 @@ struct increment_request {
     document_id id;
     std::uint16_t partition{};
     std::uint32_t opaque{};
-    std::uint32_t expiration{ 0 };
+    std::uint32_t expiry{ 0 };
     std::uint64_t delta{ 1 };
     std::optional<std::uint64_t> initial_value{};
     protocol::durability_level durability_level{ protocol::durability_level::none };
@@ -56,10 +56,10 @@ struct increment_request {
         encoded.body().delta(delta);
         if (initial_value) {
             encoded.body().initial_value(initial_value.value());
-            encoded.body().expiration(expiration);
+            encoded.body().expiry(expiry);
         } else {
             encoded.body().initial_value(0);
-            encoded.body().expiration(0xffff'ffff);
+            encoded.body().expiry(0xffff'ffff);
         }
         if (durability_level != protocol::durability_level::none) {
             encoded.body().durability(durability_level, durability_timeout);

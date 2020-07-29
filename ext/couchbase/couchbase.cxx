@@ -649,7 +649,7 @@ cb_Backend_document_get_projected(VALUE self,
                                   VALUE collection,
                                   VALUE id,
                                   VALUE timeout,
-                                  VALUE with_expiration,
+                                  VALUE with_expiry,
                                   VALUE projections,
                                   VALUE preserve_array_indexes)
 {
@@ -673,7 +673,7 @@ cb_Backend_document_get_projected(VALUE self,
 
         couchbase::operations::get_projected_request req{ doc_id };
         cb__extract_timeout(req, timeout);
-        req.with_expiration = RTEST(with_expiration);
+        req.with_expiry = RTEST(with_expiry);
         req.preserve_array_indexes = RTEST(preserve_array_indexes);
         if (!NIL_P(projections)) {
             Check_Type(projections, T_ARRAY);
@@ -699,8 +699,8 @@ cb_Backend_document_get_projected(VALUE self,
         rb_hash_aset(res, rb_id2sym(rb_intern("content")), rb_str_new(resp.value.data(), static_cast<long>(resp.value.size())));
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
         rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
-        if (resp.expiration) {
-            rb_hash_aset(res, rb_id2sym(rb_intern("expiration")), UINT2NUM(resp.expiration.value()));
+        if (resp.expiry) {
+            rb_hash_aset(res, rb_id2sym(rb_intern("expiry")), UINT2NUM(resp.expiry.value()));
         }
         return res;
     } while (false);
@@ -754,7 +754,7 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VAL
 }
 
 static VALUE
-cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE expiration)
+cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE expiry)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -766,7 +766,7 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VA
     Check_Type(bucket, T_STRING);
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
-    Check_Type(expiration, T_FIXNUM);
+    Check_Type(expiry, T_FIXNUM);
 
     VALUE exc = Qnil;
     do {
@@ -777,7 +777,7 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VA
 
         couchbase::operations::get_and_touch_request req{ doc_id };
         cb__extract_timeout(req, timeout);
-        req.expiration = NUM2UINT(expiration);
+        req.expiry = NUM2UINT(expiry);
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::get_and_touch_response>>();
         auto f = barrier->get_future();
@@ -816,7 +816,7 @@ cb__extract_mutation_result(Response resp)
 }
 
 static VALUE
-cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE expiration)
+cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE expiry)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -828,7 +828,7 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
     Check_Type(bucket, T_STRING);
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
-    Check_Type(expiration, T_FIXNUM);
+    Check_Type(expiry, T_FIXNUM);
 
     VALUE exc = Qnil;
     do {
@@ -839,7 +839,7 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
 
         couchbase::operations::touch_request req{ doc_id };
         cb__extract_timeout(req, timeout);
-        req.expiration = NUM2UINT(expiration);
+        req.expiry = NUM2UINT(expiry);
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::touch_response>>();
         auto f = barrier->get_future();
@@ -1017,10 +1017,10 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
                     req.durability_timeout = FIX2UINT(durability_timeout);
                 }
             }
-            VALUE expiration = rb_hash_aref(options, rb_id2sym(rb_intern("expiration")));
-            if (!NIL_P(expiration)) {
-                Check_Type(expiration, T_FIXNUM);
-                req.expiration = FIX2UINT(expiration);
+            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
+            if (!NIL_P(expiry)) {
+                Check_Type(expiry, T_FIXNUM);
+                req.expiry = FIX2UINT(expiry);
             }
         }
 
@@ -1090,10 +1090,10 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
                     req.durability_timeout = FIX2UINT(durability_timeout);
                 }
             }
-            VALUE expiration = rb_hash_aref(options, rb_id2sym(rb_intern("expiration")));
-            if (!NIL_P(expiration)) {
-                Check_Type(expiration, T_FIXNUM);
-                req.expiration = FIX2UINT(expiration);
+            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
+            if (!NIL_P(expiry)) {
+                Check_Type(expiry, T_FIXNUM);
+                req.expiry = FIX2UINT(expiry);
             }
             VALUE cas = rb_hash_aref(options, rb_id2sym(rb_intern("cas")));
             if (!NIL_P(cas)) {
@@ -1174,10 +1174,10 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
                     req.durability_timeout = FIX2UINT(durability_timeout);
                 }
             }
-            VALUE expiration = rb_hash_aref(options, rb_id2sym(rb_intern("expiration")));
-            if (!NIL_P(expiration)) {
-                Check_Type(expiration, T_FIXNUM);
-                req.expiration = FIX2UINT(expiration);
+            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
+            if (!NIL_P(expiry)) {
+                Check_Type(expiry, T_FIXNUM);
+                req.expiry = FIX2UINT(expiry);
             }
         }
 
@@ -1326,10 +1326,10 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
                         rb_raise(rb_eArgError, "initial_value must be an Integer");
                 }
             }
-            VALUE expiration = rb_hash_aref(options, rb_id2sym(rb_intern("expiration")));
-            if (!NIL_P(expiration)) {
-                Check_Type(expiration, T_FIXNUM);
-                req.expiration = FIX2UINT(expiration);
+            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
+            if (!NIL_P(expiry)) {
+                Check_Type(expiry, T_FIXNUM);
+                req.expiry = FIX2UINT(expiry);
             }
         }
 
@@ -1418,10 +1418,10 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
                         rb_raise(rb_eArgError, "initial_value must be an Integer");
                 }
             }
-            VALUE expiration = rb_hash_aref(options, rb_id2sym(rb_intern("expiration")));
-            if (!NIL_P(expiration)) {
-                Check_Type(expiration, T_FIXNUM);
-                req.expiration = FIX2UINT(expiration);
+            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
+            if (!NIL_P(expiry)) {
+                Check_Type(expiry, T_FIXNUM);
+                req.expiry = FIX2UINT(expiry);
             }
         }
 
@@ -1768,10 +1768,10 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
                     req.store_semantics = couchbase::protocol::mutate_in_request_body::store_semantics_type::upsert;
                 }
             }
-            VALUE expiration = rb_hash_aref(options, rb_id2sym(rb_intern("expiration")));
-            if (!NIL_P(expiration)) {
-                Check_Type(expiration, T_FIXNUM);
-                req.expiration = FIX2UINT(expiration);
+            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
+            if (!NIL_P(expiry)) {
+                Check_Type(expiry, T_FIXNUM);
+                req.expiry = FIX2UINT(expiry);
             }
             VALUE cas = rb_hash_aref(options, rb_id2sym(rb_intern("cas")));
             if (!NIL_P(cas)) {

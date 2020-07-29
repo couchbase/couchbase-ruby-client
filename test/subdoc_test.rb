@@ -308,7 +308,7 @@ module Couchbase
           LookupInSpec.get(:is_deleted).xattr,
           LookupInSpec.get(:sequence_number).xattr,
           LookupInSpec.get(:value_size_bytes).xattr,
-          LookupInSpec.get(:expiration_time).xattr,
+          LookupInSpec.get(:expiry_time).xattr,
 
       ])
 
@@ -1092,17 +1092,17 @@ module Couchbase
       @collection.upsert(doc_id, {"hello" => "world"})
 
       options = Collection::MutateInOptions.new
-      options.expiration = 10
+      options.expiry = 10
       @collection.mutate_in(doc_id, [
           MutateInSpec.insert("foo2", "bar2"),
       ], options)
 
       options = Collection::GetOptions.new
-      options.with_expiration = true
+      options.with_expiry = true
       res = @collection.get(doc_id, options)
-      assert_kind_of Integer, res.expiration
-      refute_equal 0, res.expiration
-      assert Time.at(res.expiration) > Time.now
+      assert_kind_of Integer, res.expiry
+      refute_equal 0, res.expiry
+      assert Time.at(res.expiry) > Time.now
     end
 
     def test_more_than_16_entries
@@ -1180,7 +1180,7 @@ module Couchbase
 
       options = Collection::MutateInOptions.new
       options.store_semantics = :upsert
-      # options.expiration = 60 * 60 * 24
+      # options.expiry = 60 * 60 * 24
       @collection.mutate_in(doc_id, [
           MutateInSpec.upsert("a", "b"),
           MutateInSpec.upsert("c", "d"),

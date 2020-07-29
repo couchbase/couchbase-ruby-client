@@ -44,7 +44,7 @@ module Couchbase
       attr_accessor :initial
 
       # @return [Integer] if set, holds the expiration for the operation
-      attr_accessor :expiration
+      attr_accessor :expiry
 
       # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
       attr_accessor :durability_level
@@ -71,7 +71,7 @@ module Couchbase
       attr_accessor :initial
 
       # @return [Integer] if set, holds the expiration for the operation
-      attr_accessor :expiration
+      attr_accessor :expiry
 
       # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
       attr_accessor :durability_level

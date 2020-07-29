@@ -30,7 +30,7 @@ struct get_projected_response {
     std::string value{};
     std::uint64_t cas{};
     std::uint32_t flags{};
-    std::optional<std::uint32_t> expiration{};
+    std::optional<std::uint32_t> expiry{};
 };
 
 struct get_projected_request {
@@ -41,7 +41,7 @@ struct get_projected_request {
     std::uint16_t partition{};
     std::uint32_t opaque{};
     std::vector<std::string> projections{};
-    bool with_expiration{ false };
+    bool with_expiry{ false };
     std::vector<std::string> effective_projections{};
     bool preserve_array_indexes{ false };
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
@@ -54,7 +54,7 @@ struct get_projected_request {
 
         effective_projections = projections;
         std::size_t num_projections = effective_projections.size();
-        if (with_expiration) {
+        if (with_expiry) {
             num_projections++;
         }
         if (num_projections > 16) {
@@ -63,7 +63,7 @@ struct get_projected_request {
         }
 
         protocol::lookup_in_request_body::lookup_in_specs specs{};
-        if (with_expiration) {
+        if (with_expiry) {
             specs.add_spec(protocol::subdoc_opcode::get, true, "$document.exptime");
         }
         if (effective_projections.empty()) {
@@ -203,16 +203,16 @@ make_response(std::error_code ec, get_projected_request& request, get_projected_
     }
     if (!ec) {
         response.cas = encoded.cas();
-        if (request.with_expiration) {
-            response.expiration = gsl::narrow_cast<std::uint32_t>(std::stoul(encoded.body().fields()[0].value));
+        if (request.with_expiry) {
+            response.expiry = gsl::narrow_cast<std::uint32_t>(std::stoul(encoded.body().fields()[0].value));
         }
         if (request.effective_projections.empty()) {
             // from full document
-            if (request.projections.empty() && request.with_expiration) {
+            if (request.projections.empty() && request.with_expiry) {
                 // special case when user only wanted full+expiration
                 response.value = encoded.body().fields()[1].value;
             } else {
-                tao::json::value full_doc = tao::json::from_string(encoded.body().fields()[request.with_expiration ? 1 : 0].value);
+                tao::json::value full_doc = tao::json::from_string(encoded.body().fields()[request.with_expiry ? 1 : 0].value);
                 tao::json::value new_doc;
                 for (const auto& projection : request.projections) {
                     auto value_to_apply = priv::subdoc_lookup(full_doc, projection);
@@ -227,7 +227,7 @@ make_response(std::error_code ec, get_projected_request& request, get_projected_
             }
         } else {
             tao::json::value new_doc = tao::json::empty_object;
-            std::size_t offset = request.with_expiration ? 1 : 0;
+            std::size_t offset = request.with_expiry ? 1 : 0;
             for (const auto& projection : request.projections) {
                 auto& field = encoded.body().fields()[offset++];
                 if (field.status == protocol::status::success && !field.value.empty()) {

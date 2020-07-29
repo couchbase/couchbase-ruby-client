@@ -59,6 +59,7 @@ install_path = File.expand_path(File.join(__dir__, "..", "lib", "couchbase", ext
 puts "-- copy extension to #{install_path}"
 FileUtils.cp(extension_path, install_path)
 ext_directory = File.expand_path(__dir__)
+create_makefile("libcouchbase")
 if ENV["CB_REMOVE_EXT_DIRECTORY"]
   puts "-- CB_REMOVE_EXT_DIRECTORY is set, remove #{ext_directory}"
   Dir
@@ -70,10 +71,10 @@ if ENV["CB_REMOVE_EXT_DIRECTORY"]
   end
   File.truncate("#{ext_directory}/extconf.rb", 0)
   puts "-- truncate #{ext_directory}/extconf.rb"
-end
-File.write("#{ext_directory}/Makefile", <<EOF)
+  File.write("#{ext_directory}/Makefile", <<EOF)
 .PHONY: all clean install
 all:
 clean:
 install:
 EOF
+end

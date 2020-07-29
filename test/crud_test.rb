@@ -311,17 +311,17 @@ module Couchbase
       doc = load_json_test_dataset("beer_sample_single")
 
       options = Collection::InsertOptions.new
-      options.expiration = 10
+      options.expiry = 10
       res = @collection.insert(doc_id, doc, options)
       refute_equal 0, res.cas
 
       options = Collection::GetOptions.new
-      options.with_expiration = true
+      options.with_expiry = true
       res = @collection.get(doc_id, options)
 
       assert_equal doc, res.content
-      assert_kind_of Integer, res.expiration
-      refute_equal 0, res.expiration
+      assert_kind_of Integer, res.expiry
+      refute_equal 0, res.expiry
     end
 
     def test_insert_get_projection
@@ -693,20 +693,20 @@ module Couchbase
       end
 
       options = Collection::UpsertOptions.new
-      options.expiration = 60
+      options.expiry = 60
       res = @collection.upsert(doc_id, doc, options)
       refute_equal 0, res.cas
 
       options = Collection::GetOptions.new
       options.project((1..16).map { |n| "field#{n}" })
-      options.with_expiration = true
+      options.with_expiry = true
       res = @collection.get(doc_id, options)
       expected = (1..16).each_with_object({}) do |n, obj|
         obj["field#{n}"] = n
       end
       assert_equal(expected, res.content, "expected result do not include field17, field18")
-      assert_kind_of(Integer, res.expiration)
-      refute_equal(0, res.expiration)
+      assert_kind_of(Integer, res.expiry)
+      refute_equal(0, res.expiry)
     end
 
     def test_upsert_get_projection_missing_path
