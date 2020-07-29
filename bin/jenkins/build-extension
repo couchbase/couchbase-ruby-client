@@ -46,7 +46,7 @@ bundle --version
 bundle config set --local path ${PROJECT_ROOT}/vendor/bundle
 
 bundle install
-export EXT_BUILD_DIR="${PROJECT_ROOT}/build-${RUBY_VERSION}-${BUILD_NUMBER}"
+export CB_EXT_BUILD_DIR="${PROJECT_ROOT}/build-${RUBY_VERSION}-${BUILD_NUMBER}"
 ${PROJECT_ROOT}/bin/jenkins/patch-version ${BUILD_NUMBER}
 
 bundle exec rake build
@@ -54,7 +54,9 @@ full_version=$(ruby -r${PROJECT_ROOT}/lib/couchbase/version.rb -e "puts Couchbas
 source="${PROJECT_ROOT}/pkg/couchbase-${full_version}.gem"
 precompiled="${PROJECT_ROOT}/pkg/binary"
 mkdir -p ${precompiled}
-gem compile --verbose --output ${precompiled} ${source}
+
+export CB_REMOVE_EXT_DIRECTORY=1
+gem compile --prune --verbose --output ${precompiled} ${source}
 ruby -rrbconfig -rfileutils \
      -e 'FileUtils.mv(ARGV[0], ARGV[0].gsub(/\.gem$/, "-#{RbConfig::CONFIG["ruby_version"]}.gem"))' \
      ${precompiled}/*.gem

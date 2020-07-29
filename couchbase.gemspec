@@ -33,6 +33,11 @@ Gem::Specification.new do |spec|
 
   spec.files = Dir.chdir(File.expand_path("..", __FILE__)) do
     exclude_paths = %w[
+        .idea
+        .github
+        .gitignore
+        .gitmodules
+        bin
         test
         spec
         features
@@ -58,7 +63,7 @@ Gem::Specification.new do |spec|
     ]
     `git ls-files --recurse-submodules -z`
       .split("\x0")
-      .reject { |f| f.match(%r{^(#{Regexp.union(exclude_paths)})/}) }
+      .reject { |f| f.match(%r{^(#{Regexp.union(exclude_paths)})}) }
   end
   spec.bindir = "exe"
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
