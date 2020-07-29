@@ -92,7 +92,7 @@ module Couchbase
       # @return [:production, :development]
       attr_accessor :namespace
 
-      # @yieldparam [ViewQueryOptions] self
+      # @yieldparam [ViewOptions] self
       def initialize
         @namespace = :production
         yield self if block_given?
