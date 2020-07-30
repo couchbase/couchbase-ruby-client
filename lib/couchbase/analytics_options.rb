@@ -26,9 +26,6 @@ module Couchbase
       # @return [:not_bounded, :request_plus] specifies level of consistency for the query
       attr_accessor :scan_consistency
 
-      # @return [Integer] The maximum duration (in milliseconds) the query engine is willing to wait before failing.
-      attr_accessor :scan_wait
-
       # @return [Boolean] Allows explicitly marking a query as being readonly and not mutating and documents on the server side.
       attr_accessor :readonly
 

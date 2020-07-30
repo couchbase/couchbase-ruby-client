@@ -4680,10 +4680,6 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
         if (!NIL_P(priority)) {
             req.priority = RTEST(priority);
         }
-        VALUE scan_wait = rb_hash_aref(options, rb_id2sym(rb_intern("scan_wait")));
-        if (!NIL_P(scan_wait)) {
-            req.scan_wait = NUM2ULONG(scan_wait);
-        }
         VALUE positional_params = rb_hash_aref(options, rb_id2sym(rb_intern("positional_parameters")));
         if (!NIL_P(positional_params)) {
             Check_Type(positional_params, T_ARRAY);

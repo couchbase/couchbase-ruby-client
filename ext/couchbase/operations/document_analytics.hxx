@@ -161,7 +161,6 @@ struct analytics_request {
     bool priority{ false };
 
     std::optional<scan_consistency_type> scan_consistency{};
-    std::optional<std::uint64_t> scan_wait{};
 
     std::map<std::string, tao::json::value> raw{};
     std::vector<tao::json::value> positional_parameters{};
@@ -195,9 +194,6 @@ struct analytics_request {
                 case scan_consistency_type::request_plus:
                     body["scan_consistency"] = "request_plus";
                     break;
-            }
-            if (scan_wait) {
-                body["scan_wait"] = fmt::format("{}ms", scan_wait.value());
             }
         }
         for (auto& param : raw) {
