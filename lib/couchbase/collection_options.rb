@@ -91,6 +91,7 @@ module Couchbase
       attr_accessor :expiry
 
       # @return [String] The encoded content when loading the document
+      # @api private
       attr_accessor :encoded
 
       # Decodes the content of the document using given (or default transcoder)
@@ -108,6 +109,7 @@ module Couchbase
       end
 
       # @return [Integer] The flags from the operation
+      # @api private
       attr_accessor :flags
 
       # @return [JsonTranscoder] The default transcoder which should be used
