@@ -14,211 +14,214 @@
 
 module Couchbase
   module Error
+    class CouchbaseError < StandardError
+    end
+
     # Common exceptions
 
-    class RequestCanceled < StandardError
+    class RequestCanceled < CouchbaseError
     end
 
     class InvalidArgument < ArgumentError
     end
 
-    class ServiceNotAvailable < StandardError
+    class ServiceNotAvailable < CouchbaseError
     end
 
-    class InternalServerFailure < StandardError
+    class InternalServerFailure < CouchbaseError
     end
 
-    class AuthenticationFailure < StandardError
+    class AuthenticationFailure < CouchbaseError
     end
 
-    class TemporaryFailure < StandardError
+    class TemporaryFailure < CouchbaseError
     end
 
-    class ParsingFailure < StandardError
+    class ParsingFailure < CouchbaseError
     end
 
-    class CasMismatch < StandardError
+    class CasMismatch < CouchbaseError
     end
 
-    class BucketNotFound < StandardError
+    class BucketNotFound < CouchbaseError
     end
 
-    class CollectionNotFound < StandardError
+    class CollectionNotFound < CouchbaseError
     end
 
-    class ScopeNotFound < StandardError
+    class ScopeNotFound < CouchbaseError
     end
 
-    class IndexNotFound < StandardError
+    class IndexNotFound < CouchbaseError
     end
 
-    class IndexExists < StandardError
+    class IndexExists < CouchbaseError
     end
 
-    class EncodingFailure < StandardError
+    class EncodingFailure < CouchbaseError
     end
 
-    class DecodingFailure < StandardError
+    class DecodingFailure < CouchbaseError
     end
 
-    class UnsupportedOperation < StandardError
+    class UnsupportedOperation < CouchbaseError
     end
 
-    class AmbiguousTimeout < StandardError
+    class AmbiguousTimeout < CouchbaseError
     end
 
-    class UnambiguousTimeout < StandardError
+    class UnambiguousTimeout < CouchbaseError
     end
 
-    class FeatureNotAvailable < StandardError
+    class FeatureNotAvailable < CouchbaseError
     end
 
     # KeyValue exceptions
 
-    class DocumentNotFound < StandardError
+    class DocumentNotFound < CouchbaseError
     end
 
-    class DocumentIrretrievable < StandardError
+    class DocumentIrretrievable < CouchbaseError
     end
 
-    class DocumentLocked < StandardError
+    class DocumentLocked < CouchbaseError
     end
 
-    class ValueTooLarge < StandardError
+    class ValueTooLarge < CouchbaseError
     end
 
-    class DocumentExists < StandardError
+    class DocumentExists < CouchbaseError
     end
 
-    class DurabilityLevelNotAvailable < StandardError
+    class DurabilityLevelNotAvailable < CouchbaseError
     end
 
-    class DurabilityImpossible < StandardError
+    class DurabilityImpossible < CouchbaseError
     end
 
-    class DurabilityAmbiguous < StandardError
+    class DurabilityAmbiguous < CouchbaseError
     end
 
-    class DurableWriteInProgress < StandardError
+    class DurableWriteInProgress < CouchbaseError
     end
 
-    class DurableWriteReCommitInProgress < StandardError
+    class DurableWriteReCommitInProgress < CouchbaseError
     end
 
-    class PathNotFound < StandardError
+    class PathNotFound < CouchbaseError
     end
 
-    class PathMismatch < StandardError
+    class PathMismatch < CouchbaseError
     end
 
-    class PathInvalid < StandardError
+    class PathInvalid < CouchbaseError
     end
 
-    class PathTooDeep < StandardError
+    class PathTooDeep < CouchbaseError
     end
 
-    class PathTooBig < StandardError
+    class PathTooBig < CouchbaseError
     end
 
-    class ValueTooDeep < StandardError
+    class ValueTooDeep < CouchbaseError
     end
 
-    class ValueInvalid < StandardError
+    class ValueInvalid < CouchbaseError
     end
 
-    class DocumentNotJson < StandardError
+    class DocumentNotJson < CouchbaseError
     end
 
-    class NumberTooBig < StandardError
+    class NumberTooBig < CouchbaseError
     end
 
-    class DeltaInvalid < StandardError
+    class DeltaInvalid < CouchbaseError
     end
 
-    class PathExists < StandardError
+    class PathExists < CouchbaseError
     end
 
-    class XattrUnknownMacro < StandardError
+    class XattrUnknownMacro < CouchbaseError
     end
 
-    class XattrInvalidKeyCombo < StandardError
+    class XattrInvalidKeyCombo < CouchbaseError
     end
 
-    class XattrUnknownVirtualAttribute < StandardError
+    class XattrUnknownVirtualAttribute < CouchbaseError
     end
 
-    class XattrCannotModifyVirtualAttribute < StandardError
+    class XattrCannotModifyVirtualAttribute < CouchbaseError
     end
 
     # Query exceptions
 
-    class PlanningFailure < StandardError
+    class PlanningFailure < CouchbaseError
     end
 
-    class IndexFailure < StandardError
+    class IndexFailure < CouchbaseError
     end
 
-    class PreparedStatementFailure < StandardError
+    class PreparedStatementFailure < CouchbaseError
     end
 
 
     # Analytics exceptions
 
-    class CompilationFailure < StandardError
+    class CompilationFailure < CouchbaseError
     end
 
-    class JobQueueFull < StandardError
+    class JobQueueFull < CouchbaseError
     end
 
-    class DatasetNotFound < StandardError
+    class DatasetNotFound < CouchbaseError
     end
 
-    class DatasetExists < StandardError
+    class DatasetExists < CouchbaseError
     end
 
-    class DataverseExists < StandardError
+    class DataverseExists < CouchbaseError
     end
 
-    class DataverseNotFound < StandardError
+    class DataverseNotFound < CouchbaseError
     end
 
-    class LinkNotFound < StandardError
+    class LinkNotFound < CouchbaseError
     end
 
     # View exceptions
 
-    class DesignDocumentNotFound < StandardError
+    class DesignDocumentNotFound < CouchbaseError
     end
 
-    class ViewNotFound < StandardError
+    class ViewNotFound < CouchbaseError
     end
 
     # Management exceptions
 
-    class CollectionExists < StandardError
+    class CollectionExists < CouchbaseError
     end
 
-    class ScopeExists < StandardError
+    class ScopeExists < CouchbaseError
     end
 
-    class UserExists < StandardError
+    class UserExists < CouchbaseError
     end
 
-    class BucketExists < StandardError
+    class BucketExists < CouchbaseError
     end
 
-    class BucketNotFlushable < StandardError
+    class BucketNotFlushable < CouchbaseError
     end
 
-    class GroupNotFound < StandardError
+    class GroupNotFound < CouchbaseError
     end
 
-    class UserNotFound < StandardError
+    class UserNotFound < CouchbaseError
     end
 
     # Library-specific exceptions
 
-    class BackendError < StandardError
+    class BackendError < CouchbaseError
     end
   end
 end

@@ -162,7 +162,7 @@ cb_Backend_allocate(VALUE klass)
     return obj;
 }
 
-static VALUE eBackendError;
+static VALUE eCouchbaseError;
 static VALUE eAmbiguousTimeout;
 static VALUE eAuthenticationFailure;
 static VALUE eBucketExists;
@@ -231,70 +231,71 @@ static void
 init_exceptions(VALUE mCouchbase)
 {
     VALUE mError = rb_define_module_under(mCouchbase, "Error");
-    eBackendError = rb_define_class_under(mError, "BackendError", rb_eStandardError);
-    eAmbiguousTimeout = rb_define_class_under(mError, "AmbiguousTimeout", rb_eStandardError);
-    eAuthenticationFailure = rb_define_class_under(mError, "AuthenticationFailure", rb_eStandardError);
-    eBucketExists = rb_define_class_under(mError, "BucketExists", rb_eStandardError);
-    eBucketNotFlushable = rb_define_class_under(mError, "BucketNotFlushable", rb_eStandardError);
-    eBucketNotFound = rb_define_class_under(mError, "BucketNotFound", rb_eStandardError);
-    eCasMismatch = rb_define_class_under(mError, "CasMismatch", rb_eStandardError);
-    eCollectionExists = rb_define_class_under(mError, "CollectionExists", rb_eStandardError);
-    eCollectionNotFound = rb_define_class_under(mError, "CollectionNotFound", rb_eStandardError);
-    eCompilationFailure = rb_define_class_under(mError, "CompilationFailure", rb_eStandardError);
-    eDatasetExists = rb_define_class_under(mError, "DatasetExists", rb_eStandardError);
-    eDatasetNotFound = rb_define_class_under(mError, "DatasetNotFound", rb_eStandardError);
-    eDataverseExists = rb_define_class_under(mError, "DataverseExists", rb_eStandardError);
-    eDataverseNotFound = rb_define_class_under(mError, "DataverseNotFound", rb_eStandardError);
-    eDecodingFailure = rb_define_class_under(mError, "DecodingFailure", rb_eStandardError);
-    eDeltaInvalid = rb_define_class_under(mError, "DeltaInvalid", rb_eStandardError);
-    eDesignDocumentNotFound = rb_define_class_under(mError, "DesignDocumentNotFound", rb_eStandardError);
-    eDocumentExists = rb_define_class_under(mError, "DocumentExists", rb_eStandardError);
-    eDocumentIrretrievable = rb_define_class_under(mError, "DocumentIrretrievable", rb_eStandardError);
-    eDocumentLocked = rb_define_class_under(mError, "DocumentLocked", rb_eStandardError);
-    eDocumentNotFound = rb_define_class_under(mError, "DocumentNotFound", rb_eStandardError);
-    eDocumentNotJson = rb_define_class_under(mError, "DocumentNotJson", rb_eStandardError);
-    eDurabilityAmbiguous = rb_define_class_under(mError, "DurabilityAmbiguous", rb_eStandardError);
-    eDurabilityImpossible = rb_define_class_under(mError, "DurabilityImpossible", rb_eStandardError);
-    eDurabilityLevelNotAvailable = rb_define_class_under(mError, "DurabilityLevelNotAvailable", rb_eStandardError);
-    eDurableWriteInProgress = rb_define_class_under(mError, "DurableWriteInProgress", rb_eStandardError);
-    eDurableWriteReCommitInProgress = rb_define_class_under(mError, "DurableWriteReCommitInProgress", rb_eStandardError);
-    eEncodingFailure = rb_define_class_under(mError, "EncodingFailure", rb_eStandardError);
-    eFeatureNotAvailable = rb_define_class_under(mError, "FeatureNotAvailable", rb_eStandardError);
-    eGroupNotFound = rb_define_class_under(mError, "GroupNotFound", rb_eStandardError);
-    eIndexExists = rb_define_class_under(mError, "IndexExists", rb_eStandardError);
-    eIndexFailure = rb_define_class_under(mError, "IndexFailure", rb_eStandardError);
-    eIndexNotFound = rb_define_class_under(mError, "IndexNotFound", rb_eStandardError);
-    eInternalServerFailure = rb_define_class_under(mError, "InternalServerFailure", rb_eStandardError);
+    eCouchbaseError = rb_define_class_under(mError, "CouchbaseError", rb_eStandardError);
+
+    eAmbiguousTimeout = rb_define_class_under(mError, "AmbiguousTimeout", eCouchbaseError);
+    eAuthenticationFailure = rb_define_class_under(mError, "AuthenticationFailure", eCouchbaseError);
+    eBucketExists = rb_define_class_under(mError, "BucketExists", eCouchbaseError);
+    eBucketNotFlushable = rb_define_class_under(mError, "BucketNotFlushable", eCouchbaseError);
+    eBucketNotFound = rb_define_class_under(mError, "BucketNotFound", eCouchbaseError);
+    eCasMismatch = rb_define_class_under(mError, "CasMismatch", eCouchbaseError);
+    eCollectionExists = rb_define_class_under(mError, "CollectionExists", eCouchbaseError);
+    eCollectionNotFound = rb_define_class_under(mError, "CollectionNotFound", eCouchbaseError);
+    eCompilationFailure = rb_define_class_under(mError, "CompilationFailure", eCouchbaseError);
+    eDatasetExists = rb_define_class_under(mError, "DatasetExists", eCouchbaseError);
+    eDatasetNotFound = rb_define_class_under(mError, "DatasetNotFound", eCouchbaseError);
+    eDataverseExists = rb_define_class_under(mError, "DataverseExists", eCouchbaseError);
+    eDataverseNotFound = rb_define_class_under(mError, "DataverseNotFound", eCouchbaseError);
+    eDecodingFailure = rb_define_class_under(mError, "DecodingFailure", eCouchbaseError);
+    eDeltaInvalid = rb_define_class_under(mError, "DeltaInvalid", eCouchbaseError);
+    eDesignDocumentNotFound = rb_define_class_under(mError, "DesignDocumentNotFound", eCouchbaseError);
+    eDocumentExists = rb_define_class_under(mError, "DocumentExists", eCouchbaseError);
+    eDocumentIrretrievable = rb_define_class_under(mError, "DocumentIrretrievable", eCouchbaseError);
+    eDocumentLocked = rb_define_class_under(mError, "DocumentLocked", eCouchbaseError);
+    eDocumentNotFound = rb_define_class_under(mError, "DocumentNotFound", eCouchbaseError);
+    eDocumentNotJson = rb_define_class_under(mError, "DocumentNotJson", eCouchbaseError);
+    eDurabilityAmbiguous = rb_define_class_under(mError, "DurabilityAmbiguous", eCouchbaseError);
+    eDurabilityImpossible = rb_define_class_under(mError, "DurabilityImpossible", eCouchbaseError);
+    eDurabilityLevelNotAvailable = rb_define_class_under(mError, "DurabilityLevelNotAvailable", eCouchbaseError);
+    eDurableWriteInProgress = rb_define_class_under(mError, "DurableWriteInProgress", eCouchbaseError);
+    eDurableWriteReCommitInProgress = rb_define_class_under(mError, "DurableWriteReCommitInProgress", eCouchbaseError);
+    eEncodingFailure = rb_define_class_under(mError, "EncodingFailure", eCouchbaseError);
+    eFeatureNotAvailable = rb_define_class_under(mError, "FeatureNotAvailable", eCouchbaseError);
+    eGroupNotFound = rb_define_class_under(mError, "GroupNotFound", eCouchbaseError);
+    eIndexExists = rb_define_class_under(mError, "IndexExists", eCouchbaseError);
+    eIndexFailure = rb_define_class_under(mError, "IndexFailure", eCouchbaseError);
+    eIndexNotFound = rb_define_class_under(mError, "IndexNotFound", eCouchbaseError);
+    eInternalServerFailure = rb_define_class_under(mError, "InternalServerFailure", eCouchbaseError);
     eInvalidArgument = rb_define_class_under(mError, "InvalidArgument", rb_eArgError);
-    eJobQueueFull = rb_define_class_under(mError, "JobQueueFull", rb_eStandardError);
-    eLinkNotFound = rb_define_class_under(mError, "LinkNotFound", rb_eStandardError);
-    eNumberTooBig = rb_define_class_under(mError, "NumberTooBig", rb_eStandardError);
-    eParsingFailure = rb_define_class_under(mError, "ParsingFailure", rb_eStandardError);
-    ePathExists = rb_define_class_under(mError, "PathExists", rb_eStandardError);
-    ePathInvalid = rb_define_class_under(mError, "PathInvalid", rb_eStandardError);
-    ePathMismatch = rb_define_class_under(mError, "PathMismatch", rb_eStandardError);
-    ePathNotFound = rb_define_class_under(mError, "PathNotFound", rb_eStandardError);
-    ePathTooBig = rb_define_class_under(mError, "PathTooBig", rb_eStandardError);
-    ePathTooDeep = rb_define_class_under(mError, "PathTooDeep", rb_eStandardError);
-    ePlanningFailure = rb_define_class_under(mError, "PlanningFailure", rb_eStandardError);
-    ePreparedStatementFailure = rb_define_class_under(mError, "PreparedStatementFailure", rb_eStandardError);
-    eRequestCanceled = rb_define_class_under(mError, "RequestCanceled", rb_eStandardError);
-    eScopeExists = rb_define_class_under(mError, "ScopeExists", rb_eStandardError);
-    eScopeNotFound = rb_define_class_under(mError, "ScopeNotFound", rb_eStandardError);
-    eServiceNotAvailable = rb_define_class_under(mError, "ServiceNotAvailable", rb_eStandardError);
-    eTemporaryFailure = rb_define_class_under(mError, "TemporaryFailure", rb_eStandardError);
-    eUnambiguousTimeout = rb_define_class_under(mError, "UnambiguousTimeout", rb_eStandardError);
-    eUnsupportedOperation = rb_define_class_under(mError, "UnsupportedOperation", rb_eStandardError);
-    eUserNotFound = rb_define_class_under(mError, "UserNotFound", rb_eStandardError);
-    eUserExists = rb_define_class_under(mError, "UserExists", rb_eStandardError);
-    eValueInvalid = rb_define_class_under(mError, "ValueInvalid", rb_eStandardError);
-    eValueTooDeep = rb_define_class_under(mError, "ValueTooDeep", rb_eStandardError);
-    eValueTooLarge = rb_define_class_under(mError, "ValueTooLarge", rb_eStandardError);
-    eViewNotFound = rb_define_class_under(mError, "ViewNotFound", rb_eStandardError);
-    eXattrCannotModifyVirtualAttribute = rb_define_class_under(mError, "XattrCannotModifyVirtualAttribute", rb_eStandardError);
-    eXattrInvalidKeyCombo = rb_define_class_under(mError, "XattrInvalidKeyCombo", rb_eStandardError);
-    eXattrUnknownMacro = rb_define_class_under(mError, "XattrUnknownMacro", rb_eStandardError);
-    eXattrUnknownVirtualAttribute = rb_define_class_under(mError, "XattrUnknownVirtualAttribute", rb_eStandardError);
+    eJobQueueFull = rb_define_class_under(mError, "JobQueueFull", eCouchbaseError);
+    eLinkNotFound = rb_define_class_under(mError, "LinkNotFound", eCouchbaseError);
+    eNumberTooBig = rb_define_class_under(mError, "NumberTooBig", eCouchbaseError);
+    eParsingFailure = rb_define_class_under(mError, "ParsingFailure", eCouchbaseError);
+    ePathExists = rb_define_class_under(mError, "PathExists", eCouchbaseError);
+    ePathInvalid = rb_define_class_under(mError, "PathInvalid", eCouchbaseError);
+    ePathMismatch = rb_define_class_under(mError, "PathMismatch", eCouchbaseError);
+    ePathNotFound = rb_define_class_under(mError, "PathNotFound", eCouchbaseError);
+    ePathTooBig = rb_define_class_under(mError, "PathTooBig", eCouchbaseError);
+    ePathTooDeep = rb_define_class_under(mError, "PathTooDeep", eCouchbaseError);
+    ePlanningFailure = rb_define_class_under(mError, "PlanningFailure", eCouchbaseError);
+    ePreparedStatementFailure = rb_define_class_under(mError, "PreparedStatementFailure", eCouchbaseError);
+    eRequestCanceled = rb_define_class_under(mError, "RequestCanceled", eCouchbaseError);
+    eScopeExists = rb_define_class_under(mError, "ScopeExists", eCouchbaseError);
+    eScopeNotFound = rb_define_class_under(mError, "ScopeNotFound", eCouchbaseError);
+    eServiceNotAvailable = rb_define_class_under(mError, "ServiceNotAvailable", eCouchbaseError);
+    eTemporaryFailure = rb_define_class_under(mError, "TemporaryFailure", eCouchbaseError);
+    eUnambiguousTimeout = rb_define_class_under(mError, "UnambiguousTimeout", eCouchbaseError);
+    eUnsupportedOperation = rb_define_class_under(mError, "UnsupportedOperation", eCouchbaseError);
+    eUserNotFound = rb_define_class_under(mError, "UserNotFound", eCouchbaseError);
+    eUserExists = rb_define_class_under(mError, "UserExists", eCouchbaseError);
+    eValueInvalid = rb_define_class_under(mError, "ValueInvalid", eCouchbaseError);
+    eValueTooDeep = rb_define_class_under(mError, "ValueTooDeep", eCouchbaseError);
+    eValueTooLarge = rb_define_class_under(mError, "ValueTooLarge", eCouchbaseError);
+    eViewNotFound = rb_define_class_under(mError, "ViewNotFound", eCouchbaseError);
+    eXattrCannotModifyVirtualAttribute = rb_define_class_under(mError, "XattrCannotModifyVirtualAttribute", eCouchbaseError);
+    eXattrInvalidKeyCombo = rb_define_class_under(mError, "XattrInvalidKeyCombo", eCouchbaseError);
+    eXattrUnknownMacro = rb_define_class_under(mError, "XattrUnknownMacro", eCouchbaseError);
+    eXattrUnknownVirtualAttribute = rb_define_class_under(mError, "XattrUnknownVirtualAttribute", eCouchbaseError);
 }
 
 static VALUE
@@ -503,7 +504,7 @@ cb__map_error_code(std::error_code ec, const std::string& message)
         }
     }
 
-    return rb_exc_new_cstr(eBackendError, fmt::format("{}: {}", message, ec.message()).c_str());
+    return rb_exc_new_cstr(eCouchbaseError, fmt::format("{}: {}", message, ec.message()).c_str());
 }
 
 static VALUE
@@ -1606,7 +1607,7 @@ cb__map_subdoc_status(couchbase::protocol::status status, std::size_t index, con
             rb_hash_aset(
               entry,
               rb_id2sym(rb_intern("error")),
-              rb_exc_new_cstr(eInternalServerFailure,
+              rb_exc_new_cstr(eCouchbaseError,
                               fmt::format("unknown subdocument error status={}, index={}, path={}", status, index, path).c_str()));
             return;
     }
