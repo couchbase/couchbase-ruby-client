@@ -33,7 +33,7 @@ task :doc do
   input_dir = File.join(__dir__, "lib")
   output_dir = File.join(__dir__, "doc", "couchbase-ruby-client-#{Couchbase::VERSION[:sdk]}")
   rm_rf output_dir
-  sh "yard doc --output-dir #{output_dir} #{input_dir} - README.md"
+  sh "yard doc --hide-api private --output-dir #{output_dir} #{input_dir} --main README.md"
   puts "#{File.realpath(output_dir)}/index.html"
 end
 

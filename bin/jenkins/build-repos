@@ -25,17 +25,29 @@ chruby ruby-2.7.1
 ruby --version
 gem --version
 
+gem install yard
+
+cd gem-src
+GEM_SRC=$(ls -1 couchbase-*.gem | head -1)
+gem unpack ${GEM_SRC}
+GEM_DIR=${GEM_SRC/.gem/}
+VERSION=$(ruby -r./${GEM_DIR}/lib/couchbase/version.rb -e "puts Couchbase::VERSION[:sdk]")
+cd ..
+
+rm -rf gem-doc
+yard doc --hide-api private --output-dir gem-doc/couchbase-ruby-client-${VERSION} gem-src/${GEM_DIR} --main README.md
+
 RUBY_ABI="2.5.0 2.6.0 2.7.0"
 for ABI in ${RUBY_ABI}
 do
     rm -rf ./repos/${ABI}/gems/
     mkdir -p ./repos/${ABI}/gems/
     cd gem-bin
-    for PKG in couchbase-*-${ABI}.gem
+    for PKG in couchbase-${VERSION}-*-${ABI}.gem
     do
         cp ${PKG} ../repos/${ABI}/gems/${PKG/-${ABI}/}
     done
     cd ..
-    cp gem-src/couchbase-*.gem ./repos/${ABI}/gems/
+    cp gem-src/couchbase-${VERSION}.gem ./repos/${ABI}/gems/
     gem generate_index --verbose --directory ./repos/${ABI}/
 done
