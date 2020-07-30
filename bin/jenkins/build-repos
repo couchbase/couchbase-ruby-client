@@ -35,7 +35,9 @@ VERSION=$(ruby -r./${GEM_DIR}/lib/couchbase/version.rb -e "puts Couchbase::VERSI
 cd ..
 
 rm -rf gem-doc
-yard doc --hide-api private --output-dir gem-doc/couchbase-ruby-client-${VERSION} gem-src/${GEM_DIR} --main README.md
+cd gem-src/${GEM_DIR}
+yard doc --hide-api private --output-dir ../../gem-doc/couchbase-ruby-client-${VERSION} lib --main README.md
+cd ../..
 
 RUBY_ABI="2.5.0 2.6.0 2.7.0"
 for ABI in ${RUBY_ABI}
