@@ -32,13 +32,6 @@ module Couchbase
 
     # Opens the default collection for this scope
     #
-    # @return [Collection]
-    def default_collection
-      Collection.new(@backend, @bucket_name, @name, :_default)
-    end
-
-    # Opens the default collection for this scope
-    #
     # @param [String] collection_name name of the collection
     #
     # @return [Collection]

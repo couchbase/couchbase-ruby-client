@@ -60,7 +60,7 @@ module Couchbase
     #
     # @return [Collection]
     def default_collection
-      default_scope.default_collection
+      Collection.new(@backend, @name, :_default, :_default)
     end
 
     # Performs query to view index.
