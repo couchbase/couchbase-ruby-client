@@ -14,11 +14,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-build_num = ARGV[0] || ENV["BUILD_NUMBER"]
+build_num = ARGV[0] || ENV["BUILD_NUMBER"] || 0
 suffix = ARGV[1] || "snapshot"
 
 ver_file = File.join(__dir__, "../../lib/couchbase/version.rb")
 
 old_content = File.read(ver_file)
-new_content = old_content.gsub(/sdk => "([^"]+?)(\.#{suffix}\.\d+)?"/, %Q{sdk => "\\1.#{suffix}.#{build_num}"})
+new_content = old_content.gsub(/sdk => "([^"]+?)(\.#{suffix}(\.\d+)?)?"/, %Q{sdk => "\\1.#{suffix}.#{build_num}"})
 File.write(ver_file, new_content)
