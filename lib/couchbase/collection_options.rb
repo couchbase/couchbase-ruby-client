@@ -386,18 +386,22 @@ module Couchbase
         yield self if block_given?
       end
 
+      # @api private
       def success?
         first_error_index.nil?
       end
 
+      # @api private
       def first_error
         encoded[first_error_index].error
       end
 
       # @return [Array<SubDocumentField>] holds the encoded subdocument responses
+      # @api private
       attr_accessor :encoded
 
       # @return [Integer, nil] index of first operation entry that generated an error
+      # @api private
       attr_accessor :first_error_index
 
       # @return [JsonTranscoder] The default transcoder which should be used
