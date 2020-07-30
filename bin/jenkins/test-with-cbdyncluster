@@ -45,6 +45,7 @@ then
   source $(brew --prefix chruby)/share/chruby/chruby.sh
 fi
 chruby ruby-${CB_RUBY_VERSION}
+export GEM_HOME="$PROJECT_ROOT/gems-${CB_RUBY_VERSION}"
 
 FIRST_NODE=$(cbdyncluster ips ${CLUSTER_ID} | ruby -e 'puts STDIN.read.split(",")[0]')
 curl -sS -u Administrator:password http://${FIRST_NODE}:8093/query/service \

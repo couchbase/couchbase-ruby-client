@@ -31,8 +31,8 @@ then
 fi
 chruby ruby-${CB_RUBY_VERSION}
 
+export GEM_HOME="$PROJECT_ROOT/gems-${CB_RUBY_VERSION}"
 gem list --all
-gem uninstall --all couchbase
 gem install $*
 gem list --all
 ruby -rcouchbase -e 'pp Couchbase::VERSION'
