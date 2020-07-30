@@ -35,7 +35,18 @@ VERSION=$(ruby -r./${GEM_DIR}/lib/couchbase/version.rb -e "puts Couchbase::VERSI
 cd ..
 
 rm -rf gem-doc
+cat > patch-readme.rb <<EOF
+gemfile = <<EOS.strip
+gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_27, :source => "https://sdk-snapshots.couchbase.com/ruby/2.7.0/"
+gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_26, :source => "https://sdk-snapshots.couchbase.com/ruby/2.6.0/"
+gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_25, :source => "https://sdk-snapshots.couchbase.com/ruby/2.5.0/"
+EOS
+old_content = File.read("README.md")
+new_content = old_content.gsub(/(gem "couchbase", ").*?"/, gemfile)
+File.write("README.md", new_content)
+EOF
 cd gem-src/${GEM_DIR}
+ruby -r./lib/couchbase/version.rb ../../patch-readme.rb
 yard doc --hide-api private --output-dir ../../gem-doc/couchbase-ruby-client-${VERSION} lib --main README.md
 cd ../..
 
