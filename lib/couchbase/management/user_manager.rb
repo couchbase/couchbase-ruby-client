@@ -288,7 +288,7 @@ module Couchbase
       # @return [User]
       attr_reader :user
 
-      # @return [List<RoleAndOrigins>]
+      # @return [Array<RoleAndOrigins>]
       attr_reader :effective_roles
 
       # @return [Time]

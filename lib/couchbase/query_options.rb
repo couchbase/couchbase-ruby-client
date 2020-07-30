@@ -185,7 +185,7 @@ module Couchbase
       # @return [QueryMetrics] metrics as returned by the query engine, if enabled
       attr_accessor :metrics
 
-      # @return [List<QueryWarning>] list of warnings returned by the query engine
+      # @return [Array<QueryWarning>] list of warnings returned by the query engine
       attr_accessor :warnings
 
       # @yieldparam [QueryMetaData] self
