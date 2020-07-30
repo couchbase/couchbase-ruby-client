@@ -51,3 +51,5 @@ do
     cp gem-src/couchbase-${VERSION}.gem ./repos/${ABI}/gems/
     gem generate_index --verbose --directory ./repos/${ABI}/
 done
+
+echo "${VERSION}" > description.txt
