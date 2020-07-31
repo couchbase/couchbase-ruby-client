@@ -13,3 +13,4 @@
 #  limitations under the License.
 
 require "couchbase/datastructures/couchbase_list"
+require "couchbase/datastructures/couchbase_set"
