@@ -46,10 +46,11 @@ then
   system_profiler SPSoftwareDataType
   sudo xcode-select --print-path
 
+# brew install automake bison openssl readline libyaml gdbm libffi
 # brew install ruby-install chruby cmake
 # brew install gcc@10
   cc_prefix=$(brew --prefix gcc@10)
-  ruby-install --jobs=6 --no-reinstall ruby ${CB_RUBY_VERSION} -- CC="${cc_prefix}/bin/gcc-10" CXX="${cc_prefix}/bin/g++-10"
+  ruby-install --jobs=6 --no-reinstall --no-install-deps ruby ${CB_RUBY_VERSION} -- CC="${cc_prefix}/bin/gcc-10" CXX="${cc_prefix}/bin/g++-10"
 fi
 
 if [ "$(uname -s)" = "Linux" ]
