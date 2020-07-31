@@ -14,3 +14,4 @@
 
 require "couchbase/datastructures/couchbase_list"
 require "couchbase/datastructures/couchbase_set"
+require "couchbase/datastructures/couchbase_queue"
