@@ -22,6 +22,8 @@
 #include <tao/json/external/pegtl.hpp>
 #include <tao/json/external/pegtl/contrib/uri.hpp>
 
+#include <cluster_options.hxx>
+
 namespace couchbase::utils
 {
 
@@ -48,6 +50,8 @@ struct connection_string {
     std::string scheme{};
     bool tls{ false };
     std::map<std::string, std::string> params{};
+    cluster_options options{};
+
     std::vector<node> bootstrap_nodes{};
 
     std::optional<std::string> default_bucket_name{};
@@ -200,6 +204,122 @@ struct action<bucket_name> {
 };
 } // namespace priv
 
+static void
+extract_options(connection_string& connstr)
+{
+    connstr.options.enable_tls = connstr.tls;
+    for (const auto& param : connstr.params) {
+        try {
+            if (param.first == "kv_connect_timeout") {
+                /**
+                 * Number of seconds the client should wait while attempting to connect to a node’s KV service via a socket.  Initial
+                 * connection, reconnecting, node added, etc.
+                 */
+                connstr.options.connect_timeout = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "kv_timeout") {
+                /**
+                 * Number of milliseconds to wait before timing out a KV operation by the client.
+                 */
+                connstr.options.key_value_timeout = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "kv_durable_timeout") {
+                /**
+                 * Number of milliseconds to wait before timing out a KV operation that is either using synchronous durability or
+                 * observe-based durability.
+                 */
+                connstr.options.key_value_durable_timeout = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "view_timeout") {
+                /**
+                 * Number of seconds to wait before timing out a View request  by the client..
+                 */
+                connstr.options.view_timeout = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "query_timeout") {
+                /**
+                 * Number of seconds to wait before timing out a Query or N1QL request by the client.
+                 */
+                connstr.options.query_timeout = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "analytics_timeout") {
+                /**
+                 * Number of seconds to wait before timing out an Analytics request by the client.
+                 */
+                connstr.options.analytics_timeout = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "search_timeout") {
+                /**
+                 * Number of seconds to wait before timing out a Search request by the client.
+                 */
+                connstr.options.search_timeout = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "management_timeout") {
+                /**
+                 * Number of seconds to wait before timing out a Management API request by the client.
+                 */
+                connstr.options.management_timeout = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "trust_certificate") {
+                connstr.options.trust_certificate = param.second;
+            } else if (param.first == "enable_mutation_tokens") {
+                /**
+                 * Request mutation tokens at connection negotiation time. Turning this off will save 16 bytes per operation response.
+                 */
+                if (param.second == "true" || param.second == "yes" || param.second == "on") {
+                    connstr.options.enable_mutation_tokens = true;
+                } else if (param.second == "false" || param.second == "no" || param.second == "off") {
+                    connstr.options.enable_mutation_tokens = false;
+                }
+            } else if (param.first == "enable_tcp_keep_alive") {
+                /**
+                 * Gets or sets a value indicating whether enable TCP keep-alive.
+                 */
+                if (param.second == "true" || param.second == "yes" || param.second == "on") {
+                    connstr.options.enable_tcp_keep_alive = true;
+                } else if (param.second == "false" || param.second == "no" || param.second == "off") {
+                    connstr.options.enable_tcp_keep_alive = false;
+                }
+            } else if (param.first == "tcp_keep_alive_interval") {
+                /**
+                 * Specifies the timeout, in milliseconds, with no activity until the first keep-alive packet is sent. This applies to all
+                 * services, but is advisory: if the underlying platform does not support this on all connections, it will be applied only
+                 * on those it can be.
+                 */
+                connstr.options.tcp_keep_alive_interval = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "force_ipv4") {
+                /**
+                 * Sets the SDK configuration to do IPv4 Name Resolution
+                 */
+                if (param.second == "true" || param.second == "yes" || param.second == "on") {
+                    connstr.options.force_ipv4 = true;
+                } else if (param.second == "false" || param.second == "no" || param.second == "off") {
+                    connstr.options.force_ipv4 = false;
+                }
+            } else if (param.first == "config_poll_interval") {
+                connstr.options.config_poll_interval = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "config_poll_floor") {
+                connstr.options.config_poll_floor = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "max_http_connections") {
+                /**
+                 * The maximum number of HTTP connections allowed on a per-host and per-port basis.  0 indicates an unlimited number of
+                 * connections are permitted.
+                 */
+                connstr.options.max_http_connections = std::stoul(param.second);
+            } else if (param.first == "idle_http_connection_timeout") {
+                /**
+                 * The period of time an HTTP connection can be idle before it is forcefully disconnected.
+                 */
+                connstr.options.idle_http_connection_timeout = std::chrono::milliseconds(std::stoull(param.second));
+            } else {
+                spdlog::warn(R"(unknown parameter "{}" in connection string (value "{}"))", param.first, param.second);
+            }
+        } catch (std::invalid_argument& ex1) {
+            spdlog::warn(R"(unable to parse "{}" parameter in connection string (value "{}" cannot be converted): {})",
+                         param.first,
+                         param.second,
+                         ex1.what());
+        } catch (std::out_of_range& ex2) {
+            spdlog::warn(R"(unable to parse "{}" parameter in connection string (value "{}" is out of range): {})",
+                         param.first,
+                         param.second,
+                         ex2.what());
+        }
+    }
+}
+
 static connection_string
 parse_connection_string(const std::string& input)
 {
@@ -226,6 +346,7 @@ parse_connection_string(const std::string& input)
             res.error = e.what();
         }
     }
+    extract_options(res);
     return res;
 }
 } // namespace couchbase::utils
