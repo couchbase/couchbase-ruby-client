@@ -15,6 +15,8 @@
  *   limitations under the License.
  */
 
+#include <build_config.hxx>
+
 #include <openssl/crypto.h>
 #include <asio/version.hpp>
 
@@ -508,7 +510,7 @@ cb__map_error_code(std::error_code ec, const std::string& message)
 }
 
 static VALUE
-cb_Backend_open(VALUE self, VALUE connection_string, VALUE username, VALUE password)
+cb_Backend_open(VALUE self, VALUE connection_string, VALUE username, VALUE password, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -519,15 +521,17 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE username, VALUE passw
     Check_Type(connection_string, T_STRING);
     Check_Type(username, T_STRING);
     Check_Type(password, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     {
         std::string input(RSTRING_PTR(connection_string), static_cast<size_t>(RSTRING_LEN(connection_string)));
         auto connstr = couchbase::utils::parse_connection_string(input);
-
         std::string user(RSTRING_PTR(username), static_cast<size_t>(RSTRING_LEN(username)));
         std::string pass(RSTRING_PTR(password), static_cast<size_t>(RSTRING_LEN(password)));
-        couchbase::origin origin(user, pass, connstr);
+        couchbase::origin origin(user, pass, std::move(connstr));
         auto barrier = std::make_shared<std::promise<std::error_code>>();
         auto f = barrier->get_future();
         backend->cluster->open(origin, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
@@ -5343,7 +5347,7 @@ init_backend(VALUE mCouchbase)
 {
     VALUE cBackend = rb_define_class_under(mCouchbase, "Backend", rb_cBasicObject);
     rb_define_alloc_func(cBackend, cb_Backend_allocate);
-    rb_define_method(cBackend, "open", VALUE_FUNC(cb_Backend_open), 3);
+    rb_define_method(cBackend, "open", VALUE_FUNC(cb_Backend_open), 4);
     rb_define_method(cBackend, "close", VALUE_FUNC(cb_Backend_close), 0);
     rb_define_method(cBackend, "open_bucket", VALUE_FUNC(cb_Backend_open_bucket), 2);
 

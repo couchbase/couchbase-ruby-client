@@ -30,12 +30,14 @@ class bucket : public std::enable_shared_from_this<bucket>
   public:
     explicit bucket(const std::string& client_id,
                     asio::io_context& ctx,
+                    asio::ssl::context& tls,
                     std::string name,
                     couchbase::origin origin,
                     const std::vector<protocol::hello_feature>& known_features)
 
       : client_id_(client_id)
       , ctx_(ctx)
+      , tls_(tls)
       , name_(std::move(name))
       , origin_(std::move(origin))
       , known_features_(known_features)
@@ -55,7 +57,12 @@ class bucket : public std::enable_shared_from_this<bucket>
     template<typename Handler>
     void bootstrap(Handler&& handler)
     {
-        auto new_session = std::make_shared<io::mcbp_session>(client_id_, ctx_, origin_, name_, known_features_);
+        std::shared_ptr<io::mcbp_session> new_session;
+        if (origin_.options().enable_tls) {
+            new_session = std::make_shared<io::mcbp_session>(client_id_, ctx_, tls_, origin_, name_, known_features_);
+        } else {
+            new_session = std::make_shared<io::mcbp_session>(client_id_, ctx_, origin_, name_, known_features_);
+        }
         new_session->bootstrap([self = shared_from_this(), new_session, h = std::forward<Handler>(handler)](
                                  std::error_code ec, const configuration& cfg) mutable {
             if (!ec) {
@@ -65,10 +72,19 @@ class bucket : public std::enable_shared_from_this<bucket>
                 if (cfg.nodes.size() > 1) {
                     for (const auto& n : cfg.nodes) {
                         if (n.index != this_index) {
-                            couchbase::origin origin(
-                              self->origin_.get_username(), self->origin_.get_password(), n.hostname, *n.services_plain.key_value);
-                            auto s =
-                              std::make_shared<io::mcbp_session>(self->client_id_, self->ctx_, origin, self->name_, self->known_features_);
+                            couchbase::origin origin(self->origin_.get_username(),
+                                                     self->origin_.get_password(),
+                                                     n.hostname,
+                                                     n.port_or(service_type::kv, self->origin_.options().enable_tls, 0),
+                                                     self->origin_.options());
+                            std::shared_ptr<io::mcbp_session> s;
+                            if (self->origin_.options().enable_tls) {
+                                s = std::make_shared<io::mcbp_session>(
+                                  self->client_id_, self->ctx_, self->tls_, origin, self->name_, self->known_features_);
+                            } else {
+                                s = std::make_shared<io::mcbp_session>(
+                                  self->client_id_, self->ctx_, origin, self->name_, self->known_features_);
+                            }
                             s->bootstrap([host = n.hostname, bucket = self->name_](std::error_code err, const configuration& /*config*/) {
                                 // TODO: retry, we know that auth is correct
                                 if (err) {
@@ -129,6 +145,7 @@ class bucket : public std::enable_shared_from_this<bucket>
   private:
     std::string client_id_;
     asio::io_context& ctx_;
+    asio::ssl::context& tls_;
     std::string name_;
     origin origin_;
 

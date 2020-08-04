@@ -51,8 +51,7 @@ class http_session : public std::enable_shared_from_this<http_session>
       , id_(uuid::to_string(uuid::random()))
       , ctx_(ctx)
       , resolver_(ctx_)
-      , strand_(asio::make_strand(ctx_))
-      , socket_(strand_)
+      , stream_(std::make_unique<plain_stream_impl>(ctx_))
       , deadline_timer_(ctx_)
       , username_(username)
       , password_(password)
@@ -66,8 +65,37 @@ class http_session : public std::enable_shared_from_this<http_session>
                                 client_id_,
                                 id_,
                                 BACKEND_SYSTEM))
+      , log_prefix_(fmt::format("[{}/{}]", client_id_, id_))
     {
-        log_prefix_ = fmt::format("[{}/{}]", client_id_, id_);
+    }
+
+    http_session(const std::string& client_id,
+                 asio::io_context& ctx,
+                 asio::ssl::context& tls,
+                 const std::string& username,
+                 const std::string& password,
+                 const std::string& hostname,
+                 const std::string& service)
+      : client_id_(client_id)
+      , id_(uuid::to_string(uuid::random()))
+      , ctx_(ctx)
+      , resolver_(ctx_)
+      , stream_(std::make_unique<tls_stream_impl>(ctx_, tls))
+      , deadline_timer_(ctx_)
+      , username_(username)
+      , password_(password)
+      , hostname_(hostname)
+      , service_(service)
+      , user_agent_(fmt::format("ruby/{}.{}.{}/{}; client/{}; session/{}; {}",
+                                BACKEND_VERSION_MAJOR,
+                                BACKEND_VERSION_MINOR,
+                                BACKEND_VERSION_PATCH,
+                                BACKEND_GIT_REVISION,
+                                client_id_,
+                                id_,
+                                BACKEND_SYSTEM))
+      , log_prefix_(fmt::format("[{}/{}]", client_id_, id_))
+    {
     }
 
     ~http_session()
@@ -104,8 +132,8 @@ class http_session : public std::enable_shared_from_this<http_session>
     void stop()
     {
         stopped_ = true;
-        if (socket_.is_open()) {
-            socket_.close();
+        if (stream_->is_open()) {
+            stream_->close();
         }
         deadline_timer_.cancel();
 
@@ -194,7 +222,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         if (it != endpoints_.end()) {
             spdlog::debug("{} connecting to {}:{}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port());
             deadline_timer_.expires_after(timeout_defaults::connect_timeout);
-            socket_.async_connect(it->endpoint(), std::bind(&http_session::on_connect, shared_from_this(), std::placeholders::_1, it));
+            stream_->async_connect(it->endpoint(), std::bind(&http_session::on_connect, shared_from_this(), std::placeholders::_1, it));
         } else {
             spdlog::error("{} no more endpoints left to connect", log_prefix_);
             stop();
@@ -206,7 +234,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         if (stopped_) {
             return;
         }
-        if (!socket_.is_open() || ec) {
+        if (!stream_->is_open() || ec) {
             spdlog::warn(
               "{} unable to connect to {}:{}: {}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port(), ec.message());
             do_connect(++it);
@@ -230,7 +258,7 @@ class http_session : public std::enable_shared_from_this<http_session>
             return;
         }
         if (deadline_timer_.expiry() <= asio::steady_timer::clock_type::now()) {
-            socket_.close();
+            stream_->close();
             deadline_timer_.expires_at(asio::steady_timer::time_point::max());
         }
         deadline_timer_.async_wait(std::bind(&http_session::check_deadline, shared_from_this(), std::placeholders::_1));
@@ -241,7 +269,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         if (stopped_) {
             return;
         }
-        socket_.async_read_some(
+        stream_->async_read_some(
           asio::buffer(input_buffer_), [self = shared_from_this()](std::error_code ec, std::size_t bytes_transferred) {
               if (ec == asio::error::operation_aborted || self->stopped_) {
                   return;
@@ -284,7 +312,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         for (auto& buf : writing_buffer_) {
             buffers.emplace_back(asio::buffer(buf));
         }
-        asio::async_write(socket_, buffers, [self = shared_from_this()](std::error_code ec, std::size_t /* bytes_transferred */) {
+        stream_->async_write(buffers, [self = shared_from_this()](std::error_code ec, std::size_t /* bytes_transferred */) {
             if (ec == asio::error::operation_aborted || self->stopped_) {
                 return;
             }
@@ -304,8 +332,7 @@ class http_session : public std::enable_shared_from_this<http_session>
     std::string id_;
     asio::io_context& ctx_;
     asio::ip::tcp::resolver resolver_;
-    asio::strand<asio::io_context::executor_type> strand_;
-    asio::ip::tcp::socket socket_;
+    std::unique_ptr<stream_impl> stream_;
     asio::steady_timer deadline_timer_;
 
     std::string username_;

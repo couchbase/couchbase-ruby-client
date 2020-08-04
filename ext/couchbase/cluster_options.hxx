@@ -33,18 +33,18 @@ struct cluster_options {
     std::chrono::milliseconds management_timeout = timeout_defaults::management_timeout;
     std::chrono::milliseconds dns_srv_timeout = timeout_defaults::dns_srv_timeout;
 
-    bool enable_tls { false };
+    bool enable_tls{ false };
     std::string trust_certificate{};
-    bool enable_mutation_tokens { true };
-    bool enable_tcp_keep_alive { true };
-    bool force_ipv4 { false };
+    bool enable_mutation_tokens{ true };
+    bool enable_tcp_keep_alive{ true };
+    bool force_ipv4{ false };
 
     std::chrono::milliseconds tcp_keep_alive_interval = timeout_defaults::tcp_keep_alive_interval;
     std::chrono::milliseconds config_poll_interval = timeout_defaults::config_poll_interval;
     std::chrono::milliseconds config_poll_floor = timeout_defaults::config_poll_floor;
     std::chrono::milliseconds config_idle_redial_timeout = timeout_defaults::config_idle_redial_timeout;
 
-    size_t max_http_connections {0};
+    size_t max_http_connections{ 0 };
     std::chrono::milliseconds idle_http_connection_timeout = timeout_defaults::idle_http_connection_timeout;
 };
 

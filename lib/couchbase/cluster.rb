@@ -326,7 +326,7 @@ module Couchbase
       raise ArgumentError, "missing password" unless password
 
       @backend = Backend.new
-      @backend.open(connection_string, username, password)
+      @backend.open(connection_string, username, password, {})
     end
   end
 end

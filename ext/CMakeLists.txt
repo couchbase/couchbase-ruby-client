@@ -92,6 +92,9 @@ else()
     endif()
 endif()
 
+# Read more at https://wiki.wireshark.org/TLS
+option(TLS_KEY_LOG_FILE "Path to file to write per-session secrets (Useful for Wireshark SSL/TLS dissection)")
+
 include(FindOpenSSL)
 message(STATUS "OPENSSL_VERSION: ${OPENSSL_VERSION}")
 message(STATUS "OPENSSL_INCLUDEDIRS: ${OPENSSL_INCLUDE_DIR}")
@@ -134,6 +137,7 @@ endif()
 
 string(TIMESTAMP BACKEND_BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S" UTC)
 configure_file(${PROJECT_SOURCE_DIR}/build_version.hxx.in ${PROJECT_BINARY_DIR}/generated/build_version.hxx @ONLY)
+configure_file(${PROJECT_SOURCE_DIR}/build_config.hxx.in ${PROJECT_BINARY_DIR}/generated/build_config.hxx @ONLY)
 add_library(couchbase SHARED couchbase/couchbase.cxx)
 target_include_directories(couchbase PRIVATE ${PROJECT_BINARY_DIR}/generated)
 target_link_libraries(

@@ -28,14 +28,16 @@ namespace couchbase::io
 class http_session_manager : public std::enable_shared_from_this<http_session_manager>
 {
   public:
-    http_session_manager(const std::string& client_id, asio::io_context& ctx)
+    http_session_manager(const std::string& client_id, asio::io_context& ctx, asio::ssl::context& tls)
       : client_id_(client_id)
       , ctx_(ctx)
+      , tls_(tls)
     {
     }
 
-    void set_configuration(const configuration& config)
+    void set_configuration(const configuration& config, const cluster_options& options)
     {
+        options_ = options;
         config_ = config;
         next_index_ = 0;
         if (config_.nodes.size() > 1) {
@@ -57,7 +59,12 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
                 return nullptr;
             }
             config_.nodes.size();
-            auto session = std::make_shared<http_session>(client_id_, ctx_, username, password, hostname, std::to_string(port));
+            std::shared_ptr<http_session> session;
+            if (options_.enable_tls) {
+                session = std::make_shared<http_session>(client_id_, ctx_, tls_, username, password, hostname, std::to_string(port));
+            } else {
+                session = std::make_shared<http_session>(client_id_, ctx_, username, password, hostname, std::to_string(port));
+            }
             session->start();
             session->on_stop([type, id = session->id(), self = this->shared_from_this()]() {
                 std::scoped_lock inner_lock(self->sessions_mutex_);
@@ -93,32 +100,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
             --candidates;
             auto& node = config_.nodes[next_index_];
             next_index_ = (next_index_ + 1) % config_.nodes.size();
-            std::uint16_t port = 0;
-            switch (type) {
-                case service_type::query:
-                    port = node.services_plain.query.value_or(0);
-                    break;
-
-                case service_type::analytics:
-                    port = node.services_plain.analytics.value_or(0);
-                    break;
-
-                case service_type::search:
-                    port = node.services_plain.search.value_or(0);
-                    break;
-
-                case service_type::views:
-                    port = node.services_plain.views.value_or(0);
-                    break;
-
-                case service_type::management:
-                    port = node.services_plain.management.value_or(0);
-                    break;
-
-                case service_type::kv:
-                    port = node.services_plain.key_value.value_or(0);
-                    break;
-            }
+            std::uint16_t port = node.port_or(type, options_.enable_tls, 0);
             if (port != 0) {
                 return { node.hostname, port };
             }
@@ -128,6 +110,8 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
 
     std::string client_id_;
     asio::io_context& ctx_;
+    asio::ssl::context& tls_;
+    cluster_options options_;
 
     configuration config_{};
     std::map<service_type, std::list<std::shared_ptr<http_session>>> busy_sessions_{};

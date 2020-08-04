@@ -19,6 +19,9 @@
 
 #include <utility>
 #include <thread>
+#include <fstream>
+
+#include <asio/ssl.hpp>
 
 #include <io/mcbp_session.hxx>
 #include <io/http_session_manager.hxx>
@@ -37,7 +40,8 @@ class cluster
       : id_(uuid::to_string(uuid::random()))
       , ctx_(ctx)
       , work_(asio::make_work_guard(ctx_))
-      , session_manager_(std::make_shared<io::http_session_manager>(id_, ctx_))
+      , tls_(asio::ssl::context::tls_client)
+      , session_manager_(std::make_shared<io::http_session_manager>(id_, ctx_, tls_))
     {
     }
 
@@ -45,10 +49,27 @@ class cluster
     void open(const couchbase::origin& origin, Handler&& handler)
     {
         origin_ = origin;
-        session_ = std::make_shared<io::mcbp_session>(id_, ctx_, origin_);
+        if (origin_.options().enable_tls) {
+            tls_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2 | asio::ssl::context::no_sslv3);
+            if (!origin_.options().trust_certificate.empty()) {
+                tls_.use_certificate_chain_file(origin_.options().trust_certificate);
+            }
+#ifdef TLS_KEY_LOG_FILE
+            SSL_CTX_set_keylog_callback(tls_.native_handle(), [](const SSL* /* ssl */, const char* line) {
+                std::ofstream keylog(TLS_KEY_LOG_FILE, std::ios::out | std::ios::app | std::ios::binary);
+                keylog << std::string_view(line) << std::endl;
+            });
+            spdlog::critical("TLS_KEY_LOG_FILE was set to \"{}\" during build, all TLS keys will be logged for network analysis "
+                             "(https://wiki.wireshark.org/TLS). DO NOT USE THIS BUILD IN PRODUCTION",
+                             TLS_KEY_LOG_FILE);
+#endif
+            session_ = std::make_shared<io::mcbp_session>(id_, ctx_, tls_, origin_);
+        } else {
+            session_ = std::make_shared<io::mcbp_session>(id_, ctx_, origin_);
+        }
         session_->bootstrap([this, handler = std::forward<Handler>(handler)](std::error_code ec, const configuration& config) mutable {
             if (!ec) {
-                session_manager_->set_configuration(config);
+                session_manager_->set_configuration(config, origin_.options());
             }
             handler(ec);
         });
@@ -76,10 +97,10 @@ class cluster
         if (session_ && session_->has_config()) {
             known_features = session_->supported_features();
         }
-        auto b = std::make_shared<bucket>(id_, ctx_, bucket_name, origin_, known_features);
+        auto b = std::make_shared<bucket>(id_, ctx_, tls_, bucket_name, origin_, known_features);
         b->bootstrap([this, handler = std::forward<Handler>(handler)](std::error_code ec, const configuration& config) mutable {
             if (!ec && !session_->supports_gcccp()) {
-                session_manager_->set_configuration(config);
+                session_manager_->set_configuration(config, origin_.options());
             }
             handler(ec);
         });
@@ -114,6 +135,7 @@ class cluster
     std::string id_;
     asio::io_context& ctx_;
     asio::executor_work_guard<asio::io_context::executor_type> work_;
+    asio::ssl::context tls_;
     std::shared_ptr<io::http_session_manager> session_manager_;
     std::shared_ptr<io::mcbp_session> session_{};
     std::map<std::string, std::shared_ptr<bucket>> buckets_{};

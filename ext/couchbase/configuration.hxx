@@ -24,6 +24,8 @@
 #include <utils/crc32.hxx>
 #include <platform/uuid.h>
 
+#include <service_type.hxx>
+
 namespace couchbase
 {
 struct configuration {
@@ -41,6 +43,51 @@ struct configuration {
         std::string hostname;
         port_map services_plain;
         port_map services_tls;
+
+        [[nodiscard]] std::uint16_t port_or(service_type type, bool is_tls, std::uint16_t default_value) const
+        {
+            if (is_tls) {
+                switch (type) {
+                    case service_type::query:
+                        return services_tls.query.value_or(default_value);
+
+                    case service_type::analytics:
+                        return services_tls.analytics.value_or(default_value);
+
+                    case service_type::search:
+                        return services_tls.search.value_or(default_value);
+
+                    case service_type::views:
+                        return services_tls.views.value_or(default_value);
+
+                    case service_type::management:
+                        return services_tls.management.value_or(default_value);
+
+                    case service_type::kv:
+                        return services_tls.key_value.value_or(default_value);
+                }
+            }
+            switch (type) {
+                case service_type::query:
+                    return services_plain.query.value_or(default_value);
+
+                case service_type::analytics:
+                    return services_plain.analytics.value_or(default_value);
+
+                case service_type::search:
+                    return services_plain.search.value_or(default_value);
+
+                case service_type::views:
+                    return services_plain.views.value_or(default_value);
+
+                case service_type::management:
+                    return services_plain.management.value_or(default_value);
+
+                case service_type::kv:
+                    return services_plain.key_value.value_or(default_value);
+            }
+            return default_value;
+        }
     };
 
     using vbucket_map = typename std::vector<std::vector<std::int16_t>>;

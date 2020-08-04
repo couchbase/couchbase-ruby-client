@@ -31,44 +31,26 @@ struct origin {
     origin(origin&& other) = default;
 
     origin(const origin& other)
-      : username_(other.username_)
+      : options_(other.options_)
+      , username_(other.username_)
       , password_(other.password_)
       , nodes_(other.nodes_)
       , next_node_(nodes_.begin())
-      , exhausted_{ false }
     {
     }
 
-    origin(std::string username, std::string password, node_list nodes)
-      : username_(std::move(username))
-      , password_(std::move(password))
-      , nodes_(std::move(nodes))
-      , next_node_(nodes_.begin())
-      , exhausted_{ false }
-    {
-    }
-
-    origin& operator=(const origin& other)
-    {
-        username_ = other.username_;
-        password_ = other.password_;
-        nodes_ = other.nodes_;
-        next_node_ = nodes_.begin();
-        exhausted_ = false;
-        return *this;
-    }
-
-    origin(std::string username, std::string password, const std::string& hostname, std::uint16_t port = 11210)
-      : username_(std::move(username))
+    origin(std::string username, std::string password, const std::string& hostname, std::uint16_t port, const cluster_options& options)
+      : options_(options)
+      , username_(std::move(username))
       , password_(std::move(password))
       , nodes_{ { hostname, std::to_string(port) } }
       , next_node_(nodes_.begin())
-      , exhausted_{ false }
     {
     }
 
     origin(std::string username, std::string password, const utils::connection_string& connstr)
-      : username_(std::move(username))
+      : options_(connstr.options)
+      , username_(std::move(username))
       , password_(std::move(password))
     {
         nodes_.reserve(connstr.bootstrap_nodes.size());
@@ -77,6 +59,19 @@ struct origin {
               std::make_pair(node.address, node.port > 0 ? std::to_string(node.port) : std::to_string(connstr.default_port)));
         }
         next_node_ = nodes_.begin();
+    }
+
+    origin& operator=(const origin& other)
+    {
+        if (this != &other) {
+            options_ = other.options_;
+            username_ = other.username_;
+            password_ = other.password_;
+            nodes_ = other.nodes_;
+            next_node_ = nodes_.begin();
+            exhausted_ = false;
+        }
+        return *this;
     }
 
     [[nodiscard]] const std::string& get_username() const
@@ -118,7 +113,13 @@ struct origin {
         next_node_ = nodes_.begin();
     }
 
+    [[nodiscard]] const couchbase::cluster_options& options()
+    {
+        return options_;
+    }
+
   private:
+    couchbase::cluster_options options_{};
     std::string username_{};
     std::string password_{};
     node_list nodes_{};

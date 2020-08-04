@@ -27,6 +27,7 @@
 
 #include <io/mcbp_message.hxx>
 #include <io/mcbp_parser.hxx>
+#include <io/streams.hxx>
 
 #include <timeout_defaults.hxx>
 
@@ -437,8 +438,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
       , id_(uuid::to_string(uuid::random()))
       , ctx_(ctx)
       , resolver_(ctx_)
-      , strand_(asio::make_strand(ctx_))
-      , socket_(strand_)
+      , stream_(std::make_unique<plain_stream_impl>(ctx_))
       , bootstrap_deadline_(ctx_)
       , connection_deadline_(ctx_)
       , retry_backoff_(ctx_)
@@ -446,7 +446,28 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
       , bucket_name_(std::move(bucket_name))
       , supported_features_(known_features)
     {
-        log_prefix_ = fmt::format("[{}/{}/{}]", client_id_, id_, bucket_name_.value_or("-"));
+        log_prefix_ = fmt::format("[{}/{}/{}/{}]", stream_->log_prefix(), client_id_, id_, bucket_name_.value_or("-"));
+    }
+
+    mcbp_session(const std::string& client_id,
+                 asio::io_context& ctx,
+                 asio::ssl::context& tls,
+                 const couchbase::origin& origin,
+                 std::optional<std::string> bucket_name = {},
+                 std::vector<protocol::hello_feature> known_features = {})
+      : client_id_(client_id)
+      , id_(uuid::to_string(uuid::random()))
+      , ctx_(ctx)
+      , resolver_(ctx_)
+      , stream_(std::make_unique<tls_stream_impl>(ctx_, tls))
+      , bootstrap_deadline_(ctx_)
+      , connection_deadline_(ctx_)
+      , retry_backoff_(ctx_)
+      , origin_(origin)
+      , bucket_name_(std::move(bucket_name))
+      , supported_features_(known_features)
+    {
+        log_prefix_ = fmt::format("[{}/{}/{}/{}]", stream_->log_prefix(), client_id_, id_, bucket_name_.value_or("-"));
     }
 
     ~mcbp_session()
@@ -496,7 +517,8 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         std::string hostname;
         std::string service;
         std::tie(hostname, service) = origin_.next_address();
-        log_prefix_ = fmt::format("[{}/{}/{}] <{}:{}>", client_id_, id_, bucket_name_.value_or("-"), hostname, service);
+        log_prefix_ =
+          fmt::format("[{}/{}/{}/{}] <{}:{}>", stream_->log_prefix(), client_id_, id_, bucket_name_.value_or("-"), hostname, service);
         spdlog::debug("{} attempt to establish MCBP connection", log_prefix_);
         resolver_.async_resolve(
           hostname, service, std::bind(&mcbp_session::on_resolve, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
@@ -517,8 +539,8 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         connection_deadline_.cancel();
         retry_backoff_.cancel();
         resolver_.cancel();
-        if (socket_.is_open()) {
-            socket_.close();
+        if (stream_->is_open()) {
+            stream_->close();
         }
         auto ec = std::make_error_code(error::common_errc::request_canceled);
         if (!bootstrapped_ && bootstrap_handler_) {
@@ -575,7 +597,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             return;
         }
         command_handlers_.emplace(opaque, std::move(handler));
-        if (bootstrapped_ && socket_.is_open()) {
+        if (bootstrapped_ && stream_->is_open()) {
             write_and_flush(data);
         } else {
             std::scoped_lock lock(pending_buffer_mutex_);
@@ -845,7 +867,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (it != endpoints_.end()) {
             spdlog::debug("{} connecting to {}:{}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port());
             connection_deadline_.expires_after(timeout_defaults::connect_timeout);
-            socket_.async_connect(it->endpoint(), std::bind(&mcbp_session::on_connect, shared_from_this(), std::placeholders::_1, it));
+            stream_->async_connect(it->endpoint(), std::bind(&mcbp_session::on_connect, shared_from_this(), std::placeholders::_1, it));
         } else {
             spdlog::error("{} no more endpoints left to connect, will try another address", log_prefix_);
             return initiate_bootstrap();
@@ -857,13 +879,12 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (stopped_) {
             return;
         }
-        if (!socket_.is_open() || ec) {
+        if (!stream_->is_open() || ec) {
             spdlog::warn(
               "{} unable to connect to {}:{}: {}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port(), ec.message());
             do_connect(++it);
         } else {
-            socket_.set_option(asio::ip::tcp::no_delay{ true });
-            socket_.set_option(asio::socket_base::keep_alive{ true });
+            stream_->set_options();
             endpoint_ = it->endpoint();
             endpoint_address_ = endpoint_.address().to_string();
             spdlog::debug("{} connected to {}:{}", log_prefix_, endpoint_address_, it->endpoint().port());
@@ -881,7 +902,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             return;
         }
         if (connection_deadline_.expiry() <= asio::steady_timer::clock_type::now()) {
-            socket_.close();
+            stream_->close();
             connection_deadline_.expires_at(asio::steady_timer::time_point::max());
         }
         connection_deadline_.async_wait(std::bind(&mcbp_session::check_deadline, shared_from_this(), std::placeholders::_1));
@@ -896,7 +917,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             return;
         }
         reading_ = true;
-        socket_.async_read_some(
+        stream_->async_read_some(
           asio::buffer(input_buffer_), [self = shared_from_this()](std::error_code ec, std::size_t bytes_transferred) {
               if (ec == asio::error::operation_aborted || self->stopped_) {
                   return;
@@ -951,7 +972,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         for (auto& buf : writing_buffer_) {
             buffers.emplace_back(asio::buffer(buf));
         }
-        asio::async_write(socket_, buffers, [self = shared_from_this()](std::error_code ec, std::size_t /*unused*/) {
+        stream_->async_write(buffers, [self = shared_from_this()](std::error_code ec, std::size_t /*unused*/) {
             if (ec == asio::error::operation_aborted || self->stopped_) {
                 return;
             }
@@ -972,8 +993,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     std::string id_;
     asio::io_context& ctx_;
     asio::ip::tcp::resolver resolver_;
-    asio::strand<asio::io_context::executor_type> strand_;
-    asio::ip::tcp::socket socket_;
+    std::unique_ptr<stream_impl> stream_;
     asio::steady_timer bootstrap_deadline_;
     asio::steady_timer connection_deadline_;
     asio::steady_timer retry_backoff_;
@@ -981,7 +1001,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     std::optional<std::string> bucket_name_;
     mcbp_parser parser_;
     std::unique_ptr<message_handler> handler_;
-    std::function<void(std::error_code, const configuration&)> bootstrap_handler_;
+    std::function<void(std::error_code, const configuration&)> bootstrap_handler_{};
     std::map<uint32_t, std::function<void(std::error_code, io::mcbp_message&&)>> command_handlers_{};
 
     bool bootstrapped_{ false };
