@@ -52,7 +52,12 @@ class cluster
         if (origin_.options().enable_tls) {
             tls_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2 | asio::ssl::context::no_sslv3);
             if (!origin_.options().trust_certificate.empty()) {
-                tls_.use_certificate_chain_file(origin_.options().trust_certificate);
+                std::error_code ec{};
+                tls_.use_certificate_chain_file(origin_.options().trust_certificate, ec);
+                if (ec) {
+                    spdlog::error("unable to load certificate chain \"{}\": {}", origin_.options().trust_certificate, ec.message());
+                    return handler(ec);
+                }
             }
 #ifdef TLS_KEY_LOG_FILE
             SSL_CTX_set_keylog_callback(tls_.native_handle(), [](const SSL* /* ssl */, const char* line) {
