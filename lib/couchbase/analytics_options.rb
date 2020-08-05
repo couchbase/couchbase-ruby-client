@@ -26,7 +26,7 @@ module Couchbase
       # @return [:not_bounded, :request_plus] specifies level of consistency for the query
       attr_accessor :scan_consistency
 
-      # @return [Boolean] Allows explicitly marking a query as being readonly and not mutating and documents on the server side.
+      # @return [Boolean] Allows explicitly marking a query as being readonly and not mutating any documents on the server side.
       attr_accessor :readonly
 
       # @return [Boolean] Allows to give certain requests higher priority than others

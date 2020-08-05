@@ -30,7 +30,7 @@ module Couchbase
       # @return [Integer] Allows overriding the default maximum parallelism for the query execution on the server side.
       attr_accessor :max_parallelism
 
-      # @return [Boolean] Allows explicitly marking a query as being readonly and not mutating and documents on the server side.
+      # @return [Boolean] Allows explicitly marking a query as being readonly and not mutating any documents on the server side.
       attr_accessor :readonly
 
       # Allows customizing how long (in milliseconds) the query engine is willing to wait until the index catches up to whatever scan consistency is asked for in this query.
