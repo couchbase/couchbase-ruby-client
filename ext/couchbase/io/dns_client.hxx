@@ -119,7 +119,9 @@ class dns_client
                     return;
                 }
                 self->udp_.cancel();
-                self->tcp_.cancel();
+                if (self->tcp_.is_open()) {
+                    self->tcp_.cancel();
+                }
             });
         }
 

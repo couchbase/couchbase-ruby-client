@@ -26,6 +26,7 @@
 #include <io/mcbp_session.hxx>
 #include <io/http_session_manager.hxx>
 #include <io/http_command.hxx>
+#include <io/dns_client.hxx>
 #include <origin.hxx>
 #include <bucket.hxx>
 #include <operations.hxx>
@@ -42,6 +43,8 @@ class cluster
       , work_(asio::make_work_guard(ctx_))
       , tls_(asio::ssl::context::tls_client)
       , session_manager_(std::make_shared<io::http_session_manager>(id_, ctx_, tls_))
+      , dns_config_(io::dns::dns_config::get())
+      , dns_client_(ctx_)
     {
     }
 
@@ -49,35 +52,10 @@ class cluster
     void open(const couchbase::origin& origin, Handler&& handler)
     {
         origin_ = origin;
-        if (origin_.options().enable_tls) {
-            tls_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2 | asio::ssl::context::no_sslv3);
-            if (!origin_.options().trust_certificate.empty()) {
-                std::error_code ec{};
-                tls_.use_certificate_chain_file(origin_.options().trust_certificate, ec);
-                if (ec) {
-                    spdlog::error("unable to load certificate chain \"{}\": {}", origin_.options().trust_certificate, ec.message());
-                    return handler(ec);
-                }
-            }
-#ifdef TLS_KEY_LOG_FILE
-            SSL_CTX_set_keylog_callback(tls_.native_handle(), [](const SSL* /* ssl */, const char* line) {
-                std::ofstream keylog(TLS_KEY_LOG_FILE, std::ios::out | std::ios::app | std::ios::binary);
-                keylog << std::string_view(line) << std::endl;
-            });
-            spdlog::critical("TLS_KEY_LOG_FILE was set to \"{}\" during build, all TLS keys will be logged for network analysis "
-                             "(https://wiki.wireshark.org/TLS). DO NOT USE THIS BUILD IN PRODUCTION",
-                             TLS_KEY_LOG_FILE);
-#endif
-            session_ = std::make_shared<io::mcbp_session>(id_, ctx_, tls_, origin_);
-        } else {
-            session_ = std::make_shared<io::mcbp_session>(id_, ctx_, origin_);
+        if (origin_.options().enable_dns_srv) {
+            return do_dns_srv(std::forward<Handler>(handler));
         }
-        session_->bootstrap([this, handler = std::forward<Handler>(handler)](std::error_code ec, const configuration& config) mutable {
-            if (!ec) {
-                session_manager_->set_configuration(config, origin_.options());
-            }
-            handler(ec);
-        });
+        do_open(std::forward<Handler>(handler));
     }
 
     template<typename Handler>
@@ -137,11 +115,80 @@ class cluster
     }
 
   private:
+    template<typename Handler>
+    void do_dns_srv(Handler&& handler)
+    {
+        std::string hostname;
+        std::string service;
+        std::tie(hostname, service) = origin_.next_address();
+        service = origin_.options().enable_tls ? "_couchbases" : "_couchbase";
+        dns_client_.query_srv(
+          hostname,
+          service,
+          [hostname, this, handler = std::forward<Handler>(handler)](couchbase::io::dns::dns_client::dns_srv_response resp) mutable {
+              if (resp.ec) {
+                  spdlog::warn("failed to fetch DNS SRV records for \"{}\" ({}), assuming that cluster is listening this address",
+                               hostname,
+                               resp.ec.message());
+              } else if (resp.targets.empty()) {
+                  spdlog::warn("DNS SRV query returned 0 records for \"{}\", assuming that cluster is listening this address", hostname);
+              } else {
+                  origin::node_list nodes;
+                  nodes.reserve(resp.targets.size());
+                  for (const auto& address : resp.targets) {
+                      origin::node_entry node;
+                      node.first = address.hostname;
+                      node.second = std::to_string(address.port);
+                      nodes.emplace_back(node);
+                  }
+                  origin_.set_nodes(nodes);
+                  spdlog::warn("received {} addresses for \"{}\" via DNS SRV", resp.targets.size(), hostname);
+              }
+              return do_open(std::forward<Handler>(handler));
+          });
+    }
+
+    template<typename Handler>
+    void do_open(Handler&& handler)
+    {
+        if (origin_.options().enable_tls) {
+            tls_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2 | asio::ssl::context::no_sslv3);
+            if (!origin_.options().trust_certificate.empty()) {
+                std::error_code ec{};
+                tls_.use_certificate_chain_file(origin_.options().trust_certificate, ec);
+                if (ec) {
+                    spdlog::error("unable to load certificate chain \"{}\": {}", origin_.options().trust_certificate, ec.message());
+                    return handler(ec);
+                }
+            }
+#ifdef TLS_KEY_LOG_FILE
+            SSL_CTX_set_keylog_callback(tls_.native_handle(), [](const SSL* /* ssl */, const char* line) {
+                std::ofstream keylog(TLS_KEY_LOG_FILE, std::ios::out | std::ios::app | std::ios::binary);
+                keylog << std::string_view(line) << std::endl;
+            });
+            spdlog::critical("TLS_KEY_LOG_FILE was set to \"{}\" during build, all TLS keys will be logged for network analysis "
+                             "(https://wiki.wireshark.org/TLS). DO NOT USE THIS BUILD IN PRODUCTION",
+                             TLS_KEY_LOG_FILE);
+#endif
+            session_ = std::make_shared<io::mcbp_session>(id_, ctx_, tls_, origin_);
+        } else {
+            session_ = std::make_shared<io::mcbp_session>(id_, ctx_, origin_);
+        }
+        session_->bootstrap([this, handler = std::forward<Handler>(handler)](std::error_code ec, const configuration& config) mutable {
+            if (!ec) {
+                session_manager_->set_configuration(config, origin_.options());
+            }
+            handler(ec);
+        });
+    }
+
     std::string id_;
     asio::io_context& ctx_;
     asio::executor_work_guard<asio::io_context::executor_type> work_;
     asio::ssl::context tls_;
     std::shared_ptr<io::http_session_manager> session_manager_;
+    io::dns::dns_config& dns_config_;
+    couchbase::io::dns::dns_client dns_client_;
     std::shared_ptr<io::mcbp_session> session_{};
     std::map<std::string, std::shared_ptr<bucket>> buckets_{};
     couchbase::origin origin_{};

@@ -208,6 +208,9 @@ static void
 extract_options(connection_string& connstr)
 {
     connstr.options.enable_tls = connstr.tls;
+    if (connstr.bootstrap_nodes.size() != 1 || connstr.bootstrap_nodes[0].type != connection_string::address_type::dns) {
+        connstr.options.enable_dns_srv = false;
+    }
     for (const auto& param : connstr.params) {
         try {
             if (param.first == "kv_connect_timeout") {
@@ -303,6 +306,19 @@ extract_options(connection_string& connstr)
                  * The period of time an HTTP connection can be idle before it is forcefully disconnected.
                  */
                 connstr.options.idle_http_connection_timeout = std::chrono::milliseconds(std::stoull(param.second));
+            } else if (param.first == "enable_dns_srv") {
+                if (connstr.bootstrap_nodes.size() == 1) {
+                    if (param.second == "true" || param.second == "yes" || param.second == "on") {
+                        connstr.options.enable_dns_srv = true;
+                    } else if (param.second == "false" || param.second == "no" || param.second == "off") {
+                        connstr.options.enable_dns_srv = false;
+                    }
+                } else {
+                    spdlog::warn(
+                      R"(parameter "{}" require single entry in bootstrap nodes list of the connection string, ignoring (value "{}"))",
+                      param.first,
+                      param.second);
+                }
             } else {
                 spdlog::warn(R"(unknown parameter "{}" in connection string (value "{}"))", param.first, param.second);
             }

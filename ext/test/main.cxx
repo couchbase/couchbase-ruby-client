@@ -63,33 +63,33 @@ require "json"
 p Couchbase::VERSION
 include Couchbase
 
-begin
-  load "/home/avsej/code/couchbase-ruby-client/test/query_test.rb"
-rescue => ex
-  p ex
-  puts ex.backtrace
-  raise
-end
+# begin
+#   load "/home/avsej/code/couchbase-ruby-client/test/query_test.rb"
+# rescue => ex
+#   p ex
+#   puts ex.backtrace
+#   raise
+# end
 
-#  backend = Backend.new
-#  begin
-#    options = {
-#    }
-#    connstr = "couchbases://192.168.42.101?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
-#    # curl http://localhost:8091/pools/default/certificate > /tmp/couchbase-ssl-certificate.pem
-#    connstr = "couchbases://localhost?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
-#    p open: backend.open(connstr, "Administrator", "password", options)
-#  rescue => ex
-#    p err: ex
-#    puts ex.backtrace
-#  end
-#  # p bucket: backend.open_bucket("default", true)
-#  # ('aaa'..'zzz').to_a.sample(10).each do |key|
-#  #     p set: backend.document_upsert("default", "_default._default", key, 10_000, JSON.generate(foo: "bar"), 0, {})
-#  #     p get: backend.document_get("default", "_default._default", key, nil)
-#  # end
-#  p query: backend.document_query('select "ruby rules" as greeting', {})
-#  p close: backend.close
+backend = Backend.new
+begin
+  options = {
+  }
+  connstr = "couchbases://192.168.42.101?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
+  # curl http://localhost:8091/pools/default/certificate > /tmp/couchbase-ssl-certificate.pem
+  connstr = "couchbases://localhost.avsej.net?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
+  p open: backend.open(connstr, "Administrator", "password", options)
+rescue => ex
+  p err: ex
+  puts ex.backtrace
+end
+# p bucket: backend.open_bucket("default", true)
+# ('aaa'..'zzz').to_a.sample(10).each do |key|
+#     p set: backend.document_upsert("default", "_default._default", key, 10_000, JSON.generate(foo: "bar"), 0, {})
+#     p get: backend.document_get("default", "_default._default", key, nil)
+# end
+p query: backend.document_query('select "ruby rules" as greeting', {})
+p close: backend.close
 
 # backend = Backend.new
 # begin

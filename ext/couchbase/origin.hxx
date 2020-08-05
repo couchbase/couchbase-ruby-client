@@ -24,7 +24,8 @@
 namespace couchbase
 {
 struct origin {
-    using node_list = std::vector<std::pair<std::string, std::string>>;
+    using node_entry = std::pair<std::string, std::string>;
+    using node_list = std::vector<node_entry>;
 
     origin() = default;
 
@@ -87,6 +88,13 @@ struct origin {
     [[nodiscard]] const node_list& get_nodes() const
     {
         return nodes_;
+    }
+
+    void set_nodes(node_list nodes)
+    {
+        nodes_ = std::move(nodes);
+        next_node_ = nodes_.begin();
+        exhausted_ = false;
     }
 
     [[nodiscard]] std::pair<std::string, std::string> next_address()
