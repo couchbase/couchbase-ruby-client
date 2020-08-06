@@ -319,6 +319,8 @@ extract_options(connection_string& connstr)
                       param.first,
                       param.second);
                 }
+            } else if (param.first == "network") {
+                connstr.options.network = param.second; /* current known values are "auto", "default" and "external" */
             } else {
                 spdlog::warn(R"(unknown parameter "{}" in connection string (value "{}"))", param.first, param.second);
             }

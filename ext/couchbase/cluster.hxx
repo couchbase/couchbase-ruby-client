@@ -176,6 +176,10 @@ class cluster
         }
         session_->bootstrap([this, handler = std::forward<Handler>(handler)](std::error_code ec, const configuration& config) mutable {
             if (!ec) {
+                if (origin_.options().network == "auto") {
+                    origin_.options().network = config.select_network(session_->bootstrap_hostname());
+                    spdlog::info(R"({} detected network is "{}")", session_->log_prefix(), origin_.options().network);
+                }
                 session_manager_->set_configuration(config, origin_.options());
             }
             handler(ec);

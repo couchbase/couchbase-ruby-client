@@ -37,12 +37,19 @@ struct configuration {
         std::optional<std::uint16_t> views;
         std::optional<std::uint16_t> query;
     };
+    struct alternate_address {
+        std::string name;
+        std::string hostname;
+        port_map services_plain{};
+        port_map services_tls{};
+    };
     struct node {
         bool this_node{ false };
         size_t index;
         std::string hostname;
         port_map services_plain;
         port_map services_tls;
+        std::map<std::string, alternate_address> alt{};
 
         [[nodiscard]] std::uint16_t port_or(service_type type, bool is_tls, std::uint16_t default_value) const
         {
@@ -88,7 +95,77 @@ struct configuration {
             }
             return default_value;
         }
+
+        [[nodiscard]] std::uint16_t port_or(const std::string& network, service_type type, bool is_tls, std::uint16_t default_value) const
+        {
+            if (network == "default") {
+                return port_or(type, is_tls, default_value);
+            }
+            const auto& address = alt.find(network);
+            if (address == alt.end()) {
+                spdlog::warn(R"(requested network "{}" is not found, fallback to "default")", network);
+                return port_or(type, is_tls, default_value);
+            }
+            if (is_tls) {
+                switch (type) {
+                    case service_type::query:
+                        return address->second.services_tls.query.value_or(default_value);
+
+                    case service_type::analytics:
+                        return address->second.services_tls.analytics.value_or(default_value);
+
+                    case service_type::search:
+                        return address->second.services_tls.search.value_or(default_value);
+
+                    case service_type::views:
+                        return address->second.services_tls.views.value_or(default_value);
+
+                    case service_type::management:
+                        return address->second.services_tls.management.value_or(default_value);
+
+                    case service_type::kv:
+                        return address->second.services_tls.key_value.value_or(default_value);
+                }
+            }
+            switch (type) {
+                case service_type::query:
+                    return address->second.services_plain.query.value_or(default_value);
+
+                case service_type::analytics:
+                    return address->second.services_plain.analytics.value_or(default_value);
+
+                case service_type::search:
+                    return address->second.services_plain.search.value_or(default_value);
+
+                case service_type::views:
+                    return address->second.services_plain.views.value_or(default_value);
+
+                case service_type::management:
+                    return address->second.services_plain.management.value_or(default_value);
+
+                case service_type::kv:
+                    return address->second.services_plain.key_value.value_or(default_value);
+            }
+            return default_value;
+        }
     };
+
+    [[nodiscard]] std::string select_network(const std::string& bootstrap_hostname) const
+    {
+        for (const auto& n : nodes) {
+            if (n.this_node) {
+                if (n.hostname == bootstrap_hostname) {
+                    return "default";
+                }
+                for (const auto& entry : n.alt) {
+                    if (entry.second.hostname == bootstrap_hostname) {
+                        return entry.first;
+                    }
+                }
+            }
+        }
+        return "default";
+    }
 
     using vbucket_map = typename std::vector<std::vector<std::int16_t>>;
 
@@ -190,12 +267,69 @@ struct fmt::formatter<couchbase::configuration::node> : formatter<std::string> {
         if (node.services_tls.views) {
             tls.push_back(fmt::format("capi={}", *node.services_tls.views));
         }
+        std::vector<std::string> alternate_addresses{};
+        if (!node.alt.empty()) {
+            alternate_addresses.reserve(node.alt.size());
+            for (const auto& entry : node.alt) {
+                std::string network = fmt::format(R"(name="{}", host="{}")", entry.second.name, entry.second.hostname);
+                {
+                    std::vector<std::string> ports;
+                    if (entry.second.services_plain.key_value) {
+                        ports.push_back(fmt::format("kv={}", *entry.second.services_plain.key_value));
+                    }
+                    if (entry.second.services_plain.management) {
+                        ports.push_back(fmt::format("mgmt={}", *entry.second.services_plain.management));
+                    }
+                    if (entry.second.services_plain.analytics) {
+                        ports.push_back(fmt::format("cbas={}", *entry.second.services_plain.analytics));
+                    }
+                    if (entry.second.services_plain.search) {
+                        ports.push_back(fmt::format("fts={}", *entry.second.services_plain.search));
+                    }
+                    if (entry.second.services_plain.query) {
+                        ports.push_back(fmt::format("n1ql={}", *entry.second.services_plain.query));
+                    }
+                    if (entry.second.services_plain.views) {
+                        ports.push_back(fmt::format("capi={}", *entry.second.services_plain.views));
+                    }
+                    if (!ports.empty()) {
+                        network += fmt::format(", plain=({})", fmt::join(ports, ","));
+                    }
+                }
+                {
+                    std::vector<std::string> ports;
+                    if (entry.second.services_tls.key_value) {
+                        ports.push_back(fmt::format("kv={}", *entry.second.services_tls.key_value));
+                    }
+                    if (entry.second.services_tls.management) {
+                        ports.push_back(fmt::format("mgmt={}", *entry.second.services_tls.management));
+                    }
+                    if (entry.second.services_tls.analytics) {
+                        ports.push_back(fmt::format("cbas={}", *entry.second.services_tls.analytics));
+                    }
+                    if (entry.second.services_tls.search) {
+                        ports.push_back(fmt::format("fts={}", *entry.second.services_tls.search));
+                    }
+                    if (entry.second.services_tls.query) {
+                        ports.push_back(fmt::format("n1ql={}", *entry.second.services_tls.query));
+                    }
+                    if (entry.second.services_tls.views) {
+                        ports.push_back(fmt::format("capi={}", *entry.second.services_tls.views));
+                    }
+                    if (!ports.empty()) {
+                        network += fmt::format(", tls=({})", fmt::join(ports, ","));
+                    }
+                }
+                alternate_addresses.emplace_back(network);
+            }
+        }
         format_to(ctx.out(),
-                  R"(#<node:{} hostname={}, plain=({}), tls=({})>)",
+                  R"(#<node:{} hostname="{}", plain=({}), tls=({}), alt=[{}]>)",
                   node.index,
                   node.hostname,
                   fmt::join(plain, ", "),
-                  fmt::join(tls, ", "));
+                  fmt::join(tls, ", "),
+                  fmt::join(alternate_addresses, ", "));
         return formatter<std::string>::format("", ctx);
     }
 };
@@ -255,6 +389,30 @@ struct traits<couchbase::configuration> {
             n.services_tls.analytics = s.template optional<std::uint16_t>("cbasSSL");
             n.services_tls.query = s.template optional<std::uint16_t>("n1qlSSL");
             n.services_tls.views = s.template optional<std::uint16_t>("capiSSL");
+            {
+                const auto& alt = o.find("alternateAddresses");
+                if (alt != o.end()) {
+                    for (const auto& entry : alt->second.get_object()) {
+                        couchbase::configuration::alternate_address addr;
+                        addr.name = entry.first;
+                        addr.hostname = entry.second.at("hostname").get_string();
+                        const auto& ports = entry.second.find("ports");
+                        addr.services_plain.key_value = ports->template optional<std::uint16_t>("kv");
+                        addr.services_plain.management = ports->template optional<std::uint16_t>("mgmt");
+                        addr.services_plain.search = ports->template optional<std::uint16_t>("fts");
+                        addr.services_plain.analytics = ports->template optional<std::uint16_t>("cbas");
+                        addr.services_plain.query = ports->template optional<std::uint16_t>("n1ql");
+                        addr.services_plain.views = ports->template optional<std::uint16_t>("capi");
+                        addr.services_tls.key_value = ports->template optional<std::uint16_t>("kvSSL");
+                        addr.services_tls.management = ports->template optional<std::uint16_t>("mgmtSSL");
+                        addr.services_tls.search = ports->template optional<std::uint16_t>("ftsSSL");
+                        addr.services_tls.analytics = ports->template optional<std::uint16_t>("cbasSSL");
+                        addr.services_tls.query = ports->template optional<std::uint16_t>("n1qlSSL");
+                        addr.services_tls.views = ports->template optional<std::uint16_t>("capiSSL");
+                        n.alt.emplace(entry.first, addr);
+                    }
+                }
+            }
             result.nodes.emplace_back(n);
         }
         {

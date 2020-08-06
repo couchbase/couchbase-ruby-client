@@ -39,6 +39,7 @@ struct cluster_options {
     bool enable_tcp_keep_alive{ true };
     bool force_ipv4{ false };
     bool enable_dns_srv{ true };
+    std::string network{ "auto" };
 
     std::chrono::milliseconds tcp_keep_alive_interval = timeout_defaults::tcp_keep_alive_interval;
     std::chrono::milliseconds config_poll_interval = timeout_defaults::config_poll_interval;

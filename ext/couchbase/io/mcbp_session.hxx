@@ -514,14 +514,14 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             });
             return;
         }
-        std::string hostname;
         std::string service;
-        std::tie(hostname, service) = origin_.next_address();
-        log_prefix_ =
-          fmt::format("[{}/{}/{}/{}] <{}:{}>", stream_->log_prefix(), client_id_, id_, bucket_name_.value_or("-"), hostname, service);
+        std::tie(bootstrap_hostname_, service) = origin_.next_address();
+        log_prefix_ = fmt::format(
+          "[{}/{}/{}/{}] <{}:{}>", stream_->log_prefix(), client_id_, id_, bucket_name_.value_or("-"), bootstrap_hostname_, service);
         spdlog::debug("{} attempt to establish MCBP connection", log_prefix_);
-        resolver_.async_resolve(
-          hostname, service, std::bind(&mcbp_session::on_resolve, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+        resolver_.async_resolve(bootstrap_hostname_,
+                                service,
+                                std::bind(&mcbp_session::on_resolve, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     }
 
     [[nodiscard]] const std::string& id() const
@@ -647,6 +647,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     {
         Expects(config_.has_value());
         return config_->index_for_this_node();
+    }
+
+    [[nodiscard]] const std::string& bootstrap_hostname() const
+    {
+        return bootstrap_hostname_;
     }
 
     [[nodiscard]] uint32_t next_opaque()
@@ -1019,6 +1024,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     std::mutex output_buffer_mutex_{};
     std::mutex pending_buffer_mutex_{};
     std::mutex writing_buffer_mutex_{};
+    std::string bootstrap_hostname_{};
     asio::ip::tcp::endpoint endpoint_{}; // connected endpoint
     std::string endpoint_address_{};     // cached string with endpoint address
     asio::ip::tcp::resolver::results_type endpoints_;

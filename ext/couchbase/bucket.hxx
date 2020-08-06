@@ -72,11 +72,12 @@ class bucket : public std::enable_shared_from_this<bucket>
                 if (cfg.nodes.size() > 1) {
                     for (const auto& n : cfg.nodes) {
                         if (n.index != this_index) {
-                            couchbase::origin origin(self->origin_.get_username(),
-                                                     self->origin_.get_password(),
-                                                     n.hostname,
-                                                     n.port_or(service_type::kv, self->origin_.options().enable_tls, 0),
-                                                     self->origin_.options());
+                            couchbase::origin origin(
+                              self->origin_.get_username(),
+                              self->origin_.get_password(),
+                              n.hostname,
+                              n.port_or(self->origin_.options().network, service_type::kv, self->origin_.options().enable_tls, 0),
+                              self->origin_.options());
                             std::shared_ptr<io::mcbp_session> s;
                             if (self->origin_.options().enable_tls) {
                                 s = std::make_shared<io::mcbp_session>(

@@ -121,7 +121,12 @@ struct origin {
         next_node_ = nodes_.begin();
     }
 
-    [[nodiscard]] const couchbase::cluster_options& options()
+    [[nodiscard]] const couchbase::cluster_options& options() const
+    {
+        return options_;
+    }
+
+    [[nodiscard]] couchbase::cluster_options& options()
     {
         return options_;
     }
