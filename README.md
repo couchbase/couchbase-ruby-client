@@ -4,7 +4,7 @@ This repository contains the third generation of the official Couchbase SDK for 
 
 ## Support and Feedback
 
-If you find an issue, please file it in [our JIRA issue tracker](http://couchbase.com/issues/browse/RCBC).
+If you find an issue, please file it in [our JIRA issue tracker](https://couchbase.com/issues/browse/RCBC).
 Also you are always welcome on [our forum](https://forums.couchbase.com/c/ruby-sdk).
 
 Please attach version information to ticket/post. To obtain this information use the following command:
@@ -18,7 +18,7 @@ The library tested with the MRI 2.5, 2.6 and 2.7. Supported platforms are Linux 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "couchbase", "3.0.0.alpha.5"
+gem "couchbase", "3.0.0.beta.1"
 ```
 
 And then execute:

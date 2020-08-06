@@ -14,5 +14,5 @@
 
 module Couchbase
   VERSION = {} unless defined?(VERSION)
-  VERSION.update(:sdk => "3.0.0.beta.1.snapshot".freeze)
+  VERSION.update(:sdk => "3.0.0.beta.1".freeze)
 end

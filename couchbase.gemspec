@@ -26,10 +26,15 @@ Gem::Specification.new do |spec|
   spec.homepage = "https://www.couchbase.com"
   spec.license = "Apache-2.0"
 
-  spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/couchbase/couchbase-ruby-client"
-  spec.metadata["changelog_uri"] = "#{spec.metadata["source_code_uri"]}/releases"
-  spec.metadata["github_repo"] = "ssh://github.com/couchbase/couchbase-ruby-client"
+  spec.metadata = {
+      "homepage_uri" => "https://docs.couchbase.com/ruby-sdk/3.0/hello-world/start-using-sdk.html",
+      "bug_tracker_uri" => "https://couchbase.com/issues/browse/RCBC",
+      "mailing_list_uri" => "https://forums.couchbase.com/c/ruby-sdk",
+      "source_code_uri" => "https://github.com/couchbasse/couchbase-ruby-client/tree/#{spec.version}",
+      "changelog_uri" => "https://github.com/couchbase/couchbase-ruby-client/releases/tag/#{spec.version}",
+      "documentation_uri" => "https://docs.couchbase.com/sdk-api/couchbase-ruby-client-#{spec.version}/index.html",
+      "github_repo" => "ssh://github.com/couchbase/couchbase-ruby-client",
+  }
 
   spec.files = Dir.chdir(File.expand_path("..", __FILE__)) do
     exclude_paths = %w[
@@ -62,8 +67,8 @@ Gem::Specification.new do |spec|
         ext/third_party/spdlog/tests
     ]
     `git ls-files --recurse-submodules -z`
-      .split("\x0")
-      .reject { |f| f.match(%r{^(#{Regexp.union(exclude_paths)})}) }
+        .split("\x0")
+        .reject { |f| f.match(%r{^(#{Regexp.union(exclude_paths)})}) }
   end
   spec.bindir = "exe"
   spec.executables = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
