@@ -96,6 +96,19 @@ struct configuration {
             return default_value;
         }
 
+        [[nodiscard]] const std::string & hostname_for(const std::string& network) const
+        {
+            if (network == "default") {
+                return hostname;
+            }
+            const auto& address = alt.find(network);
+            if (address == alt.end()) {
+                spdlog::warn(R"(requested network "{}" is not found, fallback to "default" host)", network);
+                return hostname;
+            }
+            return address->second.hostname;
+        }
+
         [[nodiscard]] std::uint16_t port_or(const std::string& network, service_type type, bool is_tls, std::uint16_t default_value) const
         {
             if (network == "default") {
@@ -103,7 +116,7 @@ struct configuration {
             }
             const auto& address = alt.find(network);
             if (address == alt.end()) {
-                spdlog::warn(R"(requested network "{}" is not found, fallback to "default")", network);
+                spdlog::warn(R"(requested network "{}" is not found, fallback to "default" port of {} service)", network, type);
                 return port_or(type, is_tls, default_value);
             }
             if (is_tls) {

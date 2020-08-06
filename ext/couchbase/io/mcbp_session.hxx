@@ -893,8 +893,14 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             endpoint_ = it->endpoint();
             endpoint_address_ = endpoint_.address().to_string();
             spdlog::debug("{} connected to {}:{}", log_prefix_, endpoint_address_, it->endpoint().port());
-            log_prefix_ =
-              fmt::format("[{}/{}/{}] <{}:{}>", client_id_, id_, bucket_name_.value_or("-"), endpoint_address_, endpoint_.port());
+            log_prefix_ = fmt::format("[{}/{}/{}/{}] <{}/{}:{}>",
+                                      stream_->log_prefix(),
+                                      client_id_,
+                                      id_,
+                                      bucket_name_.value_or("-"),
+                                      bootstrap_hostname_,
+                                      endpoint_address_,
+                                      endpoint_.port());
             handler_ = std::make_unique<bootstrap_handler>(shared_from_this());
             connection_deadline_.expires_at(asio::steady_timer::time_point::max());
             connection_deadline_.cancel();

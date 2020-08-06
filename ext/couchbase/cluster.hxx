@@ -142,7 +142,9 @@ class cluster
                       nodes.emplace_back(node);
                   }
                   origin_.set_nodes(nodes);
-                  spdlog::warn("received {} addresses for \"{}\" via DNS SRV", resp.targets.size(), hostname);
+                  spdlog::info("replace list of bootstrap nodes with addresses from DNS SRV of \"{}\": [{}]",
+                               hostname,
+                               fmt::join(origin_.get_nodes(), ", "));
               }
               return do_open(std::forward<Handler>(handler));
           });
@@ -179,6 +181,21 @@ class cluster
                 if (origin_.options().network == "auto") {
                     origin_.options().network = config.select_network(session_->bootstrap_hostname());
                     spdlog::info(R"({} detected network is "{}")", session_->log_prefix(), origin_.options().network);
+                }
+                if (origin_.options().network != "default") {
+                    origin::node_list nodes;
+                    nodes.reserve(config.nodes.size());
+                    for (const auto& address : config.nodes) {
+                        origin::node_entry node;
+                        node.first = address.hostname_for(origin_.options().network);
+                        node.second =
+                          std::to_string(address.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0));
+                        nodes.emplace_back(node);
+                    }
+                    origin_.set_nodes(nodes);
+                    spdlog::info("replace list of bootstrap nodes with addresses of alternative network \"{}\": [{}]",
+                                 origin_.options().network,
+                                 fmt::join(origin_.get_nodes(), ","));
                 }
                 session_manager_->set_configuration(config, origin_.options());
             }

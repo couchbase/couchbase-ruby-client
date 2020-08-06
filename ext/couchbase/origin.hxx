@@ -85,9 +85,14 @@ struct origin {
         return password_;
     }
 
-    [[nodiscard]] const node_list& get_nodes() const
+    [[nodiscard]] std::vector<std::string> get_nodes() const
     {
-        return nodes_;
+        std::vector<std::string> res;
+        res.reserve(nodes_.size());
+        for (const auto &node : nodes_) {
+            res.emplace_back(fmt::format("\"{}:{}\"", node.first, node.second));
+        }
+        return res;
     }
 
     void set_nodes(node_list nodes)

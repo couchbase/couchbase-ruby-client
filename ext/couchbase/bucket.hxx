@@ -75,7 +75,7 @@ class bucket : public std::enable_shared_from_this<bucket>
                             couchbase::origin origin(
                               self->origin_.get_username(),
                               self->origin_.get_password(),
-                              n.hostname,
+                              n.hostname_for(self->origin_.options().network),
                               n.port_or(self->origin_.options().network, service_type::kv, self->origin_.options().enable_tls, 0),
                               self->origin_.options());
                             std::shared_ptr<io::mcbp_session> s;

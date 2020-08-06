@@ -78,6 +78,7 @@ begin
   connstr = "couchbases://192.168.42.101?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
   # curl http://localhost:8091/pools/default/certificate > /tmp/couchbase-ssl-certificate.pem
   connstr = "couchbases://localhost.avsej.net?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
+  connstr = "couchbases://mars.local?trust_certificate=/tmp/couchbase-ssl-certificate.pem"
   p open: backend.open(connstr, "Administrator", "password", options)
 rescue => ex
   p err: ex
