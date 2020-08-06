@@ -127,9 +127,10 @@ module Couchbase
       # @return [Integer]
       attr_accessor :total_rows
 
+      # @api private
       attr_writer :debug_info
 
-      def debug_info
+      def debug
         JSON.parse(@debug_info)
       end
 
