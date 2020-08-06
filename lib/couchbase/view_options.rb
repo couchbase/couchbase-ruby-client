@@ -140,7 +140,7 @@ module Couchbase
     end
 
     class ViewResult
-      # @return [QueryMetaData] returns object representing additional metadata associated with this query
+      # @return [ViewMetaData] returns object representing additional metadata associated with this query
       attr_accessor :meta_data
 
       # @return [Array<ViewRow>]
