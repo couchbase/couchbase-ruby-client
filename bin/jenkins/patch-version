@@ -14,6 +14,9 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+# do not patch version for releases
+exit if ENV["IS_RELEASE"]
+
 build_num = ARGV[0] || ENV["BUILD_NUMBER"] || 0
 suffix = ARGV[1] || "snapshot"
 

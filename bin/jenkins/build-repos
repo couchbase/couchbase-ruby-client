@@ -36,10 +36,25 @@ cd ..
 
 rm -rf gem-doc
 cat > patch-readme.rb <<EOF
+s3_bucket = "sdk-snapshots.couchbase.com"
+
+if ENV["IS_RELEASE"]
+  s3_bucket = "packages.couchbase.com/clients"
+  extras = <<EOS
+# rubygems.org version (does not have precompiled binaries)
+gem "couchbase", "#{Couchbase::VERSION[:sdk]}"
+
+EOS
+end
+
 gemfile = <<EOS.strip
-gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_27, :source => "https://sdk-snapshots.couchbase.com/ruby/2.7.0/"
-gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_26, :source => "https://sdk-snapshots.couchbase.com/ruby/2.6.0/"
-gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_25, :source => "https://sdk-snapshots.couchbase.com/ruby/2.5.0/"
+#{extras}# use official repository
+gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :source => "https://#{s3_bucket}/ruby/2.7.0/"
+
+## precompiled binaries (uncomment line with effective ABI version of ruby)
+# gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_27, :source => "https://#{s3_bucket}/ruby/2.7.0/"
+# gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_26, :source => "https://#{s3_bucket}/ruby/2.6.0/"
+# gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_25, :source => "https://#{s3_bucket}/ruby/2.5.0/"
 EOS
 old_content = File.read("README.md")
 new_content = old_content.gsub(/(gem "couchbase", ").*?"/, gemfile)
