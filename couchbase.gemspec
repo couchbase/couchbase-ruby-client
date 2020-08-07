@@ -30,7 +30,7 @@ Gem::Specification.new do |spec|
       "homepage_uri" => "https://docs.couchbase.com/ruby-sdk/3.0/hello-world/start-using-sdk.html",
       "bug_tracker_uri" => "https://couchbase.com/issues/browse/RCBC",
       "mailing_list_uri" => "https://forums.couchbase.com/c/ruby-sdk",
-      "source_code_uri" => "https://github.com/couchbasse/couchbase-ruby-client/tree/#{spec.version}",
+      "source_code_uri" => "https://github.com/couchbase/couchbase-ruby-client/tree/#{spec.version}",
       "changelog_uri" => "https://github.com/couchbase/couchbase-ruby-client/releases/tag/#{spec.version}",
       "documentation_uri" => "https://docs.couchbase.com/sdk-api/couchbase-ruby-client-#{spec.version}/index.html",
       "github_repo" => "ssh://github.com/couchbase/couchbase-ruby-client",
