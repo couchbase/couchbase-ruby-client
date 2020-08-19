@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 require "couchbase/collection"
+require "couchbase/query_options"
 
 module Couchbase
   class Scope
@@ -37,6 +38,72 @@ module Couchbase
     # @return [Collection]
     def collection(collection_name)
       Collection.new(@backend, @bucket_name, @name, collection_name)
+    end
+
+    # Performs a query against the query (N1QL) services.
+    #
+    # The query will be implicitly scoped using current bucket and scope names.
+    #
+    # @see QueryOptions#scope_qualifier
+    # @see Cluster#query
+    #
+    # @param [String] statement the N1QL query statement
+    # @param [QueryOptions] options the custom options for this query
+    #
+    # @return [QueryResult]
+    def query(statement, options = Cluster::QueryOptions.new)
+      resp = @backend.document_query(statement, {
+          timeout: options.timeout,
+          adhoc: options.adhoc,
+          client_context_id: options.client_context_id,
+          max_parallelism: options.max_parallelism,
+          readonly: options.readonly,
+          scan_wait: options.scan_wait,
+          scan_cap: options.scan_cap,
+          pipeline_batch: options.pipeline_batch,
+          pipeline_cap: options.pipeline_cap,
+          metrics: options.metrics,
+          profile: options.profile,
+          positional_parameters: options.export_positional_parameters,
+          named_parameters: options.export_named_parameters,
+          scope_name: @name,
+          bucket_name: @bucket_name,
+          scope_qualifier: options.scope_qualifier,
+          raw_parameters: options.raw_parameters,
+          scan_consistency: options.scan_consistency,
+          mutation_state: (options.mutation_state.tokens.map { |t|
+            {
+                bucket_name: t.bucket_name,
+                partition_id: t.partition_id,
+                partition_uuid: t.partition_uuid,
+                sequence_number: t.sequence_number,
+            }
+          } if options.mutation_state),
+      })
+
+      Cluster::QueryResult.new do |res|
+        res.meta_data = Cluster::QueryMetaData.new do |meta|
+          meta.status = resp[:meta][:status]
+          meta.request_id = resp[:meta][:request_id]
+          meta.client_context_id = resp[:meta][:client_context_id]
+          meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
+          meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
+          meta.metrics = Cluster::QueryMetrics.new do |metrics|
+            if resp[:meta][:metrics]
+              metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
+              metrics.execution_time = resp[:meta][:metrics][:execution_time]
+              metrics.sort_count = resp[:meta][:metrics][:sort_count]
+              metrics.result_count = resp[:meta][:metrics][:result_count]
+              metrics.result_size = resp[:meta][:metrics][:result_size]
+              metrics.mutation_count = resp[:meta][:metrics][:mutation_count]
+              metrics.error_count = resp[:meta][:metrics][:error_count]
+              metrics.warning_count = resp[:meta][:metrics][:warning_count]
+            end
+          end
+          res[:warnings] = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
+        end
+        res.instance_variable_set("@rows", resp[:rows])
+      end
     end
   end
 end

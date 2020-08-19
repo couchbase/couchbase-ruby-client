@@ -42,7 +42,10 @@ struct query_index_drop_request {
     static const inline service_type type = service_type::query;
 
     std::string client_context_id{ uuid::to_string(uuid::random()) };
+    static constexpr auto namespace_id = "default";
     std::string bucket_name;
+    std::string scope_name;
+    std::string collection_name;
     std::string index_name;
     bool is_primary{ false };
     bool ignore_if_does_not_exist{ false };
@@ -51,9 +54,16 @@ struct query_index_drop_request {
     void encode_to(encoded_request_type& encoded)
     {
         encoded.headers["content-type"] = "application/json";
+        std::string keyspace = fmt::format("`{}`", bucket_name);
+        if (!scope_name.empty()) {
+            keyspace += ".`" + scope_name + "`";
+        }
+        if (!collection_name.empty()) {
+            keyspace += ".`" + collection_name + "`";
+        }
         tao::json::value body{ { "statement",
-                                 is_primary ? fmt::format(R"(DROP PRIMARY INDEX ON `{}` USING GSI)", bucket_name)
-                                            : fmt::format(R"(DROP INDEX `{}`.`{}` USING GSI)", bucket_name, index_name) },
+                                 is_primary ? fmt::format(R"(DROP PRIMARY INDEX ON {} USING GSI)", keyspace)
+                                            : fmt::format(R"(DROP INDEX {}.`{}` USING GSI)", keyspace, index_name) },
                                { "client_context_id", client_context_id } };
         encoded.method = "POST";
         encoded.path = "/query/service";

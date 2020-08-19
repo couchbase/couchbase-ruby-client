@@ -56,6 +56,14 @@ module Couchbase
       # @return [:off, :phases, :timings] Customize server profile level for this query
       attr_accessor :profile
 
+      # Associate scope qualifier (also known as +query_context+) with the query.
+      #
+      # The qualifier must be in form +{bucket_name}.{scope_name}+ or +default:{bucket_name}.{scope_name}+.
+      #
+      # @api uncommitted
+      # @return [String]
+      attr_accessor :scope_qualifier
+
       # @return [:not_bounded, :request_plus]
       attr_reader :scan_consistency
 
@@ -76,6 +84,7 @@ module Couchbase
         @named_parameters = nil
         @scan_consistency = nil
         @mutation_state = nil
+        @scope_qualifier = nil
         yield self if block_given?
       end
 

@@ -168,6 +168,9 @@ struct query_request {
     std::optional<scan_consistency_type> scan_consistency{};
     std::vector<mutation_token> mutation_state{};
     std::chrono::milliseconds timeout{ timeout_defaults::query_timeout };
+    std::optional<std::string> bucket_name{};
+    std::optional<std::string> scope_name{};
+    std::optional<std::string> scope_qualifier{};
 
     enum class profile_mode {
         off,
@@ -254,6 +257,13 @@ struct query_request {
         }
         if (check_scan_wait && scan_wait) {
             body["scan_wait"] = fmt::format("{}ms", scan_wait.value());
+        }
+        if (scope_qualifier) {
+            body["query_context"] = scope_qualifier;
+        } else if (scope_name) {
+            if (bucket_name) {
+                body["query_context"] = fmt::format("`{}`.{}", *bucket_name, *scope_name);
+            }
         }
         for (auto& param : raw) {
             body[param.first] = param.second;

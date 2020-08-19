@@ -40,6 +40,9 @@ module Couchbase
             index.is_primary = idx[:is_primary]
             index.type = idx[:type]
             index.state = idx[:state]
+            index.bucket = idx[:bucket_id]
+            index.collection = idx[:collection_id]
+            index.scope = idx[:scope_id]
             index.key_space = idx[:keyspace_id]
             index.name_space = idx[:namespace_id]
             index.index_key = idx[:index_key]
@@ -65,6 +68,8 @@ module Couchbase
             condition: options.condition,
             deferred: options.deferred,
             num_replicas: options.num_replicas,
+            scope_name: options.scope_name,
+            collection_name: options.collection_name,
         }, options.timeout)
       end
 
@@ -82,6 +87,8 @@ module Couchbase
             ignore_if_exists: options.ignore_if_exists,
             deferred: options.deferred,
             num_replicas: options.num_replicas,
+            scope_name: options.scope_name,
+            collection_name: options.collection_name,
         }, options.timeout)
       end
 
@@ -98,6 +105,8 @@ module Couchbase
       def drop_index(bucket_name, index_name, options = DropIndexOptions.new)
         @backend.query_index_drop(bucket_name, index_name, {
             ignore_if_does_not_exist: options.ignore_if_does_not_exist,
+            scope_name: options.scope_name,
+            collection_name: options.collection_name,
         }, options.timeout)
         true
       end
@@ -115,6 +124,8 @@ module Couchbase
         @backend.query_index_drop_primary(bucket_name, {
             ignore_if_does_not_exist: options.ignore_if_does_not_exist,
             index_name: options.index_name,
+            scope_name: options.scope_name,
+            collection_name: options.collection_name,
         }, options.timeout)
         true
       end
@@ -170,6 +181,12 @@ module Couchbase
         # @return [String] condition to apply to the index
         attr_accessor :condition
 
+        # @return [String] the name of the scope
+        attr_accessor :scope_name
+
+        # @return [String] the name of the collection
+        attr_accessor :collection_name
+
         # @yieldparam [CreateIndexOptions] self
         def initialize
           @ignore_if_exists = false
@@ -193,6 +210,12 @@ module Couchbase
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
+        # @return [String] the name of the scope
+        attr_accessor :scope_name
+
+        # @return [String] the name of the collection
+        attr_accessor :collection_name
+
         # @yieldparam [CreatePrimaryIndexOptions] self
         def initialize
           @ignore_if_exists = false
@@ -206,6 +229,12 @@ module Couchbase
 
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
+
+        # @return [String] the name of the scope
+        attr_accessor :scope_name
+
+        # @return [String] the name of the collection
+        attr_accessor :collection_name
 
         # @yieldparam [DropIndexOptions] self
         def initialize
@@ -223,6 +252,12 @@ module Couchbase
 
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
+
+        # @return [String] the name of the scope
+        attr_accessor :scope_name
+
+        # @return [String] the name of the collection
+        attr_accessor :collection_name
 
         # @yieldparam [DropPrimaryIndexOptions] self
         def initialize
@@ -265,6 +300,15 @@ module Couchbase
 
       # @return [Symbol] state
       attr_accessor :state
+
+      # @return [String, nil] the name of the bucket
+      attr_accessor :bucket
+
+      # @return [String, nil] the name of the scope
+      attr_accessor :scope
+
+      # @return [String, nil] the name of the collection
+      attr_accessor :collection
 
       # @return [String] the key space for the index, typically the bucket name.
       attr_accessor :key_space

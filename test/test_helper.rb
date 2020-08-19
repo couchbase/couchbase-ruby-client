@@ -35,6 +35,10 @@ class ServerVersion
     @developer_preview = developer_preview
   end
 
+  def to_s
+    "version=#{@version}, dev=#{@developer_preview}"
+  end
+
   def supports_gcccp?
     mad_hatter? || cheshire_cat?
   end
@@ -57,6 +61,10 @@ class ServerVersion
 
   def supports_sync_replication?
     mad_hatter? || cheshire_cat?
+  end
+
+  def supports_scoped_queries?
+    cheshire_cat?
   end
 end
 

@@ -1965,6 +1965,22 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         if (!NIL_P(pipeline_batch)) {
             req.pipeline_batch = NUM2ULONG(pipeline_batch);
         }
+        VALUE scope_qualifier = rb_hash_aref(options, rb_id2sym(rb_intern("scope_qualifier")));
+        if (!NIL_P(scope_qualifier) && TYPE(scope_qualifier) == T_STRING) {
+            req.scope_qualifier.emplace(std::string(RSTRING_PTR(scope_qualifier), static_cast<std::size_t>(RSTRING_LEN(scope_qualifier))));
+        } else {
+            VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name")));
+            if (!NIL_P(scope_name) && TYPE(scope_name) == T_STRING) {
+                req.scope_name.emplace(std::string(RSTRING_PTR(scope_name), static_cast<std::size_t>(RSTRING_LEN(scope_name))));
+                VALUE bucket_name = rb_hash_aref(options, rb_id2sym(rb_intern("bucket_name")));
+                if (NIL_P(bucket_name)) {
+                    exc = rb_exc_new_cstr(
+                      eInvalidArgument, fmt::format("bucket must be specified for query in scope \"{}\"", req.scope_name.value()).c_str());
+                    break;
+                }
+                req.bucket_name.emplace(std::string(RSTRING_PTR(bucket_name), static_cast<std::size_t>(RSTRING_LEN(bucket_name))));
+            }
+        }
         VALUE profile = rb_hash_aref(options, rb_id2sym(rb_intern("profile")));
         if (!NIL_P(profile)) {
             Check_Type(profile, T_SYMBOL);
@@ -2783,6 +2799,14 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
                 rb_ary_push(index_key, rb_str_new(key.data(), static_cast<long>(key.size())));
             }
             rb_hash_aset(index, rb_id2sym(rb_intern("index_key")), index_key);
+            if (idx.scope_id) {
+                rb_hash_aset(
+                  index, rb_id2sym(rb_intern("scope_id")), rb_str_new(idx.scope_id->data(), static_cast<long>(idx.scope_id->size())));
+            }
+            if (idx.bucket_id) {
+                rb_hash_aset(
+                  index, rb_id2sym(rb_intern("bucket_id")), rb_str_new(idx.bucket_id->data(), static_cast<long>(idx.bucket_id->size())));
+            }
             if (idx.condition) {
                 rb_hash_aset(
                   index, rb_id2sym(rb_intern("condition")), rb_str_new(idx.condition->data(), static_cast<long>(idx.condition->size())));
@@ -2847,6 +2871,14 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
             if (!NIL_P(condition)) {
                 req.condition.emplace(std::string(RSTRING_PTR(condition), static_cast<std::size_t>(RSTRING_LEN(condition))));
             } /* else use backend default */
+            VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name")));
+            if (TYPE(scope_name) == T_STRING) {
+                req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
+            }
+            VALUE collection_name = rb_hash_aref(options, rb_id2sym(rb_intern("collection_name")));
+            if (TYPE(scope_name) == T_STRING) {
+                req.collection_name.assign(RSTRING_PTR(collection_name), static_cast<size_t>(RSTRING_LEN(collection_name)));
+            }
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_create_response>>();
@@ -2914,6 +2946,14 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
             } else if (ignore_if_does_not_exist == Qfalse) {
                 req.ignore_if_does_not_exist = false;
             } /* else use backend default */
+            VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name")));
+            if (TYPE(scope_name) == T_STRING) {
+                req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
+            }
+            VALUE collection_name = rb_hash_aref(options, rb_id2sym(rb_intern("collection_name")));
+            if (TYPE(scope_name) == T_STRING) {
+                req.collection_name.assign(RSTRING_PTR(collection_name), static_cast<size_t>(RSTRING_LEN(collection_name)));
+            }
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_drop_response>>();
@@ -2997,6 +3037,14 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
             if (!NIL_P(index_name)) {
                 req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
             } /* else use backend default */
+            VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name")));
+            if (TYPE(scope_name) == T_STRING) {
+                req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
+            }
+            VALUE collection_name = rb_hash_aref(options, rb_id2sym(rb_intern("collection_name")));
+            if (TYPE(scope_name) == T_STRING) {
+                req.collection_name.assign(RSTRING_PTR(collection_name), static_cast<size_t>(RSTRING_LEN(collection_name)));
+            }
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_create_response>>();
@@ -3067,6 +3115,14 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
                 Check_Type(options, T_STRING);
                 req.is_primary = false;
                 req.bucket_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+            }
+            VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name")));
+            if (TYPE(scope_name) == T_STRING) {
+                req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
+            }
+            VALUE collection_name = rb_hash_aref(options, rb_id2sym(rb_intern("collection_name")));
+            if (TYPE(scope_name) == T_STRING) {
+                req.collection_name.assign(RSTRING_PTR(collection_name), static_cast<size_t>(RSTRING_LEN(collection_name)));
             }
         }
 

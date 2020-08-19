@@ -32,9 +32,12 @@ struct query_index_get_all_response {
         std::string datastore_id;
         std::string keyspace_id;
         std::string namespace_id;
+        std::string collection_name;
         std::string type;
         std::vector<std::string> index_key{};
         std::optional<std::string> condition{};
+        std::optional<std::string> bucket_id{};
+        std::optional<std::string> scope_id{};
     };
     std::string client_context_id;
     std::error_code ec;
@@ -59,8 +62,8 @@ struct query_index_get_all_request {
         tao::json::value body{
             { "statement",
               fmt::format(
-                R"(SELECT idx.* FROM system:indexes AS idx WHERE keyspace_id = "{}" AND `using`="gsi" ORDER BY is_primary DESC, name ASC)",
-                bucket_name) },
+                R"(SELECT idx.* FROM system:indexes AS idx WHERE ((keyspace_id = "{}" AND bucket_id IS MISSING) OR (bucket_id = "{}")) AND `using`="gsi" ORDER BY is_primary DESC, name ASC)",
+                bucket_name, bucket_name) },
             { "client_context_id", client_context_id }
         };
         encoded.method = "POST";
@@ -87,6 +90,12 @@ make_response(std::error_code ec, query_index_get_all_request& request, query_in
                     index.type = entry.at("using").get_string();
                     index.name = entry.at("name").get_string();
                     index.state = entry.at("state").get_string();
+                    if (const auto* prop = entry.find("bucket_id")) {
+                        index.bucket_id = prop->get_string();
+                    }
+                    if (const auto* prop = entry.find("scope_id")) {
+                        index.scope_id = prop->get_string();
+                    }
                     if (const auto* prop = entry.find("is_primary")) {
                         index.is_primary = prop->get_boolean();
                     }

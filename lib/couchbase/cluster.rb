@@ -69,6 +69,7 @@ module Couchbase
           profile: options.profile,
           positional_parameters: options.export_positional_parameters,
           named_parameters: options.export_named_parameters,
+          scope_qualifier: options.scope_qualifier,
           raw_parameters: options.raw_parameters,
           scan_consistency: options.scan_consistency,
           mutation_state: (options.mutation_state.tokens.map { |t|

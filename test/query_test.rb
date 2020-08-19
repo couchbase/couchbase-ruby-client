@@ -165,5 +165,54 @@ module Couchbase
       assert_equal 1, res.rows.size
       assert_equal({"foo" => "bar"}, res.rows.first)
     end
+
+    def test_scoped_query
+      unless TEST_SERVER_VERSION.supports_scoped_queries?
+        skip("The server does not support scoped queries (#{TEST_SERVER_VERSION})")
+      end
+
+      scope_name = uniq_id(:scope).gsub('.', '')[0..30]
+      collection_name = uniq_id(:collection).gsub('.', '')[0..30]
+
+      manager = @bucket.collections
+      manager.create_scope(scope_name)
+      spec = Management::CollectionSpec.new
+      spec.scope_name = scope_name
+      spec.name = collection_name
+      manager.create_collection(spec)
+      sleep(2)
+
+      manager = @cluster.query_indexes
+      options = Management::QueryIndexManager::CreatePrimaryIndexOptions.new
+      options.collection_name = collection_name
+      options.scope_name = scope_name
+      manager.create_primary_index(@bucket.name, options)
+      sleep(1)
+
+      scope = @bucket.scope(scope_name)
+      collection = scope.collection(collection_name)
+
+      local_doc = uniq_id(:foo)
+      collection.insert(local_doc, {"location" => "local"})
+
+      global_doc = uniq_id(:foo)
+      @collection.insert(global_doc, {"location" => "global"})
+
+      options = Cluster::QueryOptions.new
+      options.scan_consistency = :request_plus
+      options.positional_parameters([[global_doc, local_doc]])
+
+      res = @cluster.query("SELECT location FROM `#{@bucket.name}` WHERE META().id IN $1", options)
+      assert_equal 1, res.rows.size
+      assert_equal({"location" => "global"}, res.rows.first)
+
+      res = @cluster.query("SELECT location FROM `#{@bucket.name}`.#{scope_name}.#{collection_name} WHERE META().id IN $1", options)
+      assert_equal 1, res.rows.size
+      assert_equal({"location" => "local"}, res.rows.first)
+
+      res = scope.query("SELECT location FROM #{collection_name} WHERE META().id IN $1", options)
+      assert_equal 1, res.rows.size
+      assert_equal({"location" => "local"}, res.rows.first)
+    end
   end
 end

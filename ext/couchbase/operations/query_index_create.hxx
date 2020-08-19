@@ -42,7 +42,10 @@ struct query_index_create_request {
     static const inline service_type type = service_type::query;
 
     std::string client_context_id{ uuid::to_string(uuid::random()) };
+    static constexpr auto namespace_id = "default";
     std::string bucket_name;
+    std::string scope_name;
+    std::string collection_name;
     std::string index_name{};
     std::vector<std::string> fields;
     bool is_primary{ false };
@@ -70,14 +73,21 @@ struct query_index_create_request {
         if (with) {
             with_clause = fmt::format("WITH {}", tao::json::to_string(with));
         }
+        std::string keyspace = fmt::format("{}:`{}`", namespace_id, bucket_name);
+        if (!scope_name.empty()) {
+            keyspace += ".`" + scope_name + "`";
+        }
+        if (!collection_name.empty()) {
+            keyspace += ".`" + collection_name + "`";
+        }
         tao::json::value body{ { "statement",
-                                 is_primary ? fmt::format(R"(CREATE PRIMARY INDEX {} ON `{}` USING GSI {})",
+                                 is_primary ? fmt::format(R"(CREATE PRIMARY INDEX {} ON {} USING GSI {})",
                                                           index_name.empty() ? "" : fmt::format("`{}`", index_name),
-                                                          bucket_name,
+                                                          keyspace,
                                                           with_clause)
-                                            : fmt::format(R"(CREATE INDEX `{}` ON `{}`({}) {} USING GSI {})",
+                                            : fmt::format(R"(CREATE INDEX `{}` ON {}({}) {} USING GSI {})",
                                                           index_name,
-                                                          bucket_name,
+                                                          keyspace,
                                                           fmt::join(fields, ", "),
                                                           where_clause,
                                                           with_clause) },
