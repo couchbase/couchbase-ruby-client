@@ -197,6 +197,7 @@ static VALUE eGroupNotFound;
 static VALUE eIndexExists;
 static VALUE eIndexFailure;
 static VALUE eIndexNotFound;
+static VALUE eIndexNotReady;
 static VALUE eInternalServerFailure;
 static VALUE eInvalidArgument;
 static VALUE eJobQueueFull;
@@ -267,6 +268,7 @@ init_exceptions(VALUE mCouchbase)
     eIndexExists = rb_define_class_under(mError, "IndexExists", eCouchbaseError);
     eIndexFailure = rb_define_class_under(mError, "IndexFailure", eCouchbaseError);
     eIndexNotFound = rb_define_class_under(mError, "IndexNotFound", eCouchbaseError);
+    eIndexNotReady = rb_define_class_under(mError, "IndexNotReady", eCouchbaseError);
     eInternalServerFailure = rb_define_class_under(mError, "InternalServerFailure", eCouchbaseError);
     eInvalidArgument = rb_define_class_under(mError, "InvalidArgument", rb_eArgError);
     eJobQueueFull = rb_define_class_under(mError, "JobQueueFull", eCouchbaseError);
@@ -449,6 +451,11 @@ cb__map_error_code(std::error_code ec, const std::string& message)
 
             case couchbase::error::query_errc::prepared_statement_failure:
                 return rb_exc_new_cstr(ePreparedStatementFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+        }
+    } else if (ec.category() == couchbase::error::detail::get_search_category()) {
+        switch (static_cast<couchbase::error::search_errc>(ec.value())) {
+            case couchbase::error::search_errc::index_not_ready:
+                return rb_exc_new_cstr(eIndexNotReady, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_view_category()) {
         switch (static_cast<couchbase::error::view_errc>(ec.value())) {

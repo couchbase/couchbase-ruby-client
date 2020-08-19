@@ -185,6 +185,7 @@ module Couchbase
           meta.metrics.success_partition_count = resp[:meta_data][:metrics][:success_partition_count]
           meta.metrics.took = resp[:meta_data][:metrics][:took]
           meta.metrics.total_rows = resp[:meta_data][:metrics][:total_rows]
+          meta.errors = resp[:meta_data][:errors]
         end
         res.rows = resp[:rows].map do |r|
           SearchRow.new do |row|

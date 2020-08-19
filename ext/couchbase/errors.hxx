@@ -247,7 +247,9 @@ enum class analytics_errc {
 };
 
 /// Errors related to Search service (CBFT)
-enum class search_errc {};
+enum class search_errc {
+    index_not_ready = 400,
+};
 
 /// Errors related to Views service (CAPI)
 enum class view_errc {
@@ -465,8 +467,12 @@ struct search_error_category : std::error_category {
         return "search";
     }
 
-    [[nodiscard]] std::string message(int) const noexcept override
+    [[nodiscard]] std::string message(int ev) const noexcept override
     {
+        switch (static_cast<search_errc>(ev)) {
+            case search_errc::index_not_ready:
+                return "index_not_ready";
+        }
         return "FIXME: unknown error code in search category (recompile with newer library)";
     }
 };

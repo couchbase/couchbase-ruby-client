@@ -188,6 +188,11 @@ module Couchbase
     class LinkNotFound < CouchbaseError
     end
 
+    # Search exceptions
+
+    class IndexNotReady < CouchbaseError
+    end
+
     # View exceptions
 
     class DesignDocumentNotFound < CouchbaseError

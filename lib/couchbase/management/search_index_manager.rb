@@ -357,6 +357,8 @@ module Couchbase
 
       # @yieldparam [SearchIndex] self
       def initialize
+        @type = "fulltext-index"
+        @source_type = "couchbase"
         yield self if block_given?
       end
     end
