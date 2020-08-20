@@ -25,7 +25,7 @@ if [ "$(uname -s)" = "Linux" ]
 then
   if  [ ! -x /usr/local/bin/ruby-install ]
   then
-      wget -O ruby-install-0.7.0.tar.gz https://github.com/postmodern/ruby-install/archive/v0.7.0.tar.gz
+      curl -L -o ruby-install-0.7.0.tar.gz https://github.com/postmodern/ruby-install/archive/v0.7.0.tar.gz
       tar -xzvf ruby-install-0.7.0.tar.gz
       cd ruby-install-0.7.0/
       sudo make install
@@ -33,7 +33,7 @@ then
 
   if  [ ! -e /usr/local/share/chruby/chruby.sh ]
   then
-      wget -O chruby-0.3.9.tar.gz https://github.com/postmodern/chruby/archive/v0.3.9.tar.gz
+      curl -L -o chruby-0.3.9.tar.gz https://github.com/postmodern/chruby/archive/v0.3.9.tar.gz
       tar -xzvf chruby-0.3.9.tar.gz
       cd chruby-0.3.9/
       sudo make install
@@ -57,7 +57,7 @@ if [ "$(uname -s)" = "Linux" ]
 then
   if [ ! -d ~/.cmake-3.17.2 ]
   then
-      wget -O cmake-3.17.2-Linux-x86_64.tar.gz https://github.com/Kitware/CMake/releases/download/v3.17.2/cmake-3.17.2-Linux-x86_64.tar.gz
+      curl -L -o cmake-3.17.2-Linux-x86_64.tar.gz https://github.com/Kitware/CMake/releases/download/v3.17.2/cmake-3.17.2-Linux-x86_64.tar.gz
       tar xvf cmake-3.17.2-Linux-x86_64.tar.gz
       mv cmake-3.17.2-Linux-x86_64 ~/.cmake-3.17.2
   fi
