@@ -38,7 +38,7 @@ rm -rf gem-doc
 cat > patch-readme.rb <<EOF
 s3_bucket = "sdk-snapshots.couchbase.com"
 
-if ENV["IS_RELEASE"]
+if ENV["IS_RELEASE"] && ENV["IS_RELEASE"].strip == "true"
   s3_bucket = "packages.couchbase.com/clients"
   extras = <<EOS
 # rubygems.org version (does not have precompiled binaries)
