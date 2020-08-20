@@ -25,7 +25,7 @@ chruby ruby-2.7.1
 ruby --version
 gem --version
 
-gem install yard
+gem install yard builder
 
 cd gem-src
 GEM_SRC=$(ls -1 couchbase-*.gem | head -1)
