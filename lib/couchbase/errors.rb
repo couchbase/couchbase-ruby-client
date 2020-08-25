@@ -164,7 +164,6 @@ module Couchbase
     class PreparedStatementFailure < CouchbaseError
     end
 
-
     # Analytics exceptions
 
     class CompilationFailure < CouchbaseError

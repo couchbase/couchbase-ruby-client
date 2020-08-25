@@ -20,7 +20,7 @@ module Couchbase
     attr_reader :bucket_name
     attr_reader :name
 
-    alias_method :inspect, :to_s
+    alias inspect to_s
 
     # @param [Couchbase::Backend] backend
     # @param [String] bucket_name name of the bucket
@@ -53,32 +53,25 @@ module Couchbase
     # @return [QueryResult]
     def query(statement, options = Cluster::QueryOptions.new)
       resp = @backend.document_query(statement, {
-          timeout: options.timeout,
-          adhoc: options.adhoc,
-          client_context_id: options.client_context_id,
-          max_parallelism: options.max_parallelism,
-          readonly: options.readonly,
-          scan_wait: options.scan_wait,
-          scan_cap: options.scan_cap,
-          pipeline_batch: options.pipeline_batch,
-          pipeline_cap: options.pipeline_cap,
-          metrics: options.metrics,
-          profile: options.profile,
-          positional_parameters: options.export_positional_parameters,
-          named_parameters: options.export_named_parameters,
-          scope_name: @name,
-          bucket_name: @bucket_name,
-          scope_qualifier: options.scope_qualifier,
-          raw_parameters: options.raw_parameters,
-          scan_consistency: options.scan_consistency,
-          mutation_state: (options.mutation_state.tokens.map { |t|
-            {
-                bucket_name: t.bucket_name,
-                partition_id: t.partition_id,
-                partition_uuid: t.partition_uuid,
-                sequence_number: t.sequence_number,
-            }
-          } if options.mutation_state),
+        timeout: options.timeout,
+        adhoc: options.adhoc,
+        client_context_id: options.client_context_id,
+        max_parallelism: options.max_parallelism,
+        readonly: options.readonly,
+        scan_wait: options.scan_wait,
+        scan_cap: options.scan_cap,
+        pipeline_batch: options.pipeline_batch,
+        pipeline_cap: options.pipeline_cap,
+        metrics: options.metrics,
+        profile: options.profile,
+        positional_parameters: options.export_positional_parameters,
+        named_parameters: options.export_named_parameters,
+        scope_name: @name,
+        bucket_name: @bucket_name,
+        scope_qualifier: options.scope_qualifier,
+        raw_parameters: options.raw_parameters,
+        scan_consistency: options.scan_consistency,
+        mutation_state: options.mutation_state&.to_a,
       })
 
       Cluster::QueryResult.new do |res|

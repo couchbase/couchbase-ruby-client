@@ -17,7 +17,7 @@ require "couchbase/errors"
 module Couchbase
   module Management
     class UserManager
-      alias_method :inspect, :to_s
+      alias inspect to_s
 
       # @param [Couchbase::Backend] backend
       def initialize(backend)

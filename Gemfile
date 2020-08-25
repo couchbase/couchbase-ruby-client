@@ -20,6 +20,8 @@ gemspec
 gem "rake"
 
 group :development do
+  gem "rubocop"
+  gem "rubocop-performance"
   gem "yard"
   platforms :mri do
     gem "byebug"

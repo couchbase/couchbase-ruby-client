@@ -1,6 +1,20 @@
-require 'couchbase'
+#    Copyright 2020 Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 
-include Couchbase
+require "couchbase"
+
+include Couchbase # rubocop:disable Style/MixinUsage for brevity
 
 options = Cluster::ClusterOptions.new
 options.authenticate("Administrator", "password")
@@ -21,9 +35,9 @@ puts "METHOD 1: using :request_plus"
 
 random_number = rand(0..1_000_000_000)
 collection.upsert("user:#{random_number}", {
-    "name" => ["Brass", "Doorknob"],
-    "email" => "brass.doorknob@example.com",
-    "data" => random_number,
+  "name" => %w[Brass Doorknob],
+  "email" => "brass.doorknob@example.com",
+  "data" => random_number,
 })
 
 options = Cluster::QueryOptions.new
@@ -32,12 +46,10 @@ options.positional_parameters(["Brass"])
 options.scan_consistency = :request_plus
 res = cluster.query("SELECT name, email, data, META(`default`).id FROM `default` WHERE $1 IN name", options)
 res.rows.each do |row|
-  puts "Name: #{row["name"].join(" ")}, e-mail: #{row["email"]}, data: #{row["data"]}"
-  if row["data"] == random_number
-    puts "--- Found our newly created document!"
-  end
-  if ENV['REMOVE_DOOR_KNOBS']
-    puts "Removing #{row["id"]} (requested via env)"
+  puts "Name: #{row['name'].join(' ')}, e-mail: #{row['email']}, data: #{row['data']}"
+  puts "--- Found our newly created document!" if row["data"] == random_number
+  if ENV["REMOVE_DOOR_KNOBS"]
+    puts "Removing #{row['id']} (requested via env)"
     collection.remove(row["id"])
   end
 end
@@ -51,9 +63,9 @@ puts "METHOD 2: using MutationState"
 
 random_number = rand(0..1_000_000_000)
 res = collection.upsert("user:#{random_number}", {
-    "name" => ["Brass", "Doorknob"],
-    "email" => "brass.doorknob@example.com",
-    "data" => random_number,
+  "name" => %w[Brass Doorknob],
+  "email" => "brass.doorknob@example.com",
+  "data" => random_number,
 })
 
 state = MutationState.new(res.mutation_token)
@@ -65,12 +77,10 @@ options.positional_parameters(["Brass"])
 options.consistent_with(state)
 res = cluster.query("SELECT name, email, data, META(`default`).id FROM `default` WHERE $1 IN name", options)
 res.rows.each do |row|
-  puts "Name: #{row["name"].join(" ")}, e-mail: #{row["email"]}, data: #{row["data"]}"
-  if row["data"] == random_number
-    puts "--- Found our newly created document!"
-  end
-  if ENV['REMOVE_DOOR_KNOBS']
-    puts "Removing #{row["id"]} (requested via env)"
+  puts "Name: #{row['name'].join(' ')}, e-mail: #{row['email']}, data: #{row['data']}"
+  puts "--- Found our newly created document!" if row["data"] == random_number
+  if ENV["REMOVE_DOOR_KNOBS"]
+    puts "Removing #{row['id']} (requested via env)"
     collection.remove(row["id"])
   end
 end

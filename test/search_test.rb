@@ -15,7 +15,7 @@
 require_relative "test_helper"
 
 module Couchbase
-  class SearchTest < Minitest::Test
+  class SearchTest < BaseTest
     def setup
       options = Cluster::ClusterOptions.new
       options.authenticate(TEST_USERNAME, TEST_PASSWORD)
@@ -33,10 +33,6 @@ module Couchbase
       @cluster.disconnect
     end
 
-    def uniq_id(name)
-      "#{name}_#{Time.now.to_f}"
-    end
-
     def test_simple_search
       doc_id = uniq_id(:foo)
       res = @collection.insert(doc_id, {"name" => "Arthur"})
@@ -47,13 +43,14 @@ module Couchbase
       retries = 20
       loop do
         res = @cluster.search_query(@index_name, Cluster::SearchQuery.query_string("arthur"), options)
-        next if res.meta_data.errors&.any? { |n_, desc| desc.include?("pindex not available") }
-        refute res.rows.empty?, "expected non empty result"
+        next if res.meta_data.errors&.any? { |_, desc| desc.include?("pindex not available") }
+
+        refute_empty res.rows, "expected non empty result"
         assert res.rows.find { |row| row.id == doc_id }, "result expected to include #{doc_id}"
         break
       rescue Error::IndexNotReady
         retries -= 1
-        if retries > 0
+        if retries.positive?
           sleep(0.5)
           retry
         end

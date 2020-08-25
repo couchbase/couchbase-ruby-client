@@ -47,5 +47,17 @@ module Couchbase
     def add(*mutation_tokens)
       @tokens |= mutation_tokens
     end
+
+    # @api private
+    def to_a
+      @tokens.map do |t|
+        {
+          bucket_name: t.bucket_name,
+          partition_id: t.partition_id,
+          partition_uuid: t.partition_uuid,
+          sequence_number: t.sequence_number,
+        }
+      end
+    end
   end
 end

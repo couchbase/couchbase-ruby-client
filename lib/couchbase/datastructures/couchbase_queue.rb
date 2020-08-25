@@ -63,14 +63,14 @@ module Couchbase
       # @return [Integer] returns the number of elements in the queue.
       def length
         result = @collection.lookup_in(@id, [
-            LookupInSpec.count("")
-        ], @options.lookup_in_options)
+                                         LookupInSpec.count(""),
+                                       ], @options.lookup_in_options)
         result.content(0)
       rescue Error::DocumentNotFound
         0
       end
 
-      alias_method :size, :length
+      alias size length
 
       # @return [Boolean] returns true if queue is empty
       def empty?
@@ -92,30 +92,30 @@ module Couchbase
       def push(obj)
         begin
           @collection.mutate_in(@id, [
-              MutateInSpec.array_prepend("", [obj])
-          ], @options.mutate_in_options)
+                                  MutateInSpec.array_prepend("", [obj]),
+                                ], @options.mutate_in_options)
         rescue Error::PathExists
           # ignore
         end
         self
       end
 
-      alias_method :enq, :push
-      alias_method :<<, :push
+      alias enq push
+      alias << push
 
       # Retrieves object from the queue
       #
       # @return [Object, nil] queue entry or nil
       def pop
         result = @collection.lookup_in(@id, [
-            LookupInSpec.get("[-1]")
-        ], @options.lookup_in_options)
+                                         LookupInSpec.get("[-1]"),
+                                       ], @options.lookup_in_options)
         obj = result.exists?(0) ? result.content(0) : nil
         options = Collection::MutateInOptions.new
         options.cas = result.cas
         @collection.mutate_in(@id, [
-            MutateInSpec.remove("[-1]")
-        ], options)
+                                MutateInSpec.remove("[-1]"),
+                              ], options)
         obj
       rescue Error::CasMismatch
         retry
@@ -123,8 +123,8 @@ module Couchbase
         nil
       end
 
-      alias_method :deq, :pop
-      alias_method :shift, :pop
+      alias deq pop
+      alias shift pop
     end
 
     class CouchbaseQueueOptions

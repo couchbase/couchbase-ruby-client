@@ -63,14 +63,14 @@ module Couchbase
       # @return [Integer] returns the number of elements in the map.
       def length
         result = @collection.lookup_in(@id, [
-            LookupInSpec.count("")
-        ], @options.lookup_in_options)
+                                         LookupInSpec.count(""),
+                                       ], @options.lookup_in_options)
         result.content(0)
       rescue Error::DocumentNotFound
         0
       end
 
-      alias_method :size, :length
+      alias size length
 
       # @return [Boolean] returns true if map is empty
       def empty?
@@ -110,12 +110,13 @@ module Couchbase
       # @return [Object]
       def fetch(key, *rest)
         result = @collection.lookup_in(@id, [
-            LookupInSpec.get(key)
-        ], @options.lookup_in_options)
+                                         LookupInSpec.get(key),
+                                       ], @options.lookup_in_options)
         result.content(0)
       rescue Error::DocumentNotFound, Error::PathNotFound
         return yield if block_given?
-        return rest.first if rest.size > 0
+        return rest.first unless rest.empty?
+
         raise KeyError, "key not found: #{key}"
       end
 
@@ -135,12 +136,11 @@ module Couchbase
       # @param [String] key
       # @param [Object] value
       #
-      # @return Object
+      # @return [void]
       def []=(key, value)
         @collection.mutate_in(@id, [
-            MutateInSpec.upsert(key, value)
-        ], @options.mutate_in_options)
-        value
+                                MutateInSpec.upsert(key, value),
+                              ], @options.mutate_in_options)
       end
 
       # Deletes the key-value pair from the map.
@@ -150,8 +150,8 @@ module Couchbase
       # @return void
       def delete(key)
         @collection.mutate_in(@id, [
-            MutateInSpec.remove(key)
-        ])
+                                MutateInSpec.remove(key),
+                              ])
       rescue Error::DocumentNotFound, Error::PathNotFound
         nil
       end
@@ -162,28 +162,28 @@ module Couchbase
       # @return [Boolean]
       def key?(key)
         result = @collection.lookup_in(@id, [
-            LookupInSpec.exists(key)
-        ], @options.lookup_in_options)
+                                         LookupInSpec.exists(key),
+                                       ], @options.lookup_in_options)
         result.exists?(0)
       rescue Error::DocumentNotFound, Error::PathNotFound
         false
       end
 
-      alias_method :member?, :key?
-      alias_method :include?, :key?
+      alias member? key?
+      alias include? key?
 
       # Returns a new array populated with the keys from the map.
       #
       # @return [Array]
       def keys
-        map {|key, _value| key}
+        map { |key, _value| key }
       end
 
       # Returns a new array populated with the values from the map.
       #
       # @return [Array]
       def values
-        map {|_key, value| value}
+        map { |_key, value| value }
       end
     end
 

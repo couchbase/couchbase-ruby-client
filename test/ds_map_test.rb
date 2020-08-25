@@ -31,15 +31,11 @@ module Couchbase
         @cluster.disconnect
       end
 
-      def uniq_id(name)
-        "#{name}_#{Time.now.to_f}"
-      end
-
       def test_new_map_empty
         doc_id = uniq_id(:foo)
         map = CouchbaseMap.new(doc_id, @collection)
         assert_equal 0, map.size
-        assert map.empty?
+        assert_empty map
       end
 
       def test_new_map_yields_no_elements
@@ -57,7 +53,7 @@ module Couchbase
         @collection.upsert(doc_id, {"foo" => "bar"})
 
         map = CouchbaseMap.new(doc_id, @collection)
-        refute map.empty?
+        refute_empty map
         assert_equal 1, map.size
         assert_equal "bar", map["foo"]
       end
@@ -65,14 +61,14 @@ module Couchbase
       def test_map_returns_nil_if_key_is_not_found
         doc_id = uniq_id(:foo)
         map = CouchbaseMap.new(doc_id, @collection)
-        assert map.empty?
+        assert_empty map
         assert_nil map["foo"]
       end
 
       def test_map_allow_to_specify_default_on_fetch
         doc_id = uniq_id(:foo)
         map = CouchbaseMap.new(doc_id, @collection)
-        assert map.empty?
+        assert_empty map
         assert "baz", map.fetch("foo", "baz")
         assert "bar", map.fetch("foo") { "bar" }
       end
@@ -80,7 +76,7 @@ module Couchbase
       def test_fetch_raises_key_error_when_default_not_specified
         doc_id = uniq_id(:foo)
         map = CouchbaseMap.new(doc_id, @collection)
-        assert map.empty?
+        assert_empty map
         assert_raises KeyError do
           map.fetch("foo")
         end
@@ -91,7 +87,7 @@ module Couchbase
         @collection.upsert(doc_id, {"foo" => "bar"})
 
         map = CouchbaseMap.new(doc_id, @collection)
-        refute map.empty?
+        refute_empty map
         assert map.key?("foo")
         refute map.key?("baz")
       end
@@ -101,7 +97,7 @@ module Couchbase
         @collection.upsert(doc_id, {"foo" => 100, "baz" => 42})
 
         map = CouchbaseMap.new(doc_id, @collection)
-        refute map.empty?
+        refute_empty map
         assert_equal %w[baz foo], map.keys.sort
       end
 
@@ -110,7 +106,7 @@ module Couchbase
         @collection.upsert(doc_id, {"foo" => 100, "baz" => 42})
 
         map = CouchbaseMap.new(doc_id, @collection)
-        refute map.empty?
+        refute_empty map
         assert_equal [42, 100], map.values.sort
       end
 
@@ -119,7 +115,7 @@ module Couchbase
         @collection.upsert(doc_id, {"foo" => 100, "baz" => 42})
 
         map = CouchbaseMap.new(doc_id, @collection)
-        refute map.empty?
+        refute_empty map
         map["baz"] = "bar"
 
         pairs = []
@@ -134,7 +130,7 @@ module Couchbase
         @collection.upsert(doc_id, {"foo" => 100, "baz" => 42})
 
         map = CouchbaseMap.new(doc_id, @collection)
-        refute map.empty?
+        refute_empty map
 
         map.delete("foo")
 

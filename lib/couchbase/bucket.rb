@@ -22,7 +22,7 @@ module Couchbase
     # @return [String] name of the bucket
     attr_reader :name
 
-    alias_method :inspect, :to_s
+    alias inspect to_s
 
     # @param [Couchbase::Backend] backend
     def initialize(backend, name)
@@ -72,23 +72,23 @@ module Couchbase
     # @return [ViewResult]
     def view_query(design_document_name, view_name, options = ViewOptions.new)
       resp = @backend.document_view(@name, design_document_name, view_name, options.namespace, {
-          timeout: options.timeout,
-          scan_consistency: options.scan_consistency,
-          skip: options.skip,
-          limit: options.limit,
-          start_key: (JSON.generate(options.start_key) unless options.start_key.nil?),
-          end_key: (JSON.generate(options.end_key) unless options.end_key.nil?),
-          start_key_doc_id: options.start_key_doc_id,
-          end_key_doc_id: options.end_key_doc_id,
-          inclusive_end: options.inclusive_end,
-          group: options.group,
-          group_level: options.group_level,
-          key: (JSON.generate(options.key) unless options.key.nil?),
-          keys: (options.keys.map { |key| JSON.generate(key) } if options.keys),
-          order: options.order,
-          reduce: options.reduce,
-          on_error: options.on_error,
-          debug: options.debug,
+        timeout: options.timeout,
+        scan_consistency: options.scan_consistency,
+        skip: options.skip,
+        limit: options.limit,
+        start_key: (JSON.generate(options.start_key) unless options.start_key.nil?),
+        end_key: (JSON.generate(options.end_key) unless options.end_key.nil?),
+        start_key_doc_id: options.start_key_doc_id,
+        end_key_doc_id: options.end_key_doc_id,
+        inclusive_end: options.inclusive_end,
+        group: options.group,
+        group_level: options.group_level,
+        key: (JSON.generate(options.key) unless options.key.nil?),
+        keys: options.keys&.map { |key| JSON.generate(key) },
+        order: options.order,
+        reduce: options.reduce,
+        on_error: options.on_error,
+        debug: options.debug,
       })
       ViewResult.new do |res|
         res.meta_data = ViewMetaData.new do |meta|

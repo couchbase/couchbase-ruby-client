@@ -32,7 +32,7 @@ module Couchbase
     # development document or a production document. The type of this argument is [Symbol] with allowed values
     # +:production+ and +:development+.
     class ViewIndexManager
-      alias_method :inspect, :to_s
+      alias inspect to_s
 
       # @return [String] name of the bucket
       attr_accessor :bucket_name
@@ -80,8 +80,14 @@ module Couchbase
       # @return [void]
       def upsert_design_document(document, namespace, options = UpsertDesignDocumentOptions.new)
         @backend.view_index_upsert(@bucket_name, {
-            name: document.name,
-            views: document.views.map { |name, view| {name: name, map: view.map_function, reduce: view.reduce_function} }
+          name: document.name,
+          views: document.views.map do |name, view|
+            {
+              name: name,
+              map: view.map_function,
+              reduce: view.reduce_function,
+            }
+          end,
         }, namespace, options.timeout)
       end
 
@@ -184,11 +190,11 @@ module Couchbase
 
       # @return [String] map function in javascript as String
       attr_accessor :map_function
-      alias_method :map, :map_function
+      alias map map_function
 
       # @return [String] reduce function in javascript as String
       attr_accessor :reduce_function
-      alias_method :reduce, :reduce_function
+      alias reduce reduce_function
 
       # @return [Boolean] true if map function is defined
       def has_map?

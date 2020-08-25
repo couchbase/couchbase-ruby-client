@@ -22,7 +22,7 @@ module Couchbase
     attr_reader :scope_name
     attr_reader :name
 
-    alias_method :inspect, :to_s
+    alias inspect to_s
 
     # @param [Couchbase::Backend] backend
     # @param [String] bucket_name name of the bucket
@@ -140,7 +140,7 @@ module Couchbase
     # @return [MutationResult]
     def remove(id, options = RemoveOptions.new)
       resp = @backend.document_remove(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, {
-          durability_level: options.durability_level
+        durability_level: options.durability_level,
       })
       MutationResult.new do |res|
         res.cas = resp[:cas]
@@ -158,8 +158,8 @@ module Couchbase
     def insert(id, content, options = InsertOptions.new)
       blob, flags = options.transcoder.encode(content)
       resp = @backend.document_insert(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
-          durability_level: options.durability_level,
-          expiry: options.expiry,
+        durability_level: options.durability_level,
+        expiry: options.expiry,
       })
       MutationResult.new do |res|
         res.cas = resp[:cas]
@@ -177,8 +177,8 @@ module Couchbase
     def upsert(id, content, options = UpsertOptions.new)
       blob, flags = options.transcoder.encode(content)
       resp = @backend.document_upsert(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
-          durability_level: options.durability_level,
-          expiry: options.expiry,
+        durability_level: options.durability_level,
+        expiry: options.expiry,
       })
       MutationResult.new do |res|
         res.cas = resp[:cas]
@@ -196,9 +196,9 @@ module Couchbase
     def replace(id, content, options = ReplaceOptions.new)
       blob, flags = options.transcoder.encode(content)
       resp = @backend.document_replace(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
-          durability_level: options.durability_level,
-          expiry: options.expiry,
-          cas: options.cas,
+        durability_level: options.durability_level,
+        expiry: options.expiry,
+        cas: options.cas,
       })
       MutationResult.new do |res|
         res.cas = resp[:cas]
@@ -240,14 +240,14 @@ module Couchbase
     # @return [LookupInResult]
     def lookup_in(id, specs, options = LookupInOptions.new)
       resp = @backend.document_lookup_in(
-          bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, options.access_deleted,
-          specs.map { |s|
-            {
-                opcode: s.type,
-                xattr: s.xattr?,
-                path: s.path
-            }
+        bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, options.access_deleted,
+        specs.map do |s|
+          {
+            opcode: s.type,
+            xattr: s.xattr?,
+            path: s.path,
           }
+        end
       )
       LookupInResult.new do |res|
         res.transcoder = options.transcoder
@@ -275,26 +275,26 @@ module Couchbase
     # @return [MutateInResult]
     def mutate_in(id, specs, options = MutateInOptions.new)
       resp = @backend.document_mutate_in(
-          bucket_name, "#{@scope_name}.#{@name}", id, options.timeout,
-          specs.map { |s|
-            {
-                opcode: s.type,
-                path: s.path,
-                param: s.param,
-                xattr: s.xattr?,
-                expand_macros: s.expand_macros?,
-                create_path: s.create_path?
-            }
-          },
+        bucket_name, "#{@scope_name}.#{@name}", id, options.timeout,
+        specs.map do |s|
           {
-              durability_level: options.durability_level,
-              store_semantics: options.store_semantics,
-              access_deleted: options.access_deleted,
-              cas: options.cas,
-              expiry: options.expiry,
+            opcode: s.type,
+            path: s.path,
+            param: s.param,
+            xattr: s.xattr?,
+            expand_macros: s.expand_macros?,
+            create_path: s.create_path?,
           }
+        end,
+        {
+          durability_level: options.durability_level,
+          store_semantics: options.store_semantics,
+          access_deleted: options.access_deleted,
+          cas: options.cas,
+          expiry: options.expiry,
+        }
       )
-      res = MutateInResult.new do |res|
+      result = MutateInResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
         res.mutation_token = extract_mutation_token(resp)
@@ -310,11 +310,9 @@ module Couchbase
           end
         end
       end
-      if res.success?
-        res
-      else
-        raise res.first_error
-      end
+      raise result.first_error unless result.success?
+
+      result
     end
 
     private

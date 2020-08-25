@@ -16,7 +16,6 @@ require 'json'
 
 module Couchbase
   class Cluster
-
     class QueryOptions
       # @return [Integer] Timeout in milliseconds
       attr_accessor :timeout
@@ -33,7 +32,8 @@ module Couchbase
       # @return [Boolean] Allows explicitly marking a query as being readonly and not mutating any documents on the server side.
       attr_accessor :readonly
 
-      # Allows customizing how long (in milliseconds) the query engine is willing to wait until the index catches up to whatever scan consistency is asked for in this query.
+      # Allows customizing how long (in milliseconds) the query engine is willing to wait until the index catches up to whatever scan
+      # consistency is asked for in this query.
       #
       # @note that if +:not_bounded+ consistency level is used, this method doesn't do anything
       # at all. If no value is provided to this method, the server default is used.
@@ -47,7 +47,8 @@ module Couchbase
       # @return [Integer] Supports customizing the number of items execution operators can batch for fetch from the KV layer on the server.
       attr_accessor :pipeline_batch
 
-      # @return [Integer] Allows customizing the maximum number of items each execution operator can buffer between various operators on the server.
+      # @return [Integer] Allows customizing the maximum number of items each execution operator can buffer between various operators on the
+      #   server.
       attr_accessor :pipeline_cap
 
       # @return [Boolean] Enables per-request metrics in the trailing section of the query
@@ -100,9 +101,11 @@ module Couchbase
       #
       # @note overrides consistency level set by {#consistent_with}
       #
-      # [+:not_bounded+] The indexer will return whatever state it has to the query engine at the time of query. This is the default (for single-statement requests).
+      # [+:not_bounded+] The indexer will return whatever state it has to the query engine at the time of query. This is the default (for
+      #   single-statement requests).
       #
-      # [+:request_plus+] The indexer will wait until all mutations have been processed at the time of request before returning to the query engine.
+      # [+:request_plus+] The indexer will wait until all mutations have been processed at the time of request before returning to the query
+      #   engine.
       #
       # @param [:not_bounded, :request_plus] level the index scan consistency to be used for this query
       def scan_consistency=(level)
@@ -131,7 +134,7 @@ module Couchbase
       # @api private
       # @return [Array<String>, nil]
       def export_positional_parameters
-        @positional_parameters.map { |p| JSON.dump(p) } if @positional_parameters
+        @positional_parameters&.map { |p| JSON.dump(p) }
       end
 
       # Sets named parameters for the query
@@ -145,7 +148,7 @@ module Couchbase
       # @api private
       # @return [Hash<String => String>, nil]
       def export_named_parameters
-        @named_parameters.each_with_object({}) { |(n, v), o| o[n.to_s] = JSON.dump(v) } if @named_parameters
+        @named_parameters&.each_with_object({}) { |(n, v), o| o[n.to_s] = JSON.dump(v) }
       end
     end
 
@@ -204,10 +207,12 @@ module Couchbase
     end
 
     class QueryMetrics
-      # @return [Integer] The total time taken for the request, that is the time from when the request was received until the results were returned
+      # @return [Integer] The total time taken for the request, that is the time from when the request was received until the results were
+      #   returned.
       attr_accessor :elapsed_time
 
-      # @return [Integer] The time taken for the execution of the request, that is the time from when query execution started until the results were returned
+      # @return [Integer] The time taken for the execution of the request, that is the time from when query execution started until the
+      #   results were returned
       attr_accessor :execution_time
 
       # @return [Integer] the total number of results selected by the engine before restriction through LIMIT clause.

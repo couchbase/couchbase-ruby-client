@@ -15,7 +15,7 @@
 require_relative "test_helper"
 
 module Couchbase
-  class QueryTest < Minitest::Test
+  class QueryTest < BaseTest
     def setup
       options = Cluster::ClusterOptions.new
       options.authenticate(TEST_USERNAME, TEST_PASSWORD)
@@ -30,10 +30,6 @@ module Couchbase
 
     def teardown
       @cluster.disconnect
-    end
-
-    def uniq_id(name)
-      "#{name}_#{Time.now.to_f}"
     end
 
     def test_simple_query
@@ -167,12 +163,10 @@ module Couchbase
     end
 
     def test_scoped_query
-      unless TEST_SERVER_VERSION.supports_scoped_queries?
-        skip("The server does not support scoped queries (#{TEST_SERVER_VERSION})")
-      end
+      skip("The server does not support scoped queries (#{TEST_SERVER_VERSION})") unless TEST_SERVER_VERSION.supports_scoped_queries?
 
-      scope_name = uniq_id(:scope).gsub('.', '')[0..30]
-      collection_name = uniq_id(:collection).gsub('.', '')[0..30]
+      scope_name = uniq_id(:scope).delete(".")[0..30]
+      collection_name = uniq_id(:collection).delete(".")[0..30]
 
       manager = @bucket.collections
       manager.create_scope(scope_name)

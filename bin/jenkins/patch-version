@@ -1,5 +1,4 @@
 #!/usr/bin/env ruby
-
 #    Copyright 2020 Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,5 +25,5 @@ suffix = ARGV[1] || "snapshot"
 ver_file = File.join(__dir__, "../../lib/couchbase/version.rb")
 
 old_content = File.read(ver_file)
-new_content = old_content.gsub(/sdk => "([^"]+?)(\.#{suffix}(\.\d+)?)?"/, %Q{sdk => "\\1.#{suffix}.#{build_num}"})
+new_content = old_content.gsub(/sdk => "([^"]+?)(\.#{suffix}(\.\d+)?)?"/, %(sdk => "\\1.#{suffix}.#{build_num}"))
 File.write(ver_file, new_content)

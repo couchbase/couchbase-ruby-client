@@ -17,7 +17,7 @@ require "couchbase/errors"
 module Couchbase
   module Management
     class AnalyticsIndexManager
-      alias_method :inspect, :to_s
+      alias inspect to_s
 
       # @param [Couchbase::Backend] backend
       def initialize(backend)
@@ -35,9 +35,9 @@ module Couchbase
       # @raise [Error::DataverseExists]
       def create_dataverse(dataverse_name, options = CreateDataverseOptions.new)
         @backend.analytics_dataverse_create(
-            dataverse_name,
-            options.ignore_if_exists,
-            options.timeout
+          dataverse_name,
+          options.ignore_if_exists,
+          options.timeout
         )
       end
 
@@ -52,9 +52,9 @@ module Couchbase
       # @raise [Error::DataverseNotFound]
       def drop_dataverse(dataverse_name, options = DropDataverseOptions.new)
         @backend.analytics_dataverse_drop(
-            dataverse_name,
-            options.ignore_if_does_not_exist,
-            options.timeout
+          dataverse_name,
+          options.ignore_if_does_not_exist,
+          options.timeout
         )
       end
 
@@ -71,12 +71,12 @@ module Couchbase
       # @raise [Error::LinkNotFound]
       def create_dataset(dataset_name, bucket_name, options = CreateDatasetOptions.new)
         @backend.analytics_dataset_create(
-            dataset_name,
-            bucket_name,
-            options.condition,
-            options.dataverse_name,
-            options.ignore_if_exists,
-            options.timeout
+          dataset_name,
+          bucket_name,
+          options.condition,
+          options.dataverse_name,
+          options.ignore_if_exists,
+          options.timeout
         )
       end
 
@@ -91,10 +91,10 @@ module Couchbase
       # @raise [Error::DatasetNotFound]
       def drop_dataset(dataset_name, options = DropDatasetOptions.new)
         @backend.analytics_dataset_drop(
-            dataset_name,
-            options.dataverse_name,
-            options.ignore_if_does_not_exist,
-            options.timeout
+          dataset_name,
+          options.dataverse_name,
+          options.ignore_if_does_not_exist,
+          options.timeout
         )
       end
 
@@ -128,12 +128,12 @@ module Couchbase
       # @raise [Error::IndexExists]
       def create_index(index_name, dataset_name, fields, options = CreateIndexOptions.new)
         @backend.analytics_index_create(
-            index_name,
-            dataset_name,
-            fields.entries,
-            options.dataverse_name,
-            options.ignore_if_exists,
-            options.timeout
+          index_name,
+          dataset_name,
+          fields.entries,
+          options.dataverse_name,
+          options.ignore_if_exists,
+          options.timeout
         )
       end
 
@@ -149,11 +149,11 @@ module Couchbase
       # @raise [Error::IndexNotFound]
       def drop_index(index_name, dataset_name, options = DropIndexOptions.new)
         @backend.analytics_index_drop(
-            index_name,
-            dataset_name,
-            options.dataverse_name,
-            options.ignore_if_does_not_exist,
-            options.timeout
+          index_name,
+          dataset_name,
+          options.dataverse_name,
+          options.ignore_if_does_not_exist,
+          options.timeout
         )
       end
 
@@ -184,10 +184,10 @@ module Couchbase
       # @raise [Error::LinkNotFound]
       def connect_link(options = ConnectLinkOptions.new)
         @backend.analytics_link_connect(
-            options.link_name,
-            options.force,
-            options.dataverse_name,
-            options.timeout
+          options.link_name,
+          options.force,
+          options.dataverse_name,
+          options.timeout
         )
       end
 
@@ -201,9 +201,9 @@ module Couchbase
       # @raise [Error::LinkNotFound]
       def disconnect_link(options = DisconnectLinkOptions.new)
         @backend.analytics_link_disconnect(
-            options.link_name,
-            options.dataverse_name,
-            options.timeout
+          options.link_name,
+          options.dataverse_name,
+          options.timeout
         )
       end
 
@@ -218,7 +218,7 @@ module Couchbase
       #   and values are number of mutations for given dataset.
       def get_pending_mutations(options = GetPendingMutationsOptions.new)
         @backend.analytics_get_pending_mutations(
-            options.timeout
+          options.timeout
         )
       end
 
@@ -422,7 +422,7 @@ module Couchbase
 
       # @return [Boolean]
       attr_accessor :is_primary
-      alias_method :primary?, :is_primary
+      alias primary? is_primary
 
       # @yieldparam [AnalyticsIndex]
       def initialize

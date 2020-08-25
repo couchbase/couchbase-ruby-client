@@ -31,15 +31,11 @@ module Couchbase
         @cluster.disconnect
       end
 
-      def uniq_id(name)
-        "#{name}_#{Time.now.to_f}"
-      end
-
       def test_new_set_empty
         doc_id = uniq_id(:foo)
         set = CouchbaseSet.new(doc_id, @collection)
         assert_equal 0, set.size
-        assert set.empty?
+        assert_empty set
       end
 
       def test_new_set_yields_no_elements
@@ -72,12 +68,12 @@ module Couchbase
 
         set.add("foo").add("bar")
 
-        refute set.empty?
+        refute_empty set
         assert_equal 2, set.size
 
-        assert set.include?("foo")
-        assert set.include?("bar")
-        refute set.include?("baz")
+        assert_includes set, "foo"
+        assert_includes set, "bar"
+        refute_includes set, "baz"
       end
 
       def test_removes_the_item
@@ -90,8 +86,8 @@ module Couchbase
         set.delete("bar")
         assert_equal 1, set.size
 
-        assert set.include?("foo")
-        refute set.include?("bar")
+        assert_includes set, "foo"
+        refute_includes set, "bar"
       end
     end
   end

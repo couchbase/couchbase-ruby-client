@@ -16,7 +16,8 @@ module Couchbase
   class LookupInSpec
     # Fetches the content from a field (if present) at the given path
     #
-    # @param [String, Symbol] path the path identifying where to get the value. When path is a symbol, the library will try to expand it as macro.
+    # @param [String, Symbol] path the path identifying where to get the value. When path is a symbol, the library will try to expand it as
+    #   macro.
     # @return [LookupInSpec]
     def self.get(path)
       case path
@@ -37,7 +38,7 @@ module Couchbase
       new(:exists, path)
     end
 
-    # Counts the number of values at a given path in teh document
+    # Counts the number of values at a given path in the document
     #
     # @param [String] path the path identifying where to count the values
     # @return [LookupInSpec]
@@ -56,8 +57,6 @@ module Couchbase
 
     attr_reader :type
     attr_reader :path
-
-    private
 
     # @api private
     #
@@ -85,6 +84,10 @@ module Couchbase
         raise Error::XattrUnknownMacro, "unknown macro #{macro}"
       end
     end
+
+    private_class_method :expand_macro
+
+    private
 
     # @param [:get_doc, :get, :exists, :count] type of the lookup
     # @param [String] path
@@ -242,9 +245,9 @@ module Couchbase
       @expand_macros
     end
 
-    CAS = "${Mutation.CAS}"
-    SEQ_NO = "${Mutation.seqno}"
-    VALUE_CRC32C = "${Mutation.value_crc32c}"
+    CAS = "${Mutation.CAS}".freeze
+    SEQ_NO = "${Mutation.seqno}".freeze
+    VALUE_CRC32C = "${Mutation.value_crc32c}".freeze
 
     attr_reader :type
     attr_reader :path
@@ -259,29 +262,29 @@ module Couchbase
       @type = type
       @path = path
       @param =
-          case param
-          when :cas
-            CAS
-          when :seq_no, :sequence_number
-            SEQ_NO
-          when :value_crc32c, :value_crc
-            VALUE_CRC32C
-          else
-            param
-          end
+        case param
+        when :cas
+          CAS
+        when :seq_no, :sequence_number
+          SEQ_NO
+        when :value_crc32c, :value_crc
+          VALUE_CRC32C
+        else
+          param
+        end
       @expand_macros = [CAS, SEQ_NO, VALUE_CRC32C].include?(@param)
       @xattr = true if @expand_macros
-      unless @param.nil?
-        @param =
-            case type
-            when :counter
-              @param.to_i
-            when :array_push_first, :array_push_last, :array_insert
-              @param.map { |entry| JSON.generate(entry) }.join(",")
-            else
-              JSON.generate(@param)
-            end
-      end
+      return if @param.nil?
+
+      @param =
+        case type
+        when :counter
+          @param.to_i
+        when :array_push_first, :array_push_last, :array_insert
+          @param.map { |entry| JSON.generate(entry) }.join(",")
+        else
+          JSON.generate(@param)
+        end
     end
   end
 end

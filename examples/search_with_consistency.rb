@@ -1,6 +1,20 @@
-require 'couchbase'
+#    Copyright 2020 Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 
-include Couchbase
+require "couchbase"
+
+include Couchbase # rubocop:disable Style/MixinUsage for brevity
 
 options = Cluster::ClusterOptions.new
 options.authenticate("Administrator", "password")
@@ -18,27 +32,27 @@ rescue Error::IndexNotFound
   index.source_type = "couchbase"
   index.source_name = bucket_name
   index.params = {
-      mapping: {
-          types: {
-              "knob" => {
-                  properties: {
-                      "name" => {
-                          fields: [
-                              {
-                                  name: "name",
-                                  type: "text",
-                                  include_in_all: true,
-                                  include_term_vectors: true,
-                                  index: true,
-                                  store: true,
-                                  docvalues: true,
-                              }
-                          ]
-                      },
-                  }
-              }
-          }
-      }
+    mapping: {
+      types: {
+        "knob" => {
+          properties: {
+            "name" => {
+              fields: [
+                {
+                  name: "name",
+                  type: "text",
+                  include_in_all: true,
+                  include_term_vectors: true,
+                  index: true,
+                  store: true,
+                  docvalues: true,
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
   }
 
   cluster.search_indexes.upsert_index(index)
@@ -48,6 +62,7 @@ rescue Error::IndexNotFound
     sleep(1)
     num = cluster.search_indexes.get_indexed_documents_count(search_index_name)
     break if num_indexed == num
+
     num_indexed = num
     puts "indexing #{search_index_name.inspect}: #{num_indexed} documents"
   end
@@ -59,9 +74,9 @@ collection = cluster.bucket(bucket_name).default_collection
 # and supply mutation tokens from those operations.
 random_string = ("a".."z").to_a.sample(10).join
 res = collection.upsert("user:#{random_string}", {
-    "name" => "Brass Doorknob",
-    "email" => "brass.doorknob@example.com",
-    "data" => random_string,
+  "name" => "Brass Doorknob",
+  "email" => "brass.doorknob@example.com",
+  "data" => random_string,
 })
 
 state = MutationState.new(res.mutation_token)
@@ -74,10 +89,8 @@ options.consistent_with(state)
 res = cluster.search_query(search_index_name, query, options)
 
 res.rows.each do |row|
-  if row.id == "user:#{random_string}"
-    puts "--- Found our newly created document!"
-  end
-  if ENV['REMOVE_DOOR_KNOBS']
+  puts "--- Found our newly created document!" if row.id == "user:#{random_string}"
+  if ENV["REMOVE_DOOR_KNOBS"]
     puts "Removing #{row.id} (requested via env)"
     collection.remove(row.id)
   end

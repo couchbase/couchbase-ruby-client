@@ -22,6 +22,7 @@ module Couchbase
 
       # @yieldparam [AppendOptions] self
       def initialize
+        super
         yield self if block_given?
       end
     end
@@ -32,6 +33,7 @@ module Couchbase
 
       # @yieldparam [PrependOptions] self
       def initialize
+        super
         yield self if block_given?
       end
     end
@@ -51,14 +53,14 @@ module Couchbase
 
       # @yieldparam [IncrementOptions] self
       def initialize
+        super
         @delta = 1
         yield self if block_given?
       end
 
       def delta=(value)
-        if delta < 0
-          raise ArgumentError, "the delta cannot be less than 0"
-        end
+        raise ArgumentError, "the delta cannot be less than 0" if delta.negative?
+
         @delta = value
       end
     end
@@ -78,14 +80,14 @@ module Couchbase
 
       # @yieldparam [DecrementOptions] self
       def initialize
+        super
         @delta = 1
         yield self if block_given?
       end
 
       def delta=(value)
-        if delta < 0
-          raise ArgumentError, "the delta cannot be less than 0"
-        end
+        raise ArgumentError, "the delta cannot be less than 0" if delta.negative?
+
         @delta = value
       end
     end

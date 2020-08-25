@@ -63,14 +63,14 @@ module Couchbase
       # @return [Integer] returns the number of elements in the set.
       def length
         result = @collection.lookup_in(@id, [
-            LookupInSpec.count("")
-        ], @options.lookup_in_options)
+                                         LookupInSpec.count(""),
+                                       ], @options.lookup_in_options)
         result.content(0)
       rescue Error::DocumentNotFound
         0
       end
 
-      alias_method :size, :length
+      alias size length
 
       # @return [Boolean] returns true if set is empty
       def empty?
@@ -84,8 +84,8 @@ module Couchbase
       def add(obj)
         begin
           @collection.mutate_in(@id, [
-              MutateInSpec.array_add_unique("", obj)
-          ], @options.mutate_in_options)
+                                  MutateInSpec.array_add_unique("", obj),
+                                ], @options.mutate_in_options)
         rescue Error::PathExists
           # ignore
         end
@@ -107,11 +107,12 @@ module Couchbase
         result = @collection.get(@id)
         idx = result.content.index(obj)
         return false unless idx
+
         options = Collection::MutateInOptions.new
         options.cas = result.cas
         @collection.mutate_in(@id, [
-            MutateInSpec.remove("[#{idx}]")
-        ], options)
+                                MutateInSpec.remove("[#{idx}]"),
+                              ], options)
         true
       rescue Error::CasMismatch
         retry

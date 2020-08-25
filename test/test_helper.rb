@@ -12,11 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-library_directory = File.expand_path("../../lib", __FILE__)
+library_directory = File.expand_path("../lib", __dir__)
 if File.directory?(library_directory)
   $LOAD_PATH.unshift(library_directory)
 else
-  STDERR.puts("using system library path")
+  warn("using system library path")
 end
 
 begin
@@ -24,13 +24,13 @@ begin
   SimpleCov.formatter = SimpleCov::Formatter::CoberturaFormatter
   SimpleCov.start
 rescue LoadError
-  STDERR.puts("running tests without coverage")
+  warn("running tests without coverage")
 end
 
 require "rubygems/version"
 
 class ServerVersion
-  def initialize(version_string, developer_preview = false)
+  def initialize(version_string, developer_preview: false)
     @version = Gem::Version.create(version_string)
     @developer_preview = developer_preview
   end
@@ -79,9 +79,15 @@ module Couchbase
   TEST_PASSWORD = ENV["TEST_PASSWORD"] || "password"
   TEST_BUCKET = ENV["TEST_BUCKET"] || "default"
   TEST_DEVELOPER_PREVIEW = ENV.key?("TEST_DEVELOPER_PREVIEW")
-  TEST_SERVER_VERSION = ServerVersion.new(ENV["TEST_SERVER_VERSION"] || "6.5.1", TEST_DEVELOPER_PREVIEW)
+  TEST_SERVER_VERSION = ServerVersion.new(ENV["TEST_SERVER_VERSION"] || "6.5.1", developer_preview: TEST_DEVELOPER_PREVIEW)
 
   class BaseTest < Minitest::Test
+    # rubocop:disable Minitest/TestMethodName
+
+    def uniq_id(name)
+      "#{name}_#{Time.now.to_f}"
+    end
+
     def load_raw_test_dataset(dataset)
       File.read(File.join(__dir__, "..", "test_data", "#{dataset}.json"))
     end
@@ -89,13 +95,15 @@ module Couchbase
     def load_json_test_dataset(dataset)
       JSON.parse(load_raw_test_dataset(dataset))
     end
+
+    # rubocop:enable Minitest/TestMethodName
   end
 end
 
 require "minitest/reporters"
 Minitest::Reporters.use!(
-    [
-        Minitest::Reporters::SpecReporter.new,
-        Minitest::Reporters::JUnitReporter.new
-    ]
+  [
+    Minitest::Reporters::SpecReporter.new,
+    Minitest::Reporters::JUnitReporter.new,
+  ]
 )

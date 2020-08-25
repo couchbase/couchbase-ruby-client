@@ -15,4 +15,3 @@
 require "couchbase/version"
 require "couchbase/libcouchbase"
 require "couchbase/cluster"
-

@@ -17,7 +17,7 @@ require "couchbase/errors"
 module Couchbase
   module Management
     class CollectionManager
-      alias_method :inspect, :to_s
+      alias inspect to_s
 
       # @param [Couchbase::Backend] backend
       # @param [String] bucket_name
@@ -55,8 +55,8 @@ module Couchbase
       #
       # @raise [Error::ScopeNotFound]
       def get_scope(scope_name, options = GetScopeOptions.new)
-        get_all_scopes(GetAllScopesOptions.new {|o| o.timeout = options.timeout })
-            .find { |scope| scope.name == scope_name } or raise Error::ScopeNotFound, "unable to find scope #{scope_name}"
+        get_all_scopes(GetAllScopesOptions.new { |o| o.timeout = options.timeout })
+          .find { |scope| scope.name == scope_name } or raise Error::ScopeNotFound, "unable to find scope #{scope_name}"
       end
 
       # Creates a new scope

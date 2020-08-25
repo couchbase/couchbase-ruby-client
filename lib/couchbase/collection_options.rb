@@ -28,6 +28,7 @@ module Couchbase
 
       # @yieldparam [GetOptions] self
       def initialize
+        super
         @transcoder = JsonTranscoder.new
         @preserve_array_indexes = false
         @with_expiry = nil
@@ -67,6 +68,7 @@ module Couchbase
 
       # @yieldparam [GetAndLockOptions] self
       def initialize
+        super
         @transcoder = JsonTranscoder.new
         yield self if block_given?
       end
@@ -78,6 +80,7 @@ module Couchbase
 
       # @yieldparam [GetAndTouchOptions] self
       def initialize
+        super
         @transcoder = JsonTranscoder.new
         yield self if block_given?
       end
@@ -122,6 +125,7 @@ module Couchbase
 
       # @yieldparam [GetAllReplicasOptions] self
       def initialize
+        super
         yield self if block_given?
       end
     end
@@ -132,6 +136,7 @@ module Couchbase
 
       # @yieldparam [GetAnyReplicaOptions] self
       def initialize
+        super
         yield self if block_given?
       end
     end
@@ -139,12 +144,13 @@ module Couchbase
     class GetReplicaResult < GetResult
       # @return [Boolean] true if this result came from a replica
       attr_accessor :is_replica
-      alias_method :replica?, :is_replica
+      alias replica? is_replica
     end
 
     class ExistsOptions < CommonOptions
       # @yieldparam [ExistsOptions] self
       def initialize
+        super
         yield self if block_given?
       end
     end
@@ -181,6 +187,7 @@ module Couchbase
 
       # @yieldparam [RemoveOptions]
       def initialize
+        super
         @durability_level = :none
         yield self if block_given?
       end
@@ -198,6 +205,7 @@ module Couchbase
 
       # @yieldparam [InsertOptions]
       def initialize
+        super
         @transcoder = JsonTranscoder.new
         @durability_level = :none
         yield self if block_given?
@@ -216,6 +224,7 @@ module Couchbase
 
       # @yieldparam [UpsertOptions]
       def initialize
+        super
         @transcoder = JsonTranscoder.new
         @durability_level = :none
         yield self if block_given?
@@ -237,6 +246,7 @@ module Couchbase
 
       # @yieldparam [ReplaceOptions]
       def initialize
+        super
         @transcoder = JsonTranscoder.new
         @durability_level = :none
         yield self if block_given?
@@ -259,6 +269,7 @@ module Couchbase
     class TouchOptions < CommonOptions
       # @yieldparam [TouchOptions] self
       def initialize
+        super
         yield self if block_given?
       end
     end
@@ -266,6 +277,7 @@ module Couchbase
     class UnlockOptions < CommonOptions
       # @yieldparam [UnlockOptions] self
       def initialize
+        super
         yield self if block_given?
       end
     end
@@ -279,6 +291,7 @@ module Couchbase
 
       # @yieldparam [LookupInOptions] self
       def initialize
+        super
         @transcoder = JsonTranscoder.new
         yield self if block_given?
       end
@@ -320,13 +333,12 @@ module Couchbase
       private
 
       def get_field_at_index(index)
-        if index >= 0 && index < encoded.size
-          field = encoded[index]
-          raise field.error unless field.success?
-          field
-        else
-          raise Error::PathInvalid, "Index is out of bounds: #{index}"
-        end
+        raise Error::PathInvalid, "Index is out of bounds: #{index}" unless index >= 0 && index < encoded.size
+
+        field = encoded[index]
+        raise field.error unless field.success?
+
+        field
       end
     end
 
@@ -357,6 +369,7 @@ module Couchbase
 
       # @yieldparam [MutateInOptions]
       def initialize
+        super
         @durability_level = :none
         @store_semantics = :replace
         @transcoder = JsonTranscoder.new
@@ -383,6 +396,7 @@ module Couchbase
 
       # @yieldparam [MutateInResult] self
       def initialize
+        super
         yield self if block_given?
       end
 
@@ -393,7 +407,7 @@ module Couchbase
 
       # @api private
       def first_error
-        encoded[first_error_index].error
+        encoded[first_error_index].error unless success?
       end
 
       # @return [Array<SubDocumentField>] holds the encoded subdocument responses
@@ -410,13 +424,12 @@ module Couchbase
       private
 
       def get_field_at_index(index)
-        if index >= 0 && index < encoded.size
-          field = encoded[index]
-          raise field.error unless field.success?
-          field
-        else
-          raise Error::PathInvalid, "Index is out of bounds: #{index}"
-        end
+        raise Error::PathInvalid, "Index is out of bounds: #{index}" unless index >= 0 && index < encoded.size
+
+        field = encoded[index]
+        raise field.error unless field.success?
+
+        field
       end
     end
 
@@ -458,7 +471,8 @@ module Couchbase
       #
       # [+:success+] Indicates a successful response in general.
       # [+:path_not_found+] The provided path does not exist in the document
-      # [+:path_mismatch+] One of path components treats a non-dictionary as a dictionary, or a non-array as an array, or value the path points to is not a number
+      # [+:path_mismatch+] One of path components treats a non-dictionary as a dictionary, or a non-array as an array, or value the path
+      #   points to is not a number
       # [+:path_invalid+] The path's syntax was incorrect
       # [+:path_too_big+] The path provided is too large: either the string is too long, or it contains too many components
       # [+:value_cannot_insert+] The value provided will invalidate the JSON if inserted

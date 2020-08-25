@@ -17,7 +17,7 @@ require "couchbase/errors"
 module Couchbase
   module Management
     class SearchIndexManager
-      alias_method :inspect, :to_s
+      alias inspect to_s
 
       # @param [Couchbase::Backend] backend
       def initialize(backend)
@@ -58,17 +58,18 @@ module Couchbase
       # @raise [ArgumentError] if name, type or source_type is empty
       def upsert_index(index_definition, options = UpsertIndexOptions.new)
         @backend.search_index_upsert(
-            {
-                name: index_definition.name,
-                type: index_definition.type,
-                uuid: index_definition.uuid,
-                params: (JSON.generate(index_definition.params) if index_definition.params),
-                source_name: index_definition.source_name,
-                source_type: index_definition.source_type,
-                source_uuid: index_definition.source_uuid,
-                source_params: (JSON.generate(index_definition.source_params) if index_definition.source_params),
-                plan_params: (JSON.generate(index_definition.plan_params) if index_definition.plan_params),
-            }, options.timeout)
+          {
+            name: index_definition.name,
+            type: index_definition.type,
+            uuid: index_definition.uuid,
+            params: (JSON.generate(index_definition.params) if index_definition.params),
+            source_name: index_definition.source_name,
+            source_type: index_definition.source_type,
+            source_uuid: index_definition.source_uuid,
+            source_params: (JSON.generate(index_definition.source_params) if index_definition.source_params),
+            plan_params: (JSON.generate(index_definition.plan_params) if index_definition.plan_params),
+          }, options.timeout
+        )
       end
 
       # Drops the index

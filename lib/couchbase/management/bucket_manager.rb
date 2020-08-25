@@ -17,7 +17,7 @@ require "couchbase/errors"
 module Couchbase
   module Management
     class BucketManager
-      alias_method :inspect, :to_s
+      alias inspect to_s
 
       # @param [Couchbase::Backend] backend
       def initialize(backend)
@@ -35,19 +35,19 @@ module Couchbase
       # @raise [Error::BucketExists]
       def create_bucket(settings, options = CreateBucketOptions.new)
         @backend.bucket_create(
-            {
+          {
 
-                name: settings.name,
-                flush_enabled: settings.flush_enabled,
-                ram_quota_mb: settings.ram_quota_mb,
-                num_replicas: settings.num_replicas,
-                replica_indexes: settings.replica_indexes,
-                bucket_type: settings.bucket_type,
-                ejection_policy: settings.ejection_policy,
-                max_expiry: settings.max_expiry,
-                compression_mode: settings.compression_mode,
-                conflict_resolution_type: settings.conflict_resolution_type,
-            }, options.timeout
+            name: settings.name,
+            flush_enabled: settings.flush_enabled,
+            ram_quota_mb: settings.ram_quota_mb,
+            num_replicas: settings.num_replicas,
+            replica_indexes: settings.replica_indexes,
+            bucket_type: settings.bucket_type,
+            ejection_policy: settings.ejection_policy,
+            max_expiry: settings.max_expiry,
+            compression_mode: settings.compression_mode,
+            conflict_resolution_type: settings.conflict_resolution_type,
+          }, options.timeout
         )
       end
 
@@ -62,17 +62,17 @@ module Couchbase
       # @raise [Error::BucketNotFound]
       def update_bucket(settings, options = UpdateBucketOptions.new)
         @backend.bucket_update(
-            {
-                name: settings.name,
-                flush_enabled: settings.flush_enabled,
-                ram_quota_mb: settings.ram_quota_mb,
-                num_replicas: settings.num_replicas,
-                replica_indexes: settings.replica_indexes,
-                bucket_type: settings.bucket_type,
-                ejection_policy: settings.ejection_policy,
-                max_expiry: settings.max_expiry,
-                compression_mode: settings.compression_mode,
-            }, options.timeout
+          {
+            name: settings.name,
+            flush_enabled: settings.flush_enabled,
+            ram_quota_mb: settings.ram_quota_mb,
+            num_replicas: settings.num_replicas,
+            replica_indexes: settings.replica_indexes,
+            bucket_type: settings.bucket_type,
+            ejection_policy: settings.ejection_policy,
+            max_expiry: settings.max_expiry,
+            compression_mode: settings.compression_mode,
+          }, options.timeout
         )
       end
 

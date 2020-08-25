@@ -17,7 +17,7 @@ require "couchbase/errors"
 module Couchbase
   module Management
     class QueryIndexManager
-      alias_method :inspect, :to_s
+      alias inspect to_s
 
       # @param [Couchbase::Backend] backend
       def initialize(backend)
@@ -64,12 +64,12 @@ module Couchbase
       # @raise [Error::IndexExists]
       def create_index(bucket_name, index_name, fields, options = CreateIndexOptions.new)
         @backend.query_index_create(bucket_name, index_name, fields, {
-            ignore_if_exists: options.ignore_if_exists,
-            condition: options.condition,
-            deferred: options.deferred,
-            num_replicas: options.num_replicas,
-            scope_name: options.scope_name,
-            collection_name: options.collection_name,
+          ignore_if_exists: options.ignore_if_exists,
+          condition: options.condition,
+          deferred: options.deferred,
+          num_replicas: options.num_replicas,
+          scope_name: options.scope_name,
+          collection_name: options.collection_name,
         }, options.timeout)
       end
 
@@ -84,11 +84,11 @@ module Couchbase
       # @raise [Error::IndexExists]
       def create_primary_index(bucket_name, options = CreatePrimaryIndexOptions.new)
         @backend.query_index_create_primary(bucket_name, {
-            ignore_if_exists: options.ignore_if_exists,
-            deferred: options.deferred,
-            num_replicas: options.num_replicas,
-            scope_name: options.scope_name,
-            collection_name: options.collection_name,
+          ignore_if_exists: options.ignore_if_exists,
+          deferred: options.deferred,
+          num_replicas: options.num_replicas,
+          scope_name: options.scope_name,
+          collection_name: options.collection_name,
         }, options.timeout)
       end
 
@@ -104,9 +104,9 @@ module Couchbase
       # @raise [Error::IndexNotFound]
       def drop_index(bucket_name, index_name, options = DropIndexOptions.new)
         @backend.query_index_drop(bucket_name, index_name, {
-            ignore_if_does_not_exist: options.ignore_if_does_not_exist,
-            scope_name: options.scope_name,
-            collection_name: options.collection_name,
+          ignore_if_does_not_exist: options.ignore_if_does_not_exist,
+          scope_name: options.scope_name,
+          collection_name: options.collection_name,
         }, options.timeout)
         true
       end
@@ -122,10 +122,10 @@ module Couchbase
       # @raise [Error::IndexNotFound]
       def drop_primary_index(bucket_name, options = DropPrimaryIndexOptions.new)
         @backend.query_index_drop_primary(bucket_name, {
-            ignore_if_does_not_exist: options.ignore_if_does_not_exist,
-            index_name: options.index_name,
-            scope_name: options.scope_name,
-            collection_name: options.collection_name,
+          ignore_if_does_not_exist: options.ignore_if_does_not_exist,
+          index_name: options.index_name,
+          scope_name: options.scope_name,
+          collection_name: options.collection_name,
         }, options.timeout)
         true
       end
@@ -152,7 +152,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def watch_indexes(bucket_name, index_names, timeout, options = WatchIndexesOptions.new)
-        @backend.query_index_watch(bucket_name, index_names, timeout, {})
+        @backend.query_index_watch(bucket_name, index_names, timeout, {
+          watch_primary: options.watch_primary,
+        })
       end
 
       class GetAllIndexOptions
@@ -293,7 +295,7 @@ module Couchbase
 
       # @return [Boolean] true if this is a primary index
       attr_accessor :is_primary
-      alias_method :primary?, :is_primary
+      alias primary? is_primary
 
       # @return [:gsi, :view] type of the index
       attr_accessor :type
@@ -322,7 +324,6 @@ module Couchbase
       # @note the query service can present the key in a slightly different manner from when you declared the index: for
       #   instance, it will show the indexed fields in an escaped format (surrounded by backticks).
       attr_accessor :index_key
-
 
       # @return [String] the string representation of the index's condition (the WHERE clause of the index),
       #   or an empty Optional if no condition was set.

@@ -27,7 +27,7 @@ require "couchbase/analytics_options"
 
 module Couchbase
   class Cluster
-    alias_method :inspect, :to_s
+    alias inspect to_s
 
     # Connect to the Couchbase cluster
     #
@@ -56,30 +56,23 @@ module Couchbase
     # @return [QueryResult]
     def query(statement, options = QueryOptions.new)
       resp = @backend.document_query(statement, {
-          timeout: options.timeout,
-          adhoc: options.adhoc,
-          client_context_id: options.client_context_id,
-          max_parallelism: options.max_parallelism,
-          readonly: options.readonly,
-          scan_wait: options.scan_wait,
-          scan_cap: options.scan_cap,
-          pipeline_batch: options.pipeline_batch,
-          pipeline_cap: options.pipeline_cap,
-          metrics: options.metrics,
-          profile: options.profile,
-          positional_parameters: options.export_positional_parameters,
-          named_parameters: options.export_named_parameters,
-          scope_qualifier: options.scope_qualifier,
-          raw_parameters: options.raw_parameters,
-          scan_consistency: options.scan_consistency,
-          mutation_state: (options.mutation_state.tokens.map { |t|
-            {
-                bucket_name: t.bucket_name,
-                partition_id: t.partition_id,
-                partition_uuid: t.partition_uuid,
-                sequence_number: t.sequence_number,
-            }
-          } if options.mutation_state),
+        timeout: options.timeout,
+        adhoc: options.adhoc,
+        client_context_id: options.client_context_id,
+        max_parallelism: options.max_parallelism,
+        readonly: options.readonly,
+        scan_wait: options.scan_wait,
+        scan_cap: options.scan_cap,
+        pipeline_batch: options.pipeline_batch,
+        pipeline_cap: options.pipeline_cap,
+        metrics: options.metrics,
+        profile: options.profile,
+        positional_parameters: options.export_positional_parameters,
+        named_parameters: options.export_named_parameters,
+        scope_qualifier: options.scope_qualifier,
+        raw_parameters: options.raw_parameters,
+        scan_consistency: options.scan_consistency,
+        mutation_state: options.mutation_state&.to_a,
       })
 
       QueryResult.new do |res|
@@ -115,14 +108,14 @@ module Couchbase
     # @return [AnalyticsResult]
     def analytics_query(statement, options = AnalyticsOptions.new)
       resp = @backend.document_analytics(statement, {
-          timeout: options.timeout,
-          client_context_id: options.client_context_id,
-          scan_consistency: options.scan_consistency,
-          readonly: options.readonly,
-          priority: options.priority,
-          positional_parameters: options.export_positional_parameters,
-          named_parameters: options.export_named_parameters,
-          raw_parameters: options.raw_parameters,
+        timeout: options.timeout,
+        client_context_id: options.client_context_id,
+        scan_consistency: options.scan_consistency,
+        readonly: options.readonly,
+        priority: options.priority,
+        positional_parameters: options.export_positional_parameters,
+        named_parameters: options.export_named_parameters,
+        raw_parameters: options.raw_parameters,
       })
 
       AnalyticsResult.new do |res|
@@ -159,24 +152,17 @@ module Couchbase
     # @return [SearchResult]
     def search_query(index_name, query, options = SearchOptions.new)
       resp = @backend.document_search(index_name, JSON.generate(query), {
-          timeout: options.timeout,
-          limit: options.limit,
-          skip: options.skip,
-          explain: options.explain,
-          highlight_style: options.highlight_style,
-          highlight_fields: options.highlight_fields,
-          fields: options.fields,
-          sort: (options.sort.map { |v| JSON.generate(v) } if options.sort),
-          facets: (options.facets.map { |(k, v)| [k, JSON.generate(v)] } if options.facets),
-          scan_consistency: options.scan_consistency,
-          mutation_state: (options.mutation_state.tokens.map { |t|
-            {
-                bucket_name: t.bucket_name,
-                partition_id: t.partition_id,
-                partition_uuid: t.partition_uuid,
-                sequence_number: t.sequence_number,
-            }
-          } if options.mutation_state),
+        timeout: options.timeout,
+        limit: options.limit,
+        skip: options.skip,
+        explain: options.explain,
+        highlight_style: options.highlight_style,
+        highlight_fields: options.highlight_fields,
+        fields: options.fields,
+        sort: options.sort&.map { |v| JSON.generate(v) },
+        facets: options.facets&.map { |(k, v)| [k, JSON.generate(v)] },
+        scan_consistency: options.scan_consistency,
+        mutation_state: options.mutation_state&.to_a,
       })
 
       SearchResult.new do |res|
@@ -196,16 +182,16 @@ module Couchbase
             row.score = r[:score]
             row.fragments = r[:fragments]
             row.locations = SearchRowLocations.new(
-                r[:locations].map do |loc|
-                  SearchRowLocation.new do |location|
-                    location.field = loc[:field]
-                    location.term = loc[:term]
-                    location.position = loc[:position]
-                    location.start_offset = loc[:start_offset]
-                    location.end_offset = loc[:end_offset]
-                    location.array_positions = loc[:array_positions]
-                  end
+              r[:locations].map do |loc|
+                SearchRowLocation.new do |location|
+                  location.field = loc[:field]
+                  location.term = loc[:term]
+                  location.position = loc[:position]
+                  location.start_offset = loc[:start_offset]
+                  location.end_offset = loc[:end_offset]
+                  location.array_positions = loc[:array_positions]
                 end
+              end
             )
             row.instance_variable_set("@fields", r[:fields])
             row.explanation = JSON.parse(r[:explanation]) if r[:explanation]
@@ -217,35 +203,35 @@ module Couchbase
                     when SearchFacet::SearchFacetTerm
                       SearchFacetResult::TermFacetResult.new do |f|
                         f.terms =
-                            if v[:terms]
-                              v[:terms].map do |t|
-                                SearchFacetResult::TermFacetResult::TermFacet.new(t[:term], t[:count])
-                              end
-                            else
-                              []
+                          if v[:terms]
+                            v[:terms].map do |t|
+                              SearchFacetResult::TermFacetResult::TermFacet.new(t[:term], t[:count])
                             end
+                          else
+                            []
+                          end
                       end
                     when SearchFacet::SearchFacetDateRange
                       SearchFacetResult::DateRangeFacetResult.new do |f|
                         f.date_ranges =
-                            if v[:date_ranges]
-                              v[:date_ranges].map do |r|
-                                SearchFacetResult::DateRangeFacetResult::DateRangeFacet.new(r[:name], r[:count], r[:start_time], r[:end_time])
-                              end
-                            else
-                              []
+                          if v[:date_ranges]
+                            v[:date_ranges].map do |r|
+                              SearchFacetResult::DateRangeFacetResult::DateRangeFacet.new(r[:name], r[:count], r[:start_time], r[:end_time])
                             end
+                          else
+                            []
+                          end
                       end
                     when SearchFacet::SearchFacetNumericRange
                       SearchFacetResult::NumericRangeFacetResult.new do |f|
                         f.numeric_ranges =
-                            if v[:numeric_ranges]
-                              v[:numeric_ranges].map do |r|
-                                SearchFacetResult::NumericRangeFacetResult::NumericRangeFacet.new(r[:name], r[:count], r[:min], r[:max])
-                              end
-                            else
-                              []
+                          if v[:numeric_ranges]
+                            v[:numeric_ranges].map do |r|
+                              SearchFacetResult::NumericRangeFacetResult::NumericRangeFacet.new(r[:name], r[:count], r[:min], r[:max])
                             end
+                          else
+                            []
+                          end
                       end
                     else
                       next # ignore unknown facet result
@@ -322,8 +308,10 @@ module Couchbase
     # @param [ClusterOptions] options custom options when creating the cluster connection
     def initialize(connection_string, options)
       raise ArgumentError, "options must have authenticator configured" unless options.authenticator
+
       username = options.authenticator.username
       raise ArgumentError, "missing username" unless username
+
       password = options.authenticator.password
       raise ArgumentError, "missing password" unless password
 

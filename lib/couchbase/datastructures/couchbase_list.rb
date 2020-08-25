@@ -63,14 +63,14 @@ module Couchbase
       # @return [Integer] returns the number of elements in the list.
       def length
         result = @collection.lookup_in(@id, [
-            LookupInSpec.count("")
-        ], @options.lookup_in_options)
+                                         LookupInSpec.count(""),
+                                       ], @options.lookup_in_options)
         result.content(0)
       rescue Error::DocumentNotFound
         0
       end
 
-      alias_method :size, :length
+      alias size length
 
       # @return [Boolean] returns true if list is empty
       def empty?
@@ -84,12 +84,12 @@ module Couchbase
       # @return [CouchbaseList]
       def push(*obj)
         @collection.mutate_in(@id, [
-            MutateInSpec.array_append("", obj)
-        ], @options.mutate_in_options)
+                                MutateInSpec.array_append("", obj),
+                              ], @options.mutate_in_options)
         self
       end
 
-      alias_method :append, :push
+      alias append push
 
       # Prepends objects to the front of the list, moving other elements upwards
       #
@@ -97,12 +97,12 @@ module Couchbase
       # @return [CouchbaseList]
       def unshift(*obj)
         @collection.mutate_in(@id, [
-            MutateInSpec.array_prepend("", obj)
-        ], @options.mutate_in_options)
+                                MutateInSpec.array_prepend("", obj),
+                              ], @options.mutate_in_options)
         self
       end
 
-      alias_method :prepend, :unshift
+      alias prepend unshift
 
       # Inserts the given values before the element with the given +index+.
       #
@@ -111,8 +111,8 @@ module Couchbase
       # @return [CouchbaseList]
       def insert(index, *obj)
         @collection.mutate_in(@id, [
-            MutateInSpec.array_insert("[#{index.to_i}]", obj)
-        ])
+                                MutateInSpec.array_insert("[#{index.to_i}]", obj),
+                              ])
         self
       end
 
@@ -122,14 +122,14 @@ module Couchbase
       # @return [Object, nil]
       def at(index)
         result = @collection.lookup_in(@id, [
-            LookupInSpec.get("[#{index.to_i}]")
-        ], @options.lookup_in_options)
+                                         LookupInSpec.get("[#{index.to_i}]"),
+                                       ], @options.lookup_in_options)
         result.exists?(0) ? result.content(0) : nil
       rescue Error::DocumentNotFound
         nil
       end
 
-      alias_method :[], :at
+      alias [] at
 
       # Deletes the element at the specified +index+, returning that element, or nil
       #
@@ -137,8 +137,8 @@ module Couchbase
       # @return [CouchbaseList]
       def delete_at(index)
         @collection.mutate_in(@id, [
-            MutateInSpec.remove("[#{index.to_i}]")
-        ])
+                                MutateInSpec.remove("[#{index.to_i}]"),
+                              ])
         self
       rescue Error::DocumentNotFound
         self

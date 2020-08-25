@@ -24,7 +24,7 @@ end
 task :compile do
   require 'tempfile'
   Dir.chdir(Dir.tmpdir) do
-    sh "ruby #{File.join(__dir__, "ext", "extconf.rb")}"
+    sh "ruby #{File.join(__dir__, 'ext', 'extconf.rb')}"
   end
 end
 

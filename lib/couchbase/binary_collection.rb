@@ -16,7 +16,7 @@ require "couchbase/binary_collection_options"
 
 module Couchbase
   class BinaryCollection
-    alias_method :inspect, :to_s
+    alias inspect to_s
 
     # @param [Couchbase::Collection] collection parent collection
     def initialize(collection)
@@ -52,10 +52,10 @@ module Couchbase
       resp = @backend.document_increment(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}", id,
                                          options.timeout,
                                          {
-                                             delta: options.delta,
-                                             initial_value: options.initial,
-                                             expiry: options.expiry,
-                                             durability_level: options.durability_level,
+                                           delta: options.delta,
+                                           initial_value: options.initial,
+                                           expiry: options.expiry,
+                                           durability_level: options.durability_level,
                                          })
       CounterResult.new do |res|
         res.cas = resp[:cas]
@@ -74,10 +74,10 @@ module Couchbase
       resp = @backend.document_decrement(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}", id,
                                          options.timeout,
                                          {
-                                             delta: options.delta,
-                                             initial_value: options.initial,
-                                             expiry: options.expiry,
-                                             durability_level: options.durability_level,
+                                           delta: options.delta,
+                                           initial_value: options.initial,
+                                           expiry: options.expiry,
+                                           durability_level: options.durability_level,
                                          })
       CounterResult.new do |res|
         res.cas = resp[:cas]

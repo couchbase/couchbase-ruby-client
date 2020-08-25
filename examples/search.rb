@@ -1,6 +1,20 @@
-require 'couchbase'
+#    Copyright 2020 Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 
-include Couchbase
+require "couchbase"
+
+include Couchbase # rubocop:disable Style/MixinUsage for brevity
 
 options = Cluster::ClusterOptions.new
 options.authenticate("Administrator", "password")
@@ -18,91 +32,91 @@ rescue Error::IndexNotFound
   index.source_type = "couchbase"
   index.source_name = "beer-sample"
   index.params = {
-      mapping: {
-          default_datetime_parser: "dateTimeOptional",
-          types: {
-              "beer" => {
-                  properties: {
-                      "abv" => {
-                          fields: [
-                              {
-                                  name: "abv",
-                                  type: "number",
-                                  include_in_all: true,
-                                  index: true,
-                                  store: true,
-                                  docvalues: true,
-                              }
-                          ]
-                      },
-                      "category" => {
-                          fields: [
-                              {
-                                  name: "category",
-                                  type: "text",
-                                  include_in_all: true,
-                                  include_term_vectors: true,
-                                  index: true,
-                                  store: true,
-                                  docvalues: true,
-                              }
-                          ]
-                      },
-                      "description" => {
-                          fields: [
-                              {
-                                  name: "description",
-                                  type: "text",
-                                  include_in_all: true,
-                                  include_term_vectors: true,
-                                  index: true,
-                                  store: true,
-                                  docvalues: true,
-                              }
-                          ]
-                      },
-                      "name" => {
-                          fields: [
-                              {
-                                  name: "name",
-                                  type: "text",
-                                  include_in_all: true,
-                                  include_term_vectors: true,
-                                  index: true,
-                                  store: true,
-                                  docvalues: true,
-                              }
-                          ]
-                      },
-                      "style" => {
-                          fields: [
-                              {
-                                  name: "style",
-                                  type: "text",
-                                  include_in_all: true,
-                                  include_term_vectors: true,
-                                  index: true,
-                                  store: true,
-                                  docvalues: true,
-                              }
-                          ]
-                      },
-                      "updated" => {
-                          fields: [
-                              {
-                                  name: "updated",
-                                  type: "datetime",
-                                  include_in_all: true,
-                                  index: true,
-                                  store: true,
-                                  docvalues: true,
-                              }
-                          ]
-                      },
-                  }
-              }
-          }
-      }
+    mapping: {
+      default_datetime_parser: "dateTimeOptional",
+      types: {
+        "beer" => {
+          properties: {
+            "abv" => {
+              fields: [
+                {
+                  name: "abv",
+                  type: "number",
+                  include_in_all: true,
+                  index: true,
+                  store: true,
+                  docvalues: true,
+                },
+              ],
+            },
+            "category" => {
+              fields: [
+                {
+                  name: "category",
+                  type: "text",
+                  include_in_all: true,
+                  include_term_vectors: true,
+                  index: true,
+                  store: true,
+                  docvalues: true,
+                },
+              ],
+            },
+            "description" => {
+              fields: [
+                {
+                  name: "description",
+                  type: "text",
+                  include_in_all: true,
+                  include_term_vectors: true,
+                  index: true,
+                  store: true,
+                  docvalues: true,
+                },
+              ],
+            },
+            "name" => {
+              fields: [
+                {
+                  name: "name",
+                  type: "text",
+                  include_in_all: true,
+                  include_term_vectors: true,
+                  index: true,
+                  store: true,
+                  docvalues: true,
+                },
+              ],
+            },
+            "style" => {
+              fields: [
+                {
+                  name: "style",
+                  type: "text",
+                  include_in_all: true,
+                  include_term_vectors: true,
+                  index: true,
+                  store: true,
+                  docvalues: true,
+                },
+              ],
+            },
+            "updated" => {
+              fields: [
+                {
+                  name: "updated",
+                  type: "datetime",
+                  include_in_all: true,
+                  index: true,
+                  store: true,
+                  docvalues: true,
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
   }
 
   cluster.search_indexes.upsert_index(index)
@@ -112,6 +126,7 @@ rescue Error::IndexNotFound
     sleep(1)
     num = cluster.search_indexes.get_indexed_documents_count(search_index_name)
     break if num_indexed == num
+
     num_indexed = num
     puts "indexing #{search_index_name.inspect}: #{num_indexed} documents"
   end
@@ -125,24 +140,24 @@ options.fields = %w[name]
 options.highlight_style = :html
 options.highlight_fields = %w[name description]
 options.sort = [
-    Cluster::SearchSort.field("abv") do |spec|
-      spec.type = :number
-    end,
-    Cluster::SearchSort.score do |spec|
-      spec.desc = true
-    end,
-    "category",
-    Cluster::SearchSort.id,
+  Cluster::SearchSort.field("abv") do |spec|
+    spec.type = :number
+  end,
+  Cluster::SearchSort.score do |spec|
+    spec.desc = true
+  end,
+  "category",
+  Cluster::SearchSort.id,
 ]
 
 res = cluster.search_query(search_index_name, query, options)
 res.rows.each_with_index do |row, idx|
   document = row.fields
-  puts "\n#{idx}. #{document["name"]} (id: #{row.id.inspect})"
+  puts "\n#{idx}. #{document['name']} (id: #{row.id.inspect})"
   row.fragments.each do |field, fragments|
     puts "  * #{field}"
     fragments.each do |fragment|
-      puts "      - #{fragment.gsub(/\n/, ' ')}"
+      puts "      - #{fragment.tr("\n", ' ')}"
     end
   end
 end
@@ -171,17 +186,17 @@ options.facets["by_strength"] = numeric_facet
 
 res = cluster.search_query(search_index_name, query, options)
 
-puts "\n==== Top 3 beer names (out of #{res.facets["by_name"].total}):"
+puts "\n==== Top 3 beer names (out of #{res.facets['by_name'].total}):"
 res.facets["by_name"].terms.each_with_index do |term, idx|
   puts "#{idx}. #{term.term} (#{term.count} records)"
 end
 
-puts "\n==== Beer by strength (out of #{res.facets["by_strength"].total}):"
+puts "\n==== Beer by strength (out of #{res.facets['by_strength'].total}):"
 res.facets["by_strength"].numeric_ranges.each_with_index do |range, idx|
   puts "#{idx}. #{range.name}, ABV: [#{range.min}..#{range.max}] (#{range.count} records)"
 end
 
-puts "\n==== The most recently updated (out of #{res.facets["by_time"].total}):"
+puts "\n==== The most recently updated (out of #{res.facets['by_time'].total}):"
 res.facets["by_time"].date_ranges.each_with_index do |range, idx|
   puts "#{idx}. #{range.name} [#{range.start_time}..#{range.end_time}] (#{range.count} records)"
 end

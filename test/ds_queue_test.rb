@@ -31,15 +31,11 @@ module Couchbase
         @cluster.disconnect
       end
 
-      def uniq_id(name)
-        "#{name}_#{Time.now.to_f}"
-      end
-
       def test_new_queue_empty
         doc_id = uniq_id(:foo)
         queue = CouchbaseQueue.new(doc_id, @collection)
         assert_equal 0, queue.size
-        assert queue.empty?
+        assert_empty queue
       end
 
       def test_new_queue_yields_no_elements
@@ -71,7 +67,7 @@ module Couchbase
         doc_id = uniq_id(:foo)
         queue = CouchbaseQueue.new(doc_id, @collection)
 
-        assert queue.empty?
+        assert_empty queue
         assert_nil queue.pop
       end
     end

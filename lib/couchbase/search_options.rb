@@ -304,7 +304,8 @@ module Couchbase
         #
         # @note The lower boundary is considered inclusive by default on the server side.
         #
-        # @param [Time, String] time_point start time. When +Time+ object is passed {#date_time_parser} must be +nil+ (to use server default)
+        # @param [Time, String] time_point start time. When +Time+ object is passed {#date_time_parser} must be +nil+ (to use server
+        #   default)
         # @param [Boolean] inclusive
         def start_time(time_point, inclusive = nil)
           @start_time = time_point
@@ -332,13 +333,11 @@ module Couchbase
           yield self if block_given?
         end
 
-        DATE_FORMAT_RFC3339 = "%Y-%m-%dT%H:%M:%S%:z"
+        DATE_FORMAT_RFC3339 = "%Y-%m-%dT%H:%M:%S%:z".freeze
 
         # @return [String]
         def to_json(*args)
-          if @start_time.nil? && @end_time.nil?
-            raise ArgumentError, "either start_time or end_time must be set for DateRangeQuery"
-          end
+          raise ArgumentError, "either start_time or end_time must be set for DateRangeQuery" if @start_time.nil? && @end_time.nil?
 
           data = {}
           data["boost"] = boost if boost
@@ -415,9 +414,7 @@ module Couchbase
 
         # @return [String]
         def to_json(*args)
-          if @min.nil? && @max.nil?
-            raise ArgumentError, "either min or max must be set for NumericRangeQuery"
-          end
+          raise ArgumentError, "either min or max must be set for NumericRangeQuery" if @min.nil? && @max.nil?
 
           data = {}
           data["boost"] = boost if boost
@@ -485,9 +482,7 @@ module Couchbase
 
         # @return [String]
         def to_json(*args)
-          if @min.nil? && @max.nil?
-            raise ArgumentError, "either min or max must be set for TermRangeQuery"
-          end
+          raise ArgumentError, "either min or max must be set for TermRangeQuery" if @min.nil? && @max.nil?
 
           data = {}
           data["boost"] = boost if boost
@@ -540,8 +535,8 @@ module Couchbase
         # @return [String]
         def to_json(*args)
           data = {
-              "location" => [@longitude, @latitude],
-              "distance" => @distance
+            "location" => [@longitude, @latitude],
+            "distance" => @distance,
           }
           data["boost"] = boost if boost
           data["field"] = field if field
@@ -589,8 +584,8 @@ module Couchbase
         # @return [String]
         def to_json(*args)
           data = {
-              "top_left" => [@top_left_longitude, @top_left_latitude],
-              "bottom_right" => [@bottom_right_longitude, @bottom_right_latitude]
+            "top_left" => [@top_left_longitude, @top_left_latitude],
+            "bottom_right" => [@bottom_right_longitude, @bottom_right_latitude],
           }
           data["boost"] = boost if boost
           data["field"] = field if field
@@ -633,6 +628,7 @@ module Couchbase
         # @return [String]
         def to_json(*args)
           raise ArgumentError, "compound conjunction query must have sub-queries" if @queries.nil? || @queries.empty?
+
           data = {"conjuncts" => @queries.uniq}
           data["boost"] = boost if boost
           data.to_json(*args)
@@ -677,9 +673,11 @@ module Couchbase
         # @return [String]
         def to_json(*args)
           raise ArgumentError, "compound disjunction query must have sub-queries" if @queries.nil? || @queries.empty?
+
           data = {"disjuncts" => @queries.uniq}
           if min
             raise ArgumentError, "disjunction query has fewer sub-queries than configured minimum" if @queries.size < min
+
             data["min"] = min
           end
           data["boost"] = boost if boost
@@ -739,6 +737,7 @@ module Couchbase
           if @must.empty? && @must_not.empty? && @should.empty?
             raise ArgumentError, "BooleanQuery must have at least one non-empty sub-query"
           end
+
           data = {}
           data["must"] = @must unless @must.empty?
           data["must_not"] = @must_not unless @must_not.empty?
@@ -758,7 +757,8 @@ module Couchbase
         TermQuery.new(term, &block)
       end
 
-      # A query that looks for **exact** matches of the term in the index (no analyzer, no stemming). Useful to check what the actual content of the index is. It can also apply fuzziness on the term. Usual better alternative is `MatchQuery`.
+      # A query that looks for **exact** matches of the term in the index (no analyzer, no stemming). Useful to check what the actual
+      # content of the index is. It can also apply fuzziness on the term. Usual better alternative is `MatchQuery`.
       class TermQuery < SearchQuery
         # @return [Float]
         attr_accessor :boost
@@ -840,7 +840,8 @@ module Couchbase
         PhraseQuery.new(*terms, &block)
       end
 
-      # A query that looks for **exact** match of several terms (in the exact order) in the index. Usual better alternative is {MatchPhraseQuery}.
+      # A query that looks for **exact** match of several terms (in the exact order) in the index. Usual better alternative is
+      # {MatchPhraseQuery}.
       class PhraseQuery < SearchQuery
         # @return [Float]
         attr_accessor :boost
@@ -958,6 +959,7 @@ module Couchbase
 
         # @yieldparam [SearchSortScore]
         def initialize
+          super
           yield self if block_given?
         end
 
@@ -973,6 +975,7 @@ module Couchbase
 
         # @yieldparam [SearchSortId]
         def initialize
+          super
           yield self if block_given?
         end
 
@@ -1001,6 +1004,7 @@ module Couchbase
         # @param [String] field the name of the filed for ordering
         # @yieldparam [SearchSortField]
         def initialize(field)
+          super
           @field = field
           yield self if block_given?
         end
@@ -1032,6 +1036,7 @@ module Couchbase
         # @param [Float] latitude
         # @yieldparam [SearchSortGeoDistance]
         def initialize(field, longitude, latitude)
+          super()
           @field = field
           @longitude = longitude
           @latitude = latitude
@@ -1119,19 +1124,20 @@ module Couchbase
 
         # @param [String] field name of the field
         def initialize(field)
+          super
           @field = field
           @ranges = []
           yield self if block_given?
         end
 
-        DATE_FORMAT_RFC3339 = "%Y-%m-%dT%H:%M:%S%:z"
+        DATE_FORMAT_RFC3339 = "%Y-%m-%dT%H:%M:%S%:z".freeze
 
         # @param [String] name the name of the range
         # @param [Time, String, nil] start_time lower bound of the range (pass +nil+ if there is no lower bound)
         # @param [Time, String, nil] end_time lower bound of the range (pass +nil+ if there is no lower bound)
         def add(name, start_time, end_time)
-          start_time = start_time.strftime(DATE_FORMAT_RFC3339) if start_time && start_time.respond_to?(:strftime)
-          end_time = end_time.strftime(DATE_FORMAT_RFC3339) if end_time && end_time.respond_to?(:strftime)
+          start_time = start_time.strftime(DATE_FORMAT_RFC3339) if start_time.respond_to?(:strftime)
+          end_time = end_time.strftime(DATE_FORMAT_RFC3339) if end_time.respond_to?(:strftime)
           @ranges.append({name: name, start: start_time, end: end_time})
         end
 
@@ -1161,7 +1167,8 @@ module Couchbase
       # @return [Array<String>] list of the fields to highlight
       attr_accessor :highlight_fields
 
-      # @return [Array<String>] list of field values which should be retrieved for result documents, provided they were stored while indexing
+      # @return [Array<String>] list of field values which should be retrieved for result documents, provided they were stored while
+      #   indexing
       attr_accessor :fields
 
       # @return [:not_bounded] specifies level of consistency for the query
@@ -1201,7 +1208,8 @@ module Couchbase
       #
       # The list might contain either strings or special objects, that derive from {SearchSort}.
       #
-      # In case of String, the value represents the name of the field with optional +-+ in front of the name, which will turn on descending mode for this field. One field is special is +"_score"+ which will sort results by their score.
+      # In case of String, the value represents the name of the field with optional +-+ in front of the name, which will turn on descending
+      # mode for this field. One field is special is +"_score"+ which will sort results by their score.
       #
       # When nothing specified, the Server will order results by their score descending, which is equivalent of +"-_score"+.
       #
@@ -1218,6 +1226,7 @@ module Couchbase
 
       # @yieldparam [SearchOptions] self
       def initialize
+        super
         @explain = false
         @transcoder = JsonTranscoder.new
         @scan_consistency = nil
@@ -1272,31 +1281,31 @@ module Couchbase
       #
       # @return [Array<String>]
       def fields
-        @locations.map { |location| location.field }.uniq
+        @locations.map(&:field).uniq
       end
 
       # Lists all terms in this locations, considering all fields
       #
       # @return [Array<String>]
       def terms
-        @locations.map { |location| location.term }.uniq
+        @locations.map(&:term).uniq
       end
 
       # Lists the terms for a given field
       #
       # @return [Array<String>]
       def terms_for_field(name)
-        get_for_field(name).map { |location| location.term }.uniq
+        get_for_field(name).map(&:term).uniq
       end
 
       # @param [Array<SearchRowLocation>] locations
       def initialize(locations)
+        super()
         @locations = locations
       end
     end
 
-    # An individual facet result has both metadata and details, as each facet can define ranges into which results are
-    # categorized
+    # An individual facet result has both metadata and details, as each facet can define ranges into which results are categorized
     class SearchFacetResult
       # @return [String]
       attr_accessor :name
@@ -1323,6 +1332,7 @@ module Couchbase
 
         # @yieldparam [TermFacetResult] self
         def initialize
+          super
           yield self if block_given?
         end
 
@@ -1334,6 +1344,7 @@ module Couchbase
           attr_reader :count
 
           def initialize(term, count)
+            super()
             @term = term
             @count = count
           end
@@ -1350,6 +1361,7 @@ module Couchbase
 
         # @yieldparam [DateRangeFacetResult] self
         def initialize
+          super
           yield self if block_given?
         end
 
@@ -1385,6 +1397,7 @@ module Couchbase
 
         # @yieldparam [NumericRangeFacetResult] self
         def initialize
+          super
           yield self if block_given?
         end
 

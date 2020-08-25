@@ -31,15 +31,11 @@ module Couchbase
         @cluster.disconnect
       end
 
-      def uniq_id(name)
-        "#{name}_#{Time.now.to_f}"
-      end
-
       def test_new_list_empty
         doc_id = uniq_id(:foo)
         list = CouchbaseList.new(doc_id, @collection)
         assert_equal 0, list.size
-        assert list.empty?
+        assert_empty list
       end
 
       def test_new_list_yields_no_elements
@@ -63,11 +59,11 @@ module Couchbase
         list = CouchbaseList.new(doc_id, @collection)
         list.push(1, 2, 3)
         assert_equal 3, list.size
-        refute list.empty?
+        refute_empty list
 
         list = CouchbaseList.new(doc_id, @collection)
         assert_equal 3, list.size
-        refute list.empty?
+        refute_empty list
       end
 
       def test_unshift_creates_new_list
@@ -75,11 +71,11 @@ module Couchbase
         list = CouchbaseList.new(doc_id, @collection)
         list.unshift(1, 2, 3)
         assert_equal 3, list.size
-        refute list.empty?
+        refute_empty list
 
         list = CouchbaseList.new(doc_id, @collection)
         assert_equal 3, list.size
-        refute list.empty?
+        refute_empty list
       end
 
       def test_clear_drops_the_list
@@ -92,7 +88,7 @@ module Couchbase
         assert_raises(Error::DocumentNotFound) do
           @collection.get(doc_id)
         end
-        assert list.empty?
+        assert_empty list
       end
 
       def test_at_returns_last_entry

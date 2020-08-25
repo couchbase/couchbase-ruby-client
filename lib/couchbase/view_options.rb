@@ -16,7 +16,6 @@ require 'json'
 
 module Couchbase
   class Bucket
-
     class ViewOptions
       # @return [Integer] Timeout in milliseconds
       attr_accessor :timeout
