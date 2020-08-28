@@ -47,7 +47,8 @@ cmake_flags << "-DOPENSSL_ROOT_DIR=#{openssl_root}" unless openssl_root.empty?
 project_path = File.expand_path(File.join(__dir__))
 build_dir = ENV['CB_EXT_BUILD_DIR'] ||
             File.join(Dir.tmpdir, "cb-#{build_type}-#{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}-#{SDK_VERSION}")
-FileUtils.mkdir_p(build_dir)
+FileUtils.rm_rf(build_dir, verbose: true) unless ENV['CB_PRESERVE_BUILD_DIR']
+FileUtils.mkdir_p(build_dir, verbose: true)
 Dir.chdir(build_dir) do
   puts "-- build #{build_type} extension #{SDK_VERSION} for ruby #{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}"
   sys("cmake", *cmake_flags, project_path)
@@ -59,7 +60,7 @@ abort "ERROR: failed to build extension in #{extension_path}" unless File.file?(
 extension_name.gsub!(/\.dylib/, '.bundle')
 install_path = File.expand_path(File.join(__dir__, "..", "lib", "couchbase", extension_name))
 puts "-- copy extension to #{install_path}"
-FileUtils.cp(extension_path, install_path)
+FileUtils.cp(extension_path, install_path, verbose: true)
 ext_directory = File.expand_path(__dir__)
 create_makefile("libcouchbase")
 if ENV["CB_REMOVE_EXT_DIRECTORY"]
@@ -69,7 +70,7 @@ if ENV["CB_REMOVE_EXT_DIRECTORY"]
     .reject { |path| %w[. .. extconf.rb].include?(File.basename(path)) || File.basename(path).start_with?(".gem") }
     .each do |entry|
     puts "-- remove #{entry}"
-    FileUtils.rm_rf(entry)
+    FileUtils.rm_rf(entry, verbose: true)
   end
   File.truncate("#{ext_directory}/extconf.rb", 0)
   puts "-- truncate #{ext_directory}/extconf.rb"

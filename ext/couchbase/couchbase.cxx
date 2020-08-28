@@ -28,6 +28,8 @@
 #include <snappy.h>
 
 #include <version.hxx>
+#include <platform/terminate_handler.h>
+
 #include <cluster.hxx>
 #include <operations.hxx>
 
@@ -5503,6 +5505,8 @@ init_logger()
         auto levels = spdlog::cfg::helpers::extract_levels(env_val);
         spdlog::details::registry::instance().update_levels(std::move(levels));
     }
+
+    couchbase::platform::install_backtrace_terminate_handler();
 }
 
 extern "C" {

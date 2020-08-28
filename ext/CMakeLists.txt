@@ -8,6 +8,36 @@ if(CCACHE)
     set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE})
 endif()
 
+include(CMakePushCheckState)
+include(CheckSymbolExists)
+
+cmake_push_check_state(RESET)
+find_library(EXECINFO_LIBRARY NAMES execinfo)
+if(EXECINFO_LIBRARY)
+    set(CMAKE_REQUIRED_LIBRARIES "${EXECINFO_LIBRARY}")
+    list(APPEND PLATFORM_LIBRARIES "${EXECINFO_LIBRARY}")
+endif(EXECINFO_LIBRARY)
+check_symbol_exists(backtrace execinfo.h HAVE_BACKTRACE)
+cmake_pop_check_state()
+
+cmake_push_check_state(RESET)
+set(CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE")
+find_library(DL_LIBRARY NAMES dl)
+if(DL_LIBRARY)
+    set(CMAKE_REQUIRED_LIBRARIES "${DL_LIBRARY}")
+    list(APPEND PLATFORM_LIBRARIES "${DL_LIBRARY}")
+endif(DL_LIBRARY)
+check_symbol_exists(dladdr dlfcn.h HAVE_DLADDR)
+cmake_pop_check_state()
+
+if(HAVE_BACKTRACE)
+    add_definitions(-DHAVE_BACKTRACE=1)
+endif()
+
+if(HAVE_DLADDR)
+    add_definitions(-DHAVE_DLADDR=1)
+endif()
+
 add_subdirectory(third_party/gsl)
 add_subdirectory(third_party/json)
 add_subdirectory(third_party/spdlog)
@@ -90,6 +120,12 @@ else()
                       -Wuseless-cast # warn if you perform a cast to the same type
         )
     endif()
+
+    if(HAVE_BACKTRACE OR HAVE_DLADDR)
+        target_compile_options(project_options INTERFACE -ggdb3)
+        target_link_libraries(project_options INTERFACE -rdynamic)
+        add_definitions(-D_GNU_SOURCE=1)
+    endif()
 endif()
 
 # Read more at https://wiki.wireshark.org/TLS
@@ -102,8 +138,10 @@ message(STATUS "OPENSSL_LIBRARIES: ${OPENSSL_LIBRARIES}")
 
 include_directories(${CMAKE_SOURCE_DIR}/couchbase)
 
-add_library(platform OBJECT couchbase/platform/string_hex.cc couchbase/platform/uuid.cc couchbase/platform/random.cc
-                            couchbase/platform/base64.cc)
+add_library(
+    platform OBJECT couchbase/platform/string_hex.cc couchbase/platform/uuid.cc couchbase/platform/random.cc
+                    couchbase/platform/base64.cc couchbase/platform/backtrace.c couchbase/platform/terminate_handler.cc)
+target_include_directories(platform PRIVATE ${PROJECT_BINARY_DIR}/generated)
 
 add_library(cbcrypto OBJECT couchbase/cbcrypto/cbcrypto.cc)
 
