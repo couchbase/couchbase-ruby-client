@@ -88,11 +88,10 @@ class dns_client
                       return handler({ ec1 });
                   }
 
-                  asio::ip::udp::endpoint sender_endpoint;
                   self->recv_buf_.resize(512);
                   self->udp_.async_receive_from(
                     asio::buffer(self->recv_buf_),
-                    sender_endpoint,
+                    self->udp_sender_,
                     [self, handler = std::forward<Handler>(handler)](std::error_code ec2, std::size_t bytes_transferred) mutable {
                         self->deadline_.cancel();
                         if (ec2) {
@@ -189,14 +188,15 @@ class dns_client
 
         asio::steady_timer deadline_;
         asio::ip::udp::socket udp_;
+        asio::ip::udp::endpoint udp_sender_{};
         asio::ip::tcp::socket tcp_;
 
         asio::ip::address address_;
         std::uint16_t port_;
 
-        std::vector<uint8_t> send_buf_;
+        std::vector<uint8_t> send_buf_{};
         std::uint16_t recv_buf_size_{ 0 };
-        std::vector<uint8_t> recv_buf_;
+        std::vector<uint8_t> recv_buf_{};
     };
 
     explicit dns_client(asio::io_context& ctx)

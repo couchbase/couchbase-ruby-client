@@ -53,7 +53,8 @@ class cluster
     {
         origin_ = origin;
         if (origin_.options().enable_dns_srv) {
-            return do_dns_srv(std::forward<Handler>(handler));
+            return asio::post(asio::bind_executor(
+              ctx_, [this, handler = std::forward<Handler>(handler)]() mutable { return do_dns_srv(std::forward<Handler>(handler)); }));
         }
         do_open(std::forward<Handler>(handler));
     }
