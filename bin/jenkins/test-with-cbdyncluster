@@ -14,6 +14,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+PROJECT_ROOT="$( cd "$(dirname "$0"/../..)" >/dev/null 2>&1 ; pwd -P )"
+
 set -x
 set -e
 
@@ -45,7 +47,7 @@ then
   source $(brew --prefix chruby)/share/chruby/chruby.sh
 fi
 chruby ruby-${CB_RUBY_VERSION}
-export GEM_HOME="$PROJECT_ROOT/gems-${CB_RUBY_VERSION}"
+export GEM_HOME="${PROJECT_ROOT}/gems-${CB_RUBY_VERSION}"
 
 FIRST_NODE=$(cbdyncluster ips ${CLUSTER_ID} | ruby -e 'puts STDIN.read.split(",")[0]')
 curl -sS -u Administrator:password http://${FIRST_NODE}:8093/query/service \
@@ -64,6 +66,7 @@ export TEST_DEVELOPER_PREVIEW=yes
 export TEST_CONNECTION_STRING=$(cbdyncluster connstr ${CLUSTER_ID})
 set +e
 
+cat /proc/sys/kernel/core_pattern
 echo "${PWD}/core.%h.%e.%t" | sudo tee /proc/sys/kernel/core_pattern
 ulimit -c unlimited
 
@@ -85,13 +88,14 @@ set -e
 cbdyncluster rm ${CLUSTER_ID}
 
 date
-for i in "${PWD}/core*"
+for i in "${PWD}/core*" /tmp/core.*
 do
    if [ -f $i ]
    then
      echo $i
+     ls -l $i
      file $i
-     gdb $(bundle exec which ruby) $i --batch -ex "thread apply all bt"
+     gdb $(which ruby) $i --batch -ex "thread apply all bt"
    fi
 done
 

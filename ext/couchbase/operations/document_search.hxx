@@ -231,7 +231,7 @@ make_response(std::error_code ec, search_request& request, search_request::encod
                     search_response::search_row row{};
                     row.index = entry.at("index").get_string();
                     row.id = entry.at("id").get_string();
-                    row.score = entry.at("score").get_double();
+                    row.score = entry.at("score").as<double>();
                     const auto* locations = entry.find("locations");
                     if (locations != nullptr && locations->is_object()) {
                         for (const auto& field : locations->get_object()) {
@@ -306,7 +306,7 @@ make_response(std::error_code ec, search_request& request, search_request::encod
                             const auto* min = numeric_range.find("min");
                             if (min != nullptr) {
                                 if (min->is_double()) {
-                                    nrf.min = min->get_double();
+                                    nrf.min = min->as<double>();
                                 } else if (min->is_integer()) {
                                     nrf.min = min->get_unsigned();
                                 }
@@ -314,7 +314,7 @@ make_response(std::error_code ec, search_request& request, search_request::encod
                             const auto* max = numeric_range.find("max");
                             if (max != nullptr) {
                                 if (max->is_double()) {
-                                    nrf.max = max->get_double();
+                                    nrf.max = max->as<double>();
                                 } else if (max->is_integer()) {
                                     nrf.max = max->get_unsigned();
                                 }
@@ -345,7 +345,8 @@ make_response(std::error_code ec, search_request& request, search_request::encod
             if (response.error.find("index not found") != std::string::npos) {
                 response.ec = std::make_error_code(error::common_errc::index_not_found);
                 return response;
-            } if (response.error.find("no planPIndexes for indexName") != std::string::npos ||
+            }
+            if (response.error.find("no planPIndexes for indexName") != std::string::npos ||
                 response.error.find("pindex_consistency mismatched partition") != std::string::npos) {
                 response.ec = std::make_error_code(error::search_errc::index_not_ready);
                 return response;

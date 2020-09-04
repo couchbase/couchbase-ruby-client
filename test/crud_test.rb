@@ -702,7 +702,7 @@ module Couchbase
       doc_id = uniq_id(:test_collection_retry)
       doc = load_json_test_dataset("beer_sample_single")
 
-      collection_name = uniq_id(:collection).delete(".")[0..30]
+      collection_name = uniq_id(:collection).delete(".")[0, 30]
 
       manager = @bucket.collections
 
@@ -710,7 +710,7 @@ module Couchbase
       spec.scope_name = "_default"
       spec.name = collection_name
       manager.create_collection(spec)
-      sleep(1)
+      sleep(2)
 
       collection = @bucket.collection(collection_name)
 
