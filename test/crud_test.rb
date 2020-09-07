@@ -710,7 +710,7 @@ module Couchbase
       spec.scope_name = "_default"
       spec.name = collection_name
       manager.create_collection(spec)
-      sleep(2)
+      sleep(4)
 
       collection = @bucket.collection(collection_name)
 

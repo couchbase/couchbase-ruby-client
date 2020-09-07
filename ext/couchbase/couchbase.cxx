@@ -5529,7 +5529,7 @@ init_logger()
 
     auto env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_LOG_LEVEL");
     if (env_val.empty()) {
-        spdlog::set_level(spdlog::level::critical);
+        spdlog::set_level(spdlog::level::warn);
     } else {
         auto levels = spdlog::cfg::helpers::extract_levels(env_val);
         spdlog::details::registry::instance().update_levels(std::move(levels));
