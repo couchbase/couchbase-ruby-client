@@ -158,9 +158,11 @@ class cluster
             tls_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2 | asio::ssl::context::no_sslv3);
             if (!origin_.options().trust_certificate.empty()) {
                 std::error_code ec{};
+                spdlog::debug(R"([{}]: use TLS certificate chain: "{}")", id_, origin_.options().trust_certificate);
                 tls_.use_certificate_chain_file(origin_.options().trust_certificate, ec);
                 if (ec) {
-                    spdlog::error("unable to load certificate chain \"{}\": {}", origin_.options().trust_certificate, ec.message());
+                    spdlog::error(
+                      "[{}]: unable to load certificate chain \"{}\": {}", id_, origin_.options().trust_certificate, ec.message());
                     return handler(ec);
                 }
             }
@@ -173,6 +175,21 @@ class cluster
                              "(https://wiki.wireshark.org/TLS). DO NOT USE THIS BUILD IN PRODUCTION",
                              TLS_KEY_LOG_FILE);
 #endif
+            if (origin_.credentials().uses_certificate()) {
+                std::error_code ec{};
+                spdlog::debug(R"([{}]: use TLS certificate: "{}")", id_, origin_.certificate_path());
+                tls_.use_certificate_file(origin_.certificate_path(), asio::ssl::context::file_format::pem, ec);
+                if (ec) {
+                    spdlog::error("[{}]: unable to load certificate \"{}\": {}", id_, origin_.certificate_path(), ec.message());
+                    return handler(ec);
+                }
+                spdlog::debug(R"([{}]: use TLS private key: "{}")", id_, origin_.key_path());
+                tls_.use_private_key_file(origin_.key_path(), asio::ssl::context::file_format::pem, ec);
+                if (ec) {
+                    spdlog::error("[{}]: unable to load private key \"{}\": {}", id_, origin_.key_path(), ec.message());
+                    return handler(ec);
+                }
+            }
             session_ = std::make_shared<io::mcbp_session>(id_, ctx_, tls_, origin_);
         } else {
             session_ = std::make_shared<io::mcbp_session>(id_, ctx_, origin_);

@@ -140,18 +140,20 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                           fmt::join(hello_req.body().features(), ", "));
             session_->write(hello_req.data());
 
-            protocol::client_request<protocol::sasl_list_mechs_request_body> list_req;
-            list_req.opaque(session_->next_opaque());
-            session_->write(list_req.data());
+            if (!session->origin_.credentials().uses_certificate()) {
+                protocol::client_request<protocol::sasl_list_mechs_request_body> list_req;
+                list_req.opaque(session_->next_opaque());
+                session_->write(list_req.data());
 
-            protocol::client_request<protocol::sasl_auth_request_body> auth_req;
-            sasl::error sasl_code;
-            std::string_view sasl_payload;
-            std::tie(sasl_code, sasl_payload) = sasl_.start();
-            auth_req.opaque(session_->next_opaque());
-            auth_req.body().mechanism(sasl_.get_name());
-            auth_req.body().sasl_data(sasl_payload);
-            session_->write(auth_req.data());
+                protocol::client_request<protocol::sasl_auth_request_body> auth_req;
+                sasl::error sasl_code;
+                std::string_view sasl_payload;
+                std::tie(sasl_code, sasl_payload) = sasl_.start();
+                auth_req.opaque(session_->next_opaque());
+                auth_req.body().mechanism(sasl_.get_name());
+                auth_req.body().sasl_data(sasl_payload);
+                session_->write(auth_req.data());
+            }
 
             session_->flush();
         }
@@ -195,6 +197,10 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                     if (resp.status() == protocol::status::success) {
                         session_->supported_features_ = resp.body().supported_features();
                         spdlog::debug("{} supported_features=[{}]", session_->log_prefix_, fmt::join(session_->supported_features_, ", "));
+                        if (session_->origin_.credentials().uses_certificate()) {
+                            spdlog::debug("{} skip SASL authentication, because TLS certificate was specified", session_->log_prefix_);
+                            return auth_success();
+                        }
                     } else {
                         spdlog::warn("{} unexpected message status during bootstrap: {}", session_->log_prefix_, resp.error_message());
                         return complete(std::make_error_code(error::network_errc::handshake_failure));

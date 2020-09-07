@@ -30,4 +30,4 @@ Cluster.connect("couchbase://localhost", "Administrator", "password")
 # authentication with TLS client certificate
 # @see https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html
 options.authenticator = CertificateAuthenticator.new("/tmp/certificate.pem", "/tmp/private.key")
-Cluster.connect("couchbases://localhost", options)
+Cluster.connect("couchbases://localhost?trust_certificate=/tmp/ca.pem", options)

@@ -162,7 +162,7 @@ struct origin {
         return options_;
     }
 
-    [[nodiscard]] couchbase::cluster_credentials& credentials()
+    [[nodiscard]] const couchbase::cluster_credentials& credentials() const
     {
         return credentials_;
     }
