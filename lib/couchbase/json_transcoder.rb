@@ -23,9 +23,9 @@ module Couchbase
     end
 
     # @param [String, nil] blob string of bytes, containing encoded representation of the document
-    # @param [Integer, :json] flags bit field, describing how the data encoded
+    # @param [Integer, :json] _flags bit field, describing how the data encoded
     # @return Object decoded document
-    def decode(blob, _flags_)
+    def decode(blob, _flags)
       JSON.parse(blob) unless blob.nil?
     end
   end

@@ -43,8 +43,7 @@ class http_session : public std::enable_shared_from_this<http_session>
   public:
     http_session(const std::string& client_id,
                  asio::io_context& ctx,
-                 const std::string& username,
-                 const std::string& password,
+                 const cluster_credentials& credentials,
                  const std::string& hostname,
                  const std::string& service)
       : client_id_(client_id)
@@ -53,8 +52,7 @@ class http_session : public std::enable_shared_from_this<http_session>
       , resolver_(ctx_)
       , stream_(std::make_unique<plain_stream_impl>(ctx_))
       , deadline_timer_(ctx_)
-      , username_(username)
-      , password_(password)
+      , credentials_(credentials)
       , hostname_(hostname)
       , service_(service)
       , user_agent_(fmt::format("ruby/{}.{}.{}/{}; client/{}; session/{}; {}",
@@ -72,8 +70,7 @@ class http_session : public std::enable_shared_from_this<http_session>
     http_session(const std::string& client_id,
                  asio::io_context& ctx,
                  asio::ssl::context& tls,
-                 const std::string& username,
-                 const std::string& password,
+                 const cluster_credentials& credentials,
                  const std::string& hostname,
                  const std::string& service)
       : client_id_(client_id)
@@ -82,8 +79,7 @@ class http_session : public std::enable_shared_from_this<http_session>
       , resolver_(ctx_)
       , stream_(std::make_unique<tls_stream_impl>(ctx_, tls))
       , deadline_timer_(ctx_)
-      , username_(username)
-      , password_(password)
+      , credentials_(credentials)
       , hostname_(hostname)
       , service_(service)
       , user_agent_(fmt::format("ruby/{}.{}.{}/{}; client/{}; session/{}; {}",
@@ -191,7 +187,8 @@ class http_session : public std::enable_shared_from_this<http_session>
             return;
         }
         request.headers["user-agent"] = user_agent_;
-        request.headers["authorization"] = fmt::format("Basic {}", base64::encode(fmt::format("{}:{}", username_, password_)));
+        request.headers["authorization"] =
+          fmt::format("Basic {}", base64::encode(fmt::format("{}:{}", credentials_.username, credentials_.password)));
         write(fmt::format("{} {} HTTP/1.1\r\nhost: {}:{}\r\n", request.method, request.path, hostname_, service_));
         if (!request.body.empty()) {
             request.headers["content-length"] = std::to_string(request.body.size());
@@ -335,8 +332,7 @@ class http_session : public std::enable_shared_from_this<http_session>
     std::unique_ptr<stream_impl> stream_;
     asio::steady_timer deadline_timer_;
 
-    std::string username_;
-    std::string password_;
+    cluster_credentials credentials_;
     std::string hostname_;
     std::string service_;
     std::string user_agent_;

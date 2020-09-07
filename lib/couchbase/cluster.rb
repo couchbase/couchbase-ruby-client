@@ -31,12 +31,20 @@ module Couchbase
 
     # Connect to the Couchbase cluster
     #
-    # @param [String] connection_string connection string used to locate the Couchbase Cluster
-    # @param [ClusterOptions] options custom options when creating the cluster connection
+    # @overload connect(connection_string, options)
+    #   @param [String] connection_string connection string used to locate the Couchbase Cluster
+    #   @param [ClusterOptions] options custom options when creating the cluster connection
+    #
+    # @overload connect(connection_string, username, password, options)
+    #   Shortcut for {PasswordAuthenticator}
+    #   @param [String] connection_string connection string used to locate the Couchbase Cluster
+    #   @param [String] username name of the user
+    #   @param [String] password password of the user
+    #   @param [ClusterOptions, nil] options custom options when creating the cluster connection
     #
     # @return [Cluster]
-    def self.connect(connection_string, options)
-      Cluster.new(connection_string, options)
+    def self.connect(connection_string, *options)
+      Cluster.new(connection_string, *options)
     end
 
     # Returns an instance of the {Bucket}
@@ -304,19 +312,52 @@ module Couchbase
 
     # Initialize {Cluster} object
     #
-    # @param [String] connection_string connection string used to locate the Couchbase Cluster
-    # @param [ClusterOptions] options custom options when creating the cluster connection
-    def initialize(connection_string, options)
-      raise ArgumentError, "options must have authenticator configured" unless options.authenticator
+    # @overload new(connection_string, options)
+    #   @param [String] connection_string connection string used to locate the Couchbase Cluster
+    #   @param [ClusterOptions] options custom options when creating the cluster connection
+    #
+    # @overload new(connection_string, username, password, options)
+    #   Shortcut for {PasswordAuthenticator}
+    #   @param [String] connection_string connection string used to locate the Couchbase Cluster
+    #   @param [String] username name of the user
+    #   @param [String] password password of the user
+    #   @param [ClusterOptions, nil] options custom options when creating the cluster connection
+    def initialize(connection_string, *args)
+      credentials = {}
 
-      username = options.authenticator.username
-      raise ArgumentError, "missing username" unless username
+      options = args.shift
+      case options
+      when String
+        credentials[:username] = options
+        credentials[:password] = args.shift
+        raise ArgumentError, "missing username" unless credentials[:username]
+        raise ArgumentError, "missing password" unless credentials[:password]
+      when ClusterOptions
+        authenticator = options&.authenticator
+        case authenticator
+        when PasswordAuthenticator
+          credentials[:username] = authenticator&.username
+          raise ArgumentError, "missing username" unless credentials[:username]
 
-      password = options.authenticator.password
-      raise ArgumentError, "missing password" unless password
+          credentials[:password] = authenticator&.password
+          raise ArgumentError, "missing password" unless credentials[:password]
+
+        when CertificateAuthenticator
+          credentials[:certificate_path] = authenticator&.certificate_path
+          raise ArgumentError, "missing certificate path" unless credentials[:certificate_path]
+
+          credentials[:key_path] = authenticator&.key_path
+          raise ArgumentError, "missing key path" unless credentials[:key_path]
+
+        else
+          raise ArgumentError, "options must have authenticator configured"
+        end
+      else
+        raise ArgumentError, "unexpected second argument, have to be String or ClusterOptions"
+      end
 
       @backend = Backend.new
-      @backend.open(connection_string, username, password, {})
+      @backend.open(connection_string, credentials, {})
     end
   end
 end

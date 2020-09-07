@@ -23,6 +23,18 @@
 
 namespace couchbase
 {
+struct cluster_credentials {
+    std::string username;
+    std::string password;
+    std::string certificate_path;
+    std::string key_path;
+
+    [[nodiscard]] bool uses_certificate() const
+    {
+        return !certificate_path.empty();
+    }
+};
+
 struct origin {
     using node_entry = std::pair<std::string, std::string>;
     using node_list = std::vector<node_entry>;
@@ -33,35 +45,31 @@ struct origin {
 
     origin(const origin& other)
       : options_(other.options_)
-      , username_(other.username_)
-      , password_(other.password_)
+      , credentials_(std::move(other.credentials_))
       , nodes_(other.nodes_)
       , next_node_(nodes_.begin())
     {
     }
 
-    origin(std::string username, std::string password, const std::string& hostname, std::uint16_t port, const cluster_options& options)
+    origin(cluster_credentials auth, const std::string& hostname, std::uint16_t port, const cluster_options& options)
       : options_(options)
-      , username_(std::move(username))
-      , password_(std::move(password))
+      , credentials_(std::move(auth))
       , nodes_{ { hostname, std::to_string(port) } }
       , next_node_(nodes_.begin())
     {
     }
 
-    origin(std::string username, std::string password, const std::string& hostname, const std::string& port, const cluster_options& options)
+    origin(cluster_credentials auth, const std::string& hostname, const std::string& port, const cluster_options& options)
       : options_(options)
-      , username_(std::move(username))
-      , password_(std::move(password))
+      , credentials_(std::move(auth))
       , nodes_{ { hostname, port } }
       , next_node_(nodes_.begin())
     {
     }
 
-    origin(std::string username, std::string password, const utils::connection_string& connstr)
+    origin(cluster_credentials auth, const utils::connection_string& connstr)
       : options_(connstr.options)
-      , username_(std::move(username))
-      , password_(std::move(password))
+      , credentials_(std::move(auth))
     {
         nodes_.reserve(connstr.bootstrap_nodes.size());
         for (const auto& node : connstr.bootstrap_nodes) {
@@ -75,8 +83,7 @@ struct origin {
     {
         if (this != &other) {
             options_ = other.options_;
-            username_ = other.username_;
-            password_ = other.password_;
+            credentials_ = other.credentials_;
             nodes_ = other.nodes_;
             next_node_ = nodes_.begin();
             exhausted_ = false;
@@ -84,14 +91,24 @@ struct origin {
         return *this;
     }
 
-    [[nodiscard]] const std::string& get_username() const
+    [[nodiscard]] const std::string& username() const
     {
-        return username_;
+        return credentials_.username;
     }
 
-    [[nodiscard]] const std::string& get_password() const
+    [[nodiscard]] const std::string& password() const
     {
-        return password_;
+        return credentials_.password;
+    }
+
+    [[nodiscard]] const std::string& certificate_path() const
+    {
+        return credentials_.certificate_path;
+    }
+
+    [[nodiscard]] const std::string& key_path() const
+    {
+        return credentials_.key_path;
     }
 
     [[nodiscard]] std::vector<std::string> get_nodes() const
@@ -145,10 +162,14 @@ struct origin {
         return options_;
     }
 
+    [[nodiscard]] couchbase::cluster_credentials& credentials()
+    {
+        return credentials_;
+    }
+
   private:
     couchbase::cluster_options options_{};
-    std::string username_{};
-    std::string password_{};
+    cluster_credentials credentials_{};
     node_list nodes_{};
     node_list::iterator next_node_{};
     bool exhausted_{ false };

@@ -522,7 +522,7 @@ cb__map_error_code(std::error_code ec, const std::string& message)
 }
 
 static VALUE
-cb_Backend_open(VALUE self, VALUE connection_string, VALUE username, VALUE password, VALUE options)
+cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -531,26 +531,52 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE username, VALUE passw
         rb_raise(rb_eArgError, "Cluster has been closed already");
     }
     Check_Type(connection_string, T_STRING);
-    Check_Type(username, T_STRING);
-    Check_Type(password, T_STRING);
+    Check_Type(credentials, T_HASH);
+
+    VALUE username = Qnil;
+    VALUE password = Qnil;
+
+    VALUE certificate_path = rb_hash_aref(credentials, rb_id2sym(rb_intern("certificate_path")));
+    VALUE key_path = rb_hash_aref(credentials, rb_id2sym(rb_intern("key_path")));
+    if (NIL_P(certificate_path) || NIL_P(key_path)) {
+        username = rb_hash_aref(credentials, rb_id2sym(rb_intern("username")));
+        password = rb_hash_aref(credentials, rb_id2sym(rb_intern("password")));
+        Check_Type(username, T_STRING);
+        Check_Type(password, T_STRING);
+    } else {
+        Check_Type(certificate_path, T_STRING);
+        Check_Type(key_path, T_STRING);
+    }
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
     }
 
     VALUE exc = Qnil;
-    {
+    do {
         std::string input(RSTRING_PTR(connection_string), static_cast<size_t>(RSTRING_LEN(connection_string)));
         auto connstr = couchbase::utils::parse_connection_string(input);
-        std::string user(RSTRING_PTR(username), static_cast<size_t>(RSTRING_LEN(username)));
-        std::string pass(RSTRING_PTR(password), static_cast<size_t>(RSTRING_LEN(password)));
-        couchbase::origin origin(user, pass, std::move(connstr));
+        couchbase::cluster_credentials auth{};
+        if (NIL_P(certificate_path) || NIL_P(key_path)) {
+            auth.username.assign(RSTRING_PTR(username), static_cast<size_t>(RSTRING_LEN(username)));
+            auth.password.assign(RSTRING_PTR(password), static_cast<size_t>(RSTRING_LEN(password)));
+        } else {
+            if (!connstr.tls) {
+                exc = rb_exc_new_cstr(
+                  eInvalidArgument,
+                  fmt::format("Certificate authenticator requires TLS connection, check the schema of the connection string").c_str());
+                break;
+            }
+            auth.certificate_path.assign(RSTRING_PTR(certificate_path), static_cast<size_t>(RSTRING_LEN(certificate_path)));
+            auth.key_path.assign(RSTRING_PTR(key_path), static_cast<size_t>(RSTRING_LEN(key_path)));
+        }
+        couchbase::origin origin(auth, std::move(connstr));
         auto barrier = std::make_shared<std::promise<std::error_code>>();
         auto f = barrier->get_future();
         backend->cluster->open(origin, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
         if (auto ec = f.get()) {
             exc = cb__map_error_code(ec, fmt::format("unable open cluster at {}", origin.next_address().first));
         }
-    }
+    } while (false);
     if (!NIL_P(exc)) {
         rb_exc_raise(exc);
     }
@@ -5415,7 +5441,7 @@ init_backend(VALUE mCouchbase)
 {
     VALUE cBackend = rb_define_class_under(mCouchbase, "Backend", rb_cBasicObject);
     rb_define_alloc_func(cBackend, cb_Backend_allocate);
-    rb_define_method(cBackend, "open", VALUE_FUNC(cb_Backend_open), 4);
+    rb_define_method(cBackend, "open", VALUE_FUNC(cb_Backend_open), 3);
     rb_define_method(cBackend, "close", VALUE_FUNC(cb_Backend_close), 0);
     rb_define_method(cBackend, "open_bucket", VALUE_FUNC(cb_Backend_open_bucket), 2);
 

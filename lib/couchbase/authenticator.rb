@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 module Couchbase
+  # Authenticator for username/password credentials
   class PasswordAuthenticator
     attr_accessor :username
     attr_accessor :password
@@ -20,6 +21,19 @@ module Couchbase
     def initialize(username, password)
       @username = username
       @password = password
+    end
+  end
+
+  # Authenticator for TLS client certificate
+  #
+  # @see https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html
+  class CertificateAuthenticator
+    attr_accessor :certificate_path
+    attr_accessor :key_path
+
+    def initialize(certificate_path, key_path)
+      @certificate_path = certificate_path
+      @key_path = key_path
     end
   end
 end

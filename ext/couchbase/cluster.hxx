@@ -104,7 +104,7 @@ class cluster
     template<class Request, class Handler>
     void execute_http(Request request, Handler&& handler)
     {
-        auto session = session_manager_->check_out(Request::type, origin_.get_username(), origin_.get_password());
+        auto session = session_manager_->check_out(Request::type, origin_.credentials());
         if (!session) {
             return handler(operations::make_response(std::make_error_code(error::common_errc::service_not_available), request, {}));
         }

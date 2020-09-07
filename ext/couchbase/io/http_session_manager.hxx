@@ -48,7 +48,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
         }
     }
 
-    std::shared_ptr<http_session> check_out(service_type type, const std::string& username, const std::string& password)
+    std::shared_ptr<http_session> check_out(service_type type, const couchbase::cluster_credentials& credentials)
     {
         std::scoped_lock lock(sessions_mutex_);
         if (idle_sessions_[type].empty()) {
@@ -61,9 +61,9 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
             config_.nodes.size();
             std::shared_ptr<http_session> session;
             if (options_.enable_tls) {
-                session = std::make_shared<http_session>(client_id_, ctx_, tls_, username, password, hostname, std::to_string(port));
+                session = std::make_shared<http_session>(client_id_, ctx_, tls_, credentials, hostname, std::to_string(port));
             } else {
-                session = std::make_shared<http_session>(client_id_, ctx_, username, password, hostname, std::to_string(port));
+                session = std::make_shared<http_session>(client_id_, ctx_, credentials, hostname, std::to_string(port));
             }
             session->start();
             session->on_stop([type, id = session->id(), self = this->shared_from_this()]() {

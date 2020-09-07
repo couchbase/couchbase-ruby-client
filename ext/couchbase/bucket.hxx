@@ -134,7 +134,7 @@ class bucket : public std::enable_shared_from_this<bucket>
 
                 auto hostname = node.hostname_for(origin_.options().network);
                 auto port = node.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0);
-                couchbase::origin origin(origin_.get_username(), origin_.get_password(), hostname, port, origin_.options());
+                couchbase::origin origin(origin_.credentials(), hostname, port, origin_.options());
                 std::shared_ptr<io::mcbp_session> session;
                 if (origin_.options().enable_tls) {
                     session = std::make_shared<io::mcbp_session>(client_id_, ctx_, tls_, origin, name_, known_features_);
@@ -172,7 +172,7 @@ class bucket : public std::enable_shared_from_this<bucket>
         auto hostname = old_session->bootstrap_hostname();
         auto port = old_session->bootstrap_port();
         spdlog::debug(R"({} restarting session idx={}, id="{}", address="{}")", log_prefix_, index, old_session->id(), hostname, port);
-        couchbase::origin origin(origin_.get_username(), origin_.get_password(), hostname, port, origin_.options());
+        couchbase::origin origin(origin_.credentials(), hostname, port, origin_.options());
         sessions_.erase(ptr);
         std::shared_ptr<io::mcbp_session> session;
         if (origin_.options().enable_tls) {
