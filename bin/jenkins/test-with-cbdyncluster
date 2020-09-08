@@ -55,7 +55,7 @@ curl -sS -u Administrator:password http://${FIRST_NODE}:8093/query/service \
 sleep 30
 
 export COUCHBASE_BACKEND_LOG_LEVEL=info
-# CB_TEST_NAME=test_exists_allows_to_check_document_existence
+# CB_TEST_NAME=test_collection_retry
 
 if [ ! -z $CB_TEST_NAME ]
 then

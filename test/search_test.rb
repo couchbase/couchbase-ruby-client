@@ -43,7 +43,7 @@ module Couchbase
       retries = 20
       loop do
         res = @cluster.search_query(@index_name, Cluster::SearchQuery.query_string("arthur"), options)
-        next if res.meta_data.errors&.any? { |_, desc| desc.include?("pindex not available") || desc.include?("pindex_consistency mismatched partition") }
+        next if res.meta_data.errors&.any? { |_, desc| desc.match?(/pindex( not available|_consistency mismatched partition)/) }
 
         refute_empty res.rows, "expected non empty result, errors=#{res.meta_data.errors}"
         assert res.rows.find { |row| row.id == doc_id }, "result expected to include #{doc_id}"

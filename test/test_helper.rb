@@ -87,7 +87,7 @@ module Couchbase
     def uniq_id(name)
       parent = caller_locations&.first
       prefix = "#{File.basename(parent&.path, '.rb')}_#{parent&.lineno}"
-      "#{prefix}_#{name}_#{Time.now.to_f}"
+      "#{prefix}_#{name}_#{Time.now.to_f.to_s.reverse}"
     end
 
     def load_raw_test_dataset(dataset)

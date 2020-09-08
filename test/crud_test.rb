@@ -697,7 +697,7 @@ module Couchbase
     # operations will still succeed due to the cid being refreshed under the hood.
     def test_collection_retry
       unless TEST_SERVER_VERSION.supports_collections?
-        skip("The server does not support collections (#{TEST_SERVER_VERSION}, dp=#{TEST_DEVELOPER_PREVIEW}")
+        skip("The server does not support collections (#{TEST_SERVER_VERSION}, dp=#{TEST_DEVELOPER_PREVIEW})")
       end
       doc_id = uniq_id(:test_collection_retry)
       doc = load_json_test_dataset("beer_sample_single")

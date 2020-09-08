@@ -1004,7 +1004,7 @@ module Couchbase
         # @param [String] field the name of the filed for ordering
         # @yieldparam [SearchSortField]
         def initialize(field)
-          super
+          super()
           @field = field
           yield self if block_given?
         end
@@ -1124,7 +1124,7 @@ module Couchbase
 
         # @param [String] field name of the field
         def initialize(field)
-          super
+          super()
           @field = field
           @ranges = []
           yield self if block_given?
