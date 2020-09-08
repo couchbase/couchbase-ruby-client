@@ -1,4 +1,4 @@
-# Couchbase Ruby Client [![tests](https://github.com/couchbase/couchbase-ruby-client/workflows/tests/badge.svg)](https://github.com/couchbase/couchbase-ruby-client/actions?query=workflow%3Atests)
+# Couchbase Ruby Client [![gem](https://badge.fury.io/rb/couchbase.svg)](https://rubygems.org/gems/couchbase) [![tests](https://github.com/couchbase/couchbase-ruby-client/workflows/tests/badge.svg)](https://github.com/couchbase/couchbase-ruby-client/actions?query=workflow%3Atests)
 
 This repository contains the third generation of the official Couchbase SDK for Ruby (aka. SDKv3)
 
@@ -18,7 +18,7 @@ The library tested with the MRI 2.5, 2.6 and 2.7. Supported platforms are Linux 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "couchbase", "3.0.0.beta.1"
+gem "couchbase", "3.0.0"
 ```
 
 And then execute:
@@ -27,7 +27,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install --pre couchbase
+    $ gem install couchbase
 
 For some platforms we precompile binary packages. When, for some reason, binary package cannot be used, pass
 `--platform=ruby` to `gem install` command (or check `specific_platform` and `force_ruby_platform` options of Bundler).

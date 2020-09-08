@@ -14,5 +14,5 @@
 
 module Couchbase
   VERSION = {} unless defined?(VERSION) # rubocop:disable Style/MutableConstant
-  VERSION.update(:sdk => "3.0.0.snapshot".freeze)
+  VERSION.update(:sdk => "3.0.0".freeze)
 end
