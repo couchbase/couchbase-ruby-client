@@ -29,7 +29,7 @@ module Couchbase
     end
 
     def teardown
-      @cluster.disconnect
+      @cluster.disconnect if defined? @cluster
     end
 
     def test_simple_query
@@ -165,8 +165,8 @@ module Couchbase
     def test_scoped_query
       skip("The server does not support scoped queries (#{TEST_SERVER_VERSION})") unless TEST_SERVER_VERSION.supports_scoped_queries?
 
-      scope_name = uniq_id(:scope).delete(".")[0..30]
-      collection_name = uniq_id(:collection).delete(".")[0..30]
+      scope_name = uniq_id(:scope).delete(".")[0, 30]
+      collection_name = uniq_id(:collection).delete(".")[0, 30]
 
       manager = @bucket.collections
       manager.create_scope(scope_name)

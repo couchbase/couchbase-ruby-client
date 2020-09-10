@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+#    Copyright 2020 Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+export CB_HOST=${CB_HOST:-localhost}
+export CB_PORT=${CB_PORT:-8091}
+export CB_BUCKET=${CB_BUCKET:-default}
+
+CB_DROP_COLLECTIONS=${CB_DROP_COLLECTIONS:-no}
+
+CB_USERNAME=${CB_USERNAME:-Administrator}
+CB_PASSWORD=${CB_PASSWORD:-password}
+CB_CREDS="${CB_USERNAME}:${CB_PASSWORD}"
+
+set -ex
+
+# Flush bucket
+curl -sS -w "\n" -u ${CB_CREDS} -X POST http://${CB_HOST}:${CB_PORT}/pools/default/buckets/${CB_BUCKET}/controller/doFlush
+
+if [ "x${CB_DROP_COLLECTIONS}" != "xno" ]; then
+# Drop all collections
+curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/pools/default/buckets/${CB_BUCKET}/collections | \
+    ruby -rjson -e '
+puts JSON.parse(STDIN.read)["scopes"].map { |s|
+  s["collections"].map { |c|
+    if c["name"] != "_default"
+      "http://#{ENV["CB_HOST"]}:#{ENV["CB_PORT"]}/pools/default/buckets/#{ENV["CB_BUCKET"]}/collections/#{s["name"]}/#{c["name"]}"
+    end
+  }
+}.flatten.compact' | xargs -rt curl -sS -w "\n" -u ${CB_CREDS} -X DELETE
+fi

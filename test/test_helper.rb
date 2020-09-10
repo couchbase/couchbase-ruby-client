@@ -78,7 +78,7 @@ module Couchbase
   TEST_USERNAME = ENV["TEST_USERNAME"] || "Administrator"
   TEST_PASSWORD = ENV["TEST_PASSWORD"] || "password"
   TEST_BUCKET = ENV["TEST_BUCKET"] || "default"
-  TEST_DEVELOPER_PREVIEW = ENV.key?("TEST_DEVELOPER_PREVIEW")
+  TEST_DEVELOPER_PREVIEW = ENV.key?("TEST_DEVELOPER_PREVIEW") && ENV["TEST_DEVELOPER_PREVIEW"] == "yes"
   TEST_SERVER_VERSION = ServerVersion.new(ENV["TEST_SERVER_VERSION"] || "6.5.1", developer_preview: TEST_DEVELOPER_PREVIEW)
 
   class BaseTest < Minitest::Test

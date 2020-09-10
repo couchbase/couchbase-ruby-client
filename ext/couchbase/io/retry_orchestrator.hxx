@@ -73,6 +73,13 @@ retry_with_duration(std::shared_ptr<Manager> manager,
     ++command->request.retries.retry_attempts;
     command->request.retries.reasons.insert(reason);
     command->request.retries.last_duration = duration;
+    spdlog::trace(R"({} retrying operation {} (duration={}ms, id="{}", reason={}, attempts={}))",
+                  manager->log_prefix(),
+                  decltype(command->request)::encoded_request_type::body_type::opcode,
+                  duration.count(),
+                  command->id_,
+                  reason,
+                  command->request.retries.retry_attempts);
     manager->schedule_for_retry(command, duration);
 }
 
@@ -90,6 +97,15 @@ maybe_retry(std::shared_ptr<Manager> manager, std::shared_ptr<Command> command, 
     if (action.retry_requested) {
         return priv::retry_with_duration(manager, command, reason, priv::cap_duration(action.duration, command));
     }
+
+    spdlog::trace(R"({} not retrying operation {} (id="{}", reason={}, attempts={}, ec={} ({})))",
+                  manager->log_prefix(),
+                  decltype(command->request)::encoded_request_type::body_type::opcode,
+                  command->id_,
+                  reason,
+                  command->request.retries.retry_attempts,
+                  ec.value(),
+                  ec.message());
     return command->invoke_handler(ec);
 }
 

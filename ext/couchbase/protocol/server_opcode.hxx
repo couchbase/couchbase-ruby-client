@@ -46,10 +46,10 @@ struct fmt::formatter<couchbase::protocol::server_opcode> : formatter<string_vie
         string_view name = "unknown";
         switch (opcode) {
             case couchbase::protocol::server_opcode::cluster_map_change_notification:
-                name = "cluster_map_change_notification";
+                name = "cluster_map_change_notification (0x01)";
                 break;
             case couchbase::protocol::server_opcode::invalid:
-                name = "invalid";
+                name = "invalid (0xff)";
                 break;
         }
         return formatter<string_view>::format(name, ctx);

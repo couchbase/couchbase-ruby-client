@@ -65,6 +65,7 @@
 #include <operations/collection_drop.hxx>
 
 #include <operations/cluster_developer_preview_enable.hxx>
+#include <operations/collections_manifest_get.hxx>
 
 #include <operations/query_index_get_all.hxx>
 #include <operations/query_index_drop.hxx>

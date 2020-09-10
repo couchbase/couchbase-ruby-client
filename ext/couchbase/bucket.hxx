@@ -174,7 +174,7 @@ class bucket : public std::enable_shared_from_this<bucket>
         auto& old_session = ptr->second;
         auto hostname = old_session->bootstrap_hostname();
         auto port = old_session->bootstrap_port();
-        spdlog::debug(R"({} restarting session idx={}, id="{}", address="{}")", log_prefix_, index, old_session->id(), hostname, port);
+        auto old_id = old_session->id();
         couchbase::origin origin(origin_.credentials(), hostname, port, origin_.options());
         sessions_.erase(ptr);
         std::shared_ptr<io::mcbp_session> session;
@@ -183,6 +183,8 @@ class bucket : public std::enable_shared_from_this<bucket>
         } else {
             session = std::make_shared<io::mcbp_session>(client_id_, ctx_, origin, name_, known_features_);
         }
+        spdlog::debug(
+          R"({} restarting session idx={}, id=("{}" -> "{}"), address="{}")", log_prefix_, index, old_id, session->id(), hostname, port);
         session->bootstrap(
           [self = shared_from_this(), session](std::error_code err, const configuration& config) {
               if (!err) {
@@ -268,10 +270,18 @@ class bucket : public std::enable_shared_from_this<bucket>
             return cmd->cancel(io::retry_reason::do_not_retry);
         }
         std::int16_t index = 0;
-        std::tie(cmd->request.partition, index) = config_->map_key(cmd->request.id.key);
-        if (index < 0) {
-            return io::retry_orchestrator::maybe_retry(
-              cmd->manager_, cmd, io::retry_reason::node_not_available, std::make_error_code(error::common_errc::request_canceled));
+        if (cmd->request.id.use_any_session) {
+            index = round_robin_next_;
+            ++round_robin_next_;
+            if (static_cast<std::size_t>(round_robin_next_) >= sessions_.size()) {
+                round_robin_next_ = 0;
+            }
+        } else {
+            std::tie(cmd->request.partition, index) = config_->map_key(cmd->request.id.key);
+            if (index < 0) {
+                return io::retry_orchestrator::maybe_retry(
+                  cmd->manager_, cmd, io::retry_reason::node_not_available, std::make_error_code(error::common_errc::request_canceled));
+            }
         }
         cmd->send_to(sessions_.at(static_cast<std::size_t>(index)));
     }
@@ -310,6 +320,7 @@ class bucket : public std::enable_shared_from_this<bucket>
 
     bool closed_{ false };
     std::map<size_t, std::shared_ptr<io::mcbp_session>> sessions_{};
+    std::int16_t round_robin_next_{ 0 };
 
     std::string log_prefix_{};
 };

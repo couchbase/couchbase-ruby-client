@@ -48,7 +48,9 @@ struct deduplicate_keys : Consumer {
 } // namespace
 
 template<typename Iterator>
-configuration parse_config(Iterator begin, Iterator end) {
+configuration
+parse_config(Iterator begin, Iterator end)
+{
     return tao::json::from_string<deduplicate_keys>(std::string(begin, end)).as<configuration>();
 }
 

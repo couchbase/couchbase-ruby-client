@@ -177,6 +177,7 @@ static VALUE eCasMismatch;
 static VALUE eCollectionExists;
 static VALUE eCollectionNotFound;
 static VALUE eCompilationFailure;
+static VALUE eConsistencyMismatch;
 static VALUE eDatasetExists;
 static VALUE eDatasetNotFound;
 static VALUE eDataverseExists;
@@ -233,6 +234,14 @@ static VALUE eXattrInvalidKeyCombo;
 static VALUE eXattrUnknownMacro;
 static VALUE eXattrUnknownVirtualAttribute;
 
+static VALUE eBackendError;
+static VALUE eNetworkError;
+static VALUE eResolveFailure;
+static VALUE eNoEndpointsLeft;
+static VALUE eHandshakeFailure;
+static VALUE eProtocolError;
+static VALUE eConfigurationNotAvailable;
+
 static void
 init_exceptions(VALUE mCouchbase)
 {
@@ -250,6 +259,7 @@ init_exceptions(VALUE mCouchbase)
     eCollectionExists = rb_define_class_under(mError, "CollectionExists", eCouchbaseError);
     eCollectionNotFound = rb_define_class_under(mError, "CollectionNotFound", eCouchbaseError);
     eCompilationFailure = rb_define_class_under(mError, "CompilationFailure", eCouchbaseError);
+    eConsistencyMismatch = rb_define_class_under(mError, "ConsistencyMismatch", eCouchbaseError);
     eDatasetExists = rb_define_class_under(mError, "DatasetExists", eCouchbaseError);
     eDatasetNotFound = rb_define_class_under(mError, "DatasetNotFound", eCouchbaseError);
     eDataverseExists = rb_define_class_under(mError, "DataverseExists", eCouchbaseError);
@@ -305,6 +315,14 @@ init_exceptions(VALUE mCouchbase)
     eXattrInvalidKeyCombo = rb_define_class_under(mError, "XattrInvalidKeyCombo", eCouchbaseError);
     eXattrUnknownMacro = rb_define_class_under(mError, "XattrUnknownMacro", eCouchbaseError);
     eXattrUnknownVirtualAttribute = rb_define_class_under(mError, "XattrUnknownVirtualAttribute", eCouchbaseError);
+
+    eBackendError = rb_define_class_under(mError, "BackendError", eCouchbaseError);
+    eNetworkError = rb_define_class_under(mError, "NetworkError", eBackendError);
+    eResolveFailure = rb_define_class_under(mError, "ResolveFailure", eNetworkError);
+    eNoEndpointsLeft = rb_define_class_under(mError, "NoEndpointsLeft", eNetworkError);
+    eHandshakeFailure = rb_define_class_under(mError, "HandshakeFailure", eNetworkError);
+    eProtocolError = rb_define_class_under(mError, "ProtocolError", eNetworkError);
+    eConfigurationNotAvailable = rb_define_class_under(mError, "ConfigurationNotAvailable", eNetworkError);
 }
 
 static VALUE
@@ -461,6 +479,8 @@ cb__map_error_code(std::error_code ec, const std::string& message)
         switch (static_cast<couchbase::error::search_errc>(ec.value())) {
             case couchbase::error::search_errc::index_not_ready:
                 return rb_exc_new_cstr(eIndexNotReady, fmt::format("{}: {}", message, ec.message()).c_str());
+            case couchbase::error::search_errc::consistency_mismatch:
+                return rb_exc_new_cstr(eConsistencyMismatch, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_view_category()) {
         switch (static_cast<couchbase::error::view_errc>(ec.value())) {
@@ -516,9 +536,26 @@ cb__map_error_code(std::error_code ec, const std::string& message)
             case couchbase::error::management_errc::bucket_not_flushable:
                 return rb_exc_new_cstr(eBucketNotFlushable, fmt::format("{}: {}", message, ec.message()).c_str());
         }
+    } else if (ec.category() == couchbase::error::detail::network_error_category()) {
+        switch (static_cast<couchbase::error::network_errc>(ec.value())) {
+            case couchbase::error::network_errc::resolve_failure:
+                return rb_exc_new_cstr(eResolveFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+
+            case couchbase::error::network_errc::no_endpoints_left:
+                return rb_exc_new_cstr(eNoEndpointsLeft, fmt::format("{}: {}", message, ec.message()).c_str());
+
+            case couchbase::error::network_errc::handshake_failure:
+                return rb_exc_new_cstr(eHandshakeFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+
+            case couchbase::error::network_errc::protocol_error:
+                return rb_exc_new_cstr(eProtocolError, fmt::format("{}: {}", message, ec.message()).c_str());
+
+            case couchbase::error::network_errc::configuration_not_available:
+                return rb_exc_new_cstr(eConfigurationNotAvailable, fmt::format("{}: {}", message, ec.message()).c_str());
+        }
     }
 
-    return rb_exc_new_cstr(eCouchbaseError, fmt::format("{}: {}", message, ec.message()).c_str());
+    return rb_exc_new_cstr(eBackendError, fmt::format("{}: {}", message, ec.message()).c_str());
 }
 
 static VALUE
@@ -2105,14 +2142,18 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             if (resp.payload.meta_data.errors && !resp.payload.meta_data.errors->empty()) {
                 const auto& first_error = resp.payload.meta_data.errors->front();
                 exc = cb__map_error_code(resp.ec,
-                                         fmt::format("unable to query: \"{}{}\" ({}: {})",
-                                                     req.statement.substr(0, 50),
-                                                     req.statement.size() > 50 ? "..." : "",
+                                         fmt::format(R"(unable to query (client_context_id="{}"): "{}{}" ({}: {}))",
+                                                     req.client_context_id,
+                                                     req.statement.substr(0, 100),
+                                                     req.statement.size() > 100 ? "..." : "",
                                                      first_error.code,
                                                      first_error.message));
             } else {
-                exc = cb__map_error_code(
-                  resp.ec, fmt::format("unable to query: \"{}{}\"", req.statement.substr(0, 50), req.statement.size() > 50 ? "..." : ""));
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format(R"(unable to query (client_context_id="{}"): "{}{}")",
+                                                     req.client_context_id,
+                                                     req.statement.substr(0, 100),
+                                                     req.statement.size() > 100 ? "..." : ""));
             }
             break;
         }
@@ -3216,6 +3257,58 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
 }
 
 static VALUE
+cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(bucket_name, T_STRING);
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::collections_manifest_get_request req{};
+        cb__extract_timeout(req, timeout);
+        req.id.bucket.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+        auto barrier = std::make_shared<std::promise<couchbase::operations::collections_manifest_get_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute(
+          req, [barrier](couchbase::operations::collections_manifest_get_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, fmt::format("unable to get collections manifest of the bucket \"{}\"", req.id.bucket));
+            break;
+        }
+
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("uid")), ULL2NUM(resp.manifest.uid));
+        VALUE scopes = rb_ary_new_capa(static_cast<long>(resp.manifest.scopes.size()));
+        for (const auto& s : resp.manifest.scopes) {
+            VALUE scope = rb_hash_new();
+            rb_hash_aset(scope, rb_id2sym(rb_intern("uid")), ULL2NUM(s.uid));
+            rb_hash_aset(scope, rb_id2sym(rb_intern("name")), rb_str_new(s.name.data(), static_cast<long>(s.name.size())));
+            VALUE collections = rb_ary_new_capa(static_cast<long>(s.collections.size()));
+            for (const auto& c : s.collections) {
+                VALUE collection = rb_hash_new();
+                rb_hash_aset(collection, rb_id2sym(rb_intern("uid")), ULL2NUM(c.uid));
+                rb_hash_aset(collection, rb_id2sym(rb_intern("name")), rb_str_new(c.name.data(), static_cast<long>(c.name.size())));
+                rb_ary_push(collections, collection);
+            }
+            rb_hash_aset(scope, rb_id2sym(rb_intern("collections")), collections);
+            rb_ary_push(scopes, scope);
+        }
+        rb_hash_aset(res, rb_id2sym(rb_intern("scopes")), scopes);
+
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
 cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
@@ -3240,7 +3333,8 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE t
                                        [barrier](couchbase::operations::scope_create_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to create the scope on the bucket \"{}\"", req.bucket_name));
+            exc = cb__map_error_code(resp.ec,
+                                     fmt::format(R"(unable to create the scope "{}" on the bucket "{}")", req.scope_name, req.bucket_name));
             break;
         }
         return ULL2NUM(resp.uid);
@@ -4618,7 +4712,8 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         backend->cluster->execute_http(req, [barrier](couchbase::operations::search_response resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to perform search query for index \"{}\"", req.index_name));
+            exc =
+              cb__map_error_code(resp.ec, fmt::format("unable to perform search query for index \"{}\": {}", req.index_name, resp.error));
             break;
         }
         VALUE res = rb_hash_new();
@@ -6186,6 +6281,8 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "view_index_drop", VALUE_FUNC(cb_Backend_view_index_drop), 4);
     rb_define_method(cBackend, "view_index_upsert", VALUE_FUNC(cb_Backend_view_index_upsert), 4);
 
+    /* utility function that are not intended for public usage */
+    rb_define_method(cBackend, "collections_manifest_get", VALUE_FUNC(cb_Backend_collections_manifest_get), 2);
     rb_define_singleton_method(cBackend, "dns_srv", VALUE_FUNC(cb_Backend_dns_srv), 2);
     rb_define_singleton_method(cBackend, "parse_connection_string", VALUE_FUNC(cb_Backend_parse_connection_string), 1);
 }

@@ -62,8 +62,12 @@ make_response(std::error_code ec, scope_create_request& request, scope_create_re
             case 400:
                 if (encoded.body.find("Not allowed on this version") != std::string::npos) {
                     response.ec = std::make_error_code(error::common_errc::unsupported_operation);
-                } else {
+                } else if (encoded.body.find("Scope with this name already exists") != std::string::npos) {
                     response.ec = std::make_error_code(error::management_errc::scope_exists);
+                } else if (encoded.body.find("Not allowed on this version of cluster") != std::string::npos) {
+                    response.ec = std::make_error_code(error::common_errc::feature_not_available);
+                } else {
+                    response.ec = std::make_error_code(error::common_errc::invalid_argument);
                 }
                 break;
             case 404:

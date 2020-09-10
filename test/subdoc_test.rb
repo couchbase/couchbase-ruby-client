@@ -25,7 +25,7 @@ module Couchbase
     end
 
     def teardown
-      @cluster.disconnect
+      @cluster.disconnect if defined? @cluster
     end
 
     def test_mutate_in_increment

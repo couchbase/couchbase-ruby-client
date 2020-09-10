@@ -349,10 +349,11 @@ make_response(std::error_code ec, search_request& request, search_request::encod
             if (response.error.find("index not found") != std::string::npos) {
                 response.ec = std::make_error_code(error::common_errc::index_not_found);
                 return response;
-            }
-            if (response.error.find("no planPIndexes for indexName") != std::string::npos ||
-                response.error.find("pindex_consistency mismatched partition") != std::string::npos) {
+            } else if (response.error.find("no planPIndexes for indexName") != std::string::npos) {
                 response.ec = std::make_error_code(error::search_errc::index_not_ready);
+                return response;
+            } else if (response.error.find("pindex_consistency mismatched partition") != std::string::npos) {
+                response.ec = std::make_error_code(error::search_errc::consistency_mismatch);
                 return response;
             }
         }

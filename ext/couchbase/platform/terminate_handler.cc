@@ -80,8 +80,8 @@ log_backtrace()
 static void
 backtrace_terminate_handler()
 {
-    spdlog::critical("*** Fatal error encountered during exception handling (rev=\"" BACKEND_GIT_REVISION "\", compiler=\"" BACKEND_CXX_COMPILER
-                     "\", system=\"" BACKEND_SYSTEM "\", date=\"" BACKEND_BUILD_TIMESTAMP "\")***");
+    spdlog::critical("*** Fatal error encountered during exception handling (rev=\"" BACKEND_GIT_REVISION
+                     "\", compiler=\"" BACKEND_CXX_COMPILER "\", system=\"" BACKEND_SYSTEM "\", date=\"" BACKEND_BUILD_TIMESTAMP "\")***");
     log_handled_exception();
 
     if (should_include_backtrace) {

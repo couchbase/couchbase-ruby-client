@@ -25,7 +25,7 @@ module Couchbase
     end
 
     def teardown
-      @cluster.disconnect
+      @cluster.disconnect if defined? @cluster
     end
 
     def test_create_documents
@@ -693,6 +693,19 @@ module Couchbase
       end
     end
 
+    def __wait_for_collections_manifest(uid)
+      hits = 5 # make sure that the manifest has distributed well enough
+      while hits > 0
+        backend = @cluster.instance_variable_get("@backend")
+        manifest = backend.collections_manifest_get(@bucket.name, 10_000)
+        if manifest[:uid] < uid
+          sleep(0.1)
+          next
+        end
+        hits -= 1
+      end
+    end
+
     # Following test tests that if a collection is deleted and recreated midway through a set of operations then the
     # operations will still succeed due to the cid being refreshed under the hood.
     def test_collection_retry
@@ -709,20 +722,21 @@ module Couchbase
       spec = Management::CollectionSpec.new
       spec.scope_name = "_default"
       spec.name = collection_name
-      manager.create_collection(spec)
-      sleep(4)
+      ns_uid = manager.create_collection(spec)
+      __wait_for_collections_manifest(ns_uid)
 
       collection = @bucket.collection(collection_name)
 
       # make sure we've connected to the collection
       options = Collection::UpsertOptions.new
       options.timeout = 15_000
-      res = collection.upsert(doc_id, doc)
+      res = collection.upsert(doc_id, doc, options)
       refute_equal 0, res.cas
 
       # the following delete and create will recreate a collection with the same name but a different collection ID.
-      manager.drop_collection(spec)
-      manager.create_collection(spec)
+      ns_uid = manager.drop_collection(spec)
+      ns_uid = manager.create_collection(spec)
+      __wait_for_collections_manifest(ns_uid)
 
       # we've wiped the collection so we need to recreate this doc
       # we know that this operation can take a bit longer than normal as collections take time to come online

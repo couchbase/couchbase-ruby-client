@@ -219,7 +219,8 @@ struct query_request {
             }
         }
         body["client_context_id"] = client_context_id;
-        body["timeout"] = fmt::format("{}ms", timeout.count());
+        body["timeout"] = fmt::format(
+          "{}ms", ((timeout > std::chrono::milliseconds(5'000)) ? (timeout - std::chrono::milliseconds(500)) : timeout).count());
         if (positional_parameters.empty()) {
             for (auto& param : named_parameters) {
                 Expects(param.first.empty() == false);

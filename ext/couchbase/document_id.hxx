@@ -24,6 +24,8 @@ struct document_id {
     std::string collection;
     std::string key;
     std::optional<std::uint32_t> collection_uid; // filled with resolved UID during request lifetime
+    bool use_collections{ true };
+    bool use_any_session{ false };
 };
 } // namespace couchbase
 

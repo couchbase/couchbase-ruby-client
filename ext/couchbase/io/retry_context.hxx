@@ -27,8 +27,7 @@ namespace couchbase::io
 {
 
 template<class RetryStrategy>
-struct retry_context
-{
+struct retry_context {
     bool idempotent;
     int retry_attempts{ 0 };
     std::chrono::milliseconds last_duration{ 0 };

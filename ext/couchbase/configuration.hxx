@@ -194,7 +194,8 @@ struct configuration {
     std::set<bucket_capability> bucket_capabilities{};
     std::set<cluster_capability> cluster_capabilities{};
 
-    [[nodiscard]] bool supports_enhanced_prepared_statements() const {
+    [[nodiscard]] bool supports_enhanced_prepared_statements() const
+    {
         return cluster_capabilities.find(cluster_capability::n1ql_enhanced_prepared_statements) != cluster_capabilities.end();
     }
 

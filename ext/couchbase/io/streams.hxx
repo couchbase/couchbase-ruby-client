@@ -30,11 +30,13 @@ class stream_impl
   protected:
     asio::strand<asio::io_context::executor_type> strand_;
     bool tls_;
+    std::string id_{};
 
   public:
     stream_impl(asio::io_context& ctx, bool is_tls)
       : strand_(asio::make_strand(ctx))
       , tls_(is_tls)
+      , id_(uuid::to_string(uuid::random()))
     {
     }
 
@@ -45,9 +47,16 @@ class stream_impl
         return tls_ ? "tls" : "plain";
     }
 
+    [[nodiscard]] const std::string& id() const
+    {
+        return id_;
+    }
+
     [[nodiscard]] virtual bool is_open() const = 0;
 
     virtual void close() = 0;
+
+    virtual void reopen() = 0;
 
     virtual void set_options() = 0;
 
@@ -81,6 +90,15 @@ class plain_stream_impl : public stream_impl
         stream_.close();
     }
 
+    void reopen() override
+    {
+        id_ = uuid::to_string(uuid::random());
+        asio::error_code ec{};
+        stream_.shutdown(asio::socket_base::shutdown_both, ec);
+        stream_.close(ec);
+        stream_ = asio::ip::tcp::socket(strand_);
+    }
+
     void set_options() override
     {
         stream_.set_option(asio::ip::tcp::no_delay{ true });
@@ -107,42 +125,53 @@ class plain_stream_impl : public stream_impl
 class tls_stream_impl : public stream_impl
 {
   private:
-    asio::ssl::stream<asio::ip::tcp::socket> stream_;
+    std::unique_ptr<asio::ssl::stream<asio::ip::tcp::socket>> stream_;
+    asio::ssl::context& tls_;
 
   public:
     tls_stream_impl(asio::io_context& ctx, asio::ssl::context& tls)
       : stream_impl(ctx, true)
-      , stream_(ctx, tls)
+      , stream_(std::make_unique<asio::ssl::stream<asio::ip::tcp::socket>>(asio::ip::tcp::socket(strand_), tls))
+      , tls_(tls)
     {
     }
 
     [[nodiscard]] bool is_open() const override
     {
-        return stream_.lowest_layer().is_open();
+        return stream_->lowest_layer().is_open();
     }
 
     void close() override
     {
-        stream_.lowest_layer().close();
+        stream_->lowest_layer().close();
+    }
+
+    void reopen() override
+    {
+        id_ = uuid::to_string(uuid::random());
+        asio::error_code ec{};
+        stream_->lowest_layer().shutdown(asio::socket_base::shutdown_both, ec);
+        stream_->lowest_layer().close(ec);
+        stream_ = std::make_unique<asio::ssl::stream<asio::ip::tcp::socket>>(asio::ip::tcp::socket(strand_), tls_);
     }
 
     void set_options() override
     {
-        stream_.lowest_layer().set_option(asio::ip::tcp::no_delay{ true });
-        stream_.lowest_layer().set_option(asio::socket_base::keep_alive{ true });
+        stream_->lowest_layer().set_option(asio::ip::tcp::no_delay{ true });
+        stream_->lowest_layer().set_option(asio::socket_base::keep_alive{ true });
     }
 
     void async_connect(const asio::ip::tcp::resolver::results_type::endpoint_type& endpoint,
                        std::function<void(std::error_code)>&& handler) override
     {
-        return stream_.lowest_layer().async_connect(endpoint, [this, handler](std::error_code ec_connect) mutable {
+        return stream_->lowest_layer().async_connect(endpoint, [this, handler](std::error_code ec_connect) mutable {
             if (ec_connect == asio::error::operation_aborted) {
                 return;
             }
             if (ec_connect) {
                 return handler(ec_connect);
             }
-            stream_.async_handshake(asio::ssl::stream_base::client, [handler](std::error_code ec_handshake) mutable {
+            stream_->async_handshake(asio::ssl::stream_base::client, [handler](std::error_code ec_handshake) mutable {
                 if (ec_handshake == asio::error::operation_aborted) {
                     return;
                 }
@@ -153,12 +182,12 @@ class tls_stream_impl : public stream_impl
 
     void async_write(std::vector<asio::const_buffer>& buffers, std::function<void(std::error_code, std::size_t)>&& handler) override
     {
-        return asio::async_write(stream_, buffers, handler);
+        return asio::async_write(*stream_, buffers, handler);
     }
 
     void async_read_some(asio::mutable_buffer buffer, std::function<void(std::error_code, std::size_t)>&& handler) override
     {
-        return stream_.async_read_some(buffer, handler);
+        return stream_->async_read_some(buffer, handler);
     }
 };
 

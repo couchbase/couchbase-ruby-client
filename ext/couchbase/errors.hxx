@@ -249,12 +249,14 @@ enum class analytics_errc {
 /// Errors related to Search service (CBFT)
 enum class search_errc {
     index_not_ready = 400,
+
+    consistency_mismatch = 401,
 };
 
 /// Errors related to Views service (CAPI)
 enum class view_errc {
     /// Http status code 404
-    /// Reason or error contains “not_found”
+    /// Reason or error contains "not_found"
     view_not_found = 500,
 
     /// Raised on the Management APIs only when
@@ -301,6 +303,9 @@ enum class network_errc {
 
     /// Unexpected protocol state or input
     protocol_error,
+
+    /// Configuration is not available for some reason
+    configuration_not_available,
 };
 
 namespace detail
@@ -472,6 +477,8 @@ struct search_error_category : std::error_category {
         switch (static_cast<search_errc>(ev)) {
             case search_errc::index_not_ready:
                 return "index_not_ready";
+            case search_errc::consistency_mismatch:
+                return "consistency_mismatch";
         }
         return "FIXME: unknown error code in search category (recompile with newer library)";
     }
@@ -596,6 +603,8 @@ struct network_error_category : std::error_category {
                 return "handshake_failure";
             case network_errc::protocol_error:
                 return "protocol_error";
+            case network_errc::configuration_not_available:
+                return "configuration_not_available";
         }
         return "FIXME: unknown error code in network category (recompile with newer library)";
     }

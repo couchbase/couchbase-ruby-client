@@ -45,14 +45,14 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
         request.encode_to(encoded, session->http_context());
         encoded.headers["client-context-id"] = request.client_context_id;
         auto log_prefix = session->log_prefix();
-        spdlog::trace("{} HTTP request: {}, method={}, path={}, client_context_id={}, timeout={}ms",
+        spdlog::trace(R"({} HTTP request: {}, method={}, path="{}", client_context_id="{}", timeout={}ms)",
                       log_prefix,
                       encoded.type,
                       encoded.method,
                       encoded.path,
                       request.client_context_id,
                       request.timeout.count());
-        SPDLOG_TRACE("{} HTTP request: {}, method={}, path={}, client_context_id={}, timeout={}ms{:a}",
+        SPDLOG_TRACE(R"({} HTTP request: {}, method={}, path="{}", client_context_id="{}", timeout={}ms{:a})",
                      log_prefix,
                      encoded.type,
                      encoded.method,
@@ -65,12 +65,12 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
                                        std::error_code ec, io::http_response&& msg) mutable {
                                          self->deadline.cancel();
                                          encoded_response_type resp(msg);
-                                         spdlog::trace("{} HTTP response: {}, client_context_id={}, status={}",
+                                         spdlog::trace(R"({} HTTP response: {}, client_context_id="{}", status={})",
                                                        log_prefix,
                                                        self->request.type,
                                                        self->request.client_context_id,
                                                        resp.status_code);
-                                         SPDLOG_TRACE("{} HTTP response: {}, client_context_id={}, status={}{:a}",
+                                         SPDLOG_TRACE(R"({} HTTP response: {}, client_context_id="{}", status={}{:a})",
                                                       log_prefix,
                                                       self->request.type,
                                                       self->request.client_context_id,

@@ -143,9 +143,9 @@ class client_response
     std::string error_message()
     {
         if (error_) {
-            return fmt::format(R"({}:{} {} {})", magic_, opcode_, status_, *error_);
+            return fmt::format(R"(magic={}, opcode={}, status={}, error={})", magic_, opcode_, status_, *error_);
         }
-        return fmt::format("{}:{} {}", magic_, opcode_, status_);
+        return fmt::format("magic={}, opcode={}, status={}", magic_, opcode_, status_);
     }
 
     void parse_body()

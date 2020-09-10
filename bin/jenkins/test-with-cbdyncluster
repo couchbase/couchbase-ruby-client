@@ -39,21 +39,27 @@ fi
 cbdyncluster info
 cbdyncluster ps -a
 
-CB_VERSION=${CB_VERSION:-6.5.1}
+CB_VERSION=${CB_VERSION:-6.6.0}
 CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7.1}
 
-extra_options=$(ruby -e 'print "--enable-developer-preview" if ENV["CB_VERSION"] =~ /^6\.5/')
+export TEST_DEVELOPER_PREVIEW=$(ruby -e 'puts "yes" if ENV["CB_VERSION"] =~ /^6\.6/')
+if [ "x${TEST_DEVELOPER_PREVIEW}" = "xyes" ]
+then
+  extra_options="--enable-developer-preview"
+fi
 
 CLUSTER_ID=$(cbdyncluster allocate --num-nodes=3 --server-version=${CB_VERSION})
 SERVICES="kv,index,n1ql,fts"
+CB_BUCKET=default
 cbdyncluster setup ${CLUSTER_ID} \
-    --bucket=default \
+    --bucket=${CB_BUCKET} \
     --storage-mode=plasma \
     ${extra_options} \
     --node=${SERVICES} \
     --node=${SERVICES} \
     --node=${SERVICES}
 sleep 30
+cbdyncluster ps -a
 
 if [ "$(uname -s)" = "Linux" ]
 then
@@ -66,12 +72,42 @@ fi
 chruby ruby-${CB_RUBY_VERSION}
 export GEM_HOME="${PROJECT_ROOT}/gems-${CB_RUBY_VERSION}"
 
-FIRST_NODE=$(cbdyncluster ips ${CLUSTER_ID} | ruby -e 'puts STDIN.read.split(",")[0]')
-curl -sS -u Administrator:password http://${FIRST_NODE}:8093/query/service \
-     -d 'statement=CREATE PRIMARY INDEX ON `default` USING GSI'
+CB_CREDS="Administrator:password"
+
+CB_HOST=$(cbdyncluster ips ${CLUSTER_ID} | ruby -e 'puts STDIN.read.split(",")[0]')
+
+# curl -sS -w "\n" -u ${CB_CREDS} -X POST http://${CB_HOST}:8091/pools/default/buckets/${CB_BUCKET} \
+#      -d 'flushEnabled=1' \
+#      -d 'replicaIndex=1' \
+#      -d 'replicaNumber=2'
+#
+# KNOWN_NODES=$(curl -sS -u ${CB_CREDS} http://${CB_HOST}:8091/pools/default | \
+#               ruby -rjson -e 'puts JSON.load(STDIN.read)["nodes"].map {|n| n["otpNode"] }.join(",")')
+# curl -sS -u ${CB_CREDS} http://${CB_HOST}:8091/controller/rebalance -d "knownNodes=${KNOWN_NODES}"
+#
+# STATUS=
+# while [ "x${STATUS}" != "xdone" ]
+# do
+#     STATUS=$(curl -sS -w '\n' -u ${CB_CREDS} http://${CB_HOST}:8091/pools/default/tasks | \
+#         ruby -rjson -rpp -e '
+#             tasks = JSON.load(STDIN.read)
+#             puts "done" if tasks.select {|t| t["type"] == "rebalance" }
+#                                 .all? {|t| t["status"] == "completed" || t["status"] == "notRunning" }
+#         ')
+#     sleep 5
+# done
+
+curl --trace - --trace-time -sS -u${CB_CREDS} http://${CB_HOST}:8093/query/service \
+     -d "statement=CREATE PRIMARY INDEX ON ${CB_BUCKET} USING GSI" \
+     -d "timeout=300s"
 sleep 30
+curl --trace - --trace-time -sS -u${CB_CREDS} http://${CB_HOST}:8093/query/service \
+     -d "statement=SELECT COUNT(*) FROM ${CB_BUCKET}"
+
+curl -sS -w "\n" -u${CB_CREDS} http://${CB_HOST}:8091/pools/default/buckets/${CB_BUCKET}
 
 export COUCHBASE_BACKEND_LOG_LEVEL=info
+export COUCHBASE_BACKEND_LOG_LEVEL=trace
 # CB_TEST_NAME=test_collection_retry
 
 if [ ! -z $CB_TEST_NAME ]
@@ -79,7 +115,6 @@ then
   export TESTOPTS="--name='/^${CB_TEST_NAME}$/'"
 fi
 export TEST_SERVER_VERSION=${CB_VERSION}
-export TEST_DEVELOPER_PREVIEW=yes
 export TEST_CONNECTION_STRING=$(cbdyncluster connstr ${CLUSTER_ID})
 set +e
 
@@ -103,17 +138,21 @@ STATUS=$?
 set -e
 
 cbdyncluster rm ${CLUSTER_ID}
-
-date
-for i in "${PWD}/core*" /tmp/core.*
-do
-   if [ -f $i ]
-   then
-     echo $i
-     ls -l $i
-     file $i
-     gdb $(which ruby) $i --batch -ex "thread apply all bt"
-   fi
-done
+if [ -z ${STATUS} ]
+then
+    cbdyncluster ps -a
+else
+    date
+    for i in "${PWD}/core*" /tmp/core.*
+    do
+       if [ -f $i ]
+       then
+         echo $i
+         ls -l $i
+         file $i
+         gdb $(which ruby) $i --batch -ex "thread apply all bt"
+       fi
+    done
+fi
 
 exit ${STATUS}

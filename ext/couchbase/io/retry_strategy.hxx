@@ -106,7 +106,7 @@ class exponential
             if (previous_backoff >= max_backoff_) {
                 next_backoff = max_backoff_;
             } else {
-                next_backoff = first_backoff_ * static_cast<int>(std::pow(factor_, request.retries.retry_attempts - 1));
+                next_backoff = first_backoff_ * static_cast<int>(std::pow(factor_, request.retries.retry_attempts));
             }
         }
         return { next_backoff, first_backoff_, max_backoff_ };

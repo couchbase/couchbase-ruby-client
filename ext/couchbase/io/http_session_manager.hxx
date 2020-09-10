@@ -112,6 +112,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
         {
             for (auto& sessions : idle_sessions_) {
                 for (auto& s : sessions.second) {
+                    s->reset_idle();
                     s.reset();
                 }
             }

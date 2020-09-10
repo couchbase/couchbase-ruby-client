@@ -28,7 +28,7 @@ module Couchbase
       end
 
       def teardown
-        @cluster.disconnect
+        @cluster.disconnect if defined? @cluster
       end
 
       def test_new_list_empty

@@ -1567,6 +1567,10 @@ module Couchbase
       # @return [SearchMetaData]
       attr_accessor :meta_data
 
+      def success?
+        meta_data.errors.nil? || meta_data.errors.empty?
+      end
+
       # @yieldparam [SearchResult] self
       def initialize
         yield self if block_given?

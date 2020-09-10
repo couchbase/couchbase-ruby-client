@@ -195,6 +195,9 @@ module Couchbase
     class IndexNotReady < CouchbaseError
     end
 
+    class ConsistencyMismatch < CouchbaseError
+    end
+
     # View exceptions
 
     class DesignDocumentNotFound < CouchbaseError

@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <platform/uuid.h>
+
 #include <io/mcbp_session.hxx>
 #include <io/retry_orchestrator.hxx>
 
@@ -41,12 +43,14 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
     std::shared_ptr<io::mcbp_session> session_{};
     mcbp_command_handler handler_{};
     std::shared_ptr<Manager> manager_{};
+    std::string id_;
 
     mcbp_command(asio::io_context& ctx, std::shared_ptr<Manager> manager, Request req)
       : deadline(ctx)
       , retry_backoff(ctx)
       , request(req)
       , manager_(manager)
+      , id_(uuid::to_string(uuid::random()))
     {
     }
 
@@ -85,6 +89,9 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
 
     void request_collection_id()
     {
+        if (session_->is_stopped()) {
+            return manager_->map_and_send(this->shared_from_this());
+        }
         protocol::client_request<protocol::get_collection_id_request_body> req;
         req.opaque(session_->next_opaque());
         req.body().collection_path(request.id.collection);
@@ -97,9 +104,9 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
               }
               if (ec == std::make_error_code(error::common_errc::collection_not_found)) {
                   if (self->request.id.collection_uid) {
-                      return self->handle_unknown_collection();
+                      return self->invoke_handler(ec);
                   }
-                  return self->invoke_handler(ec);
+                  return self->handle_unknown_collection();
               }
               if (ec) {
                   return self->invoke_handler(ec);
@@ -115,12 +122,13 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
     {
         auto backoff = std::chrono::milliseconds(500);
         auto time_left = deadline.expiry() - std::chrono::steady_clock::now();
-        spdlog::debug("{} unknown collection response for \"{}/{}/{}\", time_left={}ms",
+        spdlog::debug(R"({} unknown collection response for "{}/{}/{}", time_left={}ms, id="{}")",
                       session_->log_prefix(),
                       request.id.bucket,
                       request.id.collection,
                       request.id.key,
-                      std::chrono::duration_cast<std::chrono::milliseconds>(time_left).count());
+                      std::chrono::duration_cast<std::chrono::milliseconds>(time_left).count(),
+                      id_);
         if (time_left < backoff) {
             return invoke_handler(std::make_error_code(request.retries.idempotent ? error::common_errc::unambiguous_timeout
                                                                                   : error::common_errc::ambiguous_timeout));
@@ -138,18 +146,19 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
     {
         opaque_ = session_->next_opaque();
         request.opaque = *opaque_;
-        if (!request.id.collection_uid) {
+        if (request.id.use_collections && !request.id.collection_uid) {
             if (session_->supports_feature(protocol::hello_feature::collections)) {
                 auto collection_id = session_->get_collection_uid(request.id.collection);
                 if (collection_id) {
                     request.id.collection_uid = *collection_id;
                 } else {
-                    spdlog::debug("{} no cache entry for collection, resolve collection id for \"{}/{}/{}\", timeout={}ms",
+                    spdlog::debug(R"({} no cache entry for collection, resolve collection id for "{}/{}/{}", timeout={}ms, id="{}")",
                                   session_->log_prefix(),
                                   request.id.bucket,
                                   request.id.collection,
                                   request.id.key,
-                                  request.timeout.count());
+                                  request.timeout.count(),
+                                  id_);
                     return request_collection_id();
                 }
             } else {

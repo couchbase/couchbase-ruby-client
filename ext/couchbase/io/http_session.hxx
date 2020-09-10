@@ -228,14 +228,15 @@ class http_session : public std::enable_shared_from_this<http_session>
     {
         idle_timer_.expires_after(timeout);
         return idle_timer_.async_wait([self = shared_from_this()](std::error_code ec) {
-          if (ec == asio::error::operation_aborted) {
-              return;
-          }
-          self->stop();
+            if (ec == asio::error::operation_aborted) {
+                return;
+            }
+            self->stop();
         });
     }
 
-    void reset_idle() {
+    void reset_idle()
+    {
         idle_timer_.cancel();
     }
 

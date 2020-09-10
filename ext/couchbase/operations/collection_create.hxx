@@ -67,6 +67,8 @@ make_response(std::error_code ec, collection_create_request& request, collection
             case 400:
                 if (encoded.body.find("Collection with this name already exists") != std::string::npos) {
                     response.ec = std::make_error_code(error::management_errc::collection_exists);
+                } else if (encoded.body.find("Not allowed on this version of cluster") != std::string::npos) {
+                    response.ec = std::make_error_code(error::common_errc::feature_not_available);
                 } else {
                     response.ec = std::make_error_code(error::common_errc::invalid_argument);
                 }

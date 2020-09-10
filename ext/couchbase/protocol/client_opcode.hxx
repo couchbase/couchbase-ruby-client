@@ -133,76 +133,76 @@ struct fmt::formatter<couchbase::protocol::client_opcode> : formatter<string_vie
         string_view name = "unknown";
         switch (opcode) {
             case couchbase::protocol::client_opcode::get:
-                name = "get";
+                name = "get (0x00)";
                 break;
             case couchbase::protocol::client_opcode::upsert:
-                name = "upsert";
+                name = "upsert (0x01)";
                 break;
             case couchbase::protocol::client_opcode::insert:
-                name = "insert";
+                name = "insert (0x02)";
                 break;
             case couchbase::protocol::client_opcode::replace:
-                name = "replace";
+                name = "replace (0x03)";
                 break;
             case couchbase::protocol::client_opcode::remove:
-                name = "remove";
+                name = "remove (0x04)";
                 break;
             case couchbase::protocol::client_opcode::hello:
-                name = "hello";
+                name = "hello (0x1f)";
                 break;
             case couchbase::protocol::client_opcode::sasl_list_mechs:
-                name = "sasl_list_mechs";
+                name = "sasl_list_mechs (0x20)";
                 break;
             case couchbase::protocol::client_opcode::sasl_auth:
-                name = "sasl_auth";
+                name = "sasl_auth (0x21)";
                 break;
             case couchbase::protocol::client_opcode::sasl_step:
-                name = "sasl_step";
+                name = "sasl_step (0x22)";
                 break;
             case couchbase::protocol::client_opcode::select_bucket:
-                name = "select_bucket";
+                name = "select_bucket (0x89)";
                 break;
             case couchbase::protocol::client_opcode::subdoc_multi_lookup:
-                name = "subdoc_multi_lookup";
+                name = "subdoc_multi_lookup (0xd0)";
                 break;
             case couchbase::protocol::client_opcode::subdoc_multi_mutation:
-                name = "subdoc_multi_mutation";
+                name = "subdoc_multi_mutation (0xd1)";
                 break;
             case couchbase::protocol::client_opcode::get_cluster_config:
-                name = "get_cluster_config";
+                name = "get_cluster_config (0xb5)";
                 break;
             case couchbase::protocol::client_opcode::get_error_map:
-                name = "get_error_map";
+                name = "get_error_map (0xfe)";
                 break;
             case couchbase::protocol::client_opcode::invalid:
-                name = "invalid";
+                name = "invalid (0xff)";
                 break;
             case couchbase::protocol::client_opcode::get_collections_manifest:
-                name = "get_collections_manifest";
+                name = "get_collections_manifest (0xba)";
                 break;
             case couchbase::protocol::client_opcode::touch:
-                name = "touch";
+                name = "touch (0x1c)";
                 break;
             case couchbase::protocol::client_opcode::observe:
-                name = "observe";
+                name = "observe (0x92)";
                 break;
             case couchbase::protocol::client_opcode::get_and_lock:
-                name = "get_and_lock";
+                name = "get_and_lock (0x94)";
                 break;
             case couchbase::protocol::client_opcode::unlock:
-                name = "unlock";
+                name = "unlock (0x95)";
                 break;
             case couchbase::protocol::client_opcode::get_and_touch:
-                name = "get_and_touch";
+                name = "get_and_touch (0x1d)";
                 break;
             case couchbase::protocol::client_opcode::increment:
-                name = "increment";
+                name = "increment (0x05)";
                 break;
             case couchbase::protocol::client_opcode::decrement:
-                name = "decrement";
+                name = "decrement (0x06)";
                 break;
             case couchbase::protocol::client_opcode::get_collection_id:
-                name = "get_collection_uid";
+                name = "get_collection_uid (0xbb)";
                 break;
         }
         return formatter<string_view>::format(name, ctx);
@@ -217,46 +217,46 @@ struct fmt::formatter<couchbase::protocol::subdoc_opcode> : formatter<string_vie
         string_view name = "unknown";
         switch (opcode) {
             case couchbase::protocol::subdoc_opcode::get:
-                name = "get";
+                name = "get (0xc5)";
                 break;
             case couchbase::protocol::subdoc_opcode::exists:
-                name = "exists";
+                name = "exists (0xc6)";
                 break;
             case couchbase::protocol::subdoc_opcode::dict_add:
-                name = "dict_add";
+                name = "dict_add (0xc7)";
                 break;
             case couchbase::protocol::subdoc_opcode::dict_upsert:
-                name = "dict_upsert";
+                name = "dict_upsert (0xc8)";
                 break;
             case couchbase::protocol::subdoc_opcode::remove:
-                name = "remove";
+                name = "remove (0xc9)";
                 break;
             case couchbase::protocol::subdoc_opcode::replace:
-                name = "replace";
+                name = "replace (0xca)";
                 break;
             case couchbase::protocol::subdoc_opcode::array_push_last:
-                name = "array_push_last";
+                name = "array_push_last (0xcb)";
                 break;
             case couchbase::protocol::subdoc_opcode::array_push_first:
-                name = "array_push_first";
+                name = "array_push_first (0xcc)";
                 break;
             case couchbase::protocol::subdoc_opcode::array_insert:
-                name = "array_insert";
+                name = "array_insert (0xcd)";
                 break;
             case couchbase::protocol::subdoc_opcode::array_add_unique:
-                name = "array_add_unique";
+                name = "array_add_unique (0xce)";
                 break;
             case couchbase::protocol::subdoc_opcode::counter:
-                name = "counter";
+                name = "counter (0xcf)";
                 break;
             case couchbase::protocol::subdoc_opcode::get_count:
-                name = "get_count";
+                name = "get_count (0xd2)";
                 break;
             case couchbase::protocol::subdoc_opcode::get_doc:
-                name = "get_doc";
+                name = "get_doc (0x00)";
                 break;
             case couchbase::protocol::subdoc_opcode::set_doc:
-                name = "set_doc";
+                name = "set_doc (0x01)";
                 break;
         }
         return formatter<string_view>::format(name, ctx);
