@@ -159,6 +159,7 @@ struct query_request {
     bool adhoc{ true };
     bool metrics{ false };
     bool readonly{ false };
+    bool flex_index{ false };
 
     std::optional<std::uint64_t> max_parallelism{};
     std::optional<std::uint64_t> scan_cap{};
@@ -227,6 +228,9 @@ struct query_request {
         }
         if (readonly) {
             body["readonly"] = true;
+        }
+        if (flex_index) {
+            body["use_fts"] = true;
         }
         bool check_scan_wait = false;
         if (scan_consistency) {

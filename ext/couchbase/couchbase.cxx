@@ -1976,6 +1976,10 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         if (!NIL_P(readonly)) {
             req.readonly = RTEST(readonly);
         }
+        VALUE flex_index = rb_hash_aref(options, rb_id2sym(rb_intern("flex_index")));
+        if (!NIL_P(flex_index)) {
+            req.flex_index = RTEST(flex_index);
+        }
         VALUE scan_cap = rb_hash_aref(options, rb_id2sym(rb_intern("scan_cap")));
         if (!NIL_P(scan_cap)) {
             req.scan_cap = NUM2ULONG(scan_cap);

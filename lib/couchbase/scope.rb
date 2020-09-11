@@ -58,6 +58,7 @@ module Couchbase
         client_context_id: options.client_context_id,
         max_parallelism: options.max_parallelism,
         readonly: options.readonly,
+        flex_index: options.flex_index,
         scan_wait: options.scan_wait,
         scan_cap: options.scan_cap,
         pipeline_batch: options.pipeline_batch,

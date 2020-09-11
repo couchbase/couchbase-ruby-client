@@ -57,6 +57,12 @@ module Couchbase
       # @return [:off, :phases, :timings] Customize server profile level for this query
       attr_accessor :profile
 
+      # Tells the query engine to use a flex index (utilizing the search service)
+      #
+      # @api uncommitted
+      # @return [Boolean]
+      attr_accessor :flex_index
+
       # Associate scope qualifier (also known as +query_context+) with the query.
       #
       # The qualifier must be in form +{bucket_name}.{scope_name}+ or +default:{bucket_name}.{scope_name}+.
@@ -86,6 +92,7 @@ module Couchbase
         @scan_consistency = nil
         @mutation_state = nil
         @scope_qualifier = nil
+        @flex_index = false
         yield self if block_given?
       end
 
