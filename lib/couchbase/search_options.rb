@@ -546,7 +546,7 @@ module Couchbase
 
       # Prepare {GeoBoundingBoxQuery} body
       #
-      # @yieldparam [GeoDistanceQuery] query
+      # @yieldparam [GeoBoundingBoxQuery] query
       #
       # @param [Float] top_left_longitude
       # @param [Float] top_left_latitude
@@ -586,6 +586,64 @@ module Couchbase
           data = {
             "top_left" => [@top_left_longitude, @top_left_latitude],
             "bottom_right" => [@bottom_right_longitude, @bottom_right_latitude],
+          }
+          data["boost"] = boost if boost
+          data["field"] = field if field
+          data.to_json(*args)
+        end
+      end
+
+      # A coordinate is a tuple of a latitude and a longitude.
+      #
+      # @see GeoPolygonQuery
+      # @see SearchQuery.geo_polygon
+      class Coordinate
+        # @return [Float]
+        attr_accessor :longitude
+
+        # @return [Float]
+        attr_accessor :latitude
+
+        def initialize(longitude, latitude)
+          @longitude = longitude
+          @latitude = latitude
+        end
+      end
+
+      # Prepare {GeoPolygonQuery} body
+      #
+      # @yieldparam [GeoPolygonQuery] query
+      #
+      # @param [Array<Coordinate>] coordinates list of coordinates that forms polygon
+      #
+      # @return [GeoPolygonQuery]
+      #
+      # @api uncommitted
+      def self.geo_polygon(coordinates, &block)
+        GeoPolygonQuery.new(coordinates, &block)
+      end
+
+      # A search query which allows to match inside a geo polygon.
+      class GeoPolygonQuery < SearchQuery
+        # @return [Float]
+        attr_accessor :boost
+
+        # @return [String]
+        attr_accessor :field
+
+        # @yieldparam [GeoPolygonQuery] self
+        #
+        # @param [Array<Coordinate>] coordinates list of coordinates that forms polygon
+        def initialize(coordinates)
+          super()
+          @coordinates = coordinates
+          yield self if block_given?
+        end
+
+        # @return [String]
+        def to_json(*args)
+          data = {
+            "polygon_points" => @coordinates.map { |coord| [coord.longitude, coord.latitude] },
           }
           data["boost"] = boost if boost
           data["field"] = field if field
