@@ -2550,6 +2550,574 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE timeout)
     return Qnil;
 }
 
+static void
+cb__extract_role(const couchbase::operations::rbac::role_and_description& entry, VALUE role)
+{
+    rb_hash_aset(role, rb_id2sym(rb_intern("name")), rb_str_new(entry.name.data(), static_cast<long>(entry.name.size())));
+    rb_hash_aset(
+      role, rb_id2sym(rb_intern("display_name")), rb_str_new(entry.display_name.data(), static_cast<long>(entry.display_name.size())));
+    rb_hash_aset(
+      role, rb_id2sym(rb_intern("description")), rb_str_new(entry.description.data(), static_cast<long>(entry.description.size())));
+    if (entry.bucket) {
+        rb_hash_aset(role, rb_id2sym(rb_intern("bucket")), rb_str_new(entry.bucket->data(), static_cast<long>(entry.bucket->size())));
+    }
+    if (entry.scope) {
+        rb_hash_aset(role, rb_id2sym(rb_intern("scope")), rb_str_new(entry.scope->data(), static_cast<long>(entry.scope->size())));
+    }
+    if (entry.collection) {
+        rb_hash_aset(
+          role, rb_id2sym(rb_intern("collection")), rb_str_new(entry.collection->data(), static_cast<long>(entry.collection->size())));
+    }
+}
+
+static VALUE
+cb_Backend_role_get_all(VALUE self, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::role_get_all_request req{};
+        cb__extract_timeout(req, timeout);
+        auto barrier = std::make_shared<std::promise<couchbase::operations::role_get_all_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req,
+                                       [barrier](couchbase::operations::role_get_all_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, "unable to fetch users");
+            break;
+        }
+
+        VALUE res = rb_ary_new_capa(static_cast<long>(resp.roles.size()));
+        for (const auto& entry : resp.roles) {
+            VALUE role = rb_hash_new();
+            cb__extract_role(entry, role);
+            rb_ary_push(res, role);
+        }
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static void
+cb__extract_user(const couchbase::operations::rbac::user_and_metadata& entry, VALUE user)
+{
+    rb_hash_aset(user, rb_id2sym(rb_intern("username")), rb_str_new(entry.username.data(), static_cast<long>(entry.username.size())));
+    switch (entry.domain) {
+        case couchbase::operations::rbac::auth_domain::local:
+            rb_hash_aset(user, rb_id2sym(rb_intern("domain")), rb_id2sym(rb_intern("local")));
+            break;
+        case couchbase::operations::rbac::auth_domain::external:
+            rb_hash_aset(user, rb_id2sym(rb_intern("domain")), rb_id2sym(rb_intern("external")));
+            break;
+        case couchbase::operations::rbac::auth_domain::unknown:
+            break;
+    }
+    VALUE external_groups = rb_ary_new_capa(static_cast<long>(entry.external_groups.size()));
+    for (const auto& group : entry.external_groups) {
+        rb_ary_push(external_groups, rb_str_new(group.data(), static_cast<long>(group.size())));
+    }
+    rb_hash_aset(user, rb_id2sym(rb_intern("external_groups")), external_groups);
+    VALUE groups = rb_ary_new_capa(static_cast<long>(entry.groups.size()));
+    for (const auto& group : entry.groups) {
+        rb_ary_push(groups, rb_str_new(group.data(), static_cast<long>(group.size())));
+    }
+    rb_hash_aset(user, rb_id2sym(rb_intern("groups")), groups);
+    if (entry.display_name) {
+        rb_hash_aset(user,
+                     rb_id2sym(rb_intern("display_name")),
+                     rb_str_new(entry.display_name->data(), static_cast<long>(entry.display_name->size())));
+    }
+    if (entry.password_changed) {
+        rb_hash_aset(user,
+                     rb_id2sym(rb_intern("password_changed")),
+                     rb_str_new(entry.password_changed->data(), static_cast<long>(entry.password_changed->size())));
+    }
+    VALUE effective_roles = rb_ary_new_capa(static_cast<long>(entry.effective_roles.size()));
+    for (const auto& er : entry.effective_roles) {
+        VALUE role = rb_hash_new();
+        rb_hash_aset(role, rb_id2sym(rb_intern("name")), rb_str_new(er.name.data(), static_cast<long>(er.name.size())));
+        if (er.bucket) {
+            rb_hash_aset(role, rb_id2sym(rb_intern("bucket")), rb_str_new(er.bucket->data(), static_cast<long>(er.bucket->size())));
+        }
+        if (er.scope) {
+            rb_hash_aset(role, rb_id2sym(rb_intern("scope")), rb_str_new(er.scope->data(), static_cast<long>(er.scope->size())));
+        }
+        if (er.collection) {
+            rb_hash_aset(
+              role, rb_id2sym(rb_intern("collection")), rb_str_new(er.collection->data(), static_cast<long>(er.collection->size())));
+        }
+        VALUE origins = rb_ary_new_capa(static_cast<long>(er.origins.size()));
+        for (const auto& orig : er.origins) {
+            VALUE origin = rb_hash_new();
+            rb_hash_aset(origin, rb_id2sym(rb_intern("type")), rb_str_new(orig.type.data(), static_cast<long>(orig.type.size())));
+            if (orig.name) {
+                rb_hash_aset(origin, rb_id2sym(rb_intern("name")), rb_str_new(orig.name->data(), static_cast<long>(orig.name->size())));
+            }
+            rb_ary_push(origins, origin);
+        }
+        rb_hash_aset(role, rb_id2sym(rb_intern("origins")), origins);
+        rb_ary_push(effective_roles, role);
+    }
+    rb_hash_aset(user, rb_id2sym(rb_intern("effective_roles")), effective_roles);
+
+    VALUE roles = rb_ary_new_capa(static_cast<long>(entry.roles.size()));
+    for (const auto& er : entry.roles) {
+        VALUE role = rb_hash_new();
+        rb_hash_aset(role, rb_id2sym(rb_intern("name")), rb_str_new(er.name.data(), static_cast<long>(er.name.size())));
+        if (er.bucket) {
+            rb_hash_aset(role, rb_id2sym(rb_intern("bucket")), rb_str_new(er.bucket->data(), static_cast<long>(er.bucket->size())));
+        }
+        if (er.scope) {
+            rb_hash_aset(role, rb_id2sym(rb_intern("scope")), rb_str_new(er.scope->data(), static_cast<long>(er.scope->size())));
+        }
+        if (er.collection) {
+            rb_hash_aset(
+              role, rb_id2sym(rb_intern("collection")), rb_str_new(er.collection->data(), static_cast<long>(er.collection->size())));
+        }
+        rb_ary_push(roles, role);
+    }
+    rb_hash_aset(user, rb_id2sym(rb_intern("roles")), roles);
+}
+
+static VALUE
+cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(domain, T_SYMBOL);
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::user_get_all_request req{};
+        cb__extract_timeout(req, timeout);
+        if (domain == rb_id2sym(rb_intern("local"))) {
+            req.domain = couchbase::operations::rbac::auth_domain::local;
+        } else if (domain == rb_id2sym(rb_intern("external"))) {
+            req.domain = couchbase::operations::rbac::auth_domain::external;
+        } else {
+            exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
+            break;
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::operations::user_get_all_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req,
+                                       [barrier](couchbase::operations::user_get_all_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, "unable to fetch users");
+            break;
+        }
+
+        VALUE res = rb_ary_new_capa(static_cast<long>(resp.users.size()));
+        for (const auto& entry : resp.users) {
+            VALUE user = rb_hash_new();
+            cb__extract_user(entry, user);
+            rb_ary_push(res, user);
+        }
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(domain, T_SYMBOL);
+    Check_Type(username, T_STRING);
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::user_get_request req{};
+        cb__extract_timeout(req, timeout);
+        if (domain == rb_id2sym(rb_intern("local"))) {
+            req.domain = couchbase::operations::rbac::auth_domain::local;
+        } else if (domain == rb_id2sym(rb_intern("external"))) {
+            req.domain = couchbase::operations::rbac::auth_domain::external;
+        } else {
+            exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
+            break;
+        }
+        req.username.assign(RSTRING_PTR(username), static_cast<size_t>(RSTRING_LEN(username)));
+        auto barrier = std::make_shared<std::promise<couchbase::operations::user_get_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req, [barrier](couchbase::operations::user_get_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to fetch user "{}")", req.username).c_str());
+            break;
+        }
+
+        VALUE res = rb_hash_new();
+        cb__extract_user(resp.user, res);
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(domain, T_SYMBOL);
+    Check_Type(username, T_STRING);
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::user_drop_request req{};
+        cb__extract_timeout(req, timeout);
+        if (domain == rb_id2sym(rb_intern("local"))) {
+            req.domain = couchbase::operations::rbac::auth_domain::local;
+        } else if (domain == rb_id2sym(rb_intern("external"))) {
+            req.domain = couchbase::operations::rbac::auth_domain::external;
+        } else {
+            exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
+            break;
+        }
+        req.username.assign(RSTRING_PTR(username), static_cast<size_t>(RSTRING_LEN(username)));
+        auto barrier = std::make_shared<std::promise<couchbase::operations::user_drop_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req,
+                                       [barrier](couchbase::operations::user_drop_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to fetch user "{}")", req.username).c_str());
+            break;
+        }
+
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(domain, T_SYMBOL);
+    Check_Type(user, T_HASH);
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::user_upsert_request req{};
+        cb__extract_timeout(req, timeout);
+        if (domain == rb_id2sym(rb_intern("local"))) {
+            req.domain = couchbase::operations::rbac::auth_domain::local;
+        } else if (domain == rb_id2sym(rb_intern("external"))) {
+            req.domain = couchbase::operations::rbac::auth_domain::external;
+        } else {
+            exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
+            break;
+        }
+        VALUE name = rb_hash_aref(user, rb_id2sym(rb_intern("username")));
+        if (NIL_P(name) || TYPE(name) != T_STRING) {
+            exc = rb_exc_new_cstr(eInvalidArgument, "unable to upsert user: missing name");
+        }
+        req.user.username.assign(RSTRING_PTR(name), static_cast<size_t>(RSTRING_LEN(name)));
+        VALUE display_name = rb_hash_aref(user, rb_id2sym(rb_intern("display_name")));
+        if (!NIL_P(display_name) && TYPE(display_name) == T_STRING) {
+            req.user.display_name = std::string(RSTRING_PTR(display_name), static_cast<size_t>(RSTRING_LEN(display_name)));
+        }
+        VALUE password = rb_hash_aref(user, rb_id2sym(rb_intern("password")));
+        if (!NIL_P(password) && TYPE(password) == T_STRING) {
+            req.user.password = std::string(RSTRING_PTR(password), static_cast<size_t>(RSTRING_LEN(password)));
+        }
+        VALUE groups = rb_hash_aref(user, rb_id2sym(rb_intern("groups")));
+        if (!NIL_P(groups) && TYPE(groups) == T_ARRAY) {
+            auto groups_size = static_cast<size_t>(RARRAY_LEN(groups));
+            for (size_t i = 0; i < groups_size; ++i) {
+                VALUE entry = rb_ary_entry(groups, static_cast<long>(i));
+                if (TYPE(entry) == T_STRING) {
+                    req.user.groups.emplace(std::string(RSTRING_PTR(entry), static_cast<size_t>(RSTRING_LEN(entry))));
+                }
+            }
+        }
+        VALUE roles = rb_hash_aref(user, rb_id2sym(rb_intern("roles")));
+        if (!NIL_P(roles) && TYPE(roles) == T_ARRAY) {
+            auto roles_size = static_cast<size_t>(RARRAY_LEN(roles));
+            req.user.roles.reserve(roles_size);
+            for (size_t i = 0; i < roles_size; ++i) {
+                VALUE entry = rb_ary_entry(roles, static_cast<long>(i));
+                if (TYPE(entry) == T_HASH) {
+                    couchbase::operations::rbac::role role{};
+                    VALUE role_name = rb_hash_aref(entry, rb_id2sym(rb_intern("name")));
+                    role.name.assign(RSTRING_PTR(role_name), static_cast<size_t>(RSTRING_LEN(role_name)));
+                    VALUE bucket = rb_hash_aref(entry, rb_id2sym(rb_intern("bucket")));
+                    if (!NIL_P(bucket) && TYPE(bucket) == T_STRING) {
+                        role.bucket = std::string(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
+                        VALUE scope = rb_hash_aref(entry, rb_id2sym(rb_intern("scope")));
+                        if (!NIL_P(scope) && TYPE(scope) == T_STRING) {
+                            role.scope = std::string(RSTRING_PTR(scope), static_cast<size_t>(RSTRING_LEN(scope)));
+                            VALUE collection = rb_hash_aref(entry, rb_id2sym(rb_intern("collection")));
+                            if (!NIL_P(collection) && TYPE(collection) == T_STRING) {
+                                role.collection = std::string(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
+                            }
+                        }
+                    }
+                    req.user.roles.emplace_back(role);
+                }
+            }
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::operations::user_upsert_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req,
+                                       [barrier](couchbase::operations::user_upsert_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(
+              resp.ec, fmt::format(R"(unable to upsert user "{}" ({}))", req.user.username, fmt::join(resp.errors, ", ")).c_str());
+            break;
+        }
+
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static void
+cb__extract_group(const couchbase::operations::rbac::group& entry, VALUE group)
+{
+    rb_hash_aset(group, rb_id2sym(rb_intern("name")), rb_str_new(entry.name.data(), static_cast<long>(entry.name.size())));
+    if (entry.description) {
+        rb_hash_aset(
+          group, rb_id2sym(rb_intern("description")), rb_str_new(entry.description->data(), static_cast<long>(entry.description->size())));
+    }
+    if (entry.ldap_group_reference) {
+        rb_hash_aset(group,
+                     rb_id2sym(rb_intern("ldap_group_reference")),
+                     rb_str_new(entry.ldap_group_reference->data(), static_cast<long>(entry.ldap_group_reference->size())));
+    }
+    VALUE roles = rb_ary_new_capa(static_cast<long>(entry.roles.size()));
+    for (const auto& er : entry.roles) {
+        VALUE role = rb_hash_new();
+        rb_hash_aset(role, rb_id2sym(rb_intern("name")), rb_str_new(er.name.data(), static_cast<long>(er.name.size())));
+        if (er.bucket) {
+            rb_hash_aset(role, rb_id2sym(rb_intern("bucket")), rb_str_new(er.bucket->data(), static_cast<long>(er.bucket->size())));
+        }
+        if (er.scope) {
+            rb_hash_aset(role, rb_id2sym(rb_intern("scope")), rb_str_new(er.scope->data(), static_cast<long>(er.scope->size())));
+        }
+        if (er.collection) {
+            rb_hash_aset(
+              role, rb_id2sym(rb_intern("collection")), rb_str_new(er.collection->data(), static_cast<long>(er.collection->size())));
+        }
+        rb_ary_push(roles, role);
+    }
+    rb_hash_aset(group, rb_id2sym(rb_intern("roles")), roles);
+}
+
+static VALUE
+cb_Backend_group_get_all(VALUE self, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::group_get_all_request req{};
+        cb__extract_timeout(req, timeout);
+        auto barrier = std::make_shared<std::promise<couchbase::operations::group_get_all_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req,
+                                       [barrier](couchbase::operations::group_get_all_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, "unable to fetch groups");
+            break;
+        }
+
+        VALUE res = rb_ary_new_capa(static_cast<long>(resp.groups.size()));
+        for (const auto& entry : resp.groups) {
+            VALUE group = rb_hash_new();
+            cb__extract_group(entry, group);
+            rb_ary_push(res, group);
+        }
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(name, T_STRING);
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::group_get_request req{};
+        cb__extract_timeout(req, timeout);
+        req.name.assign(RSTRING_PTR(name), static_cast<size_t>(RSTRING_LEN(name)));
+        auto barrier = std::make_shared<std::promise<couchbase::operations::group_get_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req,
+                                       [barrier](couchbase::operations::group_get_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to fetch group "{}")", req.name).c_str());
+            break;
+        }
+
+        VALUE res = rb_hash_new();
+        cb__extract_group(resp.group, res);
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(name, T_STRING);
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::group_drop_request req{};
+        cb__extract_timeout(req, timeout);
+        req.name.assign(RSTRING_PTR(name), static_cast<size_t>(RSTRING_LEN(name)));
+        auto barrier = std::make_shared<std::promise<couchbase::operations::group_drop_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req,
+                                       [barrier](couchbase::operations::group_drop_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to drop group "{}")", req.name).c_str());
+            break;
+        }
+
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(group, T_HASH);
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::group_upsert_request req{};
+        cb__extract_timeout(req, timeout);
+        VALUE name = rb_hash_aref(group, rb_id2sym(rb_intern("name")));
+        if (NIL_P(name) || TYPE(name) != T_STRING) {
+            exc = rb_exc_new_cstr(eInvalidArgument, "unable to upsert group: missing name");
+        }
+        req.group.name.assign(RSTRING_PTR(name), static_cast<size_t>(RSTRING_LEN(name)));
+        VALUE ldap_group_ref = rb_hash_aref(group, rb_id2sym(rb_intern("ldap_group_reference")));
+        if (!NIL_P(ldap_group_ref) && TYPE(ldap_group_ref) == T_STRING) {
+            req.group.ldap_group_reference = std::string(RSTRING_PTR(ldap_group_ref), static_cast<size_t>(RSTRING_LEN(ldap_group_ref)));
+        }
+        VALUE description = rb_hash_aref(group, rb_id2sym(rb_intern("description")));
+        if (!NIL_P(description) && TYPE(description) == T_STRING) {
+            req.group.description = std::string(RSTRING_PTR(description), static_cast<size_t>(RSTRING_LEN(description)));
+        }
+        VALUE roles = rb_hash_aref(group, rb_id2sym(rb_intern("roles")));
+        if (!NIL_P(roles) && TYPE(roles) == T_ARRAY) {
+            auto roles_size = static_cast<size_t>(RARRAY_LEN(roles));
+            req.group.roles.reserve(roles_size);
+            for (size_t i = 0; i < roles_size; ++i) {
+                VALUE entry = rb_ary_entry(roles, static_cast<long>(i));
+                if (TYPE(entry) == T_HASH) {
+                    couchbase::operations::rbac::role role{};
+                    VALUE role_name = rb_hash_aref(entry, rb_id2sym(rb_intern("name")));
+                    role.name.assign(RSTRING_PTR(role_name), static_cast<size_t>(RSTRING_LEN(role_name)));
+                    VALUE bucket = rb_hash_aref(entry, rb_id2sym(rb_intern("bucket")));
+                    if (!NIL_P(bucket) && TYPE(bucket) == T_STRING) {
+                        role.bucket = std::string(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
+                        VALUE scope = rb_hash_aref(entry, rb_id2sym(rb_intern("scope")));
+                        if (!NIL_P(scope) && TYPE(scope) == T_STRING) {
+                            role.scope = std::string(RSTRING_PTR(scope), static_cast<size_t>(RSTRING_LEN(scope)));
+                            VALUE collection = rb_hash_aref(entry, rb_id2sym(rb_intern("collection")));
+                            if (!NIL_P(collection) && TYPE(collection) == T_STRING) {
+                                role.collection = std::string(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
+                            }
+                        }
+                    }
+                    req.group.roles.emplace_back(role);
+                }
+            }
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::operations::group_upsert_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(req,
+                                       [barrier](couchbase::operations::group_upsert_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(
+              resp.ec, fmt::format(R"(unable to upsert group "{}" ({}))", req.group.name, fmt::join(resp.errors, ", ")).c_str());
+            break;
+        }
+
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
 static VALUE
 cb_Backend_cluster_enable_developer_preview(VALUE self)
 {
@@ -5475,6 +6043,16 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "bucket_flush", VALUE_FUNC(cb_Backend_bucket_flush), 2);
     rb_define_method(cBackend, "bucket_get_all", VALUE_FUNC(cb_Backend_bucket_get_all), 1);
     rb_define_method(cBackend, "bucket_get", VALUE_FUNC(cb_Backend_bucket_get), 2);
+
+    rb_define_method(cBackend, "role_get_all", VALUE_FUNC(cb_Backend_role_get_all), 1);
+    rb_define_method(cBackend, "user_get_all", VALUE_FUNC(cb_Backend_user_get_all), 2);
+    rb_define_method(cBackend, "user_get", VALUE_FUNC(cb_Backend_user_get), 3);
+    rb_define_method(cBackend, "user_drop", VALUE_FUNC(cb_Backend_user_drop), 3);
+    rb_define_method(cBackend, "user_upsert", VALUE_FUNC(cb_Backend_user_upsert), 3);
+    rb_define_method(cBackend, "group_get_all", VALUE_FUNC(cb_Backend_group_get_all), 1);
+    rb_define_method(cBackend, "group_get", VALUE_FUNC(cb_Backend_group_get), 2);
+    rb_define_method(cBackend, "group_drop", VALUE_FUNC(cb_Backend_group_drop), 2);
+    rb_define_method(cBackend, "group_upsert", VALUE_FUNC(cb_Backend_group_upsert), 2);
 
     rb_define_method(cBackend, "cluster_enable_developer_preview!", VALUE_FUNC(cb_Backend_cluster_enable_developer_preview), 0);
 

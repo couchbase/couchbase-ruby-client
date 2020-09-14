@@ -166,6 +166,9 @@ Performance/Squeeze:
 Performance/StringInclude:
   Enabled: true
 
+Performance/Sum:
+  Enabled: true
+
 Minitest/AssertInDelta:
   Enabled: true
 

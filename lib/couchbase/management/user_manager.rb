@@ -14,6 +14,8 @@
 
 require "couchbase/errors"
 
+require "time"
+
 module Couchbase
   module Management
     class UserManager
@@ -26,22 +28,24 @@ module Couchbase
 
       # Get a user
       #
-      # @param [String] user_name ID of the user
+      # @param [String] username ID of the user
       # @param [GetUserOptions] options
       #
       # @return [UserAndMetadata]
       #
       # @raise [ArgumentError]
       # @raise [Error::UserNotFound]
-      def get_user(user_name, options = GetUserOptions.new)
-        # GET /settings/rbac/users/#{options.domain}/#{user_name}
+      def get_user(username, options = GetUserOptions.new)
+        resp = @backend.user_get(options.domain, username, options.timeout)
+        extract_user(resp)
       end
 
       # Gets all users
       #
       # @return [Array<UserAndMetadata>]
       def get_all_users(options = GetAllUsersOptions.new)
-        # GET /settings/rbac/users/#{options.domain}
+        resp = @backend.user_get_all(options.domain, options.timeout)
+        resp.map(&method(:extract_user))
       end
 
       # Creates or updates a user
@@ -51,15 +55,31 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def upsert_user(user, options = UpsertUserOptions.new)
-        # PUT /settings/rbac/users/#{options.domain}/#{user_name}
+        @backend.user_upsert(
+          options.domain,
+          {
+            username: user.username,
+            display_name: user.display_name,
+            groups: user.groups,
+            password: user.password,
+            roles: user.roles.map do |role|
+                     {
+                       name: role.name,
+                       bucket: role.bucket,
+                       scope: role.scope,
+                       collection: role.collection,
+                     }
+                   end,
+          }, options.timeout
+        )
       end
 
       # Removes a user
       #
-      # @param [String] user_name ID of the user
+      # @param [String] username ID of the user
       # @param [DropUserOptions] options
-      def drop_user(user_name, options = DropUserOptions.new)
-        # DELETE /settings/rbac/users/#{options.domain}/#{user_name}
+      def drop_user(username, options = DropUserOptions.new)
+        @backend.user_drop(options.domain, username, options.timeout)
       end
 
       # Gets all roles supported by the server
@@ -68,7 +88,17 @@ module Couchbase
       #
       # @return [Array<RoleAndDescription>]
       def get_roles(options = GetRolesOptions.new)
-        # GET /settings/rbac/roles
+        resp = @backend.role_get_all(options.timeout)
+        resp.map do |r|
+          RoleAndDescription.new do |role|
+            role.name = r[:name]
+            role.display_name = r[:display_name]
+            role.description = r[:description]
+            role.bucket = r[:bucket]
+            role.scope = r[:scope]
+            role.collection = r[:collection]
+          end
+        end
       end
 
       # Gets a group
@@ -80,7 +110,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::GroupNotFound]
       def get_group(group_name, options = GetGroupOptions.new)
-        # GET /settings/rbac/groups/#{group_name}
+        resp = @backend.group_get(group_name, options.timeout)
+        extract_group(resp)
       end
 
       # Gets all groups
@@ -89,7 +120,8 @@ module Couchbase
       #
       # @return [Array<Group>]
       def get_all_groups(options = GetAllGroupsOptions.new)
-        # GET /settings/rbac/groups
+        resp = @backend.group_get_all(options.timeout)
+        resp.map(&method(:extract_group))
       end
 
       # Creates or updates a group
@@ -100,7 +132,19 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::GroupNotFound]
       def upsert_group(group, options = UpsertGroupOptions.new)
-        # PUT /settings/rbac/groups/#{group.name}
+        @backend.group_upsert({
+          name: group.name,
+          description: group.description,
+          ldap_group_reference: group.ldap_group_reference,
+          roles: group.roles.map do |role|
+                   {
+                     name: role.name,
+                     bucket: role.bucket,
+                     scope: role.scope,
+                     collection: role.collection,
+                   }
+                 end,
+        }, options.timeout)
       end
 
       # Removes a group
@@ -109,56 +153,58 @@ module Couchbase
       # @param [DropGroupOptions] options
       #
       # @raise [Error::GroupNotFound]
-      def drop_group(group_name, options = DropGroupOptions.new) end
+      def drop_group(group_name, options = DropGroupOptions.new)
+        @backend.group_drop(group_name, options.timeout)
+      end
 
       class GetUserOptions
         # @return [:local, :external] Name of the user's domain. Defaults to +:local+
-        attr_accessor :domain_name
+        attr_accessor :domain
 
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
         def initialize
-          @domain_name = :local
+          @domain = :local
           yield self if block_given?
         end
       end
 
       class GetAllUsersOptions
         # @return [:local, :external] Name of the user's domain. Defaults to +:local+
-        attr_accessor :domain_name
+        attr_accessor :domain
 
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
         def initialize
-          @domain_name = :local
+          @domain = :local
           yield self if block_given?
         end
       end
 
       class UpsertUserOptions
         # @return [:local, :external] Name of the user's domain. Defaults to +:local+
-        attr_accessor :domain_name
+        attr_accessor :domain
 
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
         def initialize
-          @domain_name = :local
+          @domain = :local
           yield self if block_given?
         end
       end
 
       class DropUserOptions
         # @return [:local, :external] Name of the user's domain. Defaults to +:local+
-        attr_accessor :domain_name
+        attr_accessor :domain
 
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
         def initialize
-          @domain_name = :local
+          @domain = :local
           yield self if block_given?
         end
       end
@@ -207,6 +253,65 @@ module Couchbase
           yield self if block_given?
         end
       end
+
+      private
+
+      def extract_group(resp)
+        Group.new do |group|
+          group.name = resp[:name]
+          group.description = resp[:description]
+          group.ldap_group_reference = resp[:ldap_group_reference]
+          if resp[:roles]
+            group.roles = resp[:roles].map do |r|
+              Role.new do |role|
+                role.name = r[:name]
+                role.bucket = r[:bucket]
+                role.scope = r[:scope]
+                role.collection = r[:collection]
+              end
+            end
+          end
+        end
+      end
+
+      def extract_user(resp)
+        UserAndMetadata.new do |user|
+          user.domain = resp[:domain]
+          user.username = resp[:username]
+          user.display_name = resp[:display_name]
+          user.groups = resp[:groups]
+          user.external_groups = resp[:external_groups]
+          user.password_changed = Time.parse(resp[:password_changed]) if resp[:password_changed]
+          if resp[:roles]
+            user.roles = resp[:roles].map do |r|
+              Role.new do |role|
+                role.name = r[:name]
+                role.bucket = r[:bucket]
+                role.scope = r[:scope]
+                role.collection = r[:collection]
+              end
+            end
+          end
+          if resp[:effective_roles]
+            user.effective_roles = resp[:effective_roles].map do |r|
+              RoleAndOrigins.new do |role|
+                role.name = r[:name]
+                role.bucket = r[:bucket]
+                role.scope = r[:scope]
+                role.collection = r[:collection]
+                if r[:origins]
+                  role.origins = r[:origins].map do |o|
+                    Origin.new do |origin|
+                      origin.type = o[:type]
+                      origin.name = o[:name]
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
     end
 
     class Role
@@ -216,20 +321,23 @@ module Couchbase
       # @return [String]
       attr_accessor :bucket
 
+      # @return [String]
+      attr_accessor :scope
+
+      # @return [String]
+      attr_accessor :collection
+
       def initialize
         yield self if block_given?
       end
     end
 
-    class RoleAndDescription
-      # @return [Role]
-      attr_reader :role
+    class RoleAndDescription < Role
+      # @return [String]
+      attr_accessor :display_name
 
       # @return [String]
-      attr_reader :display_name
-
-      # @return [String]
-      attr_reader :description
+      attr_accessor :description
 
       def initialize
         yield self if block_given?
@@ -238,31 +346,29 @@ module Couchbase
 
     class Origin
       # @return [String]
-      attr_reader :type
+      attr_writer :type
 
       # @return [String]
-      attr_reader :name
+      attr_writer :name
 
       def initialize
         yield self if block_given?
       end
     end
 
-    class RoleAndOrigins
-      # @return [Role]
-      attr_reader :role
-
+    class RoleAndOrigins < Role
       # @return [Array<Origin>]
-      attr_reader :origins
+      attr_writer :origins
 
       def initialize
+        @origins = []
         yield self if block_given?
       end
     end
 
     class User
       # @return [String]
-      attr_accessor :user_name
+      attr_accessor :username
 
       # @return [String]
       attr_accessor :display_name
@@ -274,48 +380,49 @@ module Couchbase
       attr_accessor :roles
 
       # @return [String]
-      attr_writer :password
+      attr_accessor :password
 
       def initialize
+        @groups = []
+        @roles = []
         yield self if block_given?
       end
     end
 
-    class UserAndMetadata
+    class UserAndMetadata < User
       # @return [:local, :external]
-      attr_reader :domain
-
-      # @return [User]
-      attr_reader :user
+      attr_accessor :domain
 
       # @return [Array<RoleAndOrigins>]
-      attr_reader :effective_roles
+      attr_accessor :effective_roles
 
       # @return [Time]
-      attr_reader :password_changed
+      attr_accessor :password_changed
 
       # @return [Array<String>]
-      attr_reader :external_groups
+      attr_accessor :external_groups
 
       def initialize
+        @effective_roles = []
         yield self if block_given?
       end
     end
 
     class Group
       # @return [String]
-      attr_reader :name
+      attr_accessor :name
 
       # @return [String]
-      attr_reader :description
+      attr_accessor :description
 
       # @return [Array<Role>]
-      attr_reader :roles
+      attr_accessor :roles
 
       # @return [String]
-      attr_reader :ldap_group_reference
+      attr_accessor :ldap_group_reference
 
       def initialize
+        @roles = []
         yield self if block_given?
       end
     end

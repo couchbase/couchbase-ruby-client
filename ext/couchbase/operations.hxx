@@ -48,6 +48,16 @@
 #include <operations/bucket_create.hxx>
 #include <operations/bucket_update.hxx>
 
+#include <operations/role_get_all.hxx>
+#include <operations/user_get_all.hxx>
+#include <operations/user_get.hxx>
+#include <operations/user_drop.hxx>
+#include <operations/user_upsert.hxx>
+#include <operations/group_get_all.hxx>
+#include <operations/group_get.hxx>
+#include <operations/group_drop.hxx>
+#include <operations/group_upsert.hxx>
+
 #include <operations/scope_get_all.hxx>
 #include <operations/scope_create.hxx>
 #include <operations/scope_drop.hxx>
