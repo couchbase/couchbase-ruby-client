@@ -204,10 +204,13 @@ class cluster
                     origin::node_list nodes;
                     nodes.reserve(config.nodes.size());
                     for (const auto& address : config.nodes) {
+                        auto port = address.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0);
+                        if (port == 0) {
+                            continue;
+                        }
                         origin::node_entry node;
                         node.first = address.hostname_for(origin_.options().network);
-                        node.second =
-                          std::to_string(address.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0));
+                        node.second = std::to_string(port);
                         nodes.emplace_back(node);
                     }
                     origin_.set_nodes(nodes);

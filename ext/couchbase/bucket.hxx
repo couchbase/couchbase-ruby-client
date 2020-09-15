@@ -134,6 +134,9 @@ class bucket : public std::enable_shared_from_this<bucket>
 
                 auto hostname = node.hostname_for(origin_.options().network);
                 auto port = node.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0);
+                if (port == 0) {
+                    continue;
+                }
                 couchbase::origin origin(origin_.credentials(), hostname, port, origin_.options());
                 std::shared_ptr<io::mcbp_session> session;
                 if (origin_.options().enable_tls) {

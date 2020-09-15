@@ -2146,16 +2146,20 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         }
         metrics = rb_hash_new();
         rb_hash_aset(meta, rb_id2sym(rb_intern("metrics")), metrics);
-        rb_hash_aset(metrics,
-                     rb_id2sym(rb_intern("elapsed_time")),
-                     rb_str_new(resp.payload.meta_data.metrics.elapsed_time.data(),
-                                static_cast<long>(resp.payload.meta_data.metrics.elapsed_time.size())));
-        rb_hash_aset(metrics,
-                     rb_id2sym(rb_intern("execution_time")),
-                     rb_str_new(resp.payload.meta_data.metrics.execution_time.data(),
-                                static_cast<long>(resp.payload.meta_data.metrics.execution_time.size())));
+        if (!resp.payload.meta_data.metrics.elapsed_time.empty()) {
+            rb_hash_aset(metrics,
+                         rb_id2sym(rb_intern("elapsed_time")),
+                         rb_str_new(resp.payload.meta_data.metrics.elapsed_time.data(),
+                                    static_cast<long>(resp.payload.meta_data.metrics.elapsed_time.size())));
+        }
+        if (!resp.payload.meta_data.metrics.execution_time.empty()) {
+            rb_hash_aset(metrics,
+                         rb_id2sym(rb_intern("execution_time")),
+                         rb_str_new(resp.payload.meta_data.metrics.execution_time.data(),
+                                    static_cast<long>(resp.payload.meta_data.metrics.execution_time.size())));
+        }
         rb_hash_aset(metrics, rb_id2sym(rb_intern("result_count")), ULL2NUM(resp.payload.meta_data.metrics.result_count));
-        rb_hash_aset(metrics, rb_id2sym(rb_intern("result_size")), ULL2NUM(resp.payload.meta_data.metrics.result_count));
+        rb_hash_aset(metrics, rb_id2sym(rb_intern("result_size")), ULL2NUM(resp.payload.meta_data.metrics.result_size));
         if (resp.payload.meta_data.metrics.sort_count) {
             rb_hash_aset(metrics, rb_id2sym(rb_intern("sort_count")), ULL2NUM(*resp.payload.meta_data.metrics.sort_count));
         }
