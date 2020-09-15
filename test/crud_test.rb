@@ -316,8 +316,8 @@ module Couchbase
       res = @collection.get(doc_id, options)
 
       assert_equal doc, res.content
-      assert_kind_of Integer, res.expiry
-      refute_equal 0, res.expiry
+      assert_kind_of Time, res.expiry_time
+      assert res.expiry_time > Time.now
     end
 
     def test_insert_get_projection
@@ -675,8 +675,8 @@ module Couchbase
         obj["field#{n}"] = n
       end
       assert_equal(expected, res.content, "expected result do not include field17, field18")
-      assert_kind_of(Integer, res.expiry)
-      refute_equal(0, res.expiry)
+      assert_kind_of(Time, res.expiry_time)
+      assert(res.expiry_time > Time.now)
     end
 
     def test_upsert_get_projection_missing_path

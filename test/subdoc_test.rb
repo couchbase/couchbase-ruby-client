@@ -1091,9 +1091,8 @@ module Couchbase
       options = Collection::GetOptions.new
       options.with_expiry = true
       res = @collection.get(doc_id, options)
-      assert_kind_of Integer, res.expiry
-      refute_equal 0, res.expiry
-      assert Time.at(res.expiry) > Time.now
+      assert_kind_of Time, res.expiry_time
+      assert res.expiry_time > Time.now
     end
 
     def test_more_than_16_entries

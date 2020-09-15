@@ -12,6 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "rubygems/deprecate"
+
 require "couchbase/json_transcoder"
 require "couchbase/common_options"
 require "couchbase/subdoc"
@@ -87,11 +89,13 @@ module Couchbase
     end
 
     class GetResult
+      extend Gem::Deprecate
+
       # @return [Integer] holds the CAS value of the fetched document
       attr_accessor :cas
 
       # @return [Integer] the expiration if fetched and present
-      attr_accessor :expiry
+      attr_writer :expiry
 
       # @return [String] The encoded content when loading the document
       # @api private
@@ -106,8 +110,14 @@ module Couchbase
         transcoder.decode(@encoded, @flags)
       end
 
+      # @return [Time] time when the document will expire
+      def expiry_time
+        Time.at(@expiry) if @expiry
+      end
+
       # @yieldparam [GetResult] self
       def initialize
+        @expiry = nil
         yield self if block_given?
       end
 
@@ -117,6 +127,13 @@ module Couchbase
 
       # @return [JsonTranscoder] The default transcoder which should be used
       attr_accessor :transcoder
+
+      # @deprecated Use {#expiry_time}
+      # @return [Integer] the expiration if fetched and present
+      def expiry
+        @expiry
+      end
+      deprecate :expiry, :expiry_time, 2021, 1
     end
 
     class GetAllReplicasOptions < CommonOptions
