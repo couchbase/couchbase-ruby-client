@@ -5,7 +5,42 @@ namespace couchbase::operations
 struct bucket_settings {
     enum class bucket_type { unknown, couchbase, memcached, ephemeral };
     enum class compression_mode { unknown, off, active, passive };
-    enum class ejection_policy { unknown, full, value_only };
+    enum class eviction_policy {
+        unknown,
+
+        /**
+         * During ejection, everything (including key, metadata, and value) will be ejected.
+         *
+         * Full Ejection reduces the memory overhead requirement, at the cost of performance.
+         *
+         * This value is only valid for buckets of type COUCHBASE.
+         */
+        full,
+
+        /**
+         * During ejection, only the value will be ejected (key and metadata will remain in memory).
+         *
+         * Value Ejection needs more system memory, but provides better performance than Full Ejection.
+         *
+         * This value is only valid for buckets of type COUCHBASE.
+         */
+        value_only,
+
+        /**
+         * Couchbase Server keeps all data until explicitly deleted, but will reject
+         * any new data if you reach the quota (dedicated memory) you set for your bucket.
+         *
+         * This value is only valid for buckets of type EPHEMERAL.
+         */
+        no_eviction,
+
+        /**
+         * When the memory quota is reached, Couchbase Server ejects data that has not been used recently.
+         *
+         * This value is only valid for buckets of type EPHEMERAL.
+         */
+        not_recently_used,
+    };
     enum class conflict_resolution_type { unknown, timestamp, sequence_number };
     struct node {
         std::string hostname;
@@ -24,7 +59,7 @@ struct bucket_settings {
     std::uint32_t num_replicas{ 1 };
     bool replica_indexes{ false };
     bool flush_enabled{ false };
-    ejection_policy ejection_policy{ ejection_policy::unknown };
+    eviction_policy eviction_policy{ eviction_policy::unknown };
     conflict_resolution_type conflict_resolution_type{ conflict_resolution_type::unknown };
     std::vector<std::string> capabilities{};
     std::vector<node> nodes{};
@@ -68,9 +103,13 @@ struct traits<couchbase::operations::bucket_settings> {
         {
             auto& str = v.at("evictionPolicy").get_string();
             if (str == "valueOnly") {
-                result.ejection_policy = couchbase::operations::bucket_settings::ejection_policy::value_only;
+                result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::value_only;
             } else if (str == "fullEviction") {
-                result.ejection_policy = couchbase::operations::bucket_settings::ejection_policy::full;
+                result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::full;
+            } else if (str == "noEviction") {
+                result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::no_eviction;
+            } else if (str == "nruEviction") {
+                result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::not_recently_used;
             }
         }
         {

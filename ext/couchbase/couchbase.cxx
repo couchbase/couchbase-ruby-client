@@ -2243,15 +2243,19 @@ cb__generate_bucket_settings(VALUE bucket, couchbase::operations::bucket_setting
         }
     }
     {
-        VALUE ejection_policy = rb_hash_aref(bucket, rb_id2sym(rb_intern("ejection_policy")));
-        if (!NIL_P(ejection_policy)) {
-            Check_Type(ejection_policy, T_SYMBOL);
-            if (ejection_policy == rb_id2sym(rb_intern("full"))) {
-                entry.ejection_policy = couchbase::operations::bucket_settings::ejection_policy::full;
-            } else if (ejection_policy == rb_id2sym(rb_intern("value_only"))) {
-                entry.ejection_policy = couchbase::operations::bucket_settings::ejection_policy::value_only;
+        VALUE eviction_policy = rb_hash_aref(bucket, rb_id2sym(rb_intern("eviction_policy")));
+        if (!NIL_P(eviction_policy)) {
+            Check_Type(eviction_policy, T_SYMBOL);
+            if (eviction_policy == rb_id2sym(rb_intern("full"))) {
+                entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::full;
+            } else if (eviction_policy == rb_id2sym(rb_intern("value_only"))) {
+                entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::value_only;
+            } else if (eviction_policy == rb_id2sym(rb_intern("no_eviction"))) {
+                entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::no_eviction;
+            } else if (eviction_policy == rb_id2sym(rb_intern("not_recently_used"))) {
+                entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::not_recently_used;
             } else {
-                rb_raise(rb_eArgError, "unknown ejection policy");
+                rb_raise(rb_eArgError, "unknown eviction policy");
             }
         }
     }
@@ -2439,15 +2443,21 @@ cb__extract_bucket_settings(const couchbase::operations::bucket_settings& entry,
     rb_hash_aset(bucket, rb_id2sym(rb_intern("num_replicas")), ULONG2NUM(entry.num_replicas));
     rb_hash_aset(bucket, rb_id2sym(rb_intern("replica_indexes")), entry.replica_indexes ? Qtrue : Qfalse);
     rb_hash_aset(bucket, rb_id2sym(rb_intern("flush_enabled")), entry.flush_enabled ? Qtrue : Qfalse);
-    switch (entry.ejection_policy) {
-        case couchbase::operations::bucket_settings::ejection_policy::full:
-            rb_hash_aset(bucket, rb_id2sym(rb_intern("ejection_policy")), rb_id2sym(rb_intern("full")));
+    switch (entry.eviction_policy) {
+        case couchbase::operations::bucket_settings::eviction_policy::full:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("eviction_policy")), rb_id2sym(rb_intern("full")));
             break;
-        case couchbase::operations::bucket_settings::ejection_policy::value_only:
-            rb_hash_aset(bucket, rb_id2sym(rb_intern("ejection_policy")), rb_id2sym(rb_intern("value_only")));
+        case couchbase::operations::bucket_settings::eviction_policy::value_only:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("eviction_policy")), rb_id2sym(rb_intern("value_only")));
             break;
-        case couchbase::operations::bucket_settings::ejection_policy::unknown:
-            rb_hash_aset(bucket, rb_id2sym(rb_intern("ejection_policy")), Qnil);
+        case couchbase::operations::bucket_settings::eviction_policy::no_eviction:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("eviction_policy")), rb_id2sym(rb_intern("no_eviction")));
+            break;
+        case couchbase::operations::bucket_settings::eviction_policy::not_recently_used:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("eviction_policy")), rb_id2sym(rb_intern("not_recently_used")));
+            break;
+        case couchbase::operations::bucket_settings::eviction_policy::unknown:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("eviction_policy")), Qnil);
             break;
     }
     switch (entry.conflict_resolution_type) {

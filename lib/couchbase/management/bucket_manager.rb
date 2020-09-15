@@ -14,6 +14,8 @@
 
 require "couchbase/errors"
 
+require "rubygems/deprecate"
+
 module Couchbase
   module Management
     class BucketManager
@@ -196,6 +198,8 @@ module Couchbase
     end
 
     class BucketSettings
+      extend Gem::Deprecate
+
       # @return [String] name of the bucket
       attr_accessor :name
 
@@ -214,8 +218,25 @@ module Couchbase
       # @return [:couchbase, :memcached, :ephemeral] the type of the bucket. Defaults to +:couchbase+
       attr_accessor :bucket_type
 
-      # @return [:full, :value_only] the eviction policy to use
-      attr_accessor :ejection_policy
+      # Eviction policy to use
+      #
+      # :full:: During ejection, only the value will be ejected (key and metadata will remain in memory). Value Ejection
+      #         needs more system memory, but provides better performance than Full Ejection. This value is only valid for
+      #         buckets of type +:couchbase+.
+      #
+      # :value_only:: During ejection, everything (including key, metadata, and value) will be ejected. Full Ejection
+      #               reduces the memory overhead requirement, at the cost of performance. This value is only valid for
+      #               buckets of type +:couchbase+.
+      #
+      # :no_eviction:: Couchbase Server keeps all data until explicitly deleted, but will reject any new data if you
+      #                reach the quota (dedicated memory) you set for your bucket. This value is only valid for buckets
+      #                of type +:ephemeral+.
+      #
+      # :not_recently_used:: When the memory quota is reached, Couchbase Server ejects data that has not been used
+      #                      recently. This value is only valid for buckets of type +:ephemeral+.
+      #
+      # @return [:full, :value_only, :no_eviction, :not_recently_used] the eviction policy to use
+      attr_accessor :eviction_policy
 
       # @return [Integer] value of TTL (expiration) in seconds for new documents created without expiration
       attr_accessor :max_expiry
@@ -232,6 +253,18 @@ module Couchbase
         @healthy
       end
 
+      # @deprecated Use {#eviction_policy} instead
+      def ejection_policy
+        @eviction_policy
+      end
+      deprecate :ejection_policy, :eviction_policy, 2021, 1
+
+      # @deprecated Use {#eviction_policy=} instead
+      def ejection_policy=(val)
+        @eviction_policy = val
+      end
+      deprecate :ejection_policy=, :eviction_policy=, 2021, 1
+
       # @yieldparam [BucketSettings] self
       def initialize
         @bucket_type = :couchbase
@@ -244,7 +277,7 @@ module Couchbase
         @max_expiry = 0
         @compression_mode = :passive
         @conflict_resolution_type = :sequence_number
-        @ejection_policy = :value_only
+        @eviction_policy = :value_only
         yield self if block_given?
       end
     end

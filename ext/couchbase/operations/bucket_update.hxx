@@ -55,14 +55,20 @@ struct bucket_update_request {
         encoded.body.append(fmt::format("&maxTTL={}", bucket.max_expiry));
         encoded.body.append(fmt::format("&replicaIndex={}", bucket.replica_indexes ? "1" : "0"));
         encoded.body.append(fmt::format("&flushEnabled={}", bucket.flush_enabled ? "1" : "0"));
-        switch (bucket.ejection_policy) {
-            case bucket_settings::ejection_policy::full:
+        switch (bucket.eviction_policy) {
+            case bucket_settings::eviction_policy::full:
                 encoded.body.append("&evictionPolicy=fullEviction");
                 break;
-            case bucket_settings::ejection_policy::value_only:
+            case bucket_settings::eviction_policy::value_only:
                 encoded.body.append("&evictionPolicy=valueOnly");
                 break;
-            case bucket_settings::ejection_policy::unknown:
+            case bucket_settings::eviction_policy::no_eviction:
+                encoded.body.append("&evictionPolicy=noEviction");
+                break;
+            case bucket_settings::eviction_policy::not_recently_used:
+                encoded.body.append("&evictionPolicy=nruEviction");
+                break;
+            case bucket_settings::eviction_policy::unknown:
                 break;
         }
         switch (bucket.compression_mode) {

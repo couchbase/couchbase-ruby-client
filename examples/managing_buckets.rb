@@ -54,7 +54,7 @@ puts " * flush enabled:     : #{settings.flush_enabled}"
 puts " * max TTL            : #{settings.max_expiry}"
 puts " * compression mode   : #{settings.compression_mode}"
 puts " * replica indexes    : #{settings.replica_indexes}"
-puts " * ejection policy    : #{settings.ejection_policy}"
+puts " * eviction policy    : #{settings.eviction_policy}"
 
 measure("Bucket #{bucket_name.inspect} flushed") { cluster.buckets.flush_bucket(bucket_name) }
 
