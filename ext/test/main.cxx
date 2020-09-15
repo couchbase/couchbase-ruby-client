@@ -73,7 +73,7 @@ include Couchbase
 
 backend = Backend.new
 connstr = "couchbase://localhost"
-p open: backend.open(connstr, {username: "Administrator", password: "pasword"}, {})
+p open: backend.open(connstr, {username: "Administrator", password: "password"}, {})
 p bucket: backend.open_bucket("default", true)
 p set: backend.document_upsert("default", "_default._default", "foo", 10_000, JSON.generate(foo: "bar"), 0, {})
 p close: backend.close
