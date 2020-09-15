@@ -6411,8 +6411,7 @@ init_logger()
     if (env_val.empty()) {
         spdlog::set_level(spdlog::level::info);
     } else {
-        auto levels = spdlog::cfg::helpers::extract_levels(env_val);
-        spdlog::details::registry::instance().update_levels(std::move(levels));
+        spdlog::cfg::helpers::load_levels(env_val);
     }
 
     couchbase::platform::install_backtrace_terminate_handler();
