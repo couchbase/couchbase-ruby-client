@@ -111,6 +111,7 @@ struct search_request {
     std::optional<std::uint32_t> limit{};
     std::optional<std::uint32_t> skip{};
     bool explain{ false };
+    bool disable_scoring{ false };
 
     enum class highlight_style_type { html, ansi };
     std::optional<highlight_style_type> highlight_style{};
@@ -139,6 +140,9 @@ struct search_request {
         }
         if (skip) {
             body["from"] = *skip;
+        }
+        if (disable_scoring) {
+            body["score"] = "none";
         }
         if (highlight_style || !highlight_fields.empty()) {
             tao::json::value highlight;

@@ -165,6 +165,7 @@ module Couchbase
         limit: options.limit,
         skip: options.skip,
         explain: options.explain,
+        disable_scoring: options.disable_scoring,
         highlight_style: options.highlight_style,
         highlight_fields: options.highlight_fields,
         fields: options.fields,

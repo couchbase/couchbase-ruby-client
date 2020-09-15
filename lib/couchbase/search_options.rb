@@ -1236,6 +1236,11 @@ module Couchbase
       # @return [MutationState]
       attr_reader :mutation_state
 
+      # @api uncommitted
+      # If set to true, the server will not perform any scoring on the hits
+      # @return [Boolean]
+      attr_accessor :disable_scoring
+
       # Customizes the consistency guarantees for this query
       #
       # @note overrides consistency level set by {#consistent_with}
@@ -1285,6 +1290,7 @@ module Couchbase
       # @yieldparam [SearchOptions] self
       def initialize
         super
+        @disable_scoring = false
         @explain = false
         @transcoder = JsonTranscoder.new
         @scan_consistency = nil

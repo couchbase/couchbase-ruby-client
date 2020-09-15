@@ -4415,6 +4415,11 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
             req.explain = RTEST(explain);
         }
 
+        VALUE disable_scoring = rb_hash_aref(options, rb_id2sym(rb_intern("disable_scoring")));
+        if (!NIL_P(disable_scoring)) {
+            req.disable_scoring = RTEST(disable_scoring);
+        }
+
         VALUE skip = rb_hash_aref(options, rb_id2sym(rb_intern("skip")));
         if (!NIL_P(skip)) {
             Check_Type(skip, T_FIXNUM);
