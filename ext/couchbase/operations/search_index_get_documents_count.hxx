@@ -43,7 +43,7 @@ struct search_index_get_documents_count_request {
 
     std::string index_name;
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "GET";
         encoded.path = fmt::format("/api/index/{}/count", index_name);

@@ -43,7 +43,7 @@ struct search_index_control_ingest_request {
     std::string index_name;
     bool pause;
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/api/index/{}/ingestControl/{}", index_name, pause ? "pause" : "resume");

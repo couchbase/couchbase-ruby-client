@@ -39,7 +39,7 @@ struct view_index_upsert_request {
     std::string bucket_name;
     design_document document;
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         tao::json::value body;
         body["views"] = tao::json::empty_object;

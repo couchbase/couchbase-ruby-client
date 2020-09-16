@@ -42,7 +42,7 @@ struct view_index_get_request {
     std::string document_name;
     design_document::name_space name_space;
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "GET";
         encoded.path =

@@ -40,7 +40,7 @@ struct view_index_drop_request {
     std::string document_name;
     design_document::name_space name_space;
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "DELETE";
         encoded.path =

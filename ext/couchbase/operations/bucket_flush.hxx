@@ -38,7 +38,7 @@ struct bucket_flush_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/pools/default/buckets/{}/controller/doFlush", name);

@@ -55,7 +55,7 @@ struct query_index_create_request {
     std::optional<int> num_replicas{};
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.headers["content-type"] = "application/json";
         tao::json::value with{};

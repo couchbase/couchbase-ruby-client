@@ -44,7 +44,7 @@ struct search_index_analyze_document_request {
     std::string index_name;
     std::string encoded_document;
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "POST";
         encoded.headers["cache-control"] = "no-cache";

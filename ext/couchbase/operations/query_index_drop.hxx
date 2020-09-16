@@ -51,7 +51,7 @@ struct query_index_drop_request {
     bool ignore_if_does_not_exist{ false };
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.headers["content-type"] = "application/json";
         std::string keyspace = fmt::format("`{}`", bucket_name);

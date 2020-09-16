@@ -42,7 +42,7 @@ struct search_index_upsert_request {
 
     search_index index;
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "PUT";
         encoded.headers["cache-control"] = "no-cache";

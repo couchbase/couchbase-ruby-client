@@ -42,7 +42,7 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
     void send_to(std::shared_ptr<io::http_session> session, Handler&& handler)
     {
         encoded.type = Request::type;
-        request.encode_to(encoded);
+        request.encode_to(encoded, session->http_context());
         encoded.headers["client-context-id"] = request.client_context_id;
         auto log_prefix = session->log_prefix();
         spdlog::trace("{} HTTP request: {}, method={}, path={}, client_context_id={}, timeout={}ms",

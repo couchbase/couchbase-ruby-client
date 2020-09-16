@@ -44,7 +44,7 @@ struct bucket_update_request {
 
     bucket_settings bucket{};
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/pools/default/buckets/{}", bucket.name);

@@ -89,7 +89,7 @@ struct document_view_request {
     enum class sort_order { ascending, descending };
     std::optional<sort_order> order;
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         std::vector<std::string> query_string;
 

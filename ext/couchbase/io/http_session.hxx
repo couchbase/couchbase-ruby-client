@@ -32,6 +32,7 @@
 
 #include <io/http_parser.hxx>
 #include <io/http_message.hxx>
+#include <io/http_context.hxx>
 #include <platform/base64.h>
 #include <timeout_defaults.hxx>
 
@@ -45,7 +46,8 @@ class http_session : public std::enable_shared_from_this<http_session>
                  asio::io_context& ctx,
                  const cluster_credentials& credentials,
                  const std::string& hostname,
-                 const std::string& service)
+                 const std::string& service,
+                 http_context http_ctx)
       : client_id_(client_id)
       , id_(uuid::to_string(uuid::random()))
       , ctx_(ctx)
@@ -64,6 +66,7 @@ class http_session : public std::enable_shared_from_this<http_session>
                                 id_,
                                 BACKEND_SYSTEM))
       , log_prefix_(fmt::format("[{}/{}]", client_id_, id_))
+    , http_ctx_(std::move(http_ctx))
     {
     }
 
@@ -72,8 +75,9 @@ class http_session : public std::enable_shared_from_this<http_session>
                  asio::ssl::context& tls,
                  const cluster_credentials& credentials,
                  const std::string& hostname,
-                 const std::string& service)
-      : client_id_(client_id)
+                 const std::string& service,
+                 http_context http_ctx)
+    : client_id_(client_id)
       , id_(uuid::to_string(uuid::random()))
       , ctx_(ctx)
       , resolver_(ctx_)
@@ -91,12 +95,18 @@ class http_session : public std::enable_shared_from_this<http_session>
                                 id_,
                                 BACKEND_SYSTEM))
       , log_prefix_(fmt::format("[{}/{}]", client_id_, id_))
+      , http_ctx_(std::move(http_ctx))
     {
     }
 
     ~http_session()
     {
         stop();
+    }
+
+    [[nodiscard]] couchbase::http_context& http_context()
+    {
+        return http_ctx_;
     }
 
     void start()
@@ -352,5 +362,6 @@ class http_session : public std::enable_shared_from_this<http_session>
     asio::ip::tcp::resolver::results_type endpoints_;
 
     std::string log_prefix_{};
+    couchbase::http_context http_ctx_;
 };
 } // namespace couchbase::io

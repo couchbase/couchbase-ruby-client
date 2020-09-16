@@ -43,7 +43,7 @@ struct search_index_control_plan_freeze_request {
     std::string index_name;
     bool freeze;
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/api/index/{}/planFreezeControl/{}", index_name, freeze ? "freeze" : "unfreeze");

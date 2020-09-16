@@ -53,7 +53,7 @@ struct analytics_dataset_create_request {
 
     bool ignore_if_exists{ false };
 
-    void encode_to(encoded_request_type& encoded)
+    void encode_to(encoded_request_type& encoded, http_context&)
     {
         std::string where_clause = condition ? fmt::format("WHERE {}", *condition) : "";
         std::string if_not_exists_clause = ignore_if_exists ? "IF NOT EXISTS" : "";
