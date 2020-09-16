@@ -34,5 +34,14 @@ struct http_response {
     std::string status_message;
     std::map<std::string, std::string> headers;
     std::string body;
+
+    [[nodiscard]] bool must_close_connection() const
+    {
+        const auto it = headers.find("connection");
+        if (it != headers.end()) {
+            return it->second == "close";
+        }
+        return false;
+    }
 };
 } // namespace couchbase::io

@@ -18,11 +18,13 @@
 #pragma once
 
 #include <configuration.hxx>
+#include <io/query_cache.hxx>
 
 namespace couchbase
 {
 struct http_context {
     const configuration& config;
+    query_cache& cache;
 };
 
 namespace priv

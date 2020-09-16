@@ -16,6 +16,12 @@
 
 PROJECT_ROOT="$( cd "$(dirname "$0"/../..)" >/dev/null 2>&1 ; pwd -P )"
 
+echo "HOSTNAME=${HOSTNAME}"
+echo "NODE_NAME=${NODE_NAME}"
+echo "CONTAINER_TAG=${CONTAINER_TAG}"
+echo "JENKINS_SLAVE_LABELS=${JENKINS_SLAVE_LABELS}"
+echo "NODE_LABELS=${NODE_LABELS}"
+
 set -x
 set -e
 

@@ -66,7 +66,7 @@ class http_session : public std::enable_shared_from_this<http_session>
                                 id_,
                                 BACKEND_SYSTEM))
       , log_prefix_(fmt::format("[{}/{}]", client_id_, id_))
-    , http_ctx_(std::move(http_ctx))
+      , http_ctx_(std::move(http_ctx))
     {
     }
 
@@ -77,7 +77,7 @@ class http_session : public std::enable_shared_from_this<http_session>
                  const std::string& hostname,
                  const std::string& service,
                  http_context http_ctx)
-    : client_id_(client_id)
+      : client_id_(client_id)
       , id_(uuid::to_string(uuid::random()))
       , ctx_(ctx)
       , resolver_(ctx_)
@@ -143,10 +143,13 @@ class http_session : public std::enable_shared_from_this<http_session>
         }
         deadline_timer_.cancel();
 
-        for (auto& handler : command_handlers_) {
-            handler(std::make_error_code(error::common_errc::ambiguous_timeout), {});
+        {
+            std::scoped_lock lock(command_handlers_mutex_);
+            for (auto& handler : command_handlers_) {
+                handler(std::make_error_code(error::common_errc::ambiguous_timeout), {});
+            }
+            command_handlers_.clear();
         }
-        command_handlers_.clear();
 
         if (on_stop_handler_) {
             on_stop_handler_();
@@ -196,6 +199,9 @@ class http_session : public std::enable_shared_from_this<http_session>
         if (stopped_) {
             return;
         }
+        if (request.headers["connection"] == "keep-alive") {
+            keep_alive_ = true;
+        }
         request.headers["user-agent"] = user_agent_;
         request.headers["authorization"] =
           fmt::format("Basic {}", base64::encode(fmt::format("{}:{}", credentials_.username, credentials_.password)));
@@ -208,7 +214,10 @@ class http_session : public std::enable_shared_from_this<http_session>
         }
         write("\r\n");
         write(request.body);
-        command_handlers_.push_back(std::move(handler));
+        {
+            std::scoped_lock lock(command_handlers_mutex_);
+            command_handlers_.push_back(std::move(handler));
+        }
         flush();
     }
 
@@ -290,12 +299,19 @@ class http_session : public std::enable_shared_from_this<http_session>
                   case http_parser::status::ok:
                       if (self->parser_.complete) {
                           if (!self->command_handlers_.empty()) {
-                              auto handler = self->command_handlers_.front();
-                              self->command_handlers_.pop_front();
+                              decltype(self->command_handlers_)::value_type handler{};
+                              {
+                                  std::scoped_lock lock(self->command_handlers_mutex_);
+                                  handler = self->command_handlers_.front();
+                                  self->command_handlers_.pop_front();
+                              }
+                              if (self->parser_.response.must_close_connection()) {
+                                  self->keep_alive_ = false;
+                              }
                               handler({}, std::move(self->parser_.response));
                           }
                           self->parser_.reset();
-                          return self->stop();
+                          return;
                       }
                       return self->do_read();
                   case http_parser::status::failure:
@@ -354,12 +370,14 @@ class http_session : public std::enable_shared_from_this<http_session>
     std::function<void()> on_stop_handler_{ nullptr };
 
     std::list<std::function<void(std::error_code, io::http_response&&)>> command_handlers_{};
+    std::mutex command_handlers_mutex_{};
+
     http_parser parser_{};
     std::array<std::uint8_t, 16384> input_buffer_{};
     std::vector<std::vector<std::uint8_t>> output_buffer_{};
     std::vector<std::vector<std::uint8_t>> writing_buffer_{};
     asio::ip::tcp::endpoint endpoint_{}; // connected endpoint
-    asio::ip::tcp::resolver::results_type endpoints_;
+    asio::ip::tcp::resolver::results_type endpoints_{};
 
     std::string log_prefix_{};
     couchbase::http_context http_ctx_;

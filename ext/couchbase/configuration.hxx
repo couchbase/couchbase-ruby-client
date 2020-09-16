@@ -25,6 +25,7 @@
 #include <platform/uuid.h>
 
 #include <service_type.hxx>
+#include <capabilities.hxx>
 
 namespace couchbase
 {
@@ -96,7 +97,7 @@ struct configuration {
             return default_value;
         }
 
-        [[nodiscard]] const std::string & hostname_for(const std::string& network) const
+        [[nodiscard]] const std::string& hostname_for(const std::string& network) const
         {
             if (network == "default") {
                 return hostname;
@@ -189,6 +190,13 @@ struct configuration {
     std::optional<std::string> uuid{};
     std::optional<std::string> bucket{};
     std::optional<vbucket_map> vbmap{};
+    std::optional<std::uint64_t> collections_manifest_uid{};
+    std::set<bucket_capability> bucket_capabilities{};
+    std::set<cluster_capability> cluster_capabilities{};
+
+    [[nodiscard]] bool supports_enhanced_prepared_statements() const {
+        return cluster_capabilities.find(cluster_capability::n1ql_enhanced_prepared_statements) != cluster_capabilities.end();
+    }
 
     size_t index_for_endpoint(const asio::ip::tcp::endpoint& endpoint)
     {
@@ -353,7 +361,7 @@ struct fmt::formatter<couchbase::configuration> : formatter<std::string> {
     auto format(const couchbase::configuration& config, FormatContext& ctx)
     {
         format_to(ctx.out(),
-                  R"(#<config:{} rev={}{}{}{}{}, nodes({})=[{}]>)",
+                  R"(#<config:{} rev={}{}{}{}{}, nodes({})=[{}], bucket_caps=[{}], cluster_caps=[{}]>)",
                   couchbase::uuid::to_string(config.id),
                   config.rev,
                   config.uuid ? fmt::format(", uuid={}", *config.uuid) : "",
@@ -361,7 +369,9 @@ struct fmt::formatter<couchbase::configuration> : formatter<std::string> {
                   config.num_replicas ? fmt::format(", replicas={}", *config.num_replicas) : "",
                   config.vbmap.has_value() ? fmt::format(", partitions={}", config.vbmap->size()) : "",
                   config.nodes.size(),
-                  fmt::join(config.nodes, ", "));
+                  fmt::join(config.nodes, ", "),
+                  fmt::join(config.bucket_capabilities, ", "),
+                  fmt::join(config.cluster_capabilities, ", "));
         return formatter<std::string>::format("", ctx);
     }
 };
@@ -435,6 +445,12 @@ struct traits<couchbase::configuration> {
             }
         }
         {
+            const auto m = v.find("collectionsManifestUid");
+            if (m != nullptr) {
+                result.collections_manifest_uid = std::stoull(m->get_string(), 0, 16);
+            }
+        }
+        {
             const auto m = v.find("name");
             if (m != nullptr) {
                 result.bucket = m->get_string();
@@ -464,6 +480,59 @@ struct traits<couchbase::configuration> {
                             }
                         }
                         result.vbmap = vbmap;
+                    }
+                }
+            }
+        }
+        {
+            const auto m = v.find("bucketCapabilities");
+            if (m != nullptr && m->is_array()) {
+                for (const auto& entry : m->get_array()) {
+                    const auto& name = entry.get_string();
+                    if (name == "couchapi") {
+                        result.bucket_capabilities.insert(couchbase::bucket_capability::couchapi);
+                    } else if (name == "collections") {
+                        result.bucket_capabilities.insert(couchbase::bucket_capability::collections);
+                    } else if (name == "durableWrite") {
+                        result.bucket_capabilities.insert(couchbase::bucket_capability::durable_write);
+                    } else if (name == "tombstonedUserXAttrs") {
+                        result.bucket_capabilities.insert(couchbase::bucket_capability::tombstoned_user_xattrs);
+                    } else if (name == "dcp") {
+                        result.bucket_capabilities.insert(couchbase::bucket_capability::dcp);
+                    } else if (name == "cbhello") {
+                        result.bucket_capabilities.insert(couchbase::bucket_capability::cbhello);
+                    } else if (name == "touch") {
+                        result.bucket_capabilities.insert(couchbase::bucket_capability::touch);
+                    } else if (name == "cccp") {
+                        result.bucket_capabilities.insert(couchbase::bucket_capability::cccp);
+                    } else if (name == "xdcrCheckpointing") {
+                        result.bucket_capabilities.insert(couchbase::bucket_capability::xdcr_checkpointing);
+                    } else if (name == "nodesExt") {
+                        result.bucket_capabilities.insert(couchbase::bucket_capability::nodes_ext);
+                    } else if (name == "xattr") {
+                        result.bucket_capabilities.insert(couchbase::bucket_capability::xattr);
+                    }
+                }
+            }
+        }
+        {
+            const auto m = v.find("clusterCapabilities");
+            if (m != nullptr && m->is_object()) {
+                const auto nc = m->find("n1ql");
+                if (nc != nullptr && nc->is_array()) {
+                    for (const auto& entry : nc->get_array()) {
+                        const auto& name = entry.get_string();
+                        if (name == "costBasedOptimizer") {
+                            result.cluster_capabilities.insert(couchbase::cluster_capability::n1ql_cost_based_optimizer);
+                        } else if (name == "indexAdvisor") {
+                            result.cluster_capabilities.insert(couchbase::cluster_capability::n1ql_index_advisor);
+                        } else if (name == "javaScriptFunctions") {
+                            result.cluster_capabilities.insert(couchbase::cluster_capability::n1ql_javascript_functions);
+                        } else if (name == "inlineFunctions") {
+                            result.cluster_capabilities.insert(couchbase::cluster_capability::n1ql_inline_functions);
+                        } else if (name == "enhancedPreparedStatements") {
+                            result.cluster_capabilities.insert(couchbase::cluster_capability::n1ql_enhanced_prepared_statements);
+                        }
                     }
                 }
             }

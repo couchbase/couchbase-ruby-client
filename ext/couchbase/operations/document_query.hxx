@@ -64,6 +64,7 @@ struct query_response_payload {
     };
 
     query_meta_data meta_data{};
+    std::optional<std::string> prepared{};
     std::vector<std::string> rows{};
 };
 } // namespace couchbase::operations
@@ -77,13 +78,21 @@ struct traits<couchbase::operations::query_response_payload> {
     {
         couchbase::operations::query_response_payload result;
         result.meta_data.request_id = v.at("requestID").get_string();
-        result.meta_data.client_context_id = v.at("clientContextID").get_string();
+        const auto i = v.find("clientContextID");
+        if (i != nullptr) {
+            result.meta_data.client_context_id = i->get_string();
+        }
         result.meta_data.status = v.at("status").get_string();
         const auto s = v.find("signature");
         if (s != nullptr) {
             result.meta_data.signature = tao::json::to_string(*s);
         }
-
+        {
+            const auto c = v.find("prepared");
+            if (c != nullptr) {
+                result.prepared = c->get_string();
+            }
+        }
         const auto p = v.find("profile");
         if (p != nullptr) {
             result.meta_data.profile = tao::json::to_string(*p);
@@ -184,12 +193,33 @@ struct query_request {
     std::map<std::string, tao::json::value> raw{};
     std::vector<tao::json::value> positional_parameters{};
     std::map<std::string, tao::json::value> named_parameters{};
+    std::optional<http_context> ctx_{};
+    bool extract_encoded_plan_{ false };
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    void encode_to(encoded_request_type& encoded, http_context& context)
     {
-        tao::json::value body{ { "statement", statement },
-                               { "client_context_id", client_context_id },
-                               { "timeout", fmt::format("{}ms", timeout.count()) } };
+        ctx_.emplace(context);
+        tao::json::value body{};
+        if (adhoc) {
+            body["statement"] = statement;
+        } else {
+            auto entry = ctx_->cache.get(statement);
+            if (entry) {
+                body["prepared"] = entry->name;
+                if (entry->plan) {
+                    body["encoded_plan"] = entry->plan.value();
+                }
+            } else {
+                body["statement"] = "PREPARE " + statement;
+                if (context.config.supports_enhanced_prepared_statements()) {
+                    body["auto_execute"] = true;
+                } else {
+                    extract_encoded_plan_ = true;
+                }
+            }
+        }
+        body["client_context_id"] = client_context_id;
+        body["timeout"] = fmt::format("{}ms", timeout.count());
         if (positional_parameters.empty()) {
             for (auto& param : named_parameters) {
                 Expects(param.first.empty() == false);
@@ -274,6 +304,7 @@ struct query_request {
             body[param.first] = param.second;
         }
         encoded.type = type;
+        encoded.headers["connection"] = "keep-alive";
         encoded.headers["content-type"] = "application/json";
         encoded.method = "POST";
         encoded.path = "/query/service";
@@ -287,18 +318,42 @@ make_response(std::error_code ec, query_request& request, query_request::encoded
     query_response response{ request.client_context_id, ec };
     if (!ec) {
         response.payload = tao::json::from_string(encoded.body).as<query_response_payload>();
-        Expects(response.payload.meta_data.client_context_id == request.client_context_id);
-        if (response.payload.meta_data.status != "success") {
+        Expects(response.payload.meta_data.client_context_id.empty() ||
+                response.payload.meta_data.client_context_id == request.client_context_id);
+        if (response.payload.meta_data.status == "success") {
+            if (response.payload.prepared) {
+                request.ctx_->cache.put(request.statement, response.payload.prepared.value());
+            } else if (request.extract_encoded_plan_) {
+                request.extract_encoded_plan_ = false;
+                if (response.payload.rows.size() == 1) {
+                    auto row = tao::json::from_string(response.payload.rows[0]);
+                    auto plan = row.find("encoded_plan");
+                    auto name = row.find("name");
+                    if (plan != nullptr && name != nullptr) {
+                        request.ctx_->cache.put(request.statement, name->get_string(), plan->get_string());
+                        throw couchbase::priv::retry_http_request{};
+                    } else {
+                        response.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
+                    }
+                } else {
+                    response.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
+                }
+            }
+        } else {
             bool prepared_statement_failure = false;
             bool index_not_found = false;
             bool index_failure = false;
             bool planning_failure = false;
             bool syntax_error = false;
             bool server_timeout = false;
+            bool invalid_argument = false;
 
             if (response.payload.meta_data.errors) {
                 for (const auto& error : *response.payload.meta_data.errors) {
                     switch (error.code) {
+                        case 1065: /* IKey: "service.io.request.unrecognized_parameter" */
+                            invalid_argument = true;
+                            break;
                         case 1080: /* IKey: "timeout" */
                             server_timeout = true;
                             break;
@@ -329,6 +384,8 @@ make_response(std::error_code ec, query_request& request, query_request::encoded
             }
             if (syntax_error) {
                 response.ec = std::make_error_code(error::common_errc::parsing_failure);
+            } else if (invalid_argument) {
+                response.ec = std::make_error_code(error::common_errc::invalid_argument);
             } else if (server_timeout) {
                 response.ec = std::make_error_code(error::common_errc::unambiguous_timeout);
             } else if (prepared_statement_failure) {

@@ -75,7 +75,11 @@ backend = Backend.new
 connstr = "couchbase://localhost"
 p open: backend.open(connstr, {username: "Administrator", password: "password"}, {})
 p bucket: backend.open_bucket("default", true)
-p set: backend.document_upsert("default", "_default._default", "foo", 10_000, JSON.generate(foo: "bar"), 0, {})
+p prepare: backend.document_query('select "ruby rules" as greeting', {adhoc: false})
+p query1: backend.document_query('select "ruby rules" as greeting', {adhoc: false})
+p query2: backend.document_query('select "ruby rules" as greeting', {adhoc: false})
+# p manifest: backend.collections_manifest_get("default", nil)
+# p set: backend.document_upsert("default", "_default._default", "foo", 10_000, JSON.generate(foo: "bar"), 0, {})
 p close: backend.close
 
 # backend = Backend.new

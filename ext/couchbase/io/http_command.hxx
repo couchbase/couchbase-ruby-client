@@ -61,7 +61,7 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
                      request.timeout.count(),
                      spdlog::to_hex(encoded.body));
         session->write_and_subscribe(encoded,
-                                     [self = this->shared_from_this(), log_prefix, handler = std::forward<Handler>(handler)](
+                                     [self = this->shared_from_this(), log_prefix, session, handler = std::forward<Handler>(handler)](
                                        std::error_code ec, io::http_response&& msg) mutable {
                                          self->deadline.cancel();
                                          encoded_response_type resp(msg);
@@ -76,7 +76,11 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
                                                       self->request.client_context_id,
                                                       resp.status_code,
                                                       spdlog::to_hex(resp.body));
-                                         handler(make_response(ec, self->request, resp));
+                                         try {
+                                             handler(make_response(ec, self->request, resp));
+                                         } catch (priv::retry_http_request) {
+                                             self->send_to(session, std::forward<Handler>(handler));
+                                         }
                                      });
         deadline.expires_after(request.timeout);
         deadline.async_wait([session](std::error_code ec) {

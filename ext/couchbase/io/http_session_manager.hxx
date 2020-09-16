@@ -19,6 +19,7 @@
 
 #include <io/http_session.hxx>
 #include <service_type.hxx>
+#include <io/http_context.hxx>
 
 #include <random>
 
@@ -51,6 +52,8 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
     std::shared_ptr<http_session> check_out(service_type type, const couchbase::cluster_credentials& credentials)
     {
         std::scoped_lock lock(sessions_mutex_);
+        idle_sessions_[type].remove_if([](const auto& s) -> bool { return !s; });
+        busy_sessions_[type].remove_if([](const auto& s) -> bool { return !s; });
         if (idle_sessions_[type].empty()) {
             std::string hostname;
             std::uint16_t port = 0;
@@ -62,16 +65,24 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
             std::shared_ptr<http_session> session;
             if (options_.enable_tls) {
                 session = std::make_shared<http_session>(
-                  client_id_, ctx_, tls_, credentials, hostname, std::to_string(port), http_context{ config_ });
+                  client_id_, ctx_, tls_, credentials, hostname, std::to_string(port), http_context{ config_, query_cache_ });
             } else {
-                session =
-                  std::make_shared<http_session>(client_id_, ctx_, credentials, hostname, std::to_string(port), http_context{ config_ });
+                session = std::make_shared<http_session>(
+                  client_id_, ctx_, credentials, hostname, std::to_string(port), http_context{ config_, query_cache_ });
             }
             session->start();
+
             session->on_stop([type, id = session->id(), self = this->shared_from_this()]() {
-                std::scoped_lock inner_lock(self->sessions_mutex_);
-                self->busy_sessions_[type].remove_if([id](const auto& s) -> bool { return s->id() == id; });
-                self->idle_sessions_[type].remove_if([id](const auto& s) -> bool { return s->id() == id; });
+                for (auto& s : self->busy_sessions_[type]) {
+                    if (s && s->id() == id) {
+                        s.reset();
+                    }
+                }
+                for (auto& s : self->idle_sessions_[type]) {
+                    if (s && s->id() == id) {
+                        s.reset();
+                    }
+                }
             });
             busy_sessions_[type].push_back(session);
             return session;
@@ -91,6 +102,24 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
             std::scoped_lock lock(sessions_mutex_);
             spdlog::debug("{} put HTTP session back to idle connections", session->log_prefix());
             idle_sessions_[type].push_back(session);
+        }
+    }
+
+    void close()
+    {
+        {
+            for (auto& sessions : idle_sessions_) {
+                for (auto& s : sessions.second) {
+                    s.reset();
+                }
+            }
+        }
+        {
+            for (auto& sessions : busy_sessions_) {
+                for (auto& s : sessions.second) {
+                    s.reset();
+                }
+            }
         }
     }
 
@@ -120,5 +149,6 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
     std::map<service_type, std::list<std::shared_ptr<http_session>>> idle_sessions_{};
     std::size_t next_index_{ 0 };
     std::mutex sessions_mutex_{};
+    query_cache query_cache_{};
 };
 } // namespace couchbase::io

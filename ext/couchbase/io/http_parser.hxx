@@ -19,6 +19,7 @@
 
 #include <http_parser.h>
 #include <io/http_message.hxx>
+#include <algorithm>
 
 namespace couchbase::io
 {
@@ -106,6 +107,7 @@ struct http_parser {
     int on_header_field(const char* at, std::size_t length)
     {
         header_field.assign(at, length);
+        std::transform(header_field.begin(), header_field.end(), header_field.begin(), [](unsigned char c) { return std::tolower(c); });
         return 0;
     }
 

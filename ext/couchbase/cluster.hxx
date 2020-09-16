@@ -69,6 +69,7 @@ class cluster
             for (auto& bucket : buckets_) {
                 bucket.second->close();
             }
+            session_manager_->close();
             handler();
             work_.reset();
         }));

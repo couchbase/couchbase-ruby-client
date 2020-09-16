@@ -47,6 +47,13 @@ module Couchbase
         res = @cluster.search_query(@index_name, Cluster::SearchQuery.query_string("arthur"), options)
         next if res.meta_data.errors&.any? { |_, desc| desc.match?(/pindex( not available|_consistency mismatched partition)/) }
 
+        if TEST_SERVER_VERSION.alice? && res.rows.empty?
+          puts "TEST_SERVER_VERSION=#{TEST_SERVER_VERSION}. retrying upsert, because search results were empty, res=#{res.inspect}"
+          res = @collection.insert(doc_id, {"name" => "Arthur"})
+          mutation_state = MutationState.new(res.mutation_token)
+          options.consistent_with(mutation_state)
+          next
+        end
         refute_empty res.rows, "expected non empty result, errors=#{res.meta_data.errors}"
         assert res.rows.find { |row| row.id == doc_id }, "result expected to include #{doc_id}"
         break
