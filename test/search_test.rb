@@ -27,6 +27,7 @@ module Couchbase
       index.name = @index_name
       index.source_name = @bucket.name
       @cluster.search_indexes.upsert_index(index)
+      sleep(0.1) until @cluster.search_indexes.get_stats["#{@bucket.name}:#{@index_name}:num_mutations_to_index"] == 0
     end
 
     def teardown
@@ -39,6 +40,7 @@ module Couchbase
       mutation_state = MutationState.new(res.mutation_token)
       options = Cluster::SearchOptions.new
       options.consistent_with(mutation_state)
+      options.limit = 100
 
       retries = 20
       loop do

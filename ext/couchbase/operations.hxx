@@ -71,8 +71,10 @@
 #include <operations/query_index_create.hxx>
 #include <operations/query_index_build_deferred.hxx>
 
+#include <operations/search_get_stats.hxx>
 #include <operations/search_index_get_all.hxx>
 #include <operations/search_index_get.hxx>
+#include <operations/search_index_get_stats.hxx>
 #include <operations/search_index_get_documents_count.hxx>
 #include <operations/search_index_upsert.hxx>
 #include <operations/search_index_drop.hxx>

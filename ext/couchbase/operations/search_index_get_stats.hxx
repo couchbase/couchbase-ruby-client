@@ -23,16 +23,16 @@
 
 namespace couchbase::operations
 {
-struct search_index_get_documents_count_response {
+struct search_index_get_stats_response {
     std::string client_context_id;
     std::error_code ec;
     std::string status{};
-    std::uint64_t count{ 0 };
     std::string error{};
+    std::string stats{};
 };
 
-struct search_index_get_documents_count_request {
-    using response_type = search_index_get_documents_count_response;
+struct search_index_get_stats_request {
+    using response_type = search_index_get_stats_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
 
@@ -46,27 +46,19 @@ struct search_index_get_documents_count_request {
     void encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "GET";
-        encoded.path = fmt::format("/api/index/{}/count", index_name);
+        encoded.path = fmt::format("/api/stats/index/{}", index_name);
     }
 };
 
-search_index_get_documents_count_response
-make_response(std::error_code ec,
-              search_index_get_documents_count_request& request,
-              search_index_get_documents_count_request::encoded_response_type encoded)
+search_index_get_stats_response
+make_response(std::error_code ec, search_index_get_stats_request& request, search_index_get_stats_request::encoded_response_type encoded)
 {
-    search_index_get_documents_count_response response{ request.client_context_id, ec };
+    search_index_get_stats_response response{ request.client_context_id, ec };
     if (!ec) {
         switch (encoded.status_code) {
-            case 200: {
-
-                auto payload = tao::json::from_string(encoded.body);
-                response.status = payload.at("status").get_string();
-                if (response.status == "ok") {
-                    response.count = payload.at("count").get_unsigned();
-                    return response;
-                }
-            } break;
+            case 200:
+                response.stats = encoded.body;
+                return response;
             case 400:
             case 500: {
                 auto payload = tao::json::from_string(encoded.body);

@@ -99,6 +99,37 @@ module Couchbase
         res[:count]
       end
 
+      # Retrieves metrics, timings and counters for a given index
+      #
+      # @api uncommitted
+      #
+      # @param [String] index_name name of the index
+      # @param [GetIndexStatsOptions] options
+      #
+      # @return [Integer]
+      #
+      # @raise [ArgumentError]
+      # @raise [Error::IndexNotFound]
+      def get_index_stats(index_name, options = GetIndexStatsOptions.new)
+        res = @backend.search_index_get_stats(index_name, options.timeout)
+        JSON.parse(res)
+      end
+
+      # Retrieves statistics on search service. Information is provided on documents, partition indexes, mutations,
+      # compactions, queries, and more.
+      #
+      # @api uncommitted
+      #
+      # @param [GetIndexStatsOptions] options
+      #
+      # @return [Integer]
+      #
+      # @raise [ArgumentError]
+      def get_stats(options = GetIndexStatsOptions.new)
+        res = @backend.search_get_stats(options.timeout)
+        JSON.parse(res)
+      end
+
       # Pauses updates and maintenance for the index
       #
       # @param [String] index_name name of the index
@@ -235,7 +266,17 @@ module Couchbase
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
-        # @yieldparam [GetIndexedDocumentOptions] self
+        # @yieldparam [GetIndexedDocumentCountOptions] self
+        def initialize
+          yield self if block_given?
+        end
+      end
+
+      class GetIndexStatsOptions
+        # @return [Integer] the time in milliseconds allowed for the operation to complete
+        attr_accessor :timeout
+
+        # @yieldparam [GetStatsOptions] self
         def initialize
           yield self if block_given?
         end

@@ -4112,6 +4112,71 @@ cb_Backend_search_index_get_documents_count(VALUE self, VALUE index_name, VALUE 
 }
 
 static VALUE
+cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    Check_Type(index_name, T_STRING);
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_get_stats_request req{};
+        cb__extract_timeout(req, timeout);
+        req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_get_stats_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_get_stats_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            if (resp.error.empty()) {
+                exc = cb__map_error_code(resp.ec, fmt::format("unable to get stats for the search index \"{}\"", req.index_name));
+            } else {
+                exc = cb__map_error_code(resp.ec,
+                                         fmt::format("unable to get stats for the search index \"{}\": {}", req.index_name, resp.error));
+            }
+            break;
+        }
+        return rb_str_new(resp.stats.data(), static_cast<long>(resp.stats.size()));
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_search_get_stats(VALUE self, VALUE timeout)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::search_index_stats_request req{};
+        cb__extract_timeout(req, timeout);
+        auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_stats_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::search_index_stats_response resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, "unable to get stats for the search service");
+            break;
+        }
+        return rb_str_new(resp.stats.data(), static_cast<long>(resp.stats.size()));
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
 cb_Backend_search_index_pause_ingest(VALUE self, VALUE index_name, VALUE timeout)
 {
     cb_backend_data* backend = nullptr;
@@ -6089,10 +6154,12 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "query_index_build_deferred", VALUE_FUNC(cb_Backend_query_index_build_deferred), 2);
     rb_define_method(cBackend, "query_index_watch", VALUE_FUNC(cb_Backend_query_index_watch), 4);
 
+    rb_define_method(cBackend, "search_get_stats", VALUE_FUNC(cb_Backend_search_get_stats), 1);
     rb_define_method(cBackend, "search_index_get_all", VALUE_FUNC(cb_Backend_search_index_get_all), 1);
     rb_define_method(cBackend, "search_index_get", VALUE_FUNC(cb_Backend_search_index_get), 2);
     rb_define_method(cBackend, "search_index_upsert", VALUE_FUNC(cb_Backend_search_index_upsert), 2);
     rb_define_method(cBackend, "search_index_drop", VALUE_FUNC(cb_Backend_search_index_drop), 2);
+    rb_define_method(cBackend, "search_index_get_stats", VALUE_FUNC(cb_Backend_search_index_get_stats), 2);
     rb_define_method(cBackend, "search_index_get_documents_count", VALUE_FUNC(cb_Backend_search_index_get_documents_count), 2);
     rb_define_method(cBackend, "search_index_pause_ingest", VALUE_FUNC(cb_Backend_search_index_pause_ingest), 2);
     rb_define_method(cBackend, "search_index_resume_ingest", VALUE_FUNC(cb_Backend_search_index_resume_ingest), 2);
