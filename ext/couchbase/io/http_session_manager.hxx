@@ -89,6 +89,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
         }
         auto session = idle_sessions_[type].front();
         idle_sessions_[type].pop_front();
+        session->reset_idle();
         busy_sessions_[type].push_back(session);
         return session;
     }
@@ -99,6 +100,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
             return session->stop();
         }
         if (!session->is_stopped()) {
+            session->set_idle(options_.idle_http_connection_timeout);
             std::scoped_lock lock(sessions_mutex_);
             spdlog::debug("{} put HTTP session back to idle connections", session->log_prefix());
             idle_sessions_[type].push_back(session);

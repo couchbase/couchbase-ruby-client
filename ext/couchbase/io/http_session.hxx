@@ -54,6 +54,7 @@ class http_session : public std::enable_shared_from_this<http_session>
       , resolver_(ctx_)
       , stream_(std::make_unique<plain_stream_impl>(ctx_))
       , deadline_timer_(ctx_)
+      , idle_timer_(ctx_)
       , credentials_(credentials)
       , hostname_(hostname)
       , service_(service)
@@ -83,6 +84,7 @@ class http_session : public std::enable_shared_from_this<http_session>
       , resolver_(ctx_)
       , stream_(std::make_unique<tls_stream_impl>(ctx_, tls))
       , deadline_timer_(ctx_)
+      , idle_timer_(ctx_)
       , credentials_(credentials)
       , hostname_(hostname)
       , service_(service)
@@ -142,6 +144,7 @@ class http_session : public std::enable_shared_from_this<http_session>
             stream_->close();
         }
         deadline_timer_.cancel();
+        idle_timer_.cancel();
 
         {
             std::scoped_lock lock(command_handlers_mutex_);
@@ -219,6 +222,21 @@ class http_session : public std::enable_shared_from_this<http_session>
             command_handlers_.push_back(std::move(handler));
         }
         flush();
+    }
+
+    void set_idle(std::chrono::milliseconds timeout)
+    {
+        idle_timer_.expires_after(timeout);
+        return idle_timer_.async_wait([self = shared_from_this()](std::error_code ec) {
+          if (ec == asio::error::operation_aborted) {
+              return;
+          }
+          self->stop();
+        });
+    }
+
+    void reset_idle() {
+        idle_timer_.cancel();
     }
 
   private:
@@ -357,6 +375,7 @@ class http_session : public std::enable_shared_from_this<http_session>
     asio::ip::tcp::resolver resolver_;
     std::unique_ptr<stream_impl> stream_;
     asio::steady_timer deadline_timer_;
+    asio::steady_timer idle_timer_;
 
     cluster_credentials credentials_;
     std::string hostname_;
