@@ -362,10 +362,10 @@ parse_connection_string(const std::string& input)
         connection_string::node node{};
         tao::json::pegtl::parse<priv::grammar, priv::action>(in, res, node);
     } catch (tao::json::pegtl::parse_error& e) {
-        for (const auto& position : e.positions) {
+        for (const auto& position : e.positions()) {
             if (position.source == __FUNCTION__) {
                 res.error = fmt::format(
-                  "failed to parse connection string (column: {}, trailer: \"{}\")", position.byte_in_line, input.substr(position.byte));
+                  "failed to parse connection string (column: {}, trailer: \"{}\")", position.column, input.substr(position.byte));
                 break;
             }
         }

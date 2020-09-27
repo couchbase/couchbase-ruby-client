@@ -52,12 +52,12 @@ module Couchbase
       assert_equal(['example.com'], Couchbase::Backend.parse_connection_string('couchbase://example.com')[:nodes].map { |node| node[:address] })
 
       assert_equal "failed to parse connection string: empty input", Couchbase::Backend.parse_connection_string('')[:error]
-      assert_equal 'failed to parse connection string (column: 14, trailer: "6.1.1.1")', Couchbase::Backend.parse_connection_string('couchbase://256.1.1.1')[:error]
-      assert_equal 'failed to parse connection string (column: 14, trailer: "1.1.1.1")', Couchbase::Backend.parse_connection_string('couchbase://321.1.1.1')[:error]
+      assert_equal 'failed to parse connection string (column: 15, trailer: "6.1.1.1")', Couchbase::Backend.parse_connection_string('couchbase://256.1.1.1')[:error]
+      assert_equal 'failed to parse connection string (column: 15, trailer: "1.1.1.1")', Couchbase::Backend.parse_connection_string('couchbase://321.1.1.1')[:error]
 
-      assert_equal 'failed to parse connection string (column: 15, trailer: "1:db8:85a3:8d3:1319:8a2e:370:7348")', Couchbase::Backend.parse_connection_string('couchbase://2001:db8:85a3:8d3:1319:8a2e:370:7348')[:error]
-      assert_equal 'failed to parse connection string (column: 46, trailer: ":7348]")', Couchbase::Backend.parse_connection_string('couchbase://[2001:1:db8:85a3:8d3:1319:8a2e:370:7348]')[:error]
-      assert_equal 'failed to parse connection string (column: 13, trailer: ":13.15.49.232]")', Couchbase::Backend.parse_connection_string('couchbase://[:13.15.49.232]')[:error]
+      assert_equal 'failed to parse connection string (column: 16, trailer: "1:db8:85a3:8d3:1319:8a2e:370:7348")', Couchbase::Backend.parse_connection_string('couchbase://2001:db8:85a3:8d3:1319:8a2e:370:7348')[:error]
+      assert_equal 'failed to parse connection string (column: 47, trailer: ":7348]")', Couchbase::Backend.parse_connection_string('couchbase://[2001:1:db8:85a3:8d3:1319:8a2e:370:7348]')[:error]
+      assert_equal 'failed to parse connection string (column: 14, trailer: ":13.15.49.232]")', Couchbase::Backend.parse_connection_string('couchbase://[:13.15.49.232]')[:error]
 
       assert_equal(%w[1.2.3.4 4.3.2.1], Couchbase::Backend.parse_connection_string('couchbase://1.2.3.4,4.3.2.1')[:nodes].map { |node| node[:address] })
       assert_equal(%w[1.2.3.4 4.3.2.1], Couchbase::Backend.parse_connection_string('couchbase://1.2.3.4;4.3.2.1')[:nodes].map { |node| node[:address] })
@@ -80,7 +80,7 @@ module Couchbase
       assert_equal 'bUcKeT', Couchbase::Backend.parse_connection_string('couchbase://127.0.0.1/bUcKeT')[:default_bucket_name]
       assert_equal 'bU%1F-K__big__.mp3', Couchbase::Backend.parse_connection_string('couchbase://127.0.0.1/bU%1F-K__big__.mp3')[:default_bucket_name]
       assert_nil Couchbase::Backend.parse_connection_string('couchbase://127.0.0.1')[:default_bucket_name]
-      assert_equal 'failed to parse connection string (column: 28, trailer: "/foo")', Couchbase::Backend.parse_connection_string('couchbase://127.0.0.1/bucket/foo')[:error]
+      assert_equal 'failed to parse connection string (column: 29, trailer: "/foo")', Couchbase::Backend.parse_connection_string('couchbase://127.0.0.1/bucket/foo')[:error]
 
       assert_equal({"foo" => "bar", "log_level" => "4"}, Couchbase::Backend.parse_connection_string("couchbase://127.0.0.1/bucket?foo=bar&log_level=4")[:params])
       assert_equal({"foo" => "bar", "log_level" => "4"}, Couchbase::Backend.parse_connection_string("couchbase://127.0.0.1?foo=bar&log_level=4")[:params])
