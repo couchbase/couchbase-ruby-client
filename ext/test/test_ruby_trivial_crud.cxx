@@ -15,26 +15,21 @@
  *   limitations under the License.
  */
 
-#pragma once
+#include "test_helper_ruby.hxx"
 
-namespace couchbase
+TEST_CASE("ruby: upsert document into default collection", "[ruby]")
 {
-struct document_id {
-    std::string bucket;
-    std::string collection;
-    std::string key;
-    std::optional<std::uint32_t> collection_uid{}; // filled with resolved UID during request lifetime
-    bool use_collections{ true };
-    bool use_any_session{ false };
-};
-} // namespace couchbase
+    TEST_PREAMBLE_RUBY;
+    auto ctx = test_context::load_from_environment();
 
-template<>
-struct fmt::formatter<couchbase::document_id> : formatter<std::string> {
-    template<typename FormatContext>
-    auto format(const couchbase::document_id& id, FormatContext& ctx)
-    {
-        format_to(ctx.out(), "{}/{}/{}", id.bucket, id.collection, id.key);
-        return formatter<std::string>::format("", ctx);
+    auto error = ruby.eval_script(ctx, R"(
+backend = Couchbase::Backend.new
+backend.open(CONNECTION_STRING, {username: USERNAME, password: PASSWORD}, {})
+backend.open_bucket(BUCKET, true)
+backend.document_upsert(BUCKET, "_default._default", "foo", 10_000, JSON.generate(foo: "bar"), 0, {})
+backend.close
+)");
+    if (error) {
+        FAIL(error.value());
     }
-};
+}

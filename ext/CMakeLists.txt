@@ -39,8 +39,15 @@ if(HAVE_DLADDR)
 endif()
 
 add_subdirectory(third_party/gsl)
+
+option(TAOCPP_JSON_BUILD_TESTS OFF)
+option(TAOCPP_JSON_BUILD_EXAMPLES OFF)
 add_subdirectory(third_party/json)
+
 add_subdirectory(third_party/spdlog)
+
+option(SNAPPY_BUILD_TESTS OFF)
+option(SNAPPY_INSTALL OFF)
 add_subdirectory(third_party/snappy)
 
 include_directories(BEFORE SYSTEM third_party/gsl/include)
@@ -142,6 +149,7 @@ add_library(
     platform OBJECT couchbase/platform/string_hex.cc couchbase/platform/uuid.cc couchbase/platform/random.cc
                     couchbase/platform/base64.cc couchbase/platform/backtrace.c couchbase/platform/terminate_handler.cc)
 target_include_directories(platform PRIVATE ${PROJECT_BINARY_DIR}/generated)
+target_link_libraries(platform PRIVATE ${PLATFORM_LIBRARIES})
 
 add_library(cbcrypto OBJECT couchbase/cbcrypto/cbcrypto.cc)
 
@@ -198,13 +206,45 @@ else()
     set_target_properties(cbcrypto cbsasl platform PROPERTIES CXX_VISIBILITY_PRESET hidden)
 endif()
 
-if(BUILD_EXAMPLES)
+if(BUILD_TESTS)
     file(
         GENERATE
         OUTPUT ${PROJECT_BINARY_DIR}/generated/generated_config.hxx
         CONTENT "#pragma once\n#define LIBCOUCHBASE_EXT_PATH \"$<TARGET_FILE:couchbase>\"")
-    add_executable(main test/main.cxx)
-    target_include_directories(main PRIVATE ${PROJECT_BINARY_DIR}/generated)
-    target_link_libraries(main PRIVATE project_options project_warnings ${RUBY_LIBRARY} spdlog::spdlog_header_only)
-    add_dependencies(main couchbase)
+
+    add_subdirectory(third_party/catch2)
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/third_party/catch2/contrib")
+    include(CTest)
+    include(Catch)
+
+    macro(ruby_test name)
+        add_executable(test_ruby_${name} test/test_ruby_${name}.cxx)
+        target_include_directories(test_ruby_${name} PRIVATE ${PROJECT_BINARY_DIR}/generated)
+        target_link_libraries(test_ruby_${name} project_options project_warnings ${RUBY_LIBRARY} couchbase
+                              Catch2::Catch2)
+        catch_discover_tests(test_ruby_${name})
+    endmacro()
+
+    macro(native_test name)
+        add_executable(test_native_${name} test/test_native_${name}.cxx)
+        target_include_directories(test_native_${name} PRIVATE ${PROJECT_BINARY_DIR}/generated)
+        target_link_libraries(
+            test_native_${name}
+            project_options
+            project_warnings
+            Catch2::Catch2
+            OpenSSL::SSL
+            OpenSSL::Crypto
+            platform
+            cbcrypto
+            cbsasl
+            http_parser
+            snappy
+            spdlog::spdlog_header_only)
+        catch_discover_tests(test_native_${name})
+    endmacro()
+
+    ruby_test(trivial_crud)
+    ruby_test(trivial_query)
+    native_test(trivial_crud)
 endif()

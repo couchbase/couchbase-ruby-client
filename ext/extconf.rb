@@ -31,10 +31,6 @@ cmake_flags = %W[
   -DCMAKE_BUILD_TYPE=#{build_type}
   -DRUBY_HDR_DIR=#{RbConfig::CONFIG['rubyhdrdir']}
   -DRUBY_ARCH_HDR_DIR=#{RbConfig::CONFIG['rubyarchhdrdir']}
-  -DTAOCPP_JSON_BUILD_TESTS=OFF
-  -DTAOCPP_JSON_BUILD_EXAMPLES=OFF
-  -DSNAPPY_BUILD_TESTS=OFF
-  -DSNAPPY_INSTALL=OFF
 ]
 
 cmake_flags << "-DCMAKE_C_COMPILER=#{ENV['CB_CC']}" if ENV["CB_CC"]

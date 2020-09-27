@@ -19,3 +19,6 @@
 [submodule "test_data/sdk_test_cases"]
 	path = test_data/sdk_test_cases
 	url = git://github.com/couchbaselabs/sdk-testcases
+[submodule "ext/third_party/catch2"]
+	path = ext/third_party/catch2
+	url = git://github.com/catchorg/Catch2.git

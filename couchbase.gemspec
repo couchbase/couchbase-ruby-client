@@ -66,6 +66,7 @@ Gem::Specification.new do |spec|
       ext/third_party/spdlog/logos
       ext/third_party/spdlog/scripts
       ext/third_party/spdlog/tests
+      ext/third_party/catch2
     ]
     `git ls-files --recurse-submodules -z`
       .split("\x0")

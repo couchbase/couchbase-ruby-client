@@ -24,10 +24,10 @@
 namespace couchbase
 {
 struct cluster_credentials {
-    std::string username;
-    std::string password;
-    std::string certificate_path;
-    std::string key_path;
+    std::string username{};
+    std::string password{};
+    std::string certificate_path{};
+    std::string key_path{};
 
     [[nodiscard]] bool uses_certificate() const
     {
