@@ -29,6 +29,7 @@ CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7.1}
 
 if [ "$(uname -s)" = "Linux" ]
 then
+  sudo yum install -y libstdc++-static
   export PATH="$(realpath ~/.cmake-3.17.2/bin):$PATH"
 fi
 
@@ -62,7 +63,7 @@ precompiled="${PROJECT_ROOT}/pkg/binary"
 mkdir -p ${precompiled}
 
 export CB_REMOVE_EXT_DIRECTORY=1
-gem compile --prune --verbose --output ${precompiled} ${source}
+CB_STATIC=1 gem compile --prune --verbose --output ${precompiled} ${source}
 ruby -rrbconfig -rfileutils \
      -e 'FileUtils.mv(ARGV[0], ARGV[0].gsub(/\.gem$/, "-#{RbConfig::CONFIG["ruby_version"]}.gem"))' \
      ${precompiled}/*.gem

@@ -106,8 +106,7 @@ curl --trace - --trace-time -sS -u${CB_CREDS} http://${CB_HOST}:8093/query/servi
 
 curl -sS -w "\n" -u${CB_CREDS} http://${CB_HOST}:8091/pools/default/buckets/${CB_BUCKET}
 
-export COUCHBASE_BACKEND_LOG_LEVEL=info
-export COUCHBASE_BACKEND_LOG_LEVEL=trace
+export COUCHBASE_BACKEND_LOG_LEVEL=debug
 # CB_TEST_NAME=test_collection_retry
 
 if [ ! -z $CB_TEST_NAME ]
@@ -153,6 +152,17 @@ else
          gdb $(which ruby) $i --batch -ex "thread apply all bt"
        fi
     done
+    mkdir server_logs
+    for ip in $(cbdyncluster ips ${CLUSTER_ID} | ruby -e 'puts STDIN.read.split(",").join(" ")')
+    do
+      curl -sS -u${CB_CREDS} http://${ip}:8091/diag > "server_logs/${ip}-diag.log"
+      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/debug > "server_logs/${ip}-debug.log"
+      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/error > "server_logs/${ip}-error.log"
+      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/fts > "server_logs/${ip}-fts.log"
+      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/query > "server_logs/${ip}-query.log"
+    done
+    tar cvf server_logs.tar server_logs
+    gzip -9 server_logs.tar
 fi
 
 exit ${STATUS}

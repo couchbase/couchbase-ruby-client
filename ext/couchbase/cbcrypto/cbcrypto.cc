@@ -88,7 +88,7 @@ hash(std::string_view key, std::string_view data, LPCWSTR algorithm, int flags)
         throw std::runtime_error("digest: BCryptHashData return: " + std::to_string(status));
     }
 
-    status = BCryptFinishHash(hHash, reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())), cbHash, 0);
+    status = BCryptFinishHash(hHash, reinterpret_cast<uint8_t*>(ret.data()), cbHash, 0);
 
     // Release resources
     BCryptCloseAlgorithmProvider(hAlg, 0);
@@ -256,7 +256,7 @@ AES_256_cbc(bool encrypt, std::string_view key, std::string_view iv, std::string
                                nullptr,
                                (PBYTE)civ.data(),
                                ULONG(civ.size()),
-                               reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())),
+                               reinterpret_cast<uint8_t*>(ret.data()),
                                ULONG(ret.size()),
                                &cbData,
                                BCRYPT_BLOCK_PADDING);
@@ -267,7 +267,7 @@ AES_256_cbc(bool encrypt, std::string_view key, std::string_view iv, std::string
                                nullptr,
                                (PBYTE)civ.data(),
                                ULONG(civ.size()),
-                               reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())),
+                               reinterpret_cast<uint8_t*>(ret.data()),
                                ULONG(ret.size()),
                                &cbData,
                                BCRYPT_BLOCK_PADDING);
@@ -309,7 +309,7 @@ HMAC_SHA1(std::string_view key, std::string_view data)
 {
     std::string ret;
     ret.resize(couchbase::crypto::SHA1_DIGEST_SIZE);
-    CCHmac(kCCHmacAlgSHA1, key.data(), key.size(), data.data(), data.size(), reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())));
+    CCHmac(kCCHmacAlgSHA1, key.data(), key.size(), data.data(), data.size(), reinterpret_cast<uint8_t*>(ret.data()));
     return ret;
 }
 
@@ -318,7 +318,7 @@ HMAC_SHA256(std::string_view key, std::string_view data)
 {
     std::string ret;
     ret.resize(couchbase::crypto::SHA256_DIGEST_SIZE);
-    CCHmac(kCCHmacAlgSHA256, key.data(), key.size(), data.data(), data.size(), reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())));
+    CCHmac(kCCHmacAlgSHA256, key.data(), key.size(), data.data(), data.size(), reinterpret_cast<uint8_t*>(ret.data()));
     return ret;
 }
 
@@ -327,7 +327,7 @@ HMAC_SHA512(std::string_view key, std::string_view data)
 {
     std::string ret;
     ret.resize(couchbase::crypto::SHA512_DIGEST_SIZE);
-    CCHmac(kCCHmacAlgSHA512, key.data(), key.size(), data.data(), data.size(), reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())));
+    CCHmac(kCCHmacAlgSHA512, key.data(), key.size(), data.data(), data.size(), reinterpret_cast<uint8_t*>(ret.data()));
     return ret;
 }
 
@@ -343,7 +343,7 @@ PBKDF2_HMAC_SHA1(const std::string& pass, std::string_view salt, unsigned int it
                                     salt.size(),
                                     kCCPRFHmacAlgSHA1,
                                     iterationCount,
-                                    reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())),
+                                    reinterpret_cast<uint8_t*>(ret.data()),
                                     ret.size());
 
     if (err != 0) {
@@ -364,7 +364,7 @@ PBKDF2_HMAC_SHA256(const std::string& pass, std::string_view salt, unsigned int 
                                     salt.size(),
                                     kCCPRFHmacAlgSHA256,
                                     iterationCount,
-                                    reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())),
+                                    reinterpret_cast<uint8_t*>(ret.data()),
                                     ret.size());
     if (err != 0) {
         throw std::runtime_error("couchbase::crypto::PBKDF2_HMAC(SHA256): CCKeyDerivationPBKDF "
@@ -386,7 +386,7 @@ PBKDF2_HMAC_SHA512(const std::string& pass, std::string_view salt, unsigned int 
                                     salt.size(),
                                     kCCPRFHmacAlgSHA512,
                                     iterationCount,
-                                    reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())),
+                                    reinterpret_cast<uint8_t*>(ret.data()),
                                     ret.size());
     if (err != 0) {
         throw std::runtime_error("couchbase::crypto::PBKDF2_HMAC(SHA512): CCKeyDerivationPBKDF "
@@ -401,7 +401,7 @@ digest_sha1(std::string_view data)
 {
     std::string ret;
     ret.resize(couchbase::crypto::SHA1_DIGEST_SIZE);
-    CC_SHA1(data.data(), data.size(), reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())));
+    CC_SHA1(data.data(), static_cast<CC_LONG>(data.size()), reinterpret_cast<uint8_t*>(ret.data()));
     return ret;
 }
 
@@ -410,7 +410,7 @@ digest_sha256(std::string_view data)
 {
     std::string ret;
     ret.resize(couchbase::crypto::SHA256_DIGEST_SIZE);
-    CC_SHA256(data.data(), data.size(), reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())));
+    CC_SHA256(data.data(), static_cast<CC_LONG>(data.size()), reinterpret_cast<uint8_t*>(ret.data()));
     return ret;
 }
 
@@ -419,7 +419,7 @@ digest_sha512(std::string_view data)
 {
     std::string ret;
     ret.resize(couchbase::crypto::SHA512_DIGEST_SIZE);
-    CC_SHA512(data.data(), data.size(), reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())));
+    CC_SHA512(data.data(), static_cast<CC_LONG>(data.size()), reinterpret_cast<uint8_t*>(ret.data()));
     return ret;
 }
 
@@ -470,7 +470,7 @@ encrypt(const couchbase::crypto::Cipher cipher, std::string_view key, std::strin
                           iv.data(),
                           data.data(),
                           data.size(),
-                          reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())),
+                          reinterpret_cast<uint8_t*>(ret.data()),
                           ret.size(),
                           &outputsize);
 
@@ -499,7 +499,7 @@ decrypt(const couchbase::crypto::Cipher cipher, std::string_view key, std::strin
                           iv.data(),
                           data.data(),
                           data.size(),
-                          reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data())),
+                          reinterpret_cast<uint8_t*>(ret.data()),
                           ret.size(),
                           &outputsize);
 
@@ -718,7 +718,7 @@ encrypt(const couchbase::crypto::Cipher cipher, std::string_view key, std::strin
     }
 
     std::string ret;
-    ret.resize(data.size() + static_cast<std::size_t>(EVP_CIPHER_block_size(cip)));
+    ret.resize(data.size() + static_cast<std::string_view::size_type>(EVP_CIPHER_block_size(cip)));
     int len1 = int(ret.size());
 
     if (EVP_EncryptUpdate(

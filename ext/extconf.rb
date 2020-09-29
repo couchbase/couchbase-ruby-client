@@ -18,7 +18,12 @@ require "tempfile"
 require_relative "../lib/couchbase/version"
 SDK_VERSION = Couchbase::VERSION[:sdk]
 
-abort "ERROR: CMake is required to build couchbase extension." unless find_executable("cmake")
+cmake = find_executable("cmake")
+if `#{cmake} --version`[/cmake version (\d+\.\d+)/, 1].to_f < 3.15
+  cmake = find_executable("cmake3")
+end
+abort "ERROR: CMake is required to build couchbase extension." unless cmake
+puts "-- #{`#{cmake} --version`.split("\n").first}"
 
 def sys(*cmd)
   puts "-- #{Dir.pwd}"
@@ -47,7 +52,7 @@ FileUtils.rm_rf(build_dir, verbose: true) unless ENV['CB_PRESERVE_BUILD_DIR']
 FileUtils.mkdir_p(build_dir, verbose: true)
 Dir.chdir(build_dir) do
   puts "-- build #{build_type} extension #{SDK_VERSION} for ruby #{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}"
-  sys("cmake", *cmake_flags, project_path)
+  sys(cmake, *cmake_flags, project_path)
   sys("make -j4 VERBOSE=1")
 end
 extension_name = "libcouchbase.#{RbConfig::CONFIG['SOEXT'] || RbConfig::CONFIG['DLEXT']}"

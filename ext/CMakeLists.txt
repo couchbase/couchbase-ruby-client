@@ -61,12 +61,13 @@ add_library(project_options INTERFACE)
 
 target_compile_features(project_options INTERFACE cxx_std_17)
 target_include_directories(project_options INTERFACE include)
+option(STATIC_OPENSSL "Statically link OpenSSL library" FALSE)
+option(STATIC_STDLIB "Statically link C++ standard library" FALSE)
 
 if(MSVC)
     target_compile_options(project_warnings INTERFACE /W4 /WX "/permissive-")
 else()
     option(ONLY_COVERAGE "Build only tests necessary for coverage" FALSE)
-    option(STATIC_STDLIB "Statically link C++ standard library" FALSE)
     option(ENABLE_COVERAGE "Enable coverage reporting for gcc/clang" FALSE)
     option(ENABLE_FUZZERS "Enable fuzz testing tools" FALSE)
 
@@ -87,11 +88,6 @@ else()
     if(ENABLE_TSAN)
         target_compile_options(project_options INTERFACE -fsanitize=thread)
         target_link_libraries(project_options INTERFACE -fsanitize=thread)
-    endif()
-
-    if(STATIC_STDLIB)
-        target_compile_options(project_options INTERFACE -static-libgcc -static-libstdc++)
-        target_link_options(project_options INTERFACE -static-libgcc -static-libstdc++)
     endif()
 
     target_compile_options(
@@ -126,6 +122,10 @@ else()
                       # probably wanted
                       -Wuseless-cast # warn if you perform a cast to the same type
         )
+        if(STATIC_STDLIB)
+            target_compile_options(project_options INTERFACE -static-libgcc -static-libstdc++)
+            target_link_libraries(project_options INTERFACE -static-libgcc -static-libstdc++)
+        endif()
     endif()
 
     if(HAVE_BACKTRACE OR HAVE_DLADDR)
@@ -137,7 +137,9 @@ endif()
 
 # Read more at https://wiki.wireshark.org/TLS
 option(TLS_KEY_LOG_FILE "Path to file to write per-session secrets (Useful for Wireshark SSL/TLS dissection)")
-
+if(STATIC_OPENSSL)
+    set(OPENSSL_USE_STATIC_LIBS ON)
+endif()
 include(FindOpenSSL)
 message(STATUS "OPENSSL_VERSION: ${OPENSSL_VERSION}")
 message(STATUS "OPENSSL_INCLUDEDIRS: ${OPENSSL_INCLUDE_DIR}")
@@ -152,6 +154,11 @@ target_include_directories(platform PRIVATE ${PROJECT_BINARY_DIR}/generated)
 target_link_libraries(platform PRIVATE ${PLATFORM_LIBRARIES})
 
 add_library(cbcrypto OBJECT couchbase/cbcrypto/cbcrypto.cc)
+target_link_libraries(cbcrypto PRIVATE
+        project_options
+        project_warnings
+        OpenSSL::SSL
+        OpenSSL::Crypto)
 
 add_library(http_parser OBJECT third_party/http_parser/http_parser.c)
 set_target_properties(http_parser PROPERTIES C_VISIBILITY_PRESET hidden POSITION_INDEPENDENT_CODE TRUE)
@@ -198,19 +205,47 @@ target_link_libraries(
             http_parser
             snappy
             spdlog::spdlog_header_only)
+
 set_target_properties(cbcrypto cbsasl platform snappy PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 if(APPLE)
-    target_link_options(couchbase PRIVATE -Wl,-undefined,dynamic_lookup)
+    target_link_libraries(couchbase PRIVATE -Wl,-undefined,dynamic_lookup)
 else()
     set_target_properties(cbcrypto cbsasl platform PROPERTIES CXX_VISIBILITY_PRESET hidden)
 endif()
+
+file(
+        GENERATE
+        OUTPUT ${PROJECT_BINARY_DIR}/generated/build_info.hxx
+        CONTENT "
+#pragma once
+#define BACKEND_COMPILE_DEFINITIONS \"$<TARGET_PROPERTY:couchbase,COMPILE_DEFINITIONS>\"
+#define BACKEND_COMPILE_FEATURES \"$<TARGET_PROPERTY:couchbase,COMPILE_FEATURES>\"
+#define BACKEND_COMPILE_FLAGS \"$<TARGET_PROPERTY:couchbase,COMPILE_FLAGS>\"
+#define BACKEND_COMPILE_OPTIONS \"$<TARGET_PROPERTY:couchbase,COMPILE_OPTIONS>\"
+
+#define BACKEND_LINK_DEPENDS \"$<TARGET_PROPERTY:couchbase,LINK_DEPENDS>\"
+#define BACKEND_LINK_FLAGS \"$<TARGET_PROPERTY:couchbase,LINK_FLAGS>\"
+#define BACKEND_LINK_LIBRARIES \"$<TARGET_PROPERTY:couchbase,LINK_LIBRARIES>\"
+#define BACKEND_LINK_OPTIONS \"$<TARGET_PROPERTY:couchbase,LINK_OPTIONS>\"
+
+#define OPENSSL_CRYPTO_LIBRARIES \"${OPENSSL_CRYPTO_LIBRARIES}\"
+#define OPENSSL_SSL_LIBRARIES \"${OPENSSL_SSL_LIBRARIES}\"
+#define OPENSSL_INCLUDE_DIR \"${OPENSSL_INCLUDE_DIR}\"
+#define RUBY_LIBRARY \"${RUBY_LIBRARY}\"
+#define RUBY_INCLUDE_DIR \"${RUBY_INCLUDE_DIR}\"
+
+#define CMAKE_BUILD_TYPE \"${CMAKE_BUILD_TYPE}\"
+")
 
 if(BUILD_TESTS)
     file(
         GENERATE
         OUTPUT ${PROJECT_BINARY_DIR}/generated/generated_config.hxx
-        CONTENT "#pragma once\n#define LIBCOUCHBASE_EXT_PATH \"$<TARGET_FILE:couchbase>\"")
+        CONTENT "
+#pragma once
+#define LIBCOUCHBASE_EXT_PATH \"$<TARGET_FILE:couchbase>\"
+")
 
     add_subdirectory(third_party/catch2)
     list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/third_party/catch2/contrib")

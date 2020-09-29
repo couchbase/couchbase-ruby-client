@@ -40,7 +40,7 @@ log_handled_exception()
     // seems to result in immediate process termination). As such skip logging
     // the exception here.
     return;
-#endif
+#else
     // Attempt to get the exception's what() message.
     try {
         static int tried_throw = 0;
@@ -54,6 +54,7 @@ log_handled_exception()
     } catch (...) {
         spdlog::critical("Caught unknown/unhandled exception.");
     }
+#endif
 }
 
 // Log the symbolified backtrace to this point.

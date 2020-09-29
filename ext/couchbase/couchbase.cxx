@@ -16,6 +16,7 @@
  */
 
 #include <build_config.hxx>
+#include <build_info.hxx>
 
 #include <openssl/crypto.h>
 #include <asio/version.hpp>
@@ -88,12 +89,35 @@ init_versions(VALUE mCouchbase)
 #elif defined(SSLEAY_VERSION)
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_runtime")), rb_str_freeze(rb_str_new_cstr(SSLeay_version(SSLEAY_VERSION))));
 #endif
+#if defined(STATIC_STDLIB)
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("static_stdlib")), Qtrue);
+#endif
 
 #undef VERSION_SPLIT_
 
     VALUE version_info = rb_inspect(cb_Version);
     spdlog::info("couchbase backend has been initialized: {}",
                  std::string_view(RSTRING_PTR(version_info), static_cast<std::size_t>(RSTRING_LEN(version_info))));
+
+    VALUE cb_BuildInfo = rb_hash_new();
+    rb_const_set(mCouchbase, rb_intern("BUILD_INFO"), cb_BuildInfo);
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("cmake_build_type")), rb_str_freeze(rb_str_new_cstr(CMAKE_BUILD_TYPE)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("compile_definitions")), rb_str_freeze(rb_str_new_cstr(BACKEND_COMPILE_DEFINITIONS)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("compile_features")), rb_str_freeze(rb_str_new_cstr(BACKEND_COMPILE_FEATURES)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("compile_flags")), rb_str_freeze(rb_str_new_cstr(BACKEND_COMPILE_FLAGS)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("compile_options")), rb_str_freeze(rb_str_new_cstr(BACKEND_COMPILE_OPTIONS)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("link_depends")), rb_str_freeze(rb_str_new_cstr(BACKEND_LINK_DEPENDS)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("link_flags")), rb_str_freeze(rb_str_new_cstr(BACKEND_LINK_FLAGS)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("link_libraries")), rb_str_freeze(rb_str_new_cstr(BACKEND_LINK_LIBRARIES)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("link_options")), rb_str_freeze(rb_str_new_cstr(BACKEND_LINK_OPTIONS)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("openssl_crypto_libraries")), rb_str_freeze(rb_str_new_cstr(OPENSSL_CRYPTO_LIBRARIES)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("openssl_ssl_libraries")), rb_str_freeze(rb_str_new_cstr(OPENSSL_SSL_LIBRARIES)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("openssl_include_dir")), rb_str_freeze(rb_str_new_cstr(OPENSSL_INCLUDE_DIR)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_library")), rb_str_freeze(rb_str_new_cstr(RUBY_LIBRARY)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_include_dir")), rb_str_freeze(rb_str_new_cstr(RUBY_INCLUDE_DIR)));
+    VALUE build_info = rb_inspect(cb_BuildInfo);
+    spdlog::debug("couchbase backend build info: {}",
+                  std::string_view(RSTRING_PTR(build_info), static_cast<std::size_t>(RSTRING_LEN(build_info))));
 }
 
 struct cb_backend_data {
