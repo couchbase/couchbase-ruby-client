@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include <generated_config.hxx>
+#include <test_config.hxx>
 
 #include <string>
 #include <regex>

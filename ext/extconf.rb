@@ -41,6 +41,11 @@ cmake_flags = %W[
 cmake_flags << "-DCMAKE_C_COMPILER=#{ENV['CB_CC']}" if ENV["CB_CC"]
 cmake_flags << "-DCMAKE_CXX_COMPILER=#{ENV['CB_CXX']}" if ENV["CB_CXX"]
 cmake_flags << "-DSTATIC_STDLIB=ON" if ENV["CB_STATIC"]
+cmake_flags << "-DENABLE_SANITIZER_ADDRESS=ON" if ENV["CB_ASAN"]
+cmake_flags << "-DENABLE_SANITIZER_LEAK=ON" if ENV["CB_LSAN"]
+cmake_flags << "-DENABLE_SANITIZER_MEMORY=ON" if ENV["CB_MSAN"]
+cmake_flags << "-DENABLE_SANITIZER_THREAD=ON" if ENV["CB_TSAN"]
+cmake_flags << "-DENABLE_SANITIZER_UNDEFINED_BEHAVIOUR=ON" if ENV["CB_UBSAN"]
 
 openssl_root = `brew --prefix openssl 2> /dev/null`.strip
 cmake_flags << "-DOPENSSL_ROOT_DIR=#{openssl_root}" unless openssl_root.empty?
