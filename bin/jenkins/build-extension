@@ -36,6 +36,9 @@ fi
 if [ "$(uname -s)" = "Linux" ]
 then
   source /usr/local/share/chruby/chruby.sh
+  cc_prefix=/opt/rh/devtoolset-9/root
+  export CB_CC="${cc_prefix}/bin/gcc"
+  export CB_CXX="${cc_prefix}/bin/g++"
 fi
 if [ "$(uname -s)" = "Darwin" ]
 then

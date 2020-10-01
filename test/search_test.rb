@@ -80,6 +80,7 @@ module Couchbase
       loop do
         begin
           break if attempts >= 30
+
           attempts += 1
           res = @cluster.search_query(@index_name, Cluster::SearchQuery.query_string("arthur"), options)
         rescue Error::ConsistencyMismatch

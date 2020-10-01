@@ -92,6 +92,9 @@ init_versions(VALUE mCouchbase)
 #if defined(STATIC_STDLIB)
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("static_stdlib")), Qtrue);
 #endif
+#if defined(STATIC_OPENSSL)
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("static_openssl")), Qtrue);
+#endif
 
 #undef VERSION_SPLIT_
 

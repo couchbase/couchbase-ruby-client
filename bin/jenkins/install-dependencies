@@ -16,6 +16,12 @@
 
 PROJECT_ROOT="$( cd "$(dirname "$0"/../..)" >/dev/null 2>&1 ; pwd -P )"
 
+echo "HOSTNAME=${HOSTNAME}"
+echo "NODE_NAME=${NODE_NAME}"
+echo "CONTAINER_TAG=${CONTAINER_TAG}"
+echo "JENKINS_SLAVE_LABELS=${JENKINS_SLAVE_LABELS}"
+echo "NODE_LABELS=${NODE_LABELS}"
+
 set -x
 set -e
 
@@ -38,7 +44,14 @@ then
       cd chruby-0.3.9/
       sudo make install
   fi
-  ruby-install --jobs=6 --no-reinstall ruby ${CB_RUBY_VERSION}
+  os=$(lsb_release -r | sed 's/Release:[\t ]*7.*/centos7/g')
+  if [ "x${os}" = "xcentos7" ]
+  then
+    sudo yum install -y openssl11-static openssl11-devel
+    cc_prefix=/opt/rh/devtoolset-9/root
+    CB_EXTRAS="CC=${cc_prefix}/bin/gcc CXX=${cc_prefix}/bin/g++"
+  fi
+  ruby-install --jobs=6 --no-reinstall ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS}
 fi
 if [ "$(uname -s)" = "Darwin" ]
 then

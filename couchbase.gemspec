@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.description = "Modern SDK for Couchbase Server"
   spec.homepage = "https://www.couchbase.com"
   spec.license = "Apache-2.0"
-  spec.required_ruby_version = "~> 2.5"
+  spec.required_ruby_version = "> 2.5"
 
   spec.metadata = {
     "homepage_uri" => "https://docs.couchbase.com/ruby-sdk/3.0/hello-world/start-using-sdk.html",
@@ -37,41 +37,45 @@ Gem::Specification.new do |spec|
     "github_repo" => "ssh://github.com/couchbase/couchbase-ruby-client",
   }
 
-  spec.files = Dir.chdir(File.expand_path(__dir__)) do
-    exclude_paths = %w[
-      .idea
-      .github
-      .gitignore
-      .gitmodules
-      bin
-      test
-      spec
-      features
-      test_data
-      ext/third_party/asio/asio/src/examples
-      ext/third_party/asio/asio/src/tests
-      ext/third_party/asio/asio/src/tools
-      ext/third_party/gsl/tests
-      ext/third_party/http_parser/contrib
-      ext/third_party/http_parser/fuzzers
-      ext/third_party/json/contrib
-      ext/third_party/json/doc
-      ext/third_party/json/src/example
-      ext/third_party/json/src/perf
-      ext/third_party/json/src/test
-      ext/third_party/json/tests
-      ext/third_party/snappy/testdata
-      ext/third_party/spdlog/bench
-      ext/third_party/spdlog/example
-      ext/third_party/spdlog/logos
-      ext/third_party/spdlog/scripts
-      ext/third_party/spdlog/tests
-      ext/third_party/catch2
-    ]
-    `git ls-files --recurse-submodules -z`
-      .split("\x0")
-      .reject { |f| f.match?(/^(#{Regexp.union(exclude_paths)})/) }
-  end
+  spec.files = Dir[
+    "LICENSE.txt",
+    "README.md",
+    "ext/*.hxx.in",
+    "ext/*.rb",
+    "ext/CMakeLists.txt",
+    "ext/LICENSE.txt",
+    "ext/cmake/*",
+    "ext/couchbase/**/*",
+    "ext/test/*",
+    "ext/third_party/asio/COPYING",
+    "ext/third_party/asio/LICENSE*",
+    "ext/third_party/asio/asio/include/*.hpp",
+    "ext/third_party/asio/asio/include/asio/**/*.[hi]pp",
+    "ext/third_party/gsl/CMakeLists.txt",
+    "ext/third_party/gsl/LICENSE*",
+    "ext/third_party/gsl/ThirdPartyNotices.txt",
+    "ext/third_party/gsl/include/**/*",
+    "ext/third_party/http_parser/LICENSE*",
+    "ext/third_party/http_parser/http_parser.{c,h}",
+    "ext/third_party/json/CMakeLists.txt",
+    "ext/third_party/json/LICENSE*",
+    "ext/third_party/json/include/**/*",
+    "ext/third_party/snappy/CMakeLists.txt",
+    "ext/third_party/snappy/COPYING",
+    "ext/third_party/snappy/cmake/*",
+    "ext/third_party/snappy/snappy-c.{h,cc}",
+    "ext/third_party/snappy/snappy-internal.h",
+    "ext/third_party/snappy/snappy-sinksource.{h,cc}",
+    "ext/third_party/snappy/snappy-stubs-internal.{h,cc}",
+    "ext/third_party/snappy/snappy-stubs-public.h.in",
+    "ext/third_party/snappy/snappy.{h,cc}",
+    "ext/third_party/spdlog/CMakeLists.txt",
+    "ext/third_party/spdlog/LICENSE",
+    "ext/third_party/spdlog/cmake/*",
+    "ext/third_party/spdlog/include/**/*",
+    "ext/third_party/spdlog/src/**/*",
+    "lib/**/*.rb",
+  ].select { |path| File.file?(path) }
   spec.bindir = "exe"
   spec.executables = spec.files.grep(/^exe\//) { |f| File.basename(f) }
   spec.require_paths = ["lib"]

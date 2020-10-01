@@ -23,6 +23,7 @@ group :development do
   gem "rubocop"
   gem "rubocop-minitest"
   gem "rubocop-performance"
+  gem "rubocop-rake"
   gem "standard"
   gem "yard"
   platforms :mri do
