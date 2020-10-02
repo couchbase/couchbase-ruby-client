@@ -54,6 +54,8 @@ class stream_impl
 
     [[nodiscard]] virtual bool is_open() const = 0;
 
+    [[nodiscard]] virtual asio::ip::tcp::endpoint local_endpoint() const = 0;
+
     virtual void close() = 0;
 
     virtual void reopen() = 0;
@@ -83,6 +85,16 @@ class plain_stream_impl : public stream_impl
     [[nodiscard]] bool is_open() const override
     {
         return stream_.is_open();
+    }
+
+    [[nodiscard]] virtual asio::ip::tcp::endpoint local_endpoint() const override
+    {
+        std::error_code ec;
+        auto res = stream_.local_endpoint(ec);
+        if (ec) {
+            return {};
+        }
+        return res;
     }
 
     void close() override
@@ -139,6 +151,16 @@ class tls_stream_impl : public stream_impl
     [[nodiscard]] bool is_open() const override
     {
         return stream_->lowest_layer().is_open();
+    }
+
+    [[nodiscard]] virtual asio::ip::tcp::endpoint local_endpoint() const override
+    {
+        std::error_code ec;
+        auto res = stream_->lowest_layer().local_endpoint(ec);
+        if (ec) {
+            return {};
+        }
+        return res;
     }
 
     void close() override

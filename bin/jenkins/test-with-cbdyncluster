@@ -136,9 +136,9 @@ rake test
 STATUS=$?
 set -e
 
-cbdyncluster rm ${CLUSTER_ID}
-if [ -z ${STATUS} ]
+if [ "x${STATUS}" = "x0" ]
 then
+    cbdyncluster rm ${CLUSTER_ID}
     cbdyncluster ps -a
 else
     date
@@ -155,14 +155,15 @@ else
     mkdir server_logs
     for ip in $(cbdyncluster ips ${CLUSTER_ID} | ruby -e 'puts STDIN.read.split(",").join(" ")')
     do
-      curl -sS -u${CB_CREDS} http://${ip}:8091/diag > "server_logs/${ip}-diag.log"
-      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/debug > "server_logs/${ip}-debug.log"
-      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/error > "server_logs/${ip}-error.log"
-      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/fts > "server_logs/${ip}-fts.log"
-      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/query > "server_logs/${ip}-query.log"
+      curl -sS -u${CB_CREDS} http://${ip}:8091/diag > "server_logs/${ip}-diag.log" || true
+      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/debug > "server_logs/${ip}-debug.log" || true
+      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/error > "server_logs/${ip}-error.log" || true
+      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/fts > "server_logs/${ip}-fts.log" || true
+      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/query > "server_logs/${ip}-query.log" || true
     done
-    tar cvf server_logs.tar server_logs
-    gzip -9 server_logs.tar
+    tar cvf server_logs.tar server_logs || true
+    gzip -9 server_logs.tar || true
+    cbdyncluster rm ${CLUSTER_ID}
 fi
 
 exit ${STATUS}

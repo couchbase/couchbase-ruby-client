@@ -49,6 +49,22 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
         }
     }
 
+    void export_diag_info(diag::diagnostics_result& res)
+    {
+        std::scoped_lock lock(sessions_mutex_);
+
+        for (const auto& list : busy_sessions_) {
+            for (const auto& session : list.second) {
+                res.services[list.first].emplace_back(session->diag_info());
+            }
+        }
+        for (const auto& list : idle_sessions_) {
+            for (const auto& session : list.second) {
+                res.services[list.first].emplace_back(session->diag_info());
+            }
+        }
+    }
+
     std::shared_ptr<http_session> check_out(service_type type, const couchbase::cluster_credentials& credentials)
     {
         std::scoped_lock lock(sessions_mutex_);
@@ -64,11 +80,17 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
             config_.nodes.size();
             std::shared_ptr<http_session> session;
             if (options_.enable_tls) {
-                session = std::make_shared<http_session>(
-                  client_id_, ctx_, tls_, credentials, hostname, std::to_string(port), http_context{ config_, options_, query_cache_ });
+                session = std::make_shared<http_session>(type,
+                                                         client_id_,
+                                                         ctx_,
+                                                         tls_,
+                                                         credentials,
+                                                         hostname,
+                                                         std::to_string(port),
+                                                         http_context{ config_, options_, query_cache_ });
             } else {
                 session = std::make_shared<http_session>(
-                  client_id_, ctx_, credentials, hostname, std::to_string(port), http_context{ config_, options_, query_cache_ });
+                  type, client_id_, ctx_, credentials, hostname, std::to_string(port), http_context{ config_, options_, query_cache_ });
             }
             session->start();
 
@@ -104,6 +126,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
             std::scoped_lock lock(sessions_mutex_);
             spdlog::debug("{} put HTTP session back to idle connections", session->log_prefix());
             idle_sessions_[type].push_back(session);
+            busy_sessions_[type].remove_if([id = session->id()](const auto& s) -> bool { return !s || s->id() == id; });
         }
     }
 

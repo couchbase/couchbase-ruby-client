@@ -306,6 +306,13 @@ class bucket : public std::enable_shared_from_this<bucket>
         return log_prefix_;
     }
 
+    void export_diag_info(diag::diagnostics_result& res) const
+    {
+        for (const auto& session : sessions_) {
+            res.services[service_type::kv].emplace_back(session.second->diag_info());
+        }
+    }
+
   private:
     std::string client_id_;
     asio::io_context& ctx_;

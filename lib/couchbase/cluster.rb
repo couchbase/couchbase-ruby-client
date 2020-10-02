@@ -282,15 +282,43 @@ module Couchbase
       Management::SearchIndexManager.new(@backend)
     end
 
+    # Closes all connections to services and free allocated resources
+    #
+    # @return [void]
     def disconnect
       @backend.close
     end
 
-    def diagnostics(options = DiagnosticsOptions.new) end
+    # Creates diagnostic report that can be used to determine the health of the network connections.
+    #
+    # It does not proactively perform any I/O against the network
+    #
+    # @return [DiagnosticsResult]
+    def diagnostics(options = DiagnosticsOptions.new)
+      resp = @backend.diagnostics(options.report_id)
+      pp resp
+      DiagnosticsResult.new do |res|
+        res.version = resp[:version]
+        res.id = resp[:id]
+        res.sdk = resp[:sdk]
+        resp[:services].each do |type, svcs|
+          res.services[type] = svcs.map do |svc|
+            DiagnosticsResult::ServiceInfo.new do |info|
+              info.id = svc[:id]
+              info.state = svc[:state]
+              info.last_activity_us = svc[:last_activity_us]
+              info.remote = svc[:remote]
+              info.local = svc[:local]
+            end
+          end
+        end
+      end
+    end
 
     class ClusterOptions
       attr_accessor :authenticator
 
+      # @yieldparam [ClusterOptions] self
       def initialize
         yield self if block_given?
       end
@@ -305,8 +333,88 @@ module Couchbase
       # @return [String] Holds custom report id.
       attr_accessor :report_id
 
+      # @yieldparam [DiagnosticsOptions] self
       def initialize
         yield self if block_given?
+      end
+    end
+
+    class DiagnosticsResult
+      class ServiceInfo
+        # @return [String] endpoint unique identifier
+        attr_accessor :id
+
+        # Possible states are:
+        #
+        # :disconnected:: the endpoint is not reachable
+        # :connecting:: currently connecting (includes auth, handshake, etc.)
+        # :connected:: connected and ready
+        # :disconnecting:: disconnecting (after being connected)
+        #
+        # @return [Symbol] state of the endpoint
+        attr_accessor :state
+
+        # @return [Integer] how long ago the endpoint was active (in microseconds)
+        attr_accessor :last_activity_us
+
+        # @return [String] remote address of the connection
+        attr_accessor :remote
+
+        # @return [String] local address of the connection
+        attr_accessor :local
+
+        # @yieldparam [ServiceInfo] self
+        def initialize
+          yield self if block_given?
+        end
+
+        def to_json(*args)
+          data = {
+            id: @id,
+            state: @state,
+            remote: @remote,
+            local: @local,
+          }
+          data[:last_activity_us] = @last_activity_us if defined? @last_activity_us
+          data.to_json(*args)
+        end
+      end
+
+      # @return [String] report id
+      attr_accessor :id
+
+      # @return [String] SDK identifier
+      attr_accessor :sdk
+
+      # Returns information about currently service endpoints, that known to the library at the moment.
+      #
+      # :kv:: Key/Value data service
+      # :query:: N1QL query service
+      # :analytics:: Analtyics service
+      # :search:: Full text search service
+      # :views:: Views service
+      # :mgmt:: Management service
+      #
+      # @return [Hash<Symbol, ServiceInfo>] map service types to info
+      attr_accessor :services
+
+      # @yieldparam [DiagnosticsResult] self
+      def initialize
+        @services = Hash.new
+        yield self if block_given?
+      end
+
+      # @api private
+      # @return [Integer] version
+      attr_accessor :version
+
+      def to_json(*args)
+        {
+          version: @version,
+          id: @id,
+          sdk: @sdk,
+          services: @services,
+        }.to_json(*args)
       end
     end
 

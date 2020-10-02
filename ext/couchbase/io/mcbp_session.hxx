@@ -53,6 +53,7 @@
 #include <origin.hxx>
 #include <errors.hxx>
 #include <version.hxx>
+#include <diagnostics.hxx>
 
 namespace couchbase::io
 {
@@ -536,6 +537,19 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         return log_prefix_;
     }
 
+    [[nodiscard]] diag::endpoint_diag_info diag_info() const
+    {
+        return { service_type::kv,
+                 id_,
+                 last_active_.time_since_epoch().count() == 0 ? std::nullopt
+                                                              : std::make_optional(std::chrono::duration_cast<std::chrono::microseconds>(
+                                                                  std::chrono::steady_clock::now() - last_active_)),
+                 fmt::format("{}:{}", endpoint_address_, endpoint_.port()),
+                 fmt::format("{}:{}", local_endpoint_address_, local_endpoint_.port()),
+                 state_,
+                 bucket_name_ };
+    }
+
     void bootstrap(std::function<void(std::error_code, configuration)>&& handler, bool retry_on_bucket_not_found = false)
     {
         retry_bootstrap_on_bucket_not_found_ = retry_on_bucket_not_found;
@@ -558,6 +572,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (stopped_) {
             return;
         }
+        state_ = diag::endpoint_state::connecting;
         if (stream_->is_open()) {
             std::string old_id = stream_->id();
             stream_->reopen();
@@ -615,6 +630,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (stopped_) {
             return;
         }
+        state_ = diag::endpoint_state::disconnecting;
         spdlog::debug("{} stop MCBP connection, reason={}", log_prefix_, reason);
         stopped_ = true;
         bootstrap_deadline_.cancel();
@@ -642,6 +658,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             on_stop_handler_(reason);
         }
         on_stop_handler_ = nullptr;
+        state_ = diag::endpoint_state::disconnected;
     }
 
     void write(const std::vector<uint8_t>& buf)
@@ -989,6 +1006,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (ec) {
             return stop(retry_reason::node_not_available);
         }
+        state_ = diag::endpoint_state::connected;
         bootstrapped_ = true;
         handler_ = std::make_unique<normal_handler>(shared_from_this());
         std::scoped_lock lock(pending_buffer_mutex_);
@@ -1006,6 +1024,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (stopped_) {
             return;
         }
+        last_active_ = std::chrono::steady_clock::now();
         if (ec) {
             spdlog::error("{} error on resolve: {} ({})", log_prefix_, ec.value(), ec.message());
             return initiate_bootstrap();
@@ -1021,6 +1040,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (stopped_) {
             return;
         }
+        last_active_ = std::chrono::steady_clock::now();
         if (it != endpoints_.end()) {
             spdlog::debug("{} connecting to {}:{}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port());
             connection_deadline_.expires_after(timeout_defaults::connect_timeout);
@@ -1036,6 +1056,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (stopped_) {
             return;
         }
+        last_active_ = std::chrono::steady_clock::now();
         if (!stream_->is_open() || ec) {
             spdlog::warn("{} unable to connect to {}:{}: {} ({}), is_open={}",
                          log_prefix_,
@@ -1047,6 +1068,8 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             do_connect(++it);
         } else {
             stream_->set_options();
+            local_endpoint_ = stream_->local_endpoint();
+            local_endpoint_address_ = local_endpoint_.address().to_string();
             endpoint_ = it->endpoint();
             endpoint_address_ = endpoint_.address().to_string();
             spdlog::debug("{} connected to {}:{}", log_prefix_, endpoint_address_, it->endpoint().port());
@@ -1088,6 +1111,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
               if (ec == asio::error::operation_aborted || self->stopped_) {
                   return;
               }
+              self->last_active_ = std::chrono::steady_clock::now();
               if (ec) {
                   if (stream_id != self->stream_->id()) {
                       spdlog::error(
@@ -1158,6 +1182,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             if (ec == asio::error::operation_aborted || self->stopped_) {
                 return;
             }
+            self->last_active_ = std::chrono::steady_clock::now();
             if (ec) {
                 spdlog::error(R"({} IO error while writing to the socket("{}"): {} ({}), pending_handlers={})",
                               self->log_prefix_,
@@ -1213,6 +1238,8 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     std::string bootstrap_port_{};
     asio::ip::tcp::endpoint endpoint_{}; // connected endpoint
     std::string endpoint_address_{};     // cached string with endpoint address
+    asio::ip::tcp::endpoint local_endpoint_{};
+    std::string local_endpoint_address_{};
     asio::ip::tcp::resolver::results_type endpoints_;
     std::vector<protocol::hello_feature> supported_features_;
     std::optional<configuration> config_;
@@ -1222,5 +1249,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     std::atomic_bool reading_{ false };
 
     std::string log_prefix_{};
+    std::chrono::time_point<std::chrono::steady_clock> last_active_{};
+    diag::endpoint_state state_{ diag::endpoint_state::disconnected };
 };
 } // namespace couchbase::io

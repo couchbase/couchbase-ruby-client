@@ -32,6 +32,8 @@
 #include <operations.hxx>
 #include <operations/document_query.hxx>
 
+#include <diagnostics.hxx>
+
 namespace couchbase
 {
 class cluster
@@ -114,6 +116,28 @@ class cluster
             handler(std::move(resp));
             session_manager_->check_in(Request::type, session);
         });
+    }
+
+    template<typename Handler>
+    void diagnostics(std::optional<std::string> report_id, Handler&& handler)
+    {
+        if (!report_id) {
+            report_id = std::make_optional(uuid::to_string(uuid::random()));
+        }
+        asio::post(asio::bind_executor(ctx_, [this, report_id, handler = std::forward<Handler>(handler)]() mutable {
+            diag::diagnostics_result res{
+                report_id.value(),
+                fmt::format("ruby/{}.{}.{}/{}", BACKEND_VERSION_MAJOR, BACKEND_VERSION_MINOR, BACKEND_VERSION_PATCH, BACKEND_GIT_REVISION)
+            };
+            if (session_) {
+                res.services[service_type::kv].emplace_back(session_->diag_info());
+            }
+            for (const auto& bucket : buckets_) {
+                bucket.second->export_diag_info(res);
+            }
+            session_manager_->export_diag_info(res);
+            handler(std::move(res));
+        }));
     }
 
   private:

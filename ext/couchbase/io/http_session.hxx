@@ -42,13 +42,15 @@ namespace couchbase::io
 class http_session : public std::enable_shared_from_this<http_session>
 {
   public:
-    http_session(const std::string& client_id,
+    http_session(service_type type,
+                 const std::string& client_id,
                  asio::io_context& ctx,
                  const cluster_credentials& credentials,
                  const std::string& hostname,
                  const std::string& service,
                  http_context http_ctx)
-      : client_id_(client_id)
+      : type_(type)
+      , client_id_(client_id)
       , id_(uuid::to_string(uuid::random()))
       , ctx_(ctx)
       , resolver_(ctx_)
@@ -71,14 +73,16 @@ class http_session : public std::enable_shared_from_this<http_session>
     {
     }
 
-    http_session(const std::string& client_id,
+    http_session(service_type type,
+                 const std::string& client_id,
                  asio::io_context& ctx,
                  asio::ssl::context& tls,
                  const cluster_credentials& credentials,
                  const std::string& hostname,
                  const std::string& service,
                  http_context http_ctx)
-      : client_id_(client_id)
+      : type_(type)
+      , client_id_(client_id)
       , id_(uuid::to_string(uuid::random()))
       , ctx_(ctx)
       , resolver_(ctx_)
@@ -111,8 +115,21 @@ class http_session : public std::enable_shared_from_this<http_session>
         return http_ctx_;
     }
 
+    [[nodiscard]] diag::endpoint_diag_info diag_info() const
+    {
+        return { type_,
+                 id_,
+                 last_active_.time_since_epoch().count() == 0 ? std::nullopt
+                                                              : std::make_optional(std::chrono::duration_cast<std::chrono::microseconds>(
+                                                                  std::chrono::steady_clock::now() - last_active_)),
+                 fmt::format("{}:{}", endpoint_address_, endpoint_.port()),
+                 fmt::format("{}:{}", local_endpoint_address_, local_endpoint_.port()),
+                 state_ };
+    }
+
     void start()
     {
+        state_ = diag::endpoint_state::connecting;
         resolver_.async_resolve(
           hostname_, service_, std::bind(&http_session::on_resolve, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     }
@@ -139,7 +156,11 @@ class http_session : public std::enable_shared_from_this<http_session>
 
     void stop()
     {
+        if (stopped_) {
+            return;
+        }
         stopped_ = true;
+        state_ = diag::endpoint_state::disconnecting;
         if (stream_->is_open()) {
             stream_->close();
         }
@@ -158,6 +179,7 @@ class http_session : public std::enable_shared_from_this<http_session>
             on_stop_handler_();
             on_stop_handler_ = nullptr;
         }
+        state_ = diag::endpoint_state::disconnected;
     }
 
     bool keep_alive()
@@ -247,6 +269,7 @@ class http_session : public std::enable_shared_from_this<http_session>
             spdlog::error("{} error on resolve: {}", log_prefix_, ec.message());
             return;
         }
+        last_active_ = std::chrono::steady_clock::now();
         endpoints_ = endpoints;
         do_connect(endpoints_.begin());
         deadline_timer_.async_wait(std::bind(&http_session::check_deadline, shared_from_this(), std::placeholders::_1));
@@ -269,13 +292,18 @@ class http_session : public std::enable_shared_from_this<http_session>
         if (stopped_) {
             return;
         }
+        last_active_ = std::chrono::steady_clock::now();
         if (!stream_->is_open() || ec) {
             spdlog::warn(
               "{} unable to connect to {}:{}: {}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port(), ec.message());
             do_connect(++it);
         } else {
+            state_ = diag::endpoint_state::connected;
             connected_ = true;
+            local_endpoint_ = stream_->local_endpoint();
+            local_endpoint_address_ = local_endpoint_.address().to_string();
             endpoint_ = it->endpoint();
+            endpoint_address_ = endpoint_.address().to_string();
             spdlog::debug("{} connected to {}:{}", log_prefix_, it->endpoint().address().to_string(), it->endpoint().port());
             log_prefix_ = fmt::format("[{}/{}] <{}:{}>", client_id_, id_, endpoint_.address().to_string(), endpoint_.port());
             deadline_timer_.expires_at(asio::steady_timer::time_point::max());
@@ -309,6 +337,7 @@ class http_session : public std::enable_shared_from_this<http_session>
               if (ec == asio::error::operation_aborted || self->stopped_) {
                   return;
               }
+              self->last_active_ = std::chrono::steady_clock::now();
               if (ec) {
                   spdlog::error("{} IO error while reading from the socket: {}", self->log_prefix_, ec.message());
                   return self->stop();
@@ -358,6 +387,7 @@ class http_session : public std::enable_shared_from_this<http_session>
             if (ec == asio::error::operation_aborted || self->stopped_) {
                 return;
             }
+            self->last_active_ = std::chrono::steady_clock::now();
             if (ec) {
                 spdlog::error("{} IO error while writing to the socket: {}", self->log_prefix_, ec.message());
                 return self->stop();
@@ -370,6 +400,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         });
     }
 
+    service_type type_;
     std::string client_id_;
     std::string id_;
     asio::io_context& ctx_;
@@ -397,9 +428,15 @@ class http_session : public std::enable_shared_from_this<http_session>
     std::vector<std::vector<std::uint8_t>> output_buffer_{};
     std::vector<std::vector<std::uint8_t>> writing_buffer_{};
     asio::ip::tcp::endpoint endpoint_{}; // connected endpoint
+    std::string endpoint_address_{};     // cached string with endpoint address
+    asio::ip::tcp::endpoint local_endpoint_{};
+    std::string local_endpoint_address_{};
     asio::ip::tcp::resolver::results_type endpoints_{};
 
     std::string log_prefix_{};
     couchbase::http_context http_ctx_;
+
+    std::chrono::time_point<std::chrono::steady_clock> last_active_{};
+    diag::endpoint_state state_{ diag::endpoint_state::disconnected };
 };
 } // namespace couchbase::io

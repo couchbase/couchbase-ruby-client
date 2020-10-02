@@ -347,7 +347,7 @@ extract_options(connection_string& connstr)
     }
 }
 
-static connection_string
+connection_string
 parse_connection_string(const std::string& input)
 {
     connection_string res;

@@ -52,7 +52,7 @@ struct fmt::formatter<couchbase::service_type> : formatter<std::string_view> {
                 name = "views";
                 break;
             case couchbase::service_type::management:
-                name = "management";
+                name = "mgmt";
                 break;
         }
         return formatter<string_view>::format(name, ctx);
