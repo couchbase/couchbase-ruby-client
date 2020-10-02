@@ -24,6 +24,7 @@ namespace couchbase
 {
 struct http_context {
     const configuration& config;
+    const cluster_options& options;
     query_cache& cache;
 };
 

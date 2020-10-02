@@ -65,10 +65,10 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
             std::shared_ptr<http_session> session;
             if (options_.enable_tls) {
                 session = std::make_shared<http_session>(
-                  client_id_, ctx_, tls_, credentials, hostname, std::to_string(port), http_context{ config_, query_cache_ });
+                  client_id_, ctx_, tls_, credentials, hostname, std::to_string(port), http_context{ config_, options_, query_cache_ });
             } else {
                 session = std::make_shared<http_session>(
-                  client_id_, ctx_, credentials, hostname, std::to_string(port), http_context{ config_, query_cache_ });
+                  client_id_, ctx_, credentials, hostname, std::to_string(port), http_context{ config_, options_, query_cache_ });
             }
             session->start();
 
@@ -112,8 +112,10 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
         {
             for (auto& sessions : idle_sessions_) {
                 for (auto& s : sessions.second) {
-                    s->reset_idle();
-                    s.reset();
+                    if (s) {
+                        s->reset_idle();
+                        s.reset();
+                    }
                 }
             }
         }

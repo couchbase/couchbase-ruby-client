@@ -89,12 +89,6 @@ init_versions(VALUE mCouchbase)
 #elif defined(SSLEAY_VERSION)
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_runtime")), rb_str_freeze(rb_str_new_cstr(SSLeay_version(SSLEAY_VERSION))));
 #endif
-#if defined(STATIC_STDLIB)
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("static_stdlib")), Qtrue);
-#endif
-#if defined(STATIC_OPENSSL)
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("static_openssl")), Qtrue);
-#endif
 
 #undef VERSION_SPLIT_
 
@@ -113,9 +107,15 @@ init_versions(VALUE mCouchbase)
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("link_flags")), rb_str_freeze(rb_str_new_cstr(BACKEND_LINK_FLAGS)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("link_libraries")), rb_str_freeze(rb_str_new_cstr(BACKEND_LINK_LIBRARIES)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("link_options")), rb_str_freeze(rb_str_new_cstr(BACKEND_LINK_OPTIONS)));
+#if defined(STATIC_STDLIB)
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("static_stdlib")), Qtrue);
+#endif
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("openssl_crypto_libraries")), rb_str_freeze(rb_str_new_cstr(OPENSSL_CRYPTO_LIBRARIES)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("openssl_ssl_libraries")), rb_str_freeze(rb_str_new_cstr(OPENSSL_SSL_LIBRARIES)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("openssl_include_dir")), rb_str_freeze(rb_str_new_cstr(OPENSSL_INCLUDE_DIR)));
+#if defined(STATIC_OPENSSL)
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("static_openssl")), Qtrue);
+#endif
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_library")), rb_str_freeze(rb_str_new_cstr(RUBY_LIBRARY)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_include_dir")), rb_str_freeze(rb_str_new_cstr(RUBY_INCLUDE_DIR)));
     VALUE build_info = rb_inspect(cb_BuildInfo);
@@ -6321,7 +6321,7 @@ init_logger()
 
     auto env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_LOG_LEVEL");
     if (env_val.empty()) {
-        spdlog::set_level(spdlog::level::warn);
+        spdlog::set_level(spdlog::level::info);
     } else {
         auto levels = spdlog::cfg::helpers::extract_levels(env_val);
         spdlog::details::registry::instance().update_levels(std::move(levels));

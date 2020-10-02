@@ -128,7 +128,7 @@ struct search_request {
 
     std::map<std::string, tao::json::value> raw{};
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    void encode_to(encoded_request_type& encoded, http_context& context)
     {
         tao::json::value body{
             { "query", query },
@@ -196,6 +196,11 @@ struct search_request {
         encoded.method = "POST";
         encoded.path = fmt::format("/api/index/{}/query", index_name);
         encoded.body = tao::json::to_string(body);
+        if (context.options.show_queries) {
+            spdlog::info("SEARCH: {}", tao::json::to_string(body["query"]));
+        } else {
+            spdlog::debug("SEARCH: {}", tao::json::to_string(body["query"]));
+        }
     }
 };
 

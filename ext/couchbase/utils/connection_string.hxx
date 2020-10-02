@@ -321,6 +321,15 @@ extract_options(connection_string& connstr)
                 }
             } else if (param.first == "network") {
                 connstr.options.network = param.second; /* current known values are "auto", "default" and "external" */
+            } else if (param.first == "show_queries") {
+                /**
+                 * Whether to display N1QL, Analytics, Search queries on info level (default false)
+                 */
+                if (param.second == "true" || param.second == "yes" || param.second == "on") {
+                    connstr.options.show_queries = true;
+                } else if (param.second == "false" || param.second == "no" || param.second == "off") {
+                    connstr.options.show_queries = false;
+                }
             } else {
                 spdlog::warn(R"(unknown parameter "{}" in connection string (value "{}"))", param.first, param.second);
             }

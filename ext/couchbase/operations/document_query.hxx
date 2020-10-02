@@ -310,6 +310,20 @@ struct query_request {
         encoded.method = "POST";
         encoded.path = "/query/service";
         encoded.body = tao::json::to_string(body);
+
+        tao::json::value stmt = body["statement"];
+        tao::json::value prep = body["prepared"];
+        if (!stmt.is_string()) {
+            stmt = statement;
+        }
+        if (!prep.is_string()) {
+            prep = false;
+        }
+        if (ctx_->options.show_queries) {
+            spdlog::info("QUERY: prep={}, {}", tao::json::to_string(prep), tao::json::to_string(stmt));
+        } else {
+            spdlog::debug("QUERY: prep={}, {}", tao::json::to_string(prep), tao::json::to_string(stmt));
+        }
     }
 };
 
