@@ -931,17 +931,17 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             return;
         }
         if (config_) {
-            if (config_->vbmap->empty() != config.vbmap->empty() || (config_->vbmap && config_->vbmap->size() != config.vbmap->size())) {
-                spdlog::debug("{} received a configuration with a different number of vbuckets, ignoring");
+            if (config_->vbmap && config.vbmap && config_->vbmap->size() != config.vbmap->size()) {
+                spdlog::debug("{} received a configuration with a different number of vbuckets, ignoring", log_prefix_);
                 return;
             }
             if (config_->rev && config.rev) {
                 if (*config_->rev == *config.rev) {
-                    spdlog::debug("{} received a configuration with identical revision, ignoring");
+                    spdlog::debug("{} received a configuration with identical revision (rev={}), ignoring", log_prefix_, *config.rev);
                     return;
                 }
                 if (*config_->rev > *config.rev) {
-                    spdlog::debug("{} received a configuration with older revision, ignoring");
+                    spdlog::debug("{} received a configuration with older revision, ignoring", log_prefix_);
                     return;
                 }
             }
