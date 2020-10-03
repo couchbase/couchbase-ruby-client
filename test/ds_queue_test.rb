@@ -18,17 +18,17 @@ require "couchbase/datastructures/couchbase_queue"
 
 module Couchbase
   module Datastructures
-    class CouchbaseQueueTest < BaseTest
+    class CouchbaseQueueTest < Minitest::Test
+      include TestUtilities
+
       def setup
-        options = Cluster::ClusterOptions.new
-        options.authenticate(TEST_USERNAME, TEST_PASSWORD)
-        @cluster = Cluster.connect(TEST_CONNECTION_STRING, options)
-        @bucket = @cluster.bucket(TEST_BUCKET)
+        connect
+        @bucket = @cluster.bucket(env.bucket)
         @collection = @bucket.default_collection
       end
 
       def teardown
-        @cluster.disconnect if defined? @cluster
+        disconnect
       end
 
       def test_new_queue_empty
@@ -49,6 +49,8 @@ module Couchbase
       end
 
       def test_implements_fifo
+        skip("#{name}: CAVES does not support array indexes for Queue#pop yet") if use_caves?
+
         doc_id = uniq_id(:foo)
         queue = CouchbaseQueue.new(doc_id, @collection)
 

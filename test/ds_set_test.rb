@@ -18,17 +18,17 @@ require "couchbase/datastructures/couchbase_set"
 
 module Couchbase
   module Datastructures
-    class CouchbaseSetTest < BaseTest
+    class CouchbaseSetTest < Minitest::Test
+      include TestUtilities
+
       def setup
-        options = Cluster::ClusterOptions.new
-        options.authenticate(TEST_USERNAME, TEST_PASSWORD)
-        @cluster = Cluster.connect(TEST_CONNECTION_STRING, options)
-        @bucket = @cluster.bucket(TEST_BUCKET)
+        connect
+        @bucket = @cluster.bucket(env.bucket)
         @collection = @bucket.default_collection
       end
 
       def teardown
-        @cluster.disconnect if defined? @cluster
+        disconnect
       end
 
       def test_new_set_empty

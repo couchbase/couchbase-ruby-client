@@ -78,18 +78,86 @@ end
 
 require "couchbase"
 require "json"
+require "securerandom"
 
 require "minitest/autorun"
 
-module Couchbase
-  TEST_CONNECTION_STRING = ENV["TEST_CONNECTION_STRING"] || "couchbase://127.0.0.1"
-  TEST_USERNAME = ENV["TEST_USERNAME"] || "Administrator"
-  TEST_PASSWORD = ENV["TEST_PASSWORD"] || "password"
-  TEST_BUCKET = ENV["TEST_BUCKET"] || "default"
-  TEST_DEVELOPER_PREVIEW = ENV.key?("TEST_DEVELOPER_PREVIEW") && ENV["TEST_DEVELOPER_PREVIEW"] == "yes"
-  TEST_SERVER_VERSION = ServerVersion.new(ENV["TEST_SERVER_VERSION"] || "6.6.0", developer_preview: TEST_DEVELOPER_PREVIEW)
+require_relative "mock_helper"
 
-  class BaseTest < Minitest::Test
+module Couchbase
+  class TestEnvironment
+    attr_writer :connection_string
+
+    def connection_string
+      @connection_string ||= ENV["TEST_CONNECTION_STRING"]
+    end
+
+    def want_caves?
+      connection_string.nil? || connection_string.empty?
+    end
+
+    def username
+      @username ||= ENV["TEST_USERNAME"] || "Administrator"
+    end
+
+    def password
+      @password ||= ENV["TEST_PASSWORD"] || "password"
+    end
+
+    def bucket
+      @bucket ||= ENV["TEST_BUCKET"] || "default"
+    end
+
+    def developer_preview?
+      @developer_preview = ENV.key?("TEST_DEVELOPER_PREVIEW") && ENV["TEST_DEVELOPER_PREVIEW"] == "yes" unless defined?(@developer_preview)
+      @developer_preview
+    end
+
+    def server_version
+      @server_version ||= ServerVersion.new(ENV["TEST_SERVER_VERSION"] || "6.6.0", developer_preview: developer_preview?)
+    end
+  end
+
+  module TestUtilities
+    def env
+      @env ||= begin
+        e = TestEnvironment.new
+        if e.want_caves?
+          @caves = Caves.new
+          @caves.start
+          @cluster_id = SecureRandom.uuid
+          e.connection_string = @caves.create_cluster(@cluster_id)
+        end
+        e
+      end
+    end
+
+    def use_caves?
+      defined? @caves
+    end
+
+    def use_server?
+      !use_caves?
+    end
+
+    def connect(options = Cluster::ClusterOptions.new)
+      options.authenticate(env.username, env.password)
+      @cluster = Cluster.connect(env.connection_string, options)
+    end
+
+    def disconnect
+      @cluster.disconnect if defined? @cluster
+    end
+
+    # @param [Float] duration in seconds with fractions
+    def time_travel(duration)
+      if use_caves?
+        @caves.time_travel_cluster(@cluster_id, (duration * 1_000).to_i)
+      else
+        sleep(duration)
+      end
+    end
+
     def uniq_id(name)
       parent = caller_locations&.first
       prefix = "#{File.basename(parent&.path, '.rb')}_#{parent&.lineno}"
@@ -110,6 +178,7 @@ require "minitest/reporters"
 Minitest::Reporters.use!(
   [
     Minitest::Reporters::SpecReporter.new,
+    Minitest::Reporters::MeanTimeReporter.new,
     Minitest::Reporters::JUnitReporter.new,
   ]
 )

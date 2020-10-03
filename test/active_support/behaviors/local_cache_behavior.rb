@@ -27,6 +27,8 @@ module LocalCacheBehavior
   end
 
   def test_clear_also_clears_local_cache
+    skip("#{name}: CAVES does not support query service yet for clear in cache adapter") if use_caves?
+
     @cache.with_local_cache do
       @cache.write("foo", "bar")
       @cache.clear
@@ -120,8 +122,10 @@ module LocalCacheBehavior
   end
 
   def test_local_cache_of_delete_matched
-    unless ::Couchbase::TEST_SERVER_VERSION.supports_regexp_matches?
-      skip("The server #{::Couchbase::TEST_SERVER_VERSION} does not support delete_matched")
+    skip("#{name}: CAVES does not support query service yet for delete_matched in cache adapter") if use_caves?
+
+    unless env.server_version.supports_regexp_matches?
+      skip("The server #{env.server_version} does not support delete_matched")
     end
     begin
       @cache.delete_matched("*")

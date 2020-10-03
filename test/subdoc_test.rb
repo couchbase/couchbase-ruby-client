@@ -15,17 +15,17 @@
 require_relative "test_helper"
 
 module Couchbase
-  class SubdocTest < BaseTest
+  class SubdocTest < Minitest::Test
+    include TestUtilities
+
     def setup
-      options = Cluster::ClusterOptions.new
-      options.authenticate(TEST_USERNAME, TEST_PASSWORD)
-      @cluster = Cluster.connect(TEST_CONNECTION_STRING, options)
-      @bucket = @cluster.bucket(TEST_BUCKET)
+      connect
+      @bucket = @cluster.bucket(env.bucket)
       @collection = @bucket.default_collection
     end
 
     def teardown
-      @cluster.disconnect if defined? @cluster
+      disconnect
     end
 
     def test_mutate_in_increment
@@ -194,6 +194,8 @@ module Couchbase
     end
 
     def test_upsert_full_document
+      skip("#{name}: CAVES does not support full-document upsert yet (with empty path)") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo" => "bar"})
@@ -211,6 +213,8 @@ module Couchbase
     end
 
     def test_insert_full_document
+      skip("#{name}: CAVES does not support full-document insert yet (with empty path)") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       options = Collection::MutateInOptions.new
@@ -226,6 +230,8 @@ module Couchbase
     end
 
     def test_counter_multi
+      skip("#{name}: CAVES does not return current value for subdocument counters yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {
@@ -248,10 +254,13 @@ module Couchbase
                                     }),
                                   ])
 
+      assert res.success?
       assert_equal 1, res.content(1)
     end
 
     def test_counter_single
+      skip("#{name}: CAVES does not return current value for subdocument counters yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {
@@ -269,7 +278,9 @@ module Couchbase
     end
 
     def test_subdoc_cas_with_durability
-      skip("The server does not support sync replication (#{TEST_SERVER_VERSION}") unless TEST_SERVER_VERSION.supports_sync_replication?
+      skip("#{name}: CAVES does not check CAS for subdoc mutation for $document yet") if use_caves?
+
+      skip("The server does not support sync replication (#{env.server_version}") unless env.server_version.supports_sync_replication?
 
       doc_id = uniq_id(:foo)
 
@@ -293,6 +304,8 @@ module Couchbase
     end
 
     def test_macros
+      skip("#{name}: CAVES does not support subdoc lookup for $document yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -318,7 +331,9 @@ module Couchbase
     end
 
     def test_mad_hatter_macros
-      skip("The server does not support MadHatter macros (#{TEST_SERVER_VERSION})") unless TEST_SERVER_VERSION.mad_hatter?
+      skip("#{name}: CAVES does not support MadHatter macros yet") if use_caves?
+
+      skip("The server does not support MadHatter macros (#{env.server_version})") unless env.server_version.mad_hatter?
 
       doc_id = uniq_id(:foo)
 
@@ -418,6 +433,8 @@ module Couchbase
     end
 
     def test_replace_full_document
+      skip("#{name}: CAVES does not support full-document replace yet (with empty path)") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo" => "bar"})
@@ -504,6 +521,11 @@ module Couchbase
                               MutateInSpec.array_prepend("foo", ["world"]),
                             ])
       assert_equal %w[world hello], @collection.get(doc_id).content["foo"]
+
+      @collection.mutate_in(doc_id, [
+                              MutateInSpec.array_prepend("foo", ["!"]),
+                            ])
+      assert_equal %w[! world hello], @collection.get(doc_id).content["foo"]
     end
 
     def test_array_prepend_multi
@@ -551,6 +573,8 @@ module Couchbase
     end
 
     def test_array_insert_duplicated_unique_does_not_exist
+      skip("#{name}: CAVES does not support transactional subdocument operations yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo" => %w[hello world]})
@@ -578,6 +602,8 @@ module Couchbase
     end
 
     def test_counter_add
+      skip("#{name}: CAVES does not return current value for subdocument counters yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo" => 10})
@@ -590,6 +616,8 @@ module Couchbase
     end
 
     def test_counter_minus
+      skip("#{name}: CAVES does not return current value for subdocument counters yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo" => 10})
@@ -602,6 +630,8 @@ module Couchbase
     end
 
     def test_insert_xattr
+      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -609,6 +639,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.insert("x.foo", "bar2").xattr.create_path,
                             ])
+
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
       assert_equal({"foo" => "bar2"}, res.content(0))
       assert_equal({}, @collection.get(doc_id).content)
@@ -838,6 +869,8 @@ module Couchbase
     end
 
     def test_xattr_ops_are_reordered
+      skip("#{name}: CAVES does not return current value for subdocument counters yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -855,6 +888,8 @@ module Couchbase
     end
 
     def test_insert_expand_macro_xattr
+      skip("#{name}: CAVES does not expand subdocument macros yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -871,6 +906,8 @@ module Couchbase
     end
 
     def test_upsert_expand_macro_xattr
+      skip("#{name}: CAVES does not expand subdocument macros yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -941,6 +978,8 @@ module Couchbase
     end
 
     def test_array_append_xattr_create_path
+      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -953,6 +992,8 @@ module Couchbase
     end
 
     def test_array_prepend_xattr_create_path
+      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -965,6 +1006,8 @@ module Couchbase
     end
 
     def test_counter_add_xattr_create_path
+      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -977,6 +1020,8 @@ module Couchbase
     end
 
     def test_counter_minus_xattr_create_path
+      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -1023,6 +1068,8 @@ module Couchbase
     end
 
     def test_upsert_string_does_not_exist_create_path
+      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -1034,6 +1081,8 @@ module Couchbase
     end
 
     def test_array_append_create_path
+      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -1045,6 +1094,8 @@ module Couchbase
     end
 
     def test_array_prepend_create_path
+      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -1056,6 +1107,8 @@ module Couchbase
     end
 
     def test_counter_add_create_path
+      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -1067,6 +1120,8 @@ module Couchbase
     end
 
     def test_counter_minus_create_path
+      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -1078,6 +1133,8 @@ module Couchbase
     end
 
     def test_expiration
+      skip("#{name}: CAVES does not support XATTR expiration yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"hello" => "world"})
@@ -1138,6 +1195,8 @@ module Couchbase
     end
 
     def test_two_commands_one_fails
+      skip("#{name}: CAVES does not support transactional subdocument operations yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo1" => "bar_orig_1"})
@@ -1153,6 +1212,8 @@ module Couchbase
     end
 
     def test_multiple_xattr_keys_should_fail
+      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       options = Collection::MutateInOptions.new
@@ -1178,12 +1239,14 @@ module Couchbase
     end
 
     def test_create_tombstones
+      skip("#{name}: CAVES does not support subdoc tumbstones yet") if use_caves?
+
       doc_id = uniq_id(:foo)
 
       options = Collection::MutateInOptions.new
       options.store_semantics = :upsert
       options.create_as_deleted = true
-      unless TEST_SERVER_VERSION.supports_create_as_deleted?
+      unless env.server_version.supports_create_as_deleted?
         assert_raises Error::UnsupportedOperation do
           @collection.mutate_in(doc_id, [
                                   MutateInSpec.upsert("meta.field", "b").xattr.create_path,

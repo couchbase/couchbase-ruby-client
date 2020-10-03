@@ -15,12 +15,13 @@
 require_relative "test_helper"
 
 module Couchbase
-  class SearchTest < BaseTest
+  class SearchTest < Minitest::Test
+    include TestUtilities
+
     def setup
-      options = Cluster::ClusterOptions.new
-      options.authenticate(TEST_USERNAME, TEST_PASSWORD)
-      @cluster = Cluster.connect(TEST_CONNECTION_STRING, options)
-      @bucket = @cluster.bucket(TEST_BUCKET)
+      connect
+      skip("#{name}: CAVES does not support query service yet") if use_caves?
+      @bucket = @cluster.bucket(env.bucket)
       @collection = @bucket.default_collection
       @index_name = "idx-#{@bucket.name}-#{rand(0..100_000)}"
 
@@ -61,12 +62,12 @@ module Couchbase
           break
         end
 
-        sleep(0.1)
+        time_travel(0.1)
       end
     end
 
     def teardown
-      @cluster.disconnect if defined? @cluster
+      disconnect
     end
 
     def test_simple_search
@@ -84,11 +85,11 @@ module Couchbase
           attempts += 1
           res = @cluster.search_query(@index_name, Cluster::SearchQuery.query_string("arthur"), options)
         rescue Error::ConsistencyMismatch
-          sleep(0.5)
+          time_travel(0.5)
           retry
         end
         if res.rows.empty?
-          sleep(0.5)
+          time_travel(0.5)
           next
         end
         assert res.success?, "res=#{res.inspect}"

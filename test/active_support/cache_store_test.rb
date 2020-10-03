@@ -18,17 +18,21 @@ require "active_support/notifications"
 require "active_support/cache"
 
 module Couchbase
-  class CacheStoreTest < BaseTest
+  class CacheStoreTest < Minitest::Test
+    include TestUtilities
+
     def setup
       @cache = ActiveSupport::Cache.lookup_store(:couchbase_store, {
-        connection_string: TEST_CONNECTION_STRING,
-        username: TEST_USERNAME,
-        password: TEST_PASSWORD,
-        bucket: TEST_BUCKET,
+        connection_string: env.connection_string,
+        username: env.username,
+        password: env.password,
+        bucket: env.bucket,
       })
     end
 
     def test_clear
+      skip("#{name}: CAVES does not support query service yet for clear in cache adapter") if use_caves?
+
       foo = uniq_id(:foo)
       @cache.write(foo, "value_foo")
       @cache.clear
@@ -73,9 +77,9 @@ module Couchbase
     end
 
     def test_delete_matched
-      unless ::Couchbase::TEST_SERVER_VERSION.supports_regexp_matches?
-        skip("The server #{::Couchbase::TEST_SERVER_VERSION} does not support delete_matched")
-      end
+      skip("#{name}: CAVES does not support query service yet for delete_matched in cache adapter") if use_caves?
+
+      skip("The server #{env.server_version} does not support delete_matched") unless env.server_version.supports_regexp_matches?
       foo = uniq_id(:foo)
       @cache.write(foo, "value_foo")
       bar = uniq_id(:bar)

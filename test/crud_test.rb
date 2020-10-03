@@ -15,17 +15,17 @@
 require_relative "test_helper"
 
 module Couchbase
-  class CrudTest < BaseTest
+  class CrudTest < Minitest::Test
+    include TestUtilities
+
     def setup
-      options = Cluster::ClusterOptions.new
-      options.authenticate(TEST_USERNAME, TEST_PASSWORD)
-      @cluster = Cluster.connect(TEST_CONNECTION_STRING, options)
-      @bucket = @cluster.bucket(TEST_BUCKET)
+      connect
+      @bucket = @cluster.bucket(env.bucket)
       @collection = @bucket.default_collection
     end
 
     def teardown
-      @cluster.disconnect if defined? @cluster
+      disconnect
     end
 
     def test_create_documents
@@ -49,6 +49,8 @@ module Couchbase
     end
 
     def test_touch_sets_expiration
+      skip("#{name}: CAVES does not support expiration yet") if use_caves?
+
       document = {"value" => 42}
       doc_id = uniq_id(:foo)
 
@@ -56,14 +58,16 @@ module Couchbase
 
       @collection.touch(doc_id, 1)
 
-      sleep(2)
+      time_travel(2)
 
-      assert_raises(Couchbase::Error::DocumentNotFound) do
+      assert_raises(Couchbase::Error::DocumentNotFound, "Document \"#{doc_id}\" should be expired") do
         @collection.get(doc_id)
       end
     end
 
     def test_get_can_also_set_expiration
+      skip("#{name}: CAVES does not support expiration yet") if use_caves?
+
       document = {"value" => 42}
       doc_id = uniq_id(:foo)
 
@@ -72,7 +76,7 @@ module Couchbase
       res = @collection.get_and_touch(doc_id, 1)
       assert_equal 42, res.content["value"]
 
-      sleep(2)
+      time_travel(2)
 
       assert_raises(Couchbase::Error::DocumentNotFound) do
         @collection.get(doc_id)
@@ -80,6 +84,7 @@ module Couchbase
     end
 
     def test_exists_allows_to_check_document_existence
+      skip("#{name}: CAVES does not support 'exists' operation") if use_caves?
       doc_id = uniq_id(:foo)
 
       res = @collection.exists(doc_id)
@@ -303,6 +308,8 @@ module Couchbase
     end
 
     def test_error_insert_get_with_expiration
+      skip("#{name}: CAVES does not support get with expiry yet") if use_caves?
+
       doc_id = uniq_id(:expiry_doc)
       doc = load_json_test_dataset("beer_sample_single")
 
@@ -321,6 +328,8 @@ module Couchbase
     end
 
     def test_expiry_option_as_time_instance
+      skip("#{name}: CAVES does not support get with expiry yet") if use_caves?
+
       doc_id = uniq_id(:expiry_doc)
       doc = load_json_test_dataset("beer_sample_single")
 
@@ -336,6 +345,8 @@ module Couchbase
     end
 
     def test_integer_expiry_of_40_days_remains_relative
+      skip("#{name}: CAVES does not support get with expiry yet") if use_caves?
+
       doc_id = uniq_id(:expiry_doc)
       doc = load_json_test_dataset("beer_sample_single")
 
@@ -556,31 +567,36 @@ module Couchbase
                 ],
               },
             }},
-
-        {name: "array-of-arrays-object", project: "tracking.locations[1][1].lat",
-         expected:
-            {
-              "tracking" => {
-                "locations" => [
-                  [
-                    {"lat" => person["tracking"]["locations"][1][1]["lat"]},
-                  ],
-                ],
-              },
-            }},
-
-        {name: "array-of-arrays-native", project: "tracking.raw[1][1]",
-         expected:
-            {
-              "tracking" => {
-                "raw" => [
-                  [
-                    person["tracking"]["raw"][1][1],
-                  ],
-                ],
-              },
-            }},
       ]
+
+      unless use_caves?
+        test_cases |=
+          [
+            {name: "array-of-arrays-object", project: "tracking.locations[1][1].lat",
+             expected:
+                {
+                  "tracking" => {
+                    "locations" => [
+                      [
+                        {"lat" => person["tracking"]["locations"][1][1]["lat"]},
+                      ],
+                    ],
+                  },
+                }},
+
+            {name: "array-of-arrays-native", project: "tracking.raw[1][1]",
+             expected:
+                {
+                  "tracking" => {
+                    "raw" => [
+                      [
+                        person["tracking"]["raw"][1][1],
+                      ],
+                    ],
+                  },
+                }},
+          ]
+      end
 
       test_cases.each do |test_case|
         options = Collection::GetOptions.new
@@ -589,6 +605,7 @@ module Couchbase
         assert_equal(test_case[:expected], res.content,
                      "unexpected content for case #{test_case[:name]} with projections #{test_case[:project].inspect}")
       end
+      skip("#{name}: CAVES does not support nested arrays in subdocument path yet") if use_caves?
     end
 
     def test_projection_few_paths
@@ -688,6 +705,8 @@ module Couchbase
     end
 
     def test_upsert_get_projection_16_fields_and_expiry
+      skip("#{name}: CAVES does not support get with expiry yet") if use_caves?
+
       doc_id = uniq_id(:project_too_many_fields)
       doc = (1..18).each_with_object({}) do |n, obj|
         obj["field#{n}"] = n
@@ -730,7 +749,7 @@ module Couchbase
         backend = @cluster.instance_variable_get("@backend")
         manifest = backend.collections_manifest_get(@bucket.name, 10_000)
         if manifest[:uid] < uid
-          sleep(0.1)
+          time_travel(0.1)
           next
         end
         hits -= 1
@@ -740,9 +759,7 @@ module Couchbase
     # Following test tests that if a collection is deleted and recreated midway through a set of operations then the
     # operations will still succeed due to the cid being refreshed under the hood.
     def test_collection_retry
-      unless TEST_SERVER_VERSION.supports_collections?
-        skip("The server does not support collections (#{TEST_SERVER_VERSION}, dp=#{TEST_DEVELOPER_PREVIEW})")
-      end
+      skip("The server does not support collections (#{env.server_version})") unless env.server_version.supports_collections?
       doc_id = uniq_id(:test_collection_retry)
       doc = load_json_test_dataset("beer_sample_single")
 

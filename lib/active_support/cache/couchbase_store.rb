@@ -133,7 +133,7 @@ module ActiveSupport
         operation_options.consistent_with(::Couchbase::MutationState.new(@last_mutation_token)) if @last_mutation_token
         begin
           cluster.query("DELETE FROM #{scope_qualifier} cache WHERE REGEXP_MATCHES(META(cache).id, $pattern)", operation_options)
-        rescue ::Couchbase::Error::ParsingFailure
+        rescue ::Couchbase::Error::ParsingFailure, ::Couchbase::Error::ServiceNotAvailable
           raise NotImplementedError, "The server does not support delete_matched operation"
         end
       end

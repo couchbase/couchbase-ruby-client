@@ -15,12 +15,13 @@
 require_relative "test_helper"
 
 module Couchbase
-  class QueryTest < BaseTest
+  class QueryTest < Minitest::Test
+    include TestUtilities
+
     def setup
-      options = Cluster::ClusterOptions.new
-      options.authenticate(TEST_USERNAME, TEST_PASSWORD)
-      @cluster = Cluster.connect(TEST_CONNECTION_STRING, options)
-      @bucket = @cluster.bucket(TEST_BUCKET)
+      connect
+      skip("#{name}: CAVES does not support query service yet") if use_caves?
+      @bucket = @cluster.bucket(env.bucket)
       @collection = @bucket.default_collection
       options = Management::QueryIndexManager::CreatePrimaryIndexOptions.new
       options.ignore_if_exists = true
@@ -29,7 +30,7 @@ module Couchbase
     end
 
     def teardown
-      @cluster.disconnect if defined? @cluster
+      disconnect
     end
 
     def test_simple_query
@@ -181,7 +182,7 @@ module Couchbase
     end
 
     def test_scoped_query
-      skip("The server does not support scoped queries (#{TEST_SERVER_VERSION})") unless TEST_SERVER_VERSION.supports_scoped_queries?
+      skip("The server does not support scoped queries (#{env.server_version})") unless env.server_version.supports_scoped_queries?
 
       scope_name = uniq_id(:scope).delete(".")[0, 30]
       collection_name = uniq_id(:collection).delete(".")[0, 30]
@@ -192,14 +193,14 @@ module Couchbase
       spec.scope_name = scope_name
       spec.name = collection_name
       manager.create_collection(spec)
-      sleep(2)
+      time_travel(2)
 
       manager = @cluster.query_indexes
       options = Management::QueryIndexManager::CreatePrimaryIndexOptions.new
       options.collection_name = collection_name
       options.scope_name = scope_name
       manager.create_primary_index(@bucket.name, options)
-      sleep(1)
+      time_travel(1)
 
       scope = @bucket.scope(scope_name)
       collection = scope.collection(collection_name)

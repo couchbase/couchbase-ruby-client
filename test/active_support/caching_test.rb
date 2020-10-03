@@ -26,13 +26,14 @@ require_relative "behaviors"
 module Couchbase
   class CachingTest < ActiveSupport::TestCase
     include ActiveSupport::Testing::MethodCallAssertions
+    include TestUtilities
 
     def lookup_store(options = {})
       ActiveSupport::Cache.lookup_store(:couchbase_store, {
-        connection_string: TEST_CONNECTION_STRING,
-        username: TEST_USERNAME,
-        password: TEST_PASSWORD,
-        bucket: TEST_BUCKET,
+        connection_string: env.connection_string,
+        username: env.username,
+        password: env.password,
+        bucket: env.bucket,
         namespace: @namespace,
       }.merge(options))
     end

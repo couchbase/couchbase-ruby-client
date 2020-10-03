@@ -17,7 +17,9 @@ require_relative "test_helper"
 # rubocop:disable Layout/LineLength
 
 module Couchbase
-  class ConnstrTest < BaseTest
+  class ConnstrTest < Minitest::Test
+    include TestUtilities
+
     def test_parse
       expected = {
         scheme: "couchbase",
