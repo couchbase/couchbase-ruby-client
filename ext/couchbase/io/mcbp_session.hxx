@@ -946,9 +946,23 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 }
             }
         }
+        bool this_node_found = false;
         for (auto& node : config.nodes) {
             if (node.hostname.empty()) {
                 node.hostname = bootstrap_hostname_;
+            }
+            if (node.this_node) {
+                this_node_found = true;
+            }
+        }
+        if (!this_node_found) {
+            for (auto& node : config.nodes) {
+                if (node.hostname == bootstrap_hostname_) {
+                    if ((node.services_plain.key_value && std::to_string(node.services_plain.key_value.value()) == bootstrap_port_) ||
+                        (node.services_tls.key_value && std::to_string(node.services_tls.key_value.value()) == bootstrap_port_)) {
+                        node.this_node = true;
+                    }
+                }
             }
         }
         config_.emplace(config);

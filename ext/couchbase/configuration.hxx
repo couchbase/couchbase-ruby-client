@@ -30,6 +30,12 @@
 namespace couchbase
 {
 struct configuration {
+    enum class node_locator_type {
+        unknown,
+        vbucket,
+        ketama,
+    };
+
     struct port_map {
         std::optional<std::uint16_t> key_value{};
         std::optional<std::uint16_t> management{};
@@ -193,6 +199,7 @@ struct configuration {
     std::optional<std::uint64_t> collections_manifest_uid{};
     std::set<bucket_capability> bucket_capabilities{};
     std::set<cluster_capability> cluster_capabilities{};
+    node_locator_type node_locator{ node_locator_type::unknown };
 
     [[nodiscard]] std::string rev_str() const
     {
@@ -392,57 +399,151 @@ struct traits<couchbase::configuration> {
         couchbase::configuration result;
         result.id = couchbase::uuid::random();
         result.rev = v.template optional<std::uint64_t>("rev");
-        size_t index = 0;
-        for (const auto& j : v.at("nodesExt").get_array()) {
-            couchbase::configuration::node n;
-            n.index = index++;
-            const auto& o = j.get_object();
-            const auto& this_node = o.find("thisNode");
-            if (this_node != o.end() && this_node->second.get_boolean()) {
-                n.this_node = true;
+        auto* node_locator = v.find("nodeLocator");
+        if (node_locator != nullptr && node_locator->is_string()) {
+            if (node_locator->get_string() == "ketama") {
+                result.node_locator = couchbase::configuration::node_locator_type::ketama;
+            } else {
+                result.node_locator = couchbase::configuration::node_locator_type::vbucket;
             }
-            const auto& hostname = o.find("hostname");
-            if (hostname != o.end()) {
-                n.hostname = hostname->second.get_string();
-            }
-            const auto& s = o.at("services");
-            n.services_plain.key_value = s.template optional<std::uint16_t>("kv");
-            n.services_plain.management = s.template optional<std::uint16_t>("mgmt");
-            n.services_plain.search = s.template optional<std::uint16_t>("fts");
-            n.services_plain.analytics = s.template optional<std::uint16_t>("cbas");
-            n.services_plain.query = s.template optional<std::uint16_t>("n1ql");
-            n.services_plain.views = s.template optional<std::uint16_t>("capi");
-            n.services_tls.key_value = s.template optional<std::uint16_t>("kvSSL");
-            n.services_tls.management = s.template optional<std::uint16_t>("mgmtSSL");
-            n.services_tls.search = s.template optional<std::uint16_t>("ftsSSL");
-            n.services_tls.analytics = s.template optional<std::uint16_t>("cbasSSL");
-            n.services_tls.query = s.template optional<std::uint16_t>("n1qlSSL");
-            n.services_tls.views = s.template optional<std::uint16_t>("capiSSL");
-            {
-                const auto& alt = o.find("alternateAddresses");
-                if (alt != o.end()) {
-                    for (const auto& entry : alt->second.get_object()) {
-                        couchbase::configuration::alternate_address addr;
-                        addr.name = entry.first;
-                        addr.hostname = entry.second.at("hostname").get_string();
-                        const auto& ports = entry.second.find("ports");
-                        addr.services_plain.key_value = ports->template optional<std::uint16_t>("kv");
-                        addr.services_plain.management = ports->template optional<std::uint16_t>("mgmt");
-                        addr.services_plain.search = ports->template optional<std::uint16_t>("fts");
-                        addr.services_plain.analytics = ports->template optional<std::uint16_t>("cbas");
-                        addr.services_plain.query = ports->template optional<std::uint16_t>("n1ql");
-                        addr.services_plain.views = ports->template optional<std::uint16_t>("capi");
-                        addr.services_tls.key_value = ports->template optional<std::uint16_t>("kvSSL");
-                        addr.services_tls.management = ports->template optional<std::uint16_t>("mgmtSSL");
-                        addr.services_tls.search = ports->template optional<std::uint16_t>("ftsSSL");
-                        addr.services_tls.analytics = ports->template optional<std::uint16_t>("cbasSSL");
-                        addr.services_tls.query = ports->template optional<std::uint16_t>("n1qlSSL");
-                        addr.services_tls.views = ports->template optional<std::uint16_t>("capiSSL");
-                        n.alt.emplace(entry.first, addr);
+        }
+        auto* nodes_ext = v.find("nodesExt");
+        if (nodes_ext != nullptr) {
+            size_t index = 0;
+            for (const auto& j : nodes_ext->get_array()) {
+                couchbase::configuration::node n;
+                n.index = index++;
+                const auto& o = j.get_object();
+                const auto& this_node = o.find("thisNode");
+                if (this_node != o.end() && this_node->second.get_boolean()) {
+                    n.this_node = true;
+                }
+                const auto& hostname = o.find("hostname");
+                if (hostname != o.end()) {
+                    n.hostname = hostname->second.get_string();
+                    n.hostname = n.hostname.substr(0, n.hostname.rfind(":"));
+                }
+                const auto& s = o.at("services");
+                n.services_plain.key_value = s.template optional<std::uint16_t>("kv");
+                n.services_plain.management = s.template optional<std::uint16_t>("mgmt");
+                n.services_plain.search = s.template optional<std::uint16_t>("fts");
+                n.services_plain.analytics = s.template optional<std::uint16_t>("cbas");
+                n.services_plain.query = s.template optional<std::uint16_t>("n1ql");
+                n.services_plain.views = s.template optional<std::uint16_t>("capi");
+                n.services_tls.key_value = s.template optional<std::uint16_t>("kvSSL");
+                n.services_tls.management = s.template optional<std::uint16_t>("mgmtSSL");
+                n.services_tls.search = s.template optional<std::uint16_t>("ftsSSL");
+                n.services_tls.analytics = s.template optional<std::uint16_t>("cbasSSL");
+                n.services_tls.query = s.template optional<std::uint16_t>("n1qlSSL");
+                n.services_tls.views = s.template optional<std::uint16_t>("capiSSL");
+                {
+                    const auto& alt = o.find("alternateAddresses");
+                    if (alt != o.end()) {
+                        for (const auto& entry : alt->second.get_object()) {
+                            couchbase::configuration::alternate_address addr;
+                            addr.name = entry.first;
+                            addr.hostname = entry.second.at("hostname").get_string();
+                            const auto& ports = entry.second.find("ports");
+                            addr.services_plain.key_value = ports->template optional<std::uint16_t>("kv");
+                            addr.services_plain.management = ports->template optional<std::uint16_t>("mgmt");
+                            addr.services_plain.search = ports->template optional<std::uint16_t>("fts");
+                            addr.services_plain.analytics = ports->template optional<std::uint16_t>("cbas");
+                            addr.services_plain.query = ports->template optional<std::uint16_t>("n1ql");
+                            addr.services_plain.views = ports->template optional<std::uint16_t>("capi");
+                            addr.services_tls.key_value = ports->template optional<std::uint16_t>("kvSSL");
+                            addr.services_tls.management = ports->template optional<std::uint16_t>("mgmtSSL");
+                            addr.services_tls.search = ports->template optional<std::uint16_t>("ftsSSL");
+                            addr.services_tls.analytics = ports->template optional<std::uint16_t>("cbasSSL");
+                            addr.services_tls.query = ports->template optional<std::uint16_t>("n1qlSSL");
+                            addr.services_tls.views = ports->template optional<std::uint16_t>("capiSSL");
+                            n.alt.emplace(entry.first, addr);
+                        }
                     }
                 }
+                result.nodes.emplace_back(n);
             }
-            result.nodes.emplace_back(n);
+        } else {
+            if (result.node_locator == couchbase::configuration::node_locator_type::vbucket) {
+                const auto* m = v.find("vBucketServerMap");
+                const auto& nodes = v.at("nodes").get_array();
+                if (m != nullptr) {
+                    const auto* s = m->find("serverList");
+                    size_t index = 0;
+                    if (s != nullptr && s->is_array()) {
+                        for (const auto& j : s->get_array()) {
+                            couchbase::configuration::node n;
+                            n.index = index++;
+                            const auto& address = j.get_string();
+                            n.hostname = address.substr(0, address.rfind(':'));
+                            n.services_plain.key_value = std::stoul(address.substr(address.rfind(':') + 1));
+                            if (n.index >= nodes.size()) {
+                                continue;
+                            }
+                            const auto& np = nodes[n.index];
+                            if (np.is_object()) {
+                                const auto& o = np.get_object();
+                                const auto& this_node = o.find("thisNode");
+                                if (this_node != o.end() && this_node->second.get_boolean()) {
+                                    n.this_node = true;
+                                }
+                                const auto& p = o.at("ports");
+                                std::optional<std::int64_t> https_views = p.template optional<std::int64_t>("httpsCAPI");
+                                if (https_views && https_views.value() > 0 &&
+                                    https_views.value() < std::numeric_limits<std::uint16_t>::max()) {
+                                    n.services_tls.views = static_cast<std::uint16_t>(https_views.value());
+                                }
+                                auto https_mgmt = p.template optional<std::int64_t>("httpsMgmt");
+                                if (https_mgmt && https_mgmt.value() > 0 &&
+                                    https_mgmt.value() < std::numeric_limits<std::uint16_t>::max()) {
+                                    n.services_tls.management = static_cast<std::uint16_t>(https_mgmt.value());
+                                }
+                                const auto& h = o.at("hostname").get_string();
+                                n.services_plain.management = std::stoul(h.substr(h.rfind(':') + 1));
+                                std::string capi = o.at("couchApiBase").get_string();
+                                auto slash = capi.rfind('/');
+                                auto colon = capi.rfind(':', slash);
+                                n.services_plain.views = std::stoul(capi.substr(colon + 1, slash));
+                            }
+                            result.nodes.emplace_back(n);
+                        }
+                    }
+                }
+            } else {
+                size_t index = 0;
+                for (const auto& node : v.at("nodes").get_array()) {
+                    couchbase::configuration::node n;
+                    n.index = index++;
+                    const auto& o = node.get_object();
+                    const auto& this_node = o.find("thisNode");
+                    if (this_node != o.end() && this_node->second.get_boolean()) {
+                        n.this_node = true;
+                    }
+                    const auto& p = o.at("ports");
+                    std::optional<std::int64_t> direct = p.template optional<std::int64_t>("direct");
+                    if (direct && direct.value() > 0 && direct.value() < std::numeric_limits<std::uint16_t>::max()) {
+                        n.services_plain.key_value = static_cast<std::uint16_t>(direct.value());
+                    }
+                    std::optional<std::int64_t> https_views = p.template optional<std::int64_t>("httpsCAPI");
+                    if (https_views && https_views.value() > 0 && https_views.value() < std::numeric_limits<std::uint16_t>::max()) {
+                        n.services_tls.views = static_cast<std::uint16_t>(https_views.value());
+                    }
+                    auto https_mgmt = p.template optional<std::int64_t>("httpsMgmt");
+                    if (https_mgmt && https_mgmt.value() > 0 && https_mgmt.value() < std::numeric_limits<std::uint16_t>::max()) {
+                        n.services_tls.management = static_cast<std::uint16_t>(https_mgmt.value());
+                    }
+                    const auto& h = o.at("hostname").get_string();
+                    auto colon = h.rfind(':');
+                    n.hostname = h.substr(0, colon);
+                    n.services_plain.management = std::stoul(h.substr(colon + 1));
+
+                    std::string capi = o.at("couchApiBase").get_string();
+                    auto slash = capi.rfind('/');
+                    colon = capi.rfind(':', slash);
+                    n.services_plain.views = std::stoul(capi.substr(colon + 1, slash));
+
+                    result.nodes.emplace_back(n);
+                }
+            }
         }
         {
             const auto m = v.find("uuid");
