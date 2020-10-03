@@ -503,7 +503,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
       , bucket_name_(std::move(bucket_name))
       , supported_features_(known_features)
     {
-        log_prefix_ = fmt::format("[{}/{}/{}/{}]", stream_->log_prefix(), client_id_, id_, bucket_name_.value_or("-"));
+        log_prefix_ = fmt::format("[{}/{}/{}/{}]", client_id_, id_, stream_->log_prefix(), bucket_name_.value_or("-"));
     }
 
     mcbp_session(const std::string& client_id,
@@ -524,7 +524,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
       , bucket_name_(std::move(bucket_name))
       , supported_features_(known_features)
     {
-        log_prefix_ = fmt::format("[{}/{}/{}/{}]", stream_->log_prefix(), client_id_, id_, bucket_name_.value_or("-"));
+        log_prefix_ = fmt::format("[{}/{}/{}/{}]", client_id_, id_, stream_->log_prefix(), bucket_name_.value_or("-"));
     }
 
     ~mcbp_session()
@@ -598,9 +598,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         std::tie(bootstrap_hostname_, bootstrap_port_) = origin_.next_address();
         log_prefix_ = fmt::format("[{}/{}/{}/{}] <{}:{}>",
-                                  stream_->log_prefix(),
                                   client_id_,
                                   id_,
+                                  stream_->log_prefix(),
                                   bucket_name_.value_or("-"),
                                   bootstrap_hostname_,
                                   bootstrap_port_);
@@ -1102,9 +1102,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             endpoint_address_ = endpoint_.address().to_string();
             spdlog::debug("{} connected to {}:{}", log_prefix_, endpoint_address_, it->endpoint().port());
             log_prefix_ = fmt::format("[{}/{}/{}/{}] <{}/{}:{}>",
-                                      stream_->log_prefix(),
                                       client_id_,
                                       id_,
+                                      stream_->log_prefix(),
                                       bucket_name_.value_or("-"),
                                       bootstrap_hostname_,
                                       endpoint_address_,
@@ -1230,7 +1230,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     }
 
     std::string client_id_;
-    std::string id_;
+    const std::string id_;
     asio::io_context& ctx_;
     asio::ip::tcp::resolver resolver_;
     std::unique_ptr<stream_impl> stream_;

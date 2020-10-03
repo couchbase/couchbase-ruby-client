@@ -80,6 +80,10 @@ class cluster
     template<typename Handler>
     void open_bucket(const std::string& bucket_name, Handler&& handler)
     {
+        auto ptr = buckets_.find(bucket_name);
+        if (ptr != buckets_.end()) {
+            return handler({});
+        }
         std::vector<protocol::hello_feature> known_features;
         if (session_ && session_->has_config()) {
             known_features = session_->supported_features();

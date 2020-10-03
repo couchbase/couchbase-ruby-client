@@ -260,7 +260,10 @@ class bucket : public std::enable_shared_from_this<bucket>
 
         drain_deferred_queue();
         for (auto& session : sessions_) {
-            session.second->stop(io::retry_reason::do_not_retry);
+            if (session.second) {
+                spdlog::debug(R"({} shutdown session session="{}", idx={})", log_prefix_, session.second->id(), session.first);
+                session.second->stop(io::retry_reason::do_not_retry);
+            }
         }
     }
 
