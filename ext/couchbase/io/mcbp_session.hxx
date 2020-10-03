@@ -930,17 +930,31 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (stopped_) {
             return;
         }
-        if (!config_ || config.rev > config_->rev) {
-            for (auto& node : config.nodes) {
-                if (node.hostname.empty()) {
-                    node.hostname = bootstrap_hostname_;
+        if (config_) {
+            if (config_->vbmap->empty() != config.vbmap->empty() || (config_->vbmap && config_->vbmap->size() != config.vbmap->size())) {
+                spdlog::debug("{} received a configuration with a different number of vbuckets, ignoring");
+                return;
+            }
+            if (config_->rev && config.rev) {
+                if (*config_->rev == *config.rev) {
+                    spdlog::debug("{} received a configuration with identical revision, ignoring");
+                    return;
+                }
+                if (*config_->rev > *config.rev) {
+                    spdlog::debug("{} received a configuration with older revision, ignoring");
+                    return;
                 }
             }
-            config_.emplace(config);
-            spdlog::debug("{} received new configuration: {}", log_prefix_, config_.value());
-            for (auto& listener : config_listeners_) {
-                listener(*config_);
+        }
+        for (auto& node : config.nodes) {
+            if (node.hostname.empty()) {
+                node.hostname = bootstrap_hostname_;
             }
+        }
+        config_.emplace(config);
+        spdlog::debug("{} received new configuration: {}", log_prefix_, config_.value());
+        for (auto& listener : config_listeners_) {
+            listener(*config_);
         }
     }
 
@@ -968,7 +982,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                               log_prefix_,
                               static_cast<protocol::client_opcode>(msg.header.opcode),
                               msg.header.opaque,
-                              config.rev);
+                              config.rev_str());
                 update_configuration(std::move(config));
             }
         }

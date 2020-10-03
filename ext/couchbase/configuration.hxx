@@ -183,7 +183,7 @@ struct configuration {
 
     using vbucket_map = typename std::vector<std::vector<std::int16_t>>;
 
-    std::uint64_t rev{};
+    std::optional<std::uint64_t> rev{};
     couchbase::uuid::uuid_t id{};
     std::optional<std::uint32_t> num_replicas{};
     std::vector<node> nodes{};
@@ -193,6 +193,11 @@ struct configuration {
     std::optional<std::uint64_t> collections_manifest_uid{};
     std::set<bucket_capability> bucket_capabilities{};
     std::set<cluster_capability> cluster_capabilities{};
+
+    [[nodiscard]] std::string rev_str() const
+    {
+        return rev ? fmt::format("{}", *rev) : "(none)";
+    }
 
     [[nodiscard]] bool supports_enhanced_prepared_statements() const
     {
@@ -364,7 +369,7 @@ struct fmt::formatter<couchbase::configuration> : formatter<std::string> {
         format_to(ctx.out(),
                   R"(#<config:{} rev={}{}{}{}{}, nodes({})=[{}], bucket_caps=[{}], cluster_caps=[{}]>)",
                   couchbase::uuid::to_string(config.id),
-                  config.rev,
+                  config.rev_str(),
                   config.uuid ? fmt::format(", uuid={}", *config.uuid) : "",
                   config.bucket ? fmt::format(", bucket={}", *config.bucket) : "",
                   config.num_replicas ? fmt::format(", replicas={}", *config.num_replicas) : "",
@@ -386,7 +391,7 @@ struct traits<couchbase::configuration> {
     {
         couchbase::configuration result;
         result.id = couchbase::uuid::random();
-        result.rev = v.at("rev").template as<std::uint64_t>();
+        result.rev = v.template optional<std::uint64_t>("rev");
         size_t index = 0;
         for (const auto& j : v.at("nodesExt").get_array()) {
             couchbase::configuration::node n;

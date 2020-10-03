@@ -79,9 +79,9 @@ class bucket : public std::enable_shared_from_this<bucket>
     void update_config(const configuration& config)
     {
         if (!config_) {
-            spdlog::debug("{} initialize configuration rev={}", log_prefix_, config.rev);
-        } else if (config.rev > config_->rev) {
-            spdlog::debug("{} will update the configuration old={} -> new={}", log_prefix_, config_->rev, config.rev);
+            spdlog::debug("{} initialize configuration rev={}", log_prefix_, config.rev_str());
+        } else if (config.rev && config_->rev && *config.rev > *config_->rev) {
+            spdlog::debug("{} will update the configuration old={} -> new={}", log_prefix_, config_->rev_str(), config.rev_str());
         } else {
             return;
         }
@@ -111,7 +111,7 @@ class bucket : public std::enable_shared_from_this<bucket>
                 if (new_index < config.nodes.size()) {
                     spdlog::debug(R"({} rev={}, preserve session="{}", address="{}:{}")",
                                   log_prefix_,
-                                  config.rev,
+                                  config.rev_str(),
                                   entry.second->id(),
                                   entry.second->bootstrap_hostname(),
                                   entry.second->bootstrap_port());
@@ -119,7 +119,7 @@ class bucket : public std::enable_shared_from_this<bucket>
                 } else {
                     spdlog::debug(R"({} rev={}, drop session="{}", address="{}:{}")",
                                   log_prefix_,
-                                  config.rev,
+                                  config.rev_str(),
                                   entry.second->id(),
                                   entry.second->bootstrap_hostname(),
                                   entry.second->bootstrap_port());
@@ -144,7 +144,8 @@ class bucket : public std::enable_shared_from_this<bucket>
                 } else {
                     session = std::make_shared<io::mcbp_session>(client_id_, ctx_, origin, name_, known_features_);
                 }
-                spdlog::debug(R"({} rev={}, add session="{}", address="{}:{}")", log_prefix_, config.rev, session->id(), hostname, port);
+                spdlog::debug(
+                  R"({} rev={}, add session="{}", address="{}:{}")", log_prefix_, config.rev_str(), session->id(), hostname, port);
                 session->bootstrap(
                   [self = shared_from_this(), session](std::error_code err, const configuration& cfg) {
                       if (!err) {
