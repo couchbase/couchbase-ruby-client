@@ -205,7 +205,7 @@ make_response(std::error_code ec, get_projected_request& request, get_projected_
     }
     if (!ec) {
         response.cas = encoded.cas();
-        if (request.with_expiry) {
+        if (request.with_expiry && !encoded.body().fields()[0].value.empty()) {
             response.expiry = gsl::narrow_cast<std::uint32_t>(std::stoul(encoded.body().fields()[0].value));
         }
         if (request.effective_projections.empty()) {
