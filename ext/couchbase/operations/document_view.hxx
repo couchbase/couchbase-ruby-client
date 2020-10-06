@@ -89,7 +89,7 @@ struct document_view_request {
     enum class sort_order { ascending, descending };
     std::optional<sort_order> order;
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         std::vector<std::string> query_string;
 
@@ -172,6 +172,7 @@ struct document_view_request {
                                    view_name,
                                    fmt::join(query_string, "&"));
         encoded.body = tao::json::to_string(body);
+        return {};
     }
 };
 

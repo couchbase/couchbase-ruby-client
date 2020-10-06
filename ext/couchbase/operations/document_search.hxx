@@ -128,7 +128,7 @@ struct search_request {
 
     std::map<std::string, tao::json::value> raw{};
 
-    void encode_to(encoded_request_type& encoded, http_context& context)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& context)
     {
         tao::json::value body{
             { "query", query },
@@ -201,6 +201,7 @@ struct search_request {
         } else {
             spdlog::debug("SEARCH: {}", tao::json::to_string(body["query"]));
         }
+        return {};
     }
 };
 

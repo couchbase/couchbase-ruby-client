@@ -40,11 +40,12 @@ struct view_index_drop_request {
     std::string document_name;
     design_document::name_space name_space;
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "DELETE";
         encoded.path =
           fmt::format("/{}/_design/{}{}", bucket_name, name_space == design_document::name_space::development ? "dev_" : "", document_name);
+        return {};
     }
 };
 

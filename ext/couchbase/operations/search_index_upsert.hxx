@@ -42,7 +42,7 @@ struct search_index_upsert_request {
 
     search_index index;
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "PUT";
         encoded.headers["cache-control"] = "no-cache";
@@ -72,6 +72,7 @@ struct search_index_upsert_request {
             body["planParams"] = tao::json::from_string(index.plan_params_json);
         }
         encoded.body = tao::json::to_string(body);
+        return {};
     }
 };
 

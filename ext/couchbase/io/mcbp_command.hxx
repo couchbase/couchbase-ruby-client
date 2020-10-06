@@ -167,7 +167,10 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
                 }
             }
         }
-        request.encode_to(encoded);
+        auto encoding_ec = request.encode_to(encoded, session_->context());
+        if (encoding_ec) {
+            return invoke_handler(encoding_ec);
+        }
 
         session_->write_and_subscribe(
           request.opaque,

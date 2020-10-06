@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <set>
+
 #include <gsl/gsl_util>
 
 #include <tao/json.hpp>

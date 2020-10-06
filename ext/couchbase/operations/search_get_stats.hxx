@@ -39,10 +39,11 @@ struct search_index_stats_request {
     std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "GET";
         encoded.path = "/api/nsstats";
+        return {};
     }
 };
 

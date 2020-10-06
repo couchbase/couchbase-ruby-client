@@ -53,7 +53,7 @@ struct lookup_in_request {
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
     io::retry_context<io::retry_strategy::best_effort> retries{ false };
 
-    void encode_to(encoded_request_type& encoded)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&&)
     {
         for (std::size_t i = 0; i < specs.entries.size(); ++i) {
             auto& entry = specs.entries[i];
@@ -72,6 +72,7 @@ struct lookup_in_request {
         encoded.body().id(id);
         encoded.body().access_deleted(access_deleted);
         encoded.body().specs(specs);
+        return {};
     }
 };
 

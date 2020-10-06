@@ -166,7 +166,7 @@ struct analytics_request {
     std::vector<tao::json::value> positional_parameters{};
     std::map<std::string, tao::json::value> named_parameters{};
 
-    void encode_to(encoded_request_type& encoded, http_context& context)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& context)
     {
         tao::json::value body{ { "statement", statement },
                                { "client_context_id", client_context_id },
@@ -212,6 +212,7 @@ struct analytics_request {
         } else {
             spdlog::debug("ANALYTICS: {}", tao::json::to_string(body["statement"]));
         }
+        return {};
     }
 };
 

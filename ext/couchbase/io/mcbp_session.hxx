@@ -29,6 +29,7 @@
 #include <io/mcbp_parser.hxx>
 #include <io/streams.hxx>
 #include <io/retry_orchestrator.hxx>
+#include <io/mcbp_context.hxx>
 
 #include <timeout_defaults.hxx>
 
@@ -548,6 +549,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                  fmt::format("{}:{}", local_endpoint_address_, local_endpoint_.port()),
                  state_,
                  bucket_name_ };
+    }
+
+    [[nodiscard]] mcbp_context context() const
+    {
+        return { config_, supported_features_ };
     }
 
     void bootstrap(std::function<void(std::error_code, configuration)>&& handler, bool retry_on_bucket_not_found = false)

@@ -48,7 +48,7 @@ struct analytics_link_disconnect_request {
     std::string dataverse_name{ "Default" };
     std::string link_name;
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         tao::json::value body{
             { "statement", fmt::format("DISCONNECT LINK `{}`.`{}`", dataverse_name, link_name) },
@@ -57,6 +57,7 @@ struct analytics_link_disconnect_request {
         encoded.method = "POST";
         encoded.path = "/analytics/service";
         encoded.body = tao::json::to_string(body);
+        return {};
     }
 };
 

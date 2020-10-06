@@ -196,7 +196,7 @@ struct query_request {
     std::optional<http_context> ctx_{};
     bool extract_encoded_plan_{ false };
 
-    void encode_to(encoded_request_type& encoded, http_context& context)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& context)
     {
         ctx_.emplace(context);
         tao::json::value body{};
@@ -324,6 +324,7 @@ struct query_request {
         } else {
             spdlog::debug("QUERY: prep={}, {}", tao::json::to_string(prep), tao::json::to_string(stmt));
         }
+        return {};
     }
 };
 

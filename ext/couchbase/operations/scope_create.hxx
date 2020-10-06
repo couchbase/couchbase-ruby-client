@@ -44,12 +44,13 @@ struct scope_create_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/pools/default/buckets/{}/collections", bucket_name);
         encoded.headers["content-type"] = "application/x-www-form-urlencoded";
         encoded.body = fmt::format("name={}", utils::string_codec::form_encode(scope_name));
+        return {};
     }
 };
 

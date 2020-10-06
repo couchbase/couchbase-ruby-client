@@ -49,7 +49,7 @@ struct analytics_link_connect_request {
     std::string link_name;
     bool force{ false };
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         std::string with_clause = force ? "WITH {\"force\": true}" : "";
 
@@ -60,6 +60,7 @@ struct analytics_link_connect_request {
         encoded.method = "POST";
         encoded.path = "/analytics/service";
         encoded.body = tao::json::to_string(body);
+        return {};
     }
 };
 

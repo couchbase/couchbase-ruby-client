@@ -46,7 +46,7 @@ struct collection_create_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/pools/default/buckets/{}/collections/{}", bucket_name, scope_name);
@@ -55,6 +55,7 @@ struct collection_create_request {
         if (max_expiry > 0) {
             encoded.body.append(fmt::format("&maxTTL={}", max_expiry));
         }
+        return {};
     }
 };
 

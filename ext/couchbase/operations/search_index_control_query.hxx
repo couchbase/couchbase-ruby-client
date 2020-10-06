@@ -43,10 +43,11 @@ struct search_index_control_query_request {
     std::string index_name;
     bool allow;
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/api/index/{}/queryControl/{}", index_name, allow ? "allow" : "disallow");
+        return {};
     }
 };
 

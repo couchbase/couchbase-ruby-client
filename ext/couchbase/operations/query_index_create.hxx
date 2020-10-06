@@ -55,7 +55,7 @@ struct query_index_create_request {
     std::optional<int> num_replicas{};
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.headers["content-type"] = "application/json";
         tao::json::value with{};
@@ -95,6 +95,7 @@ struct query_index_create_request {
         encoded.method = "POST";
         encoded.path = "/query/service";
         encoded.body = tao::json::to_string(body);
+        return {};
     }
 };
 

@@ -51,7 +51,7 @@ struct analytics_index_drop_request {
 
     bool ignore_if_does_not_exist{ false };
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         std::string if_exists_clause = ignore_if_does_not_exist ? "IF EXISTS" : "";
 
@@ -62,6 +62,7 @@ struct analytics_index_drop_request {
         encoded.method = "POST";
         encoded.path = "/analytics/service";
         encoded.body = tao::json::to_string(body);
+        return {};
     }
 };
 

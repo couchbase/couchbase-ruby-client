@@ -44,13 +44,14 @@ struct search_index_analyze_document_request {
     std::string index_name;
     std::string encoded_document;
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "POST";
         encoded.headers["cache-control"] = "no-cache";
         encoded.headers["content-type"] = "application/json";
         encoded.path = fmt::format("/api/index/{}/analyzeDoc", index_name);
         encoded.body = encoded_document;
+        return {};
     }
 };
 

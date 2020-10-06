@@ -39,7 +39,7 @@ struct view_index_upsert_request {
     std::string bucket_name;
     design_document document;
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         tao::json::value body;
         body["views"] = tao::json::empty_object;
@@ -59,6 +59,7 @@ struct view_index_upsert_request {
         encoded.path = fmt::format(
           "/{}/_design/{}{}", bucket_name, document.ns == design_document::name_space::development ? "dev_" : "", document.name);
         encoded.body = tao::json::to_string(body);
+        return {};
     }
 };
 

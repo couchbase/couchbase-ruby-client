@@ -48,7 +48,7 @@ struct insert_request {
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
     io::retry_context<io::retry_strategy::best_effort> retries{ false };
 
-    void encode_to(encoded_request_type& encoded)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&&)
     {
         encoded.opaque(opaque);
         encoded.partition(partition);
@@ -59,6 +59,7 @@ struct insert_request {
         if (durability_level != protocol::durability_level::none) {
             encoded.body().durability(durability_level, durability_timeout);
         }
+        return {};
     }
 };
 

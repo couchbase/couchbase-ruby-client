@@ -42,10 +42,11 @@ struct bucket_get_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "GET";
         encoded.path = fmt::format("/pools/default/buckets/{}", name);
+        return {};
     }
 };
 

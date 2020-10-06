@@ -42,10 +42,11 @@ struct search_index_drop_request {
 
     std::string index_name;
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "DELETE";
         encoded.path = fmt::format("/api/index/{}", index_name);
+        return {};
     }
 };
 

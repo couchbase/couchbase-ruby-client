@@ -48,7 +48,7 @@ struct get_projected_request {
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
     io::retry_context<io::retry_strategy::best_effort> retries{ true };
 
-    void encode_to(encoded_request_type& encoded)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&&)
     {
         encoded.opaque(opaque);
         encoded.partition(partition);
@@ -76,6 +76,7 @@ struct get_projected_request {
             }
         }
         encoded.body().specs(specs);
+        return {};
     }
 };
 

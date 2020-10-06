@@ -53,7 +53,7 @@ struct analytics_index_get_all_request {
     std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    void encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         tao::json::value body{
             { "statement", "SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\"" },
@@ -63,6 +63,7 @@ struct analytics_index_get_all_request {
         encoded.method = "POST";
         encoded.path = "/analytics/service";
         encoded.body = tao::json::to_string(body);
+        return {};
     }
 };
 
