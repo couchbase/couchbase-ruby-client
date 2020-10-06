@@ -340,6 +340,7 @@ module Couchbase
       attr_accessor :description
 
       def initialize
+        super
         yield self if block_given?
       end
     end
@@ -361,6 +362,7 @@ module Couchbase
       attr_writer :origins
 
       def initialize
+        super
         @origins = []
         yield self if block_given?
       end
@@ -403,6 +405,7 @@ module Couchbase
       attr_accessor :external_groups
 
       def initialize
+        super
         @effective_roles = []
         yield self if block_given?
       end

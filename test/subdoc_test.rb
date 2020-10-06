@@ -1186,14 +1186,14 @@ module Couchbase
       unless TEST_SERVER_VERSION.supports_create_as_deleted?
         assert_raises Error::UnsupportedOperation do
           @collection.mutate_in(doc_id, [
-            MutateInSpec.upsert("meta.field", "b").xattr.create_path,
-          ], options)
+                                  MutateInSpec.upsert("meta.field", "b").xattr.create_path,
+                                ], options)
         end
         return
       end
       res = @collection.mutate_in(doc_id, [
-        MutateInSpec.upsert("meta.field", "b").xattr.create_path,
-      ], options)
+                                    MutateInSpec.upsert("meta.field", "b").xattr.create_path,
+                                  ], options)
       assert res.deleted?, "the document should be marked as 'deleted'"
 
       assert_raises(Error::DocumentNotFound) do
@@ -1203,8 +1203,8 @@ module Couchbase
       options = Collection::LookupInOptions.new
       options.access_deleted = true
       res = @collection.lookup_in(doc_id, [
-        LookupInSpec.get("meta").xattr,
-      ], options)
+                                    LookupInSpec.get("meta").xattr,
+                                  ], options)
       assert_equal({"field" => "b"}, res.content(0))
       assert res.deleted?, "the document should be marked as 'deleted'"
     end

@@ -693,9 +693,9 @@ module Couchbase
       end
     end
 
-    def __wait_for_collections_manifest(uid)
+    def __wait_for_collections_manifest(uid) # rubocop:disable Minitest/TestMethodName helper method
       hits = 5 # make sure that the manifest has distributed well enough
-      while hits > 0
+      while hits.positive?
         backend = @cluster.instance_variable_get("@backend")
         manifest = backend.collections_manifest_get(@bucket.name, 10_000)
         if manifest[:uid] < uid
@@ -735,6 +735,7 @@ module Couchbase
 
       # the following delete and create will recreate a collection with the same name but a different collection ID.
       ns_uid = manager.drop_collection(spec)
+      __wait_for_collections_manifest(ns_uid)
       ns_uid = manager.create_collection(spec)
       __wait_for_collections_manifest(ns_uid)
 

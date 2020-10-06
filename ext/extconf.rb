@@ -19,9 +19,7 @@ require_relative "../lib/couchbase/version"
 SDK_VERSION = Couchbase::VERSION[:sdk]
 
 cmake = find_executable("cmake")
-if `#{cmake} --version`[/cmake version (\d+\.\d+)/, 1].to_f < 3.15
-  cmake = find_executable("cmake3")
-end
+cmake = find_executable("cmake3") if `#{cmake} --version`[/cmake version (\d+\.\d+)/, 1].to_f < 3.15
 abort "ERROR: CMake is required to build couchbase extension." unless cmake
 puts "-- #{`#{cmake} --version`.split("\n").first}"
 
@@ -77,9 +75,10 @@ ext_directory = File.expand_path(__dir__)
 create_makefile("libcouchbase")
 if ENV["CB_REMOVE_EXT_DIRECTORY"]
   puts "-- CB_REMOVE_EXT_DIRECTORY is set, remove #{ext_directory}"
+  exceptions = %w[. .. extconf.rb]
   Dir
     .glob("#{ext_directory}/*", File::FNM_DOTMATCH)
-    .reject { |path| %w[. .. extconf.rb].include?(File.basename(path)) || File.basename(path).start_with?(".gem") }
+    .reject { |path| exceptions.include?(File.basename(path)) || File.basename(path).start_with?(".gem") }
     .each do |entry|
     puts "-- remove #{entry}"
     FileUtils.rm_rf(entry, verbose: true)

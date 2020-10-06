@@ -400,7 +400,7 @@ module Couchbase
 
       # @yieldparam [DiagnosticsResult] self
       def initialize
-        @services = Hash.new
+        @services = {}
         yield self if block_given?
       end
 

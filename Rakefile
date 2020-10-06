@@ -21,6 +21,7 @@ Rake::TestTask.new(:test) do |t|
   t.test_files = FileList["test/**/*_test.rb"]
 end
 
+desc "Compile binary extension"
 task :compile do
   require 'tempfile'
   Dir.chdir(Dir.tmpdir) do
@@ -28,6 +29,7 @@ task :compile do
   end
 end
 
+desc "Generate YARD documentation"
 task :doc do
   require "couchbase/version"
   input_dir = File.join(__dir__, "lib")
@@ -37,15 +39,19 @@ task :doc do
   puts "#{File.realpath(output_dir)}/index.html"
 end
 
+desc "An alias for documentation generation task"
 task :docs => :doc
 
+desc "Display stats on undocumented things"
 task :undocumented => :doc do
   sh "yard stats --list-undoc --compact"
 end
 
+desc "Encode git revision into 'build_version.hxx.in' template (dependency of 'build' task)"
 task :render_git_revision do
   build_version_path = File.join(__dir__, 'ext', 'build_version.hxx.in')
   File.write(build_version_path, File.read(build_version_path).gsub('@BACKEND_GIT_REVISION@', `git rev-parse HEAD`.strip))
 end
 
+desc "Build the package"
 task :build => :render_git_revision

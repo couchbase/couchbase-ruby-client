@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+#    Copyright 2020 Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+PROJECT_ROOT="$( cd "$(dirname "$0"/..)" >/dev/null 2>&1 ; pwd -P )"
+
+set -euo pipefail
+IFS=$'\n\t'
+
+cd "${PROJECT_ROOT}/ext"
+
+format_diff="$(git-clang-format --diff --commit HEAD^)"
+
+if [ "$format_diff" == "clang-format did not modify any files" ] || \
+   [ "$format_diff" == "no modified files to format" ]
+then
+    echo "clang-format did not suggest any changes"
+    exit 0
+else
+    echo "clang-format suggested the following changes:"
+    # Escape any HTML symbols before outputtig to log (so users can
+    # copy/paste the output from the Jenkins build status).
+    escaped_diff=$(echo "$format_diff" \
+                       | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g')
+    echo ""
+    echo "$escaped_diff"
+    exit 1
+fi

@@ -55,8 +55,8 @@ module Couchbase
       @cluster.search_indexes.upsert_index(index)
       loop do
         stats = @cluster.search_indexes.get_stats
-        if stats["#{@bucket.name}:#{@index_name}:num_mutations_to_index"] == 0 &&
-           stats["#{@bucket.name}:#{@index_name}:num_pindexes_target"].to_i > 0 &&
+        if stats["#{@bucket.name}:#{@index_name}:num_mutations_to_index"].to_i.zero? &&
+           stats["#{@bucket.name}:#{@index_name}:num_pindexes_target"].to_i.positive? &&
            stats["#{@bucket.name}:#{@index_name}:num_pindexes_actual"] == stats["#{@bucket.name}:#{@index_name}:num_pindexes_target"]
           break
         end

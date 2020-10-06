@@ -130,7 +130,7 @@ module Couchbase
 
       # @deprecated Use {#expiry_time}
       # @return [Integer] the expiration if fetched and present
-      def expiry
+      def expiry # rubocop:disable Style/TrivialAccessors will be removed in next major release
         @expiry
       end
       deprecate :expiry, :expiry_time, 2021, 1
