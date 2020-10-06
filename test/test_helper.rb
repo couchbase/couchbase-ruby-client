@@ -66,6 +66,10 @@ class ServerVersion
   def supports_scoped_queries?
     cheshire_cat?
   end
+
+  def supports_create_as_deleted?
+    cheshire_cat? || @version >= Gem::Version.create("6.6.0")
+  end
 end
 
 require "couchbase"

@@ -336,11 +336,21 @@ module Couchbase
         !encoded[index].nil? && encoded[index].exists
       end
 
+      # @see {MutateInOptions#create_as_deleted}
+      #
+      # @return [Boolean] true if the document is a tombstone (created in deleted state)
+      def deleted?
+        @deleted
+      end
+
+      attr_accessor :deleted
+
       # @return [Array<SubDocumentField>] holds the encoded subdocument responses
       attr_accessor :encoded
 
       # @yieldparam [LookupInResult] self
       def initialize
+        @deleted = false
         yield self if block_given?
       end
 
@@ -390,6 +400,8 @@ module Couchbase
         @durability_level = :none
         @store_semantics = :replace
         @transcoder = JsonTranscoder.new
+        @access_deleted = false
+        @create_as_deleted = false
         yield self if block_given?
       end
 
@@ -410,6 +422,15 @@ module Couchbase
           transcoder.decode(field.value, :json)
         end
       end
+
+      # @see {MutateInOptions#create_as_deleted}
+      #
+      # @return [Boolean] true if the document is a tombstone (created in deleted state)
+      def deleted?
+        @deleted
+      end
+
+      attr_accessor :deleted
 
       # @yieldparam [MutateInResult] self
       def initialize

@@ -50,6 +50,7 @@ struct mutate_in_response {
     mutation_token token{};
     std::vector<field> fields{};
     std::optional<std::size_t> first_error_index{};
+    bool deleted{ false };
 };
 
 struct mutate_in_request {
@@ -61,6 +62,7 @@ struct mutate_in_request {
     uint32_t opaque{};
     uint64_t cas{ 0 };
     bool access_deleted{ false };
+    bool create_as_deleted{ false };
     std::optional<std::uint32_t> expiry{};
     protocol::mutate_in_request_body::store_semantics_type store_semantics{
         protocol::mutate_in_request_body::store_semantics_type::replace
@@ -71,8 +73,11 @@ struct mutate_in_request {
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
     io::retry_context<io::retry_strategy::best_effort> retries{ false };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&& ctx)
     {
+        if (create_as_deleted && !ctx.supports_feature(protocol::hello_feature::subdoc_create_as_deleted)) {
+            return std::make_error_code(error::common_errc::unsupported_operation);
+        }
         for (std::size_t i = 0; i < specs.entries.size(); ++i) {
             auto& entry = specs.entries[i];
             entry.original_index = i;
@@ -93,6 +98,7 @@ struct mutate_in_request {
             encoded.body().expiry(*expiry);
         }
         encoded.body().access_deleted(access_deleted);
+        encoded.body().create_as_deleted(create_as_deleted);
         encoded.body().store_semantics(store_semantics);
         encoded.body().specs(specs);
         if (durability_level != protocol::durability_level::none) {
@@ -108,6 +114,10 @@ make_response(std::error_code ec, mutate_in_request& request, mutate_in_request:
     mutate_in_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {
         response.opaque = request.opaque;
+    }
+    if (encoded.status() == protocol::status::subdoc_success_deleted ||
+        encoded.status() == protocol::status::subdoc_multi_path_failure_deleted) {
+        response.deleted = true;
     }
     if (!ec) {
         response.cas = encoded.cas();

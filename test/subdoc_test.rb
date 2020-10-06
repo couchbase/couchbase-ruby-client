@@ -1176,5 +1176,37 @@ module Couchbase
                               MutateInSpec.upsert("c", "d"),
                             ], options)
     end
+
+    def test_create_tombstones
+      doc_id = uniq_id(:foo)
+
+      options = Collection::MutateInOptions.new
+      options.store_semantics = :upsert
+      options.create_as_deleted = true
+      unless TEST_SERVER_VERSION.supports_create_as_deleted?
+        assert_raises Error::UnsupportedOperation do
+          @collection.mutate_in(doc_id, [
+            MutateInSpec.upsert("meta.field", "b").xattr.create_path,
+          ], options)
+        end
+        return
+      end
+      res = @collection.mutate_in(doc_id, [
+        MutateInSpec.upsert("meta.field", "b").xattr.create_path,
+      ], options)
+      assert res.deleted?, "the document should be marked as 'deleted'"
+
+      assert_raises(Error::DocumentNotFound) do
+        @collection.get(doc_id)
+      end
+
+      options = Collection::LookupInOptions.new
+      options.access_deleted = true
+      res = @collection.lookup_in(doc_id, [
+        LookupInSpec.get("meta").xattr,
+      ], options)
+      assert_equal({"field" => "b"}, res.content(0))
+      assert res.deleted?, "the document should be marked as 'deleted'"
+    end
   end
 end

@@ -1873,6 +1873,9 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
         VALUE fields = rb_ary_new_capa(static_cast<long>(resp.fields.size()));
         rb_hash_aset(res, rb_id2sym(rb_intern("fields")), fields);
+        if (resp.deleted) {
+            rb_hash_aset(res, rb_id2sym(rb_intern("deleted")), Qtrue);
+        }
         for (size_t i = 0; i < resp.fields.size(); ++i) {
             VALUE entry = rb_hash_new();
             rb_hash_aset(entry, rb_id2sym(rb_intern("index")), ULL2NUM(i));
@@ -1949,6 +1952,10 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
             VALUE access_deleted = rb_hash_aref(options, rb_id2sym(rb_intern("access_deleted")));
             if (!NIL_P(access_deleted)) {
                 req.access_deleted = RTEST(access_deleted);
+            }
+            VALUE create_as_deleted = rb_hash_aref(options, rb_id2sym(rb_intern("create_as_deleted")));
+            if (!NIL_P(create_as_deleted)) {
+                req.create_as_deleted = RTEST(create_as_deleted);
             }
             VALUE store_semantics = rb_hash_aref(options, rb_id2sym(rb_intern("store_semantics")));
             if (!NIL_P(store_semantics)) {
@@ -2050,6 +2057,9 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         VALUE res = cb__extract_mutation_result(resp);
         if (resp.first_error_index) {
             rb_hash_aset(res, rb_id2sym(rb_intern("first_error_index")), ULONG2NUM(resp.first_error_index.value()));
+        }
+        if (resp.deleted) {
+            rb_hash_aset(res, rb_id2sym(rb_intern("deleted")), Qtrue);
         }
         VALUE fields = rb_ary_new_capa(static_cast<long>(resp.fields.size()));
         rb_hash_aset(res, rb_id2sym(rb_intern("fields")), fields);

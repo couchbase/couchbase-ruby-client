@@ -252,6 +252,7 @@ module Couchbase
       LookupInResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
+        res.deleted = resp[:deleted]
         res.encoded = resp[:fields].map do |field|
           SubDocumentField.new do |f|
             f.exists = field[:exists]
@@ -290,6 +291,7 @@ module Couchbase
           durability_level: options.durability_level,
           store_semantics: options.store_semantics,
           access_deleted: options.access_deleted,
+          create_as_deleted: options.create_as_deleted,
           cas: options.cas,
           expiry: options.expiry,
         }
@@ -297,6 +299,7 @@ module Couchbase
       result = MutateInResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
+        res.deleted = resp[:deleted]
         res.mutation_token = extract_mutation_token(resp)
         res.first_error_index = resp[:first_error_index]
         res.encoded = resp[:fields].map do |field|

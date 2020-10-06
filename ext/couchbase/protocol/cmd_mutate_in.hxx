@@ -133,14 +133,47 @@ class mutate_in_request_body
         insert,
     };
 
-    static const inline uint8_t doc_flag_access_deleted = 0b0000'0100;
+    /**
+     * Create the document if it does not exist. Implies `path_flag_create_parents`.
+     * and `upsert` mutation semantics. Not valid with `insert`.
+     */
     static const inline uint8_t doc_flag_mkdoc = 0b0000'0001;
+
+    /**
+     * Add the document only if it does not exist. Implies `path_flag_create_parents`.
+     * Not valid with `doc_flag_mkdoc`.
+     */
     static const inline uint8_t doc_flag_add = 0b0000'0010;
 
+    /**
+     * Allow access to XATTRs for deleted documents (instead of returning KEY_ENOENT).
+     */
+    static const inline uint8_t doc_flag_access_deleted = 0b0000'0100;
+
+    /**
+     * Used with `doc_flag_mkdoc` / `doc_flag_add`; if the document does not exist then creat
+     * it in the "Deleted" state, instead of the normal "Alive" state.
+     * Not valid unless `doc_flag_mkdoc` or `doc_flag_add` specified.
+     */
+    static const inline uint8_t doc_flag_create_as_deleted = 0b0000'1000;
+
     struct mutate_in_specs {
-        static const inline uint8_t path_flag_create_parents = 0x01;
-        static const inline uint8_t path_flag_xattr = 0x04;
-        static const inline uint8_t path_flag_expand_macros = 0x10;
+        /**
+         * Should non-existent intermediate paths be created
+         */
+        static const inline uint8_t path_flag_create_parents = 0b0000'0001;
+
+        /**
+         * If set, the path refers to an Extended Attribute (XATTR).
+         * If clear, the path refers to a path inside the document body.
+         */
+        static const inline uint8_t path_flag_xattr = 0b0000'0100;
+
+        /**
+         * Expand macro values inside extended attributes. The request is
+         * invalid if this flag is set without `path_flag_create_parents` being set.
+         */
+        static const inline uint8_t path_flag_expand_macros = 0b0001'0000;
 
         struct entry {
             std::uint8_t opcode;
@@ -234,6 +267,15 @@ class mutate_in_request_body
             flags_ |= doc_flag_access_deleted;
         } else {
             flags_ &= static_cast<std::uint8_t>(~doc_flag_access_deleted);
+        }
+    }
+
+    void create_as_deleted(bool value)
+    {
+        if (value) {
+            flags_ |= doc_flag_create_as_deleted;
+        } else {
+            flags_ &= static_cast<std::uint8_t>(~doc_flag_create_as_deleted);
         }
     }
 

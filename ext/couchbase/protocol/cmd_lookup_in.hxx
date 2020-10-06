@@ -53,7 +53,8 @@ class lookup_in_response_body
                const cmd_info&)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
-        if (status == protocol::status::success || status == protocol::status::subdoc_multi_path_failure) {
+        if (status == protocol::status::success || status == protocol::status::subdoc_multi_path_failure ||
+            status == protocol::status::subdoc_success_deleted || status == protocol::status::subdoc_multi_path_failure_deleted) {
             using offset_type = std::vector<uint8_t>::difference_type;
             offset_type offset = framing_extras_size + key_size + extras_size;
             fields_.reserve(16); /* we won't have more than 16 entries anyway */
@@ -91,10 +92,17 @@ class lookup_in_request_body
     using response_body_type = lookup_in_response_body;
     static const inline client_opcode opcode = client_opcode::subdoc_multi_lookup;
 
-    static const inline uint8_t doc_flag_access_deleted = 0x04;
+    /**
+     * Allow access to XATTRs for deleted documents (instead of returning KEY_ENOENT).
+     */
+    static const inline uint8_t doc_flag_access_deleted = 0b0000'0100;
 
     struct lookup_in_specs {
-        static const inline uint8_t path_flag_xattr = 0x04;
+        /**
+         * If set, the path refers to an Extended Attribute (XATTR).
+         * If clear, the path refers to a path inside the document body.
+         */
+        static const inline uint8_t path_flag_xattr = 0b0000'0100;
 
         struct entry {
             std::uint8_t opcode;

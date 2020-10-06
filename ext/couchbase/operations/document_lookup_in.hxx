@@ -39,6 +39,7 @@ struct lookup_in_response {
     std::error_code ec{};
     std::uint64_t cas{};
     std::vector<field> fields{};
+    bool deleted{ false };
 };
 
 struct lookup_in_request {
@@ -82,6 +83,10 @@ make_response(std::error_code ec, lookup_in_request& request, lookup_in_request:
     lookup_in_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {
         response.opaque = request.opaque;
+    }
+    if (encoded.status() == protocol::status::subdoc_success_deleted ||
+        encoded.status() == protocol::status::subdoc_multi_path_failure_deleted) {
+        response.deleted = true;
     }
     if (!ec) {
         response.cas = encoded.cas();

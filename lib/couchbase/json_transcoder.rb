@@ -26,7 +26,7 @@ module Couchbase
     # @param [Integer, :json] _flags bit field, describing how the data encoded
     # @return Object decoded document
     def decode(blob, _flags)
-      JSON.parse(blob) unless blob.nil?
+      JSON.parse(blob) unless blob&.empty?
     end
   end
 end

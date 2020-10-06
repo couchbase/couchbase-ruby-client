@@ -90,6 +90,7 @@ class hello_request_body
         hello_feature::sync_replication,
         hello_feature::vattr,
         hello_feature::collections,
+        hello_feature::subdoc_create_as_deleted,
     };
     std::vector<std::uint8_t> value_;
 
