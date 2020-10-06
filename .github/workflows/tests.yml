@@ -7,54 +7,144 @@ on:
     branches: [ master ]
 
 jobs:
-  test:
+  server-6_6_0:
     runs-on: ubuntu-20.04
-
     services:
       couchbase:
-        image: couchbase
+        image: couchbase:enterprise-6.6.0
         ports:
           - 8091-8095:8091-8095
           - 11210:11210
-
     steps:
       - name: Configure core dump capturing
         run: |
           echo '/tmp/core.%h.%e.%t' | sudo tee /proc/sys/kernel/core_pattern
-
       - name: Install build environment
         run: sudo apt-get install -y libssl-dev cmake gcc g++ curl gdb
-
       - uses: actions/checkout@v2
         with:
           submodules: recursive
-
       - name: Set up ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 2.6
-
+          ruby-version: 2.7
       - name: Install dependencies
         run: bundle install
-
       - name: Initialize couchbase
         run: ./bin/init-cluster
-
       - name: Compile extension
         run: bundle exec rake compile
-
-      - name: Display library version
-        run: bundle exec ruby -I lib -r couchbase -e 'pp Couchbase::VERSION'
-
       - name: Check couchbase
         run: ./bin/check-cluster
+      - name: Run tests
+        timeout-minutes: 15
+        env:
+          DEVELOPER_PREVIEW: yes
+          TEST_SERVER_VERSION: 6.6.0
+        run: |
+          ulimit -c unlimited
+          bundle exec rake test
+      - name: Display core dumps
+        if: ${{ failure() }}
+        run: |
+          for i in /tmp/core*
+          do
+             if [ -f $i ]
+             then
+               echo $i
+               file $i
+               gdb $(bundle exec which ruby) $i --batch -ex "thread apply all bt"
+             fi
+          done
 
+  server-6_0_3:
+    runs-on: ubuntu-20.04
+    services:
+      couchbase:
+        image: couchbase:enterprise-6.0.3
+        ports:
+          - 8091-8095:8091-8095
+          - 11210:11210
+    steps:
+      - name: Configure core dump capturing
+        run: |
+          echo '/tmp/core.%h.%e.%t' | sudo tee /proc/sys/kernel/core_pattern
+      - name: Install build environment
+        run: sudo apt-get install -y libssl-dev cmake gcc g++ curl gdb
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Set up ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7
+      - name: Install dependencies
+        run: bundle install
+      - name: Initialize couchbase
+        run: ./bin/init-cluster
+      - name: Compile extension
+        run: bundle exec rake compile
+      - name: Check couchbase
+        run: ./bin/check-cluster
       - name: Run tests
         timeout-minutes: 15
         run: |
           ulimit -c unlimited
           bundle exec rake test
+        env:
+          TEST_SERVER_VERSION: 6.0.3
+      - name: Display core dumps
+        if: ${{ failure() }}
+        run: |
+          for i in /tmp/core*
+          do
+             if [ -f $i ]
+             then
+               echo $i
+               file $i
+               gdb $(bundle exec which ruby) $i --batch -ex "thread apply all bt"
+             fi
+          done
 
+  server-6_5_1-dev:
+    runs-on: ubuntu-20.04
+    services:
+      couchbase:
+        image: couchbase:enterprise-6.5.1
+        ports:
+          - 8091-8095:8091-8095
+          - 11210:11210
+    steps:
+      - name: Configure core dump capturing
+        run: |
+          echo '/tmp/core.%h.%e.%t' | sudo tee /proc/sys/kernel/core_pattern
+      - name: Install build environment
+        run: sudo apt-get install -y libssl-dev cmake gcc g++ curl gdb
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Set up ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7
+      - name: Install dependencies
+        run: bundle install
+      - name: Initialize couchbase
+        run: ./bin/init-cluster
+        env:
+          DEVELOPER_PREVIEW: yes
+      - name: Compile extension
+        run: bundle exec rake compile
+      - name: Check couchbase
+        run: ./bin/check-cluster
+      - name: Run tests
+        timeout-minutes: 15
+        run: |
+          ulimit -c unlimited
+          bundle exec rake test
+        env:
+          DEVELOPER_PREVIEW: yes
+          TEST_SERVER_VERSION: 6.5.1
       - name: Display core dumps
         if: ${{ failure() }}
         run: |
