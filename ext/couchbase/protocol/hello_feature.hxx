@@ -145,6 +145,11 @@ enum class hello_feature : uint16_t {
      * Does the server support the subdoc mutation flag create_as_deleted
      */
     subdoc_create_as_deleted = 0x17,
+
+    /**
+     * Does the server support using the virtual $document attributes in macro expansion ("${document.CAS}" etc)
+     */
+    subdoc_document_macro_support = 0x18,
 };
 
 constexpr inline bool
@@ -172,6 +177,7 @@ is_valid_hello_feature(uint16_t code)
         case hello_feature::tcp_delay:
         case hello_feature::tracing:
         case hello_feature::subdoc_create_as_deleted:
+        case hello_feature::subdoc_document_macro_support:
             return true;
     }
     return false;
@@ -248,6 +254,9 @@ struct fmt::formatter<couchbase::protocol::hello_feature> : formatter<string_vie
                 break;
             case couchbase::protocol::hello_feature::subdoc_create_as_deleted:
                 name = "subdoc_create_as_deleted";
+                break;
+            case couchbase::protocol::hello_feature::subdoc_document_macro_support:
+                name = "subdoc_document_macro_support";
                 break;
         }
         return formatter<string_view>::format(name, ctx);
