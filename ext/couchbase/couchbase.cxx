@@ -593,6 +593,7 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
     Check_Type(connection_string, T_STRING);
     Check_Type(credentials, T_HASH);
@@ -664,6 +665,7 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     if (!NIL_P(report_id)) {
@@ -752,6 +754,7 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -803,6 +806,7 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VA
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -852,6 +856,7 @@ cb_Backend_document_get_projected(VALUE self,
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -910,6 +915,7 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VAL
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -955,6 +961,7 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VA
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1017,6 +1024,7 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1060,6 +1068,7 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1119,6 +1128,7 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1168,6 +1178,7 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1204,6 +1215,7 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
                     req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
                 } else {
                     rb_raise(rb_eArgError, "Unknown durability level");
+                    return Qnil;
                 }
                 VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
                 if (!NIL_P(durability_timeout)) {
@@ -1241,6 +1253,7 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1276,7 +1289,8 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
                 } else if (level == rb_intern("persist_to_majority")) {
                     req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
                 } else {
-                    rb_raise(rb_eArgError, "Unknown durability level");
+                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                    break;
                 }
                 VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
                 if (!NIL_P(durability_timeout)) {
@@ -1325,6 +1339,7 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1360,7 +1375,8 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
                 } else if (level == rb_intern("persist_to_majority")) {
                     req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
                 } else {
-                    rb_raise(rb_eArgError, "Unknown durability level");
+                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                    break;
                 }
                 VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
                 if (!NIL_P(durability_timeout)) {
@@ -1398,6 +1414,7 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1428,7 +1445,8 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
                 } else if (level == rb_intern("persist_to_majority")) {
                     req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
                 } else {
-                    rb_raise(rb_eArgError, "Unknown durability level");
+                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                    break;
                 }
                 VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
                 if (!NIL_P(durability_timeout)) {
@@ -1460,6 +1478,7 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1490,7 +1509,8 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
                 } else if (level == rb_intern("persist_to_majority")) {
                     req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
                 } else {
-                    rb_raise(rb_eArgError, "Unknown durability level");
+                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                    break;
                 }
                 VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
                 if (!NIL_P(durability_timeout)) {
@@ -1551,6 +1571,7 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1582,7 +1603,8 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
                 } else if (level == rb_intern("persist_to_majority")) {
                     req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
                 } else {
-                    rb_raise(rb_eArgError, "Unknown durability level");
+                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                    break;
                 }
                 VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
                 if (!NIL_P(durability_timeout)) {
@@ -1814,6 +1836,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1822,6 +1845,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
     Check_Type(specs, T_ARRAY);
     if (RARRAY_LEN(specs) <= 0) {
         rb_raise(rb_eArgError, "Array with specs cannot be empty");
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -1852,12 +1876,16 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
             } else if (operation_id == rb_intern("count")) {
                 opcode = couchbase::protocol::subdoc_opcode::get_count;
             } else {
-                rb_raise(rb_eArgError, "Unsupported operation for subdocument lookup");
+                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
+                break;
             }
             bool xattr = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("xattr"))));
             VALUE path = rb_hash_aref(entry, rb_id2sym(rb_intern("path")));
             Check_Type(path, T_STRING);
             req.specs.add_spec(opcode, xattr, std::string(RSTRING_PTR(path), static_cast<size_t>(RSTRING_LEN(path))));
+        }
+        if (!NIL_P(exc)) {
+            break;
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::lookup_in_response>>();
@@ -1907,6 +1935,7 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket, T_STRING);
@@ -1915,6 +1944,7 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
     Check_Type(specs, T_ARRAY);
     if (RARRAY_LEN(specs) <= 0) {
         rb_raise(rb_eArgError, "Array with specs cannot be empty");
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -1941,7 +1971,8 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
                 } else if (level == rb_intern("persist_to_majority")) {
                     req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
                 } else {
-                    rb_raise(rb_eArgError, "Unknown durability level");
+                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unsupported durability level: %+" PRIsVALUE, durability_level));
+                    break;
                 }
                 VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
                 if (!NIL_P(durability_timeout)) {
@@ -2016,7 +2047,9 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
             } else if (operation_id == rb_intern("set_doc")) {
                 opcode = couchbase::protocol::subdoc_opcode::set_doc;
             } else {
-                rb_raise(rb_eArgError, "Unsupported operation for subdocument mutation: %+" PRIsVALUE, operation);
+                exc =
+                  rb_exc_new_str(eInvalidArgument, rb_sprintf("unsupported operation for subdocument mutation: %+" PRIsVALUE, operation));
+                break;
             }
             bool xattr = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("xattr"))));
             bool create_path = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("create_path"))));
@@ -2043,6 +2076,9 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
                                    std::string(RSTRING_PTR(path), static_cast<size_t>(RSTRING_LEN(path))),
                                    std::string(RSTRING_PTR(param), static_cast<size_t>(RSTRING_LEN(param))));
             }
+        }
+        if (!NIL_P(exc)) {
+            break;
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::mutate_in_response>>();
@@ -2110,6 +2146,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(statement, T_STRING);
@@ -2451,6 +2488,7 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_settings, T_HASH);
@@ -2485,6 +2523,7 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_settings, T_HASH);
@@ -2517,6 +2556,7 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -2549,6 +2589,7 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -2664,6 +2705,7 @@ cb_Backend_bucket_get_all(VALUE self, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -2701,6 +2743,7 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -2757,6 +2800,7 @@ cb_Backend_role_get_all(VALUE self, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -2874,6 +2918,7 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(domain, T_SYMBOL);
@@ -2920,6 +2965,7 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(domain, T_SYMBOL);
@@ -2963,6 +3009,7 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(domain, T_SYMBOL);
@@ -3005,6 +3052,7 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(domain, T_SYMBOL);
@@ -3130,6 +3178,7 @@ cb_Backend_group_get_all(VALUE self, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -3166,6 +3215,7 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(name, T_STRING);
@@ -3201,6 +3251,7 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(name, T_STRING);
@@ -3234,6 +3285,7 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(group, T_HASH);
@@ -3307,6 +3359,7 @@ cb_Backend_cluster_enable_developer_preview(VALUE self)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -3338,6 +3391,7 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -3390,6 +3444,7 @@ cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -3442,6 +3497,7 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE t
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -3477,6 +3533,7 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE tim
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -3512,6 +3569,7 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -3556,6 +3614,7 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -3596,6 +3655,7 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -3667,6 +3727,7 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -3764,6 +3825,7 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -3839,6 +3901,7 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -3929,6 +3992,7 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -4006,6 +4070,7 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE timeo
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -4048,6 +4113,7 @@ cb_Backend_query_index_watch(VALUE self, VALUE bucket_name, VALUE index_names, V
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -4099,6 +4165,7 @@ cb_Backend_search_index_get_all(VALUE self, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -4139,6 +4206,7 @@ cb_Backend_search_index_get(VALUE self, VALUE index_name, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -4176,6 +4244,7 @@ cb_Backend_search_index_upsert(VALUE self, VALUE index_definition, VALUE timeout
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_definition, T_HASH);
@@ -4261,6 +4330,7 @@ cb_Backend_search_index_drop(VALUE self, VALUE index_name, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -4298,6 +4368,7 @@ cb_Backend_search_index_get_documents_count(VALUE self, VALUE index_name, VALUE 
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -4339,6 +4410,7 @@ cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -4375,6 +4447,7 @@ cb_Backend_search_get_stats(VALUE self, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -4404,6 +4477,7 @@ cb_Backend_search_index_pause_ingest(VALUE self, VALUE index_name, VALUE timeout
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -4443,6 +4517,7 @@ cb_Backend_search_index_resume_ingest(VALUE self, VALUE index_name, VALUE timeou
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -4482,6 +4557,7 @@ cb_Backend_search_index_allow_querying(VALUE self, VALUE index_name, VALUE timeo
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -4521,6 +4597,7 @@ cb_Backend_search_index_disallow_querying(VALUE self, VALUE index_name, VALUE ti
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -4560,6 +4637,7 @@ cb_Backend_search_index_freeze_plan(VALUE self, VALUE index_name, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -4599,6 +4677,7 @@ cb_Backend_search_index_unfreeze_plan(VALUE self, VALUE index_name, VALUE timeou
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -4638,6 +4717,7 @@ cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE enc
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -4681,6 +4761,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -5006,6 +5087,7 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
         tls = true;
     } else {
         rb_raise(rb_eArgError, "Unsupported service type: %+" PRIsVALUE, service);
+        return Qnil;
     }
     VALUE exc = Qnil;
     do {
@@ -5050,6 +5132,7 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -5090,6 +5173,7 @@ cb_Backend_analytics_dataset_get_all(VALUE self, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -5138,6 +5222,7 @@ cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE datavers
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(dataset_name, T_STRING);
@@ -5195,6 +5280,7 @@ cb_Backend_analytics_dataset_create(VALUE self,
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(dataset_name, T_STRING);
@@ -5254,6 +5340,7 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE igno
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(dataverse_name, T_STRING);
@@ -5296,6 +5383,7 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE ig
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(dataverse_name, T_STRING);
@@ -5341,6 +5429,7 @@ cb_Backend_analytics_index_get_all(VALUE self, VALUE timeout)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -5394,6 +5483,7 @@ cb_Backend_analytics_index_create(VALUE self,
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -5466,6 +5556,7 @@ cb_Backend_analytics_index_drop(VALUE self,
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(index_name, T_STRING);
@@ -5521,6 +5612,7 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE link_name, VALUE force, VALU
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(link_name, T_STRING);
@@ -5572,6 +5664,7 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE link_name, VALUE datavers
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(link_name, T_STRING);
@@ -5632,6 +5725,7 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(statement, T_STRING);
@@ -5857,6 +5951,7 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -5870,6 +5965,7 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
         ns = couchbase::operations::design_document::name_space::production;
     } else {
         rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -5934,6 +6030,7 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -5948,6 +6045,7 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
         ns = couchbase::operations::design_document::name_space::production;
     } else {
         rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -6012,6 +6110,7 @@ cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, V
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -6026,6 +6125,7 @@ cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, V
         ns = couchbase::operations::design_document::name_space::production;
     } else {
         rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -6061,6 +6161,7 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -6075,6 +6176,7 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
         ns = couchbase::operations::design_document::name_space::production;
     } else {
         rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
+        return Qnil;
     }
 
     VALUE exc = Qnil;
@@ -6137,6 +6239,7 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
 
     if (!backend->cluster) {
         rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
     }
 
     Check_Type(bucket_name, T_STRING);
@@ -6151,6 +6254,7 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
         ns = couchbase::operations::design_document::name_space::production;
     } else {
         rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
+        return Qnil;
     }
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);

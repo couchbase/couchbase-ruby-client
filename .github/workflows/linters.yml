@@ -30,3 +30,31 @@ jobs:
         run: sudo apt-get install -y clang-format
       - name: Run clang-format
         run: ./bin/check-clang-format
+
+  clang_static_analyzer:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Set up ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7
+      - name: Install dependencies
+        run: |
+          sudo bash -c "echo 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main' >> /etc/apt/sources.list"
+          sudo apt-get update -y
+          sudo apt-get install clang-11 clang-tools-11 libssl-dev
+      - name: Run scan build
+        run: ./bin/check-clang-static-analyzer
+        env:
+          CB_CC: /usr/bin/clang-11
+          CB_CXX: /usr/bin/clang++-11
+          CB_SCAN_BUILD: /usr/bin/scan-build-11
+      - name: Upload scan-build report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: report
+          path: ext/cmake-build-report.tar.gz
