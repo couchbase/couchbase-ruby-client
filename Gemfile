@@ -20,19 +20,20 @@ gemspec
 gem "rake"
 
 group :development do
+  gem "flay"
+  gem "flog"
+  gem "heckle"
+  gem "minitest"
+  gem "minitest-reporters"
+  gem "reek"
   gem "rubocop"
   gem "rubocop-minitest"
   gem "rubocop-performance"
   gem "rubocop-rake"
+  gem "simplecov-cobertura"
   gem "standard"
   gem "yard"
   platforms :mri do
     gem "byebug"
   end
-end
-
-group :test do
-  gem "minitest"
-  gem "minitest-reporters"
-  gem "simplecov-cobertura"
 end
