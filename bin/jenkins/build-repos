@@ -16,11 +16,13 @@
 
 PROJECT_ROOT="$( cd "$(dirname "$0"/../..)" >/dev/null 2>&1 ; pwd -P )"
 
+CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7}
+
 set -x
 set -e
 
 source /usr/local/share/chruby/chruby.sh
-chruby ruby-2.7.1
+chruby ruby-${CB_RUBY_VERSION}
 
 ruby --version
 gem --version

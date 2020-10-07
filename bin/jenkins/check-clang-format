@@ -25,21 +25,10 @@ echo "NODE_LABELS=${NODE_LABELS}"
 set -x
 set -e
 
-CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7}
-
 if [ "$(uname -s)" = "Linux" ]
 then
-  source /usr/local/share/chruby/chruby.sh
+  sudo yum install -y llvm-toolset-7.0-git-clang-format
 fi
-if [ "$(uname -s)" = "Darwin" ]
-then
-  source $(brew --prefix chruby)/share/chruby/chruby.sh
-fi
-chruby ruby-${CB_RUBY_VERSION}
 
-export GEM_HOME="$PROJECT_ROOT/gems-${CB_RUBY_VERSION}"
-gem list --all
-gem install $*
-gem list --all
-ruby -rcouchbase -e 'pp Couchbase::VERSION'
-ruby -rcouchbase -e 'pp Couchbase::BUILD_INFO'
+mv -f "${PROJECT_ROOT}/ext/.clang-format.7" "${PROJECT_ROOT}/ext/.clang-format"
+scl enable llvm-toolset-7.0 bin/check-clang-format

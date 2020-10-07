@@ -16,12 +16,15 @@
 
 PROJECT_ROOT="$( cd "$(dirname "$0"/..)" >/dev/null 2>&1 ; pwd -P )"
 
+CB_GIT_CLANG_FORMAT=${CB_GIT_CLANG_FORMAT:-git-clang-format}
+CB_CLANG_FORMAT=${CB_CLANG_FORMAT:-$(which clang-format)}
+
 set -euo pipefail
 IFS=$'\n\t'
 
 cd "${PROJECT_ROOT}/ext"
 
-format_diff="$(git-clang-format --diff --commit HEAD^)"
+format_diff="$(${CB_GIT_CLANG_FORMAT} --binary ${CB_CLANG_FORMAT} --diff --commit HEAD^)"
 
 if [ "$format_diff" == "clang-format did not modify any files" ] || \
    [ "$format_diff" == "no modified files to format" ]

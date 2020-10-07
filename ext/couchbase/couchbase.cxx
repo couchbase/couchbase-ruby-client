@@ -3025,6 +3025,7 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
         VALUE name = rb_hash_aref(user, rb_id2sym(rb_intern("username")));
         if (NIL_P(name) || TYPE(name) != T_STRING) {
             exc = rb_exc_new_cstr(eInvalidArgument, "unable to upsert user: missing name");
+            break;
         }
         req.user.username.assign(RSTRING_PTR(name), static_cast<size_t>(RSTRING_LEN(name)));
         VALUE display_name = rb_hash_aref(user, rb_id2sym(rb_intern("display_name")));
@@ -3244,6 +3245,7 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
         VALUE name = rb_hash_aref(group, rb_id2sym(rb_intern("name")));
         if (NIL_P(name) || TYPE(name) != T_STRING) {
             exc = rb_exc_new_cstr(eInvalidArgument, "unable to upsert group: missing name");
+            break;
         }
         req.group.name.assign(RSTRING_PTR(name), static_cast<size_t>(RSTRING_LEN(name)));
         VALUE ldap_group_ref = rb_hash_aref(group, rb_id2sym(rb_intern("ldap_group_reference")));

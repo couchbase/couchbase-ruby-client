@@ -40,7 +40,7 @@ cbdyncluster info
 cbdyncluster ps -a
 
 CB_VERSION=${CB_VERSION:-6.6.0}
-CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7.1}
+CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7}
 
 export TEST_DEVELOPER_PREVIEW=$(ruby -e 'puts "yes" if ENV["CB_VERSION"] =~ /^6\.6/')
 if [ "x${TEST_DEVELOPER_PREVIEW}" = "xyes" ]
