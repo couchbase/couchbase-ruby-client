@@ -43,9 +43,12 @@ jobs:
           ruby-version: 2.7
       - name: Install dependencies
         run: |
-          sudo bash -c "echo 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main' >> /etc/apt/sources.list"
           sudo apt-get update -y
-          sudo apt-get install clang-11 clang-tools-11 libssl-dev
+          sudo apt-get install -y libssl-dev cmake curl wget gnupg2
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo bash -c "echo 'deb https://apt.llvm.org/focal/ llvm-toolchain-focal-11 main' >> /etc/apt/sources.list"
+          sudo apt-get update -y
+          sudo apt-get install -y clang-11 clang-tools-11
       - name: Run scan build
         run: ./bin/check-clang-static-analyzer
         env:
