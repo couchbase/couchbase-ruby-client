@@ -1,8 +1,10 @@
 inherit_from: .rubocop_todo.yml
 require:
-  - rubocop-performance
   - rubocop-minitest
+  - rubocop-packaging
+  - rubocop-performance
   - rubocop-rake
+  - rubocop-thread_safety
 
 AllCops:
   TargetRubyVersion: 2.5

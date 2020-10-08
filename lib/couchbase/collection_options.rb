@@ -336,7 +336,7 @@ module Couchbase
         !encoded[index].nil? && encoded[index].exists
       end
 
-      # @see {MutateInOptions#create_as_deleted}
+      # @see MutateInOptions#create_as_deleted
       #
       # @return [Boolean] true if the document is a tombstone (created in deleted state)
       def deleted?
@@ -423,7 +423,7 @@ module Couchbase
         end
       end
 
-      # @see {MutateInOptions#create_as_deleted}
+      # @see MutateInOptions#create_as_deleted
       #
       # @return [Boolean] true if the document is a tombstone (created in deleted state)
       def deleted?
