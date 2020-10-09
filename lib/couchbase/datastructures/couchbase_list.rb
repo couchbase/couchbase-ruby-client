@@ -14,6 +14,7 @@
 
 require "couchbase/collection"
 require "couchbase/errors"
+require "couchbase/options"
 
 module Couchbase
   module Datastructures
@@ -28,8 +29,8 @@ module Couchbase
       #
       # @param [String] id the id of the document to back the list.
       # @param [Collection] collection the Couchbase collection through which to interact with the document.
-      # @param [CouchbaseListOptions] options customization of the datastructure
-      def initialize(id, collection, options = CouchbaseListOptions.new)
+      # @param [Options::CouchbaseList] options customization of the datastructure
+      def initialize(id, collection, options = Options::CouchbaseList.new)
         @id = id
         @collection = collection
         @options = options
@@ -153,19 +154,7 @@ module Couchbase
       end
     end
 
-    class CouchbaseListOptions
-      attr_accessor :get_options
-      attr_accessor :lookup_in_options
-      attr_accessor :mutate_in_options
-      attr_accessor :remove_options
-
-      def initialize
-        @get_options = Collection::GetOptions.new
-        @remove_options = Collection::RemoveOptions.new
-        @lookup_in_options = Collection::LookupInOptions.new
-        @mutate_in_options = Collection::MutateInOptions.new
-        @mutate_in_options.store_semantics = :upsert
-      end
-    end
+    # @api private
+    CouchbaseListOptions = ::Couchbase::Options::CouchbaseList
   end
 end

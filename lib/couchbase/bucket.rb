@@ -15,6 +15,7 @@
 require "couchbase/scope"
 require "couchbase/management/collection_manager"
 require "couchbase/management/view_index_manager"
+require "couchbase/options"
 require "couchbase/view_options"
 
 module Couchbase
@@ -67,29 +68,18 @@ module Couchbase
     #
     # @param [String] design_document_name name of the design document
     # @param [String] view_name name of the view to query
-    # @param [ViewOptions] options
+    # @param [Options::View] options
+    #
+    # @example Make sure the view engine catch up with all mutations and return keys starting from +["random_brewery:"]+
+    #   bucket.view_query("beer", "brewery_beers",
+    #                     Options::View(
+    #                       start_key: ["random_brewery:"],
+    #                       scan_consistency: :request_plus
+    #                     ))
     #
     # @return [ViewResult]
-    def view_query(design_document_name, view_name, options = ViewOptions.new)
-      resp = @backend.document_view(@name, design_document_name, view_name, options.namespace, {
-        timeout: options.timeout,
-        scan_consistency: options.scan_consistency,
-        skip: options.skip,
-        limit: options.limit,
-        start_key: (JSON.generate(options.start_key) unless options.start_key.nil?),
-        end_key: (JSON.generate(options.end_key) unless options.end_key.nil?),
-        start_key_doc_id: options.start_key_doc_id,
-        end_key_doc_id: options.end_key_doc_id,
-        inclusive_end: options.inclusive_end,
-        group: options.group,
-        group_level: options.group_level,
-        key: (JSON.generate(options.key) unless options.key.nil?),
-        keys: options.keys&.map { |key| JSON.generate(key) },
-        order: options.order,
-        reduce: options.reduce,
-        on_error: options.on_error,
-        debug: options.debug,
-      })
+    def view_query(design_document_name, view_name, options = Options::View.new)
+      resp = @backend.document_view(@name, design_document_name, view_name, options.namespace, options.to_backend)
       ViewResult.new do |res|
         res.meta_data = ViewMetaData.new do |meta|
           meta.total_rows = resp[:meta][:total_rows]
@@ -117,23 +107,17 @@ module Couchbase
 
     # Performs application-level ping requests against services in the couchbase cluster
     #
+    # @param [Options::Ping] options
+    #
     # @return [PingResult]
-    def ping(options = PingOptions.new) end
+    def ping(options = Options::Ping.new) end
 
-    class PingOptions
-      # @return [String] Holds custom report id.
-      attr_accessor :report_id
+    # @api private
+    # TODO: deprecate in 3.1
+    PingOptions = ::Couchbase::Options::Ping
 
-      # @return [Array<Symbol>] The service types to limit this diagnostics request
-      attr_accessor :service_types
-
-      # @return [Integer] the time in milliseconds allowed for the operation to complete
-      attr_accessor :timeout
-
-      def initialize
-        @service_types = [:kv, :query, :analytics, :search, :views, :management]
-        yield self if block_given?
-      end
-    end
+    # @api private
+    # TODO: deprecate in 3.1
+    ViewOptions = ::Couchbase::Options::View
   end
 end

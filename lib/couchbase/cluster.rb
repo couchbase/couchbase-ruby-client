@@ -21,6 +21,8 @@ require "couchbase/management/query_index_manager"
 require "couchbase/management/analytics_index_manager"
 require "couchbase/management/search_index_manager"
 
+require "couchbase/options"
+
 require "couchbase/search_options"
 require "couchbase/query_options"
 require "couchbase/analytics_options"
@@ -33,14 +35,32 @@ module Couchbase
     #
     # @overload connect(connection_string, options)
     #   @param [String] connection_string connection string used to locate the Couchbase Cluster
-    #   @param [ClusterOptions] options custom options when creating the cluster connection
+    #   @param [Options::Cluster] options custom options when creating the cluster connection
     #
     # @overload connect(connection_string, username, password, options)
     #   Shortcut for {PasswordAuthenticator}
     #   @param [String] connection_string connection string used to locate the Couchbase Cluster
     #   @param [String] username name of the user
     #   @param [String] password password of the user
-    #   @param [ClusterOptions, nil] options custom options when creating the cluster connection
+    #   @param [Options::Cluster, nil] options custom options when creating the cluster connection
+    #
+    # @example Explicitly create options object and initialize PasswordAuthenticator internally
+    #   options = Cluster::ClusterOptions.new
+    #   options.authenticate("Administrator", "password")
+    #   Cluster.connect("couchbase://localhost", options)
+    #
+    # @example Pass authenticator object to Options
+    #   Cluster.connect("couchbase://localhost",
+    #     Options::Cluster(authenticator: PasswordAuthenticator.new("Administrator", "password")))
+    #
+    # @example Shorter version, more useful for interactive sessions
+    #   Cluster.connect("couchbase://localhost", "Administrator", "password")
+    #
+    # @example Authentication with TLS client certificate (note +couchbases://+ schema)
+    #   Cluster.connect("couchbases://localhost?trust_certificate=/tmp/ca.pem",
+    #     Options::Cluster(authenticator: CertificateAuthenticator.new("/tmp/certificate.pem", "/tmp/private.key")))
+    #
+    # @see https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html
     #
     # @return [Cluster]
     def self.connect(connection_string, *options)
@@ -59,30 +79,15 @@ module Couchbase
     # Performs a query against the query (N1QL) services
     #
     # @param [String] statement the N1QL query statement
-    # @param [QueryOptions] options the custom options for this query
+    # @param [Options::Query] options the custom options for this query
+    #
+    # @example Select first ten hotels from travel sample dataset
+    #   cluster.query("SELECT * FROM `travel-sample` WHERE type = $type LIMIT 10",
+    #                 Options::Query(named_parameters: {type: "hotel"}, metrics: true))
     #
     # @return [QueryResult]
-    def query(statement, options = QueryOptions.new)
-      resp = @backend.document_query(statement, {
-        timeout: options.timeout,
-        adhoc: options.adhoc,
-        client_context_id: options.client_context_id,
-        max_parallelism: options.max_parallelism,
-        readonly: options.readonly,
-        flex_index: options.flex_index,
-        scan_wait: options.scan_wait,
-        scan_cap: options.scan_cap,
-        pipeline_batch: options.pipeline_batch,
-        pipeline_cap: options.pipeline_cap,
-        metrics: options.metrics,
-        profile: options.profile,
-        positional_parameters: options.export_positional_parameters,
-        named_parameters: options.export_named_parameters,
-        scope_qualifier: options.scope_qualifier,
-        raw_parameters: options.raw_parameters,
-        scan_consistency: options.scan_consistency,
-        mutation_state: options.mutation_state&.to_a,
-      })
+    def query(statement, options = Options::Query.new)
+      resp = @backend.document_query(statement, options.to_backend)
 
       QueryResult.new do |res|
         res.meta_data = QueryMetaData.new do |meta|
@@ -112,20 +117,15 @@ module Couchbase
     # Performs an analytics query
     #
     # @param [String] statement the N1QL query statement
-    # @param [AnalyticsOptions] options the custom options for this query
+    # @param [Options::Analytics] options the custom options for this query
+    #
+    # @example Select name of the given user
+    #   cluster.analytics_query("SELECT u.name AS uname FROM GleambookUsers u WHERE u.id = $user_id ",
+    #                           Options::Analytics(named_parameters: {user_id: 2}))
     #
     # @return [AnalyticsResult]
-    def analytics_query(statement, options = AnalyticsOptions.new)
-      resp = @backend.document_analytics(statement, {
-        timeout: options.timeout,
-        client_context_id: options.client_context_id,
-        scan_consistency: options.scan_consistency,
-        readonly: options.readonly,
-        priority: options.priority,
-        positional_parameters: options.export_positional_parameters,
-        named_parameters: options.export_named_parameters,
-        raw_parameters: options.raw_parameters,
-      })
+    def analytics_query(statement, options = Options::Analytics.new)
+      resp = @backend.document_analytics(statement, options.to_backend)
 
       AnalyticsResult.new do |res|
         res.transcoder = options.transcoder
@@ -156,24 +156,20 @@ module Couchbase
     #
     # @param [String] index_name the name of the search index
     # @param [SearchQuery] query the query tree
-    # @param [SearchOptions] options the query tree
+    # @param [Options::Search] options the query tree
+    #
+    # @example Return first 10 results of "hop beer" query and request highlighting
+    #   cluster.search_query("beer_index", Cluster::SearchQuery.match_phrase("hop beer"),
+    #                        Options::Search(
+    #                          limit: 10,
+    #                          fields: %w[name],
+    #                          highlight_style: :html,
+    #                          highlight_fields: %w[name description]
+    #                        ))
     #
     # @return [SearchResult]
-    def search_query(index_name, query, options = SearchOptions.new)
-      resp = @backend.document_search(index_name, JSON.generate(query), {
-        timeout: options.timeout,
-        limit: options.limit,
-        skip: options.skip,
-        explain: options.explain,
-        disable_scoring: options.disable_scoring,
-        highlight_style: options.highlight_style,
-        highlight_fields: options.highlight_fields,
-        fields: options.fields,
-        sort: options.sort&.map { |v| JSON.generate(v) },
-        facets: options.facets&.map { |(k, v)| [k, JSON.generate(v)] },
-        scan_consistency: options.scan_consistency,
-        mutation_state: options.mutation_state&.to_a,
-      })
+    def search_query(index_name, query, options = Options::Search.new)
+      resp = @backend.document_search(index_name, JSON.generate(query), options.to_backend)
 
       SearchResult.new do |res|
         res.meta_data = SearchMetaData.new do |meta|
@@ -293,10 +289,11 @@ module Couchbase
     #
     # It does not proactively perform any I/O against the network
     #
+    # @param [Options::Diagnostics] options
+    #
     # @return [DiagnosticsResult]
-    def diagnostics(options = DiagnosticsOptions.new)
+    def diagnostics(options = Options::Diagnostics.new)
       resp = @backend.diagnostics(options.report_id)
-      pp resp
       DiagnosticsResult.new do |res|
         res.version = resp[:version]
         res.id = resp[:id]
@@ -312,30 +309,6 @@ module Couchbase
             end
           end
         end
-      end
-    end
-
-    class ClusterOptions
-      attr_accessor :authenticator
-
-      # @yieldparam [ClusterOptions] self
-      def initialize
-        yield self if block_given?
-      end
-
-      def authenticate(username, password)
-        @authenticator = PasswordAuthenticator.new(username, password)
-        self
-      end
-    end
-
-    class DiagnosticsOptions
-      # @return [String] Holds custom report id.
-      attr_accessor :report_id
-
-      # @yieldparam [DiagnosticsOptions] self
-      def initialize
-        yield self if block_given?
       end
     end
 
@@ -424,14 +397,14 @@ module Couchbase
     #
     # @overload new(connection_string, options)
     #   @param [String] connection_string connection string used to locate the Couchbase Cluster
-    #   @param [ClusterOptions] options custom options when creating the cluster connection
+    #   @param [Options::Cluster] options custom options when creating the cluster connection
     #
     # @overload new(connection_string, username, password, options)
     #   Shortcut for {PasswordAuthenticator}
     #   @param [String] connection_string connection string used to locate the Couchbase Cluster
     #   @param [String] username name of the user
     #   @param [String] password password of the user
-    #   @param [ClusterOptions, nil] options custom options when creating the cluster connection
+    #   @param [Options::Cluster, nil] options custom options when creating the cluster connection
     def initialize(connection_string, *args)
       credentials = {}
 
@@ -442,7 +415,7 @@ module Couchbase
         credentials[:password] = args.shift
         raise ArgumentError, "missing username" unless credentials[:username]
         raise ArgumentError, "missing password" unless credentials[:password]
-      when ClusterOptions
+      when Options::Cluster
         authenticator = options&.authenticator
         case authenticator
         when PasswordAuthenticator
@@ -469,5 +442,16 @@ module Couchbase
       @backend = Backend.new
       @backend.open(connection_string, credentials, {})
     end
+
+    # @api private
+    ClusterOptions = ::Couchbase::Options::Cluster
+    # @api private
+    DiagnosticsOptions = ::Couchbase::Options::Diagnostics
+    # @api private
+    AnalyticsOptions = ::Couchbase::Options::Analytics
+    # @api private
+    QueryOptions = ::Couchbase::Options::Query
+    # @api private
+    SearchOptions = ::Couchbase::Options::Search
   end
 end

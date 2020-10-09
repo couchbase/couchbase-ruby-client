@@ -45,18 +45,34 @@ module Couchbase
     # Fetches the full document from the collection
     #
     # @param [String] id the document id which is used to uniquely identify it
-    # @param [GetOptions] options request customization
+    # @param [Options::Get] options request customization
+    #
+    # @example Get document contents
+    #   res = collection.get("customer123")
+    #   res.content["addresses"]
+    #
+    #   # {"billing"=>
+    #   #   {"line1"=>"123 Any Street", "line2"=>"Anytown", "country"=>"United Kingdom"},
+    #   #  "delivery"=>
+    #   #   {"line1"=>"123 Any Street", "line2"=>"Anytown", "country"=>"United Kingdom"}}
+    #
+    # @example Get partial document using projections
+    #   res = collection.get("customer123", Options::Get(projections: ["name", "addresses.billing"]))
+    #   res.content
+    #
+    #   # {"addresses"=>
+    #   #    {"billing"=>
+    #   #      {"country"=>"United Kingdom",
+    #   #       "line1"=>"123 Any Street",
+    #   #       "line2"=>"Anytown"}},
+    #   #   "name"=>"Douglas Reynholm"}
     #
     # @return [GetResult]
-    def get(id, options = GetOptions.new)
+    def get(id, options = Options::Get.new)
       resp = if options.need_projected_get?
-               @backend.document_get_projected(bucket_name, "#{@scope_name}.#{@name}", id,
-                                               options.timeout,
-                                               options.with_expiry,
-                                               options.projections,
-                                               options.preserve_array_indexes)
+               @backend.document_get_projected(bucket_name, "#{@scope_name}.#{@name}", id, options.to_backend)
              else
-               @backend.document_get(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout)
+               @backend.document_get(bucket_name, "#{@scope_name}.#{@name}", id, options.to_backend)
              end
       GetResult.new do |res|
         res.transcoder = options.transcoder
@@ -70,12 +86,23 @@ module Couchbase
     # Fetches the full document and write-locks it for the given duration
     #
     # @param [String] id the document id which is used to uniquely identify it.
-    # @param [Integer] lock_time how long to lock the document (values over 30 seconds will be capped)
-    # @param [GetAndLockOptions] options request customization
+    # @param [Integer, #in_seconds] lock_time how long to lock the document (values over 30 seconds will be capped)
+    # @param [Options::GetAndLock] options request customization
+    #
+    # @example Retrieve document and lock for 10 seconds
+    #   collection.get_and_lock("customer123", 10, Options::GetAndLock(timeout: 3_000))
+    #
+    # @example Update document pessimistically
+    #   res = collection.get_and_lock("customer123", 10)
+    #   user_data = res.content
+    #   user_data["admin"] = true
+    #   collection.replace("user", user_data, Options::Upsert(cas: res.cas))
     #
     # @return [GetResult]
-    def get_and_lock(id, lock_time, options = GetAndLockOptions.new)
-      resp = @backend.document_get_and_lock(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, lock_time)
+    def get_and_lock(id, lock_time, options = Options::GetAndLock.new)
+      resp = @backend.document_get_and_lock(bucket_name, "#{@scope_name}.#{@name}", id,
+                                            lock_time.respond_to?(:in_seconds) ? lock_time.public_send(:in_seconds) : lock_time,
+                                            options.to_backend)
       GetResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
@@ -87,12 +114,17 @@ module Couchbase
     # Fetches a full document and resets its expiration time to the duration provided
     #
     # @param [String] id the document id which is used to uniquely identify it.
-    # @param [Integer] expiry the new expiration time for the document
-    # @param [GetAndTouchOptions] options request customization
+    # @param [Integer, #in_seconds] expiry the new expiration time for the document
+    # @param [Options::GetAndTouch] options request customization
+    #
+    # @example Retrieve document and prolong its expiration for another 10 seconds
+    #   collection.get_and_touch("customer123", 10)
     #
     # @return [GetResult]
-    def get_and_touch(id, expiry, options = GetAndTouchOptions.new)
-      resp = @backend.document_get_and_touch(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, expiry)
+    def get_and_touch(id, expiry, options = Options::GetAndTouch.new)
+      resp = @backend.document_get_and_touch(bucket_name, "#{@scope_name}.#{@name}", id,
+                                             expiry.respond_to?(:in_seconds) ? expiry.public_send(:in_seconds) : expiry,
+                                             options.to_backend)
       GetResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
@@ -104,27 +136,31 @@ module Couchbase
     # Reads from all available replicas and the active node and returns the results
     #
     # @param [String] id the document id which is used to uniquely identify it.
-    # @param [GetAllReplicasOptions] options request customization
+    # @param [Options::GetAllReplicas] options request customization
     #
     # @return [Array<GetReplicaResult>]
-    def get_all_replicas(id, options = GetAllReplicasOptions.new) end
+    def get_all_replicas(id, options = Options::GetAllReplicas.new) end
 
     # Reads all available replicas, and returns the first found
     #
     # @param [String] id the document id which is used to uniquely identify it.
-    # @param [GetAnyReplicaOptions] options request customization
+    # @param [Options::GetAnyReplica] options request customization
     #
     # @return [GetReplicaResult]
-    def get_any_replica(id, options = GetAnyReplicaOptions.new) end
+    def get_any_replica(id, options = Options::GetAnyReplica.new) end
 
     # Checks if the given document ID exists on the active partition.
     #
     # @param [String] id the document id which is used to uniquely identify it.
-    # @param [ExistsOptions] options request customization
+    # @param [Options::Exists] options request customization
+    #
+    # @example Check if the document exists without fetching its contents
+    #   res = collection.exists("customer123")
+    #   res.exists? #=> true
     #
     # @return [ExistsResult]
-    def exists(id, options = ExistsOptions.new)
-      resp = @backend.document_exists(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout)
+    def exists(id, options = Options::Exists.new)
+      resp = @backend.document_exists(bucket_name, "#{@scope_name}.#{@name}", id, options.to_backend)
       ExistsResult.new do |res|
         res.status = resp[:status]
         res.partition_id = resp[:partition_id]
@@ -135,13 +171,25 @@ module Couchbase
     # Removes a document from the collection
     #
     # @param [String] id the document id which is used to uniquely identify it.
-    # @param [RemoveOptions] options request customization
+    # @param [Options::Remove] options request customization
+    #
+    # @example Remove the document in collection
+    #   res = collection.remove("customer123")
+    #   res.cas #=> 241994216651798
+    #
+    # @example Remove the document in collection, but apply optimistic lock
+    #   res = collection.upsert("mydoc", {"foo" => 42})
+    #   res.cas #=> 7751414725654
+    #
+    #   begin
+    #     res = collection.remove("mydoc", Options::Remove(cas: 3735928559))
+    #   rescue Error::CasMismatch
+    #     puts "Failed to remove the document, it might be changed by other application"
+    #   end
     #
     # @return [MutationResult]
-    def remove(id, options = RemoveOptions.new)
-      resp = @backend.document_remove(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, {
-        durability_level: options.durability_level,
-      })
+    def remove(id, options = Options::Remove.new)
+      resp = @backend.document_remove(bucket_name, "#{@scope_name}.#{@name}", id, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
         res.mutation_token = extract_mutation_token(resp)
@@ -152,15 +200,24 @@ module Couchbase
     #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Object] content the document content to insert
-    # @param [InsertOptions] options request customization
+    # @param [Options::Insert] options request customization
+    #
+    # @example Insert new document in collection
+    #   res = collection.insert("mydoc", {"foo" => 42}, Options::Insert(expiry: 20))
+    #   res.cas #=> 242287264414742
+    #
+    # @example Handle error when the document already exists
+    #   collection.exists("mydoc").exists? #=> true
+    #   begin
+    #     res = collection.insert("mydoc", {"foo" => 42})
+    #   rescue Error::DocumentExists
+    #     puts "Failed to insert the document, it already exists in the collection"
+    #   end
     #
     # @return [MutationResult]
-    def insert(id, content, options = InsertOptions.new)
+    def insert(id, content, options = Options::Insert.new)
       blob, flags = options.transcoder.encode(content)
-      resp = @backend.document_insert(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
-        durability_level: options.durability_level,
-        expiry: options.expiry,
-      })
+      resp = @backend.document_insert(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
         res.mutation_token = extract_mutation_token(resp)
@@ -171,15 +228,16 @@ module Couchbase
     #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Object] content the document content to upsert
-    # @param [UpsertOptions] options request customization
+    # @param [Options::Upsert] options request customization
+    #
+    # @example Upsert new document in collection
+    #   res = collection.upsert("mydoc", {"foo" => 42}, Options::Upsert(expiry: 20))
+    #   res.cas #=> 242287264414742
     #
     # @return [MutationResult]
-    def upsert(id, content, options = UpsertOptions.new)
+    def upsert(id, content, options = Options::Upsert.new)
       blob, flags = options.transcoder.encode(content)
-      resp = @backend.document_upsert(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
-        durability_level: options.durability_level,
-        expiry: options.expiry,
-      })
+      resp = @backend.document_upsert(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
         res.mutation_token = extract_mutation_token(resp)
@@ -190,16 +248,17 @@ module Couchbase
     #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Object] content the document content to upsert
-    # @param [ReplaceOptions] options request customization
+    # @param [Options::Replace] options request customization
+    #
+    # @example Replace new document in collection with optimistic locking
+    #   res = collection.get("mydoc")
+    #   res = collection.replace("mydoc", {"foo" => 42}, Options::Replace(cas: res.cas))
+    #   res.cas #=> 242287264414742
     #
     # @return [MutationResult]
-    def replace(id, content, options = ReplaceOptions.new)
+    def replace(id, content, options = Options::Replace.new)
       blob, flags = options.transcoder.encode(content)
-      resp = @backend.document_replace(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, blob, flags, {
-        durability_level: options.durability_level,
-        expiry: options.expiry,
-        cas: options.cas,
-      })
+      resp = @backend.document_replace(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
         res.mutation_token = extract_mutation_token(resp)
@@ -209,12 +268,17 @@ module Couchbase
     # Update the expiration of the document with the given id
     #
     # @param [String] id the document id which is used to uniquely identify it.
-    # @param [Integer] expiry new expiration time for the document
-    # @param [TouchOptions] options request customization
+    # @param [Integer, #in_seconds] expiry new expiration time for the document
+    # @param [Options::Touch] options request customization
+    #
+    # @example Reset expiration timer for document to 30 seconds
+    #   res = collection.touch("customer123", 30)
     #
     # @return [MutationResult]
-    def touch(id, expiry, options = TouchOptions.new)
-      resp = @backend.document_touch(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, expiry)
+    def touch(id, expiry, options = Options::Touch.new)
+      resp = @backend.document_touch(bucket_name, "#{@scope_name}.#{@name}", id,
+                                     expiry.respond_to?(:in_seconds) ? expiry.public_send(:in_seconds) : expiry,
+                                     options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
       end
@@ -224,30 +288,42 @@ module Couchbase
     #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Integer] cas CAS value which is needed to unlock the document
-    # @param [UnlockOptions] options request customization
+    # @param [Options::Unlock] options request customization
+    #
+    # @example Lock (pessimistically) and unlock document
+    #   res = collection.get_and_lock("customer123", 10)
+    #   collection.unlock("customer123", res.cas)
+    #
+    # @return [void]
     #
     # @raise [Error::DocumentNotFound]
-    def unlock(id, cas, options = UnlockOptions.new)
-      @backend.document_unlock(bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, cas)
+    def unlock(id, cas, options = Options::Unlock.new)
+      @backend.document_unlock(bucket_name, "#{@scope_name}.#{@name}", id, cas, options.to_backend)
     end
 
     # Performs lookups to document fragments
     #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Array<LookupInSpec>] specs the list of specifications which describe the types of the lookups to perform
-    # @param [LookupInOptions] options request customization
+    # @param [Options::LookupIn] options request customization
+    #
+    # @example Get list of IDs of completed purchases
+    #   lookup_specs = [
+    #     LookupInSpec::get("purchases.complete")
+    #   ]
+    #   collection.lookup_in("customer123", lookup_specs)
     #
     # @return [LookupInResult]
-    def lookup_in(id, specs, options = LookupInOptions.new)
+    def lookup_in(id, specs, options = Options::LookupIn.new)
       resp = @backend.document_lookup_in(
-        bucket_name, "#{@scope_name}.#{@name}", id, options.timeout, options.access_deleted,
+        bucket_name, "#{@scope_name}.#{@name}", id,
         specs.map do |s|
           {
             opcode: s.type,
             xattr: s.xattr?,
             path: s.path,
           }
-        end
+        end, options.to_backend
       )
       LookupInResult.new do |res|
         res.transcoder = options.transcoder
@@ -271,12 +347,18 @@ module Couchbase
     #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Array<MutateInSpec>] specs the list of specifications which describe the types of the lookups to perform
-    # @param [MutateInOptions] options request customization
+    # @param [Options::MutateIn] options request customization
+    #
+    # @example Append number into subarray of the document
+    #   mutation_specs = [
+    #     MutateInSpec::array_append("purchases.complete", [42])
+    #   ]
+    #   collection.mutate_in("customer123", mutation_specs, Options::MutateIn(expiry: 10))
     #
     # @return [MutateInResult]
-    def mutate_in(id, specs, options = MutateInOptions.new)
+    def mutate_in(id, specs, options = Options::MutateIn.new)
       resp = @backend.document_mutate_in(
-        bucket_name, "#{@scope_name}.#{@name}", id, options.timeout,
+        bucket_name, "#{@scope_name}.#{@name}", id,
         specs.map do |s|
           {
             opcode: s.type,
@@ -286,15 +368,7 @@ module Couchbase
             expand_macros: s.expand_macros?,
             create_path: s.create_path?,
           }
-        end,
-        {
-          durability_level: options.durability_level,
-          store_semantics: options.store_semantics,
-          access_deleted: options.access_deleted,
-          create_as_deleted: options.create_as_deleted,
-          cas: options.cas,
-          expiry: options.expiry,
-        }
+        end, options.to_backend
       )
       result = MutateInResult.new do |res|
         res.transcoder = options.transcoder
@@ -328,5 +402,48 @@ module Couchbase
         token.bucket_name = resp[:mutation_token][:bucket_name]
       end
     end
+
+    # @api private
+    # TODO: deprecate in 3.1
+    GetOptions = ::Couchbase::Options::Get
+    # @api private
+    # TODO: deprecate in 3.1
+    GetAndLockOptions = ::Couchbase::Options::GetAndLock
+    # @api private
+    # TODO: deprecate in 3.1
+    GetAndTouchOptions = ::Couchbase::Options::GetAndTouch
+    # @api private
+    # TODO: deprecate in 3.1
+    LookupInOptions = ::Couchbase::Options::LookupIn
+    # @api private
+    # TODO: deprecate in 3.1
+    MutateInOptions = ::Couchbase::Options::MutateIn
+    # @api private
+    # TODO: deprecate in 3.1
+    UnlockOptions = ::Couchbase::Options::Unlock
+    # @api private
+    # TODO: deprecate in 3.1
+    TouchOptions = ::Couchbase::Options::Touch
+    # @api private
+    # TODO: deprecate in 3.1
+    ReplaceOptions = ::Couchbase::Options::Replace
+    # @api private
+    # TODO: deprecate in 3.1
+    UpsertOptions = ::Couchbase::Options::Upsert
+    # @api private
+    # TODO: deprecate in 3.1
+    InsertOptions = ::Couchbase::Options::Insert
+    # @api private
+    # TODO: deprecate in 3.1
+    RemoveOptions = ::Couchbase::Options::Remove
+    # @api private
+    # TODO: deprecate in 3.1
+    ExistsOptions = ::Couchbase::Options::Exists
+    # @api private
+    # TODO: deprecate in 3.1
+    GetAnyReplicaOptions = ::Couchbase::Options::GetAnyReplica
+    # @api private
+    # TODO: deprecate in 3.1
+    GetAllReplicasOptions = ::Couchbase::Options::GetAllReplicas
   end
 end

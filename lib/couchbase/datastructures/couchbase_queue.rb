@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 require "couchbase/collection"
+require "couchbase/options"
 require "couchbase/errors"
 
 module Couchbase
@@ -28,8 +29,8 @@ module Couchbase
       #
       # @param [String] id the id of the document to back the queue.
       # @param [Collection] collection the collection through which to interact with the document.
-      # @param [CouchbaseListOptions] options customization of the datastructure
-      def initialize(id, collection, options = CouchbaseQueueOptions.new)
+      # @param [Options::CouchbaseList] options customization of the datastructure
+      def initialize(id, collection, options = Options::CouchbaseQueue.new)
         @id = id
         @collection = collection
         @options = options
@@ -127,19 +128,7 @@ module Couchbase
       alias shift pop
     end
 
-    class CouchbaseQueueOptions
-      attr_accessor :get_options
-      attr_accessor :lookup_in_options
-      attr_accessor :mutate_in_options
-      attr_accessor :remove_options
-
-      def initialize
-        @get_options = Collection::GetOptions.new
-        @remove_options = Collection::RemoveOptions.new
-        @lookup_in_options = Collection::LookupInOptions.new
-        @mutate_in_options = Collection::MutateInOptions.new
-        @mutate_in_options.store_semantics = :upsert
-      end
-    end
+    # @api private
+    CouchbaseQueueOptions = ::Couchbase::Options::CouchbaseQueue
   end
 end

@@ -12,86 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/collection_options"
-
 module Couchbase
   class BinaryCollection
-    class AppendOptions < CommonOptions
-      # @return [Integer] The default CAS used (0 means no CAS in this context)
-      attr_accessor :cas
-
-      # @yieldparam [AppendOptions] self
-      def initialize
-        super
-        yield self if block_given?
-      end
-    end
-
-    class PrependOptions < CommonOptions
-      # @return [Integer] The default CAS used (0 means no CAS in this context)
-      attr_accessor :cas
-
-      # @yieldparam [PrependOptions] self
-      def initialize
-        super
-        yield self if block_given?
-      end
-    end
-
-    class IncrementOptions < CommonOptions
-      # @return [Integer] the delta for the operation
-      attr_reader :delta
-
-      # @return [Integer] if present, holds the initial value
-      attr_accessor :initial
-
-      # @return [Integer] if set, holds the expiration for the operation
-      attr_accessor :expiry
-
-      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
-      attr_accessor :durability_level
-
-      # @yieldparam [IncrementOptions] self
-      def initialize
-        super
-        @delta = 1
-        yield self if block_given?
-      end
-
-      def delta=(value)
-        raise ArgumentError, "the delta cannot be less than 0" if delta.negative?
-
-        @delta = value
-      end
-    end
-
-    class DecrementOptions < CommonOptions
-      # @return [Integer] the delta for the operation
-      attr_reader :delta
-
-      # @return [Integer] if present, holds the initial value
-      attr_accessor :initial
-
-      # @return [Integer] if set, holds the expiration for the operation
-      attr_accessor :expiry
-
-      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
-      attr_accessor :durability_level
-
-      # @yieldparam [DecrementOptions] self
-      def initialize
-        super
-        @delta = 1
-        yield self if block_given?
-      end
-
-      def delta=(value)
-        raise ArgumentError, "the delta cannot be less than 0" if delta.negative?
-
-        @delta = value
-      end
-    end
-
     class CounterResult < ::Couchbase::Collection::MutationResult
       # @return [Integer] current value of the counter
       attr_accessor :content

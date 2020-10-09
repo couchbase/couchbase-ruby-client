@@ -18,4 +18,51 @@ require "bundler/setup"
 require "irb"
 require "couchbase"
 
-IRB.start(__FILE__)
+include Couchbase # rubocop:disable Style/MixinUsage for brevity
+
+customer123 = {
+  "name" => "Douglas Reynholm",
+  "email" => "douglas@reynholmindustries.com",
+  "addresses" =>
+    {
+      "billing" =>
+        {
+          "line1" => "123 Any Street",
+          "line2" => "Anytown",
+          "country" => "United Kingdom",
+        },
+      "delivery" =>
+        {
+          "line1" => "123 Any Street",
+          "line2" => "Anytown",
+          "country" => "United Kingdom",
+        },
+    },
+  "purchases" => {
+    "complete" => [339, 976, 442, 666],
+    "abandoned" => [157, 42, 999],
+  },
+}
+
+def cluster
+  @cluster ||= begin
+    connection_string = ARGV[0] || ENV["TEST_CONNECTION_STRING"] || "couchbase://localhost"
+    username = ARGV[0] || ENV["TEST_USERNAME"] || "Administrator"
+    password = ARGV[0] || ENV["TEST_PASSWORD"] || "password"
+    Cluster.connect(connection_string, username, password)
+  end
+end
+
+def default_collection(bucket_name = "default")
+  @collections ||= {}
+  @collections[bucket_name] ||= cluster.bucket(bucket_name).default_collection
+end
+
+alias collection default_collection
+
+# Welcome to IRB with preloaded couchbase SDK (see ./bin/console in the repository)
+# We have prepared several methods for your experiments:
+#   cluster             # returns connected cluster
+#   default_collection  # returns default collection (accept bucket name, defaults to "default")
+#   customer123         # returns sample document
+binding.irb # rubocop:disable Lint/Debugger start REPL

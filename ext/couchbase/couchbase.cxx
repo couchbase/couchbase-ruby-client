@@ -680,7 +680,7 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
         }
         auto barrier = std::make_shared<std::promise<couchbase::diag::diagnostics_result>>();
         auto f = barrier->get_future();
-        backend->cluster->diagnostics(id, [barrier](couchbase::diag::diagnostics_result resp) mutable { barrier->set_value(resp); });
+        backend->cluster->diagnostics(id, [barrier](couchbase::diag::diagnostics_result&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
 
         VALUE res = rb_hash_new();
@@ -783,23 +783,116 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
 }
 
 template<typename Request>
-void
-cb__extract_timeout(Request& req, VALUE timeout)
+[[nodiscard]] VALUE
+cb__extract_timeout(Request& req, VALUE options)
 {
-    if (!NIL_P(timeout)) {
-        switch (TYPE(timeout)) {
+    if (!NIL_P(options)) {
+        switch (TYPE(options)) {
+            case T_HASH:
+                return cb__extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
             case T_FIXNUM:
             case T_BIGNUM:
-                req.timeout = std::chrono::milliseconds(NUM2ULL(timeout));
+                req.timeout = std::chrono::milliseconds(NUM2ULL(options));
                 break;
             default:
-                rb_raise(rb_eArgError, "timeout must be an Integer");
+                return rb_exc_new_str(rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
         }
     }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb__extract_option_bool(bool& field, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        switch (TYPE(val)) {
+            case T_TRUE:
+                field = true;
+                break;
+            case T_FALSE:
+                field = false;
+                break;
+            default:
+                return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be a Boolean, but given %+" PRIsVALUE, name, val));
+        }
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb__extract_option_array(VALUE& val, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        if (TYPE(val) == T_ARRAY) {
+            return Qnil;
+        }
+        return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be an Array, but given %+" PRIsVALUE, name, val));
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb__extract_option_symbol(VALUE& val, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        if (TYPE(val) == T_SYMBOL) {
+            return Qnil;
+        }
+        return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be an Symbol, but given %+" PRIsVALUE, name, val));
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb__extract_option_fixnum(VALUE& val, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        if (TYPE(val) == T_FIXNUM) {
+            return Qnil;
+        }
+        return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be an Integer, but given %+" PRIsVALUE, name, val));
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb__extract_option_bignum(VALUE& val, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        switch (TYPE(val)) {
+            case T_FIXNUM:
+            case T_BIGNUM:
+                return Qnil;
+            default:
+                break;
+        }
+        return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be an Integer, but given %+" PRIsVALUE, name, val));
+    }
+    return Qnil;
 }
 
 static VALUE
-cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout)
+cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -821,13 +914,16 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VA
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::get_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::get_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::get_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable fetch "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -842,14 +938,7 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VA
 }
 
 static VALUE
-cb_Backend_document_get_projected(VALUE self,
-                                  VALUE bucket,
-                                  VALUE collection,
-                                  VALUE id,
-                                  VALUE timeout,
-                                  VALUE with_expiry,
-                                  VALUE projections,
-                                  VALUE preserve_array_indexes)
+cb_Backend_document_get_projected(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -862,7 +951,9 @@ cb_Backend_document_get_projected(VALUE self,
     Check_Type(bucket, T_STRING);
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
-
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
     VALUE exc = Qnil;
     do {
         couchbase::document_id doc_id;
@@ -871,12 +962,29 @@ cb_Backend_document_get_projected(VALUE self,
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::get_projected_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
-        req.with_expiry = RTEST(with_expiry);
-        req.preserve_array_indexes = RTEST(preserve_array_indexes);
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+        exc = cb__extract_option_bool(req.with_expiry, options, "with_expiry");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        exc = cb__extract_option_bool(req.preserve_array_indexes, options, "preserve_array_indexes");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        VALUE projections = Qnil;
+        exc = cb__extract_option_array(projections, options, "projections");
+        if (!NIL_P(exc)) {
+            break;
+        }
         if (!NIL_P(projections)) {
-            Check_Type(projections, T_ARRAY);
             auto entries_num = static_cast<size_t>(RARRAY_LEN(projections));
+            if (entries_num == 0) {
+                exc = rb_exc_new_cstr(rb_eArgError, "projections array must not be empty");
+                break;
+            }
             req.projections.reserve(entries_num);
             for (size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(projections, static_cast<long>(i));
@@ -887,10 +995,11 @@ cb_Backend_document_get_projected(VALUE self,
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::get_projected_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::get_projected_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req,
+                                  [barrier](couchbase::operations::get_projected_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch with projections {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable fetch with projections "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -908,7 +1017,7 @@ cb_Backend_document_get_projected(VALUE self,
 }
 
 static VALUE
-cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE lock_time)
+cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE lock_time, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -922,6 +1031,9 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VAL
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
     Check_Type(lock_time, T_FIXNUM);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -931,15 +1043,19 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VAL
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::get_and_lock_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.lock_time = NUM2UINT(lock_time);
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::get_and_lock_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::get_and_lock_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req,
+                                  [barrier](couchbase::operations::get_and_lock_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable lock and fetch {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable lock and fetch "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -954,7 +1070,7 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VAL
 }
 
 static VALUE
-cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE expiry)
+cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE expiry, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -968,6 +1084,9 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VA
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
     Check_Type(expiry, T_FIXNUM);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -977,15 +1096,19 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VA
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::get_and_touch_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.expiry = NUM2UINT(expiry);
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::get_and_touch_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::get_and_touch_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req,
+                                  [barrier](couchbase::operations::get_and_touch_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch and touch {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable fetch and touch "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -1017,7 +1140,7 @@ cb__extract_mutation_result(Response resp)
 }
 
 static VALUE
-cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE expiry)
+cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE expiry, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1031,6 +1154,9 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
     Check_Type(expiry, T_FIXNUM);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -1040,15 +1166,18 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::touch_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.expiry = NUM2UINT(expiry);
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::touch_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::touch_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::touch_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to touch {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to touch "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -1061,7 +1190,7 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
 }
 
 static VALUE
-cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout)
+cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1074,6 +1203,9 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id,
     Check_Type(bucket, T_STRING);
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -1083,14 +1215,17 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::exists_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::exists_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::exists_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::exists_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to exists {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to exists "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -1121,7 +1256,7 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 }
 
 static VALUE
-cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE cas)
+cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE cas, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1134,6 +1269,9 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id,
     Check_Type(bucket, T_STRING);
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -1143,22 +1281,28 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::unlock_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         switch (TYPE(cas)) {
             case T_FIXNUM:
             case T_BIGNUM:
                 req.cas = NUM2ULL(cas);
                 break;
             default:
-                rb_raise(rb_eArgError, "CAS must be an Integer");
+                exc = rb_exc_new_str(rb_eArgError, rb_sprintf("CAS must be an Integer, but given %+" PRIsVALUE, cas));
+        }
+        if (!NIL_P(exc)) {
+            break;
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::unlock_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::unlock_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::unlock_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to unlock {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to unlock "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -1171,7 +1315,7 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 }
 
 static VALUE
-cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE content, VALUE flags, VALUE options)
+cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE flags, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1186,6 +1330,9 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
     Check_Type(id, T_STRING);
     Check_Type(content, T_STRING);
     Check_Type(flags, T_FIXNUM);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -1196,46 +1343,55 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
         couchbase::operations::upsert_request req{ doc_id, value };
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.flags = FIX2UINT(flags);
 
-        if (!NIL_P(options)) {
-            Check_Type(options, T_HASH);
-            VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
-            if (!NIL_P(durability_level)) {
-                Check_Type(durability_level, T_SYMBOL);
-                ID level = rb_sym2id(durability_level);
-                if (level == rb_intern("none")) {
-                    req.durability_level = couchbase::protocol::durability_level::none;
-                } else if (level == rb_intern("majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority;
-                } else if (level == rb_intern("majority_and_persist_to_active")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-                } else if (level == rb_intern("persist_to_majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-                } else {
-                    rb_raise(rb_eArgError, "Unknown durability level");
-                    return Qnil;
-                }
-                VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
-                if (!NIL_P(durability_timeout)) {
-                    Check_Type(durability_timeout, T_FIXNUM);
-                    req.durability_timeout = FIX2UINT(durability_timeout);
-                }
+        VALUE durability_level = Qnil;
+        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(durability_level)) {
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority")) {
+                req.durability_level = couchbase::protocol::durability_level::majority;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                break;
             }
-            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
-            if (!NIL_P(expiry)) {
-                Check_Type(expiry, T_FIXNUM);
-                req.expiry = FIX2UINT(expiry);
+            VALUE durability_timeout = Qnil;
+            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
+            if (!NIL_P(exc)) {
+                break;
             }
+            if (!NIL_P(durability_timeout)) {
+                req.durability_timeout = FIX2UINT(durability_timeout);
+            }
+        }
+        VALUE expiry = Qnil;
+        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(expiry)) {
+            req.expiry = FIX2UINT(expiry);
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::upsert_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::upsert_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::upsert_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to upsert {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to upsert "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -1246,7 +1402,7 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 }
 
 static VALUE
-cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE content, VALUE flags, VALUE options)
+cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE flags, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1261,6 +1417,9 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
     Check_Type(id, T_STRING);
     Check_Type(content, T_STRING);
     Check_Type(flags, T_FIXNUM);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -1271,57 +1430,63 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
         std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
         couchbase::operations::replace_request req{ doc_id, value };
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.flags = FIX2UINT(flags);
 
-        if (!NIL_P(options)) {
-            Check_Type(options, T_HASH);
-            VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
-            if (!NIL_P(durability_level)) {
-                Check_Type(durability_level, T_SYMBOL);
-                ID level = rb_sym2id(durability_level);
-                if (level == rb_intern("none")) {
-                    req.durability_level = couchbase::protocol::durability_level::none;
-                } else if (level == rb_intern("majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority;
-                } else if (level == rb_intern("majority_and_persist_to_active")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-                } else if (level == rb_intern("persist_to_majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-                } else {
-                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                    break;
-                }
-                VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
-                if (!NIL_P(durability_timeout)) {
-                    Check_Type(durability_timeout, T_FIXNUM);
-                    req.durability_timeout = FIX2UINT(durability_timeout);
-                }
+        VALUE durability_level = Qnil;
+        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(durability_level)) {
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority")) {
+                req.durability_level = couchbase::protocol::durability_level::majority;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                break;
             }
-            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
-            if (!NIL_P(expiry)) {
-                Check_Type(expiry, T_FIXNUM);
-                req.expiry = FIX2UINT(expiry);
+            VALUE durability_timeout = Qnil;
+            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
+            if (!NIL_P(exc)) {
+                break;
             }
-            VALUE cas = rb_hash_aref(options, rb_id2sym(rb_intern("cas")));
-            if (!NIL_P(cas)) {
-                switch (TYPE(cas)) {
-                    case T_FIXNUM:
-                    case T_BIGNUM:
-                        req.cas = NUM2ULL(cas);
-                        break;
-                    default:
-                        rb_raise(rb_eArgError, "CAS must be an Integer");
-                }
+            if (!NIL_P(durability_timeout)) {
+                req.durability_timeout = FIX2UINT(durability_timeout);
             }
+        }
+        VALUE expiry = Qnil;
+        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(expiry)) {
+            req.expiry = FIX2UINT(expiry);
+        }
+        VALUE cas = Qnil;
+        exc = cb__extract_option_bignum(cas, options, "cas");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(cas)) {
+            req.cas = NUM2ULL(cas);
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::replace_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::replace_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::replace_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to replace {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to replace "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -1332,7 +1497,7 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
 }
 
 static VALUE
-cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE content, VALUE flags, VALUE options)
+cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE flags, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1347,6 +1512,9 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
     Check_Type(id, T_STRING);
     Check_Type(content, T_STRING);
     Check_Type(flags, T_FIXNUM);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -1357,46 +1525,55 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
         couchbase::operations::insert_request req{ doc_id, value };
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.flags = FIX2UINT(flags);
 
-        if (!NIL_P(options)) {
-            Check_Type(options, T_HASH);
-            VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
-            if (!NIL_P(durability_level)) {
-                Check_Type(durability_level, T_SYMBOL);
-                ID level = rb_sym2id(durability_level);
-                if (level == rb_intern("none")) {
-                    req.durability_level = couchbase::protocol::durability_level::none;
-                } else if (level == rb_intern("majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority;
-                } else if (level == rb_intern("majority_and_persist_to_active")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-                } else if (level == rb_intern("persist_to_majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-                } else {
-                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                    break;
-                }
-                VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
-                if (!NIL_P(durability_timeout)) {
-                    Check_Type(durability_timeout, T_FIXNUM);
-                    req.durability_timeout = FIX2UINT(durability_timeout);
-                }
+        VALUE durability_level = Qnil;
+        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(durability_level)) {
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority")) {
+                req.durability_level = couchbase::protocol::durability_level::majority;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                break;
             }
-            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
-            if (!NIL_P(expiry)) {
-                Check_Type(expiry, T_FIXNUM);
-                req.expiry = FIX2UINT(expiry);
+            VALUE durability_timeout = Qnil;
+            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
+            if (!NIL_P(exc)) {
+                break;
             }
+            if (!NIL_P(durability_timeout)) {
+                req.durability_timeout = FIX2UINT(durability_timeout);
+            }
+        }
+        VALUE expiry = Qnil;
+        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(expiry)) {
+            req.expiry = FIX2UINT(expiry);
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::insert_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::insert_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::insert_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to insert {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to insert "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -1407,7 +1584,7 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 }
 
 static VALUE
-cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE options)
+cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1420,6 +1597,9 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
     Check_Type(bucket, T_STRING);
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -1429,39 +1609,53 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::remove_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
-        if (!NIL_P(options)) {
-            Check_Type(options, T_HASH);
-            VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
-            if (!NIL_P(durability_level)) {
-                Check_Type(durability_level, T_SYMBOL);
-                ID level = rb_sym2id(durability_level);
-                if (level == rb_intern("none")) {
-                    req.durability_level = couchbase::protocol::durability_level::none;
-                } else if (level == rb_intern("majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority;
-                } else if (level == rb_intern("majority_and_persist_to_active")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-                } else if (level == rb_intern("persist_to_majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-                } else {
-                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                    break;
-                }
-                VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
-                if (!NIL_P(durability_timeout)) {
-                    Check_Type(durability_timeout, T_FIXNUM);
-                    req.durability_timeout = FIX2UINT(durability_timeout);
-                }
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+        VALUE durability_level = Qnil;
+        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(durability_level)) {
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority")) {
+                req.durability_level = couchbase::protocol::durability_level::majority;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                break;
             }
+            VALUE durability_timeout = Qnil;
+            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
+            if (!NIL_P(exc)) {
+                break;
+            }
+            if (!NIL_P(durability_timeout)) {
+                req.durability_timeout = FIX2UINT(durability_timeout);
+            }
+        }
+        VALUE cas = Qnil;
+        exc = cb__extract_option_bignum(cas, options, "cas");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(cas)) {
+            req.cas = NUM2ULL(cas);
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::remove_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::remove_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::remove_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to remove {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to remove "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
         return cb__extract_mutation_result(resp);
@@ -1471,7 +1665,7 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 }
 
 static VALUE
-cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE options)
+cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1484,6 +1678,9 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
     Check_Type(bucket, T_STRING);
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -1493,66 +1690,69 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::increment_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
-        if (!NIL_P(options)) {
-            Check_Type(options, T_HASH);
-            VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
-            if (!NIL_P(durability_level)) {
-                Check_Type(durability_level, T_SYMBOL);
-                ID level = rb_sym2id(durability_level);
-                if (level == rb_intern("none")) {
-                    req.durability_level = couchbase::protocol::durability_level::none;
-                } else if (level == rb_intern("majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority;
-                } else if (level == rb_intern("majority_and_persist_to_active")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-                } else if (level == rb_intern("persist_to_majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-                } else {
-                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                    break;
-                }
-                VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
-                if (!NIL_P(durability_timeout)) {
-                    Check_Type(durability_timeout, T_FIXNUM);
-                    req.durability_timeout = FIX2UINT(durability_timeout);
-                }
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+        VALUE durability_level = Qnil;
+        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(durability_level)) {
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority")) {
+                req.durability_level = couchbase::protocol::durability_level::majority;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                break;
             }
-            VALUE delta = rb_hash_aref(options, rb_id2sym(rb_intern("delta")));
-            if (!NIL_P(delta)) {
-                switch (TYPE(delta)) {
-                    case T_FIXNUM:
-                    case T_BIGNUM:
-                        req.delta = NUM2ULL(delta);
-                        break;
-                    default:
-                        rb_raise(rb_eArgError, "delta must be an Integer");
-                }
+            VALUE durability_timeout = Qnil;
+            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
+            if (!NIL_P(exc)) {
+                break;
             }
-            VALUE initial_value = rb_hash_aref(options, rb_id2sym(rb_intern("initial_value")));
-            if (!NIL_P(initial_value)) {
-                switch (TYPE(initial_value)) {
-                    case T_FIXNUM:
-                    case T_BIGNUM:
-                        req.initial_value = NUM2ULL(initial_value);
-                        break;
-                    default:
-                        rb_raise(rb_eArgError, "initial_value must be an Integer");
-                }
+            if (!NIL_P(durability_timeout)) {
+                req.durability_timeout = FIX2UINT(durability_timeout);
             }
-            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
-            if (!NIL_P(expiry)) {
-                Check_Type(expiry, T_FIXNUM);
-                req.expiry = FIX2UINT(expiry);
-            }
+        }
+        VALUE delta = Qnil;
+        exc = cb__extract_option_bignum(delta, options, "delta");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(delta)) {
+            req.delta = NUM2ULL(delta);
+        }
+        VALUE initial_value = Qnil;
+        exc = cb__extract_option_bignum(initial_value, options, "initial_value");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(initial_value)) {
+            req.initial_value = NUM2ULL(initial_value);
+        }
+        VALUE expiry = Qnil;
+        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(expiry)) {
+            req.expiry = FIX2UINT(expiry);
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::increment_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::increment_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::increment_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to increment {} by {} (opaque={})", doc_id, req.delta, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to increment "{}" by {} (opaque={}))", doc_id, req.delta, resp.opaque));
             break;
         }
         VALUE res = cb__extract_mutation_result(resp);
@@ -1564,7 +1764,7 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
 }
 
 static VALUE
-cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE options)
+cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1577,7 +1777,9 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
     Check_Type(bucket, T_STRING);
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
-    Check_Type(options, T_HASH);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -1587,66 +1789,69 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::decrement_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
-        if (!NIL_P(options)) {
-            Check_Type(options, T_HASH);
-            VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
-            if (!NIL_P(durability_level)) {
-                Check_Type(durability_level, T_SYMBOL);
-                ID level = rb_sym2id(durability_level);
-                if (level == rb_intern("none")) {
-                    req.durability_level = couchbase::protocol::durability_level::none;
-                } else if (level == rb_intern("majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority;
-                } else if (level == rb_intern("majority_and_persist_to_active")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-                } else if (level == rb_intern("persist_to_majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-                } else {
-                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                    break;
-                }
-                VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
-                if (!NIL_P(durability_timeout)) {
-                    Check_Type(durability_timeout, T_FIXNUM);
-                    req.durability_timeout = FIX2UINT(durability_timeout);
-                }
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+        VALUE durability_level = Qnil;
+        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(durability_level)) {
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority")) {
+                req.durability_level = couchbase::protocol::durability_level::majority;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                break;
             }
-            VALUE delta = rb_hash_aref(options, rb_id2sym(rb_intern("delta")));
-            if (!NIL_P(delta)) {
-                switch (TYPE(delta)) {
-                    case T_FIXNUM:
-                    case T_BIGNUM:
-                        req.delta = NUM2ULL(delta);
-                        break;
-                    default:
-                        rb_raise(rb_eArgError, "delta must be an Integer");
-                }
+            VALUE durability_timeout = Qnil;
+            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
+            if (!NIL_P(exc)) {
+                break;
             }
-            VALUE initial_value = rb_hash_aref(options, rb_id2sym(rb_intern("initial_value")));
-            if (!NIL_P(initial_value)) {
-                switch (TYPE(initial_value)) {
-                    case T_FIXNUM:
-                    case T_BIGNUM:
-                        req.initial_value = NUM2ULL(initial_value);
-                        break;
-                    default:
-                        rb_raise(rb_eArgError, "initial_value must be an Integer");
-                }
+            if (!NIL_P(durability_timeout)) {
+                req.durability_timeout = FIX2UINT(durability_timeout);
             }
-            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
-            if (!NIL_P(expiry)) {
-                Check_Type(expiry, T_FIXNUM);
-                req.expiry = FIX2UINT(expiry);
-            }
+        }
+        VALUE delta = Qnil;
+        exc = cb__extract_option_bignum(delta, options, "delta");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(delta)) {
+            req.delta = NUM2ULL(delta);
+        }
+        VALUE initial_value = Qnil;
+        exc = cb__extract_option_bignum(initial_value, options, "initial_value");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(initial_value)) {
+            req.initial_value = NUM2ULL(initial_value);
+        }
+        VALUE expiry = Qnil;
+        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(expiry)) {
+            req.expiry = FIX2UINT(expiry);
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::decrement_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::decrement_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::decrement_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to decrement {} by {} (opaque={})", doc_id, req.delta, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to decrement "{}" by {} (opaque={}))", doc_id, req.delta, resp.opaque));
             break;
         }
         VALUE res = cb__extract_mutation_result(resp);
@@ -1829,7 +2034,7 @@ cb__map_subdoc_status(couchbase::protocol::status status, std::size_t index, con
 }
 
 static VALUE
-cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE access_deleted, VALUE specs)
+cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE specs, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1847,6 +2052,9 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         rb_raise(rb_eArgError, "Array with specs cannot be empty");
         return Qnil;
     }
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -1856,8 +2064,14 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::lookup_in_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
-        req.access_deleted = RTEST(access_deleted);
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+        exc = cb__extract_option_bool(req.access_deleted, options, "access_deleted");
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto entries_size = static_cast<size_t>(RARRAY_LEN(specs));
         req.specs.entries.reserve(entries_size);
         for (size_t i = 0; i < entries_size; ++i) {
@@ -1890,10 +2104,10 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::lookup_in_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::lookup_in_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::lookup_in_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable fetch {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable fetch "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -1928,7 +2142,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
 }
 
 static VALUE
-cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE timeout, VALUE specs, VALUE options)
+cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE specs, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -1946,6 +2160,9 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         rb_raise(rb_eArgError, "Array with specs cannot be empty");
         return Qnil;
     }
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -1955,67 +2172,74 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::mutate_in_request req{ doc_id };
-        cb__extract_timeout(req, timeout);
-        if (!NIL_P(options)) {
-            Check_Type(options, T_HASH);
-            VALUE durability_level = rb_hash_aref(options, rb_id2sym(rb_intern("durability_level")));
-            if (!NIL_P(durability_level)) {
-                Check_Type(durability_level, T_SYMBOL);
-                ID level = rb_sym2id(durability_level);
-                if (level == rb_intern("none")) {
-                    req.durability_level = couchbase::protocol::durability_level::none;
-                } else if (level == rb_intern("majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority;
-                } else if (level == rb_intern("majority_and_persist_to_active")) {
-                    req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-                } else if (level == rb_intern("persist_to_majority")) {
-                    req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-                } else {
-                    exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unsupported durability level: %+" PRIsVALUE, durability_level));
-                    break;
-                }
-                VALUE durability_timeout = rb_hash_aref(options, rb_id2sym(rb_intern("durability_timeout")));
-                if (!NIL_P(durability_timeout)) {
-                    Check_Type(durability_timeout, T_FIXNUM);
-                    req.durability_timeout = FIX2UINT(durability_timeout);
-                }
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+        VALUE durability_level = Qnil;
+        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(durability_level)) {
+            ID level = rb_sym2id(durability_level);
+            if (level == rb_intern("none")) {
+                req.durability_level = couchbase::protocol::durability_level::none;
+            } else if (level == rb_intern("majority")) {
+                req.durability_level = couchbase::protocol::durability_level::majority;
+            } else if (level == rb_intern("majority_and_persist_to_active")) {
+                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (level == rb_intern("persist_to_majority")) {
+                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            } else {
+                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+                break;
             }
-            VALUE access_deleted = rb_hash_aref(options, rb_id2sym(rb_intern("access_deleted")));
-            if (!NIL_P(access_deleted)) {
-                req.access_deleted = RTEST(access_deleted);
+            VALUE durability_timeout = Qnil;
+            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
+            if (!NIL_P(exc)) {
+                break;
             }
-            VALUE create_as_deleted = rb_hash_aref(options, rb_id2sym(rb_intern("create_as_deleted")));
-            if (!NIL_P(create_as_deleted)) {
-                req.create_as_deleted = RTEST(create_as_deleted);
+            if (!NIL_P(durability_timeout)) {
+                req.durability_timeout = FIX2UINT(durability_timeout);
             }
-            VALUE store_semantics = rb_hash_aref(options, rb_id2sym(rb_intern("store_semantics")));
-            if (!NIL_P(store_semantics)) {
-                Check_Type(store_semantics, T_SYMBOL);
-                ID semantics = rb_sym2id(store_semantics);
-                if (semantics == rb_intern("replace")) {
-                    req.store_semantics = couchbase::protocol::mutate_in_request_body::store_semantics_type::replace;
-                } else if (semantics == rb_intern("insert")) {
-                    req.store_semantics = couchbase::protocol::mutate_in_request_body::store_semantics_type::insert;
-                } else if (semantics == rb_intern("upsert")) {
-                    req.store_semantics = couchbase::protocol::mutate_in_request_body::store_semantics_type::upsert;
-                }
-            }
-            VALUE expiry = rb_hash_aref(options, rb_id2sym(rb_intern("expiry")));
-            if (!NIL_P(expiry)) {
-                Check_Type(expiry, T_FIXNUM);
-                req.expiry = FIX2UINT(expiry);
-            }
-            VALUE cas = rb_hash_aref(options, rb_id2sym(rb_intern("cas")));
-            if (!NIL_P(cas)) {
-                switch (TYPE(cas)) {
-                    case T_FIXNUM:
-                    case T_BIGNUM:
-                        req.cas = NUM2ULL(cas);
-                        break;
-                    default:
-                        rb_raise(rb_eArgError, "CAS must be an Integer");
-                }
-            }
+        }
+        VALUE cas = Qnil;
+        exc = cb__extract_option_bignum(cas, options, "cas");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(cas)) {
+            req.cas = NUM2ULL(cas);
+        }
+        VALUE expiry = Qnil;
+        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(expiry)) {
+            req.expiry = FIX2UINT(expiry);
+        }
+        exc = cb__extract_option_bool(req.access_deleted, options, "access_deleted");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        exc = cb__extract_option_bool(req.create_as_deleted, options, "create_as_deleted");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        VALUE store_semantics = Qnil;
+        exc = cb__extract_option_symbol(store_semantics, options, "store_semantics");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        ID semantics = rb_sym2id(store_semantics);
+        if (semantics == rb_intern("replace")) {
+            req.store_semantics = couchbase::protocol::mutate_in_request_body::store_semantics_type::replace;
+        } else if (semantics == rb_intern("insert")) {
+            req.store_semantics = couchbase::protocol::mutate_in_request_body::store_semantics_type::insert;
+        } else if (semantics == rb_intern("upsert")) {
+            req.store_semantics = couchbase::protocol::mutate_in_request_body::store_semantics_type::upsert;
         }
         auto entries_size = static_cast<size_t>(RARRAY_LEN(specs));
         req.specs.entries.reserve(entries_size);
@@ -2083,10 +2307,10 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::mutate_in_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute(req, [barrier](couchbase::operations::mutate_in_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute(req, [barrier](couchbase::operations::mutate_in_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("unable to mutate {} (opaque={})", doc_id, resp.opaque));
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to mutate "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -2161,7 +2385,10 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             Check_Type(client_context_id, T_STRING);
             req.client_context_id.assign(RSTRING_PTR(client_context_id), static_cast<size_t>(RSTRING_LEN(client_context_id)));
         }
-        cb__extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         VALUE adhoc = rb_hash_aref(options, rb_id2sym(rb_intern("adhoc")));
         if (!NIL_P(adhoc)) {
             req.adhoc = RTEST(adhoc);
@@ -2297,7 +2524,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req, [barrier](couchbase::operations::query_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(req, [barrier](couchbase::operations::query_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.payload.meta_data.errors && !resp.payload.meta_data.errors->empty()) {
@@ -2496,12 +2723,15 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_create_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         cb__generate_bucket_settings(bucket_settings, req.bucket, true);
         auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_create_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::bucket_create_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::bucket_create_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(
@@ -2530,12 +2760,15 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_update_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         cb__generate_bucket_settings(bucket_settings, req.bucket, false);
         auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_update_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::bucket_update_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::bucket_update_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(
@@ -2564,12 +2797,15 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_drop_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::bucket_drop_response resp) mutable { barrier->set_value(resp); });
+                                       [barrier](couchbase::operations::bucket_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, fmt::format("unable to remove bucket \"{}\" on the cluster", req.name));
@@ -2597,12 +2833,15 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_flush_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_flush_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::bucket_flush_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::bucket_flush_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, fmt::format("unable to remove bucket \"{}\" on the cluster", req.name));
@@ -2711,11 +2950,14 @@ cb_Backend_bucket_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_get_all_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_get_all_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::bucket_get_all_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::bucket_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, "unable to get list of the buckets of the cluster");
@@ -2751,12 +2993,15 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_get_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_get_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::bucket_get_response resp) mutable { barrier->set_value(resp); });
+                                       [barrier](couchbase::operations::bucket_get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, fmt::format("unable to locate bucket \"{}\" on the cluster", req.name));
@@ -2806,11 +3051,14 @@ cb_Backend_role_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::role_get_all_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::role_get_all_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::role_get_all_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::role_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, "unable to fetch users");
@@ -2926,7 +3174,10 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::user_get_all_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         if (domain == rb_id2sym(rb_intern("local"))) {
             req.domain = couchbase::operations::rbac::auth_domain::local;
         } else if (domain == rb_id2sym(rb_intern("external"))) {
@@ -2937,8 +3188,8 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
         }
         auto barrier = std::make_shared<std::promise<couchbase::operations::user_get_all_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::user_get_all_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::user_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, "unable to fetch users");
@@ -2974,7 +3225,10 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::user_get_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         if (domain == rb_id2sym(rb_intern("local"))) {
             req.domain = couchbase::operations::rbac::auth_domain::local;
         } else if (domain == rb_id2sym(rb_intern("external"))) {
@@ -2986,7 +3240,8 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
         req.username.assign(RSTRING_PTR(username), static_cast<size_t>(RSTRING_LEN(username)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::user_get_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req, [barrier](couchbase::operations::user_get_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(req,
+                                       [barrier](couchbase::operations::user_get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to fetch user "{}")", req.username).c_str());
@@ -3018,7 +3273,10 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::user_drop_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         if (domain == rb_id2sym(rb_intern("local"))) {
             req.domain = couchbase::operations::rbac::auth_domain::local;
         } else if (domain == rb_id2sym(rb_intern("external"))) {
@@ -3031,7 +3289,7 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
         auto barrier = std::make_shared<std::promise<couchbase::operations::user_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::user_drop_response resp) mutable { barrier->set_value(resp); });
+                                       [barrier](couchbase::operations::user_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to fetch user "{}")", req.username).c_str());
@@ -3061,7 +3319,10 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::user_upsert_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         if (domain == rb_id2sym(rb_intern("local"))) {
             req.domain = couchbase::operations::rbac::auth_domain::local;
         } else if (domain == rb_id2sym(rb_intern("external"))) {
@@ -3124,7 +3385,7 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
         auto barrier = std::make_shared<std::promise<couchbase::operations::user_upsert_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::user_upsert_response resp) mutable { barrier->set_value(resp); });
+                                       [barrier](couchbase::operations::user_upsert_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(
@@ -3184,11 +3445,14 @@ cb_Backend_group_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::group_get_all_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::group_get_all_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::group_get_all_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::group_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, "unable to fetch groups");
@@ -3223,15 +3487,18 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::group_get_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.name.assign(RSTRING_PTR(name), static_cast<size_t>(RSTRING_LEN(name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::group_get_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::group_get_response resp) mutable { barrier->set_value(resp); });
+                                       [barrier](couchbase::operations::group_get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to fetch group "{}")", req.name).c_str());
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to fetch group "{}")", req.name));
             break;
         }
 
@@ -3259,15 +3526,18 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::group_drop_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.name.assign(RSTRING_PTR(name), static_cast<size_t>(RSTRING_LEN(name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::group_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::group_drop_response resp) mutable { barrier->set_value(resp); });
+                                       [barrier](couchbase::operations::group_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to drop group "{}")", req.name).c_str());
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to drop group "{}")", req.name));
             break;
         }
 
@@ -3293,7 +3563,10 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::group_upsert_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         VALUE name = rb_hash_aref(group, rb_id2sym(rb_intern("name")));
         if (NIL_P(name) || TYPE(name) != T_STRING) {
             exc = rb_exc_new_cstr(eInvalidArgument, "unable to upsert group: missing name");
@@ -3336,8 +3609,8 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
         }
         auto barrier = std::make_shared<std::promise<couchbase::operations::group_upsert_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::group_upsert_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::group_upsert_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(
@@ -3368,7 +3641,7 @@ cb_Backend_cluster_enable_developer_preview(VALUE self)
         auto barrier = std::make_shared<std::promise<couchbase::operations::cluster_developer_preview_enable_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::cluster_developer_preview_enable_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::cluster_developer_preview_enable_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, fmt::format("unable to enable developer preview for this cluster"));
@@ -3399,12 +3672,15 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::scope_get_all_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::scope_get_all_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::scope_get_all_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::scope_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, fmt::format("unable to get list of the scopes of the bucket \"{}\"", req.bucket_name));
@@ -3452,12 +3728,15 @@ cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout
     VALUE exc = Qnil;
     do {
         couchbase::operations::collections_manifest_get_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.id.bucket.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::collections_manifest_get_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(
-          req, [barrier](couchbase::operations::collections_manifest_get_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::collections_manifest_get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, fmt::format("unable to get collections manifest of the bucket \"{}\"", req.id.bucket));
@@ -3506,13 +3785,16 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE t
     VALUE exc = Qnil;
     do {
         couchbase::operations::scope_create_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::scope_create_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::scope_create_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::scope_create_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec,
@@ -3542,13 +3824,16 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE tim
     VALUE exc = Qnil;
     do {
         couchbase::operations::scope_drop_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::scope_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::scope_drop_response resp) mutable { barrier->set_value(resp); });
+                                       [barrier](couchbase::operations::scope_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec,
@@ -3579,7 +3864,10 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
     VALUE exc = Qnil;
     do {
         couchbase::operations::collection_create_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
         req.collection_name.assign(RSTRING_PTR(collection_name), static_cast<size_t>(RSTRING_LEN(collection_name)));
@@ -3591,7 +3879,7 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
         auto barrier = std::make_shared<std::promise<couchbase::operations::collection_create_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::collection_create_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::collection_create_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(
@@ -3624,7 +3912,10 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
     VALUE exc = Qnil;
     do {
         couchbase::operations::collection_drop_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.scope_name.assign(RSTRING_PTR(scope_name), static_cast<size_t>(RSTRING_LEN(scope_name)));
         req.collection_name.assign(RSTRING_PTR(collection_name), static_cast<size_t>(RSTRING_LEN(collection_name)));
@@ -3632,7 +3923,7 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
         auto barrier = std::make_shared<std::promise<couchbase::operations::collection_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::collection_drop_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::collection_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(
@@ -3663,12 +3954,15 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_get_all_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_get_all_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::query_index_get_all_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::query_index_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, fmt::format("unable to get list of the indexes of the bucket \"{}\"", req.bucket_name));
@@ -3737,7 +4031,10 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_create_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         auto fields_num = static_cast<size_t>(RARRAY_LEN(fields));
@@ -3782,7 +4079,7 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_create_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::query_index_create_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::query_index_create_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (!resp.errors.empty()) {
@@ -3834,7 +4131,10 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_drop_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         if (!NIL_P(options)) {
@@ -3858,7 +4158,7 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::query_index_drop_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::query_index_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (!resp.errors.empty()) {
@@ -3912,7 +4212,10 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_create_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.is_primary = true;
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         if (!NIL_P(options)) {
@@ -3950,7 +4253,7 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_create_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::query_index_create_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::query_index_create_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (!resp.errors.empty()) {
@@ -4000,7 +4303,10 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_drop_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.is_primary = true;
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         if (!NIL_P(options)) {
@@ -4030,7 +4336,7 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::query_index_drop_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::query_index_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (!resp.errors.empty()) {
@@ -4078,12 +4384,15 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE timeo
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_build_deferred_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_index_build_deferred_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::query_index_build_deferred_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::query_index_build_deferred_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (!resp.errors.empty()) {
@@ -4171,11 +4480,14 @@ cb_Backend_search_index_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_get_all_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_get_all_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_get_all_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, "unable to get list of the search indexes");
@@ -4213,12 +4525,15 @@ cb_Backend_search_index_get(VALUE self, VALUE index_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_get_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_get_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_get_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4251,7 +4566,10 @@ cb_Backend_search_index_upsert(VALUE self, VALUE index_definition, VALUE timeout
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_upsert_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
 
         VALUE index_name = rb_hash_aref(index_definition, rb_id2sym(rb_intern("name")));
         Check_Type(index_name, T_STRING);
@@ -4304,7 +4622,7 @@ cb_Backend_search_index_upsert(VALUE self, VALUE index_definition, VALUE timeout
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_upsert_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_upsert_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_upsert_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4337,12 +4655,15 @@ cb_Backend_search_index_drop(VALUE self, VALUE index_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_drop_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_drop_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4375,12 +4696,15 @@ cb_Backend_search_index_get_documents_count(VALUE self, VALUE index_name, VALUE 
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_get_documents_count_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_get_documents_count_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_get_documents_count_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_get_documents_count_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4417,12 +4741,15 @@ cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_get_stats_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_get_stats_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_get_stats_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_get_stats_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4453,11 +4780,14 @@ cb_Backend_search_get_stats(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_stats_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_stats_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_stats_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_stats_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, "unable to get stats for the search service");
@@ -4484,13 +4814,16 @@ cb_Backend_search_index_pause_ingest(VALUE self, VALUE index_name, VALUE timeout
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_ingest_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         req.pause = true;
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_ingest_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_control_ingest_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_control_ingest_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4524,13 +4857,16 @@ cb_Backend_search_index_resume_ingest(VALUE self, VALUE index_name, VALUE timeou
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_ingest_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         req.pause = false;
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_ingest_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_control_ingest_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_control_ingest_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4564,13 +4900,16 @@ cb_Backend_search_index_allow_querying(VALUE self, VALUE index_name, VALUE timeo
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_query_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         req.allow = true;
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_query_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_control_query_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_control_query_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4604,13 +4943,16 @@ cb_Backend_search_index_disallow_querying(VALUE self, VALUE index_name, VALUE ti
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_query_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         req.allow = false;
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_query_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_control_query_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_control_query_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4644,13 +4986,16 @@ cb_Backend_search_index_freeze_plan(VALUE self, VALUE index_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_plan_freeze_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         req.freeze = true;
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_plan_freeze_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_control_plan_freeze_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_control_plan_freeze_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4684,13 +5029,16 @@ cb_Backend_search_index_unfreeze_plan(VALUE self, VALUE index_name, VALUE timeou
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_plan_freeze_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         req.freeze = false;
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_control_plan_freeze_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_control_plan_freeze_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_control_plan_freeze_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4725,7 +5073,10 @@ cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE enc
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_analyze_document_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
 
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         req.encoded_document.assign(RSTRING_PTR(encoded_document), static_cast<size_t>(RSTRING_LEN(encoded_document)));
@@ -4733,7 +5084,7 @@ cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE enc
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_index_analyze_document_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::search_index_analyze_document_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::search_index_analyze_document_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error.empty()) {
@@ -4776,7 +5127,10 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
             Check_Type(client_context_id, T_STRING);
             req.client_context_id.assign(RSTRING_PTR(client_context_id), static_cast<size_t>(RSTRING_LEN(client_context_id)));
         }
-        cb__extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         req.query = tao::json::from_string(std::string(RSTRING_PTR(query), static_cast<size_t>(RSTRING_LEN(query))));
 
@@ -4916,7 +5270,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req, [barrier](couchbase::operations::search_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(req, [barrier](couchbase::operations::search_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc =
@@ -5101,8 +5455,9 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
         }
         auto barrier = std::make_shared<std::promise<couchbase::io::dns::dns_client::dns_srv_response>>();
         auto f = barrier->get_future();
-        client.query_srv(
-          host_name, service_name, [barrier](couchbase::io::dns::dns_client::dns_srv_response resp) mutable { barrier->set_value(resp); });
+        client.query_srv(host_name, service_name, [barrier](couchbase::io::dns::dns_client::dns_srv_response&& resp) mutable {
+            barrier->set_value(resp);
+        });
         ctx.run();
         auto resp = f.get();
         if (resp.ec) {
@@ -5138,11 +5493,14 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_get_pending_mutations_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_get_pending_mutations_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::analytics_get_pending_mutations_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::analytics_get_pending_mutations_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.errors.empty()) {
@@ -5179,11 +5537,14 @@ cb_Backend_analytics_dataset_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataset_get_all_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataset_get_all_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::analytics_dataset_get_all_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::analytics_dataset_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.errors.empty()) {
@@ -5233,7 +5594,10 @@ cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE datavers
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataset_drop_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.dataset_name.assign(RSTRING_PTR(dataset_name), static_cast<size_t>(RSTRING_LEN(dataset_name)));
         if (!NIL_P(dataverse_name)) {
             req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
@@ -5244,7 +5608,7 @@ cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE datavers
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataset_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::analytics_dataset_drop_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::analytics_dataset_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.errors.empty()) {
@@ -5295,7 +5659,10 @@ cb_Backend_analytics_dataset_create(VALUE self,
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataset_create_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.dataset_name.assign(RSTRING_PTR(dataset_name), static_cast<size_t>(RSTRING_LEN(dataset_name)));
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         if (!NIL_P(condition)) {
@@ -5310,7 +5677,7 @@ cb_Backend_analytics_dataset_create(VALUE self,
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataset_create_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::analytics_dataset_create_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::analytics_dataset_create_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.errors.empty()) {
@@ -5348,7 +5715,10 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE igno
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataverse_drop_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
         if (!NIL_P(ignore_if_does_not_exist)) {
             req.ignore_if_does_not_exist = RTEST(ignore_if_does_not_exist);
@@ -5356,7 +5726,7 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE igno
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataverse_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::analytics_dataverse_drop_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::analytics_dataverse_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.errors.empty()) {
@@ -5394,7 +5764,10 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE ig
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataverse_create_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
         if (!NIL_P(ignore_if_exists)) {
             req.ignore_if_exists = RTEST(ignore_if_exists);
@@ -5402,7 +5775,7 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE ig
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataverse_create_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::analytics_dataverse_create_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::analytics_dataverse_create_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.errors.empty()) {
@@ -5435,11 +5808,14 @@ cb_Backend_analytics_index_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_index_get_all_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_index_get_all_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::analytics_index_get_all_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::analytics_index_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.errors.empty()) {
@@ -5496,7 +5872,10 @@ cb_Backend_analytics_index_create(VALUE self,
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_index_create_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         req.dataset_name.assign(RSTRING_PTR(dataset_name), static_cast<size_t>(RSTRING_LEN(dataset_name)));
         auto fields_num = static_cast<size_t>(RARRAY_LEN(fields));
@@ -5519,7 +5898,7 @@ cb_Backend_analytics_index_create(VALUE self,
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_index_create_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::analytics_index_create_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::analytics_index_create_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.errors.empty()) {
@@ -5568,7 +5947,10 @@ cb_Backend_analytics_index_drop(VALUE self,
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_index_drop_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         req.dataset_name.assign(RSTRING_PTR(dataset_name), static_cast<size_t>(RSTRING_LEN(dataset_name)));
         if (!NIL_P(dataverse_name)) {
@@ -5580,7 +5962,7 @@ cb_Backend_analytics_index_drop(VALUE self,
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_index_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::analytics_index_drop_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::analytics_index_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.errors.empty()) {
@@ -5623,7 +6005,10 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE link_name, VALUE force, VALU
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_link_connect_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.link_name.assign(RSTRING_PTR(link_name), static_cast<size_t>(RSTRING_LEN(link_name)));
         if (!NIL_P(dataverse_name)) {
             req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
@@ -5634,7 +6019,7 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE link_name, VALUE force, VALU
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_connect_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::analytics_link_connect_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::analytics_link_connect_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.errors.empty()) {
@@ -5675,7 +6060,10 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE link_name, VALUE datavers
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_link_disconnect_request req{};
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         req.link_name.assign(RSTRING_PTR(link_name), static_cast<size_t>(RSTRING_LEN(link_name)));
         if (!NIL_P(dataverse_name)) {
             req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
@@ -5683,7 +6071,7 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE link_name, VALUE datavers
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_disconnect_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::analytics_link_disconnect_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::analytics_link_disconnect_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.errors.empty()) {
@@ -5740,7 +6128,10 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
             Check_Type(client_context_id, T_STRING);
             req.client_context_id.assign(RSTRING_PTR(client_context_id), static_cast<size_t>(RSTRING_LEN(client_context_id)));
         }
-        cb__extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         VALUE readonly = rb_hash_aref(options, rb_id2sym(rb_intern("readonly")));
         if (!NIL_P(readonly)) {
             req.readonly = RTEST(readonly);
@@ -5786,7 +6177,7 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::analytics_response resp) mutable { barrier->set_value(resp); });
+                                       [barrier](couchbase::operations::analytics_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.payload.meta_data.errors && !resp.payload.meta_data.errors->empty()) {
@@ -5973,11 +6364,14 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
         couchbase::operations::view_index_get_all_request req{};
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.name_space = ns;
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::view_index_get_all_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::view_index_get_all_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::view_index_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, "unable to get list of the design documents");
@@ -6054,11 +6448,14 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.document_name.assign(RSTRING_PTR(document_name), static_cast<size_t>(RSTRING_LEN(document_name)));
         req.name_space = ns;
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::view_index_get_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::view_index_get_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::view_index_get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(
@@ -6134,11 +6531,14 @@ cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, V
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.document_name.assign(RSTRING_PTR(document_name), static_cast<size_t>(RSTRING_LEN(document_name)));
         req.name_space = ns;
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::view_index_drop_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::view_index_drop_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::view_index_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(
@@ -6212,11 +6612,14 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
             }
         }
 
-        cb__extract_timeout(req, timeout);
+        exc = cb__extract_timeout(req, timeout);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::view_index_upsert_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
-          req, [barrier](couchbase::operations::view_index_upsert_response resp) mutable { barrier->set_value(resp); });
+          req, [barrier](couchbase::operations::view_index_upsert_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(
@@ -6267,8 +6670,11 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
         req.document_name.assign(RSTRING_PTR(design_document_name), static_cast<size_t>(RSTRING_LEN(design_document_name)));
         req.view_name.assign(RSTRING_PTR(view_name), static_cast<size_t>(RSTRING_LEN(view_name)));
         req.name_space = ns;
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
         if (!NIL_P(options)) {
-            cb__extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
             VALUE debug = rb_hash_aref(options, rb_id2sym(rb_intern("debug")));
             if (!NIL_P(debug)) {
                 req.debug = RTEST(debug);
@@ -6362,8 +6768,8 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::document_view_response>>();
         auto f = barrier->get_future();
-        backend->cluster->execute_http(req,
-                                       [barrier](couchbase::operations::document_view_response resp) mutable { barrier->set_value(resp); });
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::document_view_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ec) {
             if (resp.error) {
@@ -6428,21 +6834,21 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "diagnostics", VALUE_FUNC(cb_Backend_diagnostics), 1);
 
     rb_define_method(cBackend, "document_get", VALUE_FUNC(cb_Backend_document_get), 4);
-    rb_define_method(cBackend, "document_get_projected", VALUE_FUNC(cb_Backend_document_get_projected), 7);
+    rb_define_method(cBackend, "document_get_projected", VALUE_FUNC(cb_Backend_document_get_projected), 4);
     rb_define_method(cBackend, "document_get_and_lock", VALUE_FUNC(cb_Backend_document_get_and_lock), 5);
     rb_define_method(cBackend, "document_get_and_touch", VALUE_FUNC(cb_Backend_document_get_and_touch), 5);
-    rb_define_method(cBackend, "document_insert", VALUE_FUNC(cb_Backend_document_insert), 7);
-    rb_define_method(cBackend, "document_replace", VALUE_FUNC(cb_Backend_document_replace), 7);
-    rb_define_method(cBackend, "document_upsert", VALUE_FUNC(cb_Backend_document_upsert), 7);
-    rb_define_method(cBackend, "document_remove", VALUE_FUNC(cb_Backend_document_remove), 5);
-    rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 6);
-    rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 6);
+    rb_define_method(cBackend, "document_insert", VALUE_FUNC(cb_Backend_document_insert), 6);
+    rb_define_method(cBackend, "document_replace", VALUE_FUNC(cb_Backend_document_replace), 6);
+    rb_define_method(cBackend, "document_upsert", VALUE_FUNC(cb_Backend_document_upsert), 6);
+    rb_define_method(cBackend, "document_remove", VALUE_FUNC(cb_Backend_document_remove), 4);
+    rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 5);
+    rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 5);
     rb_define_method(cBackend, "document_query", VALUE_FUNC(cb_Backend_document_query), 2);
     rb_define_method(cBackend, "document_touch", VALUE_FUNC(cb_Backend_document_touch), 5);
     rb_define_method(cBackend, "document_exists", VALUE_FUNC(cb_Backend_document_exists), 4);
     rb_define_method(cBackend, "document_unlock", VALUE_FUNC(cb_Backend_document_unlock), 5);
-    rb_define_method(cBackend, "document_increment", VALUE_FUNC(cb_Backend_document_increment), 5);
-    rb_define_method(cBackend, "document_decrement", VALUE_FUNC(cb_Backend_document_decrement), 5);
+    rb_define_method(cBackend, "document_increment", VALUE_FUNC(cb_Backend_document_increment), 4);
+    rb_define_method(cBackend, "document_decrement", VALUE_FUNC(cb_Backend_document_decrement), 4);
     rb_define_method(cBackend, "document_search", VALUE_FUNC(cb_Backend_document_search), 3);
     rb_define_method(cBackend, "document_analytics", VALUE_FUNC(cb_Backend_document_analytics), 2);
     rb_define_method(cBackend, "document_view", VALUE_FUNC(cb_Backend_document_view), 5);

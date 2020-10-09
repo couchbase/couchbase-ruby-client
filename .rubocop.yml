@@ -9,6 +9,9 @@ require:
 AllCops:
   TargetRubyVersion: 2.5
 
+Metrics/ParameterLists:
+  Max: 30
+
 Layout/LineLength:
   Max: 140
 

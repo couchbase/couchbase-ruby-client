@@ -12,80 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require 'couchbase/json_transcoder'
+require "couchbase/json_transcoder"
 
 module Couchbase
   class Cluster
-    class AnalyticsOptions
-      # @return [Integer] Timeout in milliseconds
-      attr_accessor :timeout
-
-      # @return [String] Provides a custom client context ID for this query
-      attr_accessor :client_context_id
-
-      # @return [:not_bounded, :request_plus] specifies level of consistency for the query
-      attr_accessor :scan_consistency
-
-      # @return [Boolean] Allows explicitly marking a query as being readonly and not mutating any documents on the server side.
-      attr_accessor :readonly
-
-      # @return [Boolean] Allows to give certain requests higher priority than others
-      attr_accessor :priority
-
-      # @return [JsonTranscoder] transcoder to use on rows
-      attr_accessor :transcoder
-
-      # @api private
-      # @return [Hash<String => #to_json>]
-      attr_reader :raw_parameters
-
-      # @yieldparam [AnalyticsOptions] self
-      def initialize
-        @transcoder = JsonTranscoder.new
-        @raw_parameters = {}
-        @positional_parameters = nil
-        @named_parameters = nil
-        @scan_consistency = nil
-        yield self if block_given?
-      end
-
-      # Sets positional parameters for the query
-      #
-      # @param [Array] positional the list of parameters that have to be substituted in the statement
-      def positional_parameters(positional)
-        @positional_parameters = positional
-        @named_parameters = nil
-      end
-
-      # @api private
-      # @return [Array<String>, nil]
-      def export_positional_parameters
-        @positional_parameters&.map { |p| JSON.dump(p) }
-      end
-
-      # Sets named parameters for the query
-      #
-      # @param [Hash] named the key/value map of the parameters to substitute in the statement
-      def named_parameters(named)
-        @named_parameters = named
-        @positional_parameters = nil
-      end
-
-      # Allows providing custom JSON key/value pairs for advanced usage
-      #
-      # @param [String] key the parameter name (key of the JSON property)
-      # @param [Object] value the parameter value (value of the JSON property)
-      def raw(key, value)
-        @raw_parameters[key] = JSON.generate(value)
-      end
-
-      # @api private
-      # @return [Hash<String => String>, nil]
-      def export_named_parameters
-        @named_parameters&.each_with_object({}) { |(n, v), o| o[n.to_s] = JSON.dump(v) }
-      end
-    end
-
     class AnalyticsWarning
       # @return [Integer]
       attr_accessor :code

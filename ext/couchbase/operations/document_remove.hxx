@@ -39,6 +39,7 @@ struct remove_request {
     document_id id;
     uint16_t partition{};
     uint32_t opaque{};
+    uint64_t cas{ 0 };
     protocol::durability_level durability_level{ protocol::durability_level::none };
     std::optional<std::uint16_t> durability_timeout{};
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
@@ -48,6 +49,7 @@ struct remove_request {
     {
         encoded.opaque(opaque);
         encoded.partition(partition);
+        encoded.cas(cas);
         encoded.body().id(id);
         if (durability_level != protocol::durability_level::none) {
             encoded.body().durability(durability_level, durability_timeout);

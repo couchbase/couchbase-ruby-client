@@ -26,7 +26,7 @@ TEST_CASE("ruby: upsert document into default collection", "[ruby]")
 backend = Couchbase::Backend.new
 backend.open(CONNECTION_STRING, {username: USERNAME, password: PASSWORD}, {})
 backend.open_bucket(BUCKET, true)
-backend.document_upsert(BUCKET, "_default._default", "foo", 10_000, JSON.generate(foo: "bar"), 0, {})
+backend.document_upsert(BUCKET, "_default._default", "foo", JSON.generate(foo: "bar"), 0, {})
 backend.close
 )");
     if (error) {

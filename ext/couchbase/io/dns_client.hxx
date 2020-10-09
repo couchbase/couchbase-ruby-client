@@ -109,7 +109,7 @@ class dns_client
                             resp.targets.emplace_back(
                               dns_srv_response::address{ fmt::format("{}", fmt::join(answer.target.labels, ".")), answer.port });
                         }
-                        return handler(resp);
+                        return handler(std::move(resp));
                     });
               });
             deadline_.expires_after(timeout);
@@ -179,7 +179,7 @@ class dns_client
                                                        resp.targets.emplace_back(dns_srv_response::address{
                                                          fmt::format("{}", fmt::join(answer.target.labels, ".")), answer.port });
                                                    }
-                                                   return handler(resp);
+                                                   return handler(std::move(resp));
                                                });
                                          });
                     });

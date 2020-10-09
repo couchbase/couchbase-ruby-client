@@ -50,8 +50,7 @@ native_init_logger()
         if (env_val.empty()) {
             spdlog::set_level(spdlog::level::warn);
         } else {
-            auto levels = spdlog::cfg::helpers::extract_levels(env_val);
-            spdlog::details::registry::instance().update_levels(std::move(levels));
+            spdlog::cfg::helpers::load_levels(env_val);
         }
 
         initialized = true;

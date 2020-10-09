@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "couchbase/options"
 require "couchbase/binary_collection_options"
 
 module Couchbase
@@ -28,35 +29,35 @@ module Couchbase
     #
     # @param [String] id the document id which is used to uniquely identify it
     # @param [String] content the binary content to append to the document
-    # @param [AppendOptions] options custom options to customize the request
+    # @param [Options::Append] options custom options to customize the request
     #
     # @return [Collection::MutationResult]
-    def append(id, content, options = AppendOptions.new) end
+    def append(id, content, options = Options::Append.new) end
 
     # Prepends binary content to the document
     #
     # @param [String] id the document id which is used to uniquely identify it
     # @param [String] content the binary content to prepend to the document
-    # @param [PrependOptions] options custom options to customize the request
+    # @param [Options::Prepend] options custom options to customize the request
     #
     # @return [Collection::MutationResult]
-    def prepend(id, content, options = PrependOptions.new) end
+    def prepend(id, content, options = Options::Prepend.new) end
 
     # Increments the counter document by one of the number defined in the options
     #
     # @param [String] id the document id which is used to uniquely identify it
-    # @param [IncrementOptions] options custom options to customize the request
+    # @param [Options::Increment] options custom options to customize the request
+    #
+    # @example Increment value by 10, and initialize to 0 if it does not exist
+    #   res = collection.binary.increment("raw_counter", Options::Increment(delta: 10, initial: 0))
+    #   res.content #=> 0
+    #   res = collection.binary.increment("raw_counter", Options::Increment(delta: 10, initial: 0))
+    #   res.content #=> 10
     #
     # @return [CounterResult]
-    def increment(id, options = IncrementOptions.new)
+    def increment(id, options = Options::Increment.new)
       resp = @backend.document_increment(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}", id,
-                                         options.timeout,
-                                         {
-                                           delta: options.delta,
-                                           initial_value: options.initial,
-                                           expiry: options.expiry,
-                                           durability_level: options.durability_level,
-                                         })
+                                         options.to_backend)
       CounterResult.new do |res|
         res.cas = resp[:cas]
         res.content = resp[:content]
@@ -67,23 +68,36 @@ module Couchbase
     # Decrements the counter document by one of the number defined in the options
     #
     # @param [String] id the document id which is used to uniquely identify it
-    # @param [DecrementOptions] options custom options to customize the request
+    # @param [Options::Decrement] options custom options to customize the request
+    #
+    # @example Decrement value by 2, and initialize to 100 if it does not exist
+    #   res = collection.binary.decrement("raw_counter", Options::Decrement(delta: 2, initial: 100))
+    #   res.value #=> 100
+    #   res = collection.binary.decrement("raw_counter", Options::Decrement(delta: 2, initial: 100))
+    #   res.value #=> 98
     #
     # @return [CounterResult]
-    def decrement(id, options = DecrementOptions.new)
+    def decrement(id, options = Options::Decrement.new)
       resp = @backend.document_decrement(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}", id,
-                                         options.timeout,
-                                         {
-                                           delta: options.delta,
-                                           initial_value: options.initial,
-                                           expiry: options.expiry,
-                                           durability_level: options.durability_level,
-                                         })
+                                         options.to_backend)
       CounterResult.new do |res|
         res.cas = resp[:cas]
         res.content = resp[:content]
         res.mutation_token = @collection.send(:extract_mutation_token, resp)
       end
     end
+
+    # @api private
+    # TODO: deprecate in 3.1
+    AppendOptions = ::Couchbase::Options::Append
+    # @api private
+    # TODO: deprecate in 3.1
+    PrependOptions = ::Couchbase::Options::Prepend
+    # @api private
+    # TODO: deprecate in 3.1
+    IncrementOptions = ::Couchbase::Options::Increment
+    # @api private
+    # TODO: deprecate in 3.1
+    DecrementOptions = ::Couchbase::Options::Decrement
   end
 end

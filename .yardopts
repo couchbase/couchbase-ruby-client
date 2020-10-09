@@ -1,1 +1,1 @@
---output-dir doc/couchbase-ruby-client-master lib - README.md
+--no-progress --output-dir doc/couchbase-ruby-client-master lib - README.md

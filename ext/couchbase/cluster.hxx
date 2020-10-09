@@ -227,7 +227,11 @@ class cluster
             if (!ec) {
                 if (origin_.options().network == "auto") {
                     origin_.options().network = config.select_network(session_->bootstrap_hostname());
-                    spdlog::info(R"({} detected network is "{}")", session_->log_prefix(), origin_.options().network);
+                    if (origin_.options().network == "default") {
+                        spdlog::debug(R"({} detected network is "{}")", session_->log_prefix(), origin_.options().network);
+                    } else {
+                        spdlog::info(R"({} detected network is "{}")", session_->log_prefix(), origin_.options().network);
+                    }
                 }
                 if (origin_.options().network != "default") {
                     origin::node_list nodes;

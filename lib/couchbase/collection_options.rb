@@ -15,79 +15,11 @@
 require "rubygems/deprecate"
 
 require "couchbase/json_transcoder"
-require "couchbase/common_options"
 require "couchbase/subdoc"
 require "couchbase/mutation_state"
 
 module Couchbase
   class Collection
-    class GetOptions < CommonOptions
-      # @return [Boolean] if the expiration should also fetched with get
-      attr_accessor :with_expiry
-
-      # @return [JsonTranscoder] transcoder used for decoding
-      attr_accessor :transcoder
-
-      # @yieldparam [GetOptions] self
-      def initialize
-        super
-        @transcoder = JsonTranscoder.new
-        @preserve_array_indexes = false
-        @with_expiry = nil
-        @projections = nil
-        yield self if block_given?
-      end
-
-      # Allows to specify a custom list paths to fetch from the document instead of the whole.
-      #
-      # Note that a maximum of 16 individual paths can be projected at a time due to a server limitation. If you need
-      # more than that, think about fetching less-generic paths or the full document straight away.
-      #
-      # @param [String, Array<String>] paths a path that should be loaded if present.
-      def project(*paths)
-        @projections ||= []
-        @projections |= paths.flatten # union with current projections
-      end
-
-      # @api private
-      # @return [Boolean] whether to use sparse arrays (default false)
-      attr_accessor :preserve_array_indexes
-
-      # @api private
-      # @return [Array<String>] list of paths to project
-      attr_accessor :projections
-
-      # @api private
-      # @return [Boolean]
-      def need_projected_get?
-        @with_expiry || !@projections.nil?
-      end
-    end
-
-    class GetAndLockOptions < CommonOptions
-      # @return [JsonTranscoder] transcoder used for decoding
-      attr_accessor :transcoder
-
-      # @yieldparam [GetAndLockOptions] self
-      def initialize
-        super
-        @transcoder = JsonTranscoder.new
-        yield self if block_given?
-      end
-    end
-
-    class GetAndTouchOptions < CommonOptions
-      # @return [JsonTranscoder] transcoder used for decoding
-      attr_accessor :transcoder
-
-      # @yieldparam [GetAndTouchOptions] self
-      def initialize
-        super
-        @transcoder = JsonTranscoder.new
-        yield self if block_given?
-      end
-    end
-
     class GetResult
       extend Gem::Deprecate
 
@@ -136,40 +68,10 @@ module Couchbase
       deprecate :expiry, :expiry_time, 2021, 1
     end
 
-    class GetAllReplicasOptions < CommonOptions
-      # @return [JsonTranscoder] transcoder used for decoding
-      attr_accessor :transcoder
-
-      # @yieldparam [GetAllReplicasOptions] self
-      def initialize
-        super
-        yield self if block_given?
-      end
-    end
-
-    class GetAnyReplicaOptions < CommonOptions
-      # @return [JsonTranscoder] transcoder used for decoding
-      attr_accessor :transcoder
-
-      # @yieldparam [GetAnyReplicaOptions] self
-      def initialize
-        super
-        yield self if block_given?
-      end
-    end
-
     class GetReplicaResult < GetResult
       # @return [Boolean] true if this result came from a replica
       attr_accessor :is_replica
       alias replica? is_replica
-    end
-
-    class ExistsOptions < CommonOptions
-      # @yieldparam [ExistsOptions] self
-      def initialize
-        super
-        yield self if block_given?
-      end
     end
 
     class ExistsResult
@@ -195,81 +97,6 @@ module Couchbase
       attr_accessor :partition_id
     end
 
-    class RemoveOptions < CommonOptions
-      # @return [Integer] Specifies a CAS value that will be taken into account on the server side for optimistic concurrency
-      attr_accessor :cas
-
-      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
-      attr_accessor :durability_level
-
-      # @yieldparam [RemoveOptions]
-      def initialize
-        super
-        @durability_level = :none
-        yield self if block_given?
-      end
-    end
-
-    class InsertOptions < CommonOptions
-      # @return [Integer] expiration time to associate with the document
-      attr_accessor :expiry
-
-      # @return [Proc] transcoder used for encoding
-      attr_accessor :transcoder
-
-      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
-      attr_accessor :durability_level
-
-      # @yieldparam [InsertOptions]
-      def initialize
-        super
-        @transcoder = JsonTranscoder.new
-        @durability_level = :none
-        yield self if block_given?
-      end
-    end
-
-    class UpsertOptions < CommonOptions
-      # @return [Integer] expiration time to associate with the document
-      attr_accessor :expiry
-
-      # @return [JsonTranscoder] transcoder used for encoding
-      attr_accessor :transcoder
-
-      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
-      attr_accessor :durability_level
-
-      # @yieldparam [UpsertOptions]
-      def initialize
-        super
-        @transcoder = JsonTranscoder.new
-        @durability_level = :none
-        yield self if block_given?
-      end
-    end
-
-    class ReplaceOptions < CommonOptions
-      # @return [Integer] expiration time to associate with the document
-      attr_accessor :expiry
-
-      # @return [JsonTranscoder] transcoder used for encoding
-      attr_accessor :transcoder
-
-      # @return [Integer] Specifies a CAS value that will be taken into account on the server side for optimistic concurrency
-      attr_accessor :cas
-
-      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
-      attr_accessor :durability_level
-
-      # @yieldparam [ReplaceOptions]
-      def initialize
-        super
-        @transcoder = JsonTranscoder.new
-        @durability_level = :none
-        yield self if block_given?
-      end
-    end
-
     class MutationResult
       # @return [Integer] holds the CAS value of the document after the mutation
       attr_accessor :cas
@@ -279,37 +106,6 @@ module Couchbase
 
       # @yieldparam [MutationResult] self
       def initialize
-        yield self if block_given?
-      end
-    end
-
-    class TouchOptions < CommonOptions
-      # @yieldparam [TouchOptions] self
-      def initialize
-        super
-        yield self if block_given?
-      end
-    end
-
-    class UnlockOptions < CommonOptions
-      # @yieldparam [UnlockOptions] self
-      def initialize
-        super
-        yield self if block_given?
-      end
-    end
-
-    class LookupInOptions < CommonOptions
-      # @return [Boolean] For internal use only: allows access to deleted documents that are in 'tombstone' form
-      attr_accessor :access_deleted
-
-      # @return [JsonTranscoder] transcoder used for decoding
-      attr_accessor :transcoder
-
-      # @yieldparam [LookupInOptions] self
-      def initialize
-        super
-        @transcoder = JsonTranscoder.new
         yield self if block_given?
       end
     end
@@ -367,45 +163,6 @@ module Couchbase
 
         field
       end
-    end
-
-    class MutateInOptions < CommonOptions
-      # @return [Integer] expiration time to associate with the document
-      attr_accessor :expiry
-
-      # Describes how the outer document store semantics on subdoc should act
-      #
-      # * +:replace+: replace the document, fail if it does not exist. This is the default
-      # * +:upsert+: replace the document or create if it does not exist
-      # * +:insert+: create the document, fail if it exists
-      #
-      # @return [:replace, :upsert, :insert]
-      attr_accessor :store_semantics
-
-      # @return [Integer] Specifies a CAS value that will be taken into account on the server side for optimistic concurrency
-      attr_accessor :cas
-
-      # @return [Boolean] For internal use only: allows access to deleted documents that are in 'tombstone' form
-      attr_accessor :access_deleted
-
-      # @return [Boolean] For internal use only: allows creating documents in 'tombstone' form
-      attr_accessor :create_as_deleted
-
-      # @return [:none, :majority, :majority_and_persist_to_active, :persist_to_majority] level of durability
-      attr_accessor :durability_level
-
-      # @yieldparam [MutateInOptions]
-      def initialize
-        super
-        @durability_level = :none
-        @store_semantics = :replace
-        @transcoder = JsonTranscoder.new
-        @access_deleted = false
-        @create_as_deleted = false
-        yield self if block_given?
-      end
-
-      attr_accessor :transcoder
     end
 
     class MutateInResult < MutationResult

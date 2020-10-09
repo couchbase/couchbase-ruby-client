@@ -146,7 +146,7 @@ module Couchbase
       #
       # @param [String] bucket_name name of the bucket
       # @param [Array<String>] index_names names of the indexes to watch
-      # @param [Integer] timeout
+      # @param [Integer, #in_milliseconds] timeout
       # @param [WatchIndexesOptions] options
       #
       # @raise [ArgumentError]
