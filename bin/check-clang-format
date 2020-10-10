@@ -33,11 +33,7 @@ then
     exit 0
 else
     echo "clang-format suggested the following changes:"
-    # Escape any HTML symbols before outputtig to log (so users can
-    # copy/paste the output from the Jenkins build status).
-    escaped_diff=$(echo "$format_diff" \
-                       | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g')
     echo ""
-    echo "$escaped_diff"
+    echo "$format_diff"
     exit 1
 fi

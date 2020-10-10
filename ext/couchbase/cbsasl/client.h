@@ -58,7 +58,7 @@ class MechanismBackend
     virtual ~MechanismBackend() = default;
     virtual std::pair<error, std::string_view> start() = 0;
     virtual std::pair<error, std::string_view> step(std::string_view input) = 0;
-    virtual std::string_view get_name() const = 0;
+    [[nodiscard]] virtual std::string_view get_name() const = 0;
 
   protected:
     const GetUsernameCallback usernameCallback;

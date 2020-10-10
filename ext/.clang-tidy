@@ -1,3 +1,4 @@
+HeaderFilterRegex: 'ext/couchbase.*'
 Checks: |-
   *,
   bugprone-*,
@@ -16,7 +17,8 @@ Checks: |-
   -readability-magic-numbers,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -llvm-header-guard,
   -modernize-use-trailing-return-type,
-  -llvmlibc-callee-namespace,
+  -llvmlibc-*,
   -abseil-*,
   -fuchsia-*

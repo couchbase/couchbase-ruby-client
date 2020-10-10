@@ -19,9 +19,9 @@
 
 #include <test_config.hxx>
 
-#include <string>
-#include <regex>
 #include <cstdlib>
+#include <regex>
+#include <string>
 
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
@@ -36,7 +36,7 @@ struct test_server_version {
     static test_server_version parse(const std::string& str)
     {
         std::regex version_regex(R"((\d+).(\d+).(\d+(-(\d+))?)?)");
-        std::smatch version_match;
+        std::smatch version_match = 0;
         test_server_version ver{};
         if (std::regex_match(str, version_match, version_regex) && version_match.ready()) {
             ver.major = std::stoul(version_match[1]);

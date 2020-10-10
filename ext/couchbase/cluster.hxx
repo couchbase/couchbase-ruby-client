@@ -155,7 +155,7 @@ class cluster
         dns_client_.query_srv(
           hostname,
           service,
-          [hostname, this, handler = std::forward<Handler>(handler)](couchbase::io::dns::dns_client::dns_srv_response resp) mutable {
+          [hostname, this, handler = std::forward<Handler>(handler)](couchbase::io::dns::dns_client::dns_srv_response&& resp) mutable {
               if (resp.ec) {
                   spdlog::warn("failed to fetch DNS SRV records for \"{}\" ({}), assuming that cluster is listening this address",
                                hostname,

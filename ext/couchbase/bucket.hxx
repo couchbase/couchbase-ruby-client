@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <utility>
 #include <queue>
+#include <utility>
 
 #include <operations.hxx>
 #include <origin.hxx>

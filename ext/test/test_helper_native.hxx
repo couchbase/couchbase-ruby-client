@@ -23,8 +23,8 @@
 
 #include <asio/version.hpp>
 
-#include <spdlog/spdlog.h>
 #include <spdlog/cfg/env.h>
+#include <spdlog/spdlog.h>
 
 #include <http_parser.h>
 
