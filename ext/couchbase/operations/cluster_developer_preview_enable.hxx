@@ -50,7 +50,7 @@ struct cluster_developer_preview_enable_request {
 };
 
 cluster_developer_preview_enable_response
-make_response(std::error_code ec, cluster_developer_preview_enable_request& request, scope_get_all_request::encoded_response_type encoded)
+make_response(std::error_code ec, cluster_developer_preview_enable_request& request, scope_get_all_request::encoded_response_type&& encoded)
 {
     cluster_developer_preview_enable_response response{ request.client_context_id, ec };
     if (!ec) {

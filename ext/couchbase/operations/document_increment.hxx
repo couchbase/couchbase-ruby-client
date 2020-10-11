@@ -71,7 +71,7 @@ struct increment_request {
 };
 
 increment_response
-make_response(std::error_code ec, increment_request& request, increment_request::encoded_response_type encoded)
+make_response(std::error_code ec, increment_request& request, increment_request::encoded_response_type&& encoded)
 {
     increment_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

@@ -329,7 +329,7 @@ struct query_request {
 };
 
 query_response
-make_response(std::error_code ec, query_request& request, query_request::encoded_response_type encoded)
+make_response(std::error_code ec, query_request& request, query_request::encoded_response_type&& encoded)
 {
     query_response response{ request.client_context_id, ec };
     if (!ec) {

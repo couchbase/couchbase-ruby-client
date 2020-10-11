@@ -65,7 +65,7 @@ struct query_index_build_deferred_request {
 query_index_build_deferred_response
 make_response(std::error_code ec,
               query_index_build_deferred_request& request,
-              query_index_build_deferred_request::encoded_response_type encoded)
+              query_index_build_deferred_request::encoded_response_type&& encoded)
 {
     query_index_build_deferred_response response{ request.client_context_id, ec };
     if (!ec) {

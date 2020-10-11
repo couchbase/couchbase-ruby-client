@@ -69,7 +69,7 @@ struct analytics_dataset_get_all_request {
 analytics_dataset_get_all_response
 make_response(std::error_code ec,
               analytics_dataset_get_all_request& request,
-              analytics_dataset_get_all_request::encoded_response_type encoded)
+              analytics_dataset_get_all_request::encoded_response_type&& encoded)
 {
     analytics_dataset_get_all_response response{ request.client_context_id, ec };
 

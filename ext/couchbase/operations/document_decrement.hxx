@@ -69,7 +69,7 @@ struct decrement_request {
 };
 
 decrement_response
-make_response(std::error_code ec, decrement_request& request, decrement_request::encoded_response_type encoded)
+make_response(std::error_code ec, decrement_request& request, decrement_request::encoded_response_type&& encoded)
 {
     decrement_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

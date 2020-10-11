@@ -55,7 +55,7 @@ struct get_and_lock_request {
 };
 
 get_and_lock_response
-make_response(std::error_code ec, get_and_lock_request& request, get_and_lock_request::encoded_response_type encoded)
+make_response(std::error_code ec, get_and_lock_request& request, get_and_lock_request::encoded_response_type&& encoded)
 {
     get_and_lock_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

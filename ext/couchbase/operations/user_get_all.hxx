@@ -53,7 +53,7 @@ struct user_get_all_request {
 };
 
 user_get_all_response
-make_response(std::error_code ec, user_get_all_request& request, user_get_all_request::encoded_response_type encoded)
+make_response(std::error_code ec, user_get_all_request& request, user_get_all_request::encoded_response_type&& encoded)
 {
     user_get_all_response response{ request.client_context_id, ec };
     if (!ec) {

@@ -60,7 +60,7 @@ struct collection_create_request {
 };
 
 collection_create_response
-make_response(std::error_code ec, collection_create_request& request, collection_create_request::encoded_response_type encoded)
+make_response(std::error_code ec, collection_create_request& request, collection_create_request::encoded_response_type&& encoded)
 {
     collection_create_response response{ request.client_context_id, ec };
     if (!ec) {

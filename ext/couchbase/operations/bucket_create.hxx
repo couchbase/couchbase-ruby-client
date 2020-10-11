@@ -112,7 +112,7 @@ struct bucket_create_request {
 };
 
 bucket_create_response
-make_response(std::error_code ec, bucket_create_request& request, bucket_create_request::encoded_response_type encoded)
+make_response(std::error_code ec, bucket_create_request& request, bucket_create_request::encoded_response_type&& encoded)
 {
     bucket_create_response response{ request.client_context_id, ec };
     if (!ec) {

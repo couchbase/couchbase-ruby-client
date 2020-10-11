@@ -73,7 +73,7 @@ struct query_index_drop_request {
 };
 
 query_index_drop_response
-make_response(std::error_code ec, query_index_drop_request& request, query_index_drop_request::encoded_response_type encoded)
+make_response(std::error_code ec, query_index_drop_request& request, query_index_drop_request::encoded_response_type&& encoded)
 {
     query_index_drop_response response{ request.client_context_id, ec };
     if (!ec) {

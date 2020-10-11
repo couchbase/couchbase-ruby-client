@@ -59,7 +59,7 @@ struct prepend_request {
 };
 
 prepend_response
-make_response(std::error_code ec, prepend_request& request, prepend_request::encoded_response_type encoded)
+make_response(std::error_code ec, prepend_request& request, prepend_request::encoded_response_type&& encoded)
 {
     prepend_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

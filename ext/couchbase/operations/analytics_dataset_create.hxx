@@ -74,7 +74,7 @@ struct analytics_dataset_create_request {
 analytics_dataset_create_response
 make_response(std::error_code ec,
               analytics_dataset_create_request& request,
-              analytics_dataset_create_request::encoded_response_type encoded)
+              analytics_dataset_create_request::encoded_response_type&& encoded)
 {
     analytics_dataset_create_response response{ request.client_context_id, ec };
     if (!ec) {

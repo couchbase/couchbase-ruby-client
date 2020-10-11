@@ -206,7 +206,7 @@ struct search_request {
 };
 
 search_response
-make_response(std::error_code ec, search_request& request, search_request::encoded_response_type encoded)
+make_response(std::error_code ec, search_request& request, search_request::encoded_response_type&& encoded)
 {
     search_response response{ ec };
     response.meta_data.client_context_id = request.client_context_id;

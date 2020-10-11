@@ -75,7 +75,7 @@ struct query_index_get_all_request {
 };
 
 query_index_get_all_response
-make_response(std::error_code ec, query_index_get_all_request& request, query_index_get_all_request::encoded_response_type encoded)
+make_response(std::error_code ec, query_index_get_all_request& request, query_index_get_all_request::encoded_response_type&& encoded)
 {
     query_index_get_all_response response{ request.client_context_id, ec };
     if (!ec) {

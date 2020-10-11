@@ -57,7 +57,7 @@ struct analytics_get_pending_mutations_request {
 analytics_get_pending_mutations_response
 make_response(std::error_code ec,
               analytics_get_pending_mutations_request& request,
-              analytics_get_pending_mutations_request::encoded_response_type encoded)
+              analytics_get_pending_mutations_request::encoded_response_type&& encoded)
 {
     analytics_get_pending_mutations_response response{ request.client_context_id, ec };
     if (!ec) {

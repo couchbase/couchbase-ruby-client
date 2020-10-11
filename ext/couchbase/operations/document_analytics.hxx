@@ -217,7 +217,7 @@ struct analytics_request {
 };
 
 analytics_response
-make_response(std::error_code ec, analytics_request& request, analytics_request::encoded_response_type encoded)
+make_response(std::error_code ec, analytics_request& request, analytics_request::encoded_response_type&& encoded)
 {
     analytics_response response{ request.client_context_id, ec };
     if (!ec) {

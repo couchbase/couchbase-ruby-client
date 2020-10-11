@@ -64,7 +64,7 @@ struct insert_request {
 };
 
 insert_response
-make_response(std::error_code ec, insert_request& request, insert_request::encoded_response_type encoded)
+make_response(std::error_code ec, insert_request& request, insert_request::encoded_response_type&& encoded)
 {
     insert_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

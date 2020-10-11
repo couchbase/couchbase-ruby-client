@@ -198,7 +198,7 @@ subdoc_apply_projection(tao::json::value& root, const std::string& path, tao::js
 } // namespace priv
 
 get_projected_response
-make_response(std::error_code ec, get_projected_request& request, get_projected_request::encoded_response_type encoded)
+make_response(std::error_code ec, get_projected_request& request, get_projected_request::encoded_response_type&& encoded)
 {
     get_projected_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

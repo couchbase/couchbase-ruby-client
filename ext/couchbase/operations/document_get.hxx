@@ -53,7 +53,7 @@ struct get_request {
 };
 
 get_response
-make_response(std::error_code ec, get_request& request, get_request::encoded_response_type encoded)
+make_response(std::error_code ec, get_request& request, get_request::encoded_response_type&& encoded)
 {
     get_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

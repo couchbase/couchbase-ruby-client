@@ -58,7 +58,7 @@ struct search_index_analyze_document_request {
 search_index_analyze_document_response
 make_response(std::error_code ec,
               search_index_analyze_document_request& request,
-              search_index_analyze_document_request::encoded_response_type encoded)
+              search_index_analyze_document_request::encoded_response_type&& encoded)
 {
     search_index_analyze_document_response response{ request.client_context_id, ec };
     if (!ec) {

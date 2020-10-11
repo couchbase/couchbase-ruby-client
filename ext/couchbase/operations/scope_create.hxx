@@ -55,7 +55,7 @@ struct scope_create_request {
 };
 
 scope_create_response
-make_response(std::error_code ec, scope_create_request& request, scope_create_request::encoded_response_type encoded)
+make_response(std::error_code ec, scope_create_request& request, scope_create_request::encoded_response_type&& encoded)
 {
     scope_create_response response{ request.client_context_id, ec };
     if (!ec) {

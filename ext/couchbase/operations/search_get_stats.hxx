@@ -48,7 +48,7 @@ struct search_index_stats_request {
 };
 
 search_index_stats_response
-make_response(std::error_code ec, search_index_stats_request& request, search_index_stats_request::encoded_response_type encoded)
+make_response(std::error_code ec, search_index_stats_request& request, search_index_stats_request::encoded_response_type&& encoded)
 {
     search_index_stats_response response{ request.client_context_id, ec };
     if (!ec) {

@@ -47,7 +47,7 @@ struct bucket_flush_request {
 };
 
 bucket_flush_response
-make_response(std::error_code ec, bucket_flush_request& request, bucket_flush_request::encoded_response_type encoded)
+make_response(std::error_code ec, bucket_flush_request& request, bucket_flush_request::encoded_response_type&& encoded)
 {
     bucket_flush_response response{ request.client_context_id, ec };
     if (!ec) {

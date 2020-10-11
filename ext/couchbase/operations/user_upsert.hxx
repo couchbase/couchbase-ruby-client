@@ -98,7 +98,7 @@ struct user_upsert_request {
 };
 
 user_upsert_response
-make_response(std::error_code ec, user_upsert_request& request, user_upsert_request::encoded_response_type encoded)
+make_response(std::error_code ec, user_upsert_request& request, user_upsert_request::encoded_response_type&& encoded)
 {
     user_upsert_response response{ request.client_context_id, ec };
     if (!ec) {

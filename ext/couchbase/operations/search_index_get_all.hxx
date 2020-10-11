@@ -53,7 +53,7 @@ struct search_index_get_all_request {
 };
 
 search_index_get_all_response
-make_response(std::error_code ec, search_index_get_all_request& request, search_index_get_all_request::encoded_response_type encoded)
+make_response(std::error_code ec, search_index_get_all_request& request, search_index_get_all_request::encoded_response_type&& encoded)
 {
     search_index_get_all_response response{ request.client_context_id, ec };
     if (!ec) {

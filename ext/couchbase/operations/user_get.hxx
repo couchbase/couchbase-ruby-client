@@ -54,7 +54,7 @@ struct user_get_request {
 };
 
 user_get_response
-make_response(std::error_code ec, user_get_request& request, user_get_request::encoded_response_type encoded)
+make_response(std::error_code ec, user_get_request& request, user_get_request::encoded_response_type&& encoded)
 {
     user_get_response response{ request.client_context_id, ec };
     if (!ec) {

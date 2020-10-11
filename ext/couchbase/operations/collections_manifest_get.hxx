@@ -57,7 +57,7 @@ struct collections_manifest_get_request {
 collections_manifest_get_response
 make_response(std::error_code ec,
               collections_manifest_get_request& request,
-              collections_manifest_get_request::encoded_response_type encoded)
+              collections_manifest_get_request::encoded_response_type&& encoded)
 {
     collections_manifest_get_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

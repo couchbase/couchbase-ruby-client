@@ -53,7 +53,7 @@ struct touch_request {
 };
 
 touch_response
-make_response(std::error_code ec, touch_request& request, touch_request::encoded_response_type encoded)
+make_response(std::error_code ec, touch_request& request, touch_request::encoded_response_type&& encoded)
 {
     touch_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

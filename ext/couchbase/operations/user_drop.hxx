@@ -52,7 +52,7 @@ struct user_drop_request {
 };
 
 user_drop_response
-make_response(std::error_code ec, user_drop_request& request, user_drop_request::encoded_response_type encoded)
+make_response(std::error_code ec, user_drop_request& request, user_drop_request::encoded_response_type&& encoded)
 {
     user_drop_response response{ request.client_context_id, ec };
     if (!ec) {

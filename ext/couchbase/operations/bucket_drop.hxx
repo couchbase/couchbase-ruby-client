@@ -47,7 +47,7 @@ struct bucket_drop_request {
 };
 
 bucket_drop_response
-make_response(std::error_code ec, bucket_drop_request& request, bucket_drop_request::encoded_response_type encoded)
+make_response(std::error_code ec, bucket_drop_request& request, bucket_drop_request::encoded_response_type&& encoded)
 {
     bucket_drop_response response{ request.client_context_id, ec };
     if (!ec) {

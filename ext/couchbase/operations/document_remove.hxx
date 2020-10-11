@@ -59,7 +59,7 @@ struct remove_request {
 };
 
 remove_response
-make_response(std::error_code ec, remove_request& request, remove_request::encoded_response_type encoded)
+make_response(std::error_code ec, remove_request& request, remove_request::encoded_response_type&& encoded)
 {
     remove_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

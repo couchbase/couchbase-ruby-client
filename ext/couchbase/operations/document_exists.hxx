@@ -54,7 +54,7 @@ struct exists_request {
 };
 
 exists_response
-make_response(std::error_code ec, exists_request& request, exists_request::encoded_response_type encoded)
+make_response(std::error_code ec, exists_request& request, exists_request::encoded_response_type&& encoded)
 {
     exists_response response{ request.id, encoded.opaque(), ec, request.partition };
     if (!ec) {

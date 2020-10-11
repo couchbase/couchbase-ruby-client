@@ -51,7 +51,7 @@ struct group_drop_request {
 };
 
 group_drop_response
-make_response(std::error_code ec, group_drop_request& request, group_drop_request::encoded_response_type encoded)
+make_response(std::error_code ec, group_drop_request& request, group_drop_request::encoded_response_type&& encoded)
 {
     group_drop_response response{ request.client_context_id, ec };
     if (!ec) {

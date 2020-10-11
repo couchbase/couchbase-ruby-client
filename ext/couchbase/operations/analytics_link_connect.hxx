@@ -65,7 +65,7 @@ struct analytics_link_connect_request {
 };
 
 analytics_link_connect_response
-make_response(std::error_code ec, analytics_link_connect_request& request, analytics_link_connect_request::encoded_response_type encoded)
+make_response(std::error_code ec, analytics_link_connect_request& request, analytics_link_connect_request::encoded_response_type&& encoded)
 {
     analytics_link_connect_response response{ request.client_context_id, ec };
     if (!ec) {

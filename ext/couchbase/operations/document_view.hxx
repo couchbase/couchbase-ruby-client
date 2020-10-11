@@ -177,7 +177,7 @@ struct document_view_request {
 };
 
 document_view_response
-make_response(std::error_code ec, document_view_request& request, document_view_request::encoded_response_type encoded)
+make_response(std::error_code ec, document_view_request& request, document_view_request::encoded_response_type&& encoded)
 {
     document_view_response response{ request.client_context_id, ec };
     if (!ec) {

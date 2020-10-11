@@ -52,7 +52,7 @@ struct scope_get_all_request {
 };
 
 scope_get_all_response
-make_response(std::error_code ec, scope_get_all_request& request, scope_get_all_request::encoded_response_type encoded)
+make_response(std::error_code ec, scope_get_all_request& request, scope_get_all_request::encoded_response_type&& encoded)
 {
     scope_get_all_response response{ request.client_context_id, ec };
     if (!ec) {

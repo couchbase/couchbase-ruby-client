@@ -64,7 +64,7 @@ struct analytics_link_disconnect_request {
 analytics_link_disconnect_response
 make_response(std::error_code ec,
               analytics_link_disconnect_request& request,
-              analytics_link_disconnect_request::encoded_response_type encoded)
+              analytics_link_disconnect_request::encoded_response_type&& encoded)
 {
     analytics_link_disconnect_response response{ request.client_context_id, ec };
     if (!ec) {

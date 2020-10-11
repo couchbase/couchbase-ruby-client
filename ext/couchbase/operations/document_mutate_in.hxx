@@ -109,7 +109,7 @@ struct mutate_in_request {
 };
 
 mutate_in_response
-make_response(std::error_code ec, mutate_in_request& request, mutate_in_request::encoded_response_type encoded)
+make_response(std::error_code ec, mutate_in_request& request, mutate_in_request::encoded_response_type&& encoded)
 {
     mutate_in_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

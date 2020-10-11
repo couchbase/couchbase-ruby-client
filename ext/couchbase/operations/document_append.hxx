@@ -59,7 +59,7 @@ struct append_request {
 };
 
 append_response
-make_response(std::error_code ec, append_request& request, append_request::encoded_response_type encoded)
+make_response(std::error_code ec, append_request& request, append_request::encoded_response_type&& encoded)
 {
     append_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

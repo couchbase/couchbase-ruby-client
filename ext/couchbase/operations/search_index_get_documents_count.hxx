@@ -54,7 +54,7 @@ struct search_index_get_documents_count_request {
 search_index_get_documents_count_response
 make_response(std::error_code ec,
               search_index_get_documents_count_request& request,
-              search_index_get_documents_count_request::encoded_response_type encoded)
+              search_index_get_documents_count_request::encoded_response_type&& encoded)
 {
     search_index_get_documents_count_response response{ request.client_context_id, ec };
     if (!ec) {

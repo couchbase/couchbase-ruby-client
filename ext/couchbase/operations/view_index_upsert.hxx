@@ -64,7 +64,7 @@ struct view_index_upsert_request {
 };
 
 view_index_upsert_response
-make_response(std::error_code ec, view_index_upsert_request& request, view_index_upsert_request::encoded_response_type encoded)
+make_response(std::error_code ec, view_index_upsert_request& request, view_index_upsert_request::encoded_response_type&& encoded)
 {
     view_index_upsert_response response{ request.client_context_id, ec };
     if (!ec) {

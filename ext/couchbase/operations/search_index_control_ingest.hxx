@@ -54,7 +54,7 @@ struct search_index_control_ingest_request {
 search_index_control_ingest_response
 make_response(std::error_code ec,
               search_index_control_ingest_request& request,
-              search_index_control_ingest_request::encoded_response_type encoded)
+              search_index_control_ingest_request::encoded_response_type&& encoded)
 {
     search_index_control_ingest_response response{ request.client_context_id, ec };
     if (!ec) {

@@ -53,7 +53,7 @@ struct scope_drop_request {
 };
 
 scope_drop_response
-make_response(std::error_code ec, scope_drop_request& request, scope_drop_request::encoded_response_type encoded)
+make_response(std::error_code ec, scope_drop_request& request, scope_drop_request::encoded_response_type&& encoded)
 {
     scope_drop_response response{ request.client_context_id, ec };
     if (!ec) {

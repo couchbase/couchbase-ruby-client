@@ -67,7 +67,7 @@ struct analytics_dataverse_drop_request {
 analytics_dataverse_drop_response
 make_response(std::error_code ec,
               analytics_dataverse_drop_request& request,
-              analytics_dataverse_drop_request::encoded_response_type encoded)
+              analytics_dataverse_drop_request::encoded_response_type&& encoded)
 {
     analytics_dataverse_drop_response response{ request.client_context_id, ec };
     if (!ec) {

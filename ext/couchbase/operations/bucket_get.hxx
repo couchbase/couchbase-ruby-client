@@ -51,7 +51,7 @@ struct bucket_get_request {
 };
 
 bucket_get_response
-make_response(std::error_code ec, bucket_get_request& request, bucket_get_request::encoded_response_type encoded)
+make_response(std::error_code ec, bucket_get_request& request, bucket_get_request::encoded_response_type&& encoded)
 {
     bucket_get_response response{ request.client_context_id, ec };
     if (!ec) {

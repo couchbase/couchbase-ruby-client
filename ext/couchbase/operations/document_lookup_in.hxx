@@ -78,7 +78,7 @@ struct lookup_in_request {
 };
 
 lookup_in_response
-make_response(std::error_code ec, lookup_in_request& request, lookup_in_request::encoded_response_type encoded)
+make_response(std::error_code ec, lookup_in_request& request, lookup_in_request::encoded_response_type&& encoded)
 {
     lookup_in_response response{ request.id, encoded.opaque(), ec };
     if (ec && response.opaque == 0) {

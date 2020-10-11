@@ -80,7 +80,7 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
                                                       resp.status_code,
                                                       spdlog::to_hex(resp.body));
                                          try {
-                                             handler(make_response(ec, self->request, resp));
+                                             handler(make_response(ec, self->request, std::move(msg)));
                                          } catch (priv::retry_http_request) {
                                              self->send_to(session, std::forward<Handler>(handler));
                                          }
