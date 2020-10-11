@@ -12,7 +12,31 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/version"
-require "couchbase/libcouchbase"
-require "couchbase/logger"
-require "couchbase/cluster"
+module Couchbase
+  # Set log level
+  #
+  # @note The level might be also be set with environment variable +COUCHBASE_BACKEND_LOG_LEVEL+
+  #
+  # @param [Symbol] level new log level.
+  #
+  #   Allowed levels (in order of decreasing verbosity):
+  #   * +:trace+
+  #   * +:debug+
+  #   * +:info+ (default)
+  #   * +:warn+
+  #   * +:error+
+  #   * +:critical+
+  #   * +:off+
+  #
+  # @return [void]
+  def self.log_level=(level)
+    Backend.set_log_level(level)
+  end
+
+  # Get current log level
+  #
+  # @return [Symbol] current log level
+  def self.log_level
+    Backend.get_log_level
+  end
+end

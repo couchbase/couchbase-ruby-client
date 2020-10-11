@@ -6796,6 +6796,58 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
     return Qnil;
 }
 
+static VALUE
+cb_Backend_set_log_level(VALUE self, VALUE log_level)
+{
+    (void)self;
+    Check_Type(log_level, T_SYMBOL);
+    ID type = rb_sym2id(log_level);
+    if (type == rb_intern("trace")) {
+        spdlog::set_level(spdlog::level::trace);
+    } else if (type == rb_intern("debug")) {
+        spdlog::set_level(spdlog::level::debug);
+    } else if (type == rb_intern("info")) {
+        spdlog::set_level(spdlog::level::info);
+    } else if (type == rb_intern("warn")) {
+        spdlog::set_level(spdlog::level::warn);
+    } else if (type == rb_intern("error")) {
+        spdlog::set_level(spdlog::level::err);
+    } else if (type == rb_intern("critical")) {
+        spdlog::set_level(spdlog::level::critical);
+    } else if (type == rb_intern("off")) {
+        spdlog::set_level(spdlog::level::off);
+    } else {
+        rb_raise(rb_eArgError, "Unsupported log level type: %+" PRIsVALUE, log_level);
+        return Qnil;
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_get_log_level(VALUE self)
+{
+    (void)self;
+    switch (spdlog::get_level()) {
+        case spdlog::level::trace:
+            return rb_id2sym(rb_intern("trace"));
+        case spdlog::level::debug:
+            return rb_id2sym(rb_intern("debug"));
+        case spdlog::level::info:
+            return rb_id2sym(rb_intern("info"));
+        case spdlog::level::warn:
+            return rb_id2sym(rb_intern("warn"));
+        case spdlog::level::err:
+            return rb_id2sym(rb_intern("error"));
+        case spdlog::level::critical:
+            return rb_id2sym(rb_intern("critical"));
+        case spdlog::level::off:
+            return rb_id2sym(rb_intern("off"));
+        case spdlog::level::n_levels:
+            return Qnil;
+    }
+    return Qnil;
+}
+
 static void
 init_backend(VALUE mCouchbase)
 {
@@ -6897,6 +6949,8 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "collections_manifest_get", VALUE_FUNC(cb_Backend_collections_manifest_get), 2);
     rb_define_singleton_method(cBackend, "dns_srv", VALUE_FUNC(cb_Backend_dns_srv), 2);
     rb_define_singleton_method(cBackend, "parse_connection_string", VALUE_FUNC(cb_Backend_parse_connection_string), 1);
+    rb_define_singleton_method(cBackend, "set_log_level", VALUE_FUNC(cb_Backend_set_log_level), 1);
+    rb_define_singleton_method(cBackend, "get_log_level", VALUE_FUNC(cb_Backend_get_log_level), 0);
 }
 
 void
