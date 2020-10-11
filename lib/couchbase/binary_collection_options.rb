@@ -12,6 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "couchbase/collection_options"
+
 module Couchbase
   class BinaryCollection
     class CounterResult < ::Couchbase::Collection::MutationResult

@@ -1773,12 +1773,22 @@ module Couchbase
 
     # Construct {Append} options for {BinaryCollection#append}
     #
+    # @example Append "bar" to the content of the existing document
+    #   collection.upsert("mydoc", "foo")
+    #   collection.binary.append("mydoc", "bar", Options::Append(timeout: 3_000))
+    #   collection.get("mydoc", Options::Get(transcoder: nil)).content #=> "foobar"
+    #
     # @return [Append]
     def Append(**args)
       Append.new(**args)
     end
 
     # Construct {Prepend} options for {BinaryCollection#prepend}
+    #
+    # @example Prepend "bar" to the content of the existing document
+    #   collection.upsert("mydoc", "foo")
+    #   collection.binary.prepend("mydoc", "bar", Options::Prepend(timeout: 3_000))
+    #   collection.get("mydoc", Options::Get(transcoder: nil)).content #=> "barfoo"
     #
     # @return [Prepend]
     def Prepend(**args)

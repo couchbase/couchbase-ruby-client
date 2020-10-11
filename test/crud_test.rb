@@ -749,5 +749,31 @@ module Couchbase
       res = collection.get(doc_id)
       assert_equal doc, res.content
     end
+
+    def test_append
+      doc_id = uniq_id(:append)
+
+      res = @collection.upsert(doc_id, "foo")
+      refute_equal 0, res.cas
+
+      res = @collection.binary.append(doc_id, "bar")
+      refute_equal 0, res.cas
+
+      res = @collection.get(doc_id, Options::Get(transcoder: nil))
+      refute_equal "foobar", res.content
+    end
+
+    def test_prepend
+      doc_id = uniq_id(:append)
+
+      res = @collection.upsert(doc_id, "foo")
+      refute_equal 0, res.cas
+
+      res = @collection.binary.prepend(doc_id, "bar")
+      refute_equal 0, res.cas
+
+      res = @collection.get(doc_id, Options::Get(transcoder: nil))
+      refute_equal "barfoo", res.content
+    end
   end
 end

@@ -31,8 +31,20 @@ module Couchbase
     # @param [String] content the binary content to append to the document
     # @param [Options::Append] options custom options to customize the request
     #
+    # @example Append "bar" to the content of the existing document
+    #   collection.upsert("mydoc", "foo")
+    #   collection.binary.append("mydoc", "bar", Options::Append(timeout: 3_000))
+    #   collection.get("mydoc", Options::Get(transcoder: nil)).content #=> "foobar"
+    #
     # @return [Collection::MutationResult]
-    def append(id, content, options = Options::Append.new) end
+    def append(id, content, options = Options::Append.new)
+      resp = @backend.document_append(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}",
+                                      id, content, options.to_backend)
+      Collection::MutationResult.new do |res|
+        res.cas = resp[:cas]
+        res.mutation_token = @collection.send(:extract_mutation_token, resp)
+      end
+    end
 
     # Prepends binary content to the document
     #
@@ -40,8 +52,20 @@ module Couchbase
     # @param [String] content the binary content to prepend to the document
     # @param [Options::Prepend] options custom options to customize the request
     #
+    # @example Prepend "bar" to the content of the existing document
+    #   collection.upsert("mydoc", "foo")
+    #   collection.binary.prepend("mydoc", "bar", Options::Prepend(timeout: 3_000))
+    #   collection.get("mydoc", Options::Get(transcoder: nil)).content #=> "barfoo"
+    #
     # @return [Collection::MutationResult]
-    def prepend(id, content, options = Options::Prepend.new) end
+    def prepend(id, content, options = Options::Prepend.new)
+      resp = @backend.document_prepend(@collection.bucket_name, "#{@collection.scope_name}.#{@collection.name}",
+                                       id, content, options.to_backend)
+      Collection::MutationResult.new do |res|
+        res.cas = resp[:cas]
+        res.mutation_token = @collection.send(:extract_mutation_token, resp)
+      end
+    end
 
     # Increments the counter document by one of the number defined in the options
     #

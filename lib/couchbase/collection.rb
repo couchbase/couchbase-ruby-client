@@ -216,7 +216,7 @@ module Couchbase
     #
     # @return [MutationResult]
     def insert(id, content, options = Options::Insert.new)
-      blob, flags = options.transcoder.encode(content)
+      blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
       resp = @backend.document_insert(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
@@ -236,7 +236,7 @@ module Couchbase
     #
     # @return [MutationResult]
     def upsert(id, content, options = Options::Upsert.new)
-      blob, flags = options.transcoder.encode(content)
+      blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
       resp = @backend.document_upsert(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
@@ -257,7 +257,7 @@ module Couchbase
     #
     # @return [MutationResult]
     def replace(id, content, options = Options::Replace.new)
-      blob, flags = options.transcoder.encode(content)
+      blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
       resp = @backend.document_replace(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]

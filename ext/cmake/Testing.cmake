@@ -14,7 +14,7 @@ if(ENABLE_TESTING)
   include(Catch)
 
   macro(ruby_test name)
-    add_executable(test_ruby_${name} test/test_ruby_${name}.cxx)
+    add_executable(test_ruby_${name} "${CMAKE_SOURCE_DIR}/test/test_ruby_${name}.cxx")
     target_include_directories(test_ruby_${name} PRIVATE ${PROJECT_BINARY_DIR}/generated)
     target_link_libraries(
       test_ruby_${name}
@@ -27,7 +27,7 @@ if(ENABLE_TESTING)
   endmacro()
 
   macro(native_test name)
-    add_executable(test_native_${name} test/test_native_${name}.cxx)
+    add_executable(test_native_${name} "${CMAKE_SOURCE_DIR}/test/test_native_${name}.cxx")
     target_include_directories(test_native_${name} PRIVATE ${PROJECT_BINARY_DIR}/generated)
     target_link_libraries(
       test_native_${name}
@@ -45,8 +45,5 @@ if(ENABLE_TESTING)
     catch_discover_tests(test_native_${name})
   endmacro()
 
-  ruby_test(trivial_crud)
-  ruby_test(trivial_query)
-  native_test(trivial_crud)
-  native_test(diagnostics)
+  add_subdirectory(${CMAKE_SOURCE_DIR}/test)
 endif()

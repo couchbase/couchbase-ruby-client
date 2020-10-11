@@ -891,6 +891,40 @@ cb__extract_option_bignum(VALUE& val, VALUE options, const char* name)
     return Qnil;
 }
 
+template<typename Request>
+[[nodiscard]] VALUE
+cb__extract_durability(Request& req, VALUE options)
+{
+    VALUE durability_level = Qnil;
+    VALUE exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    if (!NIL_P(durability_level)) {
+        ID level = rb_sym2id(durability_level);
+        if (level == rb_intern("none")) {
+            req.durability_level = couchbase::protocol::durability_level::none;
+        } else if (level == rb_intern("majority")) {
+            req.durability_level = couchbase::protocol::durability_level::majority;
+        } else if (level == rb_intern("majority_and_persist_to_active")) {
+            req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+        } else if (level == rb_intern("persist_to_majority")) {
+            req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+        } else {
+            return rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
+        }
+        VALUE durability_timeout = Qnil;
+        exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
+        if (!NIL_P(exc)) {
+            return exc;
+        }
+        if (!NIL_P(durability_timeout)) {
+            req.durability_timeout = FIX2UINT(durability_timeout);
+        }
+    }
+    return Qnil;
+}
+
 static VALUE
 cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE options)
 {
@@ -1349,33 +1383,9 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         }
         req.flags = FIX2UINT(flags);
 
-        VALUE durability_level = Qnil;
-        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        exc = cb__extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
-        }
-        if (!NIL_P(durability_level)) {
-            ID level = rb_sym2id(durability_level);
-            if (level == rb_intern("none")) {
-                req.durability_level = couchbase::protocol::durability_level::none;
-            } else if (level == rb_intern("majority")) {
-                req.durability_level = couchbase::protocol::durability_level::majority;
-            } else if (level == rb_intern("majority_and_persist_to_active")) {
-                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-            } else if (level == rb_intern("persist_to_majority")) {
-                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-            } else {
-                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                break;
-            }
-            VALUE durability_timeout = Qnil;
-            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
-            if (!NIL_P(exc)) {
-                break;
-            }
-            if (!NIL_P(durability_timeout)) {
-                req.durability_timeout = FIX2UINT(durability_timeout);
-            }
         }
         VALUE expiry = Qnil;
         exc = cb__extract_option_fixnum(expiry, options, "expiry");
@@ -1392,6 +1402,110 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         auto resp = f.get();
         if (resp.ec) {
             exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to upsert "{}" (opaque={}))", doc_id, resp.opaque));
+            break;
+        }
+
+        return cb__extract_mutation_result(resp);
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_document_append(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
+    }
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+    Check_Type(content, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::document_id doc_id;
+        doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
+        doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
+        doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
+        std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
+
+        couchbase::operations::append_request req{ doc_id, value };
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+        exc = cb__extract_durability(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::operations::append_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute(req, [barrier](couchbase::operations::append_response&& resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to append to "{}" (opaque={}))", doc_id, resp.opaque));
+            break;
+        }
+
+        return cb__extract_mutation_result(resp);
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_document_prepend(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
+    }
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+    Check_Type(content, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::document_id doc_id;
+        doc_id.bucket.assign(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
+        doc_id.collection.assign(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection)));
+        doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
+        std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
+
+        couchbase::operations::prepend_request req{ doc_id, value };
+        exc = cb__extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+        exc = cb__extract_durability(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::operations::prepend_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute(req, [barrier](couchbase::operations::prepend_response&& resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+        if (resp.ec) {
+            exc = cb__map_error_code(resp.ec, fmt::format(R"(unable to prepend to "{}" (opaque={}))", doc_id, resp.opaque));
             break;
         }
 
@@ -1436,33 +1550,9 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
         }
         req.flags = FIX2UINT(flags);
 
-        VALUE durability_level = Qnil;
-        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        exc = cb__extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
-        }
-        if (!NIL_P(durability_level)) {
-            ID level = rb_sym2id(durability_level);
-            if (level == rb_intern("none")) {
-                req.durability_level = couchbase::protocol::durability_level::none;
-            } else if (level == rb_intern("majority")) {
-                req.durability_level = couchbase::protocol::durability_level::majority;
-            } else if (level == rb_intern("majority_and_persist_to_active")) {
-                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-            } else if (level == rb_intern("persist_to_majority")) {
-                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-            } else {
-                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                break;
-            }
-            VALUE durability_timeout = Qnil;
-            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
-            if (!NIL_P(exc)) {
-                break;
-            }
-            if (!NIL_P(durability_timeout)) {
-                req.durability_timeout = FIX2UINT(durability_timeout);
-            }
         }
         VALUE expiry = Qnil;
         exc = cb__extract_option_fixnum(expiry, options, "expiry");
@@ -1531,33 +1621,9 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         }
         req.flags = FIX2UINT(flags);
 
-        VALUE durability_level = Qnil;
-        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        exc = cb__extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
-        }
-        if (!NIL_P(durability_level)) {
-            ID level = rb_sym2id(durability_level);
-            if (level == rb_intern("none")) {
-                req.durability_level = couchbase::protocol::durability_level::none;
-            } else if (level == rb_intern("majority")) {
-                req.durability_level = couchbase::protocol::durability_level::majority;
-            } else if (level == rb_intern("majority_and_persist_to_active")) {
-                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-            } else if (level == rb_intern("persist_to_majority")) {
-                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-            } else {
-                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                break;
-            }
-            VALUE durability_timeout = Qnil;
-            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
-            if (!NIL_P(exc)) {
-                break;
-            }
-            if (!NIL_P(durability_timeout)) {
-                req.durability_timeout = FIX2UINT(durability_timeout);
-            }
         }
         VALUE expiry = Qnil;
         exc = cb__extract_option_fixnum(expiry, options, "expiry");
@@ -1613,33 +1679,9 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         if (!NIL_P(exc)) {
             break;
         }
-        VALUE durability_level = Qnil;
-        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        exc = cb__extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
-        }
-        if (!NIL_P(durability_level)) {
-            ID level = rb_sym2id(durability_level);
-            if (level == rb_intern("none")) {
-                req.durability_level = couchbase::protocol::durability_level::none;
-            } else if (level == rb_intern("majority")) {
-                req.durability_level = couchbase::protocol::durability_level::majority;
-            } else if (level == rb_intern("majority_and_persist_to_active")) {
-                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-            } else if (level == rb_intern("persist_to_majority")) {
-                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-            } else {
-                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                break;
-            }
-            VALUE durability_timeout = Qnil;
-            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
-            if (!NIL_P(exc)) {
-                break;
-            }
-            if (!NIL_P(durability_timeout)) {
-                req.durability_timeout = FIX2UINT(durability_timeout);
-            }
         }
         VALUE cas = Qnil;
         exc = cb__extract_option_bignum(cas, options, "cas");
@@ -1694,33 +1736,9 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
         if (!NIL_P(exc)) {
             break;
         }
-        VALUE durability_level = Qnil;
-        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        exc = cb__extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
-        }
-        if (!NIL_P(durability_level)) {
-            ID level = rb_sym2id(durability_level);
-            if (level == rb_intern("none")) {
-                req.durability_level = couchbase::protocol::durability_level::none;
-            } else if (level == rb_intern("majority")) {
-                req.durability_level = couchbase::protocol::durability_level::majority;
-            } else if (level == rb_intern("majority_and_persist_to_active")) {
-                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-            } else if (level == rb_intern("persist_to_majority")) {
-                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-            } else {
-                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                break;
-            }
-            VALUE durability_timeout = Qnil;
-            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
-            if (!NIL_P(exc)) {
-                break;
-            }
-            if (!NIL_P(durability_timeout)) {
-                req.durability_timeout = FIX2UINT(durability_timeout);
-            }
         }
         VALUE delta = Qnil;
         exc = cb__extract_option_bignum(delta, options, "delta");
@@ -1793,33 +1811,9 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
         if (!NIL_P(exc)) {
             break;
         }
-        VALUE durability_level = Qnil;
-        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        exc = cb__extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
-        }
-        if (!NIL_P(durability_level)) {
-            ID level = rb_sym2id(durability_level);
-            if (level == rb_intern("none")) {
-                req.durability_level = couchbase::protocol::durability_level::none;
-            } else if (level == rb_intern("majority")) {
-                req.durability_level = couchbase::protocol::durability_level::majority;
-            } else if (level == rb_intern("majority_and_persist_to_active")) {
-                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-            } else if (level == rb_intern("persist_to_majority")) {
-                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-            } else {
-                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                break;
-            }
-            VALUE durability_timeout = Qnil;
-            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
-            if (!NIL_P(exc)) {
-                break;
-            }
-            if (!NIL_P(durability_timeout)) {
-                req.durability_timeout = FIX2UINT(durability_timeout);
-            }
         }
         VALUE delta = Qnil;
         exc = cb__extract_option_bignum(delta, options, "delta");
@@ -1907,6 +1901,9 @@ cb__map_subdoc_opcode(couchbase::protocol::subdoc_opcode opcode)
 
         case couchbase::protocol::subdoc_opcode::set_doc:
             return rb_id2sym(rb_intern("set_doc"));
+
+        case couchbase::protocol::subdoc_opcode::replace_body_with_xattr:
+            return rb_id2sym(rb_intern("replace_body_with_xattr"));
     }
     return rb_id2sym(rb_intern("unknown"));
 }
@@ -2176,33 +2173,9 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         if (!NIL_P(exc)) {
             break;
         }
-        VALUE durability_level = Qnil;
-        exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+        exc = cb__extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
-        }
-        if (!NIL_P(durability_level)) {
-            ID level = rb_sym2id(durability_level);
-            if (level == rb_intern("none")) {
-                req.durability_level = couchbase::protocol::durability_level::none;
-            } else if (level == rb_intern("majority")) {
-                req.durability_level = couchbase::protocol::durability_level::majority;
-            } else if (level == rb_intern("majority_and_persist_to_active")) {
-                req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-            } else if (level == rb_intern("persist_to_majority")) {
-                req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
-            } else {
-                exc = rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-                break;
-            }
-            VALUE durability_timeout = Qnil;
-            exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
-            if (!NIL_P(exc)) {
-                break;
-            }
-            if (!NIL_P(durability_timeout)) {
-                req.durability_timeout = FIX2UINT(durability_timeout);
-            }
         }
         VALUE cas = Qnil;
         exc = cb__extract_option_bignum(cas, options, "cas");
@@ -6840,6 +6813,8 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_insert", VALUE_FUNC(cb_Backend_document_insert), 6);
     rb_define_method(cBackend, "document_replace", VALUE_FUNC(cb_Backend_document_replace), 6);
     rb_define_method(cBackend, "document_upsert", VALUE_FUNC(cb_Backend_document_upsert), 6);
+    rb_define_method(cBackend, "document_append", VALUE_FUNC(cb_Backend_document_append), 5);
+    rb_define_method(cBackend, "document_prepend", VALUE_FUNC(cb_Backend_document_prepend), 5);
     rb_define_method(cBackend, "document_remove", VALUE_FUNC(cb_Backend_document_remove), 4);
     rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 5);
     rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 5);

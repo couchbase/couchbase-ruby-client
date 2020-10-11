@@ -39,7 +39,7 @@ module Couchbase
       #
       # @return [Object]
       def content(transcoder = self.transcoder)
-        transcoder.decode(@encoded, @flags)
+        transcoder ? transcoder.decode(@encoded, @flags) : @encoded
       end
 
       # @return [Time] time when the document will expire
