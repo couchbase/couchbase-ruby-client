@@ -736,6 +736,10 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
                         state = rb_id2sym(rb_intern("disconnecting"));
                         break;
                 }
+                if (svc.details) {
+                    rb_hash_aset(
+                      service, rb_id2sym(rb_intern("details")), rb_str_new(svc.details->data(), static_cast<long>(svc.details->size())));
+                }
                 rb_hash_aset(service, rb_id2sym(rb_intern("state")), state);
                 rb_ary_push(endpoints, service);
             }
@@ -856,6 +860,22 @@ cb__extract_option_symbol(VALUE& val, VALUE options, const char* name)
 }
 
 [[nodiscard]] VALUE
+cb__extract_option_string(VALUE& val, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        if (TYPE(val) == T_STRING) {
+            return Qnil;
+        }
+        return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be an String, but given %+" PRIsVALUE, name, val));
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
 cb__extract_option_fixnum(VALUE& val, VALUE options, const char* name)
 {
     if (!NIL_P(options) && TYPE(options) == T_HASH) {
@@ -922,6 +942,107 @@ cb__extract_durability(Request& req, VALUE options)
             req.durability_timeout = FIX2UINT(durability_timeout);
         }
     }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
+    }
+
+    if (!NIL_P(bucket)) {
+        Check_Type(bucket, T_STRING);
+    }
+
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        VALUE id = Qnil;
+        exc = cb__extract_option_string(id, options, "report_id");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        std::optional<std::string> report_id{};
+        if (!NIL_P(id)) {
+            report_id.emplace(std::string(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id))));
+        }
+        std::optional<std::string> bucket_name{};
+        if (!NIL_P(bucket)) {
+            bucket_name.emplace(std::string(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket))));
+        }
+        auto barrier = std::make_shared<std::promise<couchbase::diag::ping_result>>();
+        auto f = barrier->get_future();
+        backend->cluster->ping(
+          report_id, bucket_name, [barrier](couchbase::diag::ping_result&& resp) mutable { barrier->set_value(resp); });
+        auto resp = f.get();
+
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("id")), rb_str_new(resp.id.data(), static_cast<long>(resp.id.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("sdk")), rb_str_new(resp.sdk.data(), static_cast<long>(resp.sdk.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("version")), INT2FIX(resp.version));
+        VALUE services = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("services")), services);
+        for (const auto& svcs : resp.services) {
+            VALUE type = Qnil;
+            switch (svcs.first) {
+                case couchbase::service_type::kv:
+                    type = rb_id2sym(rb_intern("kv"));
+                    break;
+                case couchbase::service_type::query:
+                    type = rb_id2sym(rb_intern("query"));
+                    break;
+                case couchbase::service_type::analytics:
+                    type = rb_id2sym(rb_intern("analytics"));
+                    break;
+                case couchbase::service_type::search:
+                    type = rb_id2sym(rb_intern("search"));
+                    break;
+                case couchbase::service_type::views:
+                    type = rb_id2sym(rb_intern("views"));
+                    break;
+                case couchbase::service_type::management:
+                    type = rb_id2sym(rb_intern("mgmt"));
+                    break;
+            }
+            VALUE endpoints = rb_ary_new();
+            rb_hash_aset(services, type, endpoints);
+            for (const auto& svc : svcs.second) {
+                VALUE service = rb_hash_new();
+                rb_hash_aset(service, rb_id2sym(rb_intern("latency")), LL2NUM(svc.latency.count()));
+                rb_hash_aset(service, rb_id2sym(rb_intern("id")), rb_str_new(svc.id.data(), static_cast<long>(svc.id.size())));
+                rb_hash_aset(service, rb_id2sym(rb_intern("remote")), rb_str_new(svc.remote.data(), static_cast<long>(svc.remote.size())));
+                rb_hash_aset(service, rb_id2sym(rb_intern("local")), rb_str_new(svc.local.data(), static_cast<long>(svc.local.size())));
+                VALUE state = Qnil;
+                switch (svc.state) {
+                    case couchbase::diag::ping_state::ok:
+                        state = rb_id2sym(rb_intern("ok"));
+                        break;
+                    case couchbase::diag::ping_state::timeout:
+                        state = rb_id2sym(rb_intern("timeout"));
+                        break;
+                    case couchbase::diag::ping_state::error:
+                        state = rb_id2sym(rb_intern("error"));
+                        if (svc.error) {
+                            rb_hash_aset(
+                              service, rb_id2sym(rb_intern("error")), rb_str_new(svc.error->data(), static_cast<long>(svc.error->size())));
+                        }
+                        break;
+                }
+                rb_hash_aset(service, rb_id2sym(rb_intern("state")), state);
+                rb_ary_push(endpoints, service);
+            }
+        }
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
     return Qnil;
 }
 
@@ -6857,6 +6978,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "close", VALUE_FUNC(cb_Backend_close), 0);
     rb_define_method(cBackend, "open_bucket", VALUE_FUNC(cb_Backend_open_bucket), 2);
     rb_define_method(cBackend, "diagnostics", VALUE_FUNC(cb_Backend_diagnostics), 1);
+    rb_define_method(cBackend, "ping", VALUE_FUNC(cb_Backend_ping), 2);
 
     rb_define_method(cBackend, "document_get", VALUE_FUNC(cb_Backend_document_get), 4);
     rb_define_method(cBackend, "document_get_projected", VALUE_FUNC(cb_Backend_document_get_projected), 4);

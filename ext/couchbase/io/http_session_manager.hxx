@@ -20,6 +20,8 @@
 #include <io/http_session.hxx>
 #include <service_type.hxx>
 #include <io/http_context.hxx>
+#include <operations/http_noop.hxx>
+#include <io/http_command.hxx>
 
 #include <random>
 
@@ -55,12 +57,88 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
 
         for (const auto& list : busy_sessions_) {
             for (const auto& session : list.second) {
-                res.services[list.first].emplace_back(session->diag_info());
+                if (session) {
+                    res.services[list.first].emplace_back(session->diag_info());
+                }
             }
         }
         for (const auto& list : idle_sessions_) {
             for (const auto& session : list.second) {
-                res.services[list.first].emplace_back(session->diag_info());
+                if (session) {
+                    res.services[list.first].emplace_back(session->diag_info());
+                }
+            }
+        }
+    }
+
+    template<typename Collector>
+    void ping(std::shared_ptr<Collector> collector, const couchbase::cluster_credentials& credentials)
+    {
+        std::array<service_type, 4> known_types{ service_type::query, service_type::analytics, service_type::search, service_type::views };
+        for (auto& node : config_.nodes) {
+            for (auto type : known_types) {
+                std::uint16_t port = 0;
+                port = node.port_or(options_.network, type, options_.enable_tls, 0);
+                if (port != 0) {
+                    std::scoped_lock lock(sessions_mutex_);
+                    std::shared_ptr<http_session> session;
+                    session = options_.enable_tls ? std::make_shared<http_session>(type,
+                                                                                   client_id_,
+                                                                                   ctx_,
+                                                                                   tls_,
+                                                                                   credentials,
+                                                                                   node.hostname_for(options_.network),
+                                                                                   std::to_string(port),
+                                                                                   http_context{ config_, options_, query_cache_ })
+                                                  : std::make_shared<http_session>(type,
+                                                                                   client_id_,
+                                                                                   ctx_,
+                                                                                   credentials,
+                                                                                   node.hostname_for(options_.network),
+                                                                                   std::to_string(port),
+                                                                                   http_context{ config_, options_, query_cache_ });
+                    session->start();
+                    session->on_stop([type, id = session->id(), self = this->shared_from_this()]() {
+                        for (auto& s : self->busy_sessions_[type]) {
+                            if (s && s->id() == id) {
+                                s.reset();
+                            }
+                        }
+                        for (auto& s : self->idle_sessions_[type]) {
+                            if (s && s->id() == id) {
+                                s.reset();
+                            }
+                        }
+                    });
+                    busy_sessions_[type].push_back(session);
+                    operations::http_noop_request request{};
+                    request.type = type;
+                    auto cmd = std::make_shared<operations::http_command<operations::http_noop_request>>(ctx_, request);
+                    cmd->send_to(session,
+                                 [start = std::chrono::steady_clock::now(),
+                                  self = shared_from_this(),
+                                  type,
+                                  session,
+                                  handler = collector->build_reporter()](operations::http_noop_response&& resp) mutable {
+                                     diag::ping_state state = diag::ping_state::ok;
+                                     std::optional<std::string> error{};
+                                     if (resp.ec) {
+                                         state = diag::ping_state::error;
+                                         error.emplace(fmt::format(
+                                           "code={}, message={}, http_code={}", resp.ec.value(), resp.ec.message(), resp.status_code));
+                                     }
+                                     handler(diag::endpoint_ping_info{
+                                       type,
+                                       session->id(),
+                                       std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start),
+                                       session->remote_address(),
+                                       session->local_address(),
+                                       state,
+                                       {},
+                                       error });
+                                     self->check_in(type, session);
+                                 });
+                }
             }
         }
     }

@@ -37,6 +37,7 @@
 #include <protocol/client_request.hxx>
 #include <protocol/client_response.hxx>
 #include <protocol/server_request.hxx>
+#include <protocol/cmd_noop.hxx>
 #include <protocol/cmd_hello.hxx>
 #include <protocol/cmd_sasl_list_mechs.hxx>
 #include <protocol/cmd_sasl_auth.hxx>
@@ -388,6 +389,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                              resp.opaque());
                             }
                         } break;
+                        case protocol::client_opcode::noop:
                         case protocol::client_opcode::get_collections_manifest:
                         case protocol::client_opcode::get_collection_id:
                         case protocol::client_opcode::get:
@@ -540,6 +542,16 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         return log_prefix_;
     }
 
+    std::string remote_address() const
+    {
+        return fmt::format("{}:{}", endpoint_address_, endpoint_.port());
+    }
+
+    std::string local_address() const
+    {
+        return fmt::format("{}:{}", local_endpoint_address_, local_endpoint_.port());
+    }
+
     [[nodiscard]] diag::endpoint_diag_info diag_info() const
     {
         return { service_type::kv,
@@ -547,10 +559,37 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                  last_active_.time_since_epoch().count() == 0 ? std::nullopt
                                                               : std::make_optional(std::chrono::duration_cast<std::chrono::microseconds>(
                                                                   std::chrono::steady_clock::now() - last_active_)),
-                 fmt::format("{}:{}", endpoint_address_, endpoint_.port()),
-                 fmt::format("{}:{}", local_endpoint_address_, local_endpoint_.port()),
+                 remote_address(),
+                 local_address(),
                  state_,
                  bucket_name_ };
+    }
+
+    template<typename Handler>
+    void ping(Handler&& handler)
+    {
+        protocol::client_request<protocol::mcbp_noop_request_body> req;
+        req.opaque(next_opaque());
+        write_and_subscribe(req.opaque(),
+                            req.data(false),
+                            [start = std::chrono::steady_clock::now(), self = shared_from_this(), handler](
+                              std::error_code ec, retry_reason reason, io::mcbp_message&& /* msg */) {
+                                diag::ping_state state = diag::ping_state::ok;
+                                std::optional<std::string> error{};
+                                if (ec) {
+                                    state = diag::ping_state::error;
+                                    error.emplace(fmt::format("code={}, message={}, reason={}", ec.value(), ec.message(), reason));
+                                }
+                                handler(diag::endpoint_ping_info{
+                                  service_type::kv,
+                                  self->id_,
+                                  std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start),
+                                  self->remote_address(),
+                                  self->local_address(),
+                                  state,
+                                  self->bucket_name_,
+                                  error });
+                            });
     }
 
     [[nodiscard]] mcbp_context context() const

@@ -90,7 +90,6 @@ struct endpoint_ping_info {
 struct ping_result {
     std::string id;
     std::string sdk;
-    std::uint64_t config_rev;
     std::map<service_type, std::vector<endpoint_ping_info>> services{};
 
     const int version{ 2 };
@@ -242,8 +241,6 @@ struct traits<couchbase::diag::ping_result> {
             { "version", r.version },
             { "id", r.id },
             { "sdk", r.sdk },
-            /* the highest known configuration revision */
-            { "config_rev", r.config_rev },
             { "services", services },
         };
     }

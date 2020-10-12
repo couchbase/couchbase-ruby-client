@@ -317,6 +317,14 @@ class bucket : public std::enable_shared_from_this<bucket>
         }
     }
 
+    template<typename Collector>
+    void ping(std::shared_ptr<Collector> collector)
+    {
+        for (const auto& session : sessions_) {
+            session.second->ping(collector->build_reporter());
+        }
+    }
+
   private:
     std::string client_id_;
     asio::io_context& ctx_;

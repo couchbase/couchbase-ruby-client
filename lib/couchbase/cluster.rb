@@ -26,6 +26,7 @@ require "couchbase/options"
 require "couchbase/search_options"
 require "couchbase/query_options"
 require "couchbase/analytics_options"
+require "couchbase/diagnostics"
 
 module Couchbase
   class Cluster
@@ -306,88 +307,36 @@ module Couchbase
               info.last_activity_us = svc[:last_activity_us]
               info.remote = svc[:remote]
               info.local = svc[:local]
+              info.details = svc[:details]
             end
           end
         end
       end
     end
 
-    class DiagnosticsResult
-      class ServiceInfo
-        # @return [String] endpoint unique identifier
-        attr_accessor :id
-
-        # Possible states are:
-        #
-        # :disconnected:: the endpoint is not reachable
-        # :connecting:: currently connecting (includes auth, handshake, etc.)
-        # :connected:: connected and ready
-        # :disconnecting:: disconnecting (after being connected)
-        #
-        # @return [Symbol] state of the endpoint
-        attr_accessor :state
-
-        # @return [Integer] how long ago the endpoint was active (in microseconds)
-        attr_accessor :last_activity_us
-
-        # @return [String] remote address of the connection
-        attr_accessor :remote
-
-        # @return [String] local address of the connection
-        attr_accessor :local
-
-        # @yieldparam [ServiceInfo] self
-        def initialize
-          yield self if block_given?
+    # Performs application-level ping requests against services in the couchbase cluster
+    #
+    # @param [Options::Ping] options
+    #
+    # @return [PingResult]
+    def ping(options = Options::Ping.new)
+      resp = @backend.ping(nil, options.to_backend)
+      PingResult.new do |res|
+        res.version = resp[:version]
+        res.id = resp[:id]
+        res.sdk = resp[:sdk]
+        resp[:services].each do |type, svcs|
+          res.services[type] = svcs.map do |svc|
+            PingResult::ServiceInfo.new do |info|
+              info.id = svc[:id]
+              info.state = svc[:state]
+              info.latency = svc[:latency]
+              info.remote = svc[:remote]
+              info.local = svc[:local]
+              info.error = svc[:error]
+            end
+          end
         end
-
-        def to_json(*args)
-          data = {
-            id: @id,
-            state: @state,
-            remote: @remote,
-            local: @local,
-          }
-          data[:last_activity_us] = @last_activity_us if defined? @last_activity_us
-          data.to_json(*args)
-        end
-      end
-
-      # @return [String] report id
-      attr_accessor :id
-
-      # @return [String] SDK identifier
-      attr_accessor :sdk
-
-      # Returns information about currently service endpoints, that known to the library at the moment.
-      #
-      # :kv:: Key/Value data service
-      # :query:: N1QL query service
-      # :analytics:: Analtyics service
-      # :search:: Full text search service
-      # :views:: Views service
-      # :mgmt:: Management service
-      #
-      # @return [Hash<Symbol, ServiceInfo>] map service types to info
-      attr_accessor :services
-
-      # @yieldparam [DiagnosticsResult] self
-      def initialize
-        @services = {}
-        yield self if block_given?
-      end
-
-      # @api private
-      # @return [Integer] version
-      attr_accessor :version
-
-      def to_json(*args)
-        {
-          version: @version,
-          id: @id,
-          sdk: @sdk,
-          services: @services,
-        }.to_json(*args)
       end
     end
 

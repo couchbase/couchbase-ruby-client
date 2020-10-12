@@ -36,6 +36,55 @@
 
 namespace couchbase
 {
+namespace
+{
+class ping_collector : public std::enable_shared_from_this<ping_collector>
+{
+    diag::ping_result res_;
+    std::function<void(diag::ping_result)> handler_;
+    std::atomic_int expected_{ 0 };
+    std::mutex mutex_{};
+
+  public:
+    ping_collector(std::string report_id, std::function<void(diag::ping_result)> handler)
+      : res_{ std::move(report_id),
+              fmt::format("ruby/{}.{}.{}/{}", BACKEND_VERSION_MAJOR, BACKEND_VERSION_MINOR, BACKEND_VERSION_PATCH, BACKEND_GIT_REVISION) }
+      , handler_(std::move(handler))
+    {
+    }
+
+    ~ping_collector()
+    {
+        invoke_handler();
+    }
+
+    [[nodiscard]] diag::ping_result& result()
+    {
+        return res_;
+    }
+
+    auto build_reporter()
+    {
+        expected_++;
+        return [self = this->shared_from_this()](diag::endpoint_ping_info&& info) {
+            std::scoped_lock lock(self->mutex_);
+            self->res_.services[info.type].emplace_back(info);
+            if (--self->expected_ == 0) {
+                self->invoke_handler();
+            }
+        };
+    }
+
+    void invoke_handler()
+    {
+        if (handler_ != nullptr) {
+            handler_(std::move(res_));
+            handler_ = nullptr;
+        }
+    }
+};
+} // namespace
+
 class cluster
 {
   public:
@@ -141,6 +190,30 @@ class cluster
             }
             session_manager_->export_diag_info(res);
             handler(std::move(res));
+        }));
+    }
+
+    void ping(std::optional<std::string> report_id, std::optional<std::string> bucket_name, std::function<void(diag::ping_result)> handler)
+    {
+        if (!report_id) {
+            report_id = std::make_optional(uuid::to_string(uuid::random()));
+        }
+        asio::post(asio::bind_executor(ctx_, [this, report_id, bucket_name, handler = std::move(handler)]() mutable {
+            auto collector = std::make_shared<ping_collector>(report_id.value(), std::move(handler));
+            if (bucket_name) {
+                auto bucket = buckets_.find(bucket_name.value());
+                if (bucket != buckets_.end()) {
+                    bucket->second->ping(collector);
+                }
+            } else {
+                if (session_) {
+                    session_->ping(collector->build_reporter());
+                }
+                for (auto& bucket : buckets_) {
+                    bucket.second->ping(collector);
+                }
+                session_manager_->ping(collector, origin_.credentials());
+            }
         }));
     }
 

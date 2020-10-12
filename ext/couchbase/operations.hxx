@@ -38,6 +38,9 @@
 #include <operations/document_decrement.hxx>
 #include <operations/document_get_projected.hxx>
 
+#include <operations/mcbp_noop.hxx>
+#include <operations/http_noop.hxx>
+
 #include <operations/document_query.hxx>
 #include <operations/document_search.hxx>
 #include <operations/document_analytics.hxx>

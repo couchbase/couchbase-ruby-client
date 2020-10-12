@@ -183,7 +183,6 @@ TEST_CASE("native: serializing ping report", "[native]")
     couchbase::diag::ping_result res{
         "0xdeadbeef",
         "ruby/1.0.0",
-        53,
         {
           {
             {
@@ -354,7 +353,7 @@ TEST_CASE("native: fetch diagnostics after N1QL query", "[native]")
         couchbase::operations::query_request req{ "SELECT 'hello, couchbase' AS greetings" };
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_response>>();
         auto f = barrier->get_future();
-        cluster.execute_http(req, [barrier](couchbase::operations::query_response resp) mutable { barrier->set_value(resp); });
+        cluster.execute_http(req, [barrier](couchbase::operations::query_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         INFO(resp.ec.message());
         REQUIRE_FALSE(resp.ec);
@@ -366,13 +365,65 @@ TEST_CASE("native: fetch diagnostics after N1QL query", "[native]")
     {
         auto barrier = std::make_shared<std::promise<couchbase::diag::diagnostics_result>>();
         auto f = barrier->get_future();
-        cluster.diagnostics("my_report_id", [barrier](couchbase::diag::diagnostics_result resp) mutable { barrier->set_value(resp); });
+        cluster.diagnostics("my_report_id", [barrier](couchbase::diag::diagnostics_result&& resp) mutable { barrier->set_value(resp); });
         auto res = f.get();
         REQUIRE(res.id == "my_report_id");
         REQUIRE(res.sdk.find("ruby/") == 0);
         REQUIRE(res.services[couchbase::service_type::kv].size() > 1);
         REQUIRE(res.services[couchbase::service_type::query].size() == 1);
         REQUIRE(res.services[couchbase::service_type::query][0].state == couchbase::diag::endpoint_state::connected);
+    }
+    {
+        auto barrier = std::make_shared<std::promise<void>>();
+        auto f = barrier->get_future();
+        cluster.close([barrier]() { barrier->set_value(); });
+        f.get();
+    }
+
+    io_thread.join();
+}
+
+TEST_CASE("native: ping", "[native]")
+{
+    auto ctx = test_context::load_from_environment();
+    native_init_logger();
+
+    auto connstr = couchbase::utils::parse_connection_string(ctx.connection_string);
+    couchbase::cluster_credentials auth{};
+    auth.username = ctx.username;
+    auth.password = ctx.password;
+
+    asio::io_context io;
+
+    couchbase::cluster cluster(io);
+    auto io_thread = std::thread([&io]() { io.run(); });
+
+    {
+        auto barrier = std::make_shared<std::promise<std::error_code>>();
+        auto f = barrier->get_future();
+        cluster.open(couchbase::origin(auth, connstr), [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
+        auto rc = f.get();
+        INFO(rc.message());
+        REQUIRE_FALSE(rc);
+    }
+    {
+        auto barrier = std::make_shared<std::promise<std::error_code>>();
+        auto f = barrier->get_future();
+        cluster.open_bucket(ctx.bucket, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
+        auto rc = f.get();
+        INFO(rc.message());
+        REQUIRE_FALSE(rc);
+    }
+    {
+        auto barrier = std::make_shared<std::promise<couchbase::diag::ping_result>>();
+        auto f = barrier->get_future();
+        cluster.ping("my_report_id", {}, [barrier](couchbase::diag::ping_result&& resp) mutable { barrier->set_value(resp); });
+        auto res = f.get();
+        REQUIRE(res.id == "my_report_id");
+        REQUIRE(res.sdk.find("ruby/") == 0);
+
+        auto report = tao::json::value(res);
+        spdlog::critical("XXX {}", tao::json::to_string(report));
     }
     {
         auto barrier = std::make_shared<std::promise<void>>();

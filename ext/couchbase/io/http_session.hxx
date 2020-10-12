@@ -115,6 +115,16 @@ class http_session : public std::enable_shared_from_this<http_session>
         return http_ctx_;
     }
 
+    std::string remote_address() const
+    {
+        return fmt::format("{}:{}", endpoint_address_, endpoint_.port());
+    }
+
+    std::string local_address() const
+    {
+        return fmt::format("{}:{}", local_endpoint_address_, local_endpoint_.port());
+    }
+
     [[nodiscard]] diag::endpoint_diag_info diag_info() const
     {
         return { type_,
@@ -122,8 +132,8 @@ class http_session : public std::enable_shared_from_this<http_session>
                  last_active_.time_since_epoch().count() == 0 ? std::nullopt
                                                               : std::make_optional(std::chrono::duration_cast<std::chrono::microseconds>(
                                                                   std::chrono::steady_clock::now() - last_active_)),
-                 fmt::format("{}:{}", endpoint_address_, endpoint_.port()),
-                 fmt::format("{}:{}", local_endpoint_address_, local_endpoint_.port()),
+                 remote_address(),
+                 local_address(),
                  state_ };
     }
 

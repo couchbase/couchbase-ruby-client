@@ -41,7 +41,7 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
     template<typename Handler>
     void send_to(std::shared_ptr<io::http_session> session, Handler&& handler)
     {
-        encoded.type = Request::type;
+        encoded.type = request.type;
         auto encoding_ec = request.encode_to(encoded, session->http_context());
         if (encoding_ec) {
             return handler(make_response(encoding_ec, request, {}));

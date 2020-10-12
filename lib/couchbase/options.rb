@@ -1018,6 +1018,15 @@ module Couchbase
         @timeout = timeout
         yield self if block_given?
       end
+
+      # @api private
+      def to_backend
+        {
+          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          service_types: @service_types,
+          report_id: @report_id,
+        }
+      end
     end
 
     # Options for {Couchbase::Cluster#analytics_query}
