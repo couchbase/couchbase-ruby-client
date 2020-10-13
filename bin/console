@@ -47,8 +47,8 @@ customer123 = {
 def cluster
   @cluster ||= begin
     connection_string = ARGV[0] || ENV["TEST_CONNECTION_STRING"] || "couchbase://localhost"
-    username = ARGV[0] || ENV["TEST_USERNAME"] || "Administrator"
-    password = ARGV[0] || ENV["TEST_PASSWORD"] || "password"
+    username = ARGV[1] || ENV["TEST_USERNAME"] || "Administrator"
+    password = ARGV[2] || ENV["TEST_PASSWORD"] || "password"
     Cluster.connect(connection_string, username, password)
   end
 end

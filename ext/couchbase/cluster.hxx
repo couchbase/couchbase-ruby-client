@@ -193,26 +193,36 @@ class cluster
         }));
     }
 
-    void ping(std::optional<std::string> report_id, std::optional<std::string> bucket_name, std::function<void(diag::ping_result)> handler)
+    void ping(std::optional<std::string> report_id,
+              std::optional<std::string> bucket_name,
+              std::set<service_type> services,
+              std::function<void(diag::ping_result)> handler)
     {
         if (!report_id) {
             report_id = std::make_optional(uuid::to_string(uuid::random()));
         }
-        asio::post(asio::bind_executor(ctx_, [this, report_id, bucket_name, handler = std::move(handler)]() mutable {
+        if (services.empty()) {
+            services = { service_type::kv, service_type::views, service_type::query, service_type::search, service_type::analytics };
+        }
+        asio::post(asio::bind_executor(ctx_, [this, report_id, bucket_name, services, handler = std::move(handler)]() mutable {
             auto collector = std::make_shared<ping_collector>(report_id.value(), std::move(handler));
             if (bucket_name) {
-                auto bucket = buckets_.find(bucket_name.value());
-                if (bucket != buckets_.end()) {
-                    bucket->second->ping(collector);
+                if (services.find(service_type::kv) != services.end()) {
+                    auto bucket = buckets_.find(bucket_name.value());
+                    if (bucket != buckets_.end()) {
+                        bucket->second->ping(collector);
+                    }
                 }
             } else {
-                if (session_) {
-                    session_->ping(collector->build_reporter());
+                if (services.find(service_type::kv) != services.end()) {
+                    if (session_) {
+                        session_->ping(collector->build_reporter());
+                    }
+                    for (auto& bucket : buckets_) {
+                        bucket.second->ping(collector);
+                    }
                 }
-                for (auto& bucket : buckets_) {
-                    bucket.second->ping(collector);
-                }
-                session_manager_->ping(collector, origin_.credentials());
+                session_manager_->ping(services, collector, origin_.credentials());
             }
         }));
     }

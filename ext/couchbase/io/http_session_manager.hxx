@@ -72,11 +72,14 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
     }
 
     template<typename Collector>
-    void ping(std::shared_ptr<Collector> collector, const couchbase::cluster_credentials& credentials)
+    void ping(std::set<service_type> services, std::shared_ptr<Collector> collector, const couchbase::cluster_credentials& credentials)
     {
         std::array<service_type, 4> known_types{ service_type::query, service_type::analytics, service_type::search, service_type::views };
         for (auto& node : config_.nodes) {
             for (auto type : known_types) {
+                if (services.find(type) == services.end()) {
+                    continue;
+                }
                 std::uint16_t port = 0;
                 port = node.port_or(options_.network, type, options_.enable_tls, 0);
                 if (port != 0) {

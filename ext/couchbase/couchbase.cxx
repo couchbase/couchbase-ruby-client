@@ -620,6 +620,11 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
     do {
         std::string input(RSTRING_PTR(connection_string), static_cast<size_t>(RSTRING_LEN(connection_string)));
         auto connstr = couchbase::utils::parse_connection_string(input);
+        if (connstr.error) {
+            exc = rb_exc_new_cstr(eInvalidArgument,
+                                  fmt::format(R"(Failed to parse connection string "{}": {})", input, connstr.error.value()).c_str());
+            break;
+        }
         couchbase::cluster_credentials auth{};
         if (NIL_P(certificate_path) || NIL_P(key_path)) {
             auth.username.assign(RSTRING_PTR(username), static_cast<size_t>(RSTRING_LEN(username)));
@@ -978,17 +983,40 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
         if (!NIL_P(bucket)) {
             bucket_name.emplace(std::string(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket))));
         }
+        VALUE services = Qnil;
+        exc = cb__extract_option_array(services, options, "service_types");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        std::set<couchbase::service_type> selected_services{};
+        if (!NIL_P(services)) {
+            auto entries_num = static_cast<size_t>(RARRAY_LEN(services));
+            for (size_t i = 0; i < entries_num; ++i) {
+                VALUE entry = rb_ary_entry(services, static_cast<long>(i));
+                if (entry == rb_id2sym(rb_intern("kv"))) {
+                    selected_services.insert(couchbase::service_type::kv);
+                } else if (entry == rb_id2sym(rb_intern("query"))) {
+                    selected_services.insert(couchbase::service_type::query);
+                } else if (entry == rb_id2sym(rb_intern("analytics"))) {
+                    selected_services.insert(couchbase::service_type::analytics);
+                } else if (entry == rb_id2sym(rb_intern("search"))) {
+                    selected_services.insert(couchbase::service_type::search);
+                } else if (entry == rb_id2sym(rb_intern("views"))) {
+                    selected_services.insert(couchbase::service_type::views);
+                }
+            }
+        }
         auto barrier = std::make_shared<std::promise<couchbase::diag::ping_result>>();
         auto f = barrier->get_future();
         backend->cluster->ping(
-          report_id, bucket_name, [barrier](couchbase::diag::ping_result&& resp) mutable { barrier->set_value(resp); });
+          report_id, bucket_name, selected_services, [barrier](couchbase::diag::ping_result&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
 
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("id")), rb_str_new(resp.id.data(), static_cast<long>(resp.id.size())));
         rb_hash_aset(res, rb_id2sym(rb_intern("sdk")), rb_str_new(resp.sdk.data(), static_cast<long>(resp.sdk.size())));
         rb_hash_aset(res, rb_id2sym(rb_intern("version")), INT2FIX(resp.version));
-        VALUE services = rb_hash_new();
+        services = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("services")), services);
         for (const auto& svcs : resp.services) {
             VALUE type = Qnil;
