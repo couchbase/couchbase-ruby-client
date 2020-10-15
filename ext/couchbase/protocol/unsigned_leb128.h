@@ -51,11 +51,11 @@ decode_unsigned_leb128(std::string_view buf, struct Leb128NoThrow)
 {
     T rv = static_cast<uint8_t>(buf[0]) & 0x7fULL;
     size_t end = 0;
-    if ((buf[0] & 0x80) == 0x80ULL) {
+    if ((static_cast<uint8_t>(buf[0]) & 0x80ULL) == 0x80ULL) {
         T shift = 7;
         // shift in the remaining data
         for (end = 1; end < buf.size(); end++) {
-            rv |= (buf[end] & 0x7fULL) << shift;
+            rv |= (static_cast<uint8_t>(buf[end]) & 0x7fULL) << shift;
             if ((static_cast<uint8_t>(buf[end]) & 0x80ULL) == 0) {
                 break; // no more
             }

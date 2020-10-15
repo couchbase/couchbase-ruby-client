@@ -6997,6 +6997,64 @@ cb_Backend_get_log_level(VALUE self)
     return Qnil;
 }
 
+static VALUE
+cb_Backend_snappy_compress(VALUE self, VALUE data)
+{
+    (void)self;
+    Check_Type(data, T_STRING);
+
+    std::string compressed{};
+    std::size_t compressed_size = snappy::Compress(RSTRING_PTR(data), static_cast<std::size_t>(RSTRING_LEN(data)), &compressed);
+    return rb_str_new(compressed.data(), static_cast<long>(compressed_size));
+}
+
+static VALUE
+cb_Backend_snappy_uncompress(VALUE self, VALUE data)
+{
+    (void)self;
+    Check_Type(data, T_STRING);
+
+    std::string uncompressed{};
+    bool success = snappy::Uncompress(RSTRING_PTR(data), static_cast<std::size_t>(RSTRING_LEN(data)), &uncompressed);
+    if (success) {
+        return rb_str_new(uncompressed.data(), static_cast<long>(uncompressed.size()));
+    }
+    rb_raise(rb_eArgError, "Unable to decompress buffer");
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_leb128_encode(VALUE self, VALUE number)
+{
+    (void)self;
+    switch (TYPE(number)) {
+        case T_FIXNUM:
+        case T_BIGNUM:
+            break;
+        default:
+            rb_raise(rb_eArgError, "The value must be a number");
+    }
+    couchbase::protocol::unsigned_leb128<std::uint64_t> encoded(NUM2ULL(number));
+    std::string buf = encoded.get();
+    return rb_str_new(buf.data(), static_cast<long>(buf.size()));
+}
+
+static VALUE
+cb_Backend_leb128_decode(VALUE self, VALUE data)
+{
+    (void)self;
+    Check_Type(data, T_STRING);
+    std::string buf(RSTRING_PTR(data), static_cast<std::size_t>(RSTRING_LEN(data)));
+    if (buf.size() > 0) {
+        auto rv = couchbase::protocol::decode_unsigned_leb128<std::uint64_t>(buf, couchbase::protocol::Leb128NoThrow());
+        if (rv.second.data()) {
+            return ULL2NUM(rv.first);
+        }
+    }
+    rb_raise(rb_eArgError, "Unable to decode the buffer");
+    return Qnil;
+}
+
 static void
 init_backend(VALUE mCouchbase)
 {
@@ -7101,6 +7159,10 @@ init_backend(VALUE mCouchbase)
     rb_define_singleton_method(cBackend, "parse_connection_string", VALUE_FUNC(cb_Backend_parse_connection_string), 1);
     rb_define_singleton_method(cBackend, "set_log_level", VALUE_FUNC(cb_Backend_set_log_level), 1);
     rb_define_singleton_method(cBackend, "get_log_level", VALUE_FUNC(cb_Backend_get_log_level), 0);
+    rb_define_singleton_method(cBackend, "snappy_compress", VALUE_FUNC(cb_Backend_snappy_compress), 1);
+    rb_define_singleton_method(cBackend, "snappy_uncompress", VALUE_FUNC(cb_Backend_snappy_uncompress), 1);
+    rb_define_singleton_method(cBackend, "leb128_encode", VALUE_FUNC(cb_Backend_leb128_encode), 1);
+    rb_define_singleton_method(cBackend, "leb128_decode", VALUE_FUNC(cb_Backend_leb128_decode), 1);
 }
 
 void
