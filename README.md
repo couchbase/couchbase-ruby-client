@@ -1,4 +1,10 @@
-# Couchbase Ruby Client [![gem](https://badge.fury.io/rb/couchbase.svg)](https://rubygems.org/gems/couchbase) [![tests](https://github.com/couchbase/couchbase-ruby-client/workflows/tests/badge.svg)](https://github.com/couchbase/couchbase-ruby-client/actions?query=workflow%3Atests)
+# Couchbase Ruby Client
+
+[![gem](https://img.shields.io/gem/v/couchbase?color=brightgreen)](https://rubygems.org/gems/couchbase)
+[![license](https://img.shields.io/github/license/couchbase/couchbase-ruby-client?color=brightgreen)](https://opensource.org/licenses/Apache-2.0)
+[![tests](https://img.shields.io/github/workflow/status/couchbase/couchbase-ruby-client/tests?label=tests)](https://github.com/couchbase/couchbase-ruby-client/actions?query=workflow%3Atests)
+[![linters](https://img.shields.io/github/workflow/status/couchbase/couchbase-ruby-client/linters?label=linters)](https://github.com/couchbase/couchbase-ruby-client/actions?query=workflow%3Alinters)
+[![jenkins](https://img.shields.io/jenkins/build?jobUrl=http%3A%2F%2Fsdk.jenkins.couchbase.com%2Fjob%2Fruby%2Fjob%2Fruby-nightly%2F&label=jenkins)](http://sdk.jenkins.couchbase.com/job/ruby/job/ruby-nightly/)
 
 This repository contains the third generation of the official Couchbase SDK for Ruby (aka. SDKv3)
 
@@ -68,8 +74,8 @@ res.cas
 # fetch top-3 cities by number of hotels in the collection
 res = cluster.query("
           SELECT city, COUNT(*) AS cnt FROM `travel-sample`
-          WHERE type = $type 
-          GROUP BY city 
+          WHERE type = $type
+          GROUP BY city
           ORDER BY cnt DESC
           LIMIT 3",
         Options::Query(named_parameters: {type: "hotel"}, metrics: true))
@@ -107,17 +113,16 @@ Now the API reference is accessible using web browser (where `VERSION` is curren
 
 ## License
 
-The gem is available as open source under the terms of the [Apache2 License](https://opensource.org/licenses/Apache-2.0)
-.
+The gem is available as open source under the terms of the [Apache2 License](https://opensource.org/licenses/Apache-2.0).
 
     Copyright 2011-2020 Couchbase, Inc.
-    
+
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
         http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
