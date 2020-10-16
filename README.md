@@ -1,7 +1,8 @@
 # Couchbase Ruby Client
 
-[![gem](https://img.shields.io/gem/v/couchbase?color=brightgreen)](https://rubygems.org/gems/couchbase)
 [![license](https://img.shields.io/github/license/couchbase/couchbase-ruby-client?color=brightgreen)](https://opensource.org/licenses/Apache-2.0)
+[![gem](https://img.shields.io/gem/v/couchbase?color=brightgreen)](https://rubygems.org/gems/couchbase)
+[![commits](https://img.shields.io/github/commits-since/couchbase/couchbase-ruby-client/latest?color=brightgreen)](https://github.com/couchbase/couchbase-ruby-client/commits/master)
 [![tests](https://img.shields.io/github/workflow/status/couchbase/couchbase-ruby-client/tests?label=tests)](https://github.com/couchbase/couchbase-ruby-client/actions?query=workflow%3Atests)
 [![linters](https://img.shields.io/github/workflow/status/couchbase/couchbase-ruby-client/linters?label=linters)](https://github.com/couchbase/couchbase-ruby-client/actions?query=workflow%3Alinters)
 [![jenkins](https://img.shields.io/jenkins/build?jobUrl=http%3A%2F%2Fsdk.jenkins.couchbase.com%2Fjob%2Fruby%2Fjob%2Fruby-nightly%2F&label=jenkins)](http://sdk.jenkins.couchbase.com/job/ruby/job/ruby-nightly/)
