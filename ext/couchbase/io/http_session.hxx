@@ -60,14 +60,7 @@ class http_session : public std::enable_shared_from_this<http_session>
       , credentials_(credentials)
       , hostname_(hostname)
       , service_(service)
-      , user_agent_(fmt::format("ruby/{}.{}.{}/{}; client/{}; session/{}; {}",
-                                BACKEND_VERSION_MAJOR,
-                                BACKEND_VERSION_MINOR,
-                                BACKEND_VERSION_PATCH,
-                                BACKEND_GIT_REVISION,
-                                client_id_,
-                                id_,
-                                BACKEND_SYSTEM))
+      , user_agent_(fmt::format("{}; client/{}; session/{}; {}", couchbase::sdk_id(), client_id_, id_, BACKEND_SYSTEM))
       , log_prefix_(fmt::format("[{}/{}]", client_id_, id_))
       , http_ctx_(std::move(http_ctx))
     {
@@ -92,14 +85,7 @@ class http_session : public std::enable_shared_from_this<http_session>
       , credentials_(credentials)
       , hostname_(hostname)
       , service_(service)
-      , user_agent_(fmt::format("ruby/{}.{}.{}/{}; client/{}; session/{}; {}",
-                                BACKEND_VERSION_MAJOR,
-                                BACKEND_VERSION_MINOR,
-                                BACKEND_VERSION_PATCH,
-                                BACKEND_GIT_REVISION,
-                                client_id_,
-                                id_,
-                                BACKEND_SYSTEM))
+      , user_agent_(fmt::format("{}; client/{}; session/{}; {}", couchbase::sdk_id(), client_id_, id_, BACKEND_SYSTEM))
       , log_prefix_(fmt::format("[{}/{}]", client_id_, id_))
       , http_ctx_(std::move(http_ctx))
     {

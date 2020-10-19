@@ -19,8 +19,6 @@
 
 #include "test_helper.hxx"
 
-#include <build_config.hxx>
-
 #include <asio/version.hpp>
 
 #include <spdlog/cfg/env.h>

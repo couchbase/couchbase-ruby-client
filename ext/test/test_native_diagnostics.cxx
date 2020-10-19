@@ -417,7 +417,7 @@ TEST_CASE("native: ping", "[native]")
     {
         auto barrier = std::make_shared<std::promise<couchbase::diag::ping_result>>();
         auto f = barrier->get_future();
-        cluster.ping("my_report_id", {}, [barrier](couchbase::diag::ping_result&& resp) mutable { barrier->set_value(resp); });
+        cluster.ping("my_report_id", {}, {}, [barrier](couchbase::diag::ping_result&& resp) mutable { barrier->set_value(resp); });
         auto res = f.get();
         REQUIRE(res.id == "my_report_id");
         REQUIRE(res.sdk.find("ruby/") == 0);

@@ -27,7 +27,7 @@ enum class service_type {
     views,
     management,
 };
-}
+} // namespace couchbase
 
 template<>
 struct fmt::formatter<couchbase::service_type> : formatter<std::string_view> {

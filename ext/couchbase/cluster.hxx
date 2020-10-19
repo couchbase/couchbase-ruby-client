@@ -47,8 +47,7 @@ class ping_collector : public std::enable_shared_from_this<ping_collector>
 
   public:
     ping_collector(std::string report_id, std::function<void(diag::ping_result)> handler)
-      : res_{ std::move(report_id),
-              fmt::format("ruby/{}.{}.{}/{}", BACKEND_VERSION_MAJOR, BACKEND_VERSION_MINOR, BACKEND_VERSION_PATCH, BACKEND_GIT_REVISION) }
+      : res_{ std::move(report_id), couchbase::sdk_id() }
       , handler_(std::move(handler))
     {
     }
@@ -178,10 +177,7 @@ class cluster
             report_id = std::make_optional(uuid::to_string(uuid::random()));
         }
         asio::post(asio::bind_executor(ctx_, [this, report_id, handler = std::forward<Handler>(handler)]() mutable {
-            diag::diagnostics_result res{
-                report_id.value(),
-                fmt::format("ruby/{}.{}.{}/{}", BACKEND_VERSION_MAJOR, BACKEND_VERSION_MINOR, BACKEND_VERSION_PATCH, BACKEND_GIT_REVISION)
-            };
+            diag::diagnostics_result res{ report_id.value(), couchbase::sdk_id() };
             if (session_) {
                 res.services[service_type::kv].emplace_back(session_->diag_info());
             }

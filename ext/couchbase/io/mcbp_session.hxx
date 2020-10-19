@@ -129,10 +129,8 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                   { "SCRAM-SHA512", "SCRAM-SHA256", "SCRAM-SHA1", "PLAIN" })
         {
             tao::json::value user_agent{
-                { "a",
-                  fmt::format(
-                    "ruby/{}.{}.{}/{}", BACKEND_VERSION_MAJOR, BACKEND_VERSION_MINOR, BACKEND_VERSION_PATCH, BACKEND_GIT_REVISION) },
-                { "i", fmt::format("{}/{}", session_->client_id_, session_->id_) }
+                { "a", couchbase::sdk_id() },
+                { "i", fmt::format("{}/{}", session_->client_id_, session_->id_) },
             };
             protocol::client_request<protocol::hello_request_body> hello_req;
             hello_req.opaque(session_->next_opaque());

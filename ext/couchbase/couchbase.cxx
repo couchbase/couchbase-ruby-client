@@ -15,8 +15,8 @@
  *   limitations under the License.
  */
 
-#include <build_config.hxx>
 #include <build_info.hxx>
+#include <version.hxx>
 
 #include <openssl/crypto.h>
 #include <asio/version.hpp>
@@ -28,7 +28,6 @@
 
 #include <snappy.h>
 
-#include <version.hxx>
 #include <platform/terminate_handler.h>
 
 #include <cluster.hxx>
@@ -63,14 +62,14 @@ init_versions(VALUE mCouchbase)
 #define VERSION_SPLIT_(VER) (VER) / 100000, (VER) / 100 % 1000, (VER) % 100
 
     std::string ver;
-    ver = fmt::format("{}.{}.{}", BACKEND_VERSION_MAJOR, BACKEND_VERSION_MINOR, BACKEND_VERSION_PATCH);
+    ver = fmt::format("{}.{}.{}", couchbase::BACKEND_VERSION_MAJOR, couchbase::BACKEND_VERSION_MINOR, couchbase::BACKEND_VERSION_PATCH);
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("backend")), rb_str_freeze(rb_str_new(ver.c_str(), static_cast<long>(ver.size()))));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("build_timestamp")), rb_str_freeze(rb_str_new_cstr(BACKEND_BUILD_TIMESTAMP)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("revision")), rb_str_freeze(rb_str_new_cstr(BACKEND_GIT_REVISION)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("platform")), rb_str_freeze(rb_str_new_cstr(BACKEND_SYSTEM)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("cpu")), rb_str_freeze(rb_str_new_cstr(BACKEND_SYSTEM_PROCESSOR)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("cc")), rb_str_freeze(rb_str_new_cstr(BACKEND_C_COMPILER)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("cxx")), rb_str_freeze(rb_str_new_cstr(BACKEND_CXX_COMPILER)));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("build_timestamp")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_BUILD_TIMESTAMP)));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("revision")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_GIT_REVISION)));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("platform")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_SYSTEM)));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("cpu")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_SYSTEM_PROCESSOR)));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("cc")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_C_COMPILER)));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("cxx")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_CXX_COMPILER)));
 #if defined(HAVE_RUBY_VERSION_H)
     ver = fmt::format("{}.{}.{}", RUBY_API_VERSION_MAJOR, RUBY_API_VERSION_MINOR, RUBY_API_VERSION_TEENY);
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("ruby")), rb_str_freeze(rb_str_new(ver.c_str(), static_cast<long>(ver.size()))));

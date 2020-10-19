@@ -18,3 +18,5 @@
 #pragma once
 
 #cmakedefine TLS_KEY_LOG_FILE "@TLS_KEY_LOG_FILE@"
+#cmakedefine STATIC_STDLIB 1
+#cmakedefine STATIC_OPENSSL 1

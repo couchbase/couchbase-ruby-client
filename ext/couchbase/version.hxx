@@ -17,8 +17,22 @@
 
 #pragma once
 
-#define BACKEND_VERSION_MAJOR 1
-#define BACKEND_VERSION_MINOR 1
-#define BACKEND_VERSION_PATCH 1
-
 #include <build_version.hxx>
+
+#include <string>
+
+namespace couchbase
+{
+constexpr auto BACKEND_VERSION_MAJOR = 1;
+constexpr auto BACKEND_VERSION_MINOR = 1;
+constexpr auto BACKEND_VERSION_PATCH = 1;
+
+inline const std::string&
+sdk_id()
+{
+    static const std::string identifier{ std::string("ruby/") + std::to_string(BACKEND_VERSION_MAJOR) + "/" +
+                                         std::to_string(BACKEND_VERSION_MINOR) + "/" + std::to_string(BACKEND_VERSION_PATCH) + "/" +
+                                         BACKEND_GIT_REVISION };
+    return identifier;
+}
+} // namespace couchbase
