@@ -65,7 +65,8 @@ FileUtils.mkdir_p(build_dir, verbose: true)
 Dir.chdir(build_dir) do
   puts "-- build #{build_type} extension #{SDK_VERSION} for ruby #{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}"
   sys(cmake, *cmake_flags, project_path)
-  sys("make -j4 VERBOSE=1")
+  number_of_jobs = (ENV["CB_NUMBER_OF_JOBS"] || 4).to_s
+  sys(cmake, "--build", build_dir, "--parallel", number_of_jobs,  "--verbose")
 end
 extension_name = "libcouchbase.#{RbConfig::CONFIG['SOEXT'] || RbConfig::CONFIG['DLEXT']}"
 extension_path = File.expand_path(File.join(build_dir, extension_name))
