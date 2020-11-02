@@ -241,7 +241,7 @@ module Couchbase
     #     puts "Failed to remove the document, it might be changed by other application"
     #   end
     #
-    # @return [MutationResult]
+    # @return [Array<MutationResult>]
     def remove_multi(ids, options = Options::RemoveMulti.new)
       collection_spec = "#{@scope_name}.#{@name}"
       resp = @backend.document_remove_multi(ids.map do |id|
@@ -327,7 +327,7 @@ module Couchbase
     #   res[0].cas #=> 7751414725654
     #   res[1].cas #=> 7751418925851
     #
-    # @return [MutationResult]
+    # @return [Array<MutationResult>]
     def upsert_multi(id_content, options = Options::UpsertMulti.new)
       collection_spec = "#{@scope_name}.#{@name}"
       resp = @backend.document_upsert_multi(id_content.map do |(id, content)|
