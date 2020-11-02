@@ -113,6 +113,38 @@ module Couchbase
       end
     end
 
+    # Options for {Collection#get_multi}
+    class GetMulti < Base
+      attr_accessor :transcoder # @return [JsonTranscoder, #decode(String, Integer)]
+
+      # Creates an instance of options for {Collection#get_multi}
+      #
+      # @param [JsonTranscoder, #decode(String, Integer)] transcoder used for decoding
+      #
+      # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Hash, nil] client_context the client context data, if set
+      # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+      #
+      # @yieldparam [Get] self
+      def initialize(transcoder: JsonTranscoder.new,
+                     timeout: nil,
+                     retry_strategy: nil,
+                     client_context: nil,
+                     parent_span: nil)
+        super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+        @transcoder = transcoder
+        yield self if block_given?
+      end
+
+      # @api private
+      def to_backend
+        {
+          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+        }
+      end
+    end
+
     # Options for {Collection#get_and_lock}
     class GetAndLock < Base
       attr_accessor :transcoder # @return [JsonTranscoder, #decode(String, Integer)]
@@ -369,6 +401,51 @@ module Couchbase
       end
     end
 
+    # Options for {Collection#remove_multi}
+    class RemoveMulti < Base
+      attr_accessor :durability_level # @return [Symbol]
+
+      # Creates an instance of options for {Collection#remove}
+      #
+      # @param [Symbol] durability_level level of durability
+      #  +:none+::
+      #     no enhanced durability required for the mutation
+      #  +:majority+::
+      #     the mutation must be replicated to a majority of the Data Service nodes
+      #     (that is, held in the memory allocated to the bucket)
+      #  +:majority_and_persist_to_active+::
+      #     The mutation must be replicated to a majority of the Data Service nodes.
+      #     Additionally, it must be persisted (that is, written and synchronised to disk) on the
+      #     node hosting the active partition (vBucket) for the data.
+      #  +:persist_to_majority+::
+      #     The mutation must be persisted to a majority of the Data Service nodes.
+      #     Accordingly, it will be written to disk on those nodes.
+      #
+      # @param [Integer, #in_milliseconds, nil] timeout
+      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Hash, nil] client_context the client context data, if set
+      # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+      #
+      # @yieldparam [Remove]
+      def initialize(durability_level: :none,
+                     timeout: nil,
+                     retry_strategy: nil,
+                     client_context: nil,
+                     parent_span: nil)
+        super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+        @durability_level = durability_level
+        yield self if block_given?
+      end
+
+      # @api private
+      def to_backend
+        {
+          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          durability_level: @durability_level,
+        }
+      end
+    end
+
     # Options for {Collection#insert}
     class Insert < Base
       attr_accessor :expiry # @return [Integer, #in_seconds, nil]
@@ -425,6 +502,59 @@ module Couchbase
 
     # Options for {Collection#upsert}
     class Upsert < Base
+      attr_accessor :expiry # @return [Integer, #in_seconds, nil]
+      attr_accessor :transcoder # @return [JsonTranscoder, #encode(Object)]
+      attr_accessor :durability_level # @return [Symbol]
+
+      # Creates an instance of options for {Collection#upsert}
+      #
+      # @param [Integer, #in_seconds, nil] expiry expiration time to associate with the document
+      # @param [JsonTranscoder, #encode(Object)] transcoder used for encoding
+      # @param [Symbol] durability_level level of durability
+      #  +:none+::
+      #     no enhanced durability required for the mutation
+      #  +:majority+::
+      #     the mutation must be replicated to a majority of the Data Service nodes
+      #     (that is, held in the memory allocated to the bucket)
+      #  +:majority_and_persist_to_active+::
+      #     The mutation must be replicated to a majority of the Data Service nodes.
+      #     Additionally, it must be persisted (that is, written and synchronised to disk) on the
+      #     node hosting the active partition (vBucket) for the data.
+      #  +:persist_to_majority+::
+      #     The mutation must be persisted to a majority of the Data Service nodes.
+      #     Accordingly, it will be written to disk on those nodes.
+      #
+      # @param [Integer, #in_milliseconds, nil] timeout
+      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Hash, nil] client_context the client context data, if set
+      # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+      #
+      # @yieldparam [Upsert]
+      def initialize(expiry: nil,
+                     transcoder: JsonTranscoder.new,
+                     durability_level: :none,
+                     timeout: nil,
+                     retry_strategy: nil,
+                     client_context: nil,
+                     parent_span: nil)
+        super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+        @expiry = expiry
+        @transcoder = transcoder
+        @durability_level = durability_level
+        yield self if block_given?
+      end
+
+      def to_backend
+        {
+          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          expiry: @expiry.respond_to?(:in_seconds) ? @expiry.public_send(:in_seconds) : @expiry,
+          durability_level: @durability_level,
+        }
+      end
+    end
+
+    # Options for {Collection#upsert_multi}
+    class UpsertMulti < Base
       attr_accessor :expiry # @return [Integer, #in_seconds, nil]
       attr_accessor :transcoder # @return [JsonTranscoder, #encode(Object)]
       attr_accessor :durability_level # @return [Symbol]
@@ -1637,6 +1767,18 @@ module Couchbase
       Get.new(**args)
     end
 
+    # Construct {GetMulti} options for {Collection#get_multi}
+    #
+    # @example Fetch "foo" and "bar" in a batch
+    #   res = collection.get(["foo", "bar"], Options::GetMulti(timeout: 3_000))
+    #   res[0].content #=> content of "foo"
+    #   res[1].content #=> content of "bar"
+    #
+    # @return [GetMulti]
+    def GetMulti(**args)
+      GetMulti.new(**args)
+    end
+
     # Construct {GetAndLock} options for {Collection#get_and_lock}
     #
     # @example Retrieve document and lock for 10 seconds
@@ -1720,6 +1862,22 @@ module Couchbase
       Remove.new(**args)
     end
 
+    # Construct {RemoveMulti} options for {Collection#remove_multi}
+    #
+    # @example Remove two documents in collection. For "mydoc" apply optimistic lock
+    #   res = collection.upsert("mydoc", {"foo" => 42})
+    #   res.cas #=> 7751414725654
+    #
+    #   res = collection.remove_multi(["foo", ["mydoc", res.cas]], Options::RemoveMulti(timeout: 3_000))
+    #   if res[1].error.is_a?(Error::CasMismatch)
+    #     puts "Failed to remove the document, it might be changed by other application"
+    #   end
+    #
+    # @return [RemoveMulti]
+    def RemoveMulti(**args)
+      RemoveMulti.new(**args)
+    end
+
     # Construct {Insert} options for {Collection#insert}
     #
     # @example Insert new document in collection
@@ -1740,6 +1898,21 @@ module Couchbase
     # @return [Upsert]
     def Upsert(**args)
       Upsert.new(**args)
+    end
+
+    # Construct {UpsertMulti} options for {Collection#upsert_multi}
+    #
+    # @example Upsert two documents with IDs "foo" and "bar" into a collection with expiration 20 seconds.
+    #   res = collection.upsert_multi([
+    #     "foo", {"foo" => 42},
+    #     "bar", {"bar" => "some value"}
+    #   ], Options::UpsertMulti(expiry: 20))
+    #   res[0].cas #=> 7751414725654
+    #   res[1].cas #=> 7751418925851
+    #
+    # @return [UpsertMulti]
+    def UpsertMulti(**args)
+      UpsertMulti.new(**args)
     end
 
     # Construct {Replace} options for {Collection#replace}

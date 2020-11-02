@@ -330,225 +330,225 @@ module Couchbase
       test_cases = [
         {name: "string", project: "name",
          expected:
-             {
-               "name" => person["name"],
-             }},
+            {
+              "name" => person["name"],
+            }},
 
         {name: "int", project: "age",
          expected:
-             {
-               "age" => person["age"],
-             }},
+            {
+              "age" => person["age"],
+            }},
 
         {name: "array", project: "animals",
          expected:
-             {
-               "animals" => person["animals"],
-             }},
+            {
+              "animals" => person["animals"],
+            }},
 
         {name: "array-index1", project: "animals[0]",
          expected:
-             {
-               "animals" => [
-                 person["animals"][0],
-               ],
-             }},
+            {
+              "animals" => [
+                person["animals"][0],
+              ],
+            }},
 
         {name: "array-index2", project: "animals[1]",
          expected:
-             {
-               "animals" => [
-                 person["animals"][1],
-               ],
-             }},
+            {
+              "animals" => [
+                person["animals"][1],
+              ],
+            }},
 
         {name: "array-index3", project: "animals[2]",
          expected:
-             {
-               "animals" => [
-                 person["animals"][2],
-               ],
-             }},
+            {
+              "animals" => [
+                person["animals"][2],
+              ],
+            }},
 
         {name: "full-object-field", project: "attributes",
          expected:
-             {
-               "attributes" => person["attributes"],
-             }},
+            {
+              "attributes" => person["attributes"],
+            }},
 
         {name: "nested-object-field1", project: "attributes.hair",
          expected:
-             {
-               "attributes" => {
-                 "hair" => person["attributes"]["hair"],
-               },
-             }},
+            {
+              "attributes" => {
+                "hair" => person["attributes"]["hair"],
+              },
+            }},
 
         {name: "nested-object-field2", project: "attributes.dimensions",
          expected:
-             {
-               "attributes" => {
-                 "dimensions" => person["attributes"]["dimensions"],
-               },
-             }},
+            {
+              "attributes" => {
+                "dimensions" => person["attributes"]["dimensions"],
+              },
+            }},
 
         {name: "nested-object-field3", project: "attributes.dimensions.height",
          expected:
-             {
-               "attributes" => {
-                 "dimensions" => {
-                   "height" => person["attributes"]["dimensions"]["height"],
-                 },
-               },
-             }},
+            {
+              "attributes" => {
+                "dimensions" => {
+                  "height" => person["attributes"]["dimensions"]["height"],
+                },
+              },
+            }},
 
         {name: "nested-object-field4", project: "attributes.dimensions.weight",
          expected:
-             {
-               "attributes" => {
-                 "dimensions" => {
-                   "weight" => person["attributes"]["dimensions"]["weight"],
-                 },
-               },
-             }},
+            {
+              "attributes" => {
+                "dimensions" => {
+                  "weight" => person["attributes"]["dimensions"]["weight"],
+                },
+              },
+            }},
 
         {name: "nested-object-field5", project: "attributes.hobbies",
          expected:
-             {
-               "attributes" => {
-                 "hobbies" => person["attributes"]["hobbies"],
-               },
-             }},
+            {
+              "attributes" => {
+                "hobbies" => person["attributes"]["hobbies"],
+              },
+            }},
 
         {name: "nested-array-object-field1", project: "attributes.hobbies[0].type",
          expected:
-             {
-               "attributes" => {
-                 "hobbies" => [
-                   {
-                     "type" => person["attributes"]["hobbies"][0]["type"],
-                   },
-                 ],
-               },
-             }},
+            {
+              "attributes" => {
+                "hobbies" => [
+                  {
+                    "type" => person["attributes"]["hobbies"][0]["type"],
+                  },
+                ],
+              },
+            }},
 
         {name: "nested-array-object-field2", project: "attributes.hobbies[1].type",
          expected:
-             {
-               "attributes" => {
-                 "hobbies" => [
-                   {
-                     "type" => person["attributes"]["hobbies"][1]["type"],
-                   },
-                 ],
-               },
-             }},
+            {
+              "attributes" => {
+                "hobbies" => [
+                  {
+                    "type" => person["attributes"]["hobbies"][1]["type"],
+                  },
+                ],
+              },
+            }},
 
         {name: "nested-array-object-field3", project: "attributes.hobbies[0].name",
          expected:
-             {
-               "attributes" => {
-                 "hobbies" => [
-                   {
-                     "name" => person["attributes"]["hobbies"][0]["name"],
-                   },
-                 ],
-               },
-             }},
+            {
+              "attributes" => {
+                "hobbies" => [
+                  {
+                    "name" => person["attributes"]["hobbies"][0]["name"],
+                  },
+                ],
+              },
+            }},
 
         {name: "nested-array-object-field4", project: "attributes.hobbies[1].name",
          expected:
-             {
-               "attributes" => {
-                 "hobbies" => [
-                   {
-                     "name" => person["attributes"]["hobbies"][1]["name"],
-                   },
-                 ],
-               },
-             }},
+            {
+              "attributes" => {
+                "hobbies" => [
+                  {
+                    "name" => person["attributes"]["hobbies"][1]["name"],
+                  },
+                ],
+              },
+            }},
 
         {name: "nested-array-object-field5", project: "attributes.hobbies[1].details",
          expected:
-             {
-               "attributes" => {
-                 "hobbies" => [
-                   {
-                     "details" => person["attributes"]["hobbies"][1]["details"],
-                   },
-                 ],
-               },
-             }},
+            {
+              "attributes" => {
+                "hobbies" => [
+                  {
+                    "details" => person["attributes"]["hobbies"][1]["details"],
+                  },
+                ],
+              },
+            }},
 
         {name: "nested-array-object-nested-field1", project: "attributes.hobbies[1].details.location",
          expected:
-             {
-               "attributes" => {
-                 "hobbies" => [
-                   {
-                     "details" => {
-                       "location" => person["attributes"]["hobbies"][1]["details"]["location"],
-                     },
-                   },
-                 ],
-               },
-             }},
+            {
+              "attributes" => {
+                "hobbies" => [
+                  {
+                    "details" => {
+                      "location" => person["attributes"]["hobbies"][1]["details"]["location"],
+                    },
+                  },
+                ],
+              },
+            }},
 
         {name: "nested-array-object-nested-nested-field1", project: "attributes.hobbies[1].details.location.lat",
          expected:
-             {
-               "attributes" => {
-                 "hobbies" => [
-                   {
-                     "details" => {
-                       "location" => {
-                         "lat" => person["attributes"]["hobbies"][1]["details"]["location"]["lat"],
-                       },
-                     },
-                   },
-                 ],
-               },
-             }},
+            {
+              "attributes" => {
+                "hobbies" => [
+                  {
+                    "details" => {
+                      "location" => {
+                        "lat" => person["attributes"]["hobbies"][1]["details"]["location"]["lat"],
+                      },
+                    },
+                  },
+                ],
+              },
+            }},
 
         {name: "nested-array-object-nested-nested-field2", project: "attributes.hobbies[1].details.location.long",
          expected:
-             {
-               "attributes" => {
-                 "hobbies" => [
-                   {
-                     "details" => {
-                       "location" => {
-                         "long" => person["attributes"]["hobbies"][1]["details"]["location"]["long"],
-                       },
-                     },
-                   },
-                 ],
-               },
-             }},
+            {
+              "attributes" => {
+                "hobbies" => [
+                  {
+                    "details" => {
+                      "location" => {
+                        "long" => person["attributes"]["hobbies"][1]["details"]["location"]["long"],
+                      },
+                    },
+                  },
+                ],
+              },
+            }},
 
         {name: "array-of-arrays-object", project: "tracking.locations[1][1].lat",
          expected:
-             {
-               "tracking" => {
-                 "locations" => [
-                   [
-                     {"lat" => person["tracking"]["locations"][1][1]["lat"]},
-                   ],
-                 ],
-               },
-             }},
+            {
+              "tracking" => {
+                "locations" => [
+                  [
+                    {"lat" => person["tracking"]["locations"][1][1]["lat"]},
+                  ],
+                ],
+              },
+            }},
 
         {name: "array-of-arrays-native", project: "tracking.raw[1][1]",
          expected:
-             {
-               "tracking" => {
-                 "raw" => [
-                   [
-                     person["tracking"]["raw"][1][1],
-                   ],
-                 ],
-               },
-             }},
+            {
+              "tracking" => {
+                "raw" => [
+                  [
+                    person["tracking"]["raw"][1][1],
+                  ],
+                ],
+              },
+            }},
       ]
 
       test_cases.each do |test_case|
@@ -570,19 +570,19 @@ module Couchbase
       test_cases = [
         {name: "simple", project: %w[name age animals],
          expected:
-             {
-               "name" => person["name"],
-               "age" => person["age"],
-               "animals" => person["animals"],
-             }},
+            {
+              "name" => person["name"],
+              "age" => person["age"],
+              "animals" => person["animals"],
+            }},
         {name: "array entries", project: %w[animals[1] animals[0]],
          expected:
-             {
-               "animals" => [
-                 person["animals"][1],
-                 person["animals"][0],
-               ],
-             }},
+            {
+              "animals" => [
+                person["animals"][1],
+                person["animals"][0],
+              ],
+            }},
       ]
 
       test_cases.each do |test_case|
@@ -604,28 +604,28 @@ module Couchbase
       test_cases = [
         {name: "array entries", project: %w[animals[1] animals[0]],
          expected:
-             {
-               "animals" => [
-                 person["animals"][0],
-                 person["animals"][1],
-               ],
-             }},
+            {
+              "animals" => [
+                person["animals"][0],
+                person["animals"][1],
+              ],
+            }},
         {name: "with inner array", project: %w[attributes.hobbies[1].details.location.lat],
          expected:
-             {
-               "attributes" => {
-                 "hobbies" => [
-                   nil,
-                   {
-                     "details" => {
-                       "location" => {
-                         "lat" => person["attributes"]["hobbies"][1]["details"]["location"]["lat"],
-                       },
-                     },
-                   },
-                 ],
-               },
-             }},
+            {
+              "attributes" => {
+                "hobbies" => [
+                  nil,
+                  {
+                    "details" => {
+                      "location" => {
+                        "lat" => person["attributes"]["hobbies"][1]["details"]["location"]["lat"],
+                      },
+                    },
+                  },
+                ],
+              },
+            }},
       ]
 
       test_cases.each do |test_case|
@@ -774,6 +774,64 @@ module Couchbase
 
       res = @collection.get(doc_id, Options::Get(transcoder: nil))
       refute_equal "barfoo", res.content
+    end
+
+    def test_multi_ops
+      doc_id1 = uniq_id(:foo)
+      doc_id2 = uniq_id(:bar)
+
+      res = @collection.upsert_multi([
+                                       [doc_id1, {"foo" => 32}],
+                                       [doc_id2, {"bar" => "bar42"}],
+                                     ])
+      assert_kind_of Array, res
+      assert_equal 2, res.size
+      assert_nil res[0].error
+      assert_nil res[1].error
+
+      cas2 = res[1].cas
+
+      res = @collection.get_multi([doc_id1, doc_id2, uniq_id(:does_not_exist)])
+      assert_kind_of Array, res
+      assert_equal 3, res.size
+      assert_nil res[0].error
+      assert_nil res[1].error
+      assert_kind_of Error::DocumentNotFound, res[2].error
+
+      assert_equal({"foo" => 32}, res[0].content)
+      assert_equal({"bar" => "bar42"}, res[1].content)
+      assert_equal(cas2, res[1].cas)
+
+      res = @collection.remove_multi([doc_id1, [doc_id2, cas2]])
+      assert_kind_of Array, res
+      assert_equal 2, res.size
+      assert_nil res[0].error
+      assert_nil res[1].error
+
+      res = @collection.get_multi([doc_id1, doc_id2])
+      assert_kind_of Array, res
+      assert_equal 2, res.size
+      assert_kind_of Error::DocumentNotFound, res[0].error
+      assert_kind_of Error::DocumentNotFound, res[1].error
+    end
+
+    def test_massive_multi_ops
+      keys = (0..10_000).map { |idx| uniq_id("key_#{idx}") }
+
+      res = @collection.upsert_multi(keys.map { |k| [k, {"value" => k}] })
+      assert_kind_of Array, res
+      assert_equal keys.size, res.size
+      res.each_with_index do |r, i|
+        assert_nil r.error, "upsert for #{keys[i].inspect} must not fail"
+      end
+
+      res = @collection.get_multi(keys)
+      assert_kind_of Array, res
+      assert_equal keys.size, res.size
+      res.each_with_index do |r, i|
+        assert_nil r.error, "upsert for #{keys[i].inspect} must not fail"
+        assert_equal keys[i], r.content["value"]
+      end
     end
   end
 end

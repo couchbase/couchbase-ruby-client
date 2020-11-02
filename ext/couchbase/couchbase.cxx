@@ -810,6 +810,24 @@ cb__extract_timeout(Request& req, VALUE options)
 }
 
 [[nodiscard]] VALUE
+cb__extract_timeout(std::chrono::milliseconds& timeout, VALUE options)
+{
+    if (!NIL_P(options)) {
+        switch (TYPE(options)) {
+            case T_HASH:
+                return cb__extract_timeout(timeout, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+            case T_FIXNUM:
+            case T_BIGNUM:
+                timeout = std::chrono::milliseconds(NUM2ULL(options));
+                break;
+            default:
+                return rb_exc_new_str(rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
+        }
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
 cb__extract_option_bool(bool& field, VALUE options, const char* name)
 {
     if (!NIL_P(options) && TYPE(options) == T_HASH) {
@@ -844,6 +862,152 @@ cb__extract_option_array(VALUE& val, VALUE options, const char* name)
         }
         return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be an Array, but given %+" PRIsVALUE, name, val));
     }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb__extract_array_of_ids(std::vector<couchbase::document_id>& ids, VALUE arg)
+{
+    if (TYPE(arg) != T_ARRAY) {
+        return rb_exc_new_str(rb_eArgError, rb_sprintf("Type of IDs argument must be an Array, but given %+" PRIsVALUE, arg));
+    }
+    auto num_of_ids = static_cast<std::size_t>(RARRAY_LEN(arg));
+    if (num_of_ids < 1) {
+        rb_raise(rb_eArgError, "Array of IDs must not be empty");
+    }
+    ids.reserve(num_of_ids);
+    for (std::size_t i = 0; i < num_of_ids; ++i) {
+        VALUE entry = rb_ary_entry(arg, static_cast<long>(i));
+        if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 3) {
+            return rb_exc_new_str(
+              rb_eArgError, rb_sprintf("ID tuple must be represented as an Array[bucket, collection, id], but given %+" PRIsVALUE, entry));
+        }
+        VALUE bucket = rb_ary_entry(entry, 0);
+        if (TYPE(bucket) != T_STRING) {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("Bucket must be a String, but given %+" PRIsVALUE, bucket));
+        }
+        VALUE collection = rb_ary_entry(entry, 1);
+        if (TYPE(collection) != T_STRING) {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("Collection must be a String, but given %+" PRIsVALUE, collection));
+        }
+        VALUE id = rb_ary_entry(entry, 2);
+        if (TYPE(id) != T_STRING) {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
+        }
+        ids.emplace_back(couchbase::document_id{
+          std::string(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket))),
+          std::string(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection))),
+          std::string(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id))),
+        });
+    }
+
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb__extract_array_of_id_content(std::vector<std::tuple<couchbase::document_id, std::string, std::uint32_t>>& id_content, VALUE arg)
+{
+    if (TYPE(arg) != T_ARRAY) {
+        return rb_exc_new_str(rb_eArgError, rb_sprintf("Type of ID/content tuples must be an Array, but given %+" PRIsVALUE, arg));
+    }
+    auto num_of_tuples = static_cast<std::size_t>(RARRAY_LEN(arg));
+    if (num_of_tuples < 1) {
+        rb_raise(rb_eArgError, "Array of ID/content tuples must not be empty");
+    }
+    id_content.reserve(num_of_tuples);
+    for (std::size_t i = 0; i < num_of_tuples; ++i) {
+        VALUE entry = rb_ary_entry(arg, static_cast<long>(i));
+        if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 5) {
+            return rb_exc_new_str(
+              rb_eArgError,
+              rb_sprintf("ID/content tuple must be represented as an Array[bucket, collection, id, content], but given %+" PRIsVALUE,
+                         entry));
+        }
+        VALUE bucket = rb_ary_entry(entry, 0);
+        if (TYPE(bucket) != T_STRING) {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("Bucket must be a String, but given %+" PRIsVALUE, bucket));
+        }
+        VALUE collection = rb_ary_entry(entry, 1);
+        if (TYPE(collection) != T_STRING) {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("Collection must be a String, but given %+" PRIsVALUE, collection));
+        }
+        VALUE id = rb_ary_entry(entry, 2);
+        if (TYPE(id) != T_STRING) {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
+        }
+        VALUE content = rb_ary_entry(entry, 3);
+        if (TYPE(content) != T_STRING) {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("Content must be a String, but given %+" PRIsVALUE, content));
+        }
+        VALUE flags = rb_ary_entry(entry, 4);
+        if (TYPE(flags) != T_FIXNUM) {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("Flags must be an Integer, but given %+" PRIsVALUE, flags));
+        }
+        id_content.emplace_back(std::make_tuple(
+          couchbase::document_id{
+            std::string(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket))),
+            std::string(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection))),
+            std::string(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id))),
+          },
+          std::string(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content))),
+          FIX2UINT(flags)));
+    }
+
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb__extract_array_of_id_cas(std::vector<std::pair<couchbase::document_id, std::uint64_t>>& id_cas, VALUE arg)
+{
+    if (TYPE(arg) != T_ARRAY) {
+        return rb_exc_new_str(rb_eArgError, rb_sprintf("Type of ID/CAS tuples must be an Array, but given %+" PRIsVALUE, arg));
+    }
+    auto num_of_tuples = static_cast<std::size_t>(RARRAY_LEN(arg));
+    if (num_of_tuples < 1) {
+        rb_raise(rb_eArgError, "Array of ID/CAS tuples must not be empty");
+    }
+    id_cas.reserve(num_of_tuples);
+    for (std::size_t i = 0; i < num_of_tuples; ++i) {
+        VALUE entry = rb_ary_entry(arg, static_cast<long>(i));
+        if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 4) {
+            return rb_exc_new_str(
+              rb_eArgError,
+              rb_sprintf("ID/content tuple must be represented as an Array[bucket, collection, id, CAS], but given %+" PRIsVALUE, entry));
+        }
+        VALUE bucket = rb_ary_entry(entry, 0);
+        if (TYPE(bucket) != T_STRING) {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("Bucket must be a String, but given %+" PRIsVALUE, bucket));
+        }
+        VALUE collection = rb_ary_entry(entry, 1);
+        if (TYPE(collection) != T_STRING) {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("Collection must be a String, but given %+" PRIsVALUE, collection));
+        }
+        VALUE id = rb_ary_entry(entry, 2);
+        if (TYPE(id) != T_STRING) {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
+        }
+        std::uint64_t cas_val = 0;
+        VALUE cas = rb_ary_entry(entry, 3);
+        if (!NIL_P(cas)) {
+            switch (TYPE(cas)) {
+                case T_FIXNUM:
+                case T_BIGNUM:
+                    cas_val = NUM2ULL(cas);
+                    break;
+                default:
+                    return rb_exc_new_str(rb_eArgError, rb_sprintf("CAS must be an Integer or nil, but given %+" PRIsVALUE, cas));
+            }
+        }
+
+        id_cas.emplace_back(std::make_pair(
+          couchbase::document_id{
+            std::string(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket))),
+            std::string(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection))),
+            std::string(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id))),
+          },
+          cas_val));
+    }
+
     return Qnil;
 }
 
@@ -915,9 +1079,8 @@ cb__extract_option_bignum(VALUE& val, VALUE options, const char* name)
     return Qnil;
 }
 
-template<typename Request>
 [[nodiscard]] VALUE
-cb__extract_durability(Request& req, VALUE options)
+cb__extract_durability(couchbase::protocol::durability_level& output_level, std::optional<std::uint16_t>& output_timeout, VALUE options)
 {
     VALUE durability_level = Qnil;
     VALUE exc = cb__extract_option_symbol(durability_level, options, "durability_level");
@@ -927,13 +1090,13 @@ cb__extract_durability(Request& req, VALUE options)
     if (!NIL_P(durability_level)) {
         ID level = rb_sym2id(durability_level);
         if (level == rb_intern("none")) {
-            req.durability_level = couchbase::protocol::durability_level::none;
+            output_level = couchbase::protocol::durability_level::none;
         } else if (level == rb_intern("majority")) {
-            req.durability_level = couchbase::protocol::durability_level::majority;
+            output_level = couchbase::protocol::durability_level::majority;
         } else if (level == rb_intern("majority_and_persist_to_active")) {
-            req.durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            output_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
         } else if (level == rb_intern("persist_to_majority")) {
-            req.durability_level = couchbase::protocol::durability_level::persist_to_majority;
+            output_level = couchbase::protocol::durability_level::persist_to_majority;
         } else {
             return rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
         }
@@ -943,10 +1106,17 @@ cb__extract_durability(Request& req, VALUE options)
             return exc;
         }
         if (!NIL_P(durability_timeout)) {
-            req.durability_timeout = FIX2UINT(durability_timeout);
+            output_timeout = FIX2UINT(durability_timeout);
         }
     }
     return Qnil;
+}
+
+template<typename Request>
+[[nodiscard]] VALUE
+cb__extract_durability(Request& req, VALUE options)
+{
+    return cb__extract_durability(req.durability_level, req.durability_timeout, options);
 }
 
 static VALUE
@@ -1113,6 +1283,66 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VA
         rb_hash_aset(res, rb_id2sym(rb_intern("content")), rb_str_new(resp.value.data(), static_cast<long>(resp.value.size())));
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
         rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_document_get_multi(VALUE self, VALUE keys, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
+    }
+
+    VALUE exc = Qnil;
+    do {
+        std::chrono::milliseconds timeout{ 0 };
+        exc = cb__extract_timeout(timeout, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        std::vector<couchbase::document_id> ids{};
+        exc = cb__extract_array_of_ids(ids, keys);
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        auto num_of_ids = ids.size();
+        std::vector<std::shared_ptr<std::promise<couchbase::operations::get_response>>> barriers;
+        barriers.reserve(num_of_ids);
+
+        for (auto& id : ids) {
+            couchbase::operations::get_request req{ std::move(id) };
+            if (timeout.count() > 0) {
+                req.timeout = timeout;
+            }
+            auto barrier = std::make_shared<std::promise<couchbase::operations::get_response>>();
+            backend->cluster->execute(req, [barrier](couchbase::operations::get_response&& resp) mutable { barrier->set_value(resp); });
+            barriers.emplace_back(barrier);
+        }
+
+        VALUE res = rb_ary_new_capa(static_cast<long>(num_of_ids));
+        for (auto& barrier : barriers) {
+            auto resp = barrier->get_future().get();
+            VALUE entry = rb_hash_new();
+            if (resp.ec) {
+                rb_hash_aset(entry,
+                             rb_id2sym(rb_intern("error")),
+                             cb__map_error_code(resp.ec, fmt::format(R"(unable fetch "{}" (opaque={}))", resp.id, resp.opaque)));
+            }
+            rb_hash_aset(entry, rb_id2sym(rb_intern("content")), rb_str_new(resp.value.data(), static_cast<long>(resp.value.size())));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
+            rb_ary_push(res, entry);
+        }
+
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -1560,6 +1790,80 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
 }
 
 static VALUE
+cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
+    }
+
+    VALUE exc = Qnil;
+    do {
+        std::chrono::milliseconds timeout{ 0 };
+        exc = cb__extract_timeout(timeout, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        couchbase::protocol::durability_level durability_level{ couchbase::protocol::durability_level::none };
+        std::optional<std::uint16_t> durability_timeout{ std::nullopt };
+        exc = cb__extract_durability(durability_level, durability_timeout, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+        VALUE expiry = Qnil;
+        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        std::vector<std::tuple<couchbase::document_id, std::string, std::uint32_t>> tuples{};
+        exc = cb__extract_array_of_id_content(tuples, id_content);
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        auto num_of_tuples = tuples.size();
+        std::vector<std::shared_ptr<std::promise<couchbase::operations::upsert_response>>> barriers;
+        barriers.reserve(num_of_tuples);
+
+        for (auto& tuple : tuples) {
+            couchbase::operations::upsert_request req{ std::move(std::get<0>(tuple)), std::move(std::get<1>(tuple)) };
+            if (timeout.count() > 0) {
+                req.timeout = timeout;
+            }
+            req.flags = std::get<2>(tuple);
+            req.durability_level = durability_level;
+            req.durability_timeout = durability_timeout;
+            if (!NIL_P(expiry)) {
+                req.expiry = FIX2UINT(expiry);
+            }
+            auto barrier = std::make_shared<std::promise<couchbase::operations::upsert_response>>();
+            backend->cluster->execute(req, [barrier](couchbase::operations::upsert_response&& resp) mutable { barrier->set_value(resp); });
+            barriers.emplace_back(barrier);
+        }
+
+        VALUE res = rb_ary_new_capa(static_cast<long>(num_of_tuples));
+        for (auto& barrier : barriers) {
+            auto resp = barrier->get_future().get();
+            VALUE entry = cb__extract_mutation_result(resp);
+            if (resp.ec) {
+                rb_hash_aset(entry,
+                             rb_id2sym(rb_intern("error")),
+                             cb__map_error_code(resp.ec, fmt::format(R"(unable upsert "{}" (opaque={}))", resp.id, resp.opaque)));
+            }
+            rb_ary_push(res, entry);
+        }
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
 cb_Backend_document_append(VALUE self, VALUE bucket, VALUE collection, VALUE id, VALUE content, VALUE options)
 {
     cb_backend_data* backend = nullptr;
@@ -1849,6 +2153,77 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
             break;
         }
         return cb__extract_mutation_result(resp);
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_document_remove_multi(VALUE self, VALUE id_cas, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
+    }
+
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        std::chrono::milliseconds timeout{ 0 };
+        exc = cb__extract_timeout(timeout, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        couchbase::protocol::durability_level durability_level{ couchbase::protocol::durability_level::none };
+        std::optional<std::uint16_t> durability_timeout{ std::nullopt };
+        exc = cb__extract_durability(durability_level, durability_timeout, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        std::vector<std::pair<couchbase::document_id, std::uint64_t>> tuples{};
+        exc = cb__extract_array_of_id_cas(tuples, id_cas);
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        auto num_of_tuples = tuples.size();
+        std::vector<std::shared_ptr<std::promise<couchbase::operations::remove_response>>> barriers;
+        barriers.reserve(num_of_tuples);
+
+        for (auto& tuple : tuples) {
+            couchbase::operations::remove_request req{ std::move(tuple.first) };
+            req.cas = tuple.second;
+            if (timeout.count() > 0) {
+                req.timeout = timeout;
+            }
+            req.durability_level = durability_level;
+            req.durability_timeout = durability_timeout;
+            auto barrier = std::make_shared<std::promise<couchbase::operations::remove_response>>();
+            backend->cluster->execute(req, [barrier](couchbase::operations::remove_response&& resp) mutable { barrier->set_value(resp); });
+            barriers.emplace_back(barrier);
+        }
+
+        VALUE res = rb_ary_new_capa(static_cast<long>(num_of_tuples));
+        for (auto& barrier : barriers) {
+            auto resp = barrier->get_future().get();
+            VALUE entry = cb__extract_mutation_result(resp);
+            if (resp.ec) {
+                rb_hash_aset(entry,
+                             rb_id2sym(rb_intern("error")),
+                             cb__map_error_code(resp.ec, fmt::format(R"(unable remove "{}" (opaque={}))", resp.id, resp.opaque)));
+            }
+            rb_ary_push(res, entry);
+        }
+
+        return res;
     } while (false);
     rb_exc_raise(exc);
     return Qnil;
@@ -7044,7 +7419,7 @@ cb_Backend_leb128_decode(VALUE self, VALUE data)
     (void)self;
     Check_Type(data, T_STRING);
     std::string buf(RSTRING_PTR(data), static_cast<std::size_t>(RSTRING_LEN(data)));
-    if (buf.size() > 0) {
+    if (!buf.empty()) {
         auto rv = couchbase::protocol::decode_unsigned_leb128<std::uint64_t>(buf, couchbase::protocol::Leb128NoThrow());
         if (rv.second.data()) {
             return ULL2NUM(rv.first);
@@ -7066,15 +7441,18 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "ping", VALUE_FUNC(cb_Backend_ping), 2);
 
     rb_define_method(cBackend, "document_get", VALUE_FUNC(cb_Backend_document_get), 4);
+    rb_define_method(cBackend, "document_get_multi", VALUE_FUNC(cb_Backend_document_get_multi), 2);
     rb_define_method(cBackend, "document_get_projected", VALUE_FUNC(cb_Backend_document_get_projected), 4);
     rb_define_method(cBackend, "document_get_and_lock", VALUE_FUNC(cb_Backend_document_get_and_lock), 5);
     rb_define_method(cBackend, "document_get_and_touch", VALUE_FUNC(cb_Backend_document_get_and_touch), 5);
     rb_define_method(cBackend, "document_insert", VALUE_FUNC(cb_Backend_document_insert), 6);
     rb_define_method(cBackend, "document_replace", VALUE_FUNC(cb_Backend_document_replace), 6);
     rb_define_method(cBackend, "document_upsert", VALUE_FUNC(cb_Backend_document_upsert), 6);
+    rb_define_method(cBackend, "document_upsert_multi", VALUE_FUNC(cb_Backend_document_upsert_multi), 2);
     rb_define_method(cBackend, "document_append", VALUE_FUNC(cb_Backend_document_append), 5);
     rb_define_method(cBackend, "document_prepend", VALUE_FUNC(cb_Backend_document_prepend), 5);
     rb_define_method(cBackend, "document_remove", VALUE_FUNC(cb_Backend_document_remove), 4);
+    rb_define_method(cBackend, "document_remove_multi", VALUE_FUNC(cb_Backend_document_remove_multi), 2);
     rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 5);
     rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 5);
     rb_define_method(cBackend, "document_query", VALUE_FUNC(cb_Backend_document_query), 2);

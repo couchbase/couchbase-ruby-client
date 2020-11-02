@@ -40,6 +40,7 @@ module Couchbase
     def test_query_with_metrics
       options = Cluster::QueryOptions.new
       options.metrics = true
+      options.timeout = 200_000 # 200 seconds
       res = @cluster.query('SELECT "ruby rules" AS greeting', options)
       assert_equal "ruby rules", res.rows.first["greeting"]
 
@@ -64,6 +65,7 @@ module Couchbase
       options.scan_cap = 10
       options.scan_consistency = :request_plus
       options.scan_wait = 50
+      options.timeout = 200_000 # 200 seconds
 
       res = @cluster.query("SELECT * FROM `#{@bucket.name}` WHERE META().id = \"#{doc_id}\"", options)
 
@@ -87,6 +89,7 @@ module Couchbase
 
       options = Cluster::QueryOptions.new
       options.scan_consistency = :request_plus
+      options.timeout = 200_000 # 200 seconds
 
       res = @cluster.query("SELECT * FROM `#{@bucket.name}` AS doc WHERE META().id = \"#{doc_id}\"", options)
 
@@ -103,6 +106,7 @@ module Couchbase
 
     def test_select_with_profile
       options = Cluster::QueryOptions.new
+      options.timeout = 200_000 # 200 seconds
 
       options.profile = :off
       res = @cluster.query('SELECT "ruby rules" AS greeting', options)
@@ -130,6 +134,7 @@ module Couchbase
       options = Cluster::QueryOptions.new
       options.scan_consistency = :request_plus
       options.named_parameters("id" => doc_id)
+      options.timeout = 200_000 # 200 seconds
 
       res = @cluster.query("SELECT `#{@bucket.name}`.* FROM `#{@bucket.name}` WHERE META().id = $id", options)
       assert_equal 1, res.rows.size
@@ -143,6 +148,7 @@ module Couchbase
       options = Cluster::QueryOptions.new
       options.scan_consistency = :request_plus
       options.positional_parameters([doc_id])
+      options.timeout = 200_000 # 200 seconds
 
       res = @cluster.query("SELECT `#{@bucket.name}`.* FROM `#{@bucket.name}` WHERE META().id = $1", options)
       assert_equal 1, res.rows.size
@@ -156,6 +162,7 @@ module Couchbase
       options = Cluster::QueryOptions.new
       options.consistent_with(MutationState.new(res.mutation_token))
       options.positional_parameters([doc_id])
+      options.timeout = 200_000 # 200 seconds
 
       res = @cluster.query("SELECT `#{@bucket.name}`.* FROM `#{@bucket.name}` WHERE META().id = $1", options)
       assert_equal 1, res.rows.size
@@ -195,6 +202,7 @@ module Couchbase
       options = Cluster::QueryOptions.new
       options.scan_consistency = :request_plus
       options.positional_parameters([[global_doc, local_doc]])
+      options.timeout = 200_000 # 200 seconds
 
       res = @cluster.query("SELECT location FROM `#{@bucket.name}` WHERE META().id IN $1", options)
       assert_equal 1, res.rows.size

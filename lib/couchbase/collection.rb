@@ -83,6 +83,34 @@ module Couchbase
       end
     end
 
+    # Fetches multiple documents from the collection.
+    #
+    # @note that it will not generate {Error::DocumentNotFound} exceptions in this case. The caller should check
+    #  {GetResult#error} property of the result
+    #
+    # @param [Array<String>] ids the array of document identifiers
+    # @param [Options::GetMulti] options request customization
+    #
+    # @example Fetch "foo" and "bar" in a batch
+    #   res = collection.get(["foo", "bar"], Options::GetMulti(timeout: 3_000))
+    #   res[0].content #=> content of "foo"
+    #   res[1].content #=> content of "bar"
+    #
+    # @return [Array<GetResult>]
+    def get_multi(ids, options = Options::GetMulti.new)
+      collection_spec = "#{@scope_name}.#{@name}"
+      resp = @backend.document_get_multi(ids.map { |id| [bucket_name, collection_spec, id] }, options.to_backend)
+      resp.map do |entry|
+        GetResult.new do |res|
+          res.transcoder = options.transcoder
+          res.cas = entry[:cas]
+          res.flags = entry[:flags]
+          res.encoded = entry[:content]
+          res.error = entry[:error]
+        end
+      end
+    end
+
     # Fetches the full document and write-locks it for the given duration
     #
     # @param [String] id the document id which is used to uniquely identify it.
@@ -196,6 +224,44 @@ module Couchbase
       end
     end
 
+    # Removes a list of the documents from the collection
+    #
+    # @note that it will not generate {Error::DocumentNotFound} or {Error::CasMismatch} exceptions in this case.
+    #  The caller should check {MutationResult#error} property of the result
+    #
+    # @param [Array<String, Array>] ids the array of document ids, or ID/CAS pairs +[String,Integer]+
+    # @param [Options::RemoveMulti] options request customization
+    #
+    # @example Remove two documents in collection. For "mydoc" apply optimistic lock
+    #   res = collection.upsert("mydoc", {"foo" => 42})
+    #   res.cas #=> 7751414725654
+    #
+    #   res = collection.remove_multi(["foo", ["mydoc", res.cas]])
+    #   if res[1].error.is_a?(Error::CasMismatch)
+    #     puts "Failed to remove the document, it might be changed by other application"
+    #   end
+    #
+    # @return [MutationResult]
+    def remove_multi(ids, options = Options::RemoveMulti.new)
+      collection_spec = "#{@scope_name}.#{@name}"
+      resp = @backend.document_remove_multi(ids.map do |id|
+        case id
+        when String
+          [bucket_name, collection_spec, id, nil]
+        when Array
+          [bucket_name, collection_spec, id[0], id[1]]
+        else
+          raise ArgumentError, "id argument of remove_multi must be a String or Array<String, Integer>, given: #{id.inspect}"
+        end
+      end, options.to_backend)
+      resp.map do |entry|
+        MutationResult.new do |res|
+          res.cas = entry[:cas]
+          res.mutation_token = extract_mutation_token(entry)
+        end
+      end
+    end
+
     # Inserts a full document which does not exist yet
     #
     # @param [String] id the document id which is used to uniquely identify it.
@@ -241,6 +307,38 @@ module Couchbase
       MutationResult.new do |res|
         res.cas = resp[:cas]
         res.mutation_token = extract_mutation_token(resp)
+      end
+    end
+
+    # Upserts (inserts or updates) a list of documents which might or might not exist yet
+    #
+    # @note that it will not generate exceptions in this case. The caller should check {MutationResult#error} property of the
+    #  result
+    #
+    # @param [Array<Array>] id_content array of tuples +String,Object+, where first entry treated as document key,
+    #   and the second as value to upsert.
+    # @param [Options::UpsertMulti] options request customization
+    #
+    # @example Upsert two documents with IDs "foo" and "bar" into a collection
+    #   res = collection.upsert_multi([
+    #     "foo", {"foo" => 42},
+    #     "bar", {"bar" => "some value"}
+    #   ])
+    #   res[0].cas #=> 7751414725654
+    #   res[1].cas #=> 7751418925851
+    #
+    # @return [MutationResult]
+    def upsert_multi(id_content, options = Options::UpsertMulti.new)
+      collection_spec = "#{@scope_name}.#{@name}"
+      resp = @backend.document_upsert_multi(id_content.map do |(id, content)|
+        blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
+        [bucket_name, collection_spec, id, blob, flags]
+      end, options.to_backend)
+      resp.map do |entry|
+        MutationResult.new do |res|
+          res.cas = entry[:cas]
+          res.mutation_token = extract_mutation_token(entry)
+        end
       end
     end
 

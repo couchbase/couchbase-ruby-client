@@ -408,8 +408,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                         case protocol::client_opcode::subdoc_multi_mutation: {
                             std::uint32_t opaque = msg.header.opaque;
                             std::uint16_t status = ntohs(msg.header.specific);
+                            session_->command_handlers_mutex_.lock();
                             auto handler = session_->command_handlers_.find(opaque);
-                            if (handler != session_->command_handlers_.end()) {
+                            if (handler != session_->command_handlers_.end() && handler->second) {
                                 auto ec = session_->map_status_code(opcode, status);
                                 spdlog::trace("{} MCBP invoke operation handler: opcode={}, opaque={}, status={}, ec={}",
                                               session_->log_prefix_,
@@ -417,10 +418,12 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                               opaque,
                                               protocol::status_to_string(status),
                                               ec.message());
-                                auto fun = handler->second;
+                                auto fun = std::move(handler->second);
                                 session_->command_handlers_.erase(handler);
+                                session_->command_handlers_mutex_.unlock();
                                 fun(ec, retry_reason::do_not_retry, std::move(msg));
                             } else {
+                                session_->command_handlers_mutex_.unlock();
                                 spdlog::debug("{} unexpected orphan response: opcode={}, opaque={}, status={}",
                                               session_->log_prefix_,
                                               opcode,
@@ -693,11 +696,18 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (handler_) {
             handler_->stop();
         }
-        for (auto& handler : command_handlers_) {
-            spdlog::debug("{} MCBP cancel operation during session close, opaque={}, ec={}", log_prefix_, handler.first, ec.message());
-            handler.second(ec, reason, {});
+        {
+            std::scoped_lock lock(command_handlers_mutex_);
+            for (auto& handler : command_handlers_) {
+                if (handler.second) {
+                    spdlog::debug(
+                      "{} MCBP cancel operation during session close, opaque={}, ec={}", log_prefix_, handler.first, ec.message());
+                    auto fun = std::move(handler.second);
+                    fun(ec, reason, {});
+                }
+            }
+            command_handlers_.clear();
         }
-        command_handlers_.clear();
         config_listeners_.clear();
         if (on_stop_handler_) {
             on_stop_handler_(reason);
@@ -745,7 +755,10 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             handler(std::make_error_code(error::common_errc::request_canceled), retry_reason::socket_closed_while_in_flight, {});
             return;
         }
-        command_handlers_.emplace(opaque, std::move(handler));
+        {
+            std::scoped_lock lock(command_handlers_mutex_);
+            command_handlers_.emplace(opaque, std::move(handler));
+        }
         if (bootstrapped_ && stream_->is_open()) {
             write_and_flush(data);
         } else {
@@ -760,13 +773,19 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (stopped_) {
             return false;
         }
+        command_handlers_mutex_.lock();
         auto handler = command_handlers_.find(opaque);
         if (handler != command_handlers_.end()) {
             spdlog::debug("{} MCBP cancel operation, opaque={}, ec={} ({})", log_prefix_, opaque, ec.value(), ec.message());
-            handler->second(ec, reason, {});
-            command_handlers_.erase(handler);
-            return true;
+            if (handler->second) {
+                auto fun = std::move(handler->second);
+                command_handlers_.erase(handler);
+                command_handlers_mutex_.unlock();
+                fun(ec, reason, {});
+                return true;
+            }
         }
+        command_handlers_mutex_.unlock();
         return false;
     }
 
@@ -1187,22 +1206,19 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
               self->last_active_ = std::chrono::steady_clock::now();
               if (ec) {
                   if (stream_id != self->stream_->id()) {
-                      spdlog::error(
-                        R"({} ignore IO error while reading from the socket: {} ({}), pending_handlers={}, old_id="{}", new_id="{}")",
-                        self->log_prefix_,
-                        ec.value(),
-                        ec.message(),
-                        self->command_handlers_.size(),
-                        stream_id,
-                        self->stream_->id());
+                      spdlog::error(R"({} ignore IO error while reading from the socket: {} ({}), old_id="{}", new_id="{}")",
+                                    self->log_prefix_,
+                                    ec.value(),
+                                    ec.message(),
+                                    stream_id,
+                                    self->stream_->id());
                       return;
                   }
-                  spdlog::error(R"({} IO error while reading from the socket("{}"): {} ({}), pending_handlers={})",
+                  spdlog::error(R"({} IO error while reading from the socket("{}"): {} ({}))",
                                 self->log_prefix_,
                                 self->stream_->id(),
                                 ec.value(),
-                                ec.message(),
-                                self->command_handlers_.size());
+                                ec.message());
                   return self->stop(retry_reason::socket_closed_while_in_flight);
               }
               self->parser_.feed(self->input_buffer_.data(), self->input_buffer_.data() + ssize_t(bytes_transferred));
@@ -1257,12 +1273,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             }
             self->last_active_ = std::chrono::steady_clock::now();
             if (ec) {
-                spdlog::error(R"({} IO error while writing to the socket("{}"): {} ({}), pending_handlers={})",
+                spdlog::error(R"({} IO error while writing to the socket("{}"): {} ({}))",
                               self->log_prefix_,
                               self->stream_->id(),
                               ec.value(),
-                              ec.message(),
-                              self->command_handlers_.size());
+                              ec.message());
                 return self->stop(retry_reason::socket_closed_while_in_flight);
             }
             {
@@ -1287,6 +1302,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     mcbp_parser parser_;
     std::unique_ptr<message_handler> handler_;
     std::function<void(std::error_code, const configuration&)> bootstrap_handler_{};
+    std::mutex command_handlers_mutex_{};
     std::map<uint32_t, std::function<void(std::error_code, retry_reason, io::mcbp_message&&)>> command_handlers_{};
     std::vector<std::function<void(const configuration&)>> config_listeners_{};
     std::function<void(io::retry_reason)> on_stop_handler_{};

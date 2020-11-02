@@ -29,6 +29,9 @@ module Couchbase
       # @return [Integer] the expiration if fetched and present
       attr_writer :expiry
 
+      # @return [Error::CouchbaseError, nil] error associated with the result, or nil (used in {Collection#get_multi})
+      attr_accessor :error
+
       # @return [String] The encoded content when loading the document
       # @api private
       attr_accessor :encoded
@@ -50,6 +53,7 @@ module Couchbase
       # @yieldparam [GetResult] self
       def initialize
         @expiry = nil
+        @error = nil
         yield self if block_given?
       end
 
@@ -104,8 +108,13 @@ module Couchbase
       # @return [MutationToken] if returned, holds the mutation token of the document after the mutation
       attr_accessor :mutation_token
 
+      # @return [Error::CouchbaseError, nil] error or nil (used in multi-operations like {Collection#upsert_multi},
+      #   {Collection#remove_multi})
+      attr_accessor :error
+
       # @yieldparam [MutationResult] self
       def initialize
+        @error = nil
         yield self if block_given?
       end
     end
