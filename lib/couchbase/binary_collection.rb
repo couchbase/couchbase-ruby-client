@@ -16,6 +16,7 @@ require "couchbase/options"
 require "couchbase/binary_collection_options"
 
 module Couchbase
+  # Allows to perform certain operations on non-JSON documents.
   class BinaryCollection
     alias inspect to_s
 

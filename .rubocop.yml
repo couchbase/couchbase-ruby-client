@@ -246,3 +246,24 @@ Style/RedundantSelfAssignment:
 
 Style/SoleNestedConditional:
   Enabled: true
+
+Lint/DuplicateRegexpCharacterClassElement:
+  Enabled: true
+
+Lint/EmptyBlock:
+  Enabled: true
+
+Lint/ToEnumArguments:
+  Enabled: true
+
+Lint/UnmodifiedReduceAccumulator:
+  Enabled: true
+
+Style/ArgumentsForwarding:
+  Enabled: true
+
+Style/DocumentDynamicEvalDefinition:
+  Enabled: true
+
+Style/SwapValues:
+  Enabled: true

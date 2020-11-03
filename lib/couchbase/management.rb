@@ -13,12 +13,15 @@
 #  limitations under the License.
 
 module Couchbase
-  # This namespace includes easy-to-use wrappers for various concurrent data-structures.
-  module Datastructures
+  # This namespace includes manager classes to control cluster resources and perform maintenance operations.
+  module Management
   end
 end
 
-require "couchbase/datastructures/couchbase_list"
-require "couchbase/datastructures/couchbase_set"
-require "couchbase/datastructures/couchbase_queue"
-require "couchbase/datastructures/couchbase_map"
+require "couchbase/management/analytics_index_manager"
+require "couchbase/management/bucket_manager"
+require "couchbase/management/collection_manager"
+require "couchbase/management/query_index_manager"
+require "couchbase/management/search_index_manager"
+require "couchbase/management/user_manager"
+require "couchbase/management/view_index_manager"

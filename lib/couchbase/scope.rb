@@ -16,6 +16,7 @@ require "couchbase/collection"
 require "couchbase/query_options"
 
 module Couchbase
+  # The scope identifies a group of collections and allows high application density as a result.
   class Scope
     attr_reader :bucket_name
     attr_reader :name

@@ -17,6 +17,7 @@ require "couchbase/collection_options"
 require "couchbase/binary_collection"
 
 module Couchbase
+  # Provides access to all collection APIs
   class Collection
     attr_reader :bucket_name
     attr_reader :scope_name

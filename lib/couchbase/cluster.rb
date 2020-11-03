@@ -15,12 +15,7 @@
 require "couchbase/authenticator"
 require "couchbase/bucket"
 
-require "couchbase/management/user_manager"
-require "couchbase/management/bucket_manager"
-require "couchbase/management/query_index_manager"
-require "couchbase/management/analytics_index_manager"
-require "couchbase/management/search_index_manager"
-
+require "couchbase/management"
 require "couchbase/options"
 
 require "couchbase/search_options"
@@ -29,6 +24,7 @@ require "couchbase/analytics_options"
 require "couchbase/diagnostics"
 
 module Couchbase
+  # The main entry point when connecting to a Couchbase cluster.
   class Cluster
     alias inspect to_s
 

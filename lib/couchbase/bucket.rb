@@ -20,6 +20,7 @@ require "couchbase/view_options"
 require "couchbase/diagnostics"
 
 module Couchbase
+  # Provides access to a Couchbase bucket APIs
   class Bucket
     # @return [String] name of the bucket
     attr_reader :name
