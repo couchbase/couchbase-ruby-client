@@ -17,22 +17,31 @@
 
 #pragma once
 
-#include <chrono>
+#include <optional>
 #include <set>
+#include <string>
 
+#include <document_id.hxx>
+#include <error_map.hxx>
 #include <io/retry_reason.hxx>
-#include <io/retry_strategy.hxx>
+#include <protocol/enhanced_error_info.hxx>
+#include <protocol/status.hxx>
 
-namespace couchbase::io
+namespace couchbase::error_context
 {
 
-template<class RetryStrategy>
-struct retry_context {
-    bool idempotent;
+struct key_value {
+    document_id id{};
+    std::error_code ec{};
+    std::uint32_t opaque{};
+    protocol::status status_code{};
+    std::optional<error_map::error_info> error_map_info{};
+    std::optional<protocol::enhanced_error_info> enhanced_error_info{};
+
+    std::optional<std::string> last_dispatched_to{};
+    std::optional<std::string> last_dispatched_from{};
     int retry_attempts{ 0 };
-    std::chrono::milliseconds last_duration{ 0 };
-    std::set<retry_reason> reasons{};
-    RetryStrategy strategy{};
+    std::set<io::retry_reason> retry_reasons{};
 };
 
-} // namespace couchbase::io
+} // namespace couchbase::error_context

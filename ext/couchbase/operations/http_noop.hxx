@@ -20,19 +20,19 @@
 #include <tao/json.hpp>
 
 #include <version.hxx>
+#include <error_context/http.hxx>
 
 namespace couchbase::operations
 {
 struct http_noop_response {
-    std::string client_context_id;
-    std::error_code ec;
-    uint32_t status_code;
+    error_context::http ctx;
 };
 
 struct http_noop_request {
     using response_type = http_noop_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     service_type type;
     std::chrono::milliseconds timeout;
@@ -69,9 +69,9 @@ struct http_noop_request {
 };
 
 http_noop_response
-make_response(std::error_code ec, http_noop_request& request, http_noop_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, http_noop_request&, http_noop_request::encoded_response_type&&)
 {
-    http_noop_response response{ request.client_context_id, ec, encoded.status_code };
+    http_noop_response response{ ctx };
     return response;
 }
 

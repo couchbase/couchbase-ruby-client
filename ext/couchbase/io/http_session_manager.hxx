@@ -117,30 +117,31 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
                     operations::http_noop_request request{};
                     request.type = type;
                     auto cmd = std::make_shared<operations::http_command<operations::http_noop_request>>(ctx_, request);
-                    cmd->send_to(session,
-                                 [start = std::chrono::steady_clock::now(),
-                                  self = shared_from_this(),
-                                  type,
-                                  session,
-                                  handler = collector->build_reporter()](operations::http_noop_response&& resp) mutable {
-                                     diag::ping_state state = diag::ping_state::ok;
-                                     std::optional<std::string> error{};
-                                     if (resp.ec) {
-                                         state = diag::ping_state::error;
-                                         error.emplace(fmt::format(
-                                           "code={}, message={}, http_code={}", resp.ec.value(), resp.ec.message(), resp.status_code));
-                                     }
-                                     handler(diag::endpoint_ping_info{
-                                       type,
-                                       session->id(),
-                                       std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start),
-                                       session->remote_address(),
-                                       session->local_address(),
-                                       state,
-                                       {},
-                                       error });
-                                     self->check_in(type, session);
-                                 });
+                    cmd->send_to(
+                      session,
+                      [start = std::chrono::steady_clock::now(),
+                       self = shared_from_this(),
+                       type,
+                       session,
+                       handler = collector->build_reporter()](operations::http_noop_response&& resp) mutable {
+                          diag::ping_state state = diag::ping_state::ok;
+                          std::optional<std::string> error{};
+                          if (resp.ctx.ec) {
+                              state = diag::ping_state::error;
+                              error.emplace(fmt::format(
+                                "code={}, message={}, http_code={}", resp.ctx.ec.value(), resp.ctx.ec.message(), resp.ctx.http_status));
+                          }
+                          handler(diag::endpoint_ping_info{
+                            type,
+                            session->id(),
+                            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start),
+                            session->remote_address(),
+                            session->local_address(),
+                            state,
+                            {},
+                            error });
+                          self->check_in(type, session);
+                      });
                 }
             }
         }

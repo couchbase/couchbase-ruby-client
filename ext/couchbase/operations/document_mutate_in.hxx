@@ -43,9 +43,7 @@ struct mutate_in_response {
         std::string value;
         std::size_t original_index;
     };
-    document_id id;
-    std::uint32_t opaque;
-    std::error_code ec{};
+    error_context::key_value ctx;
     std::uint64_t cas{};
     mutation_token token{};
     std::vector<field> fields{};
@@ -109,21 +107,18 @@ struct mutate_in_request {
 };
 
 mutate_in_response
-make_response(std::error_code ec, mutate_in_request& request, mutate_in_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, mutate_in_request& request, mutate_in_request::encoded_response_type&& encoded)
 {
-    mutate_in_response response{ request.id, encoded.opaque(), ec };
-    if (ec && response.opaque == 0) {
-        response.opaque = request.opaque;
-    }
+    mutate_in_response response{ ctx };
     if (encoded.status() == protocol::status::subdoc_success_deleted ||
         encoded.status() == protocol::status::subdoc_multi_path_failure_deleted) {
         response.deleted = true;
     }
-    if (!ec) {
+    if (!response.ctx.ec) {
         response.cas = encoded.cas();
         response.token = encoded.body().token();
         response.token.partition_id = request.partition;
-        response.token.bucket_name = response.id.bucket;
+        response.token.bucket_name = response.ctx.id.bucket;
         response.fields.resize(request.specs.entries.size());
         for (size_t i = 0; i < request.specs.entries.size(); ++i) {
             auto& req_entry = request.specs.entries[i];
@@ -147,8 +142,8 @@ make_response(std::error_code ec, mutate_in_request& request, mutate_in_request:
                       return lhs.original_index < rhs.original_index;
                   });
     } else if (request.store_semantics == protocol::mutate_in_request_body::store_semantics_type::insert &&
-               ec == std::make_error_code(error::common_errc::cas_mismatch)) {
-        response.ec = std::make_error_code(error::key_value_errc::document_exists);
+               response.ctx.ec == std::make_error_code(error::common_errc::cas_mismatch)) {
+        response.ctx.ec = std::make_error_code(error::key_value_errc::document_exists);
     }
     return response;
 }

@@ -25,9 +25,7 @@ namespace couchbase::operations
 {
 
 struct get_and_lock_response {
-    document_id id;
-    std::uint32_t opaque;
-    std::error_code ec{};
+    error_context::key_value ctx;
     std::string value{};
     std::uint64_t cas{};
     std::uint32_t flags{};
@@ -55,13 +53,10 @@ struct get_and_lock_request {
 };
 
 get_and_lock_response
-make_response(std::error_code ec, get_and_lock_request& request, get_and_lock_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, get_and_lock_request&, get_and_lock_request::encoded_response_type&& encoded)
 {
-    get_and_lock_response response{ request.id, encoded.opaque(), ec };
-    if (ec && response.opaque == 0) {
-        response.opaque = request.opaque;
-    }
-    if (!ec) {
+    get_and_lock_response response{ ctx };
+    if (!response.ctx.ec) {
         response.value = std::move(encoded.body().value());
         response.cas = encoded.cas();
         response.flags = encoded.body().flags();

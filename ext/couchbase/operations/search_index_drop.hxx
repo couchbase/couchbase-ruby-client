@@ -24,8 +24,7 @@
 namespace couchbase::operations
 {
 struct search_index_drop_response {
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     std::string status{};
     std::string error{};
 };
@@ -34,6 +33,7 @@ struct search_index_drop_request {
     using response_type = search_index_drop_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::search;
 
@@ -51,10 +51,10 @@ struct search_index_drop_request {
 };
 
 search_index_drop_response
-make_response(std::error_code ec, search_index_drop_request& request, search_index_drop_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, search_index_drop_request&, search_index_drop_request::encoded_response_type&& encoded)
 {
-    search_index_drop_response response{ request.client_context_id, ec };
-    if (!ec) {
+    search_index_drop_response response{ ctx };
+    if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
             auto payload = tao::json::from_string(encoded.body);
             response.status = payload.at("status").get_string();
@@ -66,11 +66,11 @@ make_response(std::error_code ec, search_index_drop_request& request, search_ind
             response.status = payload.at("status").get_string();
             response.error = payload.at("error").get_string();
             if (response.error.find("index not found") != std::string::npos) {
-                response.ec = std::make_error_code(error::common_errc::index_not_found);
+                response.ctx.ec = std::make_error_code(error::common_errc::index_not_found);
                 return response;
             }
         }
-        response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+        response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
     }
     return response;
 }

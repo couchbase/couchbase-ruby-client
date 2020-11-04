@@ -151,7 +151,11 @@ class cluster
     {
         auto bucket = buckets_.find(request.id.bucket);
         if (bucket == buckets_.end()) {
-            return handler(operations::make_response(std::make_error_code(error::common_errc::bucket_not_found), request, {}));
+            error_context::key_value ctx{};
+            ctx.id = request.id;
+            ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
+            using response_type = typename Request::encoded_response_type;
+            return handler(operations::make_response(std::move(ctx), request, response_type{}));
         }
         return bucket->second->execute(request, std::forward<Handler>(handler));
     }
@@ -161,7 +165,9 @@ class cluster
     {
         auto session = session_manager_->check_out(Request::type, origin_.credentials());
         if (!session) {
-            return handler(operations::make_response(std::make_error_code(error::common_errc::service_not_available), request, {}));
+            typename Request::error_context_type ctx{};
+            ctx.ec = std::make_error_code(error::common_errc::service_not_available);
+            return handler(operations::make_response(std::move(ctx), request, {}));
         }
         auto cmd = std::make_shared<operations::http_command<Request>>(ctx_, request);
         cmd->send_to(session, [this, session, handler = std::forward<Handler>(handler)](typename Request::response_type resp) mutable {

@@ -545,11 +545,17 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
     std::string remote_address() const
     {
+        if (endpoint_.protocol() == asio::ip::tcp::v6()) {
+            return fmt::format("[{}]:{}", endpoint_address_, endpoint_.port());
+        }
         return fmt::format("{}:{}", endpoint_address_, endpoint_.port());
     }
 
     std::string local_address() const
     {
+        if (endpoint_.protocol() == asio::ip::tcp::v6()) {
+            return fmt::format("[{}]:{}", local_endpoint_address_, local_endpoint_.port());
+        }
         return fmt::format("{}:{}", local_endpoint_address_, local_endpoint_.port());
     }
 

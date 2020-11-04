@@ -27,8 +27,7 @@ namespace couchbase::operations
 {
 
 struct group_get_all_response {
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     std::vector<rbac::group> groups{};
 };
 
@@ -36,6 +35,7 @@ struct group_get_all_request {
     using response_type = group_get_all_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::management;
 
@@ -52,17 +52,17 @@ struct group_get_all_request {
 };
 
 group_get_all_response
-make_response(std::error_code ec, group_get_all_request& request, group_get_all_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, group_get_all_request&, group_get_all_request::encoded_response_type&& encoded)
 {
-    group_get_all_response response{ request.client_context_id, ec };
-    if (!ec) {
+    group_get_all_response response{ ctx };
+    if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
             tao::json::value payload = tao::json::from_string(encoded.body);
             for (const auto& entry : payload.get_array()) {
                 response.groups.emplace_back(entry.as<rbac::group>());
             }
         } else {
-            response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
         }
     }
     return response;

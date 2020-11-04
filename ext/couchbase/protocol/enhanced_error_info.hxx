@@ -17,21 +17,12 @@
 
 #pragma once
 
-#include <configuration.hxx>
-#include <io/query_cache.hxx>
-
-namespace couchbase
+namespace couchbase::protocol
 {
-struct http_context {
-    const configuration& config;
-    const cluster_options& options;
-    query_cache& cache;
+
+struct enhanced_error_info {
+    std::string reference;
+    std::string context;
 };
 
-namespace priv
-{
-class retry_http_request : public std::exception
-{
-};
-} // namespace priv
-} // namespace couchbase
+} // namespace couchbase::protocol

@@ -22,13 +22,13 @@
 #include <version.hxx>
 #include <operations/bucket_settings.hxx>
 #include <utils/url_codec.hxx>
+#include <error_context/http.hxx>
 
 namespace couchbase::operations
 {
 
 struct bucket_create_response {
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     std::string error_message{};
 };
 
@@ -36,6 +36,7 @@ struct bucket_create_request {
     using response_type = bucket_create_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::management;
 
@@ -112,16 +113,16 @@ struct bucket_create_request {
 };
 
 bucket_create_response
-make_response(std::error_code ec, bucket_create_request& request, bucket_create_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, bucket_create_request&, bucket_create_request::encoded_response_type&& encoded)
 {
-    bucket_create_response response{ request.client_context_id, ec };
-    if (!ec) {
+    bucket_create_response response{ ctx };
+    if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 404:
-                response.ec = std::make_error_code(error::common_errc::bucket_not_found);
+                response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
                 break;
             case 400: {
-                response.ec = std::make_error_code(error::common_errc::invalid_argument);
+                response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
                 auto payload = tao::json::from_string(encoded.body);
                 auto* errors = payload.find("errors");
                 if (errors != nullptr) {
@@ -138,7 +139,7 @@ make_response(std::error_code ec, bucket_create_request& request, bucket_create_
             case 202:
                 break;
             default:
-                response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
                 break;
         }
     }

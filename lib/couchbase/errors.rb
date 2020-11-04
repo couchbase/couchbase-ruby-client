@@ -12,18 +12,32 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "json"
+
 module Couchbase
   # This namespace contains all error types that the library might raise.
   module Error
     class CouchbaseError < StandardError
+      # @return [Hash] attributes associated with the error
+      attr_reader :context
+
+      def to_s
+        defined?(@context) ? "#{super}, context=#{JSON.generate(@context)}" : super
+      end
+    end
+
+    class InvalidArgument < ArgumentError
+      # @return [Hash] attributes associated with the error
+      attr_reader :context
+
+      def to_s
+        defined?(@context) ? "#{super}, context=#{JSON.generate(@context)}" : super
+      end
     end
 
     # Common exceptions
 
     class RequestCanceled < CouchbaseError
-    end
-
-    class InvalidArgument < ArgumentError
     end
 
     class ServiceNotAvailable < CouchbaseError

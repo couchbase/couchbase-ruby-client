@@ -27,8 +27,7 @@ namespace couchbase::operations
 {
 
 struct user_get_response {
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     rbac::user_and_metadata user{};
 };
 
@@ -36,6 +35,7 @@ struct user_get_request {
     using response_type = user_get_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::management;
 
@@ -54,20 +54,20 @@ struct user_get_request {
 };
 
 user_get_response
-make_response(std::error_code ec, user_get_request& request, user_get_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, user_get_request&, user_get_request::encoded_response_type&& encoded)
 {
-    user_get_response response{ request.client_context_id, ec };
-    if (!ec) {
+    user_get_response response{ ctx };
+    if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 200: {
                 tao::json::value payload = tao::json::from_string(encoded.body);
                 response.user = payload.as<rbac::user_and_metadata>();
             } break;
             case 404:
-                response.ec = std::make_error_code(error::management_errc::user_not_found);
+                response.ctx.ec = std::make_error_code(error::management_errc::user_not_found);
                 break;
             default:
-                response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
                 break;
         }
     }

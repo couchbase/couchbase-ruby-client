@@ -242,7 +242,26 @@ class bucket : public std::enable_shared_from_this<bucket>
         auto cmd = std::make_shared<operations::mcbp_command<bucket, Request>>(ctx_, shared_from_this(), request);
         cmd->start([cmd, handler = std::forward<Handler>(handler)](std::error_code ec, std::optional<io::mcbp_message> msg) mutable {
             using encoded_response_type = typename Request::encoded_response_type;
-            handler(make_response(ec, cmd->request, msg ? encoded_response_type(*msg) : encoded_response_type{}));
+            auto resp = msg ? encoded_response_type(*msg) : encoded_response_type{};
+            error_context::key_value ctx{};
+            ctx.id = cmd->request.id;
+            ctx.opaque = resp.opaque();
+            ctx.ec = ec;
+            if (ctx.ec && ctx.opaque == 0) {
+                ctx.opaque = cmd->request.opaque;
+            }
+            ctx.status_code = resp.status();
+            ctx.retry_attempts = cmd->request.retries.retry_attempts;
+            ctx.retry_reasons = cmd->request.retries.reasons;
+            if (cmd->session_) {
+                ctx.last_dispatched_from = cmd->session_->local_address();
+                ctx.last_dispatched_to = cmd->session_->remote_address();
+                if (msg) {
+                    ctx.error_map_info = cmd->session_->decode_error_code(msg->header.status());
+                }
+            }
+            ctx.enhanced_error_info = resp.error_info();
+            handler(make_response(std::move(ctx), cmd->request, std::move(resp)));
         });
         if (config_) {
             map_and_send(cmd);

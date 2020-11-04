@@ -20,6 +20,7 @@
 #include <tao/json.hpp>
 
 #include <version.hxx>
+#include <error_context/search.hxx>
 
 namespace couchbase::operations
 {
@@ -87,7 +88,7 @@ struct search_response {
         std::vector<numeric_range_facet> numeric_ranges{};
     };
 
-    std::error_code ec;
+    error_context::search ctx;
     std::string status{};
     search_meta_data meta_data{};
     std::string error{};
@@ -99,6 +100,7 @@ struct search_request {
     using response_type = search_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::search;
 
     static const inline service_type type = service_type::search;
 
@@ -127,10 +129,11 @@ struct search_request {
     std::map<std::string, std::string> facets{};
 
     std::map<std::string, tao::json::value> raw{};
+    std::string body_str{};
 
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& context)
     {
-        tao::json::value body{
+        tao::json::value body = tao::json::value{
             { "query", query },
             { "explain", explain },
             { "ctl", { { "timeout", timeout.count() } } },
@@ -195,7 +198,8 @@ struct search_request {
         encoded.headers["content-type"] = "application/json";
         encoded.method = "POST";
         encoded.path = fmt::format("/api/index/{}/query", index_name);
-        encoded.body = tao::json::to_string(body);
+        body_str = tao::json::to_string(body);
+        encoded.body = body_str;
         if (context.options.show_queries) {
             spdlog::info("SEARCH: {}", tao::json::to_string(body["query"]));
         } else {
@@ -206,11 +210,14 @@ struct search_request {
 };
 
 search_response
-make_response(std::error_code ec, search_request& request, search_request::encoded_response_type&& encoded)
+make_response(error_context::search&& ctx, search_request& request, search_request::encoded_response_type&& encoded)
 {
-    search_response response{ ec };
+    search_response response{ ctx };
     response.meta_data.client_context_id = request.client_context_id;
-    if (!ec) {
+    response.ctx.index_name = request.index_name;
+    response.ctx.query = tao::json::to_string(request.query);
+    response.ctx.parameters = request.body_str;
+    if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
             auto payload = tao::json::from_string(encoded.body);
             response.meta_data.metrics.took = std::chrono::nanoseconds(payload.at("took").get_unsigned());
@@ -232,7 +239,7 @@ make_response(std::error_code ec, search_request& request, search_request::encod
                     }
                 }
             } else {
-                response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
                 return response;
             }
             const auto* rows = payload.find("hits");
@@ -353,17 +360,19 @@ make_response(std::error_code ec, search_request& request, search_request::encod
             response.status = payload.at("status").get_string();
             response.error = payload.at("error").get_string();
             if (response.error.find("index not found") != std::string::npos) {
-                response.ec = std::make_error_code(error::common_errc::index_not_found);
+                response.ctx.ec = std::make_error_code(error::common_errc::index_not_found);
                 return response;
-            } else if (response.error.find("no planPIndexes for indexName") != std::string::npos) {
-                response.ec = std::make_error_code(error::search_errc::index_not_ready);
+            }
+            if (response.error.find("no planPIndexes for indexName") != std::string::npos) {
+                response.ctx.ec = std::make_error_code(error::search_errc::index_not_ready);
                 return response;
-            } else if (response.error.find("pindex_consistency mismatched partition") != std::string::npos) {
-                response.ec = std::make_error_code(error::search_errc::consistency_mismatch);
+            }
+            if (response.error.find("pindex_consistency mismatched partition") != std::string::npos) {
+                response.ctx.ec = std::make_error_code(error::search_errc::consistency_mismatch);
                 return response;
             }
         }
-        response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+        response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
     }
     return response;
 }

@@ -20,6 +20,7 @@
 #include <tao/json.hpp>
 
 #include <version.hxx>
+#include <error_context/http.hxx>
 
 namespace couchbase::operations
 {
@@ -29,8 +30,7 @@ struct analytics_get_pending_mutations_response {
         std::string message;
     };
 
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     std::string status{};
     std::vector<problem> errors{};
     std::map<std::string, std::uint64_t> stats{};
@@ -40,6 +40,7 @@ struct analytics_get_pending_mutations_request {
     using response_type = analytics_get_pending_mutations_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::analytics;
 
@@ -55,12 +56,12 @@ struct analytics_get_pending_mutations_request {
 };
 
 analytics_get_pending_mutations_response
-make_response(std::error_code ec,
-              analytics_get_pending_mutations_request& request,
+make_response(error_context::http&& ctx,
+              analytics_get_pending_mutations_request&,
               analytics_get_pending_mutations_request::encoded_response_type&& encoded)
 {
-    analytics_get_pending_mutations_response response{ request.client_context_id, ec };
-    if (!ec) {
+    analytics_get_pending_mutations_response response{ ctx };
+    if (!response.ctx.ec) {
         auto payload = tao::json::from_string(encoded.body);
         if (encoded.status_code == 200) {
             if (payload.is_object()) {
@@ -84,7 +85,7 @@ make_response(std::error_code ec,
                 response.errors.emplace_back(err);
             }
         }
-        response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+        response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
     }
     return response;
 }

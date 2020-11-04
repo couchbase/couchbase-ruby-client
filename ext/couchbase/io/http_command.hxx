@@ -26,6 +26,7 @@ template<typename Request>
 struct http_command : public std::enable_shared_from_this<http_command<Request>> {
     using encoded_request_type = typename Request::encoded_request_type;
     using encoded_response_type = typename Request::encoded_response_type;
+    using error_context_type = typename Request::error_context_type;
     asio::steady_timer deadline;
     asio::steady_timer retry_backoff;
     Request request;
@@ -44,7 +45,10 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
         encoded.type = request.type;
         auto encoding_ec = request.encode_to(encoded, session->http_context());
         if (encoding_ec) {
-            return handler(make_response(encoding_ec, request, {}));
+            error_context_type ctx{};
+            ctx.ec = encoding_ec;
+            ctx.client_context_id = request.client_context_id;
+            return handler(make_response(std::move(ctx), request, {}));
         }
         encoded.headers["client-context-id"] = request.client_context_id;
         auto log_prefix = session->log_prefix();
@@ -80,8 +84,17 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
                                                       resp.status_code,
                                                       spdlog::to_hex(resp.body));
                                          try {
-                                             handler(make_response(ec, self->request, std::move(msg)));
-                                         } catch (priv::retry_http_request) {
+                                             error_context_type ctx{};
+                                             ctx.ec = ec;
+                                             ctx.client_context_id = self->request.client_context_id;
+                                             ctx.method = self->encoded.method;
+                                             ctx.path = self->encoded.path;
+                                             ctx.last_dispatched_from = session->local_address();
+                                             ctx.last_dispatched_to = session->remote_address();
+                                             ctx.http_status = msg.status_code;
+                                             ctx.http_body = msg.body;
+                                             handler(make_response(std::move(ctx), self->request, std::move(msg)));
+                                         } catch (priv::retry_http_request&) {
                                              self->send_to(session, std::forward<Handler>(handler));
                                          }
                                      });

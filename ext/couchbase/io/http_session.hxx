@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <utility>
 #include <memory>
+#include <utility>
 
 #include <spdlog/spdlog.h>
 
@@ -30,9 +30,9 @@
 #include <errors.hxx>
 #include <version.hxx>
 
-#include <io/http_parser.hxx>
-#include <io/http_message.hxx>
 #include <io/http_context.hxx>
+#include <io/http_message.hxx>
+#include <io/http_parser.hxx>
 #include <platform/base64.h>
 #include <timeout_defaults.hxx>
 
@@ -103,11 +103,17 @@ class http_session : public std::enable_shared_from_this<http_session>
 
     std::string remote_address() const
     {
+        if (endpoint_.protocol() == asio::ip::tcp::v6()) {
+            return fmt::format("[{}]:{}", endpoint_address_, endpoint_.port());
+        }
         return fmt::format("{}:{}", endpoint_address_, endpoint_.port());
     }
 
     std::string local_address() const
     {
+        if (endpoint_.protocol() == asio::ip::tcp::v6()) {
+            return fmt::format("[{}]:{}", local_endpoint_address_, local_endpoint_.port());
+        }
         return fmt::format("{}:{}", local_endpoint_address_, local_endpoint_.port());
     }
 
@@ -178,12 +184,12 @@ class http_session : public std::enable_shared_from_this<http_session>
         state_ = diag::endpoint_state::disconnected;
     }
 
-    bool keep_alive()
+    bool keep_alive() const
     {
         return keep_alive_;
     }
 
-    bool is_stopped()
+    bool is_stopped() const
     {
         return stopped_;
     }
@@ -215,7 +221,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         do_write();
     }
 
-    void write_and_subscribe(io::http_request& request, std::function<void(std::error_code, io::http_response&&)> handler)
+    void write_and_subscribe(io::http_request& request, std::function<void(std::error_code, io::http_response&&)>&& handler)
     {
         if (stopped_) {
             return;

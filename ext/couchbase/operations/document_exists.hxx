@@ -27,9 +27,7 @@ namespace couchbase::operations
 struct exists_response {
     enum class observe_status { invalid, found, not_found, persisted, logically_deleted };
 
-    document_id id;
-    std::uint32_t opaque;
-    std::error_code ec{};
+    error_context::key_value ctx;
     std::uint16_t partition_id{};
     std::uint64_t cas{};
     observe_status status{ observe_status::invalid };
@@ -54,10 +52,10 @@ struct exists_request {
 };
 
 exists_response
-make_response(std::error_code ec, exists_request& request, exists_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, exists_request& request, exists_request::encoded_response_type&& encoded)
 {
-    exists_response response{ request.id, encoded.opaque(), ec, request.partition };
-    if (!ec) {
+    exists_response response{ ctx, request.partition };
+    if (!ctx.ec) {
         response.cas = encoded.body().cas();
         response.partition_id = encoded.body().partition_id();
         switch (encoded.body().status()) {

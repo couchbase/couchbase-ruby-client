@@ -31,9 +31,7 @@ namespace couchbase::operations
 {
 
 struct collections_manifest_get_response {
-    document_id id;
-    std::uint32_t opaque;
-    std::error_code ec{};
+    error_context::key_value ctx;
     collections_manifest manifest{};
 };
 
@@ -55,15 +53,12 @@ struct collections_manifest_get_request {
 };
 
 collections_manifest_get_response
-make_response(std::error_code ec,
-              collections_manifest_get_request& request,
+make_response(error_context::key_value&& ctx,
+              collections_manifest_get_request&,
               collections_manifest_get_request::encoded_response_type&& encoded)
 {
-    collections_manifest_get_response response{ request.id, encoded.opaque(), ec };
-    if (ec && response.opaque == 0) {
-        response.opaque = request.opaque;
-    }
-    if (!ec) {
+    collections_manifest_get_response response{ ctx };
+    if (!response.ctx.ec) {
         response.manifest = encoded.body().manifest();
     }
     return response;

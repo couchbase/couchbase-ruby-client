@@ -27,14 +27,10 @@
 #include <protocol/datatype.hxx>
 #include <protocol/cmd_info.hxx>
 #include <protocol/frame_info_id.hxx>
+#include <protocol/enhanced_error_info.hxx>
 
 namespace couchbase::protocol
 {
-
-struct enhanced_error {
-    std::string context;
-    std::string ref;
-};
 
 template<typename Body>
 class client_response
@@ -51,7 +47,7 @@ class client_response
     std::uint8_t extras_size_{ 0 };
     std::size_t body_size_{ 0 };
     protocol::status status_{};
-    std::optional<enhanced_error> error_;
+    std::optional<enhanced_error_info> error_;
     std::uint32_t opaque_{};
     std::uint64_t cas_{};
     cmd_info info_{};
@@ -140,7 +136,12 @@ class client_response
         memcpy(&cas_, header_.data() + 16, sizeof(cas_));
     }
 
-    std::string error_message()
+    [[nodiscard]] std::optional<enhanced_error_info> error_info()
+    {
+        return error_;
+    }
+
+    [[nodiscard]] std::string error_message()
     {
         if (error_) {
             return fmt::format(R"(magic={}, opcode={}, status={}, error={})", magic_, opcode_, status_, *error_);
@@ -157,10 +158,10 @@ class client_response
             if (error.is_object()) {
                 auto& err_obj = error["error"];
                 if (err_obj.is_object()) {
-                    enhanced_error err{};
+                    enhanced_error_info err{};
                     auto& ref = err_obj["ref"];
                     if (ref.is_string()) {
-                        err.ref = ref.get_string();
+                        err.reference = ref.get_string();
                     }
                     auto& ctx = err_obj["context"];
                     if (ctx.is_string()) {
@@ -202,14 +203,14 @@ class client_response
 } // namespace couchbase::protocol
 
 template<>
-struct fmt::formatter<couchbase::protocol::enhanced_error> : formatter<std::string> {
+struct fmt::formatter<couchbase::protocol::enhanced_error_info> : formatter<std::string> {
     template<typename FormatContext>
-    auto format(const couchbase::protocol::enhanced_error& error, FormatContext& ctx)
+    auto format(const couchbase::protocol::enhanced_error_info& error, FormatContext& ctx)
     {
-        if (!error.ref.empty() && !error.context.empty()) {
-            format_to(ctx.out(), R"((ref: "{}", ctx: "{}"))", error.ref, error.context);
-        } else if (!error.ref.empty()) {
-            format_to(ctx.out(), R"((ref: "{}"))", error.ref);
+        if (!error.reference.empty() && !error.context.empty()) {
+            format_to(ctx.out(), R"((ref: "{}", ctx: "{}"))", error.reference, error.context);
+        } else if (!error.reference.empty()) {
+            format_to(ctx.out(), R"((ref: "{}"))", error.reference);
         } else if (!error.context.empty()) {
             format_to(ctx.out(), R"((ctx: "{}"))", error.context);
         }

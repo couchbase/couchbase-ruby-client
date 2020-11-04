@@ -27,8 +27,7 @@ namespace couchbase::operations
 {
 
 struct scope_get_all_response {
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     collections_manifest manifest{};
 };
 
@@ -36,6 +35,7 @@ struct scope_get_all_request {
     using response_type = scope_get_all_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::management;
 
@@ -52,22 +52,22 @@ struct scope_get_all_request {
 };
 
 scope_get_all_response
-make_response(std::error_code ec, scope_get_all_request& request, scope_get_all_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, scope_get_all_request&, scope_get_all_request::encoded_response_type&& encoded)
 {
-    scope_get_all_response response{ request.client_context_id, ec };
-    if (!ec) {
+    scope_get_all_response response{ ctx };
+    if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 400:
-                response.ec = std::make_error_code(error::common_errc::unsupported_operation);
+                response.ctx.ec = std::make_error_code(error::common_errc::unsupported_operation);
                 break;
             case 404:
-                response.ec = std::make_error_code(error::common_errc::bucket_not_found);
+                response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
                 break;
             case 200:
                 response.manifest = tao::json::from_string(encoded.body).as<collections_manifest>();
                 break;
             default:
-                response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
                 break;
         }
     }

@@ -19,8 +19,8 @@
 
 #include <protocol/unsigned_leb128.h>
 
-#include <protocol/client_opcode.hxx>
 #include <document_id.hxx>
+#include <protocol/client_opcode.hxx>
 
 namespace couchbase::protocol
 {

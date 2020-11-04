@@ -31,6 +31,7 @@
 #include <platform/uuid.h>
 #include <timeout_defaults.hxx>
 #include <io/http_message.hxx>
+#include <error_context/analytics.hxx>
 
 namespace couchbase::operations
 {
@@ -139,8 +140,7 @@ struct traits<couchbase::operations::analytics_response_payload> {
 namespace couchbase::operations
 {
 struct analytics_response {
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::analytics ctx;
     analytics_response_payload payload{};
 };
 
@@ -148,6 +148,7 @@ struct analytics_request {
     using response_type = analytics_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::analytics;
 
     enum class scan_consistency_type { not_bounded, request_plus };
 
@@ -165,6 +166,8 @@ struct analytics_request {
     std::map<std::string, tao::json::value> raw{};
     std::vector<tao::json::value> positional_parameters{};
     std::map<std::string, tao::json::value> named_parameters{};
+
+    std::string body_str{};
 
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& context)
     {
@@ -206,7 +209,8 @@ struct analytics_request {
         }
         encoded.method = "POST";
         encoded.path = "/query/service";
-        encoded.body = tao::json::to_string(body);
+        body_str = tao::json::to_string(body);
+        encoded.body = body_str;
         if (context.options.show_queries) {
             spdlog::info("ANALYTICS: {}", tao::json::to_string(body["statement"]));
         } else {
@@ -217,10 +221,12 @@ struct analytics_request {
 };
 
 analytics_response
-make_response(std::error_code ec, analytics_request& request, analytics_request::encoded_response_type&& encoded)
+make_response(error_context::analytics&& ctx, analytics_request& request, analytics_request::encoded_response_type&& encoded)
 {
-    analytics_response response{ request.client_context_id, ec };
-    if (!ec) {
+    analytics_response response{ ctx };
+    response.ctx.statement = request.statement;
+    response.ctx.parameters = request.body_str;
+    if (!response.ctx.ec) {
         response.payload = tao::json::from_string(encoded.body).as<analytics_response_payload>();
         Expects(response.payload.meta_data.client_context_id == request.client_context_id);
         if (response.payload.meta_data.status != "success") {
@@ -268,23 +274,23 @@ make_response(std::error_code ec, analytics_request& request, analytics_request:
                 }
             }
             if (compilation_failure) {
-                response.ec = std::make_error_code(error::analytics_errc::compilation_failure);
+                response.ctx.ec = std::make_error_code(error::analytics_errc::compilation_failure);
             } else if (link_not_found) {
-                response.ec = std::make_error_code(error::analytics_errc::link_not_found);
+                response.ctx.ec = std::make_error_code(error::analytics_errc::link_not_found);
             } else if (dataset_not_found) {
-                response.ec = std::make_error_code(error::analytics_errc::dataset_not_found);
+                response.ctx.ec = std::make_error_code(error::analytics_errc::dataset_not_found);
             } else if (dataverse_not_found) {
-                response.ec = std::make_error_code(error::analytics_errc::dataverse_not_found);
+                response.ctx.ec = std::make_error_code(error::analytics_errc::dataverse_not_found);
             } else if (server_timeout) {
-                response.ec = std::make_error_code(error::common_errc::unambiguous_timeout);
+                response.ctx.ec = std::make_error_code(error::common_errc::unambiguous_timeout);
             } else if (dataset_exists) {
-                response.ec = std::make_error_code(error::analytics_errc::dataset_exists);
+                response.ctx.ec = std::make_error_code(error::analytics_errc::dataset_exists);
             } else if (dataverse_exists) {
-                response.ec = std::make_error_code(error::analytics_errc::dataverse_exists);
+                response.ctx.ec = std::make_error_code(error::analytics_errc::dataverse_exists);
             } else if (job_queue_is_full) {
-                response.ec = std::make_error_code(error::analytics_errc::job_queue_full);
+                response.ctx.ec = std::make_error_code(error::analytics_errc::job_queue_full);
             } else {
-                response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
             }
         }
     }

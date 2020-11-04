@@ -23,8 +23,7 @@
 namespace couchbase::operations
 {
 struct view_index_get_all_response {
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     std::vector<design_document> design_documents{};
 };
 
@@ -32,6 +31,7 @@ struct view_index_get_all_request {
     using response_type = view_index_get_all_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::management;
 
@@ -50,10 +50,10 @@ struct view_index_get_all_request {
 };
 
 view_index_get_all_response
-make_response(std::error_code ec, view_index_get_all_request& request, view_index_get_all_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, view_index_get_all_request& request, view_index_get_all_request::encoded_response_type&& encoded)
 {
-    view_index_get_all_response response{ request.client_context_id, ec };
-    if (!ec) {
+    view_index_get_all_response response{ ctx };
+    if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
             auto payload = tao::json::from_string(encoded.body);
             auto* rows = payload.find("rows");
@@ -115,9 +115,9 @@ make_response(std::error_code ec, view_index_get_all_request& request, view_inde
                 }
             }
         } else if (encoded.status_code == 404) {
-            response.ec = std::make_error_code(error::common_errc::bucket_not_found);
+            response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
         } else {
-            response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
         }
     }
     return response;

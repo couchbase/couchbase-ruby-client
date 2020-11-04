@@ -31,8 +31,7 @@ namespace couchbase::operations
 {
 
 struct group_upsert_response {
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     std::vector<std::string> errors{};
 };
 
@@ -40,6 +39,7 @@ struct group_upsert_request {
     using response_type = group_upsert_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::management;
 
@@ -91,15 +91,15 @@ struct group_upsert_request {
 };
 
 group_upsert_response
-make_response(std::error_code ec, group_upsert_request& request, group_upsert_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, group_upsert_request&, group_upsert_request::encoded_response_type&& encoded)
 {
-    group_upsert_response response{ request.client_context_id, ec };
-    if (!ec) {
+    group_upsert_response response{ ctx };
+    if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 200:
                 break;
             case 400: {
-                response.ec = std::make_error_code(error::common_errc::invalid_argument);
+                response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
                 tao::json::value payload = tao::json::from_string(encoded.body);
                 const auto* errors = payload.find("errors");
                 if (errors != nullptr && errors->is_object()) {
@@ -109,7 +109,7 @@ make_response(std::error_code ec, group_upsert_request& request, group_upsert_re
                 }
             } break;
             default:
-                response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
                 break;
         }
     }

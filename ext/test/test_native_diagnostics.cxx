@@ -355,8 +355,8 @@ TEST_CASE("native: fetch diagnostics after N1QL query", "[native]")
         auto f = barrier->get_future();
         cluster.execute_http(req, [barrier](couchbase::operations::query_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
-        INFO(resp.ec.message());
-        REQUIRE_FALSE(resp.ec);
+        INFO(resp.ctx.ec.message());
+        REQUIRE_FALSE(resp.ctx.ec);
         INFO("rows.size() =" << resp.payload.rows.size());
         REQUIRE(resp.payload.rows.size() == 1);
         INFO("row=" << resp.payload.rows[0]);

@@ -25,9 +25,7 @@ namespace couchbase::operations
 {
 
 struct touch_response {
-    document_id id;
-    std::uint32_t opaque;
-    std::error_code ec{};
+    error_context::key_value ctx;
     std::uint64_t cas{};
 };
 
@@ -53,13 +51,10 @@ struct touch_request {
 };
 
 touch_response
-make_response(std::error_code ec, touch_request& request, touch_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, touch_request&, touch_request::encoded_response_type&& encoded)
 {
-    touch_response response{ request.id, encoded.opaque(), ec };
-    if (ec && response.opaque == 0) {
-        response.opaque = request.opaque;
-    }
-    if (!ec) {
+    touch_response response{ ctx };
+    if (!response.ctx.ec) {
         response.cas = encoded.cas();
     }
     return response;

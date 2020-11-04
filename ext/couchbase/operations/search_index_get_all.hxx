@@ -25,8 +25,7 @@
 namespace couchbase::operations
 {
 struct search_index_get_all_response {
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     std::string status{};
     std::string impl_version{};
     std::vector<search_index> indexes{};
@@ -36,6 +35,7 @@ struct search_index_get_all_request {
     using response_type = search_index_get_all_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::search;
 
@@ -53,10 +53,10 @@ struct search_index_get_all_request {
 };
 
 search_index_get_all_response
-make_response(std::error_code ec, search_index_get_all_request& request, search_index_get_all_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, search_index_get_all_request&, search_index_get_all_request::encoded_response_type&& encoded)
 {
-    search_index_get_all_response response{ request.client_context_id, ec };
-    if (!ec) {
+    search_index_get_all_response response{ ctx };
+    if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
             auto payload = tao::json::from_string(encoded.body);
             response.status = payload.at("status").get_string();

@@ -18,16 +18,15 @@
 #pragma once
 
 #include <document_id.hxx>
-#include <protocol/cmd_get.hxx>
+#include <error_context/key_value.hxx>
 #include <io/retry_context.hxx>
+#include <protocol/cmd_get.hxx>
 
 namespace couchbase::operations
 {
 
 struct get_response {
-    document_id id;
-    std::uint32_t opaque;
-    std::error_code ec{};
+    error_context::key_value ctx;
     std::string value{};
     std::uint64_t cas{};
     std::uint32_t flags{};
@@ -53,13 +52,10 @@ struct get_request {
 };
 
 get_response
-make_response(std::error_code ec, get_request& request, get_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, get_request&, get_request::encoded_response_type&& encoded)
 {
-    get_response response{ request.id, encoded.opaque(), ec };
-    if (ec && response.opaque == 0) {
-        response.opaque = request.opaque;
-    }
-    if (!ec) {
+    get_response response{ ctx };
+    if (!response.ctx.ec) {
         response.value = std::move(encoded.body().value());
         response.cas = encoded.cas();
         response.flags = encoded.body().flags();

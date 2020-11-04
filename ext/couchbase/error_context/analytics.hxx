@@ -17,21 +17,30 @@
 
 #pragma once
 
-#include <configuration.hxx>
-#include <io/query_cache.hxx>
+#include <optional>
+#include <set>
+#include <string>
 
-namespace couchbase
+#include <io/retry_reason.hxx>
+
+namespace couchbase::error_context
 {
-struct http_context {
-    const configuration& config;
-    const cluster_options& options;
-    query_cache& cache;
+
+struct analytics {
+    std::error_code ec{};
+    std::string client_context_id{};
+    std::string statement{};
+    std::optional<std::string> parameters{};
+
+    std::string method{};
+    std::string path{};
+    std::uint32_t http_status{};
+    std::string http_body{};
+
+    std::optional<std::string> last_dispatched_to{};
+    std::optional<std::string> last_dispatched_from{};
+    int retry_attempts{ 0 };
+    std::set<io::retry_reason> retry_reasons{};
 };
 
-namespace priv
-{
-class retry_http_request : public std::exception
-{
-};
-} // namespace priv
-} // namespace couchbase
+} // namespace couchbase::error_context

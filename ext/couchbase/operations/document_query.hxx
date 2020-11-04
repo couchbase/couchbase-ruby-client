@@ -26,12 +26,13 @@
 #include <version.hxx>
 
 #include <errors.hxx>
-#include <mutation_token.hxx>
-#include <service_type.hxx>
-#include <platform/uuid.h>
-#include <timeout_defaults.hxx>
-#include <io/http_message.hxx>
 #include <io/http_context.hxx>
+#include <io/http_message.hxx>
+#include <mutation_token.hxx>
+#include <platform/uuid.h>
+#include <service_type.hxx>
+#include <timeout_defaults.hxx>
+#include <error_context/query.hxx>
 
 namespace couchbase::operations
 {
@@ -48,8 +49,8 @@ struct query_response_payload {
     };
 
     struct query_problem {
-        std::uint64_t code;
-        std::string message;
+        std::uint64_t code{};
+        std::string message{};
     };
 
     struct query_meta_data {
@@ -149,8 +150,7 @@ struct traits<couchbase::operations::query_response_payload> {
 namespace couchbase::operations
 {
 struct query_response {
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::query ctx;
     query_response_payload payload{};
 };
 
@@ -158,6 +158,7 @@ struct query_request {
     using response_type = query_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::query;
 
     enum class scan_consistency_type { not_bounded, request_plus };
 
@@ -195,6 +196,8 @@ struct query_request {
     std::map<std::string, tao::json::value> named_parameters{};
     std::optional<http_context> ctx_{};
     bool extract_encoded_plan_{ false };
+
+    std::string body_str{};
 
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& context)
     {
@@ -309,7 +312,8 @@ struct query_request {
         encoded.headers["content-type"] = "application/json";
         encoded.method = "POST";
         encoded.path = "/query/service";
-        encoded.body = tao::json::to_string(body);
+        body_str = tao::json::to_string(body);
+        encoded.body = body_str;
 
         tao::json::value stmt = body["statement"];
         tao::json::value prep = body["prepared"];
@@ -329,10 +333,12 @@ struct query_request {
 };
 
 query_response
-make_response(std::error_code ec, query_request& request, query_request::encoded_response_type&& encoded)
+make_response(error_context::query&& ctx, query_request& request, query_request::encoded_response_type&& encoded)
 {
-    query_response response{ request.client_context_id, ec };
-    if (!ec) {
+    query_response response{ ctx };
+    response.ctx.statement = request.statement;
+    response.ctx.parameters = request.body_str;
+    if (!response.ctx.ec) {
         response.payload = tao::json::from_string(encoded.body).as<query_response_payload>();
         Expects(response.payload.meta_data.client_context_id.empty() ||
                 response.payload.meta_data.client_context_id == request.client_context_id);
@@ -343,16 +349,16 @@ make_response(std::error_code ec, query_request& request, query_request::encoded
                 request.extract_encoded_plan_ = false;
                 if (response.payload.rows.size() == 1) {
                     auto row = tao::json::from_string(response.payload.rows[0]);
-                    auto plan = row.find("encoded_plan");
-                    auto name = row.find("name");
+                    auto* plan = row.find("encoded_plan");
+                    auto* name = row.find("name");
                     if (plan != nullptr && name != nullptr) {
                         request.ctx_->cache.put(request.statement, name->get_string(), plan->get_string());
                         throw couchbase::priv::retry_http_request{};
-                    } else {
-                        response.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
                     }
+                    response.ctx.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
+
                 } else {
-                    response.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
+                    response.ctx.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
                 }
             }
         } else {
@@ -399,21 +405,21 @@ make_response(std::error_code ec, query_request& request, query_request::encoded
                 }
             }
             if (syntax_error) {
-                response.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
             } else if (invalid_argument) {
-                response.ec = std::make_error_code(error::common_errc::invalid_argument);
+                response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
             } else if (server_timeout) {
-                response.ec = std::make_error_code(error::common_errc::unambiguous_timeout);
+                response.ctx.ec = std::make_error_code(error::common_errc::unambiguous_timeout);
             } else if (prepared_statement_failure) {
-                response.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
+                response.ctx.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
             } else if (index_failure) {
-                response.ec = std::make_error_code(error::query_errc::index_failure);
+                response.ctx.ec = std::make_error_code(error::query_errc::index_failure);
             } else if (planning_failure) {
-                response.ec = std::make_error_code(error::query_errc::planning_failure);
+                response.ctx.ec = std::make_error_code(error::query_errc::planning_failure);
             } else if (index_not_found) {
-                response.ec = std::make_error_code(error::common_errc::index_not_found);
+                response.ctx.ec = std::make_error_code(error::common_errc::index_not_found);
             } else {
-                response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
             }
         }
     }

@@ -29,8 +29,7 @@ struct analytics_link_disconnect_response {
         std::string message;
     };
 
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     std::string status{};
     std::vector<problem> errors{};
 };
@@ -39,6 +38,7 @@ struct analytics_link_disconnect_request {
     using response_type = analytics_link_disconnect_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::analytics;
 
@@ -62,12 +62,12 @@ struct analytics_link_disconnect_request {
 };
 
 analytics_link_disconnect_response
-make_response(std::error_code ec,
-              analytics_link_disconnect_request& request,
+make_response(error_context::http&& ctx,
+              analytics_link_disconnect_request&,
               analytics_link_disconnect_request::encoded_response_type&& encoded)
 {
-    analytics_link_disconnect_response response{ request.client_context_id, ec };
-    if (!ec) {
+    analytics_link_disconnect_response response{ ctx };
+    if (!response.ctx.ec) {
         auto payload = tao::json::from_string(encoded.body);
         response.status = payload.at("status").get_string();
 
@@ -90,9 +90,9 @@ make_response(std::error_code ec,
                 }
             }
             if (link_not_found) {
-                response.ec = std::make_error_code(error::analytics_errc::link_not_found);
+                response.ctx.ec = std::make_error_code(error::analytics_errc::link_not_found);
             } else {
-                response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
             }
         }
     }

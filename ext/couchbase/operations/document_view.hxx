@@ -20,6 +20,7 @@
 #include <tao/json.hpp>
 #include <operations/design_document.hxx>
 #include <utils/url_codec.hxx>
+#include <error_context/view.hxx>
 
 namespace couchbase::operations
 {
@@ -40,8 +41,7 @@ struct document_view_response {
         std::string message;
     };
 
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::view ctx;
     document_view_response::meta_data meta_data{};
     std::vector<document_view_response::row> rows{};
     std::optional<problem> error{};
@@ -51,6 +51,7 @@ struct document_view_request {
     using response_type = document_view_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::view;
 
     static const inline service_type type = service_type::views;
 
@@ -88,11 +89,10 @@ struct document_view_request {
 
     enum class sort_order { ascending, descending };
     std::optional<sort_order> order;
+    std::vector<std::string> query_string{};
 
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
-        std::vector<std::string> query_string;
-
         if (debug) {
             query_string.emplace_back("debug=true");
         }
@@ -177,10 +177,14 @@ struct document_view_request {
 };
 
 document_view_response
-make_response(std::error_code ec, document_view_request& request, document_view_request::encoded_response_type&& encoded)
+make_response(error_context::view&& ctx, document_view_request& request, document_view_request::encoded_response_type&& encoded)
 {
-    document_view_response response{ request.client_context_id, ec };
-    if (!ec) {
+    document_view_response response{ ctx };
+    response.ctx.client_context_id = request.client_context_id;
+    response.ctx.design_document_name = request.document_name;
+    response.ctx.view_name = request.view_name;
+    response.ctx.query_string = request.query_string;
+    if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
             tao::json::value payload = tao::json::from_string(encoded.body);
             const auto* total_rows = payload.find("total_rows");
@@ -216,11 +220,11 @@ make_response(std::error_code ec, document_view_request& request, document_view_
                 problem.message = reason->get_string();
             }
             response.error.emplace(problem);
-            response.ec = std::make_error_code(error::common_errc::invalid_argument);
+            response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
         } else if (encoded.status_code == 404) {
-            response.ec = std::make_error_code(error::view_errc::design_document_not_found);
+            response.ctx.ec = std::make_error_code(error::view_errc::design_document_not_found);
         } else {
-            response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
         }
     }
     return response;

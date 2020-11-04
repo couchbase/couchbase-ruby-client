@@ -28,8 +28,7 @@ struct query_index_build_deferred_response {
         std::uint64_t code;
         std::string message;
     };
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     std::string status{};
     std::vector<query_problem> errors{};
 };
@@ -38,6 +37,7 @@ struct query_index_build_deferred_request {
     using response_type = query_index_build_deferred_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::query;
 
@@ -63,12 +63,12 @@ struct query_index_build_deferred_request {
 };
 
 query_index_build_deferred_response
-make_response(std::error_code ec,
-              query_index_build_deferred_request& request,
+make_response(error_context::http&& ctx,
+              query_index_build_deferred_request&,
               query_index_build_deferred_request::encoded_response_type&& encoded)
 {
-    query_index_build_deferred_response response{ request.client_context_id, ec };
-    if (!ec) {
+    query_index_build_deferred_response response{ ctx };
+    if (!response.ctx.ec) {
         auto payload = tao::json::from_string(encoded.body);
         response.status = payload.at("status").get_string();
         if (response.status != "success") {
@@ -78,7 +78,7 @@ make_response(std::error_code ec,
                 error.message = entry.at("msg").get_string();
                 response.errors.emplace_back(error);
             }
-            response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
         }
     }
     return response;

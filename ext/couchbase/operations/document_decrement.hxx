@@ -25,9 +25,7 @@ namespace couchbase::operations
 {
 
 struct decrement_response {
-    document_id id;
-    std::uint32_t opaque;
-    std::error_code ec{};
+    error_context::key_value ctx;
     std::uint64_t content{};
     std::uint64_t cas{};
     mutation_token token{};
@@ -69,18 +67,15 @@ struct decrement_request {
 };
 
 decrement_response
-make_response(std::error_code ec, decrement_request& request, decrement_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, decrement_request& request, decrement_request::encoded_response_type&& encoded)
 {
-    decrement_response response{ request.id, encoded.opaque(), ec };
-    if (ec && response.opaque == 0) {
-        response.opaque = request.opaque;
-    }
-    if (!ec) {
+    decrement_response response{ ctx };
+    if (!ctx.ec) {
         response.cas = encoded.cas();
         response.content = encoded.body().content();
         response.token = encoded.body().token();
         response.token.partition_id = request.partition;
-        response.token.bucket_name = response.id.bucket;
+        response.token.bucket_name = response.ctx.id.bucket;
     }
     return response;
 }

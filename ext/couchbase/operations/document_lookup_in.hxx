@@ -34,9 +34,7 @@ struct lookup_in_response {
         std::string value;
         std::size_t original_index;
     };
-    document_id id;
-    std::uint32_t opaque;
-    std::error_code ec{};
+    error_context::key_value ctx;
     std::uint64_t cas{};
     std::vector<field> fields{};
     bool deleted{ false };
@@ -78,17 +76,14 @@ struct lookup_in_request {
 };
 
 lookup_in_response
-make_response(std::error_code ec, lookup_in_request& request, lookup_in_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, lookup_in_request& request, lookup_in_request::encoded_response_type&& encoded)
 {
-    lookup_in_response response{ request.id, encoded.opaque(), ec };
-    if (ec && response.opaque == 0) {
-        response.opaque = request.opaque;
-    }
+    lookup_in_response response{ ctx };
     if (encoded.status() == protocol::status::subdoc_success_deleted ||
         encoded.status() == protocol::status::subdoc_multi_path_failure_deleted) {
         response.deleted = true;
     }
-    if (!ec) {
+    if (!ctx.ec) {
         response.cas = encoded.cas();
         response.fields.resize(request.specs.entries.size());
         for (size_t i = 0; i < request.specs.entries.size(); ++i) {

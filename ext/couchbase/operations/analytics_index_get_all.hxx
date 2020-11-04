@@ -36,8 +36,7 @@ struct analytics_index_get_all_response {
         std::string message;
     };
 
-    std::string client_context_id;
-    std::error_code ec;
+    error_context::http ctx;
     std::string status{};
     std::vector<index> indexes{};
     std::vector<problem> errors{};
@@ -47,6 +46,7 @@ struct analytics_index_get_all_request {
     using response_type = analytics_index_get_all_response;
     using encoded_request_type = io::http_request;
     using encoded_response_type = io::http_response;
+    using error_context_type = error_context::http;
 
     static const inline service_type type = service_type::analytics;
 
@@ -68,13 +68,11 @@ struct analytics_index_get_all_request {
 };
 
 analytics_index_get_all_response
-make_response(std::error_code ec,
-              analytics_index_get_all_request& request,
-              analytics_index_get_all_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, analytics_index_get_all_request&, analytics_index_get_all_request::encoded_response_type&& encoded)
 {
-    analytics_index_get_all_response response{ request.client_context_id, ec };
+    analytics_index_get_all_response response{ ctx };
 
-    if (!ec) {
+    if (!response.ctx.ec) {
         auto payload = tao::json::from_string(encoded.body);
         response.status = payload.at("status").get_string();
         if (response.status == "success") {
@@ -100,7 +98,7 @@ make_response(std::error_code ec,
                     response.errors.emplace_back(err);
                 }
             }
-            response.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
         }
     }
     return response;

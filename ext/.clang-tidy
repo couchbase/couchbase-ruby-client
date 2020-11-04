@@ -19,6 +19,8 @@ Checks: |-
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -llvm-header-guard,
   -modernize-use-trailing-return-type,
+  -misc-non-private-member-variables-in-classes,
   -llvmlibc-*,
+  -altera-*,
   -abseil-*,
   -fuchsia-*

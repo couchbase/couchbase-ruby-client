@@ -25,9 +25,7 @@ namespace couchbase::operations
 {
 
 struct get_projected_response {
-    document_id id;
-    std::uint32_t opaque;
-    std::error_code ec{};
+    error_context::key_value ctx;
     std::string value{};
     std::uint64_t cas{};
     std::uint32_t flags{};
@@ -198,13 +196,10 @@ subdoc_apply_projection(tao::json::value& root, const std::string& path, tao::js
 } // namespace priv
 
 get_projected_response
-make_response(std::error_code ec, get_projected_request& request, get_projected_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, get_projected_request& request, get_projected_request::encoded_response_type&& encoded)
 {
-    get_projected_response response{ request.id, encoded.opaque(), ec };
-    if (ec && response.opaque == 0) {
-        response.opaque = request.opaque;
-    }
-    if (!ec) {
+    get_projected_response response{ ctx };
+    if (!response.ctx.ec) {
         response.cas = encoded.cas();
         if (request.with_expiry && !encoded.body().fields()[0].value.empty()) {
             response.expiry = gsl::narrow_cast<std::uint32_t>(std::stoul(encoded.body().fields()[0].value));
@@ -222,7 +217,7 @@ make_response(std::error_code ec, get_projected_request& request, get_projected_
                     if (value_to_apply) {
                         priv::subdoc_apply_projection(new_doc, projection, *value_to_apply, request.preserve_array_indexes);
                     } else {
-                        response.ec = std::make_error_code(error::key_value_errc::path_not_found);
+                        response.ctx.ec = std::make_error_code(error::key_value_errc::path_not_found);
                         return response;
                     }
                 }
@@ -237,7 +232,7 @@ make_response(std::error_code ec, get_projected_request& request, get_projected_
                     auto value_to_apply = tao::json::from_string(field.value);
                     priv::subdoc_apply_projection(new_doc, projection, value_to_apply, request.preserve_array_indexes);
                 } else {
-                    response.ec = std::make_error_code(error::key_value_errc::path_not_found);
+                    response.ctx.ec = std::make_error_code(error::key_value_errc::path_not_found);
                     return response;
                 }
             }
