@@ -82,6 +82,14 @@ module Couchbase
     #   cluster.query("SELECT * FROM `travel-sample` WHERE type = $type LIMIT 10",
     #                 Options::Query(named_parameters: {type: "hotel"}, metrics: true))
     #
+    # @example Execute query with consistency requirement. Make sure that the index is in sync with selected mutation
+    #   res = collection.upsert("user:42", {
+    #     "name" => "Brass Doorknob",
+    #     "email" => "brass.doorknob@example.com",
+    #   })
+    #   cluster.query("SELECT name, email FROM `mybucket`",
+    #                 Options::Query(consistent_with: MutationState.new(res.mutation_token)))
+    #
     # @return [QueryResult]
     def query(statement, options = Options::Query.new)
       resp = @backend.document_query(statement, options.to_backend)

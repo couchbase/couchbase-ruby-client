@@ -412,6 +412,11 @@ module Couchbase
     #   ]
     #   collection.lookup_in("customer123", lookup_specs)
     #
+    # @example Retrieve country name and check if pending purchases array is empty
+    #   collection.lookup_in "customer123", [
+    #     LookupInSpec.get("addresses.delivery.country"),
+    #     LookupInSpec.exists("purchases.pending[-1]"),
+    #   ]
     # @return [LookupInResult]
     def lookup_in(id, specs, options = Options::LookupIn.new)
       resp = @backend.document_lookup_in(
@@ -453,6 +458,13 @@ module Couchbase
     #     MutateInSpec::array_append("purchases.complete", [42])
     #   ]
     #   collection.mutate_in("customer123", mutation_specs, Options::MutateIn(expiry: 10))
+    #
+    # @example Write meta attribute, remove array entry and replace email field
+    #   collection.mutate_in("customer123", [
+    #     MutateInSpec.upsert("_framework.model_type", "Customer").xattr,
+    #     MutateInSpec.remove("addresses.billing[2]"),
+    #     MutateInSpec.replace("email", "dougr96@hotmail.com"),
+    #   ])
     #
     # @return [MutateInResult]
     def mutate_in(id, specs, options = Options::MutateIn.new)

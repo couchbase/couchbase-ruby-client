@@ -33,7 +33,6 @@ group :development do
   gem "rubocop-rake"
   gem "rubocop-thread_safety"
   gem "simplecov-cobertura"
-  gem "standard"
   gem "yard"
   platforms :mri do
     gem "byebug"
