@@ -12,6 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "couchbase/utils/time"
+
 module Couchbase
   # Definition of the Option classes for data APIs
   module Options # rubocop:disable Metrics/ModuleLength
@@ -454,7 +456,7 @@ module Couchbase
 
       # Creates an instance of options for {Collection#insert}
       #
-      # @param [Integer, #in_seconds, nil] expiry expiration time to associate with the document
+      # @param [Integer, #in_seconds, Time, nil] expiry expiration time to associate with the document
       # @param [JsonTranscoder, #encode(Object)] transcoder used for encoding
       # @param [Symbol] durability_level level of durability
       #  +:none+::
@@ -484,7 +486,7 @@ module Couchbase
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
-        @expiry = expiry
+        @expiry = Utils::Time.extract_expiry_time(expiry)
         @transcoder = transcoder
         @durability_level = durability_level
         yield self if block_given?
@@ -494,7 +496,7 @@ module Couchbase
       def to_backend
         {
           timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
-          expiry: @expiry.respond_to?(:in_seconds) ? @expiry.public_send(:in_seconds) : @expiry,
+          expiry: @expiry,
           durability_level: @durability_level,
         }
       end
@@ -508,7 +510,7 @@ module Couchbase
 
       # Creates an instance of options for {Collection#upsert}
       #
-      # @param [Integer, #in_seconds, nil] expiry expiration time to associate with the document
+      # @param [Integer, #in_seconds, Time, nil] expiry expiration time to associate with the document
       # @param [JsonTranscoder, #encode(Object)] transcoder used for encoding
       # @param [Symbol] durability_level level of durability
       #  +:none+::
@@ -538,7 +540,7 @@ module Couchbase
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
-        @expiry = expiry
+        @expiry = Utils::Time.extract_expiry_time(expiry)
         @transcoder = transcoder
         @durability_level = durability_level
         yield self if block_given?
@@ -547,7 +549,7 @@ module Couchbase
       def to_backend
         {
           timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
-          expiry: @expiry.respond_to?(:in_seconds) ? @expiry.public_send(:in_seconds) : @expiry,
+          expiry: @expiry,
           durability_level: @durability_level,
         }
       end
@@ -561,7 +563,7 @@ module Couchbase
 
       # Creates an instance of options for {Collection#upsert}
       #
-      # @param [Integer, #in_seconds, nil] expiry expiration time to associate with the document
+      # @param [Integer, #in_seconds, Time, nil] expiry expiration time to associate with the document
       # @param [JsonTranscoder, #encode(Object)] transcoder used for encoding
       # @param [Symbol] durability_level level of durability
       #  +:none+::
@@ -591,7 +593,7 @@ module Couchbase
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
-        @expiry = expiry
+        @expiry = Utils::Time.extract_expiry_time(expiry)
         @transcoder = transcoder
         @durability_level = durability_level
         yield self if block_given?
@@ -600,7 +602,7 @@ module Couchbase
       def to_backend
         {
           timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
-          expiry: @expiry.respond_to?(:in_seconds) ? @expiry.public_send(:in_seconds) : @expiry,
+          expiry: @expiry,
           durability_level: @durability_level,
         }
       end
@@ -647,7 +649,7 @@ module Couchbase
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
-        @expiry = expiry
+        @expiry = Utils::Time.extract_expiry_time(expiry)
         @transcoder = transcoder
         @cas = cas
         @durability_level = durability_level
@@ -657,7 +659,7 @@ module Couchbase
       def to_backend
         {
           timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
-          expiry: @expiry.respond_to?(:in_seconds) ? @expiry.public_send(:in_seconds) : @expiry,
+          expiry: @expiry,
           durability_level: @durability_level,
           cas: @cas,
         }
@@ -676,7 +678,7 @@ module Couchbase
 
       # Creates an instance of options for {Collection#mutate_in}
       #
-      # @param [Integer, #in_seconds, nil] expiry expiration time to associate with the document
+      # @param [Integer, #in_seconds, Time, nil] expiry expiration time to associate with the document
       # @param [Symbol] store_semantics describes how the outer document store semantics on subdoc should act
       #  +:replace+:: replace the document, fail if it does not exist. This is the default
       #  +:upsert+:: replace the document or create if it does not exist
@@ -717,7 +719,7 @@ module Couchbase
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
-        @expiry = expiry
+        @expiry = Utils::Time.extract_expiry_time(expiry)
         @store_semantics = store_semantics
         @cas = cas
         @access_deleted = access_deleted
@@ -731,7 +733,7 @@ module Couchbase
       def to_backend
         {
           timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
-          expiry: @expiry.respond_to?(:in_seconds) ? @expiry.public_send(:in_seconds) : @expiry,
+          expiry: @expiry,
           durability_level: @durability_level,
           cas: @cas,
           store_semantics: @store_semantics,
@@ -856,7 +858,7 @@ module Couchbase
       #
       # @param [Integer] delta the delta for the operation
       # @param [Integer] initial if present, holds the initial value
-      # @param [Integer, #in_seconds] expiry if set, holds the expiration for the operation
+      # @param [Integer, #in_seconds, Time, nil] expiry if set, holds the expiration for the operation
       # @param [Symbol] durability_level level of durability
       #  +:none+::
       #     no enhanced durability required for the mutation
@@ -890,7 +892,7 @@ module Couchbase
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @delta = delta
         @initial = initial
-        @expiry = expiry
+        @expiry = Utils::Time.extract_expiry_time(expiry)
         @durability_level = durability_level
         yield self if block_given?
       end
@@ -908,7 +910,7 @@ module Couchbase
           timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
           delta: @delta,
           initial_value: @initial,
-          expiry: @expiry.respond_to?(:in_seconds) ? @expiry.public_send(:in_seconds) : @expiry,
+          expiry: @expiry,
           durability_level: @durability_level,
         }
       end
@@ -925,7 +927,7 @@ module Couchbase
       #
       # @param [Integer] delta the delta for the operation
       # @param [Integer] initial if present, holds the initial value
-      # @param [Integer, #in_seconds] expiry if set, holds the expiration for the operation
+      # @param [Integer, #in_seconds, Time, nil] expiry if set, holds the expiration for the operation
       # @param [Symbol] durability_level level of durability
       #  +:none+::
       #     no enhanced durability required for the mutation
@@ -959,7 +961,7 @@ module Couchbase
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @delta = delta
         @initial = initial
-        @expiry = expiry
+        @expiry = Utils::Time.extract_expiry_time(expiry)
         @durability_level = durability_level
         yield self if block_given?
       end
@@ -977,7 +979,7 @@ module Couchbase
           timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
           delta: @delta,
           initial_value: @initial,
-          expiry: @expiry.respond_to?(:in_seconds) ? @expiry.public_send(:in_seconds) : @expiry,
+          expiry: @expiry,
           durability_level: @durability_level,
         }
       end

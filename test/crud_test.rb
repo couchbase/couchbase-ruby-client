@@ -320,6 +320,37 @@ module Couchbase
       assert res.expiry_time > Time.now
     end
 
+    def test_expiry_option_as_time_instance
+      doc_id = uniq_id(:expiry_doc)
+      doc = load_json_test_dataset("beer_sample_single")
+
+      today = Time.now
+      tomorrow = Time.utc(today.year, today.month, today.day + 1)
+      res = @collection.insert(doc_id, doc, Options::Insert(expiry: tomorrow))
+      refute_equal 0, res.cas
+
+      res = @collection.get(doc_id, Options::Get(with_expiry: true))
+
+      assert_equal doc, res.content
+      assert_equal tomorrow, res.expiry_time
+    end
+
+    def test_integer_expiry_of_40_days_remains_relative
+      doc_id = uniq_id(:expiry_doc)
+      doc = load_json_test_dataset("beer_sample_single")
+
+      forty_days_from_today = 40 * 24 * 60 * 60
+      res = @collection.insert(doc_id, doc, Options::Insert(expiry: forty_days_from_today))
+      refute_equal 0, res.cas
+
+      res = @collection.get(doc_id, Options::Get(with_expiry: true))
+
+      assert_equal doc, res.content
+      assert_kind_of Time, res.expiry_time
+      # check that expiration time is not greater than 2 seconds to the expected
+      assert_in_delta (Time.now + forty_days_from_today).to_f, res.expiry_time.to_f, 2
+    end
+
     def test_insert_get_projection
       doc_id = uniq_id(:project_doc)
       person = load_json_test_dataset("projection_doc")

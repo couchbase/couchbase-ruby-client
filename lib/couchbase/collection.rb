@@ -143,7 +143,7 @@ module Couchbase
     # Fetches a full document and resets its expiration time to the duration provided
     #
     # @param [String] id the document id which is used to uniquely identify it.
-    # @param [Integer, #in_seconds] expiry the new expiration time for the document
+    # @param [Integer, #in_seconds, Time] expiry the new expiration time for the document
     # @param [Options::GetAndTouch] options request customization
     #
     # @example Retrieve document and prolong its expiration for another 10 seconds
@@ -152,7 +152,7 @@ module Couchbase
     # @return [GetResult]
     def get_and_touch(id, expiry, options = Options::GetAndTouch.new)
       resp = @backend.document_get_and_touch(bucket_name, "#{@scope_name}.#{@name}", id,
-                                             expiry.respond_to?(:in_seconds) ? expiry.public_send(:in_seconds) : expiry,
+                                             Utils::Time.extract_expiry_time(expiry),
                                              options.to_backend)
       GetResult.new do |res|
         res.transcoder = options.transcoder
@@ -367,7 +367,7 @@ module Couchbase
     # Update the expiration of the document with the given id
     #
     # @param [String] id the document id which is used to uniquely identify it.
-    # @param [Integer, #in_seconds] expiry new expiration time for the document
+    # @param [Integer, #in_seconds, Time] expiry new expiration time for the document
     # @param [Options::Touch] options request customization
     #
     # @example Reset expiration timer for document to 30 seconds
@@ -376,7 +376,7 @@ module Couchbase
     # @return [MutationResult]
     def touch(id, expiry, options = Options::Touch.new)
       resp = @backend.document_touch(bucket_name, "#{@scope_name}.#{@name}", id,
-                                     expiry.respond_to?(:in_seconds) ? expiry.public_send(:in_seconds) : expiry,
+                                     Utils::Time.extract_expiry_time(expiry),
                                      options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
