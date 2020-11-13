@@ -48,6 +48,7 @@ module Couchbase
             ejection_policy: settings.ejection_policy,
             max_expiry: settings.max_expiry,
             compression_mode: settings.compression_mode,
+            minimum_durability_level: settings.minimum_durability_level,
             conflict_resolution_type: settings.conflict_resolution_type,
           }, options.timeout
         )
@@ -74,6 +75,7 @@ module Couchbase
             ejection_policy: settings.ejection_policy,
             max_expiry: settings.max_expiry,
             compression_mode: settings.compression_mode,
+            minimum_durability_level: settings.minimum_durability_level,
           }, options.timeout
         )
       end
@@ -190,7 +192,8 @@ module Couchbase
           bucket.replica_indexes = entry[:replica_indexes]
           bucket.bucket_type = entry[:bucket_type]
           bucket.max_expiry = entry[:max_expiry]
-          bucket.ejection_policy = entry[:max_expiry]
+          bucket.eviction_policy = entry[:eviction_policy]
+          bucket.minimum_durability_level = entry[:minimum_durability_level]
           bucket.compression_mode = entry[:compression_mode]
           bucket.instance_variable_set("@healthy", entry[:nodes].all? { |node| node[:status] == "healthy" })
         end
@@ -247,6 +250,9 @@ module Couchbase
       # @return [:timestamp, :sequence_number] conflict resolution policy
       attr_accessor :conflict_resolution_type
 
+      # @return [nil, :none, :majority, :majority_and_persist_to_active, :persist_to_majority] the minimum durability level
+      attr_accessor :minimum_durability_level
+
       # @api private
       # @return [Boolean] false if status of the bucket is not healthy
       def healthy?
@@ -269,6 +275,7 @@ module Couchbase
       def initialize
         @bucket_type = :couchbase
         @name = nil
+        @minimum_durability_level = nil
         @healthy = true
         @flush_enabled = false
         @ram_quota_mb = 100

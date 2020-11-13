@@ -84,6 +84,22 @@ struct bucket_update_request {
             case bucket_settings::compression_mode::unknown:
                 break;
         }
+        if (bucket.minimum_durability_level) {
+            switch (bucket.minimum_durability_level.value()) {
+                case protocol::durability_level::none:
+                    encoded.body.append("&durabilityMinLevel=none");
+                    break;
+                case protocol::durability_level::majority:
+                    encoded.body.append("&durabilityMinLevel=majority");
+                    break;
+                case protocol::durability_level::majority_and_persist_to_active:
+                    encoded.body.append("&durabilityMinLevel=majorityAndPersistActive");
+                    break;
+                case protocol::durability_level::persist_to_majority:
+                    encoded.body.append("&durabilityMinLevel=persistToMajority");
+                    break;
+            }
+        }
         return {};
     }
 };

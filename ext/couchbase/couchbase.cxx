@@ -3372,44 +3372,60 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
     return Qnil;
 }
 
-static void
+static VALUE
 cb__generate_bucket_settings(VALUE bucket, couchbase::operations::bucket_settings& entry, bool is_create)
 {
     {
         VALUE bucket_type = rb_hash_aref(bucket, rb_id2sym(rb_intern("bucket_type")));
-        Check_Type(bucket_type, T_SYMBOL);
-        if (bucket_type == rb_id2sym(rb_intern("couchbase")) || bucket_type == rb_id2sym(rb_intern("membase"))) {
-            entry.bucket_type = couchbase::operations::bucket_settings::bucket_type::couchbase;
-        } else if (bucket_type == rb_id2sym(rb_intern("memcached"))) {
-            entry.bucket_type = couchbase::operations::bucket_settings::bucket_type::memcached;
-        } else if (bucket_type == rb_id2sym(rb_intern("ephemeral"))) {
-            entry.bucket_type = couchbase::operations::bucket_settings::bucket_type::ephemeral;
+        if (TYPE(bucket_type) == T_SYMBOL) {
+            if (bucket_type == rb_id2sym(rb_intern("couchbase")) || bucket_type == rb_id2sym(rb_intern("membase"))) {
+                entry.bucket_type = couchbase::operations::bucket_settings::bucket_type::couchbase;
+            } else if (bucket_type == rb_id2sym(rb_intern("memcached"))) {
+                entry.bucket_type = couchbase::operations::bucket_settings::bucket_type::memcached;
+            } else if (bucket_type == rb_id2sym(rb_intern("ephemeral"))) {
+                entry.bucket_type = couchbase::operations::bucket_settings::bucket_type::ephemeral;
+            } else {
+                return rb_exc_new_str(rb_eArgError, rb_sprintf("unknown bucket type, given %+" PRIsVALUE, bucket_type));
+            }
         } else {
-            rb_raise(rb_eArgError, "unknown bucket type");
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("bucket type must be a Symbol, given %+" PRIsVALUE, bucket_type));
         }
     }
     {
         VALUE name = rb_hash_aref(bucket, rb_id2sym(rb_intern("name")));
-        Check_Type(name, T_STRING);
-        entry.name.assign(RSTRING_PTR(name), static_cast<size_t>(RSTRING_LEN(name)));
+        if (TYPE(name) == T_STRING) {
+            entry.name.assign(RSTRING_PTR(name), static_cast<size_t>(RSTRING_LEN(name)));
+        } else {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("bucket name must be a String, given %+" PRIsVALUE, name));
+        }
     }
     {
         VALUE quota = rb_hash_aref(bucket, rb_id2sym(rb_intern("ram_quota_mb")));
-        Check_Type(quota, T_FIXNUM);
-        entry.ram_quota_mb = FIX2ULONG(quota);
+        if (TYPE(quota) == T_FIXNUM) {
+            entry.ram_quota_mb = FIX2ULONG(quota);
+        } else {
+            return rb_exc_new_str(rb_eArgError, rb_sprintf("bucket RAM quota must be an Integer, given %+" PRIsVALUE, quota));
+        }
     }
     {
         VALUE expiry = rb_hash_aref(bucket, rb_id2sym(rb_intern("max_expiry")));
         if (!NIL_P(expiry)) {
-            Check_Type(expiry, T_FIXNUM);
-            entry.max_expiry = FIX2UINT(expiry);
+            if (TYPE(expiry) == T_FIXNUM) {
+                entry.max_expiry = FIX2UINT(expiry);
+            } else {
+                return rb_exc_new_str(rb_eArgError, rb_sprintf("bucket max expiry must be an Integer, given %+" PRIsVALUE, expiry));
+            }
         }
     }
     {
         VALUE num_replicas = rb_hash_aref(bucket, rb_id2sym(rb_intern("num_replicas")));
         if (!NIL_P(num_replicas)) {
-            Check_Type(num_replicas, T_FIXNUM);
-            entry.num_replicas = FIX2UINT(num_replicas);
+            if (TYPE(num_replicas) == T_FIXNUM) {
+                entry.num_replicas = FIX2UINT(num_replicas);
+            } else {
+                return rb_exc_new_str(rb_eArgError,
+                                      rb_sprintf("bucket number of replicas must be an Integer, given %+" PRIsVALUE, num_replicas));
+            }
         }
     }
     {
@@ -3427,48 +3443,84 @@ cb__generate_bucket_settings(VALUE bucket, couchbase::operations::bucket_setting
     {
         VALUE compression_mode = rb_hash_aref(bucket, rb_id2sym(rb_intern("compression_mode")));
         if (!NIL_P(compression_mode)) {
-            Check_Type(compression_mode, T_SYMBOL);
-            if (compression_mode == rb_id2sym(rb_intern("active"))) {
-                entry.compression_mode = couchbase::operations::bucket_settings::compression_mode::active;
-            } else if (compression_mode == rb_id2sym(rb_intern("passive"))) {
-                entry.compression_mode = couchbase::operations::bucket_settings::compression_mode::passive;
-            } else if (compression_mode == rb_id2sym(rb_intern("off"))) {
-                entry.compression_mode = couchbase::operations::bucket_settings::compression_mode::off;
+            if (TYPE(compression_mode) == T_SYMBOL) {
+                if (compression_mode == rb_id2sym(rb_intern("active"))) {
+                    entry.compression_mode = couchbase::operations::bucket_settings::compression_mode::active;
+                } else if (compression_mode == rb_id2sym(rb_intern("passive"))) {
+                    entry.compression_mode = couchbase::operations::bucket_settings::compression_mode::passive;
+                } else if (compression_mode == rb_id2sym(rb_intern("off"))) {
+                    entry.compression_mode = couchbase::operations::bucket_settings::compression_mode::off;
+                } else {
+                    return rb_exc_new_str(rb_eArgError, rb_sprintf("unknown compression mode, given %+" PRIsVALUE, compression_mode));
+                }
             } else {
-                rb_raise(rb_eArgError, "unknown compression mode");
+                return rb_exc_new_str(rb_eArgError,
+                                      rb_sprintf("bucket compression mode must be a Symbol, given %+" PRIsVALUE, compression_mode));
             }
         }
     }
     {
         VALUE eviction_policy = rb_hash_aref(bucket, rb_id2sym(rb_intern("eviction_policy")));
         if (!NIL_P(eviction_policy)) {
-            Check_Type(eviction_policy, T_SYMBOL);
-            if (eviction_policy == rb_id2sym(rb_intern("full"))) {
-                entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::full;
-            } else if (eviction_policy == rb_id2sym(rb_intern("value_only"))) {
-                entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::value_only;
-            } else if (eviction_policy == rb_id2sym(rb_intern("no_eviction"))) {
-                entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::no_eviction;
-            } else if (eviction_policy == rb_id2sym(rb_intern("not_recently_used"))) {
-                entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::not_recently_used;
+            if (TYPE(eviction_policy) == T_SYMBOL) {
+                if (eviction_policy == rb_id2sym(rb_intern("full"))) {
+                    entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::full;
+                } else if (eviction_policy == rb_id2sym(rb_intern("value_only"))) {
+                    entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::value_only;
+                } else if (eviction_policy == rb_id2sym(rb_intern("no_eviction"))) {
+                    entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::no_eviction;
+                } else if (eviction_policy == rb_id2sym(rb_intern("not_recently_used"))) {
+                    entry.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::not_recently_used;
+                } else {
+                    return rb_exc_new_str(rb_eArgError, rb_sprintf("unknown eviction policy, given %+" PRIsVALUE, eviction_policy));
+                }
             } else {
-                rb_raise(rb_eArgError, "unknown eviction policy");
+                return rb_exc_new_str(rb_eArgError,
+                                      rb_sprintf("bucket eviction policy must be a Symbol, given %+" PRIsVALUE, eviction_policy));
+            }
+        }
+    }
+    {
+        VALUE minimum_level = rb_hash_aref(bucket, rb_id2sym(rb_intern("minimum_durability_level")));
+        if (!NIL_P(minimum_level)) {
+            if (TYPE(minimum_level) == T_SYMBOL) {
+                if (minimum_level == rb_id2sym(rb_intern("none"))) {
+                    entry.minimum_durability_level = couchbase::protocol::durability_level::none;
+                } else if (minimum_level == rb_id2sym(rb_intern("majority"))) {
+                    entry.minimum_durability_level = couchbase::protocol::durability_level::majority;
+                } else if (minimum_level == rb_id2sym(rb_intern("majority_and_persist_to_active"))) {
+                    entry.minimum_durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+                } else if (minimum_level == rb_id2sym(rb_intern("persist_to_majority"))) {
+                    entry.minimum_durability_level = couchbase::protocol::durability_level::persist_to_majority;
+                } else {
+                    return rb_exc_new_str(rb_eArgError, rb_sprintf("unknown durability level, given %+" PRIsVALUE, minimum_level));
+                }
+            } else {
+                return rb_exc_new_str(rb_eArgError,
+                                      rb_sprintf("bucket minimum durability level must be a Symbol, given %+" PRIsVALUE, minimum_level));
             }
         }
     }
     if (is_create) {
         VALUE conflict_resolution_type = rb_hash_aref(bucket, rb_id2sym(rb_intern("conflict_resolution_type")));
         if (!NIL_P(conflict_resolution_type)) {
-            Check_Type(conflict_resolution_type, T_SYMBOL);
-            if (conflict_resolution_type == rb_id2sym(rb_intern("timestamp"))) {
-                entry.conflict_resolution_type = couchbase::operations::bucket_settings::conflict_resolution_type::timestamp;
-            } else if (conflict_resolution_type == rb_id2sym(rb_intern("sequence_number"))) {
-                entry.conflict_resolution_type = couchbase::operations::bucket_settings::conflict_resolution_type::sequence_number;
+            if (TYPE(conflict_resolution_type) == T_SYMBOL) {
+                if (conflict_resolution_type == rb_id2sym(rb_intern("timestamp"))) {
+                    entry.conflict_resolution_type = couchbase::operations::bucket_settings::conflict_resolution_type::timestamp;
+                } else if (conflict_resolution_type == rb_id2sym(rb_intern("sequence_number"))) {
+                    entry.conflict_resolution_type = couchbase::operations::bucket_settings::conflict_resolution_type::sequence_number;
+                } else {
+                    return rb_exc_new_str(rb_eArgError,
+                                          rb_sprintf("unknown conflict resolution type, given %+" PRIsVALUE, conflict_resolution_type));
+                }
             } else {
-                rb_raise(rb_eArgError, "unknown conflict resolution type");
+                return rb_exc_new_str(
+                  rb_eArgError,
+                  rb_sprintf("bucket conflict resulution type must be a Symbol, given %+" PRIsVALUE, conflict_resolution_type));
             }
         }
     }
+    return Qnil;
 }
 
 static VALUE
@@ -3491,7 +3543,10 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE timeout)
         if (!NIL_P(exc)) {
             break;
         }
-        cb__generate_bucket_settings(bucket_settings, req.bucket, true);
+        exc = cb__generate_bucket_settings(bucket_settings, req.bucket, true);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_create_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
@@ -3528,7 +3583,10 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE timeout)
         if (!NIL_P(exc)) {
             break;
         }
-        cb__generate_bucket_settings(bucket_settings, req.bucket, false);
+        exc = cb__generate_bucket_settings(bucket_settings, req.bucket, false);
+        if (!NIL_P(exc)) {
+            break;
+        }
         auto barrier = std::make_shared<std::promise<couchbase::operations::bucket_update_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(
@@ -3683,6 +3741,23 @@ cb__extract_bucket_settings(const couchbase::operations::bucket_settings& entry,
         case couchbase::operations::bucket_settings::conflict_resolution_type::unknown:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("conflict_resolution_type")), Qnil);
             break;
+    }
+    if (entry.minimum_durability_level) {
+        switch (entry.minimum_durability_level.value()) {
+            case couchbase::protocol::durability_level::none:
+                rb_hash_aset(bucket, rb_id2sym(rb_intern("minimum_durability_level")), rb_id2sym(rb_intern("none")));
+                break;
+            case couchbase::protocol::durability_level::majority:
+                rb_hash_aset(bucket, rb_id2sym(rb_intern("minimum_durability_level")), rb_id2sym(rb_intern("majority")));
+                break;
+            case couchbase::protocol::durability_level::majority_and_persist_to_active:
+                rb_hash_aset(
+                  bucket, rb_id2sym(rb_intern("minimum_durability_level")), rb_id2sym(rb_intern("majority_and_persist_to_active")));
+                break;
+            case couchbase::protocol::durability_level::persist_to_majority:
+                rb_hash_aset(bucket, rb_id2sym(rb_intern("minimum_durability_level")), rb_id2sym(rb_intern("persist_to_majority")));
+                break;
+        }
     }
     VALUE capabilities = rb_ary_new_capa(static_cast<long>(entry.capabilities.size()));
     for (const auto& capa : entry.capabilities) {

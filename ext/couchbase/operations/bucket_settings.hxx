@@ -56,6 +56,7 @@ struct bucket_settings {
     std::uint64_t ram_quota_mb{ 100 };
     std::uint32_t max_expiry{ 0 };
     compression_mode compression_mode{ compression_mode::unknown };
+    std::optional<protocol::durability_level> minimum_durability_level{};
     std::uint32_t num_replicas{ 1 };
     bool replica_indexes{ false };
     bool flush_enabled{ false };
@@ -110,6 +111,21 @@ struct traits<couchbase::operations::bucket_settings> {
                 result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::no_eviction;
             } else if (str == "nruEviction") {
                 result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::not_recently_used;
+            }
+        }
+        {
+            auto* min_level = v.find("durabilityMinLevel");
+            if (min_level != nullptr) {
+                auto& str = min_level->get_string();
+                if (str == "none") {
+                    result.minimum_durability_level = couchbase::protocol::durability_level::none;
+                } else if (str == "majority") {
+                    result.minimum_durability_level = couchbase::protocol::durability_level::majority;
+                } else if (str == "majorityAndPersistActive") {
+                    result.minimum_durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+                } else if (str == "persistToMajority") {
+                    result.minimum_durability_level = couchbase::protocol::durability_level::persist_to_majority;
+                }
             }
         }
         {
