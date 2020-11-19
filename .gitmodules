@@ -3,7 +3,7 @@
 	url = git://github.com/microsoft/gsl.git
 [submodule "ext/third_party/json"]
 	path = ext/third_party/json
-	url = git://github.com/taocpp/json.git
+	url = git://github.com/avsej/json.git
 [submodule "ext/third_party/spdlog"]
 	path = ext/third_party/spdlog
 	url = git://github.com/gabime/spdlog.git

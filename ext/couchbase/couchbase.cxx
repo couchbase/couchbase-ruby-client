@@ -18,7 +18,7 @@
 #include <build_info.hxx>
 #include <version.hxx>
 
-#include <asio/version.hpp>
+#include <asio.hpp>
 #include <openssl/crypto.h>
 
 #include <spdlog/spdlog.h>
@@ -1824,7 +1824,7 @@ cb__extract_mutation_result(Response resp)
     rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
     VALUE token = rb_hash_new();
     rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
-    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULONG2NUM(resp.token.sequence_number));
+    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULL2NUM(resp.token.sequence_number));
     rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id));
     rb_hash_aset(token,
                  rb_id2sym(rb_intern("bucket_name")),
@@ -3090,7 +3090,7 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
 
         VALUE res = cb__extract_mutation_result(resp);
         if (resp.first_error_index) {
-            rb_hash_aset(res, rb_id2sym(rb_intern("first_error_index")), ULONG2NUM(resp.first_error_index.value()));
+            rb_hash_aset(res, rb_id2sym(rb_intern("first_error_index")), ULL2NUM(resp.first_error_index.value()));
         }
         if (resp.deleted) {
             rb_hash_aset(res, rb_id2sym(rb_intern("deleted")), Qtrue);
@@ -3106,7 +3106,7 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
                 resp.fields[i].status == couchbase::protocol::status::subdoc_success_deleted) {
                 if (resp.fields[i].opcode == couchbase::protocol::subdoc_opcode::counter) {
                     if (resp.fields[i].value.size() > 0) {
-                        rb_hash_aset(entry, rb_id2sym(rb_intern("value")), LONG2NUM(std::stoll(resp.fields[i].value)));
+                        rb_hash_aset(entry, rb_id2sym(rb_intern("value")), LL2NUM(std::stoll(resp.fields[i].value)));
                     }
                 } else {
                     rb_hash_aset(entry,
@@ -6126,7 +6126,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         VALUE metrics = rb_hash_new();
         rb_hash_aset(metrics,
                      rb_id2sym(rb_intern("took")),
-                     LONG2NUM(std::chrono::duration_cast<std::chrono::milliseconds>(resp.meta_data.metrics.took).count()));
+                     LL2NUM(std::chrono::duration_cast<std::chrono::milliseconds>(resp.meta_data.metrics.took).count()));
         rb_hash_aset(metrics, rb_id2sym(rb_intern("total_rows")), ULL2NUM(resp.meta_data.metrics.total_rows));
         rb_hash_aset(metrics, rb_id2sym(rb_intern("max_score")), DBL2NUM(resp.meta_data.metrics.max_score));
         rb_hash_aset(metrics, rb_id2sym(rb_intern("success_partition_count")), ULL2NUM(resp.meta_data.metrics.success_partition_count));

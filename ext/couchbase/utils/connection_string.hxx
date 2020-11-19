@@ -86,7 +86,7 @@ using opt_bucket_name = opt_must<one<'/'>, bucket_name>;
 using opt_params = opt_must<one<'?'>, list_must<param, one<'&'>>>;
 using opt_nodes = seq<list_must<node, one<',', ';'>>, opt_bucket_name>;
 
-using grammar = must<seq<uri::scheme, one<':'>, uri::dslash, opt_nodes, opt_params, eof>>;
+using grammar = must<seq<uri::scheme, one<':'>, uri::dslash, opt_nodes, opt_params, tao::json::pegtl::eof>>;
 
 template<typename Rule>
 struct action {

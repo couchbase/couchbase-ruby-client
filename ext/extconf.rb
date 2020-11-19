@@ -64,7 +64,7 @@ FileUtils.rm_rf(build_dir, verbose: true) unless ENV['CB_PRESERVE_BUILD_DIR']
 FileUtils.mkdir_p(build_dir, verbose: true)
 Dir.chdir(build_dir) do
   puts "-- build #{build_type} extension #{SDK_VERSION} for ruby #{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}"
-  sys(cmake, *cmake_flags, project_path)
+  sys(cmake, *cmake_flags, "-B#{build_dir}", "-S#{project_path}")
   number_of_jobs = (ENV["CB_NUMBER_OF_JOBS"] || 4).to_s
   sys(cmake, "--build", build_dir, "--parallel", number_of_jobs,  "--verbose")
 end

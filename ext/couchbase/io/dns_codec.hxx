@@ -19,8 +19,7 @@
 
 #include <cstring>
 
-#include <arpa/inet.h>
-
+#include <asio/ip/udp.hpp>
 #include <io/dns_message.hxx>
 
 namespace couchbase::io::dns
