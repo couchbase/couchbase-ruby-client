@@ -23,7 +23,7 @@ module Couchbase
 
       module_function
 
-      # @param [Integer, #in_seconds, Time, nil] expiry expiration time to associate with the document
+      # @param [Integer, #in_seconds, Time, nil] time_or_duration expiration time to associate with the document
       def extract_expiry_time(time_or_duration)
         if time_or_duration.respond_to?(:in_seconds) # Duration
           time_or_duration.in_seconds
