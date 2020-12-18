@@ -259,6 +259,7 @@ module Couchbase
         MutationResult.new do |res|
           res.cas = entry[:cas]
           res.mutation_token = extract_mutation_token(entry)
+          res.error = entry[:error]
         end
       end
     end
@@ -339,6 +340,7 @@ module Couchbase
         MutationResult.new do |res|
           res.cas = entry[:cas]
           res.mutation_token = extract_mutation_token(entry)
+          res.error = entry[:error]
         end
       end
     end

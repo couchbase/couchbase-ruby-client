@@ -32,6 +32,11 @@ module Couchbase
       # @return [Error::CouchbaseError, nil] error associated with the result, or nil (used in {Collection#get_multi})
       attr_accessor :error
 
+      # @return [Boolean] true if error was not associated with the result (useful for multi-operations)
+      def success?
+        !error
+      end
+
       # @return [String] The encoded content when loading the document
       # @api private
       attr_accessor :encoded
@@ -111,6 +116,11 @@ module Couchbase
       # @return [Error::CouchbaseError, nil] error or nil (used in multi-operations like {Collection#upsert_multi},
       #   {Collection#remove_multi})
       attr_accessor :error
+
+      # @return [Boolean] true if error was not associated with the result (useful for multi-operations)
+      def success?
+        !error
+      end
 
       # @yieldparam [MutationResult] self
       def initialize
