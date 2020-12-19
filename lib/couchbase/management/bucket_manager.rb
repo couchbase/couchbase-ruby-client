@@ -113,7 +113,7 @@ module Couchbase
       # @return [Array<BucketSettings>]
       def get_all_buckets(options = GetAllBucketsOptions.new)
         res = @backend.bucket_get_all(options.timeout)
-        res.map(&method(:extract_bucket_settings))
+        res.map { |entry| extract_bucket_settings(entry) }
       end
 
       # @param [String] bucket_name name of the bucket

@@ -45,7 +45,7 @@ module Couchbase
       # @return [Array<UserAndMetadata>]
       def get_all_users(options = GetAllUsersOptions.new)
         resp = @backend.user_get_all(options.domain, options.timeout)
-        resp.map(&method(:extract_user))
+        resp.map { |entry| extract_user(entry) }
       end
 
       # Creates or updates a user
@@ -121,7 +121,7 @@ module Couchbase
       # @return [Array<Group>]
       def get_all_groups(options = GetAllGroupsOptions.new)
         resp = @backend.group_get_all(options.timeout)
-        resp.map(&method(:extract_group))
+        resp.map { |entry| extract_group(entry) }
       end
 
       # Creates or updates a group
