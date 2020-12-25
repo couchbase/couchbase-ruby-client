@@ -306,7 +306,12 @@ class bucket : public std::enable_shared_from_this<bucket>
                   cmd->manager_, cmd, io::retry_reason::node_not_available, std::make_error_code(error::common_errc::request_canceled));
             }
         }
-        cmd->send_to(sessions_.at(static_cast<std::size_t>(index)));
+        auto session = sessions_.at(static_cast<std::size_t>(index));
+        if (session->is_stopped()) {
+            return io::retry_orchestrator::maybe_retry(
+              cmd->manager_, cmd, io::retry_reason::node_not_available, std::make_error_code(error::common_errc::request_canceled));
+        }
+        cmd->send_to(session);
     }
 
     template<typename Request>

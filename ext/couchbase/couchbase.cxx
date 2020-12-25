@@ -41,12 +41,12 @@
 #include <ruby/version.h>
 #endif
 
-#if !defined(RB_METHOD_DEFINITION_DECL)
-#define VALUE_FUNC(f) reinterpret_cast<VALUE (*)(ANYARGS)>(f)
-#define INT_FUNC(f) reinterpret_cast<int (*)(ANYARGS)>(f)
-#else
+#if defined(RB_METHOD_DEFINITION_DECL) || RUBY_API_VERSION_MAJOR == 3
 #define VALUE_FUNC(f) (f)
 #define INT_FUNC(f) (f)
+#else
+#define VALUE_FUNC(f) reinterpret_cast<VALUE (*)(ANYARGS)>(f)
+#define INT_FUNC(f) reinterpret_cast<int (*)(ANYARGS)>(f)
 #endif
 
 static void
@@ -937,7 +937,7 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
             auth.certificate_path.assign(RSTRING_PTR(certificate_path), static_cast<size_t>(RSTRING_LEN(certificate_path)));
             auth.key_path.assign(RSTRING_PTR(key_path), static_cast<size_t>(RSTRING_LEN(key_path)));
         }
-        couchbase::origin origin(auth, std::move(connstr));
+        couchbase::origin origin(auth, connstr);
         auto barrier = std::make_shared<std::promise<std::error_code>>();
         auto f = barrier->get_future();
         backend->cluster->open(origin, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
@@ -3129,7 +3129,7 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
             if (resp.fields[i].status == couchbase::protocol::status::success ||
                 resp.fields[i].status == couchbase::protocol::status::subdoc_success_deleted) {
                 if (resp.fields[i].opcode == couchbase::protocol::subdoc_opcode::counter) {
-                    if (resp.fields[i].value.size() > 0) {
+                    if (!resp.fields[i].value.empty()) {
                         rb_hash_aset(entry, rb_id2sym(rb_intern("value")), LL2NUM(std::stoll(resp.fields[i].value)));
                     }
                 } else {
@@ -7825,7 +7825,7 @@ cb_Backend_leb128_decode(VALUE self, VALUE data)
     std::string buf(RSTRING_PTR(data), static_cast<std::size_t>(RSTRING_LEN(data)));
     if (!buf.empty()) {
         auto rv = couchbase::protocol::decode_unsigned_leb128<std::uint64_t>(buf, couchbase::protocol::Leb128NoThrow());
-        if (rv.second.data()) {
+        if (rv.second.data() != nullptr) {
             return ULL2NUM(rv.first);
         }
     }

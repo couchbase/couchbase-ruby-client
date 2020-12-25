@@ -1007,7 +1007,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             }
             if (config_->rev && config.rev) {
                 if (*config_->rev == *config.rev) {
-                    spdlog::debug("{} received a configuration with identical revision (rev={}), ignoring", log_prefix_, *config.rev);
+                    spdlog::trace("{} received a configuration with identical revision (rev={}), ignoring", log_prefix_, *config.rev);
                     return;
                 }
                 if (*config_->rev > *config.rev) {

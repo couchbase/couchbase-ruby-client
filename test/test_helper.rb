@@ -31,7 +31,7 @@ require "rubygems/version"
 
 class ServerVersion
   def initialize(version_string, developer_preview: false)
-    @version = Gem::Version.create(version_string)
+    @version = Gem::Version.create(version_string.sub(/-stable/, ""))
     @developer_preview = developer_preview
   end
 
