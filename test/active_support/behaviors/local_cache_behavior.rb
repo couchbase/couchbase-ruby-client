@@ -120,6 +120,9 @@ module LocalCacheBehavior
   end
 
   def test_local_cache_of_delete_matched
+    unless ::Couchbase::TEST_SERVER_VERSION.supports_regexp_matches?
+      skip("The server #{::Couchbase::TEST_SERVER_VERSION} does not support delete_matched")
+    end
     begin
       @cache.delete_matched("*")
     rescue NotImplementedError

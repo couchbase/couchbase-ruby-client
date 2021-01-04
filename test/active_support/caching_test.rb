@@ -24,7 +24,7 @@ require "active_support/testing/method_call_assertions"
 require_relative "behaviors"
 
 module Couchbase
-  class CacheStoreTest < ActiveSupport::TestCase
+  class CachingTest < ActiveSupport::TestCase
     include ActiveSupport::Testing::MethodCallAssertions
 
     # rubocop:disable Minitest/TestMethodName
@@ -46,7 +46,7 @@ module Couchbase
     end
   end
 
-  class HealthyStoreTest < CacheStoreTest
+  class HealthyStoreTest < CachingTest
     include CacheDeleteMatchedBehavior
     include CacheIncrementDecrementBehavior
     include CacheInstrumentationBehavior
@@ -70,7 +70,7 @@ module Couchbase
     end
   end
 
-  class UnhealthyStoreTest < CacheStoreTest
+  class UnhealthyStoreTest < CachingTest
     include FailureSafetyBehavior
 
     private

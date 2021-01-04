@@ -70,6 +70,10 @@ class ServerVersion
   def supports_create_as_deleted?
     cheshire_cat? || @version >= Gem::Version.create("6.6.0")
   end
+
+  def supports_regexp_matches?
+    mad_hatter? || cheshire_cat?
+  end
 end
 
 require "couchbase"

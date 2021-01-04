@@ -54,25 +54,28 @@ module Couchbase
       @cache.write("name", 1, raw: true)
       assert_equal 2, @cache.increment("name")
       name2 = uniq_id(:name2)
-      assert_equal 0, @cache.increment(name2)
-      assert_equal 3, @cache.increment(name2, 3)
+      assert_nil @cache.increment(name2)
       name3 = uniq_id(:name3)
-      assert_equal 42, @cache.increment(name3, 2, initial: 42)
-      assert_equal 44, @cache.increment(name3, 2, initial: 42)
+      assert_equal 42, @cache.increment(name3, initial: 42)
+      assert_equal 43, @cache.increment(name3, initial: 42)
+      assert_equal 45, @cache.increment(name3, 2, initial: 42)
     end
 
     def test_decrement
       @cache.write("name", 100, raw: true)
       assert_equal 99, @cache.decrement("name")
       name2 = uniq_id(:name2)
-      assert_equal 0, @cache.decrement(name2)
-      assert_equal 0, @cache.decrement(name2, 3)
+      assert_nil @cache.decrement(name2)
       name3 = uniq_id(:name3)
-      assert_equal 42, @cache.decrement(name3, 2, initial: 42)
-      assert_equal 40, @cache.decrement(name3, 2, initial: 42)
+      assert_equal 42, @cache.decrement(name3, initial: 42)
+      assert_equal 41, @cache.decrement(name3, initial: 42)
+      assert_equal 39, @cache.decrement(name3, 2, initial: 42)
     end
 
     def test_delete_matched
+      unless ::Couchbase::TEST_SERVER_VERSION.supports_regexp_matches?
+        skip("The server #{::Couchbase::TEST_SERVER_VERSION} does not support delete_matched")
+      end
       foo = uniq_id(:foo)
       @cache.write(foo, "value_foo")
       bar = uniq_id(:bar)

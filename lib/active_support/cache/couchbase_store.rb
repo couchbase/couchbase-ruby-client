@@ -120,10 +120,22 @@ module ActiveSupport
       #
       # Also this method assumes, that primary index created on the target bucket
       def delete_matched(matcher, _options = nil)
-        pattern = matcher.is_a?(Regexp) ? matcher.inspect[1..-2] : matcher
+        pattern =
+          case matcher
+          when Regexp
+            matcher.inspect[1..-2]
+          when String
+            matcher.tr("?", ".").gsub("*", ".*")
+          else
+            raise NotImplementedError, "Unable to convert #{matcher.inspect} to Regexp pattern"
+          end
         operation_options = ::Couchbase::Options::Query(named_parameters: {"pattern" => pattern})
         operation_options.consistent_with(::Couchbase::MutationState.new(@last_mutation_token)) if @last_mutation_token
-        cluster.query("DELETE FROM #{scope_qualifier} cache WHERE REGEXP_MATCHES(META(cache).id, $pattern)", operation_options)
+        begin
+          cluster.query("DELETE FROM #{scope_qualifier} cache WHERE REGEXP_MATCHES(META(cache).id, $pattern)", operation_options)
+        rescue ::Couchbase::Error::ParsingFailure
+          raise NotImplementedError, "The server does not support delete_matched operation"
+        end
       end
 
       # Increments an integer value in the cache.
