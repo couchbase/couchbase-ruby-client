@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "couchbase/configuration"
 require "couchbase/authenticator"
 require "couchbase/bucket"
 
@@ -358,38 +359,51 @@ module Couchbase
     #   @param [String] username name of the user
     #   @param [String] password password of the user
     #   @param [Options::Cluster, nil] options custom options when creating the cluster connection
+    #
+    # @overload new(configuration)
+    #   @param [Configuration] configuration configuration object
     def initialize(connection_string, *args)
       credentials = {}
 
-      options = args.shift
-      case options
-      when String
-        credentials[:username] = options
-        credentials[:password] = args.shift
+      if connection_string.is_a?(Configuration)
+        options = connection_string
+        connection_string = options.connection_string
+        credentials[:username] = options.username
+        credentials[:password] = options.password
+        raise ArgumentError, "missing connection_string" unless connection_string
         raise ArgumentError, "missing username" unless credentials[:username]
         raise ArgumentError, "missing password" unless credentials[:password]
-      when Options::Cluster
-        authenticator = options&.authenticator
-        case authenticator
-        when PasswordAuthenticator
-          credentials[:username] = authenticator&.username
-          raise ArgumentError, "missing username" unless credentials[:username]
-
-          credentials[:password] = authenticator&.password
-          raise ArgumentError, "missing password" unless credentials[:password]
-
-        when CertificateAuthenticator
-          credentials[:certificate_path] = authenticator&.certificate_path
-          raise ArgumentError, "missing certificate path" unless credentials[:certificate_path]
-
-          credentials[:key_path] = authenticator&.key_path
-          raise ArgumentError, "missing key path" unless credentials[:key_path]
-
-        else
-          raise ArgumentError, "options must have authenticator configured"
-        end
       else
-        raise ArgumentError, "unexpected second argument, have to be String or ClusterOptions"
+        options = args.shift
+        case options
+        when String
+          credentials[:username] = options
+          credentials[:password] = args.shift
+          raise ArgumentError, "missing username" unless credentials[:username]
+          raise ArgumentError, "missing password" unless credentials[:password]
+        when Options::Cluster
+          authenticator = options&.authenticator
+          case authenticator
+          when PasswordAuthenticator
+            credentials[:username] = authenticator&.username
+            raise ArgumentError, "missing username" unless credentials[:username]
+
+            credentials[:password] = authenticator&.password
+            raise ArgumentError, "missing password" unless credentials[:password]
+
+          when CertificateAuthenticator
+            credentials[:certificate_path] = authenticator&.certificate_path
+            raise ArgumentError, "missing certificate path" unless credentials[:certificate_path]
+
+            credentials[:key_path] = authenticator&.key_path
+            raise ArgumentError, "missing key path" unless credentials[:key_path]
+
+          else
+            raise ArgumentError, "options must have authenticator configured"
+          end
+        else
+          raise ArgumentError, "unexpected second argument, have to be String or ClusterOptions"
+        end
       end
 
       @backend = Backend.new

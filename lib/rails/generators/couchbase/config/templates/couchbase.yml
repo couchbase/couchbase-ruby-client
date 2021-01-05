@@ -1,0 +1,10 @@
+development: &default
+  connection_string: "couchbase://127.0.0.1"
+  username: Administrator
+  password: password
+
+test: *default
+
+# Make sure production environment does not leak credentials
+# Read section "Environmental Security" of rails security guides
+# https://guides.rubyonrails.org/security.html#environmental-security

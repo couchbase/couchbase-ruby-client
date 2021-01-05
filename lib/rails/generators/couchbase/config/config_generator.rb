@@ -12,9 +12,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/version"
-require "couchbase/libcouchbase"
-require "couchbase/logger"
-require "couchbase/cluster"
+module Couchbase
+  module Generators
+    class ConfigGenerator < Rails::Generators::Base
+      desc "Creates a Couchbase configuration file at config/couchbase.yml"
 
-require "couchbase/railtie" if defined?(Rails)
+      source_root File.expand_path(File.join("..", "templates"), __FILE__)
+
+      def create_config_file
+        template "couchbase.yml", File.join("config", "couchbase.yml")
+      end
+    end
+  end
+end

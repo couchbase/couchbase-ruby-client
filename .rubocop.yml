@@ -9,6 +9,7 @@ require:
 AllCops:
   TargetRubyVersion: 2.5
   NewCops: enable
+  SuggestExtensions: false
   Exclude:
     - 'vendor/**/*'
     # Copied from Rails v6.1.0-38-gbf165e3e19
@@ -20,6 +21,9 @@ Metrics/ParameterLists:
 
 Layout/LineLength:
   Max: 140
+
+Metrics/BlockNesting:
+  Max: 4
 
 Layout/SpaceInsideHashLiteralBraces:
   EnforcedStyle: no_space

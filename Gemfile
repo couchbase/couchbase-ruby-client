@@ -20,13 +20,13 @@ gemspec
 gem "rake"
 
 group :development do
-  gem "activesupport"
   gem "flay"
   gem "flog"
   gem "heckle"
   gem "minitest"
   gem "minitest-reporters"
   gem "rack"
+  gem "rails"
   gem "reek"
   gem "rubocop"
   gem "rubocop-minitest"

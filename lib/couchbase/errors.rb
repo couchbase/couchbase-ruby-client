@@ -337,5 +337,9 @@ module Couchbase
 
     class BackendError < CouchbaseError
     end
+
+    # Environment name string cannot be determined
+    class NoEnvironment < CouchbaseError
+    end
   end
 end
