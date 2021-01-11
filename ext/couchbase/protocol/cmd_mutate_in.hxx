@@ -31,9 +31,9 @@ class mutate_in_response_body
     static const inline client_opcode opcode = client_opcode::subdoc_multi_mutation;
 
     struct mutate_in_field {
-        std::uint8_t index;
-        protocol::status status;
-        std::string value;
+        std::uint8_t index{};
+        protocol::status status{};
+        std::string value{};
     };
 
   private:
@@ -80,7 +80,6 @@ class mutate_in_response_body
                 mutate_in_field field;
 
                 field.index = body[static_cast<std::size_t>(offset)];
-                Expects(field.index < 16);
                 offset++;
 
                 std::uint16_t entry_status = 0;
