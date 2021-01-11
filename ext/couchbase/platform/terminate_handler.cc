@@ -63,7 +63,7 @@ log_backtrace()
 {
     static const char format_str[] = "Call stack:\n%s";
 
-    char buffer[4096];
+    char buffer[8192];
     if (print_backtrace_to_buffer("    ", buffer, sizeof(buffer))) {
         spdlog::critical("Call stack:\n{}", buffer);
     } else {
@@ -72,7 +72,7 @@ log_backtrace()
         fprintf(stderr, format_str, "");
         print_backtrace_to_file(stderr);
         fflush(stderr);
-        spdlog::critical("Call stack exceeds 4k");
+        spdlog::critical("Call stack exceeds 8k, rendered to STDERR");
     }
 }
 
@@ -81,11 +81,15 @@ log_backtrace()
 static void
 backtrace_terminate_handler()
 {
-    spdlog::critical(R"(*** Fatal error encountered during exception handling (rev="{}", compiler="{}", system="{}", date="{}")***)",
-                     BACKEND_GIT_REVISION,
-                     BACKEND_CXX_COMPILER,
-                     BACKEND_SYSTEM,
-                     BACKEND_BUILD_TIMESTAMP);
+    static bool meta_reported = false;
+    if (!meta_reported) {
+        spdlog::critical(R"(*** Fatal error encountered during exception handling (rev="{}", compiler="{}", system="{}", date="{}") ***)",
+                         BACKEND_GIT_REVISION,
+                         BACKEND_CXX_COMPILER,
+                         BACKEND_SYSTEM,
+                         BACKEND_BUILD_TIMESTAMP);
+        meta_reported = true;
+    }
     log_handled_exception();
 
     if (should_include_backtrace) {
@@ -94,7 +98,7 @@ backtrace_terminate_handler()
 
     // Chain to the default handler if available (as it may be able to print
     // other useful information on why we were told to terminate).
-    if (default_terminate_handler != nullptr) {
+    if (default_terminate_handler != nullptr && default_terminate_handler != backtrace_terminate_handler) {
         default_terminate_handler();
     }
 

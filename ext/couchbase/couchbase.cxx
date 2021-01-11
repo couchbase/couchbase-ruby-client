@@ -7958,7 +7958,10 @@ init_logger()
         spdlog::cfg::helpers::load_levels(env_val);
     }
 
-    couchbase::platform::install_backtrace_terminate_handler();
+    env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_DONT_INSTALL_TERMINATE_HANDLER");
+    if (env_val.empty()) {
+        couchbase::platform::install_backtrace_terminate_handler();
+    }
 }
 
 extern "C" {
