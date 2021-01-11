@@ -27,6 +27,7 @@
 #include <protocol/client_opcode.hxx>
 #include <protocol/magic.hxx>
 #include <protocol/client_response.hxx>
+#include <utils/byteswap.hxx>
 
 namespace couchbase::protocol
 {
@@ -61,7 +62,7 @@ class client_request
 
     void cas(std::uint64_t val)
     {
-        cas_ = val;
+        cas_ = utils::byte_swap_64(val);
     }
 
     std::uint32_t opaque()

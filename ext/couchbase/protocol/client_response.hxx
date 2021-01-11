@@ -28,6 +28,7 @@
 #include <protocol/cmd_info.hxx>
 #include <protocol/frame_info_id.hxx>
 #include <protocol/enhanced_error_info.hxx>
+#include <utils/byteswap.hxx>
 
 namespace couchbase::protocol
 {
@@ -134,6 +135,7 @@ class client_response
         memcpy(&opaque_, header_.data() + 12, sizeof(opaque_));
 
         memcpy(&cas_, header_.data() + 16, sizeof(cas_));
+        cas_ = utils::byte_swap_64(cas_);
     }
 
     [[nodiscard]] std::optional<enhanced_error_info> error_info()

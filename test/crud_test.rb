@@ -724,7 +724,7 @@ module Couchbase
       end
     end
 
-    def __wait_for_collections_manifest(uid) # rubocop:disable Minitest/TestMethodName helper method
+    def __wait_for_collections_manifest(uid)
       hits = 5 # make sure that the manifest has distributed well enough
       while hits.positive?
         backend = @cluster.instance_variable_get("@backend")

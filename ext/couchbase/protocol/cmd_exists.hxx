@@ -87,6 +87,7 @@ class exists_response_body
             offset++;
 
             memcpy(&cas_, body.data() + offset, sizeof(cas_));
+            cas_ = utils::byte_swap_64(cas_);
         }
         return false;
     }

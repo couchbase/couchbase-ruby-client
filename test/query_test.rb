@@ -37,6 +37,17 @@ module Couchbase
       assert_equal "ruby rules", res.rows.first["greeting"]
     end
 
+    def test_cas_representation_consistency
+      doc_id = uniq_id(:foo)
+      res = @collection.insert(doc_id, {"self_id" => doc_id})
+      cas = res.cas
+
+      res = @cluster.query("SELECT META() AS meta FROM `#{@bucket.name}` WHERE self_id = $doc_id",
+                           Options::Query(scan_consistency: :request_plus, named_parameters: {doc_id: doc_id}))
+      assert_equal doc_id, res.rows.first["meta"]["id"]
+      assert_equal cas, res.rows.first["meta"]["cas"]
+    end
+
     def test_query_with_metrics
       options = Cluster::QueryOptions.new
       options.metrics = true

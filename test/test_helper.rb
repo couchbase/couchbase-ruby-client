@@ -90,8 +90,6 @@ module Couchbase
   TEST_SERVER_VERSION = ServerVersion.new(ENV["TEST_SERVER_VERSION"] || "6.6.0", developer_preview: TEST_DEVELOPER_PREVIEW)
 
   class BaseTest < Minitest::Test
-    # rubocop:disable Minitest/TestMethodName
-
     def uniq_id(name)
       parent = caller_locations&.first
       prefix = "#{File.basename(parent&.path, '.rb')}_#{parent&.lineno}"
@@ -105,8 +103,6 @@ module Couchbase
     def load_json_test_dataset(dataset)
       JSON.parse(load_raw_test_dataset(dataset))
     end
-
-    # rubocop:enable Minitest/TestMethodName
   end
 end
 

@@ -27,7 +27,6 @@ module Couchbase
   class CachingTest < ActiveSupport::TestCase
     include ActiveSupport::Testing::MethodCallAssertions
 
-    # rubocop:disable Minitest/TestMethodName
     def lookup_store(options = {})
       ActiveSupport::Cache.lookup_store(:couchbase_store, {
         connection_string: TEST_CONNECTION_STRING,
@@ -37,7 +36,6 @@ module Couchbase
         namespace: @namespace,
       }.merge(options))
     end
-    # rubocop:enable Minitest/TestMethodName
 
     def setup
       @namespace = "test-#{SecureRandom.hex}"
