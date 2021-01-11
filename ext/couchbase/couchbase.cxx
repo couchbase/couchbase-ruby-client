@@ -602,8 +602,10 @@ cb__map_error_code(const couchbase::error_context::key_value& ctx, const std::st
     rb_hash_aset(
       error_context, rb_id2sym(rb_intern("bucket")), rb_external_str_new(ctx.id.bucket.data(), static_cast<long>(ctx.id.bucket.size())));
     rb_hash_aset(error_context, rb_id2sym(rb_intern("opaque")), ULONG2NUM(ctx.opaque));
-    std::string status(fmt::format("{}", ctx.status_code));
-    rb_hash_aset(error_context, rb_id2sym(rb_intern("status")), rb_external_str_new(status.data(), static_cast<long>(status.size())));
+    if (ctx.status_code) {
+        std::string status(fmt::format("{}", ctx.status_code.value()));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("status")), rb_external_str_new(status.data(), static_cast<long>(status.size())));
+    }
     if (ctx.error_map_info) {
         VALUE error_map_info = rb_hash_new();
         rb_hash_aset(error_map_info,

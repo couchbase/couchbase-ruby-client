@@ -34,7 +34,7 @@ struct key_value {
     document_id id{};
     std::error_code ec{};
     std::uint32_t opaque{};
-    protocol::status status_code{};
+    std::optional<protocol::status> status_code{};
     std::optional<error_map::error_info> error_map_info{};
     std::optional<protocol::enhanced_error_info> enhanced_error_info{};
 

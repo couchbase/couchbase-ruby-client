@@ -250,7 +250,9 @@ class bucket : public std::enable_shared_from_this<bucket>
             if (ctx.ec && ctx.opaque == 0) {
                 ctx.opaque = cmd->request.opaque;
             }
-            ctx.status_code = resp.status();
+            if (msg) {
+                ctx.status_code = resp.status();
+            }
             ctx.retry_attempts = cmd->request.retries.retry_attempts;
             ctx.retry_reasons = cmd->request.retries.reasons;
             if (cmd->session_) {
