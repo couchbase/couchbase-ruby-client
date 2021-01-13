@@ -41,6 +41,7 @@ jobs:
         env:
           DEVELOPER_PREVIEW: yes
           TEST_SERVER_VERSION: 6.6.0
+          TEST_CONNECTION_STRING: couchbase://127.0.0.1
         run: |
           ulimit -c unlimited
           bundle exec rake test
@@ -93,6 +94,7 @@ jobs:
           bundle exec rake test
         env:
           TEST_SERVER_VERSION: 6.0.3
+          TEST_CONNECTION_STRING: couchbase://127.0.0.1
       - name: Display core dumps
         if: ${{ failure() }}
         run: |
@@ -145,6 +147,7 @@ jobs:
         env:
           DEVELOPER_PREVIEW: yes
           TEST_SERVER_VERSION: 6.5.1
+          TEST_CONNECTION_STRING: couchbase://127.0.0.1
       - name: Display core dumps
         if: ${{ failure() }}
         run: |
