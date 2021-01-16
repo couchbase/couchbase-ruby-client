@@ -194,8 +194,6 @@ module Couchbase
     end
 
     def test_upsert_full_document
-      skip("#{name}: CAVES does not support full-document upsert yet (with empty path)") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo" => "bar"})
@@ -230,8 +228,6 @@ module Couchbase
     end
 
     def test_counter_multi
-      skip("#{name}: CAVES does not return current value for subdocument counters yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {
@@ -259,8 +255,6 @@ module Couchbase
     end
 
     def test_counter_single
-      skip("#{name}: CAVES does not return current value for subdocument counters yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {
@@ -433,8 +427,6 @@ module Couchbase
     end
 
     def test_replace_full_document
-      skip("#{name}: CAVES does not support full-document replace yet (with empty path)") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo" => "bar"})
@@ -602,8 +594,6 @@ module Couchbase
     end
 
     def test_counter_add
-      skip("#{name}: CAVES does not return current value for subdocument counters yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo" => 10})
@@ -616,8 +606,6 @@ module Couchbase
     end
 
     def test_counter_minus
-      skip("#{name}: CAVES does not return current value for subdocument counters yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo" => 10})
