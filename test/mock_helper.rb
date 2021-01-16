@@ -51,15 +51,19 @@ class Caves
 
     @logs_prefix = Time.now.to_f
     FileUtils.mkdir_p(logs_dir, verbose: verbose?)
-    trap("CLD") do
-      puts "CAVES died unexpectedly, check logs at #{logs_path}"
-      exit(1)
+    started = false
+    until started
+      trap("CLD") do
+        puts "CAVES died unexpectedly during startup, check logs at #{logs_path}. Retrying"
+        next
+      end
+      @pid = Process.spawn(mock_path, "--control-port=#{control_port}",
+                           chdir: caves_dir,
+                           out: File.join(logs_dir, "#{@logs_prefix}.out.txt"),
+                           err: File.join(logs_dir, "#{@logs_prefix}.err.txt"))
+      trap("CLD", "SIG_DFL")
+      started = true
     end
-    @pid = Process.spawn(mock_path, "--control-port=#{control_port}",
-                         chdir: caves_dir,
-                         out: File.join(logs_dir, "#{@logs_prefix}.out.txt"),
-                         err: File.join(logs_dir, "#{@logs_prefix}.err.txt"))
-    trap("CLD", "SIG_DFL")
     @caves, = @control_sock.accept
     _, caves_port, = @caves.addr
     puts "run #{mock_path}, control_port=#{control_port}, pid=#{@pid}, caves_port=#{caves_port}, logs=#{logs_path}" if verbose?
