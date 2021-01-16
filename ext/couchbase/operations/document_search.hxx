@@ -1,6 +1,6 @@
 /* -*- Mode: C++; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
- *     Copyright 2020 Couchbase, Inc.
+ *     Copyright 2020-2021 Couchbase, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -219,7 +219,13 @@ make_response(error_context::search&& ctx, search_request& request, search_reque
     response.ctx.parameters = request.body_str;
     if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
-            auto payload = tao::json::from_string(encoded.body);
+            tao::json::value payload{};
+            try {
+                payload = tao::json::from_string(encoded.body);
+            } catch (tao::json::pegtl::parse_error& e) {
+                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                return response;
+            }
             response.meta_data.metrics.took = std::chrono::nanoseconds(payload.at("took").get_unsigned());
             response.meta_data.metrics.max_score = payload.at("max_score").as<double>();
             response.meta_data.metrics.total_rows = payload.at("total_hits").get_unsigned();
@@ -356,7 +362,13 @@ make_response(error_context::search&& ctx, search_request& request, search_reque
             return response;
         }
         if (encoded.status_code == 400) {
-            auto payload = tao::json::from_string(encoded.body);
+            tao::json::value payload{};
+            try {
+                payload = tao::json::from_string(encoded.body);
+            } catch (tao::json::pegtl::parse_error& e) {
+                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                return response;
+            }
             response.status = payload.at("status").get_string();
             response.error = payload.at("error").get_string();
             if (response.error.find("index not found") != std::string::npos) {

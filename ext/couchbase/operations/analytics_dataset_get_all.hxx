@@ -1,6 +1,6 @@
 /* -*- Mode: C++; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
- *     Copyright 2020 Couchbase, Inc.
+ *     Copyright 2020-2021 Couchbase, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ struct analytics_dataset_get_all_request {
     std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         tao::json::value body{
             { "statement", "SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\"" },
@@ -68,13 +68,19 @@ struct analytics_dataset_get_all_request {
 
 analytics_dataset_get_all_response
 make_response(error_context::http&& ctx,
-              analytics_dataset_get_all_request&,
+              analytics_dataset_get_all_request& /* request */,
               analytics_dataset_get_all_request::encoded_response_type&& encoded)
 {
     analytics_dataset_get_all_response response{ ctx };
 
     if (!response.ctx.ec) {
-        auto payload = tao::json::from_string(encoded.body);
+        tao::json::value payload{};
+        try {
+            payload = tao::json::from_string(encoded.body);
+        } catch (tao::json::pegtl::parse_error& e) {
+            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            return response;
+        }
         response.status = payload.at("status").get_string();
         if (response.status == "success") {
             auto* results = payload.find("results");

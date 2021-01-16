@@ -1,6 +1,6 @@
 /* -*- Mode: C++; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
- *     Copyright 2020 Couchbase, Inc.
+ *     Copyright 2020-2021 Couchbase, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -210,7 +210,13 @@ make_response(error_context::key_value&& ctx, get_projected_request& request, ge
                 // special case when user only wanted full+expiration
                 response.value = encoded.body().fields()[1].value;
             } else {
-                tao::json::value full_doc = tao::json::from_string(encoded.body().fields()[request.with_expiry ? 1 : 0].value);
+                tao::json::value full_doc{};
+                try {
+                    full_doc = tao::json::from_string(encoded.body().fields()[request.with_expiry ? 1 : 0].value);
+                } catch (tao::json::pegtl::parse_error& e) {
+                    response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                    return response;
+                }
                 tao::json::value new_doc;
                 for (const auto& projection : request.projections) {
                     auto value_to_apply = priv::subdoc_lookup(full_doc, projection);
@@ -229,7 +235,13 @@ make_response(error_context::key_value&& ctx, get_projected_request& request, ge
             for (const auto& projection : request.projections) {
                 auto& field = encoded.body().fields()[offset++];
                 if (field.status == protocol::status::success && !field.value.empty()) {
-                    auto value_to_apply = tao::json::from_string(field.value);
+                    tao::json::value value_to_apply{};
+                    try {
+                        value_to_apply = tao::json::from_string(field.value);
+                    } catch (tao::json::pegtl::parse_error& e) {
+                        response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                        return response;
+                    }
                     priv::subdoc_apply_projection(new_doc, projection, value_to_apply, request.preserve_array_indexes);
                 } else {
                     response.ctx.ec = std::make_error_code(error::key_value_errc::path_not_found);

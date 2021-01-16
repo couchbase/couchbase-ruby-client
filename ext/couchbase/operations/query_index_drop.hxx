@@ -1,6 +1,6 @@
 /* -*- Mode: C++; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
- *     Copyright 2020 Couchbase, Inc.
+ *     Copyright 2020-2021 Couchbase, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -77,7 +77,13 @@ make_response(error_context::http&& ctx, query_index_drop_request& request, quer
 {
     query_index_drop_response response{ ctx };
     if (!response.ctx.ec) {
-        auto payload = tao::json::from_string(encoded.body);
+        tao::json::value payload{};
+        try {
+            payload = tao::json::from_string(encoded.body);
+        } catch (tao::json::pegtl::parse_error& e) {
+            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            return response;
+        }
         response.status = payload.at("status").get_string();
 
         if (response.status != "success") {

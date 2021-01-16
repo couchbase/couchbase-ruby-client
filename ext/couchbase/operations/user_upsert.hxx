@@ -1,6 +1,6 @@
 /* -*- Mode: C++; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
- *     Copyright 2020 Couchbase, Inc.
+ *     Copyright 2020-2021 Couchbase, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -106,8 +106,14 @@ make_response(error_context::http&& ctx, user_upsert_request&, user_upsert_reque
             case 200:
                 break;
             case 400: {
+                tao::json::value payload{};
+                try {
+                    payload = tao::json::from_string(encoded.body);
+                } catch (tao::json::pegtl::parse_error& e) {
+                    response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                    return response;
+                }
                 response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
-                tao::json::value payload = tao::json::from_string(encoded.body);
                 const auto* errors = payload.find("errors");
                 if (errors != nullptr && errors->is_object()) {
                     for (const auto& entry : errors->get_object()) {

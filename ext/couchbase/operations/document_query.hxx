@@ -1,6 +1,6 @@
 /* -*- Mode: C++; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
- *     Copyright 2020 Couchbase, Inc.
+ *     Copyright 2020-2021 Couchbase, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -339,7 +339,12 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
     response.ctx.statement = request.statement;
     response.ctx.parameters = request.body_str;
     if (!response.ctx.ec) {
-        response.payload = tao::json::from_string(encoded.body).as<query_response_payload>();
+        try {
+            response.payload = tao::json::from_string(encoded.body).as<query_response_payload>();
+        } catch (tao::json::pegtl::parse_error& e) {
+            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            return response;
+        }
         Expects(response.payload.meta_data.client_context_id.empty() ||
                 response.payload.meta_data.client_context_id == request.client_context_id);
         if (response.payload.meta_data.status == "success") {
@@ -348,7 +353,13 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
             } else if (request.extract_encoded_plan_) {
                 request.extract_encoded_plan_ = false;
                 if (response.payload.rows.size() == 1) {
-                    auto row = tao::json::from_string(response.payload.rows[0]);
+                    tao::json::value row{};
+                    try {
+                        row = tao::json::from_string(response.payload.rows[0]);
+                    } catch (tao::json::pegtl::parse_error& e) {
+                        response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                        return response;
+                    }
                     auto* plan = row.find("encoded_plan");
                     auto* name = row.find("name");
                     if (plan != nullptr && name != nullptr) {

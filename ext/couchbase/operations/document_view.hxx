@@ -1,6 +1,6 @@
 /* -*- Mode: C++; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
- *     Copyright 2020 Couchbase, Inc.
+ *     Copyright 2020-2021 Couchbase, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -186,7 +186,13 @@ make_response(error_context::view&& ctx, document_view_request& request, documen
     response.ctx.query_string = request.query_string;
     if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
-            tao::json::value payload = tao::json::from_string(encoded.body);
+            tao::json::value payload{};
+            try {
+                payload = tao::json::from_string(encoded.body);
+            } catch (tao::json::pegtl::parse_error& e) {
+                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                return response;
+            }
             const auto* total_rows = payload.find("total_rows");
             if (total_rows != nullptr && total_rows->is_unsigned()) {
                 response.meta_data.total_rows = total_rows->get_unsigned();
@@ -209,7 +215,13 @@ make_response(error_context::view&& ctx, document_view_request& request, documen
                 }
             }
         } else if (encoded.status_code == 400) {
-            tao::json::value payload = tao::json::from_string(encoded.body);
+            tao::json::value payload{};
+            try {
+                payload = tao::json::from_string(encoded.body);
+            } catch (tao::json::pegtl::parse_error& e) {
+                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                return response;
+            }
             document_view_response::problem problem{};
             const auto* error = payload.find("error");
             if (error != nullptr && error->is_string()) {
