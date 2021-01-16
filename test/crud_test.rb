@@ -864,7 +864,9 @@ module Couchbase
     end
 
     def test_massive_multi_ops
-      keys = (0..10_000).map { |idx| uniq_id("key_#{idx}") }
+      # github often chokes on such a big batches (and raises Error::Timeout)
+      num_keys = ENV["GITHUB_ACTIONS"] ? 1_000 : 10_000
+      keys = (0..num_keys).map { |idx| uniq_id("key_#{idx}") }
 
       res = @collection.upsert_multi(keys.map { |k| [k, {"value" => k}] })
       assert_kind_of Array, res
