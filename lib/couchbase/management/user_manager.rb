@@ -164,6 +164,7 @@ module Couchbase
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
+        # @yieldparam [GetUserOptions] self
         def initialize
           @domain = :local
           yield self if block_given?
@@ -177,6 +178,7 @@ module Couchbase
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
+        # @yieldparam [GetAllUsersOptions] self
         def initialize
           @domain = :local
           yield self if block_given?
@@ -190,6 +192,7 @@ module Couchbase
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
+        # @yieldparam [UpsertUserOptions] self
         def initialize
           @domain = :local
           yield self if block_given?
@@ -203,6 +206,7 @@ module Couchbase
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
+        # @yieldparam [DropUserOptions] self
         def initialize
           @domain = :local
           yield self if block_given?
@@ -213,6 +217,7 @@ module Couchbase
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
+        # @yieldparam [GetRolesOptions] self
         def initialize
           yield self if block_given?
         end
@@ -222,6 +227,7 @@ module Couchbase
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
+        # @yieldparam [GetGroupOptions] self
         def initialize
           yield self if block_given?
         end
@@ -231,6 +237,7 @@ module Couchbase
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
+        # @yieldparam [GetAllGroupsOptions] self
         def initialize
           yield self if block_given?
         end
@@ -240,6 +247,7 @@ module Couchbase
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
+        # @yieldparam [UpsertGroupOptions] self
         def initialize
           yield self if block_given?
         end
@@ -249,6 +257,7 @@ module Couchbase
         # @return [Integer] the time in milliseconds allowed for the operation to complete
         attr_accessor :timeout
 
+        # @yieldparam [DropGroupOptions] self
         def initialize
           yield self if block_given?
         end
@@ -327,6 +336,7 @@ module Couchbase
       # @return [String]
       attr_accessor :collection
 
+      # @yieldparam [Role] self
       def initialize
         yield self if block_given?
       end
@@ -339,6 +349,7 @@ module Couchbase
       # @return [String]
       attr_accessor :description
 
+      # @yieldparam [RoleAndDescription] self
       def initialize
         super
         yield self if block_given?
@@ -352,6 +363,7 @@ module Couchbase
       # @return [String]
       attr_writer :name
 
+      # @yieldparam [Origin] self
       def initialize
         yield self if block_given?
       end
@@ -361,6 +373,7 @@ module Couchbase
       # @return [Array<Origin>]
       attr_writer :origins
 
+      # @yieldparam [RoleAndOrigins] self
       def initialize
         super
         @origins = []
@@ -384,6 +397,7 @@ module Couchbase
       # @return [String]
       attr_accessor :password
 
+      # @yieldparam [User] self
       def initialize
         @groups = []
         @roles = []
@@ -404,6 +418,7 @@ module Couchbase
       # @return [Array<String>]
       attr_accessor :external_groups
 
+      # @yieldparam [UserAndMetadata] self
       def initialize
         super
         @effective_roles = []
@@ -424,6 +439,7 @@ module Couchbase
       # @return [String]
       attr_accessor :ldap_group_reference
 
+      # @yieldparam [Group] self
       def initialize
         @roles = []
         yield self if block_given?

@@ -31,8 +31,8 @@ Layout/SpaceInsideHashLiteralBraces:
 
 Style/Copyright:
   Enabled: true
-  Notice: 'Copyright .*2020 Couchbase, Inc.'
-  AutocorrectNotice: 'Copyright 2020 Couchbase, Inc.'
+  Notice: 'Copyright .*\d{4} Couchbase, Inc.'
+  AutocorrectNotice: '#   Copyright 2021 Couchbase, Inc.'
 
 Style/Lambda:
   EnforcedStyle: lambda
