@@ -1,4 +1,4 @@
-#    Copyright 2020 Couchbase, Inc.
+#    Copyright 2020-2021 Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -1168,6 +1168,7 @@ module Couchbase
       attr_accessor :readonly # @return [Boolean]
       attr_accessor :priority # @return [Boolean]
       attr_accessor :transcoder # @return [JsonTranscoder, #decode(String)]
+      attr_accessor :scope_qualifier # @return [String]
 
       # Creates new instance of options for {Couchbase::Cluster#analytics_query}
       #
@@ -1193,6 +1194,8 @@ module Couchbase
       #   like +$1+, +$2+ in query string
       # @param [Hash<String => #to_json>, nil] named_parameters parameters to be used as substitution for named macros
       #   like +$name+ in query string
+      # @param [String, nil] scope_qualifier Associate scope qualifier (also known as +query_context+) with the query.
+      #   The qualifier must be in form +{bucket_name}.{scope_name}+ or +default:{bucket_name}.{scope_name}+.
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -1209,6 +1212,7 @@ module Couchbase
                      transcoder: JsonTranscoder.new,
                      positional_parameters: nil,
                      named_parameters: nil,
+                     scope_qualifier: nil,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
@@ -1223,6 +1227,7 @@ module Couchbase
         @transcoder = transcoder
         @positional_parameters = positional_parameters
         @named_parameters = named_parameters
+        @scope_qualifier = scope_qualifier
         @raw_parameters = {}
         yield self if block_given?
       end
@@ -1252,7 +1257,7 @@ module Couchbase
       end
 
       # @api private
-      def to_backend
+      def to_backend(scope_name: nil, bucket_name: nil)
         {
           timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
           client_context_id: @client_context_id,
@@ -1262,6 +1267,9 @@ module Couchbase
           positional_parameters: export_positional_parameters,
           named_parameters: export_named_parameters,
           raw_parameters: @raw_parameters,
+          scope_qualifier: @scope_qualifier,
+          scope_name: scope_name,
+          bucket_name: bucket_name,
         }
       end
 
@@ -1339,7 +1347,7 @@ module Couchbase
       #   +:request_plus+::
       #     The indexer will wait until all mutations have been processed at the time of request before returning to
       #     the query engine.
-      # @return [Boolean, nil] flex_index Tells the query engine to use a flex index (utilizing the search service)
+      # @param [Boolean, nil] flex_index Tells the query engine to use a flex index (utilizing the search service)
       # @param [String, nil] scope_qualifier Associate scope qualifier (also known as +query_context+) with the query.
       #   The qualifier must be in form +{bucket_name}.{scope_name}+ or +default:{bucket_name}.{scope_name}+.
       # @param [JsonTranscoder] transcoder to decode rows

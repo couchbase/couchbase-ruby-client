@@ -160,6 +160,9 @@ struct analytics_request {
 
     bool readonly{ false };
     bool priority{ false };
+    std::optional<std::string> bucket_name{};
+    std::optional<std::string> scope_name{};
+    std::optional<std::string> scope_qualifier{};
 
     std::optional<scan_consistency_type> scan_consistency{};
 
@@ -197,6 +200,14 @@ struct analytics_request {
                 case scan_consistency_type::request_plus:
                     body["scan_consistency"] = "request_plus";
                     break;
+            }
+        }
+        if (scope_qualifier) {
+            body["query_context"] = scope_qualifier;
+        } else if (scope_name) {
+            if (bucket_name) {
+                // for analytics bucket_name.scope_name is quoted as a single unit (unlike n1ql query)
+                body["query_context"] = fmt::format("default:`{}.{}`", *bucket_name, *scope_name);
             }
         }
         for (auto& param : raw) {

@@ -7097,6 +7097,23 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
                 req.scan_consistency = couchbase::operations::analytics_request::scan_consistency_type::request_plus;
             }
         }
+        VALUE scope_qualifier = rb_hash_aref(options, rb_id2sym(rb_intern("scope_qualifier")));
+        if (!NIL_P(scope_qualifier) && TYPE(scope_qualifier) == T_STRING) {
+            req.scope_qualifier.emplace(std::string(RSTRING_PTR(scope_qualifier), static_cast<std::size_t>(RSTRING_LEN(scope_qualifier))));
+        } else {
+            VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name")));
+            if (!NIL_P(scope_name) && TYPE(scope_name) == T_STRING) {
+                req.scope_name.emplace(std::string(RSTRING_PTR(scope_name), static_cast<std::size_t>(RSTRING_LEN(scope_name))));
+                VALUE bucket_name = rb_hash_aref(options, rb_id2sym(rb_intern("bucket_name")));
+                if (NIL_P(bucket_name)) {
+                    exc = rb_exc_new_cstr(
+                      eInvalidArgument,
+                      fmt::format("bucket must be specified for analytics query in scope \"{}\"", req.scope_name.value()).c_str());
+                    break;
+                }
+                req.bucket_name.emplace(std::string(RSTRING_PTR(bucket_name), static_cast<std::size_t>(RSTRING_LEN(bucket_name))));
+            }
+        }
 
         VALUE raw_params = rb_hash_aref(options, rb_id2sym(rb_intern("raw_parameters")));
         if (!NIL_P(raw_params)) {

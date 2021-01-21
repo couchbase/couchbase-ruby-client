@@ -1,4 +1,4 @@
-#    Copyright 2020 Couchbase, Inc.
+#    Copyright 2020-2021 Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -52,8 +52,8 @@ module Couchbase
     # @param [Options::Query] options the custom options for this query
     #
     # @example Select first ten hotels from travel sample dataset
-    #   cluster.query("SELECT * FROM `travel-sample` WHERE type = $type LIMIT 10",
-    #                 Options::Query(named_parameters: {type: "hotel"}, metrics: true))
+    #   scope.query("SELECT * FROM `travel-sample` WHERE type = $type LIMIT 10",
+    #                Options::Query(named_parameters: {type: "hotel"}, metrics: true))
     #
     # @return [QueryResult]
     def query(statement, options = Options::Query.new)
@@ -76,6 +76,46 @@ module Couchbase
               metrics.mutation_count = resp[:meta][:metrics][:mutation_count]
               metrics.error_count = resp[:meta][:metrics][:error_count]
               metrics.warning_count = resp[:meta][:metrics][:warning_count]
+            end
+          end
+          res[:warnings] = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
+        end
+        res.instance_variable_set("@rows", resp[:rows])
+      end
+    end
+
+    # Performs an analytics query
+    #
+    # The query will be implicitly scoped using current bucket and scope names.
+    #
+    # @param [String] statement the N1QL query statement
+    # @param [Options::Analytics] options the custom options for this query
+    #
+    # @example Select name of the given user
+    #   scope.analytics_query("SELECT u.name AS uname FROM GleambookUsers u WHERE u.id = $user_id ",
+    #                          Options::Analytics(named_parameters: {user_id: 2}))
+    #
+    # @return [AnalyticsResult]
+    def analytics_query(statement, options = Options::Analytics.new)
+      resp = @backend.document_analytics(statement, options.to_backend(scope_name: @name, bucket_name: @bucket_name))
+
+      AnalyticsResult.new do |res|
+        res.transcoder = options.transcoder
+        res.meta_data = AnalyticsMetaData.new do |meta|
+          meta.status = resp[:meta][:status]
+          meta.request_id = resp[:meta][:request_id]
+          meta.client_context_id = resp[:meta][:client_context_id]
+          meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
+          meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
+          meta.metrics = AnalyticsMetrics.new do |metrics|
+            if resp[:meta][:metrics]
+              metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
+              metrics.execution_time = resp[:meta][:metrics][:execution_time]
+              metrics.result_count = resp[:meta][:metrics][:result_count]
+              metrics.result_size = resp[:meta][:metrics][:result_size]
+              metrics.error_count = resp[:meta][:metrics][:error_count]
+              metrics.warning_count = resp[:meta][:metrics][:warning_count]
+              metrics.processed_objects = resp[:meta][:metrics][:processed_objects]
             end
           end
           res[:warnings] = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
