@@ -24,6 +24,13 @@ Cluster.connect("couchbase://localhost", options)
 options.authenticator = PasswordAuthenticator.new("Administrator", "password")
 Cluster.connect("couchbase://localhost", options)
 
+# this variant must use used when the cluster configured to use LDAP,
+# but for some reason TLS authentication cannot be used. In this case the
+# library will be told explicitly to downgrade SASL to use PLAIN mechanism,
+# because LDAP service need password value.
+options.authenticator = PasswordAuthenticator.ldap_compatible("Administrator", "password")
+Cluster.connect("couchbase://localhost", options)
+
 # shorter version, more useful for interactive sessions
 Cluster.connect("couchbase://localhost", "Administrator", "password")
 

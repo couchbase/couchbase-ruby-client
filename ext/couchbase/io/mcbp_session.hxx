@@ -126,7 +126,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
           : session_(session)
           , sasl_([origin = session_->origin_]() -> std::string { return origin.username(); },
                   [origin = session_->origin_]() -> std::string { return origin.password(); },
-                  { "SCRAM-SHA512", "SCRAM-SHA256", "SCRAM-SHA1", "PLAIN" })
+                  session_->origin_.credentials().allowed_sasl_mechanisms)
         {
             tao::json::value user_agent{
                 { "a", couchbase::sdk_id() },

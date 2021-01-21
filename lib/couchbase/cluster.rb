@@ -364,6 +364,7 @@ module Couchbase
     #   @param [Configuration] configuration configuration object
     def initialize(connection_string, *args)
       credentials = {}
+      open_options = {}
 
       if connection_string.is_a?(Configuration)
         options = connection_string
@@ -373,6 +374,8 @@ module Couchbase
         raise ArgumentError, "missing connection_string" unless connection_string
         raise ArgumentError, "missing username" unless credentials[:username]
         raise ArgumentError, "missing password" unless credentials[:password]
+
+        open_options[:allowed_sasl_mechanisms] = PasswordAuthenticator::DEFAULT_SASL_MECHANISMS
       else
         options = args.shift
         case options
@@ -381,6 +384,8 @@ module Couchbase
           credentials[:password] = args.shift
           raise ArgumentError, "missing username" unless credentials[:username]
           raise ArgumentError, "missing password" unless credentials[:password]
+
+          open_options[:allowed_sasl_mechanisms] = PasswordAuthenticator::DEFAULT_SASL_MECHANISMS
         when Options::Cluster
           authenticator = options&.authenticator
           case authenticator
@@ -391,6 +396,7 @@ module Couchbase
             credentials[:password] = authenticator&.password
             raise ArgumentError, "missing password" unless credentials[:password]
 
+            open_options[:allowed_sasl_mechanisms] = authenticator&.allowed_sasl_mechanisms
           when CertificateAuthenticator
             credentials[:certificate_path] = authenticator&.certificate_path
             raise ArgumentError, "missing certificate path" unless credentials[:certificate_path]
@@ -407,7 +413,7 @@ module Couchbase
       end
 
       @backend = Backend.new
-      @backend.open(connection_string, credentials, {})
+      @backend.open(connection_string, credentials, open_options)
     end
 
     # @api private

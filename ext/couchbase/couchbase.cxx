@@ -929,6 +929,24 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
         if (NIL_P(certificate_path) || NIL_P(key_path)) {
             auth.username.assign(RSTRING_PTR(username), static_cast<size_t>(RSTRING_LEN(username)));
             auth.password.assign(RSTRING_PTR(password), static_cast<size_t>(RSTRING_LEN(password)));
+            VALUE allowed_mechanisms = rb_hash_aref(options, rb_id2sym(rb_intern("allowed_sasl_mechanisms")));
+            if (!NIL_P(allowed_mechanisms)) {
+                Check_Type(allowed_mechanisms, T_ARRAY);
+                auto allowed_mechanisms_size = static_cast<size_t>(RARRAY_LEN(allowed_mechanisms));
+                auth.allowed_sasl_mechanisms.reserve(allowed_mechanisms_size);
+                for (size_t i = 0; i < allowed_mechanisms_size; ++i) {
+                    VALUE mechanism = rb_ary_entry(allowed_mechanisms, static_cast<long>(i));
+                    if (mechanism == rb_id2sym(rb_intern("scram_sha512"))) {
+                        auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA512");
+                    } else if (mechanism == rb_id2sym(rb_intern("scram_sha256"))) {
+                        auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA256");
+                    } else if (mechanism == rb_id2sym(rb_intern("scram_sha1"))) {
+                        auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA1");
+                    } else if (mechanism == rb_id2sym(rb_intern("plain"))) {
+                        auth.allowed_sasl_mechanisms.emplace_back("PLAIN");
+                    }
+                }
+            }
         } else {
             if (!connstr.tls) {
                 exc = rb_exc_new_cstr(
