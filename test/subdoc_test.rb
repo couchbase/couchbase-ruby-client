@@ -211,8 +211,6 @@ module Couchbase
     end
 
     def test_insert_full_document
-      skip("#{name}: CAVES does not support full-document insert yet (with empty path)") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       options = Collection::MutateInOptions.new
@@ -298,8 +296,6 @@ module Couchbase
     end
 
     def test_macros
-      skip("#{name}: CAVES does not support subdoc lookup for $document yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -618,8 +614,6 @@ module Couchbase
     end
 
     def test_insert_xattr
-      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -857,8 +851,6 @@ module Couchbase
     end
 
     def test_xattr_ops_are_reordered
-      skip("#{name}: CAVES does not return current value for subdocument counters yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -1056,8 +1048,6 @@ module Couchbase
     end
 
     def test_upsert_string_does_not_exist_create_path
-      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -1227,7 +1217,7 @@ module Couchbase
     end
 
     def test_create_tombstones
-      skip("#{name}: CAVES does not support subdoc tumbstones yet") if use_caves?
+      skip("#{name}: CAVES does not support subdoc tombstones yet") if use_caves?
 
       doc_id = uniq_id(:foo)
 

@@ -308,8 +308,6 @@ module Couchbase
     end
 
     def test_error_insert_get_with_expiration
-      skip("#{name}: CAVES does not support get with expiry yet") if use_caves?
-
       doc_id = uniq_id(:expiry_doc)
       doc = load_json_test_dataset("beer_sample_single")
 
@@ -328,8 +326,6 @@ module Couchbase
     end
 
     def test_expiry_option_as_time_instance
-      skip("#{name}: CAVES does not support get with expiry yet") if use_caves?
-
       doc_id = uniq_id(:expiry_doc)
       doc = load_json_test_dataset("beer_sample_single")
 
@@ -345,8 +341,6 @@ module Couchbase
     end
 
     def test_integer_expiry_of_40_days_remains_relative
-      skip("#{name}: CAVES does not support get with expiry yet") if use_caves?
-
       doc_id = uniq_id(:expiry_doc)
       doc = load_json_test_dataset("beer_sample_single")
 
@@ -705,8 +699,6 @@ module Couchbase
     end
 
     def test_upsert_get_projection_16_fields_and_expiry
-      skip("#{name}: CAVES does not support get with expiry yet") if use_caves?
-
       doc_id = uniq_id(:project_too_many_fields)
       doc = (1..18).each_with_object({}) do |n, obj|
         obj["field#{n}"] = n

@@ -23,8 +23,8 @@ require "socket"
 class Caves
   attr_accessor :verbose
 
-  VERSION = "v0.0.1-16".freeze
-  FORK = "avsej".freeze
+  VERSION = "v0.0.1-18".freeze
+  FORK = "couchbaselabs".freeze
 
   def download_mock(url = caves_url)
     return if binary_ready?

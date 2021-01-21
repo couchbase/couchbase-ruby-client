@@ -49,8 +49,6 @@ module Couchbase
       end
 
       def test_implements_fifo
-        skip("#{name}: CAVES does not support array indexes for Queue#pop yet") if use_caves?
-
         doc_id = uniq_id(:foo)
         queue = CouchbaseQueue.new(doc_id, @collection)
 
