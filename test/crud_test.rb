@@ -49,8 +49,6 @@ module Couchbase
     end
 
     def test_touch_sets_expiration
-      skip("#{name}: CAVES does not support expiration yet") if use_caves?
-
       document = {"value" => 42}
       doc_id = uniq_id(:foo)
 
@@ -66,8 +64,6 @@ module Couchbase
     end
 
     def test_get_can_also_set_expiration
-      skip("#{name}: CAVES does not support expiration yet") if use_caves?
-
       document = {"value" => 42}
       doc_id = uniq_id(:foo)
 

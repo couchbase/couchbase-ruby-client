@@ -131,7 +131,7 @@ class Caves
   # @param [Integer] amount_ms duration in milliseconds
   # @return [void]
   def time_travel_cluster(cluster_id, amount_ms)
-    round_trip_command("type" => "timetravel", "cluster_id" => cluster_id, "amount_ms" => amount_ms)
+    round_trip_command("type" => "timetravel", "cluster" => cluster_id, "amount_ms" => amount_ms)
   end
 
   def dump_logs
