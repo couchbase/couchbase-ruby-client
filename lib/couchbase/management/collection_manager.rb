@@ -46,7 +46,7 @@ module Couchbase
         end
       end
 
-      # Removes a scope
+      # Get a scope by name
       #
       # @param [String] scope_name name of the scope
       # @param [GetScopeOptions] options
