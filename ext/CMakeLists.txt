@@ -6,6 +6,9 @@ include(cmake/StandardProjectSettings.cmake)
 # 'library' to set the c++ standard / compile-time options requested
 add_library(project_options INTERFACE)
 target_compile_features(project_options INTERFACE cxx_std_17)
+if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
+  target_compile_options(project_options INTERFACE -fdeclspec)
+endif()
 
 # 'library' to use the warnings specified in CompilerWarnings.cmake
 add_library(project_warnings INTERFACE)
