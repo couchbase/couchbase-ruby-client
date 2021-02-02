@@ -20,12 +20,12 @@ Please attach version information to ticket/post. To obtain this information use
 
 ## Installation
 
-The library tested with the MRI 2.5, 2.6 and 2.7. Supported platforms are Linux and MacOS.
+The library tested with the MRI 2.5, 2.6, 2.7 and 3.0. Supported platforms are Linux and MacOS.
 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "couchbase", "3.0.2"
+gem "couchbase", "3.0.3"
 ```
 
 And then execute:

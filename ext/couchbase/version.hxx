@@ -24,8 +24,8 @@
 namespace couchbase
 {
 constexpr auto BACKEND_VERSION_MAJOR = 1;
-constexpr auto BACKEND_VERSION_MINOR = 2;
-constexpr auto BACKEND_VERSION_PATCH = 1;
+constexpr auto BACKEND_VERSION_MINOR = 3;
+constexpr auto BACKEND_VERSION_PATCH = 0;
 
 inline const std::string&
 sdk_id()
