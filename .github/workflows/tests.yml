@@ -20,7 +20,9 @@ jobs:
         run: |
           echo '/tmp/core.%h.%e.%t' | sudo tee /proc/sys/kernel/core_pattern
       - name: Install build environment
-        run: sudo apt-get install -y libssl-dev cmake gcc g++ curl gdb
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libssl-dev cmake gcc g++ curl gdb
       - uses: actions/checkout@v2
         with:
           submodules: recursive

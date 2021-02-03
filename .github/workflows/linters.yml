@@ -27,7 +27,9 @@ jobs:
         with:
           fetch-depth: 2
       - name: Install dependencies
-        run: sudo apt-get install -y clang-format
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y clang-format
       - name: Run clang-format
         run: ./bin/check-clang-format
 
