@@ -22,6 +22,7 @@
 #include <openssl/crypto.h>
 
 #include <spdlog/spdlog.h>
+
 #include <spdlog/cfg/env.h>
 
 #include <http_parser.h>
@@ -42,12 +43,18 @@
 #endif
 
 #if defined(RB_METHOD_DEFINITION_DECL) || RUBY_API_VERSION_MAJOR == 3
-#define VALUE_FUNC(f) (f)
-#define INT_FUNC(f) (f)
+#define VALUE_FUNC(f) f
+#define INT_FUNC(f) f
 #else
 #define VALUE_FUNC(f) reinterpret_cast<VALUE (*)(ANYARGS)>(f)
 #define INT_FUNC(f) reinterpret_cast<int (*)(ANYARGS)>(f)
 #endif
+
+static inline VALUE
+cb_str_new(const std::string& str)
+{
+    return rb_external_str_new(str.data(), static_cast<long>(str.size()));
+}
 
 static void
 init_versions(VALUE mCouchbase)
@@ -59,12 +66,10 @@ init_versions(VALUE mCouchbase)
         cb_Version = rb_hash_new();
         rb_const_set(mCouchbase, rb_intern("VERSION"), cb_Version);
     }
-#define VERSION_SPLIT_(VER) (VER) / 100000, (VER) / 100 % 1000, (VER) % 100
 
     std::string ver;
     ver = fmt::format("{}.{}.{}", couchbase::BACKEND_VERSION_MAJOR, couchbase::BACKEND_VERSION_MINOR, couchbase::BACKEND_VERSION_PATCH);
-    rb_hash_aset(
-      cb_Version, rb_id2sym(rb_intern("backend")), rb_str_freeze(rb_external_str_new(ver.c_str(), static_cast<long>(ver.size()))));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("backend")), rb_str_freeze(cb_str_new(ver)));
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("build_timestamp")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_BUILD_TIMESTAMP)));
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("revision")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_GIT_REVISION)));
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("platform")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_SYSTEM)));
@@ -73,27 +78,22 @@ init_versions(VALUE mCouchbase)
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("cxx")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_CXX_COMPILER)));
 #if defined(HAVE_RUBY_VERSION_H)
     ver = fmt::format("{}.{}.{}", RUBY_API_VERSION_MAJOR, RUBY_API_VERSION_MINOR, RUBY_API_VERSION_TEENY);
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("ruby")), rb_str_freeze(rb_external_str_new(ver.c_str(), static_cast<long>(ver.size()))));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("ruby")), rb_str_freeze(cb_str_new(ver)));
 #endif
     ver = fmt::format("{}.{}.{}", SPDLOG_VER_MAJOR, SPDLOG_VER_MINOR, SPDLOG_VER_PATCH);
-    rb_hash_aset(
-      cb_Version, rb_id2sym(rb_intern("spdlog")), rb_str_freeze(rb_external_str_new(ver.c_str(), static_cast<long>(ver.size()))));
-    ver = fmt::format("{}.{}.{}", VERSION_SPLIT_(ASIO_VERSION));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("asio")), rb_str_freeze(rb_external_str_new(ver.c_str(), static_cast<long>(ver.size()))));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("spdlog")), rb_str_freeze(cb_str_new(ver)));
+    ver = fmt::format("{}.{}.{}", ASIO_VERSION / 100'000, ASIO_VERSION / 100 % 1000, ASIO_VERSION % 100);
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("asio")), rb_str_freeze(cb_str_new(ver)));
     ver = fmt::format("{}.{}.{}", SNAPPY_MAJOR, SNAPPY_MINOR, SNAPPY_PATCHLEVEL);
-    rb_hash_aset(
-      cb_Version, rb_id2sym(rb_intern("snappy")), rb_str_freeze(rb_external_str_new(ver.c_str(), static_cast<long>(ver.size()))));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("snappy")), rb_str_freeze(cb_str_new(ver)));
     ver = fmt::format("{}.{}.{}", HTTP_PARSER_VERSION_MAJOR, HTTP_PARSER_VERSION_MINOR, HTTP_PARSER_VERSION_PATCH);
-    rb_hash_aset(
-      cb_Version, rb_id2sym(rb_intern("http_parser")), rb_str_freeze(rb_external_str_new(ver.c_str(), static_cast<long>(ver.size()))));
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("http_parser")), rb_str_freeze(cb_str_new(ver)));
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_headers")), rb_str_freeze(rb_str_new_cstr(OPENSSL_VERSION_TEXT)));
 #if defined(OPENSSL_VERSION)
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_runtime")), rb_str_freeze(rb_str_new_cstr(OpenSSL_version(OPENSSL_VERSION))));
 #elif defined(SSLEAY_VERSION)
     rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_runtime")), rb_str_freeze(rb_str_new_cstr(SSLeay_version(SSLEAY_VERSION))));
 #endif
-
-#undef VERSION_SPLIT_
 
     VALUE version_info = rb_inspect(cb_Version);
     spdlog::info("couchbase backend has been initialized: {}",
@@ -133,7 +133,7 @@ struct cb_backend_data {
 };
 
 static void
-cb__backend_close(cb_backend_data* backend)
+cb_backend_close(cb_backend_data* backend)
 {
     if (backend->cluster) {
         auto barrier = std::make_shared<std::promise<void>>();
@@ -156,15 +156,15 @@ cb_Backend_mark(void* /* ptr */)
 static void
 cb_Backend_free(void* ptr)
 {
-    auto* backend = reinterpret_cast<cb_backend_data*>(ptr);
-    cb__backend_close(backend);
+    auto* backend = static_cast<cb_backend_data*>(ptr);
+    cb_backend_close(backend);
     ruby_xfree(backend);
 }
 
 static size_t
 cb_Backend_memsize(const void* ptr)
 {
-    const auto* backend = reinterpret_cast<const cb_backend_data*>(ptr);
+    const auto* backend = static_cast<const cb_backend_data*>(ptr);
     return sizeof(*backend) + sizeof(*backend->cluster);
 }
 
@@ -196,8 +196,6 @@ cb_Backend_allocate(VALUE klass)
     return obj;
 }
 
-static VALUE eCouchbaseError;
-static VALUE eTimeout;
 static VALUE eAmbiguousTimeout;
 static VALUE eAuthenticationFailure;
 static VALUE eBucketExists;
@@ -276,9 +274,9 @@ static void
 init_exceptions(VALUE mCouchbase)
 {
     VALUE mError = rb_define_module_under(mCouchbase, "Error");
-    eCouchbaseError = rb_define_class_under(mError, "CouchbaseError", rb_eStandardError);
+    VALUE eCouchbaseError = rb_define_class_under(mError, "CouchbaseError", rb_eStandardError);
 
-    eTimeout = rb_define_class_under(mError, "Timeout", eCouchbaseError);
+    VALUE eTimeout = rb_define_class_under(mError, "Timeout", eCouchbaseError);
 
     eAmbiguousTimeout = rb_define_class_under(mError, "AmbiguousTimeout", eTimeout);
     eAuthenticationFailure = rb_define_class_under(mError, "AuthenticationFailure", eCouchbaseError);
@@ -356,7 +354,7 @@ init_exceptions(VALUE mCouchbase)
 }
 
 static VALUE
-cb__map_error_code(std::error_code ec, const std::string& message)
+cb_map_error_code(std::error_code ec, const std::string& message)
 {
     if (ec.category() == couchbase::error::detail::get_common_category()) {
         switch (static_cast<couchbase::error::common_errc>(ec.value())) {
@@ -589,44 +587,30 @@ cb__map_error_code(std::error_code ec, const std::string& message)
 }
 
 static VALUE
-cb__map_error_code(const couchbase::error_context::key_value& ctx, const std::string& message)
+cb_map_error_code(const couchbase::error_context::key_value& ctx, const std::string& message)
 {
-    VALUE exc = cb__map_error_code(ctx.ec, message);
+    VALUE exc = cb_map_error_code(ctx.ec, message);
     VALUE error_context = rb_hash_new();
     std::string error(fmt::format("{}, {}", ctx.ec.value(), ctx.ec.message()));
-    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), rb_external_str_new(error.data(), static_cast<long>(error.size())));
-    rb_hash_aset(error_context, rb_id2sym(rb_intern("id")), rb_external_str_new(ctx.id.key.data(), static_cast<long>(ctx.id.key.size())));
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("collection")),
-                 rb_external_str_new(ctx.id.collection.data(), static_cast<long>(ctx.id.collection.size())));
-    rb_hash_aset(
-      error_context, rb_id2sym(rb_intern("bucket")), rb_external_str_new(ctx.id.bucket.data(), static_cast<long>(ctx.id.bucket.size())));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), cb_str_new(error));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("id")), cb_str_new(ctx.id.key));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("collection")), cb_str_new(ctx.id.collection));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("bucket")), cb_str_new(ctx.id.bucket));
     rb_hash_aset(error_context, rb_id2sym(rb_intern("opaque")), ULONG2NUM(ctx.opaque));
     if (ctx.status_code) {
         std::string status(fmt::format("{}", ctx.status_code.value()));
-        rb_hash_aset(error_context, rb_id2sym(rb_intern("status")), rb_external_str_new(status.data(), static_cast<long>(status.size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("status")), cb_str_new(status));
     }
     if (ctx.error_map_info) {
         VALUE error_map_info = rb_hash_new();
-        rb_hash_aset(error_map_info,
-                     rb_id2sym(rb_intern("name")),
-                     rb_external_str_new(ctx.error_map_info->name.data(), static_cast<long>(ctx.error_map_info->name.size())));
-        rb_hash_aset(
-          error_map_info,
-          rb_id2sym(rb_intern("desc")),
-          rb_external_str_new(ctx.error_map_info->description.data(), static_cast<long>(ctx.error_map_info->description.size())));
+        rb_hash_aset(error_map_info, rb_id2sym(rb_intern("name")), cb_str_new(ctx.error_map_info->name));
+        rb_hash_aset(error_map_info, rb_id2sym(rb_intern("desc")), cb_str_new(ctx.error_map_info->description));
         rb_hash_aset(error_context, rb_id2sym(rb_intern("error_map_info")), error_map_info);
     }
     if (ctx.enhanced_error_info) {
         VALUE enhanced_error_info = rb_hash_new();
-        rb_hash_aset(
-          enhanced_error_info,
-          rb_id2sym(rb_intern("reference")),
-          rb_external_str_new(ctx.enhanced_error_info->reference.data(), static_cast<long>(ctx.enhanced_error_info->reference.size())));
-        rb_hash_aset(
-          enhanced_error_info,
-          rb_id2sym(rb_intern("context")),
-          rb_external_str_new(ctx.enhanced_error_info->context.data(), static_cast<long>(ctx.enhanced_error_info->context.size())));
+        rb_hash_aset(enhanced_error_info, rb_id2sym(rb_intern("reference")), cb_str_new(ctx.enhanced_error_info->reference));
+        rb_hash_aset(enhanced_error_info, rb_id2sym(rb_intern("context")), cb_str_new(ctx.enhanced_error_info->context));
         rb_hash_aset(error_context, rb_id2sym(rb_intern("extended_error_info")), enhanced_error_info);
     }
     if (ctx.retry_attempts > 0) {
@@ -641,39 +625,29 @@ cb__map_error_code(const couchbase::error_context::key_value& ctx, const std::st
         }
     }
     if (ctx.last_dispatched_to) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_to")),
-                     rb_external_str_new(ctx.last_dispatched_to->data(), static_cast<long>(ctx.last_dispatched_to->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_to")), cb_str_new(ctx.last_dispatched_to.value()));
     }
     if (ctx.last_dispatched_from) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_from")),
-                     rb_external_str_new(ctx.last_dispatched_from->data(), static_cast<long>(ctx.last_dispatched_from->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_from")), cb_str_new(ctx.last_dispatched_from.value()));
     }
     rb_iv_set(exc, "@context", error_context);
     return exc;
 }
 
 static VALUE
-cb__map_error_code(const couchbase::error_context::query& ctx, const std::string& message)
+cb_map_error_code(const couchbase::error_context::query& ctx, const std::string& message)
 {
-    VALUE exc = cb__map_error_code(ctx.ec, message);
+    VALUE exc = cb_map_error_code(ctx.ec, message);
     VALUE error_context = rb_hash_new();
     std::string error(fmt::format("{}, {}", ctx.ec.value(), ctx.ec.message()));
-    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), rb_external_str_new(error.data(), static_cast<long>(error.size())));
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("client_context_id")),
-                 rb_external_str_new(ctx.client_context_id.data(), static_cast<long>(ctx.client_context_id.size())));
-    rb_hash_aset(
-      error_context, rb_id2sym(rb_intern("statement")), rb_external_str_new(ctx.statement.data(), static_cast<long>(ctx.statement.size())));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), cb_str_new(error));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("client_context_id")), cb_str_new(ctx.client_context_id));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("statement")), cb_str_new(ctx.statement));
     if (ctx.parameters) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("parameters")),
-                     rb_external_str_new(ctx.parameters->data(), static_cast<long>(ctx.parameters->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("parameters")), cb_str_new(ctx.parameters.value()));
     }
     rb_hash_aset(error_context, rb_id2sym(rb_intern("http_status")), INT2FIX(ctx.http_status));
-    rb_hash_aset(
-      error_context, rb_id2sym(rb_intern("http_body")), rb_external_str_new(ctx.http_body.data(), static_cast<long>(ctx.http_body.size())));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("http_body")), cb_str_new(ctx.http_body));
     if (ctx.retry_attempts > 0) {
         rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_attempts")), INT2FIX(ctx.retry_attempts));
         if (!ctx.retry_reasons.empty()) {
@@ -686,39 +660,29 @@ cb__map_error_code(const couchbase::error_context::query& ctx, const std::string
         }
     }
     if (ctx.last_dispatched_to) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_to")),
-                     rb_external_str_new(ctx.last_dispatched_to->data(), static_cast<long>(ctx.last_dispatched_to->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_to")), cb_str_new(ctx.last_dispatched_to.value()));
     }
     if (ctx.last_dispatched_from) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_from")),
-                     rb_external_str_new(ctx.last_dispatched_from->data(), static_cast<long>(ctx.last_dispatched_from->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_from")), cb_str_new(ctx.last_dispatched_from.value()));
     }
     rb_iv_set(exc, "@context", error_context);
     return exc;
 }
 
 static VALUE
-cb__map_error_code(const couchbase::error_context::analytics& ctx, const std::string& message)
+cb_map_error_code(const couchbase::error_context::analytics& ctx, const std::string& message)
 {
-    VALUE exc = cb__map_error_code(ctx.ec, message);
+    VALUE exc = cb_map_error_code(ctx.ec, message);
     VALUE error_context = rb_hash_new();
     std::string error(fmt::format("{}, {}", ctx.ec.value(), ctx.ec.message()));
-    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), rb_external_str_new(error.data(), static_cast<long>(error.size())));
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("client_context_id")),
-                 rb_external_str_new(ctx.client_context_id.data(), static_cast<long>(ctx.client_context_id.size())));
-    rb_hash_aset(
-      error_context, rb_id2sym(rb_intern("statement")), rb_external_str_new(ctx.statement.data(), static_cast<long>(ctx.statement.size())));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), cb_str_new(error));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("client_context_id")), cb_str_new(ctx.client_context_id));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("statement")), cb_str_new(ctx.statement));
     if (ctx.parameters) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("parameters")),
-                     rb_external_str_new(ctx.parameters->data(), static_cast<long>(ctx.parameters->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("parameters")), cb_str_new(ctx.parameters.value()));
     }
     rb_hash_aset(error_context, rb_id2sym(rb_intern("http_status")), INT2FIX(ctx.http_status));
-    rb_hash_aset(
-      error_context, rb_id2sym(rb_intern("http_body")), rb_external_str_new(ctx.http_body.data(), static_cast<long>(ctx.http_body.size())));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("http_body")), cb_str_new(ctx.http_body));
     if (ctx.retry_attempts > 0) {
         rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_attempts")), INT2FIX(ctx.retry_attempts));
         if (!ctx.retry_reasons.empty()) {
@@ -731,44 +695,34 @@ cb__map_error_code(const couchbase::error_context::analytics& ctx, const std::st
         }
     }
     if (ctx.last_dispatched_to) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_to")),
-                     rb_external_str_new(ctx.last_dispatched_to->data(), static_cast<long>(ctx.last_dispatched_to->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_to")), cb_str_new(ctx.last_dispatched_to.value()));
     }
     if (ctx.last_dispatched_from) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_from")),
-                     rb_external_str_new(ctx.last_dispatched_from->data(), static_cast<long>(ctx.last_dispatched_from->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_from")), cb_str_new(ctx.last_dispatched_from.value()));
     }
     rb_iv_set(exc, "@context", error_context);
     return exc;
 }
 
 static VALUE
-cb__map_error_code(const couchbase::error_context::view& ctx, const std::string& message)
+cb_map_error_code(const couchbase::error_context::view& ctx, const std::string& message)
 {
-    VALUE exc = cb__map_error_code(ctx.ec, message);
+    VALUE exc = cb_map_error_code(ctx.ec, message);
     VALUE error_context = rb_hash_new();
     std::string error(fmt::format("{}, {}", ctx.ec.value(), ctx.ec.message()));
-    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), rb_external_str_new(error.data(), static_cast<long>(error.size())));
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("client_context_id")),
-                 rb_external_str_new(ctx.client_context_id.data(), static_cast<long>(ctx.client_context_id.size())));
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("design_document_name")),
-                 rb_external_str_new(ctx.design_document_name.data(), static_cast<long>(ctx.design_document_name.size())));
-    rb_hash_aset(
-      error_context, rb_id2sym(rb_intern("view_name")), rb_external_str_new(ctx.view_name.data(), static_cast<long>(ctx.view_name.size())));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), cb_str_new(error));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("client_context_id")), cb_str_new(ctx.client_context_id));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("design_document_name")), cb_str_new(ctx.design_document_name));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("view_name")), cb_str_new(ctx.view_name));
     if (!ctx.query_string.empty()) {
         VALUE parameters = rb_ary_new_capa(static_cast<long>(ctx.query_string.size()));
         for (const auto& param : ctx.query_string) {
-            rb_ary_push(parameters, rb_external_str_new(param.data(), static_cast<long>(param.size())));
+            rb_ary_push(parameters, cb_str_new(param));
         }
         rb_hash_aset(error_context, rb_id2sym(rb_intern("parameters")), parameters);
     }
     rb_hash_aset(error_context, rb_id2sym(rb_intern("http_status")), INT2FIX(ctx.http_status));
-    rb_hash_aset(
-      error_context, rb_id2sym(rb_intern("http_body")), rb_external_str_new(ctx.http_body.data(), static_cast<long>(ctx.http_body.size())));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("http_body")), cb_str_new(ctx.http_body));
     if (ctx.retry_attempts > 0) {
         rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_attempts")), INT2FIX(ctx.retry_attempts));
         if (!ctx.retry_reasons.empty()) {
@@ -781,35 +735,27 @@ cb__map_error_code(const couchbase::error_context::view& ctx, const std::string&
         }
     }
     if (ctx.last_dispatched_to) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_to")),
-                     rb_external_str_new(ctx.last_dispatched_to->data(), static_cast<long>(ctx.last_dispatched_to->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_to")), cb_str_new(ctx.last_dispatched_to.value()));
     }
     if (ctx.last_dispatched_from) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_from")),
-                     rb_external_str_new(ctx.last_dispatched_from->data(), static_cast<long>(ctx.last_dispatched_from->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_from")), cb_str_new(ctx.last_dispatched_from.value()));
     }
     rb_iv_set(exc, "@context", error_context);
     return exc;
 }
 
 static VALUE
-cb__map_error_code(const couchbase::error_context::http& ctx, const std::string& message)
+cb_map_error_code(const couchbase::error_context::http& ctx, const std::string& message)
 {
-    VALUE exc = cb__map_error_code(ctx.ec, message);
+    VALUE exc = cb_map_error_code(ctx.ec, message);
     VALUE error_context = rb_hash_new();
     std::string error(fmt::format("{}, {}", ctx.ec.value(), ctx.ec.message()));
-    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), rb_external_str_new(error.data(), static_cast<long>(error.size())));
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("client_context_id")),
-                 rb_external_str_new(ctx.client_context_id.data(), static_cast<long>(ctx.client_context_id.size())));
-    rb_hash_aset(
-      error_context, rb_id2sym(rb_intern("method")), rb_external_str_new(ctx.method.data(), static_cast<long>(ctx.method.size())));
-    rb_hash_aset(error_context, rb_id2sym(rb_intern("path")), rb_external_str_new(ctx.path.data(), static_cast<long>(ctx.path.size())));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), cb_str_new(error));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("client_context_id")), cb_str_new(ctx.client_context_id));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("method")), cb_str_new(ctx.method));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("path")), cb_str_new(ctx.path));
     rb_hash_aset(error_context, rb_id2sym(rb_intern("http_status")), INT2FIX(ctx.http_status));
-    rb_hash_aset(
-      error_context, rb_id2sym(rb_intern("http_body")), rb_external_str_new(ctx.http_body.data(), static_cast<long>(ctx.http_body.size())));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("http_body")), cb_str_new(ctx.http_body));
     if (ctx.retry_attempts > 0) {
         rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_attempts")), INT2FIX(ctx.retry_attempts));
         if (!ctx.retry_reasons.empty()) {
@@ -822,44 +768,32 @@ cb__map_error_code(const couchbase::error_context::http& ctx, const std::string&
         }
     }
     if (ctx.last_dispatched_to) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_to")),
-                     rb_external_str_new(ctx.last_dispatched_to->data(), static_cast<long>(ctx.last_dispatched_to->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_to")), cb_str_new(ctx.last_dispatched_to.value()));
     }
     if (ctx.last_dispatched_from) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_from")),
-                     rb_external_str_new(ctx.last_dispatched_from->data(), static_cast<long>(ctx.last_dispatched_from->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_from")), cb_str_new(ctx.last_dispatched_from.value()));
     }
     rb_iv_set(exc, "@context", error_context);
     return exc;
 }
 
 static VALUE
-cb__map_error_code(const couchbase::error_context::search& ctx, const std::string& message)
+cb_map_error_code(const couchbase::error_context::search& ctx, const std::string& message)
 {
-    VALUE exc = cb__map_error_code(ctx.ec, message);
+    VALUE exc = cb_map_error_code(ctx.ec, message);
     VALUE error_context = rb_hash_new();
     std::string error(fmt::format("{}, {}", ctx.ec.value(), ctx.ec.message()));
-    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), rb_external_str_new(error.data(), static_cast<long>(error.size())));
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("client_context_id")),
-                 rb_external_str_new(ctx.client_context_id.data(), static_cast<long>(ctx.client_context_id.size())));
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("index_name")),
-                 rb_external_str_new(ctx.index_name.data(), static_cast<long>(ctx.index_name.size())));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), cb_str_new(error));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("client_context_id")), cb_str_new(ctx.client_context_id));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("index_name")), cb_str_new(ctx.index_name));
     if (ctx.query) {
-        rb_hash_aset(
-          error_context, rb_id2sym(rb_intern("query")), rb_external_str_new(ctx.query->data(), static_cast<long>(ctx.query->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("query")), cb_str_new(ctx.query.value()));
     }
     if (ctx.parameters) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("parameters")),
-                     rb_external_str_new(ctx.parameters->data(), static_cast<long>(ctx.parameters->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("parameters")), cb_str_new(ctx.parameters.value()));
     }
     rb_hash_aset(error_context, rb_id2sym(rb_intern("http_status")), INT2FIX(ctx.http_status));
-    rb_hash_aset(
-      error_context, rb_id2sym(rb_intern("http_body")), rb_external_str_new(ctx.http_body.data(), static_cast<long>(ctx.http_body.size())));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("http_body")), cb_str_new(ctx.http_body));
     if (ctx.retry_attempts > 0) {
         rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_attempts")), INT2FIX(ctx.retry_attempts));
         if (!ctx.retry_reasons.empty()) {
@@ -872,14 +806,10 @@ cb__map_error_code(const couchbase::error_context::search& ctx, const std::strin
         }
     }
     if (ctx.last_dispatched_to) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_to")),
-                     rb_external_str_new(ctx.last_dispatched_to->data(), static_cast<long>(ctx.last_dispatched_to->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_to")), cb_str_new(ctx.last_dispatched_to.value()));
     }
     if (ctx.last_dispatched_from) {
-        rb_hash_aset(error_context,
-                     rb_id2sym(rb_intern("last_dispatched_from")),
-                     rb_external_str_new(ctx.last_dispatched_from->data(), static_cast<long>(ctx.last_dispatched_from->size())));
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_from")), cb_str_new(ctx.last_dispatched_from.value()));
     }
     rb_iv_set(exc, "@context", error_context);
     return exc;
@@ -962,7 +892,7 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
         auto f = barrier->get_future();
         backend->cluster->open(origin, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
         if (auto ec = f.get()) {
-            exc = cb__map_error_code(ec, fmt::format("unable open cluster at {}", origin.next_address().first));
+            exc = cb_map_error_code(ec, fmt::format("unable open cluster at {}", origin.next_address().first));
         }
     } while (false);
     if (!NIL_P(exc)) {
@@ -977,7 +907,7 @@ cb_Backend_close(VALUE self)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
-    cb__backend_close(backend);
+    cb_backend_close(backend);
     return Qnil;
 }
 
@@ -1007,8 +937,8 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
         auto resp = f.get();
 
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("id")), rb_external_str_new(resp.id.data(), static_cast<long>(resp.id.size())));
-        rb_hash_aset(res, rb_id2sym(rb_intern("sdk")), rb_external_str_new(resp.sdk.data(), static_cast<long>(resp.sdk.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("id")), cb_str_new(resp.id));
+        rb_hash_aset(res, rb_id2sym(rb_intern("sdk")), cb_str_new(resp.sdk));
         rb_hash_aset(res, rb_id2sym(rb_intern("version")), INT2FIX(resp.version));
         VALUE services = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("services")), services);
@@ -1041,11 +971,9 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
                 if (svc.last_activity) {
                     rb_hash_aset(service, rb_id2sym(rb_intern("last_activity_us")), LL2NUM(svc.last_activity->count()));
                 }
-                rb_hash_aset(service, rb_id2sym(rb_intern("id")), rb_external_str_new(svc.id.data(), static_cast<long>(svc.id.size())));
-                rb_hash_aset(
-                  service, rb_id2sym(rb_intern("remote")), rb_external_str_new(svc.remote.data(), static_cast<long>(svc.remote.size())));
-                rb_hash_aset(
-                  service, rb_id2sym(rb_intern("local")), rb_external_str_new(svc.local.data(), static_cast<long>(svc.local.size())));
+                rb_hash_aset(service, rb_id2sym(rb_intern("id")), cb_str_new(svc.id));
+                rb_hash_aset(service, rb_id2sym(rb_intern("remote")), cb_str_new(svc.remote));
+                rb_hash_aset(service, rb_id2sym(rb_intern("local")), cb_str_new(svc.local));
                 VALUE state = Qnil;
                 switch (svc.state) {
                     case couchbase::diag::endpoint_state::disconnected:
@@ -1062,9 +990,7 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
                         break;
                 }
                 if (svc.details) {
-                    rb_hash_aset(service,
-                                 rb_id2sym(rb_intern("details")),
-                                 rb_external_str_new(svc.details->data(), static_cast<long>(svc.details->size())));
+                    rb_hash_aset(service, rb_id2sym(rb_intern("details")), cb_str_new(svc.details.value()));
                 }
                 rb_hash_aset(service, rb_id2sym(rb_intern("state")), state);
                 rb_ary_push(endpoints, service);
@@ -1099,10 +1025,10 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
             auto f = barrier->get_future();
             backend->cluster->open_bucket(name, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
             if (auto ec = f.get()) {
-                exc = cb__map_error_code(ec, fmt::format("unable open bucket \"{}\"", name));
+                exc = cb_map_error_code(ec, fmt::format("unable open bucket \"{}\"", name));
             }
         } else {
-            backend->cluster->open_bucket(name, [](std::error_code) {});
+            backend->cluster->open_bucket(name, [](std::error_code /* ec */) {});
         }
     }
     if (!NIL_P(exc)) {
@@ -1114,12 +1040,12 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
 
 template<typename Request>
 [[nodiscard]] VALUE
-cb__extract_timeout(Request& req, VALUE options)
+cb_extract_timeout(Request& req, VALUE options)
 {
     if (!NIL_P(options)) {
         switch (TYPE(options)) {
             case T_HASH:
-                return cb__extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+                return cb_extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
             case T_FIXNUM:
             case T_BIGNUM:
                 req.timeout = std::chrono::milliseconds(NUM2ULL(options));
@@ -1132,12 +1058,12 @@ cb__extract_timeout(Request& req, VALUE options)
 }
 
 [[nodiscard]] VALUE
-cb__extract_timeout(std::chrono::milliseconds& timeout, VALUE options)
+cb_extract_timeout(std::chrono::milliseconds& timeout, VALUE options)
 {
     if (!NIL_P(options)) {
         switch (TYPE(options)) {
             case T_HASH:
-                return cb__extract_timeout(timeout, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+                return cb_extract_timeout(timeout, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
             case T_FIXNUM:
             case T_BIGNUM:
                 timeout = std::chrono::milliseconds(NUM2ULL(options));
@@ -1150,7 +1076,7 @@ cb__extract_timeout(std::chrono::milliseconds& timeout, VALUE options)
 }
 
 [[nodiscard]] VALUE
-cb__extract_option_bool(bool& field, VALUE options, const char* name)
+cb_extract_option_bool(bool& field, VALUE options, const char* name)
 {
     if (!NIL_P(options) && TYPE(options) == T_HASH) {
         VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
@@ -1172,7 +1098,7 @@ cb__extract_option_bool(bool& field, VALUE options, const char* name)
 }
 
 [[nodiscard]] VALUE
-cb__extract_option_array(VALUE& val, VALUE options, const char* name)
+cb_extract_option_array(VALUE& val, VALUE options, const char* name)
 {
     if (!NIL_P(options) && TYPE(options) == T_HASH) {
         val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
@@ -1188,7 +1114,7 @@ cb__extract_option_array(VALUE& val, VALUE options, const char* name)
 }
 
 [[nodiscard]] VALUE
-cb__extract_array_of_ids(std::vector<couchbase::document_id>& ids, VALUE arg)
+cb_extract_array_of_ids(std::vector<couchbase::document_id>& ids, VALUE arg)
 {
     if (TYPE(arg) != T_ARRAY) {
         return rb_exc_new_str(rb_eArgError, rb_sprintf("Type of IDs argument must be an Array, but given %+" PRIsVALUE, arg));
@@ -1227,7 +1153,7 @@ cb__extract_array_of_ids(std::vector<couchbase::document_id>& ids, VALUE arg)
 }
 
 [[nodiscard]] VALUE
-cb__extract_array_of_id_content(std::vector<std::tuple<couchbase::document_id, std::string, std::uint32_t>>& id_content, VALUE arg)
+cb_extract_array_of_id_content(std::vector<std::tuple<couchbase::document_id, std::string, std::uint32_t>>& id_content, VALUE arg)
 {
     if (TYPE(arg) != T_ARRAY) {
         return rb_exc_new_str(rb_eArgError, rb_sprintf("Type of ID/content tuples must be an Array, but given %+" PRIsVALUE, arg));
@@ -1279,7 +1205,7 @@ cb__extract_array_of_id_content(std::vector<std::tuple<couchbase::document_id, s
 }
 
 [[nodiscard]] VALUE
-cb__extract_array_of_id_cas(std::vector<std::pair<couchbase::document_id, std::uint64_t>>& id_cas, VALUE arg)
+cb_extract_array_of_id_cas(std::vector<std::pair<couchbase::document_id, std::uint64_t>>& id_cas, VALUE arg)
 {
     if (TYPE(arg) != T_ARRAY) {
         return rb_exc_new_str(rb_eArgError, rb_sprintf("Type of ID/CAS tuples must be an Array, but given %+" PRIsVALUE, arg));
@@ -1334,7 +1260,7 @@ cb__extract_array_of_id_cas(std::vector<std::pair<couchbase::document_id, std::u
 }
 
 [[nodiscard]] VALUE
-cb__extract_option_symbol(VALUE& val, VALUE options, const char* name)
+cb_extract_option_symbol(VALUE& val, VALUE options, const char* name)
 {
     if (!NIL_P(options) && TYPE(options) == T_HASH) {
         val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
@@ -1350,7 +1276,7 @@ cb__extract_option_symbol(VALUE& val, VALUE options, const char* name)
 }
 
 [[nodiscard]] VALUE
-cb__extract_option_string(VALUE& val, VALUE options, const char* name)
+cb_extract_option_string(VALUE& val, VALUE options, const char* name)
 {
     if (!NIL_P(options) && TYPE(options) == T_HASH) {
         val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
@@ -1366,7 +1292,7 @@ cb__extract_option_string(VALUE& val, VALUE options, const char* name)
 }
 
 [[nodiscard]] VALUE
-cb__extract_option_fixnum(VALUE& val, VALUE options, const char* name)
+cb_extract_option_fixnum(VALUE& val, VALUE options, const char* name)
 {
     if (!NIL_P(options) && TYPE(options) == T_HASH) {
         val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
@@ -1382,7 +1308,7 @@ cb__extract_option_fixnum(VALUE& val, VALUE options, const char* name)
 }
 
 [[nodiscard]] VALUE
-cb__extract_option_bignum(VALUE& val, VALUE options, const char* name)
+cb_extract_option_bignum(VALUE& val, VALUE options, const char* name)
 {
     if (!NIL_P(options) && TYPE(options) == T_HASH) {
         val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
@@ -1402,10 +1328,10 @@ cb__extract_option_bignum(VALUE& val, VALUE options, const char* name)
 }
 
 [[nodiscard]] VALUE
-cb__extract_durability(couchbase::protocol::durability_level& output_level, std::optional<std::uint16_t>& output_timeout, VALUE options)
+cb_extract_durability(couchbase::protocol::durability_level& output_level, std::optional<std::uint16_t>& output_timeout, VALUE options)
 {
     VALUE durability_level = Qnil;
-    VALUE exc = cb__extract_option_symbol(durability_level, options, "durability_level");
+    VALUE exc = cb_extract_option_symbol(durability_level, options, "durability_level");
     if (!NIL_P(exc)) {
         return exc;
     }
@@ -1423,7 +1349,7 @@ cb__extract_durability(couchbase::protocol::durability_level& output_level, std:
             return rb_exc_new_str(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
         }
         VALUE durability_timeout = Qnil;
-        exc = cb__extract_option_fixnum(durability_timeout, options, "durability_timeout");
+        exc = cb_extract_option_fixnum(durability_timeout, options, "durability_timeout");
         if (!NIL_P(exc)) {
             return exc;
         }
@@ -1436,9 +1362,9 @@ cb__extract_durability(couchbase::protocol::durability_level& output_level, std:
 
 template<typename Request>
 [[nodiscard]] VALUE
-cb__extract_durability(Request& req, VALUE options)
+cb_extract_durability(Request& req, VALUE options)
 {
-    return cb__extract_durability(req.durability_level, req.durability_timeout, options);
+    return cb_extract_durability(req.durability_level, req.durability_timeout, options);
 }
 
 static VALUE
@@ -1462,7 +1388,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
     VALUE exc = Qnil;
     do {
         VALUE id = Qnil;
-        exc = cb__extract_option_string(id, options, "report_id");
+        exc = cb_extract_option_string(id, options, "report_id");
         if (!NIL_P(exc)) {
             break;
         }
@@ -1475,7 +1401,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
             bucket_name.emplace(std::string(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket))));
         }
         VALUE services = Qnil;
-        exc = cb__extract_option_array(services, options, "service_types");
+        exc = cb_extract_option_array(services, options, "service_types");
         if (!NIL_P(exc)) {
             break;
         }
@@ -1504,8 +1430,8 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
         auto resp = f.get();
 
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("id")), rb_external_str_new(resp.id.data(), static_cast<long>(resp.id.size())));
-        rb_hash_aset(res, rb_id2sym(rb_intern("sdk")), rb_external_str_new(resp.sdk.data(), static_cast<long>(resp.sdk.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("id")), cb_str_new(resp.id));
+        rb_hash_aset(res, rb_id2sym(rb_intern("sdk")), cb_str_new(resp.sdk));
         rb_hash_aset(res, rb_id2sym(rb_intern("version")), INT2FIX(resp.version));
         services = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("services")), services);
@@ -1536,11 +1462,9 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
             for (const auto& svc : svcs.second) {
                 VALUE service = rb_hash_new();
                 rb_hash_aset(service, rb_id2sym(rb_intern("latency")), LL2NUM(svc.latency.count()));
-                rb_hash_aset(service, rb_id2sym(rb_intern("id")), rb_external_str_new(svc.id.data(), static_cast<long>(svc.id.size())));
-                rb_hash_aset(
-                  service, rb_id2sym(rb_intern("remote")), rb_external_str_new(svc.remote.data(), static_cast<long>(svc.remote.size())));
-                rb_hash_aset(
-                  service, rb_id2sym(rb_intern("local")), rb_external_str_new(svc.local.data(), static_cast<long>(svc.local.size())));
+                rb_hash_aset(service, rb_id2sym(rb_intern("id")), cb_str_new(svc.id));
+                rb_hash_aset(service, rb_id2sym(rb_intern("remote")), cb_str_new(svc.remote));
+                rb_hash_aset(service, rb_id2sym(rb_intern("local")), cb_str_new(svc.local));
                 VALUE state = Qnil;
                 switch (svc.state) {
                     case couchbase::diag::ping_state::ok:
@@ -1552,9 +1476,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
                     case couchbase::diag::ping_state::error:
                         state = rb_id2sym(rb_intern("error"));
                         if (svc.error) {
-                            rb_hash_aset(service,
-                                         rb_id2sym(rb_intern("error")),
-                                         rb_external_str_new(svc.error->data(), static_cast<long>(svc.error->size())));
+                            rb_hash_aset(service, rb_id2sym(rb_intern("error")), cb_str_new(svc.error.value()));
                         }
                         break;
                 }
@@ -1591,7 +1513,7 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VA
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::get_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -1600,12 +1522,12 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VA
         backend->cluster->execute(req, [barrier](couchbase::operations::get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to fetch document");
+            exc = cb_map_error_code(resp.ctx, "unable to fetch document");
             break;
         }
 
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("content")), rb_external_str_new(resp.value.data(), static_cast<long>(resp.value.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("content")), cb_str_new(resp.value));
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
         rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
         return res;
@@ -1628,13 +1550,13 @@ cb_Backend_document_get_multi(VALUE self, VALUE keys, VALUE options)
     VALUE exc = Qnil;
     do {
         std::chrono::milliseconds timeout{ 0 };
-        exc = cb__extract_timeout(timeout, options);
+        exc = cb_extract_timeout(timeout, options);
         if (!NIL_P(exc)) {
             break;
         }
 
         std::vector<couchbase::document_id> ids{};
-        exc = cb__extract_array_of_ids(ids, keys);
+        exc = cb_extract_array_of_ids(ids, keys);
         if (!NIL_P(exc)) {
             break;
         }
@@ -1658,10 +1580,9 @@ cb_Backend_document_get_multi(VALUE self, VALUE keys, VALUE options)
             auto resp = barrier->get_future().get();
             VALUE entry = rb_hash_new();
             if (resp.ctx.ec) {
-                rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb__map_error_code(resp.ctx, "unable to (multi)fetch document"));
+                rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb_map_error_code(resp.ctx, "unable to (multi)fetch document"));
             }
-            rb_hash_aset(
-              entry, rb_id2sym(rb_intern("content")), rb_external_str_new(resp.value.data(), static_cast<long>(resp.value.size())));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("content")), cb_str_new(resp.value));
             rb_hash_aset(entry, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
             rb_hash_aset(entry, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
             rb_ary_push(res, entry);
@@ -1698,20 +1619,20 @@ cb_Backend_document_get_projected(VALUE self, VALUE bucket, VALUE collection, VA
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::get_projected_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__extract_option_bool(req.with_expiry, options, "with_expiry");
+        exc = cb_extract_option_bool(req.with_expiry, options, "with_expiry");
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__extract_option_bool(req.preserve_array_indexes, options, "preserve_array_indexes");
+        exc = cb_extract_option_bool(req.preserve_array_indexes, options, "preserve_array_indexes");
         if (!NIL_P(exc)) {
             break;
         }
         VALUE projections = Qnil;
-        exc = cb__extract_option_array(projections, options, "projections");
+        exc = cb_extract_option_array(projections, options, "projections");
         if (!NIL_P(exc)) {
             break;
         }
@@ -1735,12 +1656,12 @@ cb_Backend_document_get_projected(VALUE self, VALUE bucket, VALUE collection, VA
                                   [barrier](couchbase::operations::get_projected_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable fetch with projections");
+            exc = cb_map_error_code(resp.ctx, "unable fetch with projections");
             break;
         }
 
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("content")), rb_external_str_new(resp.value.data(), static_cast<long>(resp.value.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("content")), cb_str_new(resp.value));
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
         rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
         if (resp.expiry) {
@@ -1779,7 +1700,7 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VAL
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::get_and_lock_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -1791,12 +1712,12 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VAL
                                   [barrier](couchbase::operations::get_and_lock_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable lock and fetch");
+            exc = cb_map_error_code(resp.ctx, "unable lock and fetch");
             break;
         }
 
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("content")), rb_external_str_new(resp.value.data(), static_cast<long>(resp.value.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("content")), cb_str_new(resp.value));
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
         rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
         return res;
@@ -1832,7 +1753,7 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VA
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::get_and_touch_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -1844,12 +1765,12 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VA
                                   [barrier](couchbase::operations::get_and_touch_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable fetch and touch");
+            exc = cb_map_error_code(resp.ctx, "unable fetch and touch");
             break;
         }
 
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("content")), rb_external_str_new(resp.value.data(), static_cast<long>(resp.value.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("content")), cb_str_new(resp.value));
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
         rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
         return res;
@@ -1860,7 +1781,7 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VA
 
 template<typename Response>
 static VALUE
-cb__extract_mutation_result(Response resp)
+cb_extract_mutation_result(Response resp)
 {
     VALUE res = rb_hash_new();
     rb_hash_aset(res, rb_id2sym(rb_intern("cas")), ULL2NUM(resp.cas));
@@ -1868,9 +1789,7 @@ cb__extract_mutation_result(Response resp)
     rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
     rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULL2NUM(resp.token.sequence_number));
     rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id));
-    rb_hash_aset(token,
-                 rb_id2sym(rb_intern("bucket_name")),
-                 rb_external_str_new(resp.token.bucket_name.c_str(), static_cast<long>(resp.token.bucket_name.size())));
+    rb_hash_aset(token, rb_id2sym(rb_intern("bucket_name")), cb_str_new(resp.token.bucket_name));
     rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
     return res;
 }
@@ -1902,7 +1821,7 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::touch_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -1913,7 +1832,7 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
         backend->cluster->execute(req, [barrier](couchbase::operations::touch_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to touch");
+            exc = cb_map_error_code(resp.ctx, "unable to touch");
             break;
         }
 
@@ -1951,7 +1870,7 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::exists_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -1961,7 +1880,7 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         backend->cluster->execute(req, [barrier](couchbase::operations::exists_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to exists");
+            exc = cb_map_error_code(resp.ctx, "unable to exists");
             break;
         }
 
@@ -2017,7 +1936,7 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::unlock_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -2038,7 +1957,7 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         backend->cluster->execute(req, [barrier](couchbase::operations::unlock_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to unlock");
+            exc = cb_map_error_code(resp.ctx, "unable to unlock");
             break;
         }
 
@@ -2079,18 +1998,18 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
         couchbase::operations::upsert_request req{ doc_id, value };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         req.flags = FIX2UINT(flags);
 
-        exc = cb__extract_durability(req, options);
+        exc = cb_extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         VALUE expiry = Qnil;
-        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        exc = cb_extract_option_fixnum(expiry, options, "expiry");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2103,11 +2022,11 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         backend->cluster->execute(req, [barrier](couchbase::operations::upsert_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to upsert");
+            exc = cb_map_error_code(resp.ctx, "unable to upsert");
             break;
         }
 
-        return cb__extract_mutation_result(resp);
+        return cb_extract_mutation_result(resp);
     } while (false);
     rb_exc_raise(exc);
     return Qnil;
@@ -2127,25 +2046,25 @@ cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
     VALUE exc = Qnil;
     do {
         std::chrono::milliseconds timeout{ 0 };
-        exc = cb__extract_timeout(timeout, options);
+        exc = cb_extract_timeout(timeout, options);
         if (!NIL_P(exc)) {
             break;
         }
 
         couchbase::protocol::durability_level durability_level{ couchbase::protocol::durability_level::none };
         std::optional<std::uint16_t> durability_timeout{ std::nullopt };
-        exc = cb__extract_durability(durability_level, durability_timeout, options);
+        exc = cb_extract_durability(durability_level, durability_timeout, options);
         if (!NIL_P(exc)) {
             break;
         }
         VALUE expiry = Qnil;
-        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        exc = cb_extract_option_fixnum(expiry, options, "expiry");
         if (!NIL_P(exc)) {
             break;
         }
 
         std::vector<std::tuple<couchbase::document_id, std::string, std::uint32_t>> tuples{};
-        exc = cb__extract_array_of_id_content(tuples, id_content);
+        exc = cb_extract_array_of_id_content(tuples, id_content);
         if (!NIL_P(exc)) {
             break;
         }
@@ -2173,9 +2092,9 @@ cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
         VALUE res = rb_ary_new_capa(static_cast<long>(num_of_tuples));
         for (auto& barrier : barriers) {
             auto resp = barrier->get_future().get();
-            VALUE entry = cb__extract_mutation_result(resp);
+            VALUE entry = cb_extract_mutation_result(resp);
             if (resp.ctx.ec) {
-                rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb__map_error_code(resp.ctx, "unable (multi)upsert"));
+                rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb_map_error_code(resp.ctx, "unable (multi)upsert"));
             }
             rb_ary_push(res, entry);
         }
@@ -2213,11 +2132,11 @@ cb_Backend_document_append(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
         couchbase::operations::append_request req{ doc_id, value };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__extract_durability(req, options);
+        exc = cb_extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -2227,11 +2146,11 @@ cb_Backend_document_append(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         backend->cluster->execute(req, [barrier](couchbase::operations::append_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to append");
+            exc = cb_map_error_code(resp.ctx, "unable to append");
             break;
         }
 
-        return cb__extract_mutation_result(resp);
+        return cb_extract_mutation_result(resp);
     } while (false);
     rb_exc_raise(exc);
     return Qnil;
@@ -2265,11 +2184,11 @@ cb_Backend_document_prepend(VALUE self, VALUE bucket, VALUE collection, VALUE id
         std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
         couchbase::operations::prepend_request req{ doc_id, value };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__extract_durability(req, options);
+        exc = cb_extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -2279,11 +2198,11 @@ cb_Backend_document_prepend(VALUE self, VALUE bucket, VALUE collection, VALUE id
         backend->cluster->execute(req, [barrier](couchbase::operations::prepend_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to prepend");
+            exc = cb_map_error_code(resp.ctx, "unable to prepend");
             break;
         }
 
-        return cb__extract_mutation_result(resp);
+        return cb_extract_mutation_result(resp);
     } while (false);
     rb_exc_raise(exc);
     return Qnil;
@@ -2318,18 +2237,18 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
         std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
         couchbase::operations::replace_request req{ doc_id, value };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         req.flags = FIX2UINT(flags);
 
-        exc = cb__extract_durability(req, options);
+        exc = cb_extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         VALUE expiry = Qnil;
-        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        exc = cb_extract_option_fixnum(expiry, options, "expiry");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2337,7 +2256,7 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
             req.expiry = FIX2UINT(expiry);
         }
         VALUE cas = Qnil;
-        exc = cb__extract_option_bignum(cas, options, "cas");
+        exc = cb_extract_option_bignum(cas, options, "cas");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2350,11 +2269,11 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
         backend->cluster->execute(req, [barrier](couchbase::operations::replace_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to replace");
+            exc = cb_map_error_code(resp.ctx, "unable to replace");
             break;
         }
 
-        return cb__extract_mutation_result(resp);
+        return cb_extract_mutation_result(resp);
     } while (false);
     rb_exc_raise(exc);
     return Qnil;
@@ -2389,18 +2308,18 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
         couchbase::operations::insert_request req{ doc_id, value };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         req.flags = FIX2UINT(flags);
 
-        exc = cb__extract_durability(req, options);
+        exc = cb_extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         VALUE expiry = Qnil;
-        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        exc = cb_extract_option_fixnum(expiry, options, "expiry");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2413,11 +2332,11 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         backend->cluster->execute(req, [barrier](couchbase::operations::insert_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to insert");
+            exc = cb_map_error_code(resp.ctx, "unable to insert");
             break;
         }
 
-        return cb__extract_mutation_result(resp);
+        return cb_extract_mutation_result(resp);
     } while (false);
     rb_exc_raise(exc);
     return Qnil;
@@ -2449,16 +2368,16 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::remove_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__extract_durability(req, options);
+        exc = cb_extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         VALUE cas = Qnil;
-        exc = cb__extract_option_bignum(cas, options, "cas");
+        exc = cb_extract_option_bignum(cas, options, "cas");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2471,10 +2390,10 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         backend->cluster->execute(req, [barrier](couchbase::operations::remove_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to remove");
+            exc = cb_map_error_code(resp.ctx, "unable to remove");
             break;
         }
-        return cb__extract_mutation_result(resp);
+        return cb_extract_mutation_result(resp);
     } while (false);
     rb_exc_raise(exc);
     return Qnil;
@@ -2498,20 +2417,20 @@ cb_Backend_document_remove_multi(VALUE self, VALUE id_cas, VALUE options)
     VALUE exc = Qnil;
     do {
         std::chrono::milliseconds timeout{ 0 };
-        exc = cb__extract_timeout(timeout, options);
+        exc = cb_extract_timeout(timeout, options);
         if (!NIL_P(exc)) {
             break;
         }
 
         couchbase::protocol::durability_level durability_level{ couchbase::protocol::durability_level::none };
         std::optional<std::uint16_t> durability_timeout{ std::nullopt };
-        exc = cb__extract_durability(durability_level, durability_timeout, options);
+        exc = cb_extract_durability(durability_level, durability_timeout, options);
         if (!NIL_P(exc)) {
             break;
         }
 
         std::vector<std::pair<couchbase::document_id, std::uint64_t>> tuples{};
-        exc = cb__extract_array_of_id_cas(tuples, id_cas);
+        exc = cb_extract_array_of_id_cas(tuples, id_cas);
         if (!NIL_P(exc)) {
             break;
         }
@@ -2536,9 +2455,9 @@ cb_Backend_document_remove_multi(VALUE self, VALUE id_cas, VALUE options)
         VALUE res = rb_ary_new_capa(static_cast<long>(num_of_tuples));
         for (auto& barrier : barriers) {
             auto resp = barrier->get_future().get();
-            VALUE entry = cb__extract_mutation_result(resp);
+            VALUE entry = cb_extract_mutation_result(resp);
             if (resp.ctx.ec) {
-                rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb__map_error_code(resp.ctx, "unable (multi)remove"));
+                rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb_map_error_code(resp.ctx, "unable (multi)remove"));
             }
             rb_ary_push(res, entry);
         }
@@ -2575,16 +2494,16 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::increment_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__extract_durability(req, options);
+        exc = cb_extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         VALUE delta = Qnil;
-        exc = cb__extract_option_bignum(delta, options, "delta");
+        exc = cb_extract_option_bignum(delta, options, "delta");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2592,7 +2511,7 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
             req.delta = NUM2ULL(delta);
         }
         VALUE initial_value = Qnil;
-        exc = cb__extract_option_bignum(initial_value, options, "initial_value");
+        exc = cb_extract_option_bignum(initial_value, options, "initial_value");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2600,7 +2519,7 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
             req.initial_value = NUM2ULL(initial_value);
         }
         VALUE expiry = Qnil;
-        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        exc = cb_extract_option_fixnum(expiry, options, "expiry");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2613,10 +2532,10 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
         backend->cluster->execute(req, [barrier](couchbase::operations::increment_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx.ec, fmt::format(R"(unable to increment by {})", req.delta));
+            exc = cb_map_error_code(resp.ctx.ec, fmt::format(R"(unable to increment by {})", req.delta));
             break;
         }
-        VALUE res = cb__extract_mutation_result(resp);
+        VALUE res = cb_extract_mutation_result(resp);
         rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content));
         return res;
     } while (false);
@@ -2650,16 +2569,16 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::decrement_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__extract_durability(req, options);
+        exc = cb_extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         VALUE delta = Qnil;
-        exc = cb__extract_option_bignum(delta, options, "delta");
+        exc = cb_extract_option_bignum(delta, options, "delta");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2667,7 +2586,7 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
             req.delta = NUM2ULL(delta);
         }
         VALUE initial_value = Qnil;
-        exc = cb__extract_option_bignum(initial_value, options, "initial_value");
+        exc = cb_extract_option_bignum(initial_value, options, "initial_value");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2675,7 +2594,7 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
             req.initial_value = NUM2ULL(initial_value);
         }
         VALUE expiry = Qnil;
-        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        exc = cb_extract_option_fixnum(expiry, options, "expiry");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2688,10 +2607,10 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
         backend->cluster->execute(req, [barrier](couchbase::operations::decrement_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, fmt::format(R"(unable to decrement by {})", req.delta));
+            exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to decrement by {})", req.delta));
             break;
         }
-        VALUE res = cb__extract_mutation_result(resp);
+        VALUE res = cb_extract_mutation_result(resp);
         rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content));
         return res;
     } while (false);
@@ -2700,7 +2619,7 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
 }
 
 static VALUE
-cb__map_subdoc_opcode(couchbase::protocol::subdoc_opcode opcode)
+cb_map_subdoc_opcode(couchbase::protocol::subdoc_opcode opcode)
 {
     switch (opcode) {
         case couchbase::protocol::subdoc_opcode::get:
@@ -2752,7 +2671,7 @@ cb__map_subdoc_opcode(couchbase::protocol::subdoc_opcode opcode)
 }
 
 static void
-cb__map_subdoc_status(couchbase::protocol::status status, std::size_t index, const std::string& path, VALUE entry)
+cb_map_subdoc_status(couchbase::protocol::status status, std::size_t index, const std::string& path, VALUE entry)
 {
     switch (status) {
         case couchbase::protocol::status::success:
@@ -2867,7 +2786,7 @@ cb__map_subdoc_status(couchbase::protocol::status status, std::size_t index, con
             rb_hash_aset(
               entry,
               rb_id2sym(rb_intern("error")),
-              rb_exc_new_cstr(eCouchbaseError,
+              rb_exc_new_cstr(eBackendError,
                               fmt::format("unknown subdocument error status={}, index={}, path={}", status, index, path).c_str()));
             return;
     }
@@ -2904,11 +2823,11 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::lookup_in_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__extract_option_bool(req.access_deleted, options, "access_deleted");
+        exc = cb_extract_option_bool(req.access_deleted, options, "access_deleted");
         if (!NIL_P(exc)) {
             break;
         }
@@ -2947,7 +2866,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         backend->cluster->execute(req, [barrier](couchbase::operations::lookup_in_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable fetch");
+            exc = cb_map_error_code(resp.ctx, "unable fetch");
             break;
         }
 
@@ -2962,17 +2881,13 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
             VALUE entry = rb_hash_new();
             rb_hash_aset(entry, rb_id2sym(rb_intern("index")), ULL2NUM(i));
             rb_hash_aset(entry, rb_id2sym(rb_intern("exists")), resp.fields[i].exists ? Qtrue : Qfalse);
-            rb_hash_aset(entry,
-                         rb_id2sym(rb_intern("path")),
-                         rb_external_str_new(resp.fields[i].path.data(), static_cast<long>(resp.fields[i].path.size())));
-            rb_hash_aset(entry,
-                         rb_id2sym(rb_intern("value")),
-                         rb_external_str_new(resp.fields[i].value.data(), static_cast<long>(resp.fields[i].value.size())));
-            cb__map_subdoc_status(resp.fields[i].status, i, resp.fields[i].path, entry);
+            rb_hash_aset(entry, rb_id2sym(rb_intern("path")), cb_str_new(resp.fields[i].path));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("value")), cb_str_new(resp.fields[i].value));
+            cb_map_subdoc_status(resp.fields[i].status, i, resp.fields[i].path, entry);
             if (resp.fields[i].opcode == couchbase::protocol::subdoc_opcode::get && resp.fields[i].path.empty()) {
                 rb_hash_aset(entry, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern("get_doc")));
             } else {
-                rb_hash_aset(entry, rb_id2sym(rb_intern("type")), cb__map_subdoc_opcode(resp.fields[i].opcode));
+                rb_hash_aset(entry, rb_id2sym(rb_intern("type")), cb_map_subdoc_opcode(resp.fields[i].opcode));
             }
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
@@ -3013,16 +2928,16 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         doc_id.key.assign(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id)));
 
         couchbase::operations::mutate_in_request req{ doc_id };
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__extract_durability(req, options);
+        exc = cb_extract_durability(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         VALUE cas = Qnil;
-        exc = cb__extract_option_bignum(cas, options, "cas");
+        exc = cb_extract_option_bignum(cas, options, "cas");
         if (!NIL_P(exc)) {
             break;
         }
@@ -3030,23 +2945,23 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
             req.cas = NUM2ULL(cas);
         }
         VALUE expiry = Qnil;
-        exc = cb__extract_option_fixnum(expiry, options, "expiry");
+        exc = cb_extract_option_fixnum(expiry, options, "expiry");
         if (!NIL_P(exc)) {
             break;
         }
         if (!NIL_P(expiry)) {
             req.expiry = FIX2UINT(expiry);
         }
-        exc = cb__extract_option_bool(req.access_deleted, options, "access_deleted");
+        exc = cb_extract_option_bool(req.access_deleted, options, "access_deleted");
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__extract_option_bool(req.create_as_deleted, options, "create_as_deleted");
+        exc = cb_extract_option_bool(req.create_as_deleted, options, "create_as_deleted");
         if (!NIL_P(exc)) {
             break;
         }
         VALUE store_semantics = Qnil;
-        exc = cb__extract_option_symbol(store_semantics, options, "store_semantics");
+        exc = cb_extract_option_symbol(store_semantics, options, "store_semantics");
         if (!NIL_P(exc)) {
             break;
         }
@@ -3127,11 +3042,11 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         backend->cluster->execute(req, [barrier](couchbase::operations::mutate_in_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to mutate");
+            exc = cb_map_error_code(resp.ctx, "unable to mutate");
             break;
         }
 
-        VALUE res = cb__extract_mutation_result(resp);
+        VALUE res = cb_extract_mutation_result(resp);
         if (resp.first_error_index) {
             rb_hash_aset(res, rb_id2sym(rb_intern("first_error_index")), ULL2NUM(resp.first_error_index.value()));
         }
@@ -3143,9 +3058,7 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         for (size_t i = 0; i < resp.fields.size(); ++i) {
             VALUE entry = rb_hash_new();
             rb_hash_aset(entry, rb_id2sym(rb_intern("index")), ULL2NUM(i));
-            rb_hash_aset(entry,
-                         rb_id2sym(rb_intern("path")),
-                         rb_external_str_new(resp.fields[i].path.data(), static_cast<long>(resp.fields[i].path.size())));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("path")), cb_str_new(resp.fields[i].path));
             if (resp.fields[i].status == couchbase::protocol::status::success ||
                 resp.fields[i].status == couchbase::protocol::status::subdoc_success_deleted) {
                 if (resp.fields[i].opcode == couchbase::protocol::subdoc_opcode::counter) {
@@ -3153,13 +3066,11 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
                         rb_hash_aset(entry, rb_id2sym(rb_intern("value")), LL2NUM(std::stoll(resp.fields[i].value)));
                     }
                 } else {
-                    rb_hash_aset(entry,
-                                 rb_id2sym(rb_intern("value")),
-                                 rb_external_str_new(resp.fields[i].value.data(), static_cast<long>(resp.fields[i].value.size())));
+                    rb_hash_aset(entry, rb_id2sym(rb_intern("value")), cb_str_new(resp.fields[i].value));
                 }
             }
-            cb__map_subdoc_status(resp.fields[i].status, i, resp.fields[i].path, entry);
-            rb_hash_aset(entry, rb_id2sym(rb_intern("type")), cb__map_subdoc_opcode(resp.fields[i].opcode));
+            cb_map_subdoc_status(resp.fields[i].status, i, resp.fields[i].path, entry);
+            rb_hash_aset(entry, rb_id2sym(rb_intern("type")), cb_map_subdoc_opcode(resp.fields[i].opcode));
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
         return res;
@@ -3169,7 +3080,7 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
 }
 
 static int
-cb__for_each_named_param(VALUE key, VALUE value, VALUE arg)
+cb_for_each_named_param(VALUE key, VALUE value, VALUE arg)
 {
     auto* preq = reinterpret_cast<couchbase::operations::query_request*>(arg);
     Check_Type(key, T_STRING);
@@ -3203,7 +3114,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             Check_Type(client_context_id, T_STRING);
             req.client_context_id.assign(RSTRING_PTR(client_context_id), static_cast<size_t>(RSTRING_LEN(client_context_id)));
         }
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3286,7 +3197,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         VALUE named_params = rb_hash_aref(options, rb_id2sym(rb_intern("named_parameters")));
         if (!NIL_P(named_params)) {
             Check_Type(named_params, T_HASH);
-            rb_hash_foreach(named_params, INT_FUNC(cb__for_each_named_param), reinterpret_cast<VALUE>(&req));
+            rb_hash_foreach(named_params, INT_FUNC(cb_for_each_named_param), reinterpret_cast<VALUE>(&req));
         }
         VALUE scan_consistency = rb_hash_aref(options, rb_id2sym(rb_intern("scan_consistency")));
         if (!NIL_P(scan_consistency)) {
@@ -3337,7 +3248,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         VALUE raw_params = rb_hash_aref(options, rb_id2sym(rb_intern("raw_parameters")));
         if (!NIL_P(raw_params)) {
             Check_Type(raw_params, T_HASH);
-            rb_hash_foreach(raw_params, INT_FUNC(cb__for_each_named_param), reinterpret_cast<VALUE>(&req));
+            rb_hash_foreach(raw_params, INT_FUNC(cb_for_each_named_param), reinterpret_cast<VALUE>(&req));
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_response>>();
@@ -3347,9 +3258,9 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         if (resp.ctx.ec) {
             if (resp.payload.meta_data.errors && !resp.payload.meta_data.errors->empty()) {
                 const auto& first_error = resp.payload.meta_data.errors->front();
-                exc = cb__map_error_code(resp.ctx, fmt::format(R"(unable to query ({}: {}))", first_error.code, first_error.message));
+                exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to query ({}: {}))", first_error.code, first_error.message));
             } else {
-                exc = cb__map_error_code(resp.ctx, "unable to query");
+                exc = cb_map_error_code(resp.ctx, "unable to query");
             }
             break;
         }
@@ -3357,46 +3268,28 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         VALUE rows = rb_ary_new_capa(static_cast<long>(resp.payload.rows.size()));
         rb_hash_aset(res, rb_id2sym(rb_intern("rows")), rows);
         for (auto& row : resp.payload.rows) {
-            rb_ary_push(rows, rb_external_str_new(row.data(), static_cast<long>(row.size())));
+            rb_ary_push(rows, cb_str_new(row));
         }
         VALUE meta = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("meta")), meta);
         rb_hash_aset(meta,
                      rb_id2sym(rb_intern("status")),
                      rb_id2sym(rb_intern2(resp.payload.meta_data.status.data(), static_cast<long>(resp.payload.meta_data.status.size()))));
-        rb_hash_aset(
-          meta,
-          rb_id2sym(rb_intern("request_id")),
-          rb_external_str_new(resp.payload.meta_data.request_id.data(), static_cast<long>(resp.payload.meta_data.request_id.size())));
-        rb_hash_aset(meta,
-                     rb_id2sym(rb_intern("client_context_id")),
-                     rb_external_str_new(resp.payload.meta_data.client_context_id.data(),
-                                         static_cast<long>(resp.payload.meta_data.client_context_id.size())));
+        rb_hash_aset(meta, rb_id2sym(rb_intern("request_id")), cb_str_new(resp.payload.meta_data.request_id));
+        rb_hash_aset(meta, rb_id2sym(rb_intern("client_context_id")), cb_str_new(resp.payload.meta_data.client_context_id));
         if (resp.payload.meta_data.signature) {
-            rb_hash_aset(
-              meta,
-              rb_id2sym(rb_intern("signature")),
-              rb_external_str_new(resp.payload.meta_data.signature->data(), static_cast<long>(resp.payload.meta_data.signature->size())));
+            rb_hash_aset(meta, rb_id2sym(rb_intern("signature")), cb_str_new(resp.payload.meta_data.signature.value()));
         }
         if (resp.payload.meta_data.profile) {
-            rb_hash_aset(
-              meta,
-              rb_id2sym(rb_intern("profile")),
-              rb_external_str_new(resp.payload.meta_data.profile->data(), static_cast<long>(resp.payload.meta_data.profile->size())));
+            rb_hash_aset(meta, rb_id2sym(rb_intern("profile")), cb_str_new(resp.payload.meta_data.profile.value()));
         }
         metrics = rb_hash_new();
         rb_hash_aset(meta, rb_id2sym(rb_intern("metrics")), metrics);
         if (!resp.payload.meta_data.metrics.elapsed_time.empty()) {
-            rb_hash_aset(metrics,
-                         rb_id2sym(rb_intern("elapsed_time")),
-                         rb_external_str_new(resp.payload.meta_data.metrics.elapsed_time.data(),
-                                             static_cast<long>(resp.payload.meta_data.metrics.elapsed_time.size())));
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("elapsed_time")), cb_str_new(resp.payload.meta_data.metrics.elapsed_time));
         }
         if (!resp.payload.meta_data.metrics.execution_time.empty()) {
-            rb_hash_aset(metrics,
-                         rb_id2sym(rb_intern("execution_time")),
-                         rb_external_str_new(resp.payload.meta_data.metrics.execution_time.data(),
-                                             static_cast<long>(resp.payload.meta_data.metrics.execution_time.size())));
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("execution_time")), cb_str_new(resp.payload.meta_data.metrics.execution_time));
         }
         rb_hash_aset(metrics, rb_id2sym(rb_intern("result_count")), ULL2NUM(resp.payload.meta_data.metrics.result_count));
         rb_hash_aset(metrics, rb_id2sym(rb_intern("result_size")), ULL2NUM(resp.payload.meta_data.metrics.result_size));
@@ -3420,7 +3313,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
 }
 
 static VALUE
-cb__generate_bucket_settings(VALUE bucket, couchbase::operations::bucket_settings& entry, bool is_create)
+cb_generate_bucket_settings(VALUE bucket, couchbase::operations::bucket_settings& entry, bool is_create)
 {
     {
         VALUE bucket_type = rb_hash_aref(bucket, rb_id2sym(rb_intern("bucket_type")));
@@ -3586,11 +3479,11 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_create_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__generate_bucket_settings(bucket_settings, req.bucket, true);
+        exc = cb_generate_bucket_settings(bucket_settings, req.bucket, true);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3600,8 +3493,8 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE timeout)
           req, [barrier](couchbase::operations::bucket_create_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(
-              resp.ctx, fmt::format("unable to create bucket \"{}\" on the cluster ({})", req.bucket.name, resp.error_message));
+            exc = cb_map_error_code(resp.ctx,
+                                    fmt::format("unable to create bucket \"{}\" on the cluster ({})", req.bucket.name, resp.error_message));
             break;
         }
 
@@ -3626,11 +3519,11 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_update_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
-        exc = cb__generate_bucket_settings(bucket_settings, req.bucket, false);
+        exc = cb_generate_bucket_settings(bucket_settings, req.bucket, false);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3640,8 +3533,8 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE timeout)
           req, [barrier](couchbase::operations::bucket_update_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(
-              resp.ctx, fmt::format("unable to update bucket \"{}\" on the cluster ({})", req.bucket.name, resp.error_message));
+            exc = cb_map_error_code(resp.ctx,
+                                    fmt::format("unable to update bucket \"{}\" on the cluster ({})", req.bucket.name, resp.error_message));
             break;
         }
         return Qtrue;
@@ -3666,7 +3559,7 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_drop_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3677,7 +3570,7 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE timeout)
                                        [barrier](couchbase::operations::bucket_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, fmt::format("unable to remove bucket \"{}\" on the cluster", req.name));
+            exc = cb_map_error_code(resp.ctx, fmt::format("unable to remove bucket \"{}\" on the cluster", req.name));
             break;
         }
         return Qtrue;
@@ -3702,7 +3595,7 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_flush_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3713,7 +3606,7 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE timeout)
           req, [barrier](couchbase::operations::bucket_flush_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, fmt::format("unable to flush bucket \"{}\" on the cluster", req.name));
+            exc = cb_map_error_code(resp.ctx, fmt::format("unable to flush bucket \"{}\" on the cluster", req.name));
             break;
         }
 
@@ -3724,7 +3617,7 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE timeout)
 }
 
 static void
-cb__extract_bucket_settings(const couchbase::operations::bucket_settings& entry, VALUE bucket)
+cb_extract_bucket_settings(const couchbase::operations::bucket_settings& entry, VALUE bucket)
 {
     switch (entry.bucket_type) {
         case couchbase::operations::bucket_settings::bucket_type::couchbase:
@@ -3740,8 +3633,8 @@ cb__extract_bucket_settings(const couchbase::operations::bucket_settings& entry,
             rb_hash_aset(bucket, rb_id2sym(rb_intern("bucket_type")), Qnil);
             break;
     }
-    rb_hash_aset(bucket, rb_id2sym(rb_intern("name")), rb_external_str_new(entry.name.data(), static_cast<long>(entry.name.size())));
-    rb_hash_aset(bucket, rb_id2sym(rb_intern("uuid")), rb_external_str_new(entry.uuid.data(), static_cast<long>(entry.uuid.size())));
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("name")), cb_str_new(entry.name));
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("uuid")), cb_str_new(entry.uuid));
     rb_hash_aset(bucket, rb_id2sym(rb_intern("ram_quota_mb")), ULL2NUM(entry.ram_quota_mb));
     rb_hash_aset(bucket, rb_id2sym(rb_intern("max_expiry")), ULONG2NUM(entry.max_expiry));
     switch (entry.compression_mode) {
@@ -3808,15 +3701,15 @@ cb__extract_bucket_settings(const couchbase::operations::bucket_settings& entry,
     }
     VALUE capabilities = rb_ary_new_capa(static_cast<long>(entry.capabilities.size()));
     for (const auto& capa : entry.capabilities) {
-        rb_ary_push(capabilities, rb_external_str_new(capa.data(), static_cast<long>(capa.size())));
+        rb_ary_push(capabilities, cb_str_new(capa));
     }
     rb_hash_aset(bucket, rb_id2sym(rb_intern("capabilities")), capabilities);
     VALUE nodes = rb_ary_new_capa(static_cast<long>(entry.nodes.size()));
     for (const auto& n : entry.nodes) {
         VALUE node = rb_hash_new();
-        rb_hash_aset(node, rb_id2sym(rb_intern("status")), rb_external_str_new(n.status.data(), static_cast<long>(n.status.size())));
-        rb_hash_aset(node, rb_id2sym(rb_intern("hostname")), rb_external_str_new(n.hostname.data(), static_cast<long>(n.hostname.size())));
-        rb_hash_aset(node, rb_id2sym(rb_intern("version")), rb_external_str_new(n.version.data(), static_cast<long>(n.version.size())));
+        rb_hash_aset(node, rb_id2sym(rb_intern("status")), cb_str_new(n.status));
+        rb_hash_aset(node, rb_id2sym(rb_intern("hostname")), cb_str_new(n.hostname));
+        rb_hash_aset(node, rb_id2sym(rb_intern("version")), cb_str_new(n.version));
         rb_ary_push(nodes, node);
     }
     rb_hash_aset(bucket, rb_id2sym(rb_intern("nodes")), nodes);
@@ -3836,7 +3729,7 @@ cb_Backend_bucket_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_get_all_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3846,14 +3739,14 @@ cb_Backend_bucket_get_all(VALUE self, VALUE timeout)
           req, [barrier](couchbase::operations::bucket_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to get list of the buckets of the cluster");
+            exc = cb_map_error_code(resp.ctx, "unable to get list of the buckets of the cluster");
             break;
         }
 
         VALUE res = rb_ary_new_capa(static_cast<long>(resp.buckets.size()));
         for (const auto& entry : resp.buckets) {
             VALUE bucket = rb_hash_new();
-            cb__extract_bucket_settings(entry, bucket);
+            cb_extract_bucket_settings(entry, bucket);
             rb_ary_push(res, bucket);
         }
 
@@ -3879,7 +3772,7 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_get_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3890,12 +3783,12 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE timeout)
                                        [barrier](couchbase::operations::bucket_get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, fmt::format("unable to locate bucket \"{}\" on the cluster", req.name));
+            exc = cb_map_error_code(resp.ctx, fmt::format("unable to locate bucket \"{}\" on the cluster", req.name));
             break;
         }
 
         VALUE res = rb_hash_new();
-        cb__extract_bucket_settings(resp.bucket, res);
+        cb_extract_bucket_settings(resp.bucket, res);
 
         return res;
     } while (false);
@@ -3904,26 +3797,19 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE timeout)
 }
 
 static void
-cb__extract_role(const couchbase::operations::rbac::role_and_description& entry, VALUE role)
+cb_extract_role(const couchbase::operations::rbac::role_and_description& entry, VALUE role)
 {
-    rb_hash_aset(role, rb_id2sym(rb_intern("name")), rb_external_str_new(entry.name.data(), static_cast<long>(entry.name.size())));
-    rb_hash_aset(role,
-                 rb_id2sym(rb_intern("display_name")),
-                 rb_external_str_new(entry.display_name.data(), static_cast<long>(entry.display_name.size())));
-    rb_hash_aset(role,
-                 rb_id2sym(rb_intern("description")),
-                 rb_external_str_new(entry.description.data(), static_cast<long>(entry.description.size())));
+    rb_hash_aset(role, rb_id2sym(rb_intern("name")), cb_str_new(entry.name));
+    rb_hash_aset(role, rb_id2sym(rb_intern("display_name")), cb_str_new(entry.display_name));
+    rb_hash_aset(role, rb_id2sym(rb_intern("description")), cb_str_new(entry.description));
     if (entry.bucket) {
-        rb_hash_aset(
-          role, rb_id2sym(rb_intern("bucket")), rb_external_str_new(entry.bucket->data(), static_cast<long>(entry.bucket->size())));
+        rb_hash_aset(role, rb_id2sym(rb_intern("bucket")), cb_str_new(entry.bucket.value()));
     }
     if (entry.scope) {
-        rb_hash_aset(role, rb_id2sym(rb_intern("scope")), rb_external_str_new(entry.scope->data(), static_cast<long>(entry.scope->size())));
+        rb_hash_aset(role, rb_id2sym(rb_intern("scope")), cb_str_new(entry.scope.value()));
     }
     if (entry.collection) {
-        rb_hash_aset(role,
-                     rb_id2sym(rb_intern("collection")),
-                     rb_external_str_new(entry.collection->data(), static_cast<long>(entry.collection->size())));
+        rb_hash_aset(role, rb_id2sym(rb_intern("collection")), cb_str_new(entry.collection.value()));
     }
 }
 
@@ -3941,7 +3827,7 @@ cb_Backend_role_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::role_get_all_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3951,14 +3837,14 @@ cb_Backend_role_get_all(VALUE self, VALUE timeout)
           req, [barrier](couchbase::operations::role_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to fetch roles");
+            exc = cb_map_error_code(resp.ctx, "unable to fetch roles");
             break;
         }
 
         VALUE res = rb_ary_new_capa(static_cast<long>(resp.roles.size()));
         for (const auto& entry : resp.roles) {
             VALUE role = rb_hash_new();
-            cb__extract_role(entry, role);
+            cb_extract_role(entry, role);
             rb_ary_push(res, role);
         }
         return res;
@@ -3968,10 +3854,9 @@ cb_Backend_role_get_all(VALUE self, VALUE timeout)
 }
 
 static void
-cb__extract_user(const couchbase::operations::rbac::user_and_metadata& entry, VALUE user)
+cb_extract_user(const couchbase::operations::rbac::user_and_metadata& entry, VALUE user)
 {
-    rb_hash_aset(
-      user, rb_id2sym(rb_intern("username")), rb_external_str_new(entry.username.data(), static_cast<long>(entry.username.size())));
+    rb_hash_aset(user, rb_id2sym(rb_intern("username")), cb_str_new(entry.username));
     switch (entry.domain) {
         case couchbase::operations::rbac::auth_domain::local:
             rb_hash_aset(user, rb_id2sym(rb_intern("domain")), rb_id2sym(rb_intern("local")));
@@ -3984,47 +3869,39 @@ cb__extract_user(const couchbase::operations::rbac::user_and_metadata& entry, VA
     }
     VALUE external_groups = rb_ary_new_capa(static_cast<long>(entry.external_groups.size()));
     for (const auto& group : entry.external_groups) {
-        rb_ary_push(external_groups, rb_external_str_new(group.data(), static_cast<long>(group.size())));
+        rb_ary_push(external_groups, cb_str_new(group));
     }
     rb_hash_aset(user, rb_id2sym(rb_intern("external_groups")), external_groups);
     VALUE groups = rb_ary_new_capa(static_cast<long>(entry.groups.size()));
     for (const auto& group : entry.groups) {
-        rb_ary_push(groups, rb_external_str_new(group.data(), static_cast<long>(group.size())));
+        rb_ary_push(groups, cb_str_new(group));
     }
     rb_hash_aset(user, rb_id2sym(rb_intern("groups")), groups);
     if (entry.display_name) {
-        rb_hash_aset(user,
-                     rb_id2sym(rb_intern("display_name")),
-                     rb_external_str_new(entry.display_name->data(), static_cast<long>(entry.display_name->size())));
+        rb_hash_aset(user, rb_id2sym(rb_intern("display_name")), cb_str_new(entry.display_name.value()));
     }
     if (entry.password_changed) {
-        rb_hash_aset(user,
-                     rb_id2sym(rb_intern("password_changed")),
-                     rb_external_str_new(entry.password_changed->data(), static_cast<long>(entry.password_changed->size())));
+        rb_hash_aset(user, rb_id2sym(rb_intern("password_changed")), cb_str_new(entry.password_changed.value()));
     }
     VALUE effective_roles = rb_ary_new_capa(static_cast<long>(entry.effective_roles.size()));
     for (const auto& er : entry.effective_roles) {
         VALUE role = rb_hash_new();
-        rb_hash_aset(role, rb_id2sym(rb_intern("name")), rb_external_str_new(er.name.data(), static_cast<long>(er.name.size())));
+        rb_hash_aset(role, rb_id2sym(rb_intern("name")), cb_str_new(er.name));
         if (er.bucket) {
-            rb_hash_aset(
-              role, rb_id2sym(rb_intern("bucket")), rb_external_str_new(er.bucket->data(), static_cast<long>(er.bucket->size())));
+            rb_hash_aset(role, rb_id2sym(rb_intern("bucket")), cb_str_new(er.bucket.value()));
         }
         if (er.scope) {
-            rb_hash_aset(role, rb_id2sym(rb_intern("scope")), rb_external_str_new(er.scope->data(), static_cast<long>(er.scope->size())));
+            rb_hash_aset(role, rb_id2sym(rb_intern("scope")), cb_str_new(er.scope.value()));
         }
         if (er.collection) {
-            rb_hash_aset(role,
-                         rb_id2sym(rb_intern("collection")),
-                         rb_external_str_new(er.collection->data(), static_cast<long>(er.collection->size())));
+            rb_hash_aset(role, rb_id2sym(rb_intern("collection")), cb_str_new(er.collection.value()));
         }
         VALUE origins = rb_ary_new_capa(static_cast<long>(er.origins.size()));
         for (const auto& orig : er.origins) {
             VALUE origin = rb_hash_new();
-            rb_hash_aset(origin, rb_id2sym(rb_intern("type")), rb_external_str_new(orig.type.data(), static_cast<long>(orig.type.size())));
+            rb_hash_aset(origin, rb_id2sym(rb_intern("type")), cb_str_new(orig.type));
             if (orig.name) {
-                rb_hash_aset(
-                  origin, rb_id2sym(rb_intern("name")), rb_external_str_new(orig.name->data(), static_cast<long>(orig.name->size())));
+                rb_hash_aset(origin, rb_id2sym(rb_intern("name")), cb_str_new(orig.name.value()));
             }
             rb_ary_push(origins, origin);
         }
@@ -4036,18 +3913,15 @@ cb__extract_user(const couchbase::operations::rbac::user_and_metadata& entry, VA
     VALUE roles = rb_ary_new_capa(static_cast<long>(entry.roles.size()));
     for (const auto& er : entry.roles) {
         VALUE role = rb_hash_new();
-        rb_hash_aset(role, rb_id2sym(rb_intern("name")), rb_external_str_new(er.name.data(), static_cast<long>(er.name.size())));
+        rb_hash_aset(role, rb_id2sym(rb_intern("name")), cb_str_new(er.name));
         if (er.bucket) {
-            rb_hash_aset(
-              role, rb_id2sym(rb_intern("bucket")), rb_external_str_new(er.bucket->data(), static_cast<long>(er.bucket->size())));
+            rb_hash_aset(role, rb_id2sym(rb_intern("bucket")), cb_str_new(er.bucket.value()));
         }
         if (er.scope) {
-            rb_hash_aset(role, rb_id2sym(rb_intern("scope")), rb_external_str_new(er.scope->data(), static_cast<long>(er.scope->size())));
+            rb_hash_aset(role, rb_id2sym(rb_intern("scope")), cb_str_new(er.scope.value()));
         }
         if (er.collection) {
-            rb_hash_aset(role,
-                         rb_id2sym(rb_intern("collection")),
-                         rb_external_str_new(er.collection->data(), static_cast<long>(er.collection->size())));
+            rb_hash_aset(role, rb_id2sym(rb_intern("collection")), cb_str_new(er.collection.value()));
         }
         rb_ary_push(roles, role);
     }
@@ -4070,7 +3944,7 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::user_get_all_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4088,14 +3962,14 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
           req, [barrier](couchbase::operations::user_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to fetch users");
+            exc = cb_map_error_code(resp.ctx, "unable to fetch users");
             break;
         }
 
         VALUE res = rb_ary_new_capa(static_cast<long>(resp.users.size()));
         for (const auto& entry : resp.users) {
             VALUE user = rb_hash_new();
-            cb__extract_user(entry, user);
+            cb_extract_user(entry, user);
             rb_ary_push(res, user);
         }
         return res;
@@ -4121,7 +3995,7 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::user_get_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4140,12 +4014,12 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
                                        [barrier](couchbase::operations::user_get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, fmt::format(R"(unable to fetch user "{}")", req.username));
+            exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to fetch user "{}")", req.username));
             break;
         }
 
         VALUE res = rb_hash_new();
-        cb__extract_user(resp.user, res);
+        cb_extract_user(resp.user, res);
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -4169,7 +4043,7 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::user_drop_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4188,7 +4062,7 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
                                        [barrier](couchbase::operations::user_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, fmt::format(R"(unable to fetch user "{}")", req.username));
+            exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to fetch user "{}")", req.username));
             break;
         }
 
@@ -4215,7 +4089,7 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::user_upsert_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4284,8 +4158,8 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
                                        [barrier](couchbase::operations::user_upsert_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx,
-                                     fmt::format(R"(unable to upsert user "{}" ({}))", req.user.username, fmt::join(resp.errors, ", ")));
+            exc = cb_map_error_code(resp.ctx,
+                                    fmt::format(R"(unable to upsert user "{}" ({}))", req.user.username, fmt::join(resp.errors, ", ")));
             break;
         }
 
@@ -4296,34 +4170,27 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
 }
 
 static void
-cb__extract_group(const couchbase::operations::rbac::group& entry, VALUE group)
+cb_extract_group(const couchbase::operations::rbac::group& entry, VALUE group)
 {
-    rb_hash_aset(group, rb_id2sym(rb_intern("name")), rb_external_str_new(entry.name.data(), static_cast<long>(entry.name.size())));
+    rb_hash_aset(group, rb_id2sym(rb_intern("name")), cb_str_new(entry.name));
     if (entry.description) {
-        rb_hash_aset(group,
-                     rb_id2sym(rb_intern("description")),
-                     rb_external_str_new(entry.description->data(), static_cast<long>(entry.description->size())));
+        rb_hash_aset(group, rb_id2sym(rb_intern("description")), cb_str_new(entry.description.value()));
     }
     if (entry.ldap_group_reference) {
-        rb_hash_aset(group,
-                     rb_id2sym(rb_intern("ldap_group_reference")),
-                     rb_external_str_new(entry.ldap_group_reference->data(), static_cast<long>(entry.ldap_group_reference->size())));
+        rb_hash_aset(group, rb_id2sym(rb_intern("ldap_group_reference")), cb_str_new(entry.ldap_group_reference.value()));
     }
     VALUE roles = rb_ary_new_capa(static_cast<long>(entry.roles.size()));
     for (const auto& er : entry.roles) {
         VALUE role = rb_hash_new();
-        rb_hash_aset(role, rb_id2sym(rb_intern("name")), rb_external_str_new(er.name.data(), static_cast<long>(er.name.size())));
+        rb_hash_aset(role, rb_id2sym(rb_intern("name")), cb_str_new(er.name));
         if (er.bucket) {
-            rb_hash_aset(
-              role, rb_id2sym(rb_intern("bucket")), rb_external_str_new(er.bucket->data(), static_cast<long>(er.bucket->size())));
+            rb_hash_aset(role, rb_id2sym(rb_intern("bucket")), cb_str_new(er.bucket.value()));
         }
         if (er.scope) {
-            rb_hash_aset(role, rb_id2sym(rb_intern("scope")), rb_external_str_new(er.scope->data(), static_cast<long>(er.scope->size())));
+            rb_hash_aset(role, rb_id2sym(rb_intern("scope")), cb_str_new(er.scope.value()));
         }
         if (er.collection) {
-            rb_hash_aset(role,
-                         rb_id2sym(rb_intern("collection")),
-                         rb_external_str_new(er.collection->data(), static_cast<long>(er.collection->size())));
+            rb_hash_aset(role, rb_id2sym(rb_intern("collection")), cb_str_new(er.collection.value()));
         }
         rb_ary_push(roles, role);
     }
@@ -4344,7 +4211,7 @@ cb_Backend_group_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::group_get_all_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4354,14 +4221,14 @@ cb_Backend_group_get_all(VALUE self, VALUE timeout)
           req, [barrier](couchbase::operations::group_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to fetch groups");
+            exc = cb_map_error_code(resp.ctx, "unable to fetch groups");
             break;
         }
 
         VALUE res = rb_ary_new_capa(static_cast<long>(resp.groups.size()));
         for (const auto& entry : resp.groups) {
             VALUE group = rb_hash_new();
-            cb__extract_group(entry, group);
+            cb_extract_group(entry, group);
             rb_ary_push(res, group);
         }
         return res;
@@ -4386,7 +4253,7 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::group_get_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4397,12 +4264,12 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
                                        [barrier](couchbase::operations::group_get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, fmt::format(R"(unable to fetch group "{}")", req.name));
+            exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to fetch group "{}")", req.name));
             break;
         }
 
         VALUE res = rb_hash_new();
-        cb__extract_group(resp.group, res);
+        cb_extract_group(resp.group, res);
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -4425,7 +4292,7 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::group_drop_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4436,7 +4303,7 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
                                        [barrier](couchbase::operations::group_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, fmt::format(R"(unable to drop group "{}")", req.name));
+            exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to drop group "{}")", req.name));
             break;
         }
 
@@ -4462,7 +4329,7 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::group_upsert_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4512,8 +4379,8 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
           req, [barrier](couchbase::operations::group_upsert_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx,
-                                     fmt::format(R"(unable to upsert group "{}" ({}))", req.group.name, fmt::join(resp.errors, ", ")));
+            exc =
+              cb_map_error_code(resp.ctx, fmt::format(R"(unable to upsert group "{}" ({}))", req.group.name, fmt::join(resp.errors, ", ")));
             break;
         }
 
@@ -4543,7 +4410,7 @@ cb_Backend_cluster_enable_developer_preview(VALUE self)
           req, [barrier](couchbase::operations::cluster_developer_preview_enable_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to enable developer preview for this cluster");
+            exc = cb_map_error_code(resp.ctx, "unable to enable developer preview for this cluster");
             break;
         }
         spdlog::critical(
@@ -4571,7 +4438,7 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::scope_get_all_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4582,7 +4449,7 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
           req, [barrier](couchbase::operations::scope_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, fmt::format("unable to get list of the scopes of the bucket \"{}\"", req.bucket_name));
+            exc = cb_map_error_code(resp.ctx, fmt::format("unable to get list of the scopes of the bucket \"{}\"", req.bucket_name));
             break;
         }
 
@@ -4592,13 +4459,12 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
         for (const auto& s : resp.manifest.scopes) {
             VALUE scope = rb_hash_new();
             rb_hash_aset(scope, rb_id2sym(rb_intern("uid")), ULL2NUM(s.uid));
-            rb_hash_aset(scope, rb_id2sym(rb_intern("name")), rb_external_str_new(s.name.data(), static_cast<long>(s.name.size())));
+            rb_hash_aset(scope, rb_id2sym(rb_intern("name")), cb_str_new(s.name));
             VALUE collections = rb_ary_new_capa(static_cast<long>(s.collections.size()));
             for (const auto& c : s.collections) {
                 VALUE collection = rb_hash_new();
                 rb_hash_aset(collection, rb_id2sym(rb_intern("uid")), ULL2NUM(c.uid));
-                rb_hash_aset(
-                  collection, rb_id2sym(rb_intern("name")), rb_external_str_new(c.name.data(), static_cast<long>(c.name.size())));
+                rb_hash_aset(collection, rb_id2sym(rb_intern("name")), cb_str_new(c.name));
                 rb_ary_push(collections, collection);
             }
             rb_hash_aset(scope, rb_id2sym(rb_intern("collections")), collections);
@@ -4628,7 +4494,7 @@ cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout
     VALUE exc = Qnil;
     do {
         couchbase::operations::collections_manifest_get_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4639,7 +4505,7 @@ cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout
           req, [barrier](couchbase::operations::collections_manifest_get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, fmt::format("unable to get collections manifest of the bucket \"{}\"", req.id.bucket));
+            exc = cb_map_error_code(resp.ctx, fmt::format("unable to get collections manifest of the bucket \"{}\"", req.id.bucket));
             break;
         }
 
@@ -4649,13 +4515,12 @@ cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout
         for (const auto& s : resp.manifest.scopes) {
             VALUE scope = rb_hash_new();
             rb_hash_aset(scope, rb_id2sym(rb_intern("uid")), ULL2NUM(s.uid));
-            rb_hash_aset(scope, rb_id2sym(rb_intern("name")), rb_external_str_new(s.name.data(), static_cast<long>(s.name.size())));
+            rb_hash_aset(scope, rb_id2sym(rb_intern("name")), cb_str_new(s.name));
             VALUE collections = rb_ary_new_capa(static_cast<long>(s.collections.size()));
             for (const auto& c : s.collections) {
                 VALUE collection = rb_hash_new();
                 rb_hash_aset(collection, rb_id2sym(rb_intern("uid")), ULL2NUM(c.uid));
-                rb_hash_aset(
-                  collection, rb_id2sym(rb_intern("name")), rb_external_str_new(c.name.data(), static_cast<long>(c.name.size())));
+                rb_hash_aset(collection, rb_id2sym(rb_intern("name")), cb_str_new(c.name));
                 rb_ary_push(collections, collection);
             }
             rb_hash_aset(scope, rb_id2sym(rb_intern("collections")), collections);
@@ -4686,7 +4551,7 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE t
     VALUE exc = Qnil;
     do {
         couchbase::operations::scope_create_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4698,8 +4563,8 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE t
           req, [barrier](couchbase::operations::scope_create_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx,
-                                     fmt::format(R"(unable to create the scope "{}" on the bucket "{}")", req.scope_name, req.bucket_name));
+            exc = cb_map_error_code(resp.ctx,
+                                    fmt::format(R"(unable to create the scope "{}" on the bucket "{}")", req.scope_name, req.bucket_name));
             break;
         }
         return ULL2NUM(resp.uid);
@@ -4725,7 +4590,7 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE tim
     VALUE exc = Qnil;
     do {
         couchbase::operations::scope_drop_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4737,8 +4602,8 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE tim
                                        [barrier](couchbase::operations::scope_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx,
-                                     fmt::format(R"(unable to drop the scope "{}" on the bucket "{}")", req.scope_name, req.bucket_name));
+            exc = cb_map_error_code(resp.ctx,
+                                    fmt::format(R"(unable to drop the scope "{}" on the bucket "{}")", req.scope_name, req.bucket_name));
             break;
         }
         return ULL2NUM(resp.uid);
@@ -4765,7 +4630,7 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
     VALUE exc = Qnil;
     do {
         couchbase::operations::collection_create_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4783,7 +4648,7 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
           req, [barrier](couchbase::operations::collection_create_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(
+            exc = cb_map_error_code(
               resp.ctx,
               fmt::format(
                 R"(unable create the collection "{}.{}" on the bucket "{}")", req.scope_name, req.collection_name, req.bucket_name));
@@ -4813,7 +4678,7 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
     VALUE exc = Qnil;
     do {
         couchbase::operations::collection_drop_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4827,7 +4692,7 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
           req, [barrier](couchbase::operations::collection_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(
+            exc = cb_map_error_code(
               resp.ctx,
               fmt::format(
                 R"(unable to drop the collection  "{}.{}" on the bucket "{}")", req.scope_name, req.collection_name, req.bucket_name));
@@ -4855,7 +4720,7 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_get_all_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4866,48 +4731,36 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
           req, [barrier](couchbase::operations::query_index_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, fmt::format("unable to get list of the indexes of the bucket \"{}\"", req.bucket_name));
+            exc = cb_map_error_code(resp.ctx, fmt::format("unable to get list of the indexes of the bucket \"{}\"", req.bucket_name));
             break;
         }
 
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         VALUE indexes = rb_ary_new_capa(static_cast<long>(resp.indexes.size()));
         for (const auto& idx : resp.indexes) {
             VALUE index = rb_hash_new();
-            rb_hash_aset(index, rb_id2sym(rb_intern("id")), rb_external_str_new(idx.id.data(), static_cast<long>(idx.id.size())));
-            rb_hash_aset(index, rb_id2sym(rb_intern("state")), rb_external_str_new(idx.state.data(), static_cast<long>(idx.state.size())));
-            rb_hash_aset(index, rb_id2sym(rb_intern("name")), rb_external_str_new(idx.name.data(), static_cast<long>(idx.name.size())));
-            rb_hash_aset(index,
-                         rb_id2sym(rb_intern("datastore_id")),
-                         rb_external_str_new(idx.datastore_id.data(), static_cast<long>(idx.datastore_id.size())));
-            rb_hash_aset(index,
-                         rb_id2sym(rb_intern("keyspace_id")),
-                         rb_external_str_new(idx.keyspace_id.data(), static_cast<long>(idx.keyspace_id.size())));
-            rb_hash_aset(index,
-                         rb_id2sym(rb_intern("namespace_id")),
-                         rb_external_str_new(idx.namespace_id.data(), static_cast<long>(idx.namespace_id.size())));
-            rb_hash_aset(index, rb_id2sym(rb_intern("type")), rb_external_str_new(idx.type.data(), static_cast<long>(idx.type.size())));
+            rb_hash_aset(index, rb_id2sym(rb_intern("id")), cb_str_new(idx.id));
+            rb_hash_aset(index, rb_id2sym(rb_intern("state")), cb_str_new(idx.state));
+            rb_hash_aset(index, rb_id2sym(rb_intern("name")), cb_str_new(idx.name));
+            rb_hash_aset(index, rb_id2sym(rb_intern("datastore_id")), cb_str_new(idx.datastore_id));
+            rb_hash_aset(index, rb_id2sym(rb_intern("keyspace_id")), cb_str_new(idx.keyspace_id));
+            rb_hash_aset(index, rb_id2sym(rb_intern("namespace_id")), cb_str_new(idx.namespace_id));
+            rb_hash_aset(index, rb_id2sym(rb_intern("type")), cb_str_new(idx.type));
             rb_hash_aset(index, rb_id2sym(rb_intern("is_primary")), idx.is_primary ? Qtrue : Qfalse);
             VALUE index_key = rb_ary_new_capa(static_cast<long>(idx.index_key.size()));
             for (const auto& key : idx.index_key) {
-                rb_ary_push(index_key, rb_external_str_new(key.data(), static_cast<long>(key.size())));
+                rb_ary_push(index_key, cb_str_new(key));
             }
             rb_hash_aset(index, rb_id2sym(rb_intern("index_key")), index_key);
             if (idx.scope_id) {
-                rb_hash_aset(index,
-                             rb_id2sym(rb_intern("scope_id")),
-                             rb_external_str_new(idx.scope_id->data(), static_cast<long>(idx.scope_id->size())));
+                rb_hash_aset(index, rb_id2sym(rb_intern("scope_id")), cb_str_new(idx.scope_id.value()));
             }
             if (idx.bucket_id) {
-                rb_hash_aset(index,
-                             rb_id2sym(rb_intern("bucket_id")),
-                             rb_external_str_new(idx.bucket_id->data(), static_cast<long>(idx.bucket_id->size())));
+                rb_hash_aset(index, rb_id2sym(rb_intern("bucket_id")), cb_str_new(idx.bucket_id.value()));
             }
             if (idx.condition) {
-                rb_hash_aset(index,
-                             rb_id2sym(rb_intern("condition")),
-                             rb_external_str_new(idx.condition->data(), static_cast<long>(idx.condition->size())));
+                rb_hash_aset(index, rb_id2sym(rb_intern("condition")), cb_str_new(idx.condition.value()));
             }
             rb_ary_push(indexes, index);
         }
@@ -4938,7 +4791,7 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_create_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4991,27 +4844,26 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format(R"(unable to create index "{}" on the bucket "{}" ({}: {}))",
-                                                     req.index_name,
-                                                     req.bucket_name,
-                                                     first_error.code,
-                                                     first_error.message));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format(R"(unable to create index "{}" on the bucket "{}" ({}: {}))",
+                                                    req.index_name,
+                                                    req.bucket_name,
+                                                    first_error.code,
+                                                    first_error.message));
             } else {
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format(R"(unable to create index "{}" on the bucket "{}")", req.index_name, req.bucket_name));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format(R"(unable to create index "{}" on the bucket "{}")", req.index_name, req.bucket_name));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         if (!resp.errors.empty()) {
             VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
             for (const auto& err : resp.errors) {
                 VALUE error = rb_hash_new();
                 rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
-                rb_hash_aset(
-                  error, rb_id2sym(rb_intern("message")), rb_external_str_new(err.message.data(), static_cast<long>(err.message.size())));
+                rb_hash_aset(error, rb_id2sym(rb_intern("message")), cb_str_new(err.message));
                 rb_ary_push(errors, error);
             }
             rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
@@ -5039,7 +4891,7 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_drop_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5071,27 +4923,26 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format(R"(unable to drop index "{}" on the bucket "{}" ({}: {}))",
-                                                     req.index_name,
-                                                     req.bucket_name,
-                                                     first_error.code,
-                                                     first_error.message));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format(R"(unable to drop index "{}" on the bucket "{}" ({}: {}))",
+                                                    req.index_name,
+                                                    req.bucket_name,
+                                                    first_error.code,
+                                                    first_error.message));
             } else {
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format(R"(unable to drop index "{}" on the bucket "{}")", req.index_name, req.bucket_name));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format(R"(unable to drop index "{}" on the bucket "{}")", req.index_name, req.bucket_name));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         if (!resp.errors.empty()) {
             VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
             for (const auto& err : resp.errors) {
                 VALUE error = rb_hash_new();
                 rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
-                rb_hash_aset(
-                  error, rb_id2sym(rb_intern("message")), rb_external_str_new(err.message.data(), static_cast<long>(err.message.size())));
+                rb_hash_aset(error, rb_id2sym(rb_intern("message")), cb_str_new(err.message));
                 rb_ary_push(errors, error);
             }
             rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
@@ -5121,7 +4972,7 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_create_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5167,26 +5018,25 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format(R"(unable to create primary index on the bucket "{}" ({}: {}))",
-                                                     req.bucket_name,
-                                                     first_error.code,
-                                                     first_error.message));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format(R"(unable to create primary index on the bucket "{}" ({}: {}))",
+                                                    req.bucket_name,
+                                                    first_error.code,
+                                                    first_error.message));
             } else {
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx, fmt::format(R"(unable to create primary index on the bucket "{}")", req.index_name, req.bucket_name));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         if (!resp.errors.empty()) {
             VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
             for (const auto& err : resp.errors) {
                 VALUE error = rb_hash_new();
                 rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
-                rb_hash_aset(
-                  error, rb_id2sym(rb_intern("message")), rb_external_str_new(err.message.data(), static_cast<long>(err.message.size())));
+                rb_hash_aset(error, rb_id2sym(rb_intern("message")), cb_str_new(err.message));
                 rb_ary_push(errors, error);
             }
             rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
@@ -5213,7 +5063,7 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_drop_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5251,24 +5101,23 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx,
                   fmt::format(
                     R"(unable to drop primary index on the bucket "{}" ({}: {}))", req.bucket_name, first_error.code, first_error.message));
             } else {
-                exc = cb__map_error_code(resp.ctx, fmt::format(R"(unable to drop primary index on the bucket "{}")", req.bucket_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to drop primary index on the bucket "{}")", req.bucket_name));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         if (!resp.errors.empty()) {
             VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
             for (const auto& err : resp.errors) {
                 VALUE error = rb_hash_new();
                 rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
-                rb_hash_aset(
-                  error, rb_id2sym(rb_intern("message")), rb_external_str_new(err.message.data(), static_cast<long>(err.message.size())));
+                rb_hash_aset(error, rb_id2sym(rb_intern("message")), cb_str_new(err.message));
                 rb_ary_push(errors, error);
             }
             rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
@@ -5295,7 +5144,7 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE timeo
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_build_deferred_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5308,14 +5157,14 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE timeo
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx,
                   fmt::format(
                     R"(unable to drop primary index on the bucket "{}" ({}: {}))", req.bucket_name, first_error.code, first_error.message));
 
             } else {
-                exc = cb__map_error_code(
-                  resp.ctx, fmt::format("unable to trigger build for deferred indexes for the bucket \"{}\"", req.bucket_name));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to trigger build for deferred indexes for the bucket \"{}\"", req.bucket_name));
             }
             break;
         }
@@ -5347,37 +5196,27 @@ cb_Backend_query_index_watch(VALUE self, VALUE bucket_name, VALUE index_names, V
 }
 
 static void
-cb__extract_search_index(VALUE index, const couchbase::operations::search_index& idx)
+cb_extract_search_index(VALUE index, const couchbase::operations::search_index& idx)
 {
-    rb_hash_aset(index, rb_id2sym(rb_intern("uuid")), rb_external_str_new(idx.uuid.data(), static_cast<long>(idx.uuid.size())));
-    rb_hash_aset(index, rb_id2sym(rb_intern("name")), rb_external_str_new(idx.name.data(), static_cast<long>(idx.name.size())));
-    rb_hash_aset(index, rb_id2sym(rb_intern("type")), rb_external_str_new(idx.type.data(), static_cast<long>(idx.type.size())));
+    rb_hash_aset(index, rb_id2sym(rb_intern("uuid")), cb_str_new(idx.uuid));
+    rb_hash_aset(index, rb_id2sym(rb_intern("name")), cb_str_new(idx.name));
+    rb_hash_aset(index, rb_id2sym(rb_intern("type")), cb_str_new(idx.type));
     if (!idx.params_json.empty()) {
-        rb_hash_aset(
-          index, rb_id2sym(rb_intern("params")), rb_external_str_new(idx.params_json.data(), static_cast<long>(idx.params_json.size())));
+        rb_hash_aset(index, rb_id2sym(rb_intern("params")), cb_str_new(idx.params_json));
     }
 
     if (!idx.source_uuid.empty()) {
-        rb_hash_aset(index,
-                     rb_id2sym(rb_intern("source_uuid")),
-                     rb_external_str_new(idx.source_uuid.data(), static_cast<long>(idx.source_uuid.size())));
+        rb_hash_aset(index, rb_id2sym(rb_intern("source_uuid")), cb_str_new(idx.source_uuid));
     }
     if (!idx.source_name.empty()) {
-        rb_hash_aset(index,
-                     rb_id2sym(rb_intern("source_name")),
-                     rb_external_str_new(idx.source_name.data(), static_cast<long>(idx.source_name.size())));
+        rb_hash_aset(index, rb_id2sym(rb_intern("source_name")), cb_str_new(idx.source_name));
     }
-    rb_hash_aset(
-      index, rb_id2sym(rb_intern("source_type")), rb_external_str_new(idx.source_type.data(), static_cast<long>(idx.source_type.size())));
+    rb_hash_aset(index, rb_id2sym(rb_intern("source_type")), cb_str_new(idx.source_type));
     if (!idx.source_params_json.empty()) {
-        rb_hash_aset(index,
-                     rb_id2sym(rb_intern("source_params")),
-                     rb_external_str_new(idx.source_params_json.data(), static_cast<long>(idx.source_params_json.size())));
+        rb_hash_aset(index, rb_id2sym(rb_intern("source_params")), cb_str_new(idx.source_params_json));
     }
     if (!idx.plan_params_json.empty()) {
-        rb_hash_aset(index,
-                     rb_id2sym(rb_intern("plan_params")),
-                     rb_external_str_new(idx.plan_params_json.data(), static_cast<long>(idx.plan_params_json.size())));
+        rb_hash_aset(index, rb_id2sym(rb_intern("plan_params")), cb_str_new(idx.plan_params_json));
     }
 }
 
@@ -5395,7 +5234,7 @@ cb_Backend_search_index_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_get_all_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5405,18 +5244,16 @@ cb_Backend_search_index_get_all(VALUE self, VALUE timeout)
           req, [barrier](couchbase::operations::search_index_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to get list of the search indexes");
+            exc = cb_map_error_code(resp.ctx, "unable to get list of the search indexes");
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
-        rb_hash_aset(res,
-                     rb_id2sym(rb_intern("impl_version")),
-                     rb_external_str_new(resp.impl_version.data(), static_cast<long>(resp.impl_version.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
+        rb_hash_aset(res, rb_id2sym(rb_intern("impl_version")), cb_str_new(resp.impl_version));
         VALUE indexes = rb_ary_new_capa(static_cast<long>(resp.indexes.size()));
         for (const auto& idx : resp.indexes) {
             VALUE index = rb_hash_new();
-            cb__extract_search_index(index, idx);
+            cb_extract_search_index(index, idx);
             rb_ary_push(indexes, index);
         }
         rb_hash_aset(res, rb_id2sym(rb_intern("indexes")), indexes);
@@ -5441,7 +5278,7 @@ cb_Backend_search_index_get(VALUE self, VALUE index_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_get_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5453,14 +5290,14 @@ cb_Backend_search_index_get(VALUE self, VALUE index_name, VALUE timeout)
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to get search index \"{}\"", req.index_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to get search index \"{}\"", req.index_name));
             } else {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to get search index \"{}\": {}", req.index_name, resp.error));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to get search index \"{}\": {}", req.index_name, resp.error));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        cb__extract_search_index(res, resp.index);
+        cb_extract_search_index(res, resp.index);
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -5482,7 +5319,7 @@ cb_Backend_search_index_upsert(VALUE self, VALUE index_definition, VALUE timeout
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_upsert_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5542,14 +5379,14 @@ cb_Backend_search_index_upsert(VALUE self, VALUE index_definition, VALUE timeout
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to upsert the search index \"{}\"", req.index.name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to upsert the search index \"{}\"", req.index.name));
             } else {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to upsert the search index \"{}\": {}", req.index.name, resp.error));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to upsert the search index \"{}\": {}", req.index.name, resp.error));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -5571,7 +5408,7 @@ cb_Backend_search_index_drop(VALUE self, VALUE index_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_drop_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5583,14 +5420,14 @@ cb_Backend_search_index_drop(VALUE self, VALUE index_name, VALUE timeout)
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to drop the search index \"{}\"", req.index_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to drop the search index \"{}\"", req.index_name));
             } else {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to drop the search index \"{}\": {}", req.index_name, resp.error));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to drop the search index \"{}\": {}", req.index_name, resp.error));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -5612,7 +5449,7 @@ cb_Backend_search_index_get_documents_count(VALUE self, VALUE index_name, VALUE 
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_get_documents_count_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5624,17 +5461,17 @@ cb_Backend_search_index_get_documents_count(VALUE self, VALUE index_name, VALUE 
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx, fmt::format("unable to get number of the indexed documents for the search index \"{}\"", req.index_name));
             } else {
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx,
                   fmt::format("unable to get number of the indexed documents for the search index \"{}\": {}", req.index_name, resp.error));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         rb_hash_aset(res, rb_id2sym(rb_intern("count")), ULL2NUM(resp.count));
         return res;
     } while (false);
@@ -5657,7 +5494,7 @@ cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_get_stats_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5669,14 +5506,14 @@ cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to get stats for the search index \"{}\"", req.index_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to get stats for the search index \"{}\"", req.index_name));
             } else {
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format("unable to get stats for the search index \"{}\": {}", req.index_name, resp.error));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to get stats for the search index \"{}\": {}", req.index_name, resp.error));
             }
             break;
         }
-        return rb_external_str_new(resp.stats.data(), static_cast<long>(resp.stats.size()));
+        return cb_str_new(resp.stats);
     } while (false);
     rb_exc_raise(exc);
     return Qnil;
@@ -5696,7 +5533,7 @@ cb_Backend_search_get_stats(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_stats_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5706,10 +5543,10 @@ cb_Backend_search_get_stats(VALUE self, VALUE timeout)
           req, [barrier](couchbase::operations::search_index_stats_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to get stats for the search service");
+            exc = cb_map_error_code(resp.ctx, "unable to get stats for the search service");
             break;
         }
-        return rb_external_str_new(resp.stats.data(), static_cast<long>(resp.stats.size()));
+        return cb_str_new(resp.stats);
     } while (false);
     rb_exc_raise(exc);
     return Qnil;
@@ -5730,7 +5567,7 @@ cb_Backend_search_index_pause_ingest(VALUE self, VALUE index_name, VALUE timeout
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_ingest_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5743,15 +5580,15 @@ cb_Backend_search_index_pause_ingest(VALUE self, VALUE index_name, VALUE timeout
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to pause ingest for the search index \"{}\"", req.index_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to pause ingest for the search index \"{}\"", req.index_name));
             } else {
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format("unable to pause ingest for the search index \"{}\": {}", req.index_name, resp.error));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to pause ingest for the search index \"{}\": {}", req.index_name, resp.error));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -5773,7 +5610,7 @@ cb_Backend_search_index_resume_ingest(VALUE self, VALUE index_name, VALUE timeou
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_ingest_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5786,15 +5623,15 @@ cb_Backend_search_index_resume_ingest(VALUE self, VALUE index_name, VALUE timeou
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to resume ingest for the search index \"{}\"", req.index_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to resume ingest for the search index \"{}\"", req.index_name));
             } else {
-                exc = cb__map_error_code(
-                  resp.ctx, fmt::format("unable to resume ingest for the search index \"{}\": {}", req.index_name, resp.error));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to resume ingest for the search index \"{}\": {}", req.index_name, resp.error));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -5816,7 +5653,7 @@ cb_Backend_search_index_allow_querying(VALUE self, VALUE index_name, VALUE timeo
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_query_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5829,15 +5666,15 @@ cb_Backend_search_index_allow_querying(VALUE self, VALUE index_name, VALUE timeo
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to allow querying for the search index \"{}\"", req.index_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to allow querying for the search index \"{}\"", req.index_name));
             } else {
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx, fmt::format("unable to allow querying for the search index \"{}\": {}", req.index_name, resp.error));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -5859,7 +5696,7 @@ cb_Backend_search_index_disallow_querying(VALUE self, VALUE index_name, VALUE ti
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_query_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5872,15 +5709,15 @@ cb_Backend_search_index_disallow_querying(VALUE self, VALUE index_name, VALUE ti
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to disallow querying for the search index \"{}\"", req.index_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to disallow querying for the search index \"{}\"", req.index_name));
             } else {
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx, fmt::format("unable to disallow querying for the search index \"{}\": {}", req.index_name, resp.error));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -5902,7 +5739,7 @@ cb_Backend_search_index_freeze_plan(VALUE self, VALUE index_name, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_plan_freeze_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5915,15 +5752,15 @@ cb_Backend_search_index_freeze_plan(VALUE self, VALUE index_name, VALUE timeout)
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to freeze for the search index \"{}\"", req.index_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to freeze for the search index \"{}\"", req.index_name));
             } else {
                 exc =
-                  cb__map_error_code(resp.ctx, fmt::format("unable to freeze for the search index \"{}\": {}", req.index_name, resp.error));
+                  cb_map_error_code(resp.ctx, fmt::format("unable to freeze for the search index \"{}\": {}", req.index_name, resp.error));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -5945,7 +5782,7 @@ cb_Backend_search_index_unfreeze_plan(VALUE self, VALUE index_name, VALUE timeou
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_control_plan_freeze_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -5958,15 +5795,15 @@ cb_Backend_search_index_unfreeze_plan(VALUE self, VALUE index_name, VALUE timeou
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to unfreeze plan for the search index \"{}\"", req.index_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to unfreeze plan for the search index \"{}\"", req.index_name));
             } else {
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format("unable to unfreeze for the search index \"{}\": {}", req.index_name, resp.error));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to unfreeze for the search index \"{}\": {}", req.index_name, resp.error));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -5989,7 +5826,7 @@ cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE enc
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_analyze_document_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6004,17 +5841,16 @@ cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE enc
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to analyze document using the search index \"{}\"", req.index_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to analyze document using the search index \"{}\"", req.index_name));
             } else {
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx, fmt::format("unable to analyze document using the search index \"{}\": {}", req.index_name, resp.error));
             }
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("status")), rb_external_str_new(resp.status.data(), static_cast<long>(resp.status.size())));
-        rb_hash_aset(
-          res, rb_id2sym(rb_intern("analysis")), rb_external_str_new(resp.analysis.data(), static_cast<long>(resp.analysis.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
+        rb_hash_aset(res, rb_id2sym(rb_intern("analysis")), cb_str_new(resp.analysis));
         return res;
     } while (false);
     rb_exc_raise(exc);
@@ -6044,7 +5880,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
             Check_Type(client_context_id, T_STRING);
             req.client_context_id.assign(RSTRING_PTR(client_context_id), static_cast<size_t>(RSTRING_LEN(client_context_id)));
         }
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6182,7 +6018,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         VALUE raw_params = rb_hash_aref(options, rb_id2sym(rb_intern("raw_parameters")));
         if (!NIL_P(raw_params)) {
             Check_Type(raw_params, T_HASH);
-            rb_hash_foreach(raw_params, INT_FUNC(cb__for_each_named_param), reinterpret_cast<VALUE>(&req));
+            rb_hash_foreach(raw_params, INT_FUNC(cb_for_each_named_param), reinterpret_cast<VALUE>(&req));
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_response>>();
@@ -6191,16 +6027,13 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         auto resp = f.get();
         if (resp.ctx.ec) {
             exc =
-              cb__map_error_code(resp.ctx, fmt::format("unable to perform search query for index \"{}\": {}", req.index_name, resp.error));
+              cb_map_error_code(resp.ctx, fmt::format("unable to perform search query for index \"{}\": {}", req.index_name, resp.error));
             break;
         }
         VALUE res = rb_hash_new();
 
         VALUE meta_data = rb_hash_new();
-        rb_hash_aset(
-          meta_data,
-          rb_id2sym(rb_intern("client_context_id")),
-          rb_external_str_new(resp.meta_data.client_context_id.data(), static_cast<long>(resp.meta_data.client_context_id.size())));
+        rb_hash_aset(meta_data, rb_id2sym(rb_intern("client_context_id")), cb_str_new(resp.meta_data.client_context_id));
 
         VALUE metrics = rb_hash_new();
         rb_hash_aset(metrics,
@@ -6214,10 +6047,8 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
 
         if (!resp.meta_data.errors.empty()) {
             VALUE errors = rb_hash_new();
-            for (auto err : resp.meta_data.errors) {
-                rb_hash_aset(errors,
-                             rb_external_str_new(err.first.data(), static_cast<long>(err.first.size())),
-                             rb_external_str_new(err.second.data(), static_cast<long>(err.second.size())));
+            for (const auto& err : resp.meta_data.errors) {
+                rb_hash_aset(errors, cb_str_new(err.first), cb_str_new(err.second));
             }
             rb_hash_aset(meta_data, rb_id2sym(rb_intern("errors")), errors);
         }
@@ -6227,16 +6058,14 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         VALUE rows = rb_ary_new_capa(static_cast<long>(resp.rows.size()));
         for (const auto& entry : resp.rows) {
             VALUE row = rb_hash_new();
-            rb_hash_aset(
-              row, rb_id2sym(rb_intern("index")), rb_external_str_new(entry.index.data(), static_cast<long>(entry.index.size())));
-            rb_hash_aset(row, rb_id2sym(rb_intern("id")), rb_external_str_new(entry.id.data(), static_cast<long>(entry.id.size())));
+            rb_hash_aset(row, rb_id2sym(rb_intern("index")), cb_str_new(entry.index));
+            rb_hash_aset(row, rb_id2sym(rb_intern("id")), cb_str_new(entry.id));
             rb_hash_aset(row, rb_id2sym(rb_intern("score")), DBL2NUM(entry.score));
             VALUE locations = rb_ary_new_capa(static_cast<long>(entry.locations.size()));
             for (const auto& loc : entry.locations) {
                 VALUE location = rb_hash_new();
-                rb_hash_aset(
-                  row, rb_id2sym(rb_intern("field")), rb_external_str_new(loc.field.data(), static_cast<long>(loc.field.size())));
-                rb_hash_aset(row, rb_id2sym(rb_intern("term")), rb_external_str_new(loc.term.data(), static_cast<long>(loc.term.size())));
+                rb_hash_aset(row, rb_id2sym(rb_intern("field")), cb_str_new(loc.field));
+                rb_hash_aset(row, rb_id2sym(rb_intern("term")), cb_str_new(loc.term));
                 rb_hash_aset(row, rb_id2sym(rb_intern("pos")), ULL2NUM(loc.position));
                 rb_hash_aset(row, rb_id2sym(rb_intern("start_offset")), ULL2NUM(loc.start_offset));
                 rb_hash_aset(row, rb_id2sym(rb_intern("end_offset")), ULL2NUM(loc.end_offset));
@@ -6255,22 +6084,17 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
                 for (const auto& field_fragments : entry.fragments) {
                     VALUE fragments_list = rb_ary_new_capa(static_cast<long>(field_fragments.second.size()));
                     for (const auto& fragment : field_fragments.second) {
-                        rb_ary_push(fragments_list, rb_external_str_new(fragment.data(), static_cast<long>(fragment.size())));
+                        rb_ary_push(fragments_list, cb_str_new(fragment));
                     }
-                    rb_hash_aset(fragments,
-                                 rb_external_str_new(field_fragments.first.data(), static_cast<long>(field_fragments.first.size())),
-                                 fragments_list);
+                    rb_hash_aset(fragments, cb_str_new(field_fragments.first), fragments_list);
                 }
                 rb_hash_aset(row, rb_id2sym(rb_intern("fragments")), fragments);
             }
             if (!entry.fields.empty()) {
-                rb_hash_aset(
-                  row, rb_id2sym(rb_intern("fields")), rb_external_str_new(entry.fields.data(), static_cast<long>(entry.fields.size())));
+                rb_hash_aset(row, rb_id2sym(rb_intern("fields")), cb_str_new(entry.fields));
             }
             if (!entry.explanation.empty()) {
-                rb_hash_aset(row,
-                             rb_id2sym(rb_intern("explanation")),
-                             rb_external_str_new(entry.explanation.data(), static_cast<long>(entry.explanation.size())));
+                rb_hash_aset(row, rb_id2sym(rb_intern("explanation")), cb_str_new(entry.explanation));
             }
             rb_ary_push(rows, row);
         }
@@ -6280,10 +6104,9 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
             VALUE result_facets = rb_hash_new();
             for (const auto& entry : resp.facets) {
                 VALUE facet = rb_hash_new();
-                VALUE facet_name = rb_external_str_new(entry.name.data(), static_cast<long>(entry.name.size()));
+                VALUE facet_name = cb_str_new(entry.name);
                 rb_hash_aset(facet, rb_id2sym(rb_intern("name")), facet_name);
-                rb_hash_aset(
-                  facet, rb_id2sym(rb_intern("field")), rb_external_str_new(entry.field.data(), static_cast<long>(entry.field.size())));
+                rb_hash_aset(facet, rb_id2sym(rb_intern("field")), cb_str_new(entry.field));
                 rb_hash_aset(facet, rb_id2sym(rb_intern("total")), ULL2NUM(entry.total));
                 rb_hash_aset(facet, rb_id2sym(rb_intern("missing")), ULL2NUM(entry.missing));
                 rb_hash_aset(facet, rb_id2sym(rb_intern("other")), ULL2NUM(entry.other));
@@ -6291,8 +6114,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
                     VALUE terms = rb_ary_new_capa(static_cast<long>(entry.terms.size()));
                     for (const auto& item : entry.terms) {
                         VALUE term = rb_hash_new();
-                        rb_hash_aset(
-                          term, rb_id2sym(rb_intern("term")), rb_external_str_new(item.term.data(), static_cast<long>(item.term.size())));
+                        rb_hash_aset(term, rb_id2sym(rb_intern("term")), cb_str_new(item.term));
                         rb_hash_aset(term, rb_id2sym(rb_intern("count")), ULL2NUM(item.count));
                         rb_ary_push(terms, term);
                     }
@@ -6301,19 +6123,13 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
                     VALUE date_ranges = rb_ary_new_capa(static_cast<long>(entry.date_ranges.size()));
                     for (const auto& item : entry.date_ranges) {
                         VALUE date_range = rb_hash_new();
-                        rb_hash_aset(date_range,
-                                     rb_id2sym(rb_intern("name")),
-                                     rb_external_str_new(item.name.data(), static_cast<long>(item.name.size())));
+                        rb_hash_aset(date_range, rb_id2sym(rb_intern("name")), cb_str_new(item.name));
                         rb_hash_aset(date_range, rb_id2sym(rb_intern("count")), ULL2NUM(item.count));
                         if (item.start) {
-                            rb_hash_aset(date_range,
-                                         rb_id2sym(rb_intern("start_time")),
-                                         rb_external_str_new(item.start->data(), static_cast<long>(item.start->size())));
+                            rb_hash_aset(date_range, rb_id2sym(rb_intern("start_time")), cb_str_new(item.start.value()));
                         }
                         if (item.end) {
-                            rb_hash_aset(date_range,
-                                         rb_id2sym(rb_intern("end_time")),
-                                         rb_external_str_new(item.end->data(), static_cast<long>(item.end->size())));
+                            rb_hash_aset(date_range, rb_id2sym(rb_intern("end_time")), cb_str_new(item.end.value()));
                         }
                         rb_ary_push(date_ranges, date_range);
                     }
@@ -6322,9 +6138,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
                     VALUE numeric_ranges = rb_ary_new_capa(static_cast<long>(entry.numeric_ranges.size()));
                     for (const auto& item : entry.numeric_ranges) {
                         VALUE numeric_range = rb_hash_new();
-                        rb_hash_aset(numeric_range,
-                                     rb_id2sym(rb_intern("name")),
-                                     rb_external_str_new(item.name.data(), static_cast<long>(item.name.size())));
+                        rb_hash_aset(numeric_range, rb_id2sym(rb_intern("name")), cb_str_new(item.name));
                         rb_hash_aset(numeric_range, rb_id2sym(rb_intern("count")), ULL2NUM(item.count));
                         if (std::holds_alternative<double>(item.min)) {
                             rb_hash_aset(numeric_range, rb_id2sym(rb_intern("min")), DBL2NUM(std::get<double>(item.min)));
@@ -6387,16 +6201,14 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
         ctx.run();
         auto resp = f.get();
         if (resp.ec) {
-            exc = cb__map_error_code(resp.ec, fmt::format("DNS SRV query failure for name \"{}\" (service: {})", host_name, service_name));
+            exc = cb_map_error_code(resp.ec, fmt::format("DNS SRV query failure for name \"{}\" (service: {})", host_name, service_name));
             break;
         }
 
         VALUE res = rb_ary_new();
         for (const auto& target : resp.targets) {
             VALUE addr = rb_hash_new();
-            rb_hash_aset(addr,
-                         rb_id2sym(rb_intern("hostname")),
-                         rb_external_str_new(target.hostname.data(), static_cast<long>(target.hostname.size())));
+            rb_hash_aset(addr, rb_id2sym(rb_intern("hostname")), cb_str_new(target.hostname));
             rb_hash_aset(addr, rb_id2sym(rb_intern("port")), UINT2NUM(target.port));
             rb_ary_push(res, addr);
         }
@@ -6420,7 +6232,7 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_get_pending_mutations_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6431,10 +6243,10 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE timeout)
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
-                exc = cb__map_error_code(resp.ctx, "unable to get pending mutations for the analytics service");
+                exc = cb_map_error_code(resp.ctx, "unable to get pending mutations for the analytics service");
             } else {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx,
                   fmt::format("unable to get pending mutations for the analytics service ({}: {})", first_error.code, first_error.message));
             }
@@ -6442,7 +6254,7 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE timeout)
         }
         VALUE res = rb_hash_new();
         for (const auto& entry : resp.stats) {
-            rb_hash_aset(res, rb_external_str_new(entry.first.data(), static_cast<long>(entry.first.size())), ULL2NUM(entry.second));
+            rb_hash_aset(res, cb_str_new(entry.first), ULL2NUM(entry.second));
         }
         return res;
     } while (false);
@@ -6464,7 +6276,7 @@ cb_Backend_analytics_dataset_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataset_get_all_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6475,26 +6287,21 @@ cb_Backend_analytics_dataset_get_all(VALUE self, VALUE timeout)
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
-                exc = cb__map_error_code(resp.ctx, "unable to fetch all datasets");
+                exc = cb_map_error_code(resp.ctx, "unable to fetch all datasets");
             } else {
                 const auto& first_error = resp.errors.front();
                 exc =
-                  cb__map_error_code(resp.ctx, fmt::format("unable to fetch all datasets ({}: {})", first_error.code, first_error.message));
+                  cb_map_error_code(resp.ctx, fmt::format("unable to fetch all datasets ({}: {})", first_error.code, first_error.message));
             }
             break;
         }
         VALUE res = rb_ary_new_capa(static_cast<long>(resp.datasets.size()));
         for (const auto& ds : resp.datasets) {
             VALUE dataset = rb_hash_new();
-            rb_hash_aset(dataset, rb_id2sym(rb_intern("name")), rb_external_str_new(ds.name.data(), static_cast<long>(ds.name.size())));
-            rb_hash_aset(dataset,
-                         rb_id2sym(rb_intern("dataverse_name")),
-                         rb_external_str_new(ds.dataverse_name.data(), static_cast<long>(ds.dataverse_name.size())));
-            rb_hash_aset(
-              dataset, rb_id2sym(rb_intern("link_name")), rb_external_str_new(ds.link_name.data(), static_cast<long>(ds.link_name.size())));
-            rb_hash_aset(dataset,
-                         rb_id2sym(rb_intern("bucket_name")),
-                         rb_external_str_new(ds.bucket_name.data(), static_cast<long>(ds.bucket_name.size())));
+            rb_hash_aset(dataset, rb_id2sym(rb_intern("name")), cb_str_new(ds.name));
+            rb_hash_aset(dataset, rb_id2sym(rb_intern("dataverse_name")), cb_str_new(ds.dataverse_name));
+            rb_hash_aset(dataset, rb_id2sym(rb_intern("link_name")), cb_str_new(ds.link_name));
+            rb_hash_aset(dataset, rb_id2sym(rb_intern("bucket_name")), cb_str_new(ds.bucket_name));
             rb_ary_push(res, dataset);
         }
         return res;
@@ -6522,7 +6329,7 @@ cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE datavers
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataset_drop_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6540,15 +6347,15 @@ cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE datavers
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to drop dataset `{}`.`{}`", req.dataverse_name, req.dataset_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to drop dataset `{}`.`{}`", req.dataverse_name, req.dataset_name));
             } else {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format("unable to drop dataset `{}`.`{}` ({}: {})",
-                                                     req.dataverse_name,
-                                                     req.dataset_name,
-                                                     first_error.code,
-                                                     first_error.message));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to drop dataset `{}`.`{}` ({}: {})",
+                                                    req.dataverse_name,
+                                                    req.dataset_name,
+                                                    first_error.code,
+                                                    first_error.message));
             }
             break;
         }
@@ -6587,7 +6394,7 @@ cb_Backend_analytics_dataset_create(VALUE self,
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataset_create_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6609,15 +6416,15 @@ cb_Backend_analytics_dataset_create(VALUE self,
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to create dataset `{}`.`{}`", req.dataverse_name, req.dataset_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to create dataset `{}`.`{}`", req.dataverse_name, req.dataset_name));
             } else {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format("unable to create dataset `{}`.`{}` ({}: {})",
-                                                     req.dataverse_name,
-                                                     req.dataset_name,
-                                                     first_error.code,
-                                                     first_error.message));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to create dataset `{}`.`{}` ({}: {})",
+                                                    req.dataverse_name,
+                                                    req.dataset_name,
+                                                    first_error.code,
+                                                    first_error.message));
             }
             break;
         }
@@ -6643,7 +6450,7 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE igno
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataverse_drop_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6658,10 +6465,10 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE igno
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to drop dataverse `{}`", req.dataverse_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to drop dataverse `{}`", req.dataverse_name));
             } else {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx,
                   fmt::format("unable to drop dataverse `{}` ({}: {})", req.dataverse_name, first_error.code, first_error.message));
             }
@@ -6692,7 +6499,7 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE ig
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataverse_create_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6707,10 +6514,10 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE ig
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to create dataverse `{}`", req.dataverse_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to create dataverse `{}`", req.dataverse_name));
             } else {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx,
                   fmt::format("unable to create dataverse `{}` ({}: {})", req.dataverse_name, first_error.code, first_error.message));
             }
@@ -6736,7 +6543,7 @@ cb_Backend_analytics_index_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_index_get_all_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6747,24 +6554,20 @@ cb_Backend_analytics_index_get_all(VALUE self, VALUE timeout)
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
-                exc = cb__map_error_code(resp.ctx, "unable to fetch all indexes");
+                exc = cb_map_error_code(resp.ctx, "unable to fetch all indexes");
             } else {
                 const auto& first_error = resp.errors.front();
                 exc =
-                  cb__map_error_code(resp.ctx, fmt::format("unable to fetch all indexes ({}: {})", first_error.code, first_error.message));
+                  cb_map_error_code(resp.ctx, fmt::format("unable to fetch all indexes ({}: {})", first_error.code, first_error.message));
             }
             break;
         }
         VALUE res = rb_ary_new_capa(static_cast<long>(resp.indexes.size()));
         for (const auto& idx : resp.indexes) {
             VALUE index = rb_hash_new();
-            rb_hash_aset(index, rb_id2sym(rb_intern("name")), rb_external_str_new(idx.name.data(), static_cast<long>(idx.name.size())));
-            rb_hash_aset(index,
-                         rb_id2sym(rb_intern("dataset_name")),
-                         rb_external_str_new(idx.dataset_name.data(), static_cast<long>(idx.dataset_name.size())));
-            rb_hash_aset(index,
-                         rb_id2sym(rb_intern("dataverse_name")),
-                         rb_external_str_new(idx.dataverse_name.data(), static_cast<long>(idx.dataverse_name.size())));
+            rb_hash_aset(index, rb_id2sym(rb_intern("name")), cb_str_new(idx.name));
+            rb_hash_aset(index, rb_id2sym(rb_intern("dataset_name")), cb_str_new(idx.dataset_name));
+            rb_hash_aset(index, rb_id2sym(rb_intern("dataverse_name")), cb_str_new(idx.dataverse_name));
             rb_hash_aset(index, rb_id2sym(rb_intern("is_primary")), idx.is_primary ? Qtrue : Qfalse);
             rb_ary_push(res, index);
         }
@@ -6801,7 +6604,7 @@ cb_Backend_analytics_index_create(VALUE self,
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_index_create_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6831,17 +6634,17 @@ cb_Backend_analytics_index_create(VALUE self,
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx, fmt::format("unable to create index `{}` on `{}`.`{}`", req.index_name, req.dataverse_name, req.dataset_name));
             } else {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format("unable to create index `{}` on `{}`.`{}` ({}: {})",
-                                                     req.index_name,
-                                                     req.dataverse_name,
-                                                     req.dataset_name,
-                                                     first_error.code,
-                                                     first_error.message));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to create index `{}` on `{}`.`{}` ({}: {})",
+                                                    req.index_name,
+                                                    req.dataverse_name,
+                                                    req.dataset_name,
+                                                    first_error.code,
+                                                    first_error.message));
             }
             break;
         }
@@ -6876,7 +6679,7 @@ cb_Backend_analytics_index_drop(VALUE self,
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_index_drop_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6895,17 +6698,17 @@ cb_Backend_analytics_index_drop(VALUE self,
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
-                exc = cb__map_error_code(
+                exc = cb_map_error_code(
                   resp.ctx, fmt::format("unable to drop index `{}`.`{}`.`{}`", req.dataverse_name, req.dataset_name, req.index_name));
             } else {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format("unable to drop index `{}`.`{}`.`{}` ({}: {})",
-                                                     req.dataverse_name,
-                                                     req.dataset_name,
-                                                     req.index_name,
-                                                     first_error.code,
-                                                     first_error.message));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to drop index `{}`.`{}`.`{}` ({}: {})",
+                                                    req.dataverse_name,
+                                                    req.dataset_name,
+                                                    req.index_name,
+                                                    first_error.code,
+                                                    first_error.message));
             }
             break;
         }
@@ -6934,7 +6737,7 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE link_name, VALUE force, VALU
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_link_connect_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6952,15 +6755,15 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE link_name, VALUE force, VALU
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
-                exc = cb__map_error_code(resp.ctx, fmt::format("unable to connect link `{}` on `{}`", req.link_name, req.dataverse_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to connect link `{}` on `{}`", req.link_name, req.dataverse_name));
             } else {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format("unable to connect link `{}` on `{}` ({}: {})",
-                                                     req.link_name,
-                                                     req.dataverse_name,
-                                                     first_error.code,
-                                                     first_error.message));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to connect link `{}` on `{}` ({}: {})",
+                                                    req.link_name,
+                                                    req.dataverse_name,
+                                                    first_error.code,
+                                                    first_error.message));
             }
             break;
         }
@@ -6989,7 +6792,7 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE link_name, VALUE datavers
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_link_disconnect_request req{};
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -7004,16 +6807,15 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE link_name, VALUE datavers
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
-                exc =
-                  cb__map_error_code(resp.ctx, fmt::format("unable to disconnect link `{}` on `{}`", req.link_name, req.dataverse_name));
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to disconnect link `{}` on `{}`", req.link_name, req.dataverse_name));
             } else {
                 const auto& first_error = resp.errors.front();
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format("unable to disconnect link `{}` on `{}` ({}: {})",
-                                                     req.link_name,
-                                                     req.dataverse_name,
-                                                     first_error.code,
-                                                     first_error.message));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to disconnect link `{}` on `{}` ({}: {})",
+                                                    req.link_name,
+                                                    req.dataverse_name,
+                                                    first_error.code,
+                                                    first_error.message));
             }
             break;
         }
@@ -7024,7 +6826,7 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE link_name, VALUE datavers
 }
 
 static int
-cb__for_each_named_param__analytics(VALUE key, VALUE value, VALUE arg)
+cb_for_each_named_param_analytics(VALUE key, VALUE value, VALUE arg)
 {
     auto* preq = reinterpret_cast<couchbase::operations::analytics_request*>(arg);
     Check_Type(key, T_STRING);
@@ -7058,7 +6860,7 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
             Check_Type(client_context_id, T_STRING);
             req.client_context_id.assign(RSTRING_PTR(client_context_id), static_cast<size_t>(RSTRING_LEN(client_context_id)));
         }
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -7085,7 +6887,7 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
         VALUE named_params = rb_hash_aref(options, rb_id2sym(rb_intern("named_parameters")));
         if (!NIL_P(named_params)) {
             Check_Type(named_params, T_HASH);
-            rb_hash_foreach(named_params, INT_FUNC(cb__for_each_named_param__analytics), reinterpret_cast<VALUE>(&req));
+            rb_hash_foreach(named_params, INT_FUNC(cb_for_each_named_param_analytics), reinterpret_cast<VALUE>(&req));
         }
         VALUE scan_consistency = rb_hash_aref(options, rb_id2sym(rb_intern("scan_consistency")));
         if (!NIL_P(scan_consistency)) {
@@ -7118,7 +6920,7 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
         VALUE raw_params = rb_hash_aref(options, rb_id2sym(rb_intern("raw_parameters")));
         if (!NIL_P(raw_params)) {
             Check_Type(raw_params, T_HASH);
-            rb_hash_foreach(raw_params, INT_FUNC(cb__for_each_named_param__analytics), reinterpret_cast<VALUE>(&req));
+            rb_hash_foreach(raw_params, INT_FUNC(cb_for_each_named_param_analytics), reinterpret_cast<VALUE>(&req));
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_response>>();
@@ -7129,10 +6931,10 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
         if (resp.ctx.ec) {
             if (resp.payload.meta_data.errors && !resp.payload.meta_data.errors->empty()) {
                 const auto& first_error = resp.payload.meta_data.errors->front();
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format("unable to execute analytics query ({}: {})", first_error.code, first_error.message));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format("unable to execute analytics query ({}: {})", first_error.code, first_error.message));
             } else {
-                exc = cb__map_error_code(resp.ctx, "unable to execute analytics query");
+                exc = cb_map_error_code(resp.ctx, "unable to execute analytics query");
             }
             break;
         }
@@ -7140,43 +6942,25 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
         VALUE rows = rb_ary_new_capa(static_cast<long>(resp.payload.rows.size()));
         rb_hash_aset(res, rb_id2sym(rb_intern("rows")), rows);
         for (auto& row : resp.payload.rows) {
-            rb_ary_push(rows, rb_external_str_new(row.data(), static_cast<long>(row.size())));
+            rb_ary_push(rows, cb_str_new(row));
         }
         VALUE meta = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("meta")), meta);
         rb_hash_aset(meta,
                      rb_id2sym(rb_intern("status")),
                      rb_id2sym(rb_intern2(resp.payload.meta_data.status.data(), static_cast<long>(resp.payload.meta_data.status.size()))));
-        rb_hash_aset(
-          meta,
-          rb_id2sym(rb_intern("request_id")),
-          rb_external_str_new(resp.payload.meta_data.request_id.data(), static_cast<long>(resp.payload.meta_data.request_id.size())));
-        rb_hash_aset(meta,
-                     rb_id2sym(rb_intern("client_context_id")),
-                     rb_external_str_new(resp.payload.meta_data.client_context_id.data(),
-                                         static_cast<long>(resp.payload.meta_data.client_context_id.size())));
+        rb_hash_aset(meta, rb_id2sym(rb_intern("request_id")), cb_str_new(resp.payload.meta_data.request_id));
+        rb_hash_aset(meta, rb_id2sym(rb_intern("client_context_id")), cb_str_new(resp.payload.meta_data.client_context_id));
         if (resp.payload.meta_data.signature) {
-            rb_hash_aset(
-              meta,
-              rb_id2sym(rb_intern("signature")),
-              rb_external_str_new(resp.payload.meta_data.signature->data(), static_cast<long>(resp.payload.meta_data.signature->size())));
+            rb_hash_aset(meta, rb_id2sym(rb_intern("signature")), cb_str_new(resp.payload.meta_data.signature.value()));
         }
         if (resp.payload.meta_data.profile) {
-            rb_hash_aset(
-              meta,
-              rb_id2sym(rb_intern("profile")),
-              rb_external_str_new(resp.payload.meta_data.profile->data(), static_cast<long>(resp.payload.meta_data.profile->size())));
+            rb_hash_aset(meta, rb_id2sym(rb_intern("profile")), cb_str_new(resp.payload.meta_data.profile.value()));
         }
         VALUE metrics = rb_hash_new();
         rb_hash_aset(meta, rb_id2sym(rb_intern("metrics")), metrics);
-        rb_hash_aset(metrics,
-                     rb_id2sym(rb_intern("elapsed_time")),
-                     rb_external_str_new(resp.payload.meta_data.metrics.elapsed_time.data(),
-                                         static_cast<long>(resp.payload.meta_data.metrics.elapsed_time.size())));
-        rb_hash_aset(metrics,
-                     rb_id2sym(rb_intern("execution_time")),
-                     rb_external_str_new(resp.payload.meta_data.metrics.execution_time.data(),
-                                         static_cast<long>(resp.payload.meta_data.metrics.execution_time.size())));
+        rb_hash_aset(metrics, rb_id2sym(rb_intern("elapsed_time")), cb_str_new(resp.payload.meta_data.metrics.elapsed_time));
+        rb_hash_aset(metrics, rb_id2sym(rb_intern("execution_time")), cb_str_new(resp.payload.meta_data.metrics.execution_time));
         rb_hash_aset(metrics, rb_id2sym(rb_intern("result_count")), ULL2NUM(resp.payload.meta_data.metrics.result_count));
         rb_hash_aset(metrics, rb_id2sym(rb_intern("result_size")), ULL2NUM(resp.payload.meta_data.metrics.result_count));
         if (resp.payload.meta_data.metrics.sort_count) {
@@ -7209,16 +6993,14 @@ cb_Backend_parse_connection_string(VALUE self, VALUE connection_string)
 
     VALUE res = rb_hash_new();
     if (!connstr.scheme.empty()) {
-        rb_hash_aset(
-          res, rb_id2sym(rb_intern("scheme")), rb_external_str_new(connstr.scheme.data(), static_cast<long>(connstr.scheme.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("scheme")), cb_str_new(connstr.scheme));
         rb_hash_aset(res, rb_id2sym(rb_intern("tls")), connstr.tls ? Qtrue : Qfalse);
     }
 
     VALUE nodes = rb_ary_new_capa(static_cast<long>(connstr.bootstrap_nodes.size()));
     for (const auto& entry : connstr.bootstrap_nodes) {
         VALUE node = rb_hash_new();
-        rb_hash_aset(
-          node, rb_id2sym(rb_intern("address")), rb_external_str_new(entry.address.data(), static_cast<long>(entry.address.size())));
+        rb_hash_aset(node, rb_id2sym(rb_intern("address")), cb_str_new(entry.address));
         if (entry.port > 0) {
             rb_hash_aset(node, rb_id2sym(rb_intern("port")), UINT2NUM(entry.port));
         }
@@ -7249,16 +7031,12 @@ cb_Backend_parse_connection_string(VALUE self, VALUE connection_string)
 
     VALUE params = rb_hash_new();
     for (const auto& param : connstr.params) {
-        rb_hash_aset(params,
-                     rb_external_str_new(param.first.data(), static_cast<long>(param.first.size())),
-                     rb_external_str_new(param.second.data(), static_cast<long>(param.second.size())));
+        rb_hash_aset(params, cb_str_new(param.first), cb_str_new(param.second));
     }
     rb_hash_aset(res, rb_id2sym(rb_intern("params")), params);
 
     if (connstr.default_bucket_name) {
-        rb_hash_aset(res,
-                     rb_id2sym(rb_intern("default_bucket_name")),
-                     rb_external_str_new(connstr.default_bucket_name->data(), static_cast<long>(connstr.default_bucket_name->size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("default_bucket_name")), cb_str_new(connstr.default_bucket_name.value()));
     }
     if (connstr.default_port > 0) {
         rb_hash_aset(res, rb_id2sym(rb_intern("default_port")), UINT2NUM(connstr.default_port));
@@ -7274,8 +7052,7 @@ cb_Backend_parse_connection_string(VALUE self, VALUE connection_string)
             break;
     }
     if (connstr.error) {
-        rb_hash_aset(
-          res, rb_id2sym(rb_intern("error")), rb_external_str_new(connstr.error->data(), static_cast<long>(connstr.error->size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("error")), cb_str_new(connstr.error.value()));
     }
     return res;
 }
@@ -7310,7 +7087,7 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
         couchbase::operations::view_index_get_all_request req{};
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.name_space = ns;
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -7320,14 +7097,14 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
           req, [barrier](couchbase::operations::view_index_get_all_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(resp.ctx, "unable to get list of the design documents");
+            exc = cb_map_error_code(resp.ctx, "unable to get list of the design documents");
             break;
         }
         VALUE res = rb_ary_new_capa(static_cast<long>(resp.design_documents.size()));
         for (const auto& entry : resp.design_documents) {
             VALUE dd = rb_hash_new();
-            rb_hash_aset(dd, rb_id2sym(rb_intern("name")), rb_external_str_new(entry.name.data(), static_cast<long>(entry.name.size())));
-            rb_hash_aset(dd, rb_id2sym(rb_intern("rev")), rb_external_str_new(entry.rev.data(), static_cast<long>(entry.rev.size())));
+            rb_hash_aset(dd, rb_id2sym(rb_intern("name")), cb_str_new(entry.name));
+            rb_hash_aset(dd, rb_id2sym(rb_intern("rev")), cb_str_new(entry.rev));
             switch (entry.ns) {
                 case couchbase::operations::design_document::name_space::development:
                     rb_hash_aset(dd, rb_id2sym(rb_intern("namespace")), rb_id2sym(rb_intern("development")));
@@ -7338,19 +7115,14 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
             }
             VALUE views = rb_hash_new();
             for (const auto& view_entry : entry.views) {
-                VALUE view_name = rb_external_str_new(view_entry.first.data(), static_cast<long>(view_entry.first.size()));
+                VALUE view_name = cb_str_new(view_entry.first);
                 VALUE view = rb_hash_new();
                 rb_hash_aset(view, rb_id2sym(rb_intern("name")), view_name);
                 if (view_entry.second.map) {
-                    rb_hash_aset(view,
-                                 rb_id2sym(rb_intern("map")),
-                                 rb_external_str_new(view_entry.second.map->data(), static_cast<long>(view_entry.second.map->size())));
+                    rb_hash_aset(view, rb_id2sym(rb_intern("map")), cb_str_new(view_entry.second.map.value()));
                 }
                 if (view_entry.second.reduce) {
-                    rb_hash_aset(
-                      view,
-                      rb_id2sym(rb_intern("reduce")),
-                      rb_external_str_new(view_entry.second.reduce->data(), static_cast<long>(view_entry.second.reduce->size())));
+                    rb_hash_aset(view, rb_id2sym(rb_intern("reduce")), cb_str_new(view_entry.second.reduce.value()));
                 }
                 rb_hash_aset(views, view_name, view);
             }
@@ -7395,7 +7167,7 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.document_name.assign(RSTRING_PTR(document_name), static_cast<size_t>(RSTRING_LEN(document_name)));
         req.name_space = ns;
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -7405,16 +7177,14 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
           req, [barrier](couchbase::operations::view_index_get_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(
+            exc = cb_map_error_code(
               resp.ctx,
               fmt::format(R"(unable to get design document "{}" ({}) on bucket "{}")", req.document_name, req.name_space, req.bucket_name));
             break;
         }
         VALUE res = rb_hash_new();
-        rb_hash_aset(
-          res, rb_id2sym(rb_intern("name")), rb_external_str_new(resp.document.name.data(), static_cast<long>(resp.document.name.size())));
-        rb_hash_aset(
-          res, rb_id2sym(rb_intern("rev")), rb_external_str_new(resp.document.rev.data(), static_cast<long>(resp.document.rev.size())));
+        rb_hash_aset(res, rb_id2sym(rb_intern("name")), cb_str_new(resp.document.name));
+        rb_hash_aset(res, rb_id2sym(rb_intern("rev")), cb_str_new(resp.document.rev));
         switch (resp.document.ns) {
             case couchbase::operations::design_document::name_space::development:
                 rb_hash_aset(res, rb_id2sym(rb_intern("namespace")), rb_id2sym(rb_intern("development")));
@@ -7425,18 +7195,14 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
         }
         VALUE views = rb_hash_new();
         for (const auto& view_entry : resp.document.views) {
-            VALUE view_name = rb_external_str_new(view_entry.first.data(), static_cast<long>(view_entry.first.size()));
+            VALUE view_name = cb_str_new(view_entry.first);
             VALUE view = rb_hash_new();
             rb_hash_aset(view, rb_id2sym(rb_intern("name")), view_name);
             if (view_entry.second.map) {
-                rb_hash_aset(view,
-                             rb_id2sym(rb_intern("map")),
-                             rb_external_str_new(view_entry.second.map->data(), static_cast<long>(view_entry.second.map->size())));
+                rb_hash_aset(view, rb_id2sym(rb_intern("map")), cb_str_new(view_entry.second.map.value()));
             }
             if (view_entry.second.reduce) {
-                rb_hash_aset(view,
-                             rb_id2sym(rb_intern("reduce")),
-                             rb_external_str_new(view_entry.second.reduce->data(), static_cast<long>(view_entry.second.reduce->size())));
+                rb_hash_aset(view, rb_id2sym(rb_intern("reduce")), cb_str_new(view_entry.second.reduce.value()));
             }
             rb_hash_aset(views, view_name, view);
         }
@@ -7479,7 +7245,7 @@ cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, V
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.document_name.assign(RSTRING_PTR(document_name), static_cast<size_t>(RSTRING_LEN(document_name)));
         req.name_space = ns;
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -7489,7 +7255,7 @@ cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, V
           req, [barrier](couchbase::operations::view_index_drop_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(
+            exc = cb_map_error_code(
               resp.ctx,
               fmt::format(
                 R"(unable to drop design document "{}" ({}) on bucket "{}")", req.document_name, req.name_space, req.bucket_name));
@@ -7560,7 +7326,7 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
             }
         }
 
-        exc = cb__extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, timeout);
         if (!NIL_P(exc)) {
             break;
         }
@@ -7570,7 +7336,7 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
           req, [barrier](couchbase::operations::view_index_upsert_response&& resp) mutable { barrier->set_value(resp); });
         auto resp = f.get();
         if (resp.ctx.ec) {
-            exc = cb__map_error_code(
+            exc = cb_map_error_code(
               resp.ctx,
               fmt::format(
                 R"(unable to store design document "{}" ({}) on bucket "{}")", req.document.name, req.document.ns, req.bucket_name));
@@ -7618,7 +7384,7 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
         req.document_name.assign(RSTRING_PTR(design_document_name), static_cast<size_t>(RSTRING_LEN(design_document_name)));
         req.view_name.assign(RSTRING_PTR(view_name), static_cast<size_t>(RSTRING_LEN(view_name)));
         req.name_space = ns;
-        exc = cb__extract_timeout(req, options);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -7721,10 +7487,10 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
         auto resp = f.get();
         if (resp.ctx.ec) {
             if (resp.error) {
-                exc = cb__map_error_code(resp.ctx,
-                                         fmt::format(R"(unable to execute view query {} ({}))", resp.error->code, resp.error->message));
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format(R"(unable to execute view query {} ({}))", resp.error->code, resp.error->message));
             } else {
-                exc = cb__map_error_code(resp.ctx, "unable to execute view query");
+                exc = cb_map_error_code(resp.ctx, "unable to execute view query");
             }
             break;
         }
@@ -7735,9 +7501,7 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
             rb_hash_aset(meta, rb_id2sym(rb_intern("total_rows")), ULL2NUM(*resp.meta_data.total_rows));
         }
         if (resp.meta_data.debug_info) {
-            rb_hash_aset(meta,
-                         rb_id2sym(rb_intern("debug_info")),
-                         rb_external_str_new(resp.meta_data.debug_info->data(), static_cast<long>(resp.meta_data.debug_info->size())));
+            rb_hash_aset(meta, rb_id2sym(rb_intern("debug_info")), cb_str_new(resp.meta_data.debug_info.value()));
         }
         rb_hash_aset(res, rb_id2sym(rb_intern("meta")), meta);
 
@@ -7745,11 +7509,10 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
         for (const auto& entry : resp.rows) {
             VALUE row = rb_hash_new();
             if (entry.id) {
-                rb_hash_aset(row, rb_id2sym(rb_intern("id")), rb_external_str_new(entry.id->data(), static_cast<long>(entry.id->size())));
+                rb_hash_aset(row, rb_id2sym(rb_intern("id")), cb_str_new(entry.id.value()));
             }
-            rb_hash_aset(row, rb_id2sym(rb_intern("key")), rb_external_str_new(entry.key.data(), static_cast<long>(entry.key.size())));
-            rb_hash_aset(
-              row, rb_id2sym(rb_intern("value")), rb_external_str_new(entry.value.data(), static_cast<long>(entry.value.size())));
+            rb_hash_aset(row, rb_id2sym(rb_intern("key")), cb_str_new(entry.key));
+            rb_hash_aset(row, rb_id2sym(rb_intern("value")), cb_str_new(entry.value));
             rb_ary_push(rows, row);
         }
         rb_hash_aset(res, rb_id2sym(rb_intern("rows")), rows);
@@ -7820,6 +7583,7 @@ cb_Backend_snappy_compress(VALUE self, VALUE data)
 
     std::string compressed{};
     std::size_t compressed_size = snappy::Compress(RSTRING_PTR(data), static_cast<std::size_t>(RSTRING_LEN(data)), &compressed);
+
     return rb_external_str_new(compressed.data(), static_cast<long>(compressed_size));
 }
 
@@ -7832,7 +7596,7 @@ cb_Backend_snappy_uncompress(VALUE self, VALUE data)
     std::string uncompressed{};
     bool success = snappy::Uncompress(RSTRING_PTR(data), static_cast<std::size_t>(RSTRING_LEN(data)), &uncompressed);
     if (success) {
-        return rb_external_str_new(uncompressed.data(), static_cast<long>(uncompressed.size()));
+        return cb_str_new(uncompressed);
     }
     rb_raise(rb_eArgError, "Unable to decompress buffer");
     return Qnil;
@@ -7851,7 +7615,7 @@ cb_Backend_leb128_encode(VALUE self, VALUE number)
     }
     couchbase::protocol::unsigned_leb128<std::uint64_t> encoded(NUM2ULL(number));
     std::string buf = encoded.get();
-    return rb_external_str_new(buf.data(), static_cast<long>(buf.size()));
+    return cb_str_new(buf);
 }
 
 static VALUE
