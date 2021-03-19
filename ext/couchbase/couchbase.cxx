@@ -41,6 +41,7 @@
 #if defined(HAVE_RUBY_VERSION_H)
 #include <ruby/version.h>
 #endif
+#include <ruby/thread.h>
 
 #if defined(RB_METHOD_DEFINITION_DECL) || RUBY_API_VERSION_MAJOR == 3
 #define VALUE_FUNC(f) f
@@ -815,6 +816,26 @@ cb_map_error_code(const couchbase::error_context::search& ctx, const std::string
     return exc;
 }
 
+template<typename Future>
+static auto
+cb_wait_for_future(Future&& f) -> decltype(f.get())
+{
+    struct arg_pack {
+        Future&& f;
+        decltype(f.get()) res{};
+    } arg{ f };
+    rb_thread_call_without_gvl(
+      [](void* param) -> void* {
+          auto* pack = static_cast<arg_pack*>(param);
+          pack->res = std::move(pack->f.get());
+          return nullptr;
+      },
+      &arg,
+      nullptr,
+      nullptr);
+    return std::move(arg.res);
+}
+
 static VALUE
 cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE options)
 {
@@ -891,7 +912,7 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
         auto barrier = std::make_shared<std::promise<std::error_code>>();
         auto f = barrier->get_future();
         backend->cluster->open(origin, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
-        if (auto ec = f.get()) {
+        if (auto ec = cb_wait_for_future(f)) {
             exc = cb_map_error_code(ec, fmt::format("unable open cluster at {}", origin.next_address().first));
         }
     } while (false);
@@ -934,7 +955,7 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
         auto barrier = std::make_shared<std::promise<couchbase::diag::diagnostics_result>>();
         auto f = barrier->get_future();
         backend->cluster->diagnostics(id, [barrier](couchbase::diag::diagnostics_result&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
 
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("id")), cb_str_new(resp.id));
@@ -1024,7 +1045,7 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
             auto barrier = std::make_shared<std::promise<std::error_code>>();
             auto f = barrier->get_future();
             backend->cluster->open_bucket(name, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
-            if (auto ec = f.get()) {
+            if (auto ec = cb_wait_for_future(f)) {
                 exc = cb_map_error_code(ec, fmt::format("unable open bucket \"{}\"", name));
             }
         } else {
@@ -1427,7 +1448,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
         auto f = barrier->get_future();
         backend->cluster->ping(
           report_id, bucket_name, selected_services, [barrier](couchbase::diag::ping_result&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
 
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("id")), cb_str_new(resp.id));
@@ -1520,7 +1541,7 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE collection, VALUE id, VA
         auto barrier = std::make_shared<std::promise<couchbase::operations::get_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::get_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to fetch document");
             break;
@@ -1654,7 +1675,7 @@ cb_Backend_document_get_projected(VALUE self, VALUE bucket, VALUE collection, VA
         auto f = barrier->get_future();
         backend->cluster->execute(req,
                                   [barrier](couchbase::operations::get_projected_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable fetch with projections");
             break;
@@ -1710,7 +1731,7 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE collection, VAL
         auto f = barrier->get_future();
         backend->cluster->execute(req,
                                   [barrier](couchbase::operations::get_and_lock_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable lock and fetch");
             break;
@@ -1763,7 +1784,7 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE collection, VA
         auto f = barrier->get_future();
         backend->cluster->execute(req,
                                   [barrier](couchbase::operations::get_and_touch_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable fetch and touch");
             break;
@@ -1830,7 +1851,7 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE collection, VALUE id, 
         auto barrier = std::make_shared<std::promise<couchbase::operations::touch_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::touch_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to touch");
             break;
@@ -1878,7 +1899,7 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         auto barrier = std::make_shared<std::promise<couchbase::operations::exists_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::exists_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to exists");
             break;
@@ -1955,7 +1976,7 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         auto barrier = std::make_shared<std::promise<couchbase::operations::unlock_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::unlock_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to unlock");
             break;
@@ -2020,7 +2041,7 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         auto barrier = std::make_shared<std::promise<couchbase::operations::upsert_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::upsert_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to upsert");
             break;
@@ -2144,7 +2165,7 @@ cb_Backend_document_append(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         auto barrier = std::make_shared<std::promise<couchbase::operations::append_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::append_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to append");
             break;
@@ -2196,7 +2217,7 @@ cb_Backend_document_prepend(VALUE self, VALUE bucket, VALUE collection, VALUE id
         auto barrier = std::make_shared<std::promise<couchbase::operations::prepend_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::prepend_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to prepend");
             break;
@@ -2267,7 +2288,7 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
         auto barrier = std::make_shared<std::promise<couchbase::operations::replace_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::replace_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to replace");
             break;
@@ -2330,7 +2351,7 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         auto barrier = std::make_shared<std::promise<couchbase::operations::insert_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::insert_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to insert");
             break;
@@ -2388,7 +2409,7 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         auto barrier = std::make_shared<std::promise<couchbase::operations::remove_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::remove_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to remove");
             break;
@@ -2530,7 +2551,7 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
         auto barrier = std::make_shared<std::promise<couchbase::operations::increment_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::increment_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx.ec, fmt::format(R"(unable to increment by {})", req.delta));
             break;
@@ -2605,7 +2626,7 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
         auto barrier = std::make_shared<std::promise<couchbase::operations::decrement_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::decrement_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to decrement by {})", req.delta));
             break;
@@ -2864,7 +2885,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         auto barrier = std::make_shared<std::promise<couchbase::operations::lookup_in_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::lookup_in_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable fetch");
             break;
@@ -3040,7 +3061,7 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         auto barrier = std::make_shared<std::promise<couchbase::operations::mutate_in_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute(req, [barrier](couchbase::operations::mutate_in_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to mutate");
             break;
@@ -3254,7 +3275,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         auto barrier = std::make_shared<std::promise<couchbase::operations::query_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(req, [barrier](couchbase::operations::query_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.payload.meta_data.errors && !resp.payload.meta_data.errors->empty()) {
                 const auto& first_error = resp.payload.meta_data.errors->front();
@@ -3491,7 +3512,7 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::bucket_create_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx,
                                     fmt::format("unable to create bucket \"{}\" on the cluster ({})", req.bucket.name, resp.error_message));
@@ -3531,7 +3552,7 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::bucket_update_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx,
                                     fmt::format("unable to update bucket \"{}\" on the cluster ({})", req.bucket.name, resp.error_message));
@@ -3568,7 +3589,7 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
                                        [barrier](couchbase::operations::bucket_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, fmt::format("unable to remove bucket \"{}\" on the cluster", req.name));
             break;
@@ -3604,7 +3625,7 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::bucket_flush_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, fmt::format("unable to flush bucket \"{}\" on the cluster", req.name));
             break;
@@ -3737,7 +3758,7 @@ cb_Backend_bucket_get_all(VALUE self, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::bucket_get_all_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to get list of the buckets of the cluster");
             break;
@@ -3781,7 +3802,7 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
                                        [barrier](couchbase::operations::bucket_get_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, fmt::format("unable to locate bucket \"{}\" on the cluster", req.name));
             break;
@@ -3835,7 +3856,7 @@ cb_Backend_role_get_all(VALUE self, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::role_get_all_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to fetch roles");
             break;
@@ -3960,7 +3981,7 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::user_get_all_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to fetch users");
             break;
@@ -4012,7 +4033,7 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
                                        [barrier](couchbase::operations::user_get_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to fetch user "{}")", req.username));
             break;
@@ -4060,7 +4081,7 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
                                        [barrier](couchbase::operations::user_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to fetch user "{}")", req.username));
             break;
@@ -4156,7 +4177,7 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
                                        [barrier](couchbase::operations::user_upsert_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx,
                                     fmt::format(R"(unable to upsert user "{}" ({}))", req.user.username, fmt::join(resp.errors, ", ")));
@@ -4219,7 +4240,7 @@ cb_Backend_group_get_all(VALUE self, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::group_get_all_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to fetch groups");
             break;
@@ -4262,7 +4283,7 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
                                        [barrier](couchbase::operations::group_get_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to fetch group "{}")", req.name));
             break;
@@ -4301,7 +4322,7 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
                                        [barrier](couchbase::operations::group_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, fmt::format(R"(unable to drop group "{}")", req.name));
             break;
@@ -4377,7 +4398,7 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::group_upsert_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc =
               cb_map_error_code(resp.ctx, fmt::format(R"(unable to upsert group "{}" ({}))", req.group.name, fmt::join(resp.errors, ", ")));
@@ -4408,7 +4429,7 @@ cb_Backend_cluster_enable_developer_preview(VALUE self)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::cluster_developer_preview_enable_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to enable developer preview for this cluster");
             break;
@@ -4447,7 +4468,7 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::scope_get_all_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, fmt::format("unable to get list of the scopes of the bucket \"{}\"", req.bucket_name));
             break;
@@ -4503,7 +4524,7 @@ cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout
         auto f = barrier->get_future();
         backend->cluster->execute(
           req, [barrier](couchbase::operations::collections_manifest_get_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, fmt::format("unable to get collections manifest of the bucket \"{}\"", req.id.bucket));
             break;
@@ -4561,7 +4582,7 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE t
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::scope_create_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx,
                                     fmt::format(R"(unable to create the scope "{}" on the bucket "{}")", req.scope_name, req.bucket_name));
@@ -4600,7 +4621,7 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE tim
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
                                        [barrier](couchbase::operations::scope_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx,
                                     fmt::format(R"(unable to drop the scope "{}" on the bucket "{}")", req.scope_name, req.bucket_name));
@@ -4646,7 +4667,7 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::collection_create_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(
               resp.ctx,
@@ -4690,7 +4711,7 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::collection_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(
               resp.ctx,
@@ -4729,7 +4750,7 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::query_index_get_all_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, fmt::format("unable to get list of the indexes of the bucket \"{}\"", req.bucket_name));
             break;
@@ -4840,7 +4861,7 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::query_index_create_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
@@ -4919,7 +4940,7 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::query_index_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
@@ -5014,7 +5035,7 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::query_index_create_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
@@ -5097,7 +5118,7 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::query_index_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
@@ -5153,7 +5174,7 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE timeo
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::query_index_build_deferred_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
@@ -5242,7 +5263,7 @@ cb_Backend_search_index_get_all(VALUE self, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_get_all_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to get list of the search indexes");
             break;
@@ -5287,7 +5308,7 @@ cb_Backend_search_index_get(VALUE self, VALUE index_name, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_get_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to get search index \"{}\"", req.index_name));
@@ -5376,7 +5397,7 @@ cb_Backend_search_index_upsert(VALUE self, VALUE index_definition, VALUE timeout
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_upsert_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to upsert the search index \"{}\"", req.index.name));
@@ -5417,7 +5438,7 @@ cb_Backend_search_index_drop(VALUE self, VALUE index_name, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to drop the search index \"{}\"", req.index_name));
@@ -5458,7 +5479,7 @@ cb_Backend_search_index_get_documents_count(VALUE self, VALUE index_name, VALUE 
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_get_documents_count_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(
@@ -5503,7 +5524,7 @@ cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_get_stats_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to get stats for the search index \"{}\"", req.index_name));
@@ -5541,7 +5562,7 @@ cb_Backend_search_get_stats(VALUE self, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_stats_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to get stats for the search service");
             break;
@@ -5577,7 +5598,7 @@ cb_Backend_search_index_pause_ingest(VALUE self, VALUE index_name, VALUE timeout
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_control_ingest_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to pause ingest for the search index \"{}\"", req.index_name));
@@ -5620,7 +5641,7 @@ cb_Backend_search_index_resume_ingest(VALUE self, VALUE index_name, VALUE timeou
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_control_ingest_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to resume ingest for the search index \"{}\"", req.index_name));
@@ -5663,7 +5684,7 @@ cb_Backend_search_index_allow_querying(VALUE self, VALUE index_name, VALUE timeo
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_control_query_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to allow querying for the search index \"{}\"", req.index_name));
@@ -5706,7 +5727,7 @@ cb_Backend_search_index_disallow_querying(VALUE self, VALUE index_name, VALUE ti
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_control_query_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to disallow querying for the search index \"{}\"", req.index_name));
@@ -5749,7 +5770,7 @@ cb_Backend_search_index_freeze_plan(VALUE self, VALUE index_name, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_control_plan_freeze_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to freeze for the search index \"{}\"", req.index_name));
@@ -5792,7 +5813,7 @@ cb_Backend_search_index_unfreeze_plan(VALUE self, VALUE index_name, VALUE timeou
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_control_plan_freeze_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to unfreeze plan for the search index \"{}\"", req.index_name));
@@ -5838,7 +5859,7 @@ cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE enc
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::search_index_analyze_document_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to analyze document using the search index \"{}\"", req.index_name));
@@ -6024,7 +6045,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         auto barrier = std::make_shared<std::promise<couchbase::operations::search_response>>();
         auto f = barrier->get_future();
         backend->cluster->execute_http(req, [barrier](couchbase::operations::search_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc =
               cb_map_error_code(resp.ctx, fmt::format("unable to perform search query for index \"{}\": {}", req.index_name, resp.error));
@@ -6199,7 +6220,7 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
             barrier->set_value(resp);
         });
         ctx.run();
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ec) {
             exc = cb_map_error_code(resp.ec, fmt::format("DNS SRV query failure for name \"{}\" (service: {})", host_name, service_name));
             break;
@@ -6240,7 +6261,7 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::analytics_get_pending_mutations_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
                 exc = cb_map_error_code(resp.ctx, "unable to get pending mutations for the analytics service");
@@ -6284,7 +6305,7 @@ cb_Backend_analytics_dataset_get_all(VALUE self, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::analytics_dataset_get_all_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
                 exc = cb_map_error_code(resp.ctx, "unable to fetch all datasets");
@@ -6344,7 +6365,7 @@ cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE datavers
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::analytics_dataset_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to drop dataset `{}`.`{}`", req.dataverse_name, req.dataset_name));
@@ -6413,7 +6434,7 @@ cb_Backend_analytics_dataset_create(VALUE self,
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::analytics_dataset_create_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to create dataset `{}`.`{}`", req.dataverse_name, req.dataset_name));
@@ -6462,7 +6483,7 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE igno
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::analytics_dataverse_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to drop dataverse `{}`", req.dataverse_name));
@@ -6511,7 +6532,7 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE ig
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::analytics_dataverse_create_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to create dataverse `{}`", req.dataverse_name));
@@ -6551,7 +6572,7 @@ cb_Backend_analytics_index_get_all(VALUE self, VALUE timeout)
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::analytics_index_get_all_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
                 exc = cb_map_error_code(resp.ctx, "unable to fetch all indexes");
@@ -6631,7 +6652,7 @@ cb_Backend_analytics_index_create(VALUE self,
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::analytics_index_create_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
                 exc = cb_map_error_code(
@@ -6695,7 +6716,7 @@ cb_Backend_analytics_index_drop(VALUE self,
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::analytics_index_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
                 exc = cb_map_error_code(
@@ -6752,7 +6773,7 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE link_name, VALUE force, VALU
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::analytics_link_connect_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to connect link `{}` on `{}`", req.link_name, req.dataverse_name));
@@ -6804,7 +6825,7 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE link_name, VALUE datavers
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::analytics_link_disconnect_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.errors.empty()) {
                 exc = cb_map_error_code(resp.ctx, fmt::format("unable to disconnect link `{}` on `{}`", req.link_name, req.dataverse_name));
@@ -6927,7 +6948,7 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
         auto f = barrier->get_future();
         backend->cluster->execute_http(req,
                                        [barrier](couchbase::operations::analytics_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.payload.meta_data.errors && !resp.payload.meta_data.errors->empty()) {
                 const auto& first_error = resp.payload.meta_data.errors->front();
@@ -7095,7 +7116,7 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::view_index_get_all_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(resp.ctx, "unable to get list of the design documents");
             break;
@@ -7175,7 +7196,7 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::view_index_get_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(
               resp.ctx,
@@ -7253,7 +7274,7 @@ cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, V
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::view_index_drop_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(
               resp.ctx,
@@ -7334,7 +7355,7 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::view_index_upsert_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             exc = cb_map_error_code(
               resp.ctx,
@@ -7484,7 +7505,7 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
         auto f = barrier->get_future();
         backend->cluster->execute_http(
           req, [barrier](couchbase::operations::document_view_response&& resp) mutable { barrier->set_value(resp); });
-        auto resp = f.get();
+        auto resp = cb_wait_for_future(f);
         if (resp.ctx.ec) {
             if (resp.error) {
                 exc = cb_map_error_code(resp.ctx,

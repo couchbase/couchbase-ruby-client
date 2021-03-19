@@ -65,7 +65,7 @@ struct diagnostics_result {
     std::string sdk;
     std::map<service_type, std::vector<endpoint_diag_info>> services{};
 
-    const int version{ 2 };
+    int version{ 2 };
 };
 
 enum class ping_state {
@@ -92,7 +92,7 @@ struct ping_result {
     std::string sdk;
     std::map<service_type, std::vector<endpoint_ping_info>> services{};
 
-    const int version{ 2 };
+    int version{ 2 };
 };
 } // namespace couchbase::diag
 
