@@ -45,7 +45,7 @@ module Couchbase
         set.each do |element|
           actual << element
         end
-        assert_equal [], actual
+        assert_empty actual
       end
 
       def test_add_does_not_create_duplicates

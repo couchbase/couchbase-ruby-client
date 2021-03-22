@@ -88,8 +88,8 @@ module Couchbase
       assert res.exists?(0)
       assert res.exists?(1)
 
-      assert_equal({}, res.content(0))
-      assert_equal([], res.content(1))
+      assert_empty(res.content(0))
+      assert_empty(res.content(1))
 
       assert res.cas && res.cas != 0
     end
@@ -357,7 +357,7 @@ module Couchbase
                               MutateInSpec.remove("foo"),
                             ])
 
-      assert_equal({}, @collection.get(doc_id).content)
+      assert_empty(@collection.get(doc_id).content)
     end
 
     def test_insert_string_already_there
@@ -624,7 +624,7 @@ module Couchbase
 
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
       assert_equal({"foo" => "bar2"}, res.content(0))
-      assert_equal({}, @collection.get(doc_id).content)
+      assert_empty(@collection.get(doc_id).content)
     end
 
     def test_remove_xattr
@@ -640,7 +640,7 @@ module Couchbase
                             ])
 
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
-      assert_equal({}, res.content(0))
+      assert_empty(res.content(0))
     end
 
     def test_remove_xattr_does_not_exist

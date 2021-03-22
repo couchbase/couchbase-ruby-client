@@ -45,7 +45,7 @@ module Couchbase
         list.each do |element|
           actual << element
         end
-        assert_equal [], actual
+        assert_empty actual
       end
 
       def test_at_returns_nil_for_new_list

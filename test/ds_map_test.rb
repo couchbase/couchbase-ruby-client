@@ -45,7 +45,7 @@ module Couchbase
         map.each do |key, value|
           actual << [key, value]
         end
-        assert_equal [], actual
+        assert_empty actual
       end
 
       def test_existing_document_could_be_loaded_into_map
@@ -69,8 +69,8 @@ module Couchbase
         doc_id = uniq_id(:foo)
         map = CouchbaseMap.new(doc_id, @collection)
         assert_empty map
-        assert "baz", map.fetch("foo", "baz")
-        assert "bar", map.fetch("foo") { "bar" }
+        assert_equal("baz", map.fetch("foo", "baz"))
+        assert_equal("bar", map.fetch("foo") { "bar" })
       end
 
       def test_fetch_raises_key_error_when_default_not_specified

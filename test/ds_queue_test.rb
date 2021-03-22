@@ -45,7 +45,7 @@ module Couchbase
         queue.each do |element|
           actual << element
         end
-        assert_equal [], actual
+        assert_empty actual
       end
 
       def test_implements_fifo
