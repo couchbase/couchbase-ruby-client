@@ -12,11 +12,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "rubygems/deprecate"
+
 require "couchbase/errors"
 
 module Couchbase
   module Management
     class CollectionManager
+      extend Gem::Deprecate
+
       alias inspect to_s
 
       # @param [Couchbase::Backend] backend
@@ -51,6 +55,8 @@ module Couchbase
       # @param [String] scope_name name of the scope
       # @param [GetScopeOptions] options
       #
+      # @deprecated Use {#get_all_scopes} with filter by name
+      #
       # @return [ScopeSpec]
       #
       # @raise [Error::ScopeNotFound]
@@ -58,6 +64,7 @@ module Couchbase
         get_all_scopes(GetAllScopesOptions.new { |o| o.timeout = options.timeout })
           .find { |scope| scope.name == scope_name } or raise Error::ScopeNotFound, "unable to find scope #{scope_name}"
       end
+      deprecate :get_scope, :get_all_scopes, 2021, 6
 
       # Creates a new scope
       #
