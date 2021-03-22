@@ -47,7 +47,7 @@ struct scope_drop_request {
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "DELETE";
-        encoded.path = fmt::format("/pools/default/buckets/{}/collections/{}", bucket_name, scope_name);
+        encoded.path = fmt::format("/pools/default/buckets/{}/scopes/{}", bucket_name, scope_name);
         return {};
     }
 };

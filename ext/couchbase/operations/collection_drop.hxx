@@ -48,7 +48,7 @@ struct collection_drop_request {
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "DELETE";
-        encoded.path = fmt::format("/pools/default/buckets/{}/collections/{}/{}", bucket_name, scope_name, collection_name);
+        encoded.path = fmt::format("/pools/default/buckets/{}/scopes/{}/collections/{}", bucket_name, scope_name, collection_name);
         return {};
     }
 };

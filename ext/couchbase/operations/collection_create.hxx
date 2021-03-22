@@ -49,7 +49,7 @@ struct collection_create_request {
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "POST";
-        encoded.path = fmt::format("/pools/default/buckets/{}/collections/{}", bucket_name, scope_name);
+        encoded.path = fmt::format("/pools/default/buckets/{}/scopes/{}/collections", bucket_name, scope_name);
         encoded.headers["content-type"] = "application/x-www-form-urlencoded";
         encoded.body = fmt::format("name={}", utils::string_codec::form_encode(collection_name));
         if (max_expiry > 0) {

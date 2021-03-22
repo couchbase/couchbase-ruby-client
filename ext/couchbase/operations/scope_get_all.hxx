@@ -46,7 +46,7 @@ struct scope_get_all_request {
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
     {
         encoded.method = "GET";
-        encoded.path = fmt::format("/pools/default/buckets/{}/collections", bucket_name);
+        encoded.path = fmt::format("/pools/default/buckets/{}/scopes", bucket_name);
         return {};
     }
 };
