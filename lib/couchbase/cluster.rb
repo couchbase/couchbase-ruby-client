@@ -152,7 +152,7 @@ module Couchbase
               metrics.processed_objects = resp[:meta][:metrics][:processed_objects]
             end
           end
-          res[:warnings] = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
+          res[:warnings] = resp[:warnings].map { |warn| AnalyticsWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
         end
         res.instance_variable_set("@rows", resp[:rows])
       end

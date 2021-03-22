@@ -14,6 +14,7 @@
 
 require "couchbase/collection"
 require "couchbase/query_options"
+require "couchbase/analytics_options"
 
 module Couchbase
   # The scope identifies a group of collections and allows high application density as a result.
@@ -78,7 +79,7 @@ module Couchbase
               metrics.warning_count = resp[:meta][:metrics][:warning_count]
             end
           end
-          res[:warnings] = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
+          res[:warnings] = resp[:warnings].map { |warn| Cluster::QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
         end
         res.instance_variable_set("@rows", resp[:rows])
       end
@@ -99,15 +100,15 @@ module Couchbase
     def analytics_query(statement, options = Options::Analytics.new)
       resp = @backend.document_analytics(statement, options.to_backend(scope_name: @name, bucket_name: @bucket_name))
 
-      AnalyticsResult.new do |res|
+      Cluster::AnalyticsResult.new do |res|
         res.transcoder = options.transcoder
-        res.meta_data = AnalyticsMetaData.new do |meta|
+        res.meta_data = Cluster::AnalyticsMetaData.new do |meta|
           meta.status = resp[:meta][:status]
           meta.request_id = resp[:meta][:request_id]
           meta.client_context_id = resp[:meta][:client_context_id]
           meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
           meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
-          meta.metrics = AnalyticsMetrics.new do |metrics|
+          meta.metrics = Cluster::AnalyticsMetrics.new do |metrics|
             if resp[:meta][:metrics]
               metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
               metrics.execution_time = resp[:meta][:metrics][:execution_time]
@@ -118,7 +119,7 @@ module Couchbase
               metrics.processed_objects = resp[:meta][:metrics][:processed_objects]
             end
           end
-          res[:warnings] = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
+          res[:warnings] = resp[:warnings].map { |warn| Cluster::AnalyticsWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
         end
         res.instance_variable_set("@rows", resp[:rows])
       end
