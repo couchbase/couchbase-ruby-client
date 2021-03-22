@@ -151,15 +151,6 @@ module Couchbase
         !encoded[index].nil? && encoded[index].exists
       end
 
-      # @see MutateInOptions#create_as_deleted
-      #
-      # @return [Boolean] true if the document is a tombstone (created in deleted state)
-      def deleted?
-        @deleted
-      end
-
-      attr_accessor :deleted
-
       # @return [Array<SubDocumentField>] holds the encoded subdocument responses
       attr_accessor :encoded
 
@@ -171,6 +162,18 @@ module Couchbase
 
       # @return [JsonTranscoder] The default transcoder which should be used
       attr_accessor :transcoder
+
+      # @api private
+      #
+      # @see MutateInOptions#create_as_deleted
+      #
+      # @return [Boolean] true if the document is a tombstone (created in deleted state)
+      def deleted?
+        @deleted
+      end
+
+      # @api private
+      attr_accessor :deleted
 
       private
 
@@ -199,15 +202,6 @@ module Couchbase
         end
       end
 
-      # @see MutateInOptions#create_as_deleted
-      #
-      # @return [Boolean] true if the document is a tombstone (created in deleted state)
-      def deleted?
-        @deleted
-      end
-
-      attr_accessor :deleted
-
       # @yieldparam [MutateInResult] self
       def initialize
         super
@@ -234,6 +228,18 @@ module Couchbase
 
       # @return [JsonTranscoder] The default transcoder which should be used
       attr_accessor :transcoder
+
+      # @api private
+      #
+      # @see MutateInOptions#create_as_deleted
+      #
+      # @return [Boolean] true if the document is a tombstone (created in deleted state)
+      def deleted?
+        @deleted
+      end
+
+      # @api private
+      attr_accessor :deleted
 
       private
 

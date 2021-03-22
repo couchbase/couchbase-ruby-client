@@ -671,8 +671,6 @@ module Couchbase
       attr_accessor :expiry # @return [Integer, #in_seconds, nil]
       attr_accessor :store_semantics # @return [Symbol]
       attr_accessor :cas # @return [Integer, nil]
-      attr_accessor :access_deleted # @return [Boolean]
-      attr_accessor :create_as_deleted # @return [Boolean]
       attr_accessor :durability_level # @return [Symbol]
       attr_accessor :transcoder # @return [JsonTranscoder, #encode(Object)]
 
@@ -741,11 +739,18 @@ module Couchbase
           create_as_deleted: @create_as_deleted,
         }
       end
+
+      # @api private
+      # @return [Boolean]
+      attr_accessor :access_deleted
+
+      # @api private
+      # @return [Boolean]
+      attr_accessor :create_as_deleted
     end
 
     # Options for {Collection#lookup_in}
     class LookupIn < Base
-      attr_accessor :access_deleted # @return [Boolean]
       attr_accessor :transcoder # @return [JsonTranscoder, #decode(String)]
 
       # Creates an instance of options for {Collection#lookup_in}
@@ -778,6 +783,10 @@ module Couchbase
           access_deleted: @access_deleted,
         }
       end
+
+      # @api private
+      # @return [Boolean]
+      attr_accessor :access_deleted
     end
 
     # Options for {BinaryCollection#append}
