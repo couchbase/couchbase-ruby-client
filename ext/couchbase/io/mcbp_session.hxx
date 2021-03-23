@@ -133,6 +133,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 { "i", fmt::format("{}/{}", session_->client_id_, session_->id_) },
             };
             protocol::client_request<protocol::hello_request_body> hello_req;
+            if (session_->origin_.options().enable_unordered_execution) {
+                hello_req.body().enable_unordered_execution();
+            }
             if (session_->origin_.options().enable_clustermap_notification) {
                 hello_req.body().enable_clustermap_change_notification();
             }
