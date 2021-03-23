@@ -77,17 +77,18 @@ class get_collection_id_request_body
     static const inline client_opcode opcode = client_opcode::get_collection_id;
 
   private:
-    std::string key_;
+    std::vector<std::uint8_t> value_{};
 
   public:
     void collection_path(const std::string& path)
     {
-        key_ = path;
+        value_.assign(path.begin(), path.end());
     }
 
     const std::string& key()
     {
-        return key_;
+        static std::string empty;
+        return empty;
     }
 
     const std::vector<std::uint8_t>& framing_extras()
@@ -104,13 +105,12 @@ class get_collection_id_request_body
 
     const std::vector<std::uint8_t>& value()
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return value_;
     }
 
     std::size_t size()
     {
-        return key_.size();
+        return value_.size();
     }
 };
 
