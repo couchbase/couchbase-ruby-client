@@ -115,7 +115,7 @@ Now the API reference is accessible using web browser (where `VERSION` is curren
 
 The gem is available as open source under the terms of the [Apache2 License](https://opensource.org/licenses/Apache-2.0).
 
-    Copyright 2011-2020 Couchbase, Inc.
+    Copyright 2011-2021 Couchbase, Inc.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
