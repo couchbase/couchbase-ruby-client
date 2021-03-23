@@ -330,6 +330,15 @@ extract_options(connection_string& connstr)
                 } else if (param.second == "false" || param.second == "no" || param.second == "off") {
                     connstr.options.show_queries = false;
                 }
+            } else if (param.first == "enable_clustermap_notification") {
+                /**
+                 * Allow the server to push configuration updates asynchronously.
+                 */
+                if (param.second == "true" || param.second == "yes" || param.second == "on") {
+                    connstr.options.enable_clustermap_notification = true;
+                } else if (param.second == "false" || param.second == "no" || param.second == "off") {
+                    connstr.options.enable_clustermap_notification = false;
+                }
             } else {
                 spdlog::warn(R"(unknown parameter "{}" in connection string (value "{}"))", param.first, param.second);
             }

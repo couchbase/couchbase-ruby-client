@@ -40,6 +40,7 @@ struct cluster_options {
     bool force_ipv4{ false };
     bool enable_dns_srv{ true };
     bool show_queries{ false };
+    bool enable_clustermap_notification{ true };
     std::string network{ "auto" };
 
     std::chrono::milliseconds tcp_keep_alive_interval = timeout_defaults::tcp_keep_alive_interval;

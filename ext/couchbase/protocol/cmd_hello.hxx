@@ -83,7 +83,6 @@ class hello_request_body
         hello_feature::snappy,
         hello_feature::json,
         hello_feature::duplex,
-        hello_feature::clustermap_change_notification,
         hello_feature::unordered_execution,
         hello_feature::alt_request_support,
         hello_feature::tracing,
@@ -103,6 +102,11 @@ class hello_request_body
     [[nodiscard]] const std::string& user_agent() const
     {
         return key_;
+    }
+
+    void enable_clustermap_change_notification()
+    {
+        features_.emplace_back(hello_feature::clustermap_change_notification);
     }
 
     [[nodiscard]] const std::vector<hello_feature>& features() const
