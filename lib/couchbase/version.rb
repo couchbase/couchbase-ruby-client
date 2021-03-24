@@ -17,21 +17,21 @@ module Couchbase
   #
   # @example Display version and all dependencies in command line
   #   # ruby -rcouchbase -e 'pp Couchbase::VERSION'
-  #   {:sdk=>"3.0.1",
-  #    :backend=>"1.1.0",
-  #    :build_timestamp=>"2020-10-05 11:19:50",
-  #    :revision=>"b59cb40f11ec2dba992eda285eae5cd7238a59c3",
+  #   {:sdk=>"3.1.0",
+  #    :backend=>"1.4.0",
+  #    :build_timestamp=>"2021-03-24 11:25:34",
+  #    :revision=>"7ba4f7d8b5b0b59b9971ad765876413be3064adb",
   #    :platform=>"Linux-4.15.0-66-generic",
   #    :cpu=>"x86_64",
   #    :cc=>"GNU 9.3.1",
   #    :cxx=>"GNU 9.3.1",
-  #    :ruby=>"2.7.0",
+  #    :ruby=>"3.0.0",
   #    :spdlog=>"1.8.1",
   #    :asio=>"1.18.0",
   #    :snappy=>"1.1.8",
   #    :http_parser=>"2.9.4",
-  #    :openssl_headers=>"OpenSSL 1.1.1c FIPS  28 May 2019",
-  #    :openssl_runtime=>"OpenSSL 1.1.1c FIPS  28 May 2019"}
+  #    :openssl_headers=>"OpenSSL 1.1.1g FIPS  21 Apr 2020",
+  #    :openssl_runtime=>"OpenSSL 1.1.1g FIPS  21 Apr 2020"}
   VERSION = {} unless defined?(VERSION) # rubocop:disable Style/MutableConstant
-  VERSION.update(:sdk => "3.1.0".freeze)
+  VERSION.update(:sdk => "3.1.1.snapshot".freeze)
 end
