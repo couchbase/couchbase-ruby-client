@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 require "couchbase"
+require "digest/sha2"
 
 module ActiveSupport
   module Cache

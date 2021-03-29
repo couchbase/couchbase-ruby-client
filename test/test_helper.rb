@@ -127,6 +127,8 @@ module Couchbase
           @caves.start
           @cluster_id = SecureRandom.uuid
           e.connection_string = @caves.create_cluster(@cluster_id)
+          # FIXME: CAVES does not support Snappy
+          e.connection_string += "?enable_compression=false"
         end
         e
       end

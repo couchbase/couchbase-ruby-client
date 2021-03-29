@@ -48,7 +48,7 @@ class decrement_response_body
     bool parse(protocol::status status,
                const header_buffer& header,
                std::uint8_t framing_extras_size,
-               std::uint16_t /* key_size */,
+               std::uint16_t key_size,
                std::uint8_t extras_size,
                const std::vector<uint8_t>& body,
                const cmd_info&)
@@ -66,6 +66,7 @@ class decrement_response_body
                 token_.sequence_number = utils::byte_swap_64(token_.sequence_number);
                 offset += 8;
             }
+            offset += key_size;
             memcpy(&content_, body.data() + offset, sizeof(content_));
             content_ = utils::byte_swap_64(content_);
             return true;

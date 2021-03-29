@@ -321,8 +321,6 @@ module Couchbase
     end
 
     def test_mad_hatter_macros
-      skip("#{name}: CAVES does not support MadHatter macros yet") if use_caves?
-
       skip("The server does not support MadHatter macros (#{env.server_version})") unless env.server_version.mad_hatter?
 
       doc_id = uniq_id(:foo)
@@ -868,8 +866,6 @@ module Couchbase
     end
 
     def test_insert_expand_macro_xattr
-      skip("#{name}: CAVES does not expand subdocument macros yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -886,8 +882,6 @@ module Couchbase
     end
 
     def test_upsert_expand_macro_xattr
-      skip("#{name}: CAVES does not expand subdocument macros yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -958,8 +952,6 @@ module Couchbase
     end
 
     def test_array_append_xattr_create_path
-      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -972,8 +964,6 @@ module Couchbase
     end
 
     def test_array_prepend_xattr_create_path
-      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -1059,8 +1049,6 @@ module Couchbase
     end
 
     def test_array_append_create_path
-      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -1072,8 +1060,6 @@ module Couchbase
     end
 
     def test_array_prepend_create_path
-      skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
