@@ -80,7 +80,6 @@ class hello_request_body
         hello_feature::xattr,
         hello_feature::xerror,
         hello_feature::select_bucket,
-        hello_feature::snappy,
         hello_feature::json,
         hello_feature::duplex,
         hello_feature::alt_request_support,
@@ -111,6 +110,11 @@ class hello_request_body
     void enable_clustermap_change_notification()
     {
         features_.emplace_back(hello_feature::clustermap_change_notification);
+    }
+
+    void enable_compression()
+    {
+        features_.emplace_back(hello_feature::snappy);
     }
 
     [[nodiscard]] const std::vector<hello_feature>& features() const

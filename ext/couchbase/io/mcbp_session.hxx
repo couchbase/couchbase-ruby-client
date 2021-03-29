@@ -139,6 +139,9 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             if (session_->origin_.options().enable_clustermap_notification) {
                 hello_req.body().enable_clustermap_change_notification();
             }
+            if (session_->origin_.options().enable_compression) {
+                hello_req.body().enable_compression();
+            }
             hello_req.opaque(session_->next_opaque());
             hello_req.body().user_agent(tao::json::to_string(user_agent));
             spdlog::debug("{} user_agent={}, requested_features=[{}]",

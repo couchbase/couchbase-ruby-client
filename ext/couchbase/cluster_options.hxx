@@ -42,6 +42,7 @@ struct cluster_options {
     bool show_queries{ false };
     bool enable_unordered_execution{ true };
     bool enable_clustermap_notification{ true };
+    bool enable_compression{ true };
     std::string network{ "auto" };
 
     std::chrono::milliseconds tcp_keep_alive_interval = timeout_defaults::tcp_keep_alive_interval;

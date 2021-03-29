@@ -348,6 +348,15 @@ extract_options(connection_string& connstr)
                 } else if (param.second == "false" || param.second == "no" || param.second == "off") {
                     connstr.options.enable_unordered_execution = false;
                 }
+            } else if (param.first == "enable_compression") {
+                /**
+                 * Announce support of compression (snappy) to server
+                 */
+                if (param.second == "true" || param.second == "yes" || param.second == "on") {
+                    connstr.options.enable_compression = true;
+                } else if (param.second == "false" || param.second == "no" || param.second == "off") {
+                    connstr.options.enable_compression = false;
+                }
             } else {
                 spdlog::warn(R"(unknown parameter "{}" in connection string (value "{}"))", param.first, param.second);
             }
