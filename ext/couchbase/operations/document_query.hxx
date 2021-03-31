@@ -380,6 +380,7 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
             bool syntax_error = false;
             bool server_timeout = false;
             bool invalid_argument = false;
+            bool cas_mismatch = false;
 
             if (response.payload.meta_data.errors) {
                 for (const auto& error : *response.payload.meta_data.errors) {
@@ -400,6 +401,11 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
                         case 4080: /* IKey: "plan.build_prepared.name_encoded_plan_mismatch" */
                         case 4090: /* IKey: "plan.build_prepared.name_not_in_encoded_plan" */
                             prepared_statement_failure = true;
+                            break;
+                        case 12009: /* IKey: "datastore.couchbase.DML_error" */
+                            if (error.message.find("CAS mismatch") != std::string::npos) {
+                                cas_mismatch = true;
+                            }
                             break;
                         case 12004: /* IKey: "datastore.couchbase.primary_idx_not_found" */
                         case 12016: /* IKey: "datastore.couchbase.index_not_found" */
@@ -429,6 +435,8 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
                 response.ctx.ec = std::make_error_code(error::query_errc::planning_failure);
             } else if (index_not_found) {
                 response.ctx.ec = std::make_error_code(error::common_errc::index_not_found);
+            } else if (cas_mismatch) {
+                response.ctx.ec = std::make_error_code(error::common_errc::cas_mismatch);
             } else {
                 response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
             }
