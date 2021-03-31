@@ -90,7 +90,7 @@ enum class request_frame_info_id : uint8_t {
      * If the request modifies an existing document the expiry time from the existing document should be used instead of the TTL provided.
      * If document don't exist the provided TTL should be used. The frame info contains no value (length = 0).
      */
-    preserve_ttl = 0x1f,
+    preserve_ttl = 0x05,
 };
 
 constexpr inline bool

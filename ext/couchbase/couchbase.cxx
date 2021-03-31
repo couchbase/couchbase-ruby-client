@@ -2037,6 +2037,10 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE collection, VALUE id,
         if (!NIL_P(expiry)) {
             req.expiry = FIX2UINT(expiry);
         }
+        exc = cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
+        if (!NIL_P(exc)) {
+            break;
+        }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::upsert_response>>();
         auto f = barrier->get_future();
@@ -2083,6 +2087,11 @@ cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
         if (!NIL_P(exc)) {
             break;
         }
+        bool preserve_expiry{ false };
+        exc = cb_extract_option_bool(preserve_expiry, options, "preserve_expiry");
+        if (!NIL_P(exc)) {
+            break;
+        }
 
         std::vector<std::tuple<couchbase::document_id, std::string, std::uint32_t>> tuples{};
         exc = cb_extract_array_of_id_content(tuples, id_content);
@@ -2105,6 +2114,7 @@ cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
             if (!NIL_P(expiry)) {
                 req.expiry = FIX2UINT(expiry);
             }
+            req.preserve_expiry = preserve_expiry;
             auto barrier = std::make_shared<std::promise<couchbase::operations::upsert_response>>();
             backend->cluster->execute(req, [barrier](couchbase::operations::upsert_response&& resp) mutable { barrier->set_value(resp); });
             barriers.emplace_back(barrier);
@@ -2275,6 +2285,10 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE collection, VALUE id
         }
         if (!NIL_P(expiry)) {
             req.expiry = FIX2UINT(expiry);
+        }
+        exc = cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
+        if (!NIL_P(exc)) {
+            break;
         }
         VALUE cas = Qnil;
         exc = cb_extract_option_bignum(cas, options, "cas");
@@ -2547,6 +2561,10 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE collection, VALUE 
         if (!NIL_P(expiry)) {
             req.expiry = FIX2UINT(expiry);
         }
+        exc = cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
+        if (!NIL_P(exc)) {
+            break;
+        }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::increment_response>>();
         auto f = barrier->get_future();
@@ -2621,6 +2639,10 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE collection, VALUE 
         }
         if (!NIL_P(expiry)) {
             req.expiry = FIX2UINT(expiry);
+        }
+        exc = cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
+        if (!NIL_P(exc)) {
+            break;
         }
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::decrement_response>>();
@@ -2972,6 +2994,10 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
         }
         if (!NIL_P(expiry)) {
             req.expiry = FIX2UINT(expiry);
+        }
+        exc = cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
+        if (!NIL_P(exc)) {
+            break;
         }
         exc = cb_extract_option_bool(req.access_deleted, options, "access_deleted");
         if (!NIL_P(exc)) {

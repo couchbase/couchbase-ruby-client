@@ -871,5 +871,29 @@ module Couchbase
         assert_equal keys[i], r.content["value"]
       end
     end
+
+    def test_preserve_expiry
+      skip("#{name}: CAVES does not support preserve expiry") if use_caves?
+      skip("The server does not support preserve expiry (#{env.server_version})") unless env.server_version.supports_preserve_expiry?
+
+      doc_id = uniq_id(:foo)
+      res = @collection.upsert(doc_id, {answer: 42}, Options::Upsert(expiry: 1))
+      old_cas = res.cas
+      refute_equal 0, old_cas
+
+      res = @collection.get(doc_id, Options::Get(with_expiry: true))
+      old_expiry = res.expiry_time
+
+      res = @collection.upsert(doc_id, {answer: 43}, Options::Upsert(expiry: 100, preserve_expiry: true))
+      refute_equal old_cas, res.cas
+
+      res = @collection.get(doc_id, Options::Get(with_expiry: true))
+      assert_equal old_expiry, res.expiry_time
+
+      time_travel(2)
+      assert_raises(Couchbase::Error::DocumentNotFound) do
+        @collection.get(doc_id)
+      end
+    end
   end
 end

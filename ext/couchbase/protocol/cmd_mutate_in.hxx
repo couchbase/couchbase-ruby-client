@@ -305,17 +305,26 @@ class mutate_in_request_body
             return;
         }
         auto frame_id = static_cast<uint8_t>(protocol::request_frame_info_id::durability_requirement);
+        auto extras_size = framing_extras_.size();
         if (timeout) {
-            framing_extras_.resize(4);
-            framing_extras_[0] = static_cast<std::uint8_t>((static_cast<std::uint32_t>(frame_id) << 4U) | 3U);
-            framing_extras_[1] = static_cast<std::uint8_t>(level);
+            framing_extras_.resize(extras_size + 4);
+            framing_extras_[extras_size + 0] = static_cast<std::uint8_t>((static_cast<std::uint32_t>(frame_id) << 4U) | 3U);
+            framing_extras_[extras_size + 1] = static_cast<std::uint8_t>(level);
             uint16_t val = htons(*timeout);
-            memcpy(framing_extras_.data() + 2, &val, sizeof(val));
+            memcpy(framing_extras_.data() + extras_size + 2, &val, sizeof(val));
         } else {
-            framing_extras_.resize(2);
-            framing_extras_[0] = static_cast<std::uint8_t>(static_cast<std::uint32_t>(frame_id) << 4U | 1U);
-            framing_extras_[1] = static_cast<std::uint8_t>(level);
+            framing_extras_.resize(extras_size + 2);
+            framing_extras_[extras_size + 0] = static_cast<std::uint8_t>(static_cast<std::uint32_t>(frame_id) << 4U | 1U);
+            framing_extras_[extras_size + 1] = static_cast<std::uint8_t>(level);
         }
+    }
+
+    void preserve_expiry()
+    {
+        auto frame_id = static_cast<uint8_t>(protocol::request_frame_info_id::preserve_ttl);
+        auto extras_size = framing_extras_.size();
+        framing_extras_.resize(extras_size + 1);
+        framing_extras_[extras_size + 0] = static_cast<std::uint8_t>(static_cast<std::uint32_t>(frame_id) << 4U | 0U);
     }
 
     const std::string& key()

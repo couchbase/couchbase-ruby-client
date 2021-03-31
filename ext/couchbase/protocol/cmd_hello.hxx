@@ -88,6 +88,7 @@ class hello_request_body
         hello_feature::vattr,
         hello_feature::collections,
         hello_feature::subdoc_create_as_deleted,
+        hello_feature::preserve_ttl,
     };
     std::vector<std::uint8_t> value_;
 

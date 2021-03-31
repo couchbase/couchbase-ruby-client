@@ -74,6 +74,10 @@ class ServerVersion
   def supports_regexp_matches?
     mad_hatter? || cheshire_cat?
   end
+
+  def supports_preserve_expiry?
+    cheshire_cat?
+  end
 end
 
 require "couchbase"
