@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <regex>
+
 #include <tao/json.hpp>
 
 #include <version.hxx>
@@ -55,22 +57,21 @@ struct scope_create_request {
 };
 
 scope_create_response
-make_response(error_context::http&& ctx, scope_create_request&, scope_create_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, scope_create_request& /* request */, scope_create_request::encoded_response_type&& encoded)
 {
     scope_create_response response{ ctx };
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
-            case 400:
-                if (encoded.body.find("Not allowed on this version") != std::string::npos) {
-                    response.ctx.ec = std::make_error_code(error::common_errc::unsupported_operation);
-                } else if (encoded.body.find("Scope with this name already exists") != std::string::npos) {
+            case 400: {
+                std::regex scope_exists("Scope with name .+ already exists");
+                if (std::regex_search(encoded.body, scope_exists)) {
                     response.ctx.ec = std::make_error_code(error::management_errc::scope_exists);
                 } else if (encoded.body.find("Not allowed on this version of cluster") != std::string::npos) {
                     response.ctx.ec = std::make_error_code(error::common_errc::feature_not_available);
                 } else {
                     response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
                 }
-                break;
+            } break;
             case 404:
                 response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
                 break;

@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <regex>
+
 #include <tao/json.hpp>
 
 #include <version.hxx>
@@ -54,7 +56,7 @@ struct collection_drop_request {
 };
 
 collection_drop_response
-make_response(error_context::http&& ctx, collection_drop_request&, collection_drop_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, collection_drop_request& /* request */, collection_drop_request::encoded_response_type&& encoded)
 {
     collection_drop_response response{ ctx };
     if (!response.ctx.ec) {
@@ -62,15 +64,17 @@ make_response(error_context::http&& ctx, collection_drop_request&, collection_dr
             case 400:
                 response.ctx.ec = std::make_error_code(error::common_errc::unsupported_operation);
                 break;
-            case 404:
-                if (encoded.body.find("Collection with this name is not found") != std::string::npos) {
+            case 404: {
+                std::regex scope_not_found("Scope with name .+ is not found");
+                std::regex collection_not_found("Collection with name .+ is not found");
+                if (std::regex_search(encoded.body, collection_not_found)) {
                     response.ctx.ec = std::make_error_code(error::common_errc::collection_not_found);
-                } else if (encoded.body.find("Scope with this name is not found") != std::string::npos) {
+                } else if (std::regex_search(encoded.body, scope_not_found)) {
                     response.ctx.ec = std::make_error_code(error::common_errc::scope_not_found);
                 } else {
                     response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
                 }
-                break;
+            } break;
             case 200: {
                 tao::json::value payload{};
                 try {
