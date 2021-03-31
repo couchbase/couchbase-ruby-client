@@ -325,8 +325,8 @@ module Couchbase
       doc_id = uniq_id(:expiry_doc)
       doc = load_json_test_dataset("beer_sample_single")
 
-      today = Time.now
-      tomorrow = Time.utc(today.year, today.month, today.day + 1)
+      today = Time.now.round
+      tomorrow = today + (24 * 60 * 60) # add one day
       res = @collection.insert(doc_id, doc, Options::Insert(expiry: tomorrow))
       refute_equal 0, res.cas
 
