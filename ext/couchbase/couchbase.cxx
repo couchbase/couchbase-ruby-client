@@ -2707,6 +2707,9 @@ cb_map_subdoc_opcode(couchbase::protocol::subdoc_opcode opcode)
         case couchbase::protocol::subdoc_opcode::set_doc:
             return rb_id2sym(rb_intern("set_doc"));
 
+        case couchbase::protocol::subdoc_opcode::remove_doc:
+            return rb_id2sym(rb_intern("remove_doc"));
+
         case couchbase::protocol::subdoc_opcode::replace_body_with_xattr:
             return rb_id2sym(rb_intern("replace_body_with_xattr"));
     }
@@ -3049,6 +3052,8 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE collection, VALUE 
                 opcode = couchbase::protocol::subdoc_opcode::counter;
             } else if (operation_id == rb_intern("set_doc")) {
                 opcode = couchbase::protocol::subdoc_opcode::set_doc;
+            } else if (operation_id == rb_intern("remove_doc")) {
+                opcode = couchbase::protocol::subdoc_opcode::remove_doc;
             } else {
                 exc =
                   rb_exc_new_str(eInvalidArgument, rb_sprintf("unsupported operation for subdocument mutation: %+" PRIsVALUE, operation));

@@ -134,7 +134,7 @@ module Couchbase
     #
     # @return [MutateInSpec]
     def self.remove(path)
-      new(:remove, path, nil)
+      new(path.empty? ? :remove_doc : :remove, path, nil)
     end
 
     # Creates a command with the intention of upserting a value in a JSON object.

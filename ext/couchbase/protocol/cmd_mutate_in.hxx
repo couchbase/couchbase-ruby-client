@@ -224,7 +224,7 @@ class mutate_in_request_body
 
         void add_spec(subdoc_opcode operation, bool xattr, const std::string& path)
         {
-            Expects(operation == protocol::subdoc_opcode::remove);
+            Expects(operation == protocol::subdoc_opcode::remove || operation == protocol::subdoc_opcode::remove_doc);
             add_spec(static_cast<std::uint8_t>(operation), build_path_flags(xattr, false, false), path, "");
         }
 

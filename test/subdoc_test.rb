@@ -225,6 +225,24 @@ module Couchbase
       assert_equal({"bar" => "foo"}, res.content)
     end
 
+    def test_remove_full_document
+      doc_id = uniq_id(:foo)
+
+      @collection.upsert(doc_id, {"foo" => "bar"})
+
+      res = @collection.mutate_in(doc_id, [
+                                    # full document mutation should also carry XATTR spec
+                                    MutateInSpec.upsert("my_model.revision", 42).xattr.create_path,
+                                    MutateInSpec.remove(""),
+                                  ])
+      cas = res.cas
+
+      res = @collection.lookup_in(doc_id, [
+                                    LookupInSpec.get("$document").xattr,
+                                  ], Options::LookupIn(access_deleted: true))
+      assert_equal(cas, res.content(0)["CAS"].to_i(16))
+    end
+
     def test_counter_multi
       doc_id = uniq_id(:foo)
 
