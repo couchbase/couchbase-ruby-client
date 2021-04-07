@@ -19,7 +19,8 @@ CB_PORT=${CB_PORT:-8091}
 CB_USERNAME=${CB_USERNAME:-Administrator}
 CB_PASSWORD=${CB_PASSWORD:-password}
 CB_BUCKET=${CB_BUCKET:-default}
-CB_QUOTA=${CB_QUOTA:-256}
+CB_SERVER_QUOTA=${CB_SERVER_QUOTA:-512}
+CB_BUCKET_QUOTA=${CB_BUCKET_QUOTA:-100}
 CB_DEVELOPER_PREVIEW=${CB_DEVELOPER_PREVIEW:-no}
 CB_BEER_SAMPLE=${CB_BEER_SAMPLE:-no}
 CB_TRAVEL_SAMPLE=${CB_TRAVEL_SAMPLE:-no}
@@ -40,7 +41,7 @@ curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/nodes/self/controll
 
 # Setup Memory Quotas
 curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/pools/default \
-  -d "memoryQuota=${CB_QUOTA}" \
+  -d "memoryQuota=${CB_SERVER_QUOTA}" \
   -d 'indexMemoryQuota=256'
 
 # Setup Services
@@ -64,7 +65,7 @@ curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/pools/default/bucke
      -d 'replicaIndex=0' \
      -d 'replicaNumber=0' \
      -d 'evictionPolicy=valueOnly' \
-     -d 'ramQuotaMB=100' \
+     -d "ramQuotaMB=${CB_BUCKET_QUOTA}" \
      -d 'bucketType=membase' \
      -d "name=${CB_BUCKET}"
 
