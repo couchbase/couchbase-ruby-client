@@ -206,8 +206,7 @@ struct analytics_request {
             body["query_context"] = scope_qualifier;
         } else if (scope_name) {
             if (bucket_name) {
-                // for analytics bucket_name.scope_name is quoted as a single unit (unlike n1ql query)
-                body["query_context"] = fmt::format("default:`{}.{}`", *bucket_name, *scope_name);
+                body["query_context"] = fmt::format("default:`{}`.`{}`", *bucket_name, *scope_name);
             }
         }
         for (auto& param : raw) {
