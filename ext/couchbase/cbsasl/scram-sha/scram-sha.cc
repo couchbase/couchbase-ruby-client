@@ -27,11 +27,8 @@
 #include <cbsasl/scram-sha/stringutils.h>
 
 #include <cstring>
-#include <gsl/gsl>
-#include <iomanip>
 #include <iostream>
 #include <map>
-#include <memory>
 #include <set>
 #include <sstream>
 #include <string>
@@ -80,10 +77,10 @@ decodeAttributeList(const std::string& list, AttributeMap& attributes)
 
         auto comma = list.find(',', pos);
         if (comma == std::string::npos) {
-            attributes.insert(std::make_pair(key, list.substr(pos)));
+            attributes.insert(std::pair(key, list.substr(pos)));
             pos = list.length();
         } else {
-            attributes.insert(std::make_pair(key, list.substr(pos, comma - pos)));
+            attributes.insert(std::pair(key, list.substr(pos, comma - pos)));
             pos = comma + 1;
         }
     }
@@ -188,7 +185,6 @@ ScramShaBackend::addAttribute(std::ostream& out, char key, int value, bool more)
         case 'e': // error message
             throw std::invalid_argument("ScramShaBackend::addAttribute:"
                                         " Invalid value (should not be int)");
-            break;
 
         case 'i': // iterator count
             out << value;
@@ -284,14 +280,14 @@ ClientBackend::start()
     client_first_message = out.str();
     client_first_message_bare = client_first_message.substr(3); // skip n,,
 
-    return std::make_pair<error, std::string_view>(error::OK, client_first_message);
+    return { error::OK, client_first_message };
 }
 
 std::pair<error, std::string_view>
 ClientBackend::step(std::string_view input)
 {
     if (input.empty()) {
-        return std::make_pair<error, std::string_view>(error::BAD_PARAM, {});
+        return { error::BAD_PARAM, {} };
     }
 
     if (server_first_message.empty()) {
@@ -299,7 +295,7 @@ ClientBackend::step(std::string_view input)
 
         AttributeMap attributes;
         if (!decodeAttributeList(server_first_message, attributes)) {
-            return std::make_pair<error, std::string_view>(error::BAD_PARAM, {});
+            return { error::BAD_PARAM, {} };
         }
 
         for (const auto& attribute : attributes) {
@@ -314,24 +310,24 @@ ClientBackend::step(std::string_view input)
                     try {
                         iterationCount = static_cast<unsigned int>(std::stoul(attribute.second));
                     } catch (...) {
-                        return std::make_pair<error, std::string_view>(error::BAD_PARAM, {});
+                        return { error::BAD_PARAM, {} };
                     }
                     break;
                 default:
-                    return std::make_pair<error, std::string_view>(error::BAD_PARAM, {});
+                    return { error::BAD_PARAM, {} };
             }
         }
 
         if (attributes.find('r') == attributes.end() || attributes.find('s') == attributes.end() ||
             attributes.find('i') == attributes.end()) {
             spdlog::error("missing r/s/i in server message");
-            return std::make_pair<error, std::string_view>(error::BAD_PARAM, {});
+            return { error::BAD_PARAM, {} };
         }
 
         // I've got the SALT, lets generate the salted password
         if (!generateSaltedPassword(passwordCallback())) {
             spdlog::error("failed to generated salted password");
-            return std::make_pair<error, std::string_view>(error::FAIL, {});
+            return { error::FAIL, {} };
         }
 
         // Ok so we have salted hased password :D
@@ -346,34 +342,33 @@ ClientBackend::step(std::string_view input)
 
         client_final_message = out.str();
 
-        return std::make_pair<error, std::string_view>(error::CONTINUE, client_final_message);
-    } else {
-        server_final_message.assign(input.data(), input.size());
-
-        AttributeMap attributes;
-        if (!decodeAttributeList(server_final_message, attributes)) {
-            spdlog::error("SCRAM: failed to decode server-final-message");
-            return std::make_pair<error, std::string_view>(error::BAD_PARAM, {});
-        }
-
-        if (attributes.find('e') != attributes.end()) {
-            spdlog::error("failed to authenticate: {}", attributes['e']);
-            return std::make_pair<error, std::string_view>(error::FAIL, {});
-        }
-
-        if (attributes.find('v') == attributes.end()) {
-            spdlog::error("syntax error server final message is missing 'v'");
-            return std::make_pair<error, std::string_view>(error::BAD_PARAM, {});
-        }
-
-        auto encoded = couchbase::base64::encode(getServerSignature());
-        if (encoded != attributes['v']) {
-            spdlog::error("incorrect ServerKey received");
-            return std::make_pair<error, std::string_view>(error::FAIL, {});
-        }
-
-        return std::make_pair<error, std::string_view>(error::OK, {});
+        return { error::CONTINUE, client_final_message };
     }
+    server_final_message.assign(input.data(), input.size());
+
+    AttributeMap attributes;
+    if (!decodeAttributeList(server_final_message, attributes)) {
+        spdlog::error("SCRAM: failed to decode server-final-message");
+        return { error::BAD_PARAM, {} };
+    }
+
+    if (attributes.find('e') != attributes.end()) {
+        spdlog::error("failed to authenticate: {}", attributes['e']);
+        return { error::FAIL, {} };
+    }
+
+    if (attributes.find('v') == attributes.end()) {
+        spdlog::error("syntax error server final message is missing 'v'");
+        return { error::BAD_PARAM, {} };
+    }
+
+    auto encoded = couchbase::base64::encode(getServerSignature());
+    if (encoded != attributes['v']) {
+        spdlog::error("incorrect ServerKey received");
+        return { error::FAIL, {} };
+    }
+
+    return { error::OK, {} };
 }
 
 bool

@@ -156,9 +156,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 session_->write(list_req.data());
 
                 protocol::client_request<protocol::sasl_auth_request_body> auth_req;
-                sasl::error sasl_code;
-                std::string_view sasl_payload;
-                std::tie(sasl_code, sasl_payload) = sasl_.start();
+                auto [sasl_code, sasl_payload] = sasl_.start();
                 auth_req.opaque(session_->next_opaque());
                 auth_req.body().mechanism(sasl_.get_name());
                 auth_req.body().sasl_data(sasl_payload);
@@ -200,8 +198,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 return;
             }
             Expects(protocol::is_valid_client_opcode(msg.header.opcode));
-            auto opcode = static_cast<protocol::client_opcode>(msg.header.opcode);
-            switch (opcode) {
+            switch (auto opcode = protocol::client_opcode(msg.header.opcode)) {
                 case protocol::client_opcode::hello: {
                     protocol::client_response<protocol::hello_response_body> resp(msg);
                     if (resp.status() == protocol::status::success) {
@@ -235,9 +232,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                         return auth_success();
                     }
                     if (resp.status() == protocol::status::auth_continue) {
-                        sasl::error sasl_code;
-                        std::string_view sasl_payload;
-                        std::tie(sasl_code, sasl_payload) = sasl_.step(resp.body().value());
+                        auto [sasl_code, sasl_payload] = sasl_.step(resp.body().value());
                         if (sasl_code == sasl::error::OK) {
                             return auth_success();
                         }
@@ -378,11 +373,11 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 return;
             }
             Expects(protocol::is_valid_magic(msg.header.magic));
-            switch (auto magic = static_cast<protocol::magic>(msg.header.magic)) {
+            switch (auto magic = protocol::magic(msg.header.magic)) {
                 case protocol::magic::client_response:
                 case protocol::magic::alt_client_response:
                     Expects(protocol::is_valid_client_opcode(msg.header.opcode));
-                    switch (auto opcode = static_cast<protocol::client_opcode>(msg.header.opcode)) {
+                    switch (auto opcode = protocol::client_opcode(msg.header.opcode)) {
                         case protocol::client_opcode::get_cluster_config: {
                             protocol::client_response<protocol::get_cluster_config_response_body> resp(msg);
                             if (resp.status() == protocol::status::success) {
@@ -852,7 +847,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
     std::error_code map_status_code(protocol::client_opcode opcode, uint16_t status)
     {
-        switch (static_cast<protocol::status>(status)) {
+        switch (protocol::status(status)) {
             case protocol::status::success:
             case protocol::status::subdoc_multi_path_failure:
             case protocol::status::subdoc_success_deleted:
@@ -1059,7 +1054,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         Expects(msg.header.magic == static_cast<std::uint8_t>(protocol::magic::alt_client_response) ||
                 msg.header.magic == static_cast<std::uint8_t>(protocol::magic::client_response));
         if (protocol::has_json_datatype(msg.header.datatype)) {
-            auto magic = static_cast<protocol::magic>(msg.header.magic);
+            auto magic = protocol::magic(msg.header.magic);
             uint8_t extras_size = msg.header.extlen;
             uint8_t framing_extras_size = 0;
             uint16_t key_size = htons(msg.header.keylen);
@@ -1073,7 +1068,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 auto config = protocol::parse_config(msg.body.begin() + offset, msg.body.end());
                 spdlog::debug("{} received not_my_vbucket status for {}, opaque={} with config rev={} in the payload",
                               log_prefix_,
-                              static_cast<protocol::client_opcode>(msg.header.opcode),
+                              protocol::client_opcode(msg.header.opcode),
                               msg.header.opaque,
                               config.rev_str());
                 update_configuration(std::move(config));

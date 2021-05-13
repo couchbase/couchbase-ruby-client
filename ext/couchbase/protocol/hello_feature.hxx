@@ -155,7 +155,7 @@ enum class hello_feature : uint16_t {
 constexpr inline bool
 is_valid_hello_feature(uint16_t code)
 {
-    switch (static_cast<hello_feature>(code)) {
+    switch (hello_feature(code)) {
         case hello_feature::tls:
         case hello_feature::tcp_nodelay:
         case hello_feature::mutation_seqno:

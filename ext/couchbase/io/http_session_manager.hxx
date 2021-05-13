@@ -153,9 +153,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
         idle_sessions_[type].remove_if([](const auto& s) -> bool { return !s; });
         busy_sessions_[type].remove_if([](const auto& s) -> bool { return !s; });
         if (idle_sessions_[type].empty()) {
-            std::string hostname;
-            std::uint16_t port = 0;
-            std::tie(hostname, port) = next_node(type);
+            auto [hostname, port] = next_node(type);
             if (port == 0) {
                 return nullptr;
             }

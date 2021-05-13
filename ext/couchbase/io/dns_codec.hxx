@@ -65,7 +65,7 @@ class dns_codec
             std::memcpy(&val, payload.data() + offset, sizeof(std::uint16_t));
             offset += sizeof(std::uint16_t);
             val = ntohs(val);
-            qr.type = static_cast<resource_type>(val);
+            qr.type = resource_type(val);
 
             std::memcpy(&val, payload.data() + offset, sizeof(std::uint16_t));
             offset += sizeof(std::uint16_t);
@@ -84,12 +84,12 @@ class dns_codec
             std::memcpy(&val, payload.data() + offset, sizeof(std::uint16_t));
             offset += sizeof(std::uint16_t);
             val = ntohs(val);
-            ar.type = static_cast<resource_type>(val);
+            ar.type = resource_type(val);
 
             std::memcpy(&val, payload.data() + offset, sizeof(std::uint16_t));
             offset += sizeof(std::uint16_t);
             val = ntohs(val);
-            ar.klass = static_cast<resource_class>(val);
+            ar.klass = resource_class(val);
 
             std::memcpy(&ar.ttl, payload.data() + offset, sizeof(std::uint32_t));
             offset += static_cast<std::uint16_t>(4U);

@@ -30,7 +30,7 @@ enum class datatype : uint8_t {
 constexpr inline bool
 is_valid_datatype(uint8_t code)
 {
-    switch (static_cast<datatype>(code)) {
+    switch (datatype(code)) {
         case datatype::raw:
         case datatype::json:
         case datatype::snappy:

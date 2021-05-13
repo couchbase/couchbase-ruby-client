@@ -27,7 +27,7 @@ enum class server_opcode : uint8_t {
 constexpr inline bool
 is_valid_server_request_opcode(uint8_t code)
 {
-    switch (static_cast<server_opcode>(code)) {
+    switch (server_opcode(code)) {
         case server_opcode::cluster_map_change_notification:
             return true;
         case server_opcode::invalid:

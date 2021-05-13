@@ -65,7 +65,7 @@ class lookup_in_response_body
                 memcpy(&entry_status, body.data() + offset, sizeof(entry_status));
                 entry_status = ntohs(entry_status);
                 Expects(is_valid_status(entry_status));
-                field.status = static_cast<protocol::status>(entry_status);
+                field.status = protocol::status(entry_status);
                 offset += static_cast<offset_type>(sizeof(entry_status));
 
                 std::uint32_t entry_size = 0;

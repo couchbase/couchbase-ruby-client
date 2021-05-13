@@ -89,7 +89,7 @@ make_response(error_context::key_value&& ctx, lookup_in_request& request, lookup
         for (size_t i = 0; i < request.specs.entries.size(); ++i) {
             auto& req_entry = request.specs.entries[i];
             response.fields[i].original_index = req_entry.original_index;
-            response.fields[i].opcode = static_cast<protocol::subdoc_opcode>(req_entry.opcode);
+            response.fields[i].opcode = protocol::subdoc_opcode(req_entry.opcode);
             response.fields[i].path = req_entry.path;
             response.fields[i].status = protocol::status::success;
         }

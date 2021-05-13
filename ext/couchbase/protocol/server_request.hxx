@@ -96,7 +96,7 @@ class server_request
     {
         Expects(header_[0] == static_cast<std::uint8_t>(magic_));
         Expects(header_[1] == static_cast<std::uint8_t>(Body::opcode));
-        opcode_ = static_cast<server_opcode>(header_[1]);
+        opcode_ = server_opcode(header_[1]);
         data_type_ = header_[5];
 
         uint32_t field = 0;

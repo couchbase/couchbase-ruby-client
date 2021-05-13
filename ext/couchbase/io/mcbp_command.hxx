@@ -190,7 +190,7 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
               protocol::status status = protocol::status::invalid;
               std::optional<error_map::error_info> error_code{};
               if (protocol::is_valid_status(msg.header.status())) {
-                  status = static_cast<protocol::status>(msg.header.status());
+                  status = protocol::status(msg.header.status());
               } else {
                   error_code = self->session_->decode_error_code(msg.header.status());
               }

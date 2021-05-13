@@ -96,7 +96,7 @@ enum class request_frame_info_id : uint8_t {
 constexpr inline bool
 is_valid_request_frame_info_id(uint8_t value)
 {
-    switch (static_cast<request_frame_info_id>(value)) {
+    switch (request_frame_info_id(value)) {
         case request_frame_info_id::barrier:
         case request_frame_info_id::durability_requirement:
         case request_frame_info_id::dcp_stream_id:
@@ -132,7 +132,7 @@ enum class response_frame_info_id : uint8_t {
 constexpr inline bool
 is_valid_response_frame_info_id(uint8_t value)
 {
-    switch (static_cast<response_frame_info_id>(value)) {
+    switch (response_frame_info_id(value)) {
         case response_frame_info_id::server_duration:
             return true;
     }

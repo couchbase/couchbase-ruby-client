@@ -39,7 +39,7 @@ enum class magic : uint8_t {
 constexpr inline bool
 is_valid_magic(uint8_t code)
 {
-    switch (static_cast<magic>(code)) {
+    switch (magic(code)) {
         case magic::client_request:
         case magic::alt_client_request:
         case magic::client_response:

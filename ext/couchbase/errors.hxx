@@ -318,7 +318,7 @@ struct common_error_category : std::error_category {
 
     [[nodiscard]] std::string message(int ev) const noexcept override
     {
-        switch (static_cast<common_errc>(ev)) {
+        switch (common_errc(ev)) {
             case common_errc::unambiguous_timeout:
                 return "unambiguous_timeout";
             case common_errc::ambiguous_timeout:
@@ -377,7 +377,7 @@ struct key_value_error_category : std::error_category {
 
     [[nodiscard]] std::string message(int ev) const noexcept override
     {
-        switch (static_cast<key_value_errc>(ev)) {
+        switch (key_value_errc(ev)) {
             case key_value_errc::document_not_found:
                 return "document_not_found";
             case key_value_errc::document_irretrievable:
@@ -447,7 +447,7 @@ struct query_error_category : std::error_category {
 
     [[nodiscard]] std::string message(int ev) const noexcept override
     {
-        switch (static_cast<query_errc>(ev)) {
+        switch (query_errc(ev)) {
             case query_errc::planning_failure:
                 return "planning_failure";
             case query_errc::index_failure:
@@ -474,7 +474,7 @@ struct search_error_category : std::error_category {
 
     [[nodiscard]] std::string message(int ev) const noexcept override
     {
-        switch (static_cast<search_errc>(ev)) {
+        switch (search_errc(ev)) {
             case search_errc::index_not_ready:
                 return "index_not_ready";
             case search_errc::consistency_mismatch:
@@ -499,7 +499,7 @@ struct view_error_category : std::error_category {
 
     [[nodiscard]] std::string message(int ev) const noexcept override
     {
-        switch (static_cast<view_errc>(ev)) {
+        switch (view_errc(ev)) {
             case view_errc::view_not_found:
                 return "view_not_found";
             case view_errc::design_document_not_found:
@@ -524,7 +524,7 @@ struct analytics_error_category : std::error_category {
 
     [[nodiscard]] std::string message(int ev) const noexcept override
     {
-        switch (static_cast<analytics_errc>(ev)) {
+        switch (analytics_errc(ev)) {
             case analytics_errc::compilation_failure:
                 return "compilation_failure";
             case analytics_errc::job_queue_full:
@@ -559,7 +559,7 @@ struct management_error_category : std::error_category {
 
     [[nodiscard]] std::string message(int ev) const noexcept override
     {
-        switch (static_cast<management_errc>(ev)) {
+        switch (management_errc(ev)) {
             case management_errc::collection_exists:
                 return "collection_exists";
             case management_errc::scope_exists:
@@ -594,7 +594,7 @@ struct network_error_category : std::error_category {
 
     [[nodiscard]] std::string message(int ev) const noexcept override
     {
-        switch (static_cast<network_errc>(ev)) {
+        switch (network_errc(ev)) {
             case network_errc::resolve_failure:
                 return "resolve_failure";
             case network_errc::no_endpoints_left:

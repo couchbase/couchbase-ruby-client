@@ -21,9 +21,7 @@
 #include <iterator>
 #include <vector>
 
-namespace couchbase
-{
-namespace sasl
+namespace couchbase::sasl
 {
 
 Mechanism
@@ -44,5 +42,4 @@ select_mechanism(const std::vector<std::string>& available_mechanisms)
     throw unknown_mechanism("unknown mechanism"); // TODO: avoid this exception
 }
 
-} // namespace sasl
-} // namespace couchbase
+} // namespace couchbase::sasl

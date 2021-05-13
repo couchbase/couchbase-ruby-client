@@ -17,9 +17,7 @@
 
 #pragma once
 
-namespace couchbase
-{
-namespace protocol
+namespace couchbase::protocol
 {
 enum class status : uint16_t {
     success = 0x00,
@@ -84,7 +82,7 @@ enum class status : uint16_t {
 constexpr inline bool
 is_valid_status(uint16_t code)
 {
-    switch (static_cast<status>(code)) {
+    switch (status(code)) {
         case status::success:
         case status::not_found:
         case status::exists:
@@ -156,7 +154,6 @@ status_to_string(uint16_t code)
     return fmt::format("{} (unknown)", code);
 }
 
-} // namespace protocol
 } // namespace couchbase
 
 template<>

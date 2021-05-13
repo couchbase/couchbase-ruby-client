@@ -358,7 +358,7 @@ static VALUE
 cb_map_error_code(std::error_code ec, const std::string& message)
 {
     if (ec.category() == couchbase::error::detail::get_common_category()) {
-        switch (static_cast<couchbase::error::common_errc>(ec.value())) {
+        switch (couchbase::error::common_errc(ec.value())) {
             case couchbase::error::common_errc::unambiguous_timeout:
                 return rb_exc_new_cstr(eUnambiguousTimeout, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -417,7 +417,7 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 return rb_exc_new_cstr(eIndexExists, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_key_value_category()) {
-        switch (static_cast<couchbase::error::key_value_errc>(ec.value())) {
+        switch (couchbase::error::key_value_errc(ec.value())) {
             case couchbase::error::key_value_errc::document_not_found:
                 return rb_exc_new_cstr(eDocumentNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -494,7 +494,7 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 return rb_exc_new_cstr(eXattrCannotModifyVirtualAttribute, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_query_category()) {
-        switch (static_cast<couchbase::error::query_errc>(ec.value())) {
+        switch (couchbase::error::query_errc(ec.value())) {
             case couchbase::error::query_errc::planning_failure:
                 return rb_exc_new_cstr(ePlanningFailure, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -505,14 +505,14 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 return rb_exc_new_cstr(ePreparedStatementFailure, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_search_category()) {
-        switch (static_cast<couchbase::error::search_errc>(ec.value())) {
+        switch (couchbase::error::search_errc(ec.value())) {
             case couchbase::error::search_errc::index_not_ready:
                 return rb_exc_new_cstr(eIndexNotReady, fmt::format("{}: {}", message, ec.message()).c_str());
             case couchbase::error::search_errc::consistency_mismatch:
                 return rb_exc_new_cstr(eConsistencyMismatch, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_view_category()) {
-        switch (static_cast<couchbase::error::view_errc>(ec.value())) {
+        switch (couchbase::error::view_errc(ec.value())) {
             case couchbase::error::view_errc::view_not_found:
                 return rb_exc_new_cstr(eViewNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -520,7 +520,7 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 return rb_exc_new_cstr(eDesignDocumentNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_analytics_category()) {
-        switch (static_cast<couchbase::error::analytics_errc>(ec.value())) {
+        switch (couchbase::error::analytics_errc(ec.value())) {
             case couchbase::error::analytics_errc::compilation_failure:
                 return rb_exc_new_cstr(eCompilationFailure, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -543,7 +543,7 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 return rb_exc_new_cstr(eLinkNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_management_category()) {
-        switch (static_cast<couchbase::error::management_errc>(ec.value())) {
+        switch (couchbase::error::management_errc(ec.value())) {
             case couchbase::error::management_errc::collection_exists:
                 return rb_exc_new_cstr(eCollectionExists, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -566,7 +566,7 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 return rb_exc_new_cstr(eBucketNotFlushable, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::network_error_category()) {
-        switch (static_cast<couchbase::error::network_errc>(ec.value())) {
+        switch (couchbase::error::network_errc(ec.value())) {
             case couchbase::error::network_errc::resolve_failure:
                 return rb_exc_new_cstr(eResolveFailure, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -1268,13 +1268,12 @@ cb_extract_array_of_id_cas(std::vector<std::pair<couchbase::document_id, std::ui
             }
         }
 
-        id_cas.emplace_back(std::make_pair(
-          couchbase::document_id{
-            std::string(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket))),
-            std::string(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection))),
-            std::string(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id))),
-          },
-          cas_val));
+        id_cas.emplace_back(std::pair{ couchbase::document_id{
+                                         std::string(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket))),
+                                         std::string(RSTRING_PTR(collection), static_cast<size_t>(RSTRING_LEN(collection))),
+                                         std::string(RSTRING_PTR(id), static_cast<size_t>(RSTRING_LEN(id))),
+                                       },
+                                       cas_val });
     }
 
     return Qnil;

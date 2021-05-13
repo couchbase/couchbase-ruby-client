@@ -21,13 +21,13 @@
 
 #include <gsl/gsl_util>
 
-#include <tao/json.hpp>
-#include <spdlog/spdlog.h>
-#include <utils/crc32.hxx>
 #include <platform/uuid.h>
+#include <spdlog/spdlog.h>
+#include <tao/json.hpp>
+#include <utils/crc32.hxx>
 
-#include <service_type.hxx>
 #include <capabilities.hxx>
+#include <service_type.hxx>
 
 namespace couchbase
 {
@@ -240,8 +240,8 @@ struct configuration {
             throw std::runtime_error("cannot map key: partition map is not available");
         }
         uint32_t crc = utils::hash_crc32(key.data(), key.size());
-        uint16_t vbucket = uint16_t(crc % vbmap->size());
-        return std::make_pair(vbucket, vbmap->at(vbucket)[0]);
+        auto vbucket = uint16_t(crc % vbmap->size());
+        return { vbucket, vbmap->at(vbucket)[0] };
     }
 };
 
@@ -423,7 +423,7 @@ struct traits<couchbase::configuration> {
                 const auto& hostname = o.find("hostname");
                 if (hostname != o.end()) {
                     n.hostname = hostname->second.get_string();
-                    n.hostname = n.hostname.substr(0, n.hostname.rfind(":"));
+                    n.hostname = n.hostname.substr(0, n.hostname.rfind(':'));
                 }
                 const auto& s = o.at("services");
                 n.services_plain.key_value = s.template optional<std::uint16_t>("kv");

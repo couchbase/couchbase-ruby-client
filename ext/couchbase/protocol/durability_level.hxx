@@ -47,7 +47,7 @@ enum class durability_level : uint8_t {
 constexpr inline bool
 is_valid_durability_level(uint8_t value)
 {
-    switch (static_cast<durability_level>(value)) {
+    switch (durability_level(value)) {
         case durability_level::none:
         case durability_level::majority:
         case durability_level::majority_and_persist_to_active:

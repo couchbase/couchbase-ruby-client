@@ -321,15 +321,15 @@ struct dns_header {
 
         void decode(std::uint16_t blob)
         {
-            qr = static_cast<message_type>((static_cast<std::uint32_t>(blob) >> 15U) & 1U);
-            opcode = static_cast<dns::opcode>((static_cast<std::uint32_t>(blob) >> 11U) & 15U);
+            qr = message_type((static_cast<std::uint32_t>(blob) >> 15U) & 1U);
+            opcode = dns::opcode((static_cast<std::uint32_t>(blob) >> 11U) & 15U);
 
             aa = ((static_cast<std::uint32_t>(blob) >> 10U) & 1U) != 0U ? authoritative_answer::yes : authoritative_answer::no;
             tc = ((static_cast<std::uint32_t>(blob) >> 9U) & 1U) != 0U ? truncation::yes : truncation::no;
             rd = ((static_cast<std::uint32_t>(blob) >> 8U) & 1U) != 0U ? recursion_desired::yes : recursion_desired::no;
             ra = ((static_cast<std::uint32_t>(blob) >> 7U) & 1U) != 0U ? recursion_available::yes : recursion_available::no;
 
-            rcode = static_cast<response_code>(blob & 15U);
+            rcode = response_code(blob & 15U);
         }
     };
 

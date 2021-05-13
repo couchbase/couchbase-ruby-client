@@ -108,15 +108,15 @@ class client_response
         Expects(header_[0] == static_cast<std::uint8_t>(magic::alt_client_response) ||
                 header_[0] == static_cast<std::uint8_t>(magic::client_response));
         Expects(header_[1] == static_cast<std::uint8_t>(Body::opcode));
-        magic_ = static_cast<magic>(header_[0]);
-        opcode_ = static_cast<client_opcode>(header_[1]);
+        magic_ = magic(header_[0]);
+        opcode_ = client_opcode(header_[1]);
         data_type_ = header_[5];
 
         uint16_t status = 0;
         memcpy(&status, header_.data() + 6, sizeof(status));
         status = ntohs(status);
         Expects(protocol::is_valid_status(status));
-        status_ = static_cast<protocol::status>(status);
+        status_ = protocol::status(status);
 
         extras_size_ = header_[4];
         if (magic_ == magic::alt_client_response) {

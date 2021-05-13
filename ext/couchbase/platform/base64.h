@@ -19,9 +19,7 @@
 #include <string>
 #include <vector>
 
-namespace couchbase
-{
-namespace base64
+namespace couchbase::base64
 {
 
 /**
@@ -43,5 +41,4 @@ encode(std::string_view blob, bool prettyprint = false);
 std::string
 decode(std::string_view blob);
 
-} // namespace base64
-} // namespace couchbase
+} // namespace couchbase::base64

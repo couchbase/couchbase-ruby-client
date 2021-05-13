@@ -30,7 +30,7 @@ ClientBackend::start()
     buffer.push_back(0);
     std::copy(passwd.begin(), passwd.end(), std::back_inserter(buffer));
 
-    return std::make_pair<error, std::string_view>(error::OK, { buffer.data(), buffer.size() });
+    return { error::OK, { buffer.data(), buffer.size() } };
 }
 
 } // namespace couchbase::sasl::mechanism::plain
