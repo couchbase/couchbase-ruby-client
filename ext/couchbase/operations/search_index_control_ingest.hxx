@@ -43,7 +43,7 @@ struct search_index_control_ingest_request {
     std::string index_name;
     bool pause;
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/api/index/{}/ingestControl/{}", index_name, pause ? "pause" : "resume");
@@ -53,7 +53,7 @@ struct search_index_control_ingest_request {
 
 search_index_control_ingest_response
 make_response(error_context::http&& ctx,
-              search_index_control_ingest_request&,
+              search_index_control_ingest_request& /* request */,
               search_index_control_ingest_request::encoded_response_type&& encoded)
 {
     search_index_control_ingest_response response{ ctx };
@@ -63,7 +63,7 @@ make_response(error_context::http&& ctx,
             try {
                 payload = tao::json::from_string(encoded.body);
             } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             response.status = payload.at("status").get_string();
@@ -75,17 +75,17 @@ make_response(error_context::http&& ctx,
             try {
                 payload = tao::json::from_string(encoded.body);
             } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             response.status = payload.at("status").get_string();
             response.error = payload.at("error").get_string();
             if (response.error.find("index not found") != std::string::npos) {
-                response.ctx.ec = std::make_error_code(error::common_errc::index_not_found);
+                response.ctx.ec = error::common_errc::index_not_found;
                 return response;
             }
         }
-        response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+        response.ctx.ec = error::common_errc::internal_server_failure;
     }
     return response;
 }

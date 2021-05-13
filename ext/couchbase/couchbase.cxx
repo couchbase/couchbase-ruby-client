@@ -1189,7 +1189,7 @@ cb_extract_array_of_id_content(std::vector<std::tuple<couchbase::document_id, st
         if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 5) {
             return rb_exc_new_str(
               rb_eArgError,
-              rb_sprintf("ID/content tuple must be represented as an Array[bucket, collection, id, content], but given %+" PRIsVALUE,
+              rb_sprintf("ID/content tuple must be represented as an Array[bucket, collection, id, content, flags], but given %+" PRIsVALUE,
                          entry));
         }
         VALUE bucket = rb_ary_entry(entry, 0);

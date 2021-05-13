@@ -76,7 +76,7 @@ make_response(error_context::http&& ctx,
         try {
             payload = tao::json::from_string(encoded.body);
         } catch (tao::json::pegtl::parse_error& e) {
-            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
         response.status = payload.at("status").get_string();
@@ -100,9 +100,9 @@ make_response(error_context::http&& ctx,
                 }
             }
             if (dataverse_exists) {
-                response.ctx.ec = std::make_error_code(error::analytics_errc::dataverse_exists);
+                response.ctx.ec = error::analytics_errc::dataverse_exists;
             } else {
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
             }
         }
     }

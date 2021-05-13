@@ -75,7 +75,7 @@ struct mutate_in_request {
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&& ctx)
     {
         if (create_as_deleted && !ctx.supports_feature(protocol::hello_feature::subdoc_create_as_deleted)) {
-            return std::make_error_code(error::common_errc::unsupported_operation);
+            return error::common_errc::unsupported_operation;
         }
         for (std::size_t i = 0; i < specs.entries.size(); ++i) {
             auto& entry = specs.entries[i];
@@ -146,8 +146,8 @@ make_response(error_context::key_value&& ctx, mutate_in_request& request, mutate
                       return lhs.original_index < rhs.original_index;
                   });
     } else if (request.store_semantics == protocol::mutate_in_request_body::store_semantics_type::insert &&
-               response.ctx.ec == std::make_error_code(error::common_errc::cas_mismatch)) {
-        response.ctx.ec = std::make_error_code(error::key_value_errc::document_exists);
+               response.ctx.ec == error::common_errc::cas_mismatch) {
+        response.ctx.ec = error::key_value_errc::document_exists;
     }
     return response;
 }

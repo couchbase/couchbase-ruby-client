@@ -39,7 +39,7 @@ struct view_index_upsert_request {
     std::string bucket_name;
     design_document document;
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         tao::json::value body;
         body["views"] = tao::json::empty_object;
@@ -64,7 +64,9 @@ struct view_index_upsert_request {
 };
 
 view_index_upsert_response
-make_response(error_context::http&& ctx, view_index_upsert_request&, view_index_upsert_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx,
+              view_index_upsert_request& /* request */,
+              view_index_upsert_request::encoded_response_type&& encoded)
 {
     view_index_upsert_response response{ ctx };
     if (!response.ctx.ec) {
@@ -73,13 +75,13 @@ make_response(error_context::http&& ctx, view_index_upsert_request&, view_index_
             case 201:
                 break;
             case 400:
-                response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
+                response.ctx.ec = error::common_errc::invalid_argument;
                 break;
             case 404:
-                response.ctx.ec = std::make_error_code(error::view_errc::design_document_not_found);
+                response.ctx.ec = error::view_errc::design_document_not_found;
                 break;
             default:
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
         }
     }
     return response;

@@ -53,7 +53,7 @@ struct analytics_index_get_all_request {
     std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         tao::json::value body{
             { "statement", "SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\"" },
@@ -68,7 +68,9 @@ struct analytics_index_get_all_request {
 };
 
 analytics_index_get_all_response
-make_response(error_context::http&& ctx, analytics_index_get_all_request&, analytics_index_get_all_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx,
+              analytics_index_get_all_request& /* request */,
+              analytics_index_get_all_request::encoded_response_type&& encoded)
 {
     analytics_index_get_all_response response{ ctx };
 
@@ -77,7 +79,7 @@ make_response(error_context::http&& ctx, analytics_index_get_all_request&, analy
         try {
             payload = tao::json::from_string(encoded.body);
         } catch (tao::json::pegtl::parse_error& e) {
-            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
         response.status = payload.at("status").get_string();
@@ -104,7 +106,7 @@ make_response(error_context::http&& ctx, analytics_index_get_all_request&, analy
                     response.errors.emplace_back(err);
                 }
             }
-            response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            response.ctx.ec = error::common_errc::internal_server_failure;
         }
     }
     return response;

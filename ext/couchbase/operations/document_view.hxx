@@ -91,7 +91,7 @@ struct document_view_request {
     std::optional<sort_order> order;
     std::vector<std::string> query_string{};
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         if (debug) {
             query_string.emplace_back("debug=true");
@@ -190,7 +190,7 @@ make_response(error_context::view&& ctx, document_view_request& request, documen
             try {
                 payload = tao::json::from_string(encoded.body);
             } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             const auto* total_rows = payload.find("total_rows");
@@ -219,7 +219,7 @@ make_response(error_context::view&& ctx, document_view_request& request, documen
             try {
                 payload = tao::json::from_string(encoded.body);
             } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             document_view_response::problem problem{};
@@ -232,11 +232,11 @@ make_response(error_context::view&& ctx, document_view_request& request, documen
                 problem.message = reason->get_string();
             }
             response.error.emplace(problem);
-            response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
+            response.ctx.ec = error::common_errc::invalid_argument;
         } else if (encoded.status_code == 404) {
-            response.ctx.ec = std::make_error_code(error::view_errc::design_document_not_found);
+            response.ctx.ec = error::view_errc::design_document_not_found;
         } else {
-            response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            response.ctx.ec = error::common_errc::internal_server_failure;
         }
     }
     return response;

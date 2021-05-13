@@ -53,7 +53,7 @@ struct get_and_lock_request {
 };
 
 get_and_lock_response
-make_response(error_context::key_value&& ctx, get_and_lock_request&, get_and_lock_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, get_and_lock_request& /* request */, get_and_lock_request::encoded_response_type&& encoded)
 {
     get_and_lock_response response{ ctx };
     if (!response.ctx.ec) {

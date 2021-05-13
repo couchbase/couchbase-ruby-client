@@ -46,7 +46,7 @@ struct mcbp_noop_request {
 };
 
 mcbp_noop_response
-make_response(error_context::key_value&& ctx, mcbp_noop_request&, mcbp_noop_request::encoded_response_type&&)
+make_response(error_context::key_value&& ctx, mcbp_noop_request& /* request */, mcbp_noop_request::encoded_response_type&&)
 {
     mcbp_noop_response response{ ctx };
     return response;

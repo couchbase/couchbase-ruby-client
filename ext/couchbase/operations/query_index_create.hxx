@@ -55,7 +55,7 @@ struct query_index_create_request {
     std::optional<int> num_replicas{};
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.headers["content-type"] = "application/json";
         tao::json::value with{};
@@ -108,7 +108,7 @@ make_response(error_context::http&& ctx, query_index_create_request& request, qu
         try {
             payload = tao::json::from_string(encoded.body);
         } catch (tao::json::pegtl::parse_error& e) {
-            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
         response.status = payload.at("status").get_string();
@@ -137,12 +137,12 @@ make_response(error_context::http&& ctx, query_index_create_request& request, qu
             }
             if (index_already_exists) {
                 if (!request.ignore_if_exists) {
-                    response.ctx.ec = std::make_error_code(error::common_errc::index_exists);
+                    response.ctx.ec = error::common_errc::index_exists;
                 }
             } else if (bucket_not_found) {
-                response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
+                response.ctx.ec = error::common_errc::bucket_not_found;
             } else if (!response.errors.empty()) {
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
             }
         }
     }

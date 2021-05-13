@@ -51,7 +51,7 @@ struct unlock_request {
 };
 
 unlock_response
-make_response(error_context::key_value&& ctx, unlock_request&, unlock_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, unlock_request& /* request */, unlock_request::encoded_response_type&& encoded)
 {
     unlock_response response{ ctx };
     if (!response.ctx.ec) {

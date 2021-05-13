@@ -214,7 +214,7 @@ make_response(error_context::key_value&& ctx, get_projected_request& request, ge
                 try {
                     full_doc = tao::json::from_string(encoded.body().fields()[request.with_expiry ? 1 : 0].value);
                 } catch (tao::json::pegtl::parse_error& e) {
-                    response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                    response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }
                 tao::json::value new_doc;
@@ -223,7 +223,7 @@ make_response(error_context::key_value&& ctx, get_projected_request& request, ge
                     if (value_to_apply) {
                         priv::subdoc_apply_projection(new_doc, projection, *value_to_apply, request.preserve_array_indexes);
                     } else {
-                        response.ctx.ec = std::make_error_code(error::key_value_errc::path_not_found);
+                        response.ctx.ec = error::key_value_errc::path_not_found;
                         return response;
                     }
                 }
@@ -239,12 +239,12 @@ make_response(error_context::key_value&& ctx, get_projected_request& request, ge
                     try {
                         value_to_apply = tao::json::from_string(field.value);
                     } catch (tao::json::pegtl::parse_error& e) {
-                        response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                        response.ctx.ec = error::common_errc::parsing_failure;
                         return response;
                     }
                     priv::subdoc_apply_projection(new_doc, projection, value_to_apply, request.preserve_array_indexes);
                 } else {
-                    response.ctx.ec = std::make_error_code(error::key_value_errc::path_not_found);
+                    response.ctx.ec = error::key_value_errc::path_not_found;
                     return response;
                 }
             }

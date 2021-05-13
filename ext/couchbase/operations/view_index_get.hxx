@@ -42,7 +42,7 @@ struct view_index_get_request {
     std::string document_name;
     design_document::name_space name_space;
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "GET";
         encoded.path =
@@ -64,7 +64,7 @@ make_response(error_context::http&& ctx, view_index_get_request& request, view_i
             try {
                 payload = tao::json::from_string(encoded.body);
             } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             const auto* views = payload.find("views");
@@ -86,9 +86,9 @@ make_response(error_context::http&& ctx, view_index_get_request& request, view_i
                 }
             }
         } else if (encoded.status_code == 404) {
-            response.ctx.ec = std::make_error_code(error::view_errc::design_document_not_found);
+            response.ctx.ec = error::view_errc::design_document_not_found;
         } else {
-            response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            response.ctx.ec = error::common_errc::internal_server_failure;
         }
     }
     return response;

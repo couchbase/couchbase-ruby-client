@@ -213,7 +213,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                      session_->log_prefix_,
                                      resp.error_message(),
                                      resp.opaque());
-                        return complete(std::make_error_code(error::network_errc::handshake_failure));
+                        return complete(error::network_errc::handshake_failure);
                     }
                 } break;
                 case protocol::client_opcode::sasl_list_mechs: {
@@ -223,7 +223,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                      session_->log_prefix_,
                                      resp.error_message(),
                                      resp.opaque());
-                        return complete(std::make_error_code(error::common_errc::authentication_failure));
+                        return complete(error::common_errc::authentication_failure);
                     }
                 } break;
                 case protocol::client_opcode::sasl_auth: {
@@ -245,14 +245,14 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                         } else {
                             spdlog::error(
                               "{} unable to authenticate: (sasl_code={}, opaque={})", session_->log_prefix_, sasl_code, resp.opaque());
-                            return complete(std::make_error_code(error::common_errc::authentication_failure));
+                            return complete(error::common_errc::authentication_failure);
                         }
                     } else {
                         spdlog::warn("{} unexpected message status during bootstrap: {} (opaque={})",
                                      session_->log_prefix_,
                                      resp.error_message(),
                                      resp.opaque());
-                        return complete(std::make_error_code(error::common_errc::authentication_failure));
+                        return complete(error::common_errc::authentication_failure);
                     }
                 } break;
                 case protocol::client_opcode::sasl_step: {
@@ -260,7 +260,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                     if (resp.status() == protocol::status::success) {
                         return auth_success();
                     }
-                    return complete(std::make_error_code(error::common_errc::authentication_failure));
+                    return complete(error::common_errc::authentication_failure);
                 }
                 case protocol::client_opcode::get_error_map: {
                     protocol::client_response<protocol::get_error_map_response_body> resp(msg);
@@ -272,7 +272,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                      resp.error_message(),
                                      resp.opaque(),
                                      spdlog::to_hex(msg.header_data()));
-                        return complete(std::make_error_code(error::network_errc::protocol_error));
+                        return complete(error::network_errc::protocol_error);
                     }
                 } break;
                 case protocol::client_opcode::select_bucket: {
@@ -286,20 +286,20 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                       opcode,
                                       resp.status(),
                                       resp.opaque());
-                        return complete(std::make_error_code(error::network_errc::configuration_not_available));
+                        return complete(error::network_errc::configuration_not_available);
                     } else if (resp.status() == protocol::status::no_access) {
                         spdlog::debug("{} unable to select bucket: {}, probably the bucket does not exist",
                                       session_->log_prefix_,
                                       session_->bucket_name_.value_or(""));
                         session_->bucket_selected_ = false;
-                        return complete(std::make_error_code(error::common_errc::bucket_not_found));
+                        return complete(error::common_errc::bucket_not_found);
                     } else {
                         spdlog::warn("{} unexpected message status during bootstrap: {} (opaque={}, {:n})",
                                      session_->log_prefix_,
                                      resp.error_message(),
                                      resp.opaque(),
                                      spdlog::to_hex(msg.header_data()));
-                        return complete(std::make_error_code(error::common_errc::bucket_not_found));
+                        return complete(error::common_errc::bucket_not_found);
                     }
                 } break;
                 case protocol::client_opcode::get_cluster_config: {
@@ -313,7 +313,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                       opcode,
                                       resp.status(),
                                       resp.opaque());
-                        return complete(std::make_error_code(error::network_errc::configuration_not_available));
+                        return complete(error::network_errc::configuration_not_available);
                     } else if (resp.status() == protocol::status::no_bucket && !session_->bucket_name_) {
                         // bucket-less session, but the server wants bucket
                         session_->supports_gcccp_ = false;
@@ -328,12 +328,12 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                      resp.error_message(),
                                      resp.opaque(),
                                      spdlog::to_hex(msg.header_data()));
-                        return complete(std::make_error_code(error::network_errc::protocol_error));
+                        return complete(error::network_errc::protocol_error);
                     }
                 } break;
                 default:
                     spdlog::warn("{} unexpected message during bootstrap: {}", session_->log_prefix_, opcode);
-                    return complete(std::make_error_code(error::network_errc::protocol_error));
+                    return complete(error::network_errc::protocol_error);
             }
         }
     };
@@ -618,7 +618,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 return;
             }
             spdlog::warn("{} unable to bootstrap in time", self->log_prefix_);
-            self->bootstrap_handler_(std::make_error_code(error::common_errc::unambiguous_timeout), {});
+            self->bootstrap_handler_(error::common_errc::unambiguous_timeout, {});
             self->bootstrap_handler_ = nullptr;
             self->stop(retry_reason::socket_closed_while_in_flight);
         });
@@ -698,7 +698,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         if (stream_->is_open()) {
             stream_->close();
         }
-        auto ec = std::make_error_code(error::common_errc::request_canceled);
+        std::error_code ec = error::common_errc::request_canceled;
         if (!bootstrapped_ && bootstrap_handler_) {
             bootstrap_handler_(ec, {});
             bootstrap_handler_ = nullptr;
@@ -762,7 +762,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
     {
         if (stopped_) {
             spdlog::warn("{} MCBP cancel operation, while trying to write to closed session, opaque={}", log_prefix_, opaque);
-            handler(std::make_error_code(error::common_errc::request_canceled), retry_reason::socket_closed_while_in_flight, {});
+            handler(error::common_errc::request_canceled, retry_reason::socket_closed_while_in_flight, {});
             return;
         }
         {
@@ -856,115 +856,115 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
             case protocol::status::not_found:
             case protocol::status::not_stored:
-                return std::make_error_code(error::key_value_errc::document_not_found);
+                return error::key_value_errc::document_not_found;
 
             case protocol::status::exists:
                 if (opcode == protocol::client_opcode::insert) {
-                    return std::make_error_code(error::key_value_errc::document_exists);
+                    return error::key_value_errc::document_exists;
                 }
-                return std::make_error_code(error::common_errc::cas_mismatch);
+                return error::common_errc::cas_mismatch;
 
             case protocol::status::too_big:
-                return std::make_error_code(error::key_value_errc::value_too_large);
+                return error::key_value_errc::value_too_large;
 
             case protocol::status::invalid:
             case protocol::status::xattr_invalid:
             case protocol::status::subdoc_invalid_combo:
-                return std::make_error_code(error::common_errc::invalid_argument);
+                return error::common_errc::invalid_argument;
 
             case protocol::status::delta_bad_value:
-                return std::make_error_code(error::key_value_errc::delta_invalid);
+                return error::key_value_errc::delta_invalid;
 
             case protocol::status::no_bucket:
-                return std::make_error_code(error::common_errc::bucket_not_found);
+                return error::common_errc::bucket_not_found;
 
             case protocol::status::locked:
-                return std::make_error_code(error::key_value_errc::document_locked);
+                return error::key_value_errc::document_locked;
 
             case protocol::status::auth_stale:
             case protocol::status::auth_error:
             case protocol::status::no_access:
-                return std::make_error_code(error::common_errc::authentication_failure);
+                return error::common_errc::authentication_failure;
 
             case protocol::status::not_supported:
             case protocol::status::unknown_command:
-                return std::make_error_code(error::common_errc::unsupported_operation);
+                return error::common_errc::unsupported_operation;
 
             case protocol::status::internal:
-                return std::make_error_code(error::common_errc::internal_server_failure);
+                return error::common_errc::internal_server_failure;
 
             case protocol::status::busy:
             case protocol::status::temporary_failure:
             case protocol::status::no_memory:
             case protocol::status::not_initialized:
-                return std::make_error_code(error::common_errc::temporary_failure);
+                return error::common_errc::temporary_failure;
 
             case protocol::status::unknown_collection:
-                return std::make_error_code(error::common_errc::collection_not_found);
+                return error::common_errc::collection_not_found;
 
             case protocol::status::unknown_scope:
-                return std::make_error_code(error::common_errc::scope_not_found);
+                return error::common_errc::scope_not_found;
 
             case protocol::status::durability_invalid_level:
-                return std::make_error_code(error::key_value_errc::durability_level_not_available);
+                return error::key_value_errc::durability_level_not_available;
 
             case protocol::status::durability_impossible:
-                return std::make_error_code(error::key_value_errc::durability_impossible);
+                return error::key_value_errc::durability_impossible;
 
             case protocol::status::sync_write_in_progress:
-                return std::make_error_code(error::key_value_errc::durable_write_in_progress);
+                return error::key_value_errc::durable_write_in_progress;
 
             case protocol::status::sync_write_ambiguous:
-                return std::make_error_code(error::key_value_errc::durability_ambiguous);
+                return error::key_value_errc::durability_ambiguous;
 
             case protocol::status::sync_write_re_commit_in_progress:
-                return std::make_error_code(error::key_value_errc::durable_write_re_commit_in_progress);
+                return error::key_value_errc::durable_write_re_commit_in_progress;
 
             case protocol::status::subdoc_path_not_found:
-                return std::make_error_code(error::key_value_errc::path_not_found);
+                return error::key_value_errc::path_not_found;
 
             case protocol::status::subdoc_path_mismatch:
-                return std::make_error_code(error::key_value_errc::path_mismatch);
+                return error::key_value_errc::path_mismatch;
 
             case protocol::status::subdoc_path_invalid:
-                return std::make_error_code(error::key_value_errc::path_invalid);
+                return error::key_value_errc::path_invalid;
 
             case protocol::status::subdoc_path_too_big:
-                return std::make_error_code(error::key_value_errc::path_too_big);
+                return error::key_value_errc::path_too_big;
 
             case protocol::status::subdoc_doc_too_deep:
-                return std::make_error_code(error::key_value_errc::value_too_deep);
+                return error::key_value_errc::value_too_deep;
 
             case protocol::status::subdoc_value_cannot_insert:
-                return std::make_error_code(error::key_value_errc::value_invalid);
+                return error::key_value_errc::value_invalid;
 
             case protocol::status::subdoc_doc_not_json:
-                return std::make_error_code(error::key_value_errc::document_not_json);
+                return error::key_value_errc::document_not_json;
 
             case protocol::status::subdoc_num_range_error:
-                return std::make_error_code(error::key_value_errc::number_too_big);
+                return error::key_value_errc::number_too_big;
 
             case protocol::status::subdoc_delta_invalid:
-                return std::make_error_code(error::key_value_errc::delta_invalid);
+                return error::key_value_errc::delta_invalid;
 
             case protocol::status::subdoc_path_exists:
-                return std::make_error_code(error::key_value_errc::path_exists);
+                return error::key_value_errc::path_exists;
 
             case protocol::status::subdoc_value_too_deep:
-                return std::make_error_code(error::key_value_errc::value_too_deep);
+                return error::key_value_errc::value_too_deep;
 
             case protocol::status::subdoc_xattr_invalid_flag_combo:
             case protocol::status::subdoc_xattr_invalid_key_combo:
-                return std::make_error_code(error::key_value_errc::xattr_invalid_key_combo);
+                return error::key_value_errc::xattr_invalid_key_combo;
 
             case protocol::status::subdoc_xattr_unknown_macro:
-                return std::make_error_code(error::key_value_errc::xattr_unknown_macro);
+                return error::key_value_errc::xattr_unknown_macro;
 
             case protocol::status::subdoc_xattr_unknown_vattr:
-                return std::make_error_code(error::key_value_errc::xattr_unknown_virtual_attribute);
+                return error::key_value_errc::xattr_unknown_virtual_attribute;
 
             case protocol::status::subdoc_xattr_cannot_modify_vattr:
-                return std::make_error_code(error::key_value_errc::xattr_cannot_modify_virtual_attribute);
+                return error::key_value_errc::xattr_cannot_modify_virtual_attribute;
 
             case protocol::status::subdoc_invalid_xattr_order:
             case protocol::status::not_my_vbucket:
@@ -980,7 +980,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         // FIXME: use error map here
         spdlog::warn("{} unknown status code: {} (opcode={})", log_prefix_, protocol::status_to_string(status), opcode);
-        return std::make_error_code(error::network_errc::protocol_error);
+        return error::network_errc::protocol_error;
     }
 
     std::optional<error_map::error_info> decode_error_code(std::uint16_t code)
@@ -1092,10 +1092,10 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
   private:
     void invoke_bootstrap_handler(std::error_code ec)
     {
-        if (ec == std::make_error_code(error::network_errc::configuration_not_available)) {
+        if (ec == error::network_errc::configuration_not_available) {
             return initiate_bootstrap();
         }
-        if (retry_bootstrap_on_bucket_not_found_ && ec == std::make_error_code(error::common_errc::bucket_not_found)) {
+        if (retry_bootstrap_on_bucket_not_found_ && ec == error::common_errc::bucket_not_found) {
             spdlog::debug(R"({} server returned {} ({}), it must be transient condition, retrying)", log_prefix_, ec.value(), ec.message());
             return initiate_bootstrap();
         }

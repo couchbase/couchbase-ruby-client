@@ -49,7 +49,7 @@ struct analytics_link_connect_request {
     std::string link_name;
     bool force{ false };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         std::string with_clause = force ? "WITH {\"force\": true}" : "";
 
@@ -65,7 +65,9 @@ struct analytics_link_connect_request {
 };
 
 analytics_link_connect_response
-make_response(error_context::http&& ctx, analytics_link_connect_request&, analytics_link_connect_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx,
+              analytics_link_connect_request& /* request */,
+              analytics_link_connect_request::encoded_response_type&& encoded)
 {
     analytics_link_connect_response response{ ctx };
     if (!response.ctx.ec) {
@@ -73,7 +75,7 @@ make_response(error_context::http&& ctx, analytics_link_connect_request&, analyt
         try {
             payload = tao::json::from_string(encoded.body);
         } catch (tao::json::pegtl::parse_error& e) {
-            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
         response.status = payload.at("status").get_string();
@@ -97,9 +99,9 @@ make_response(error_context::http&& ctx, analytics_link_connect_request&, analyt
                 }
             }
             if (link_not_found) {
-                response.ctx.ec = std::make_error_code(error::analytics_errc::link_not_found);
+                response.ctx.ec = error::analytics_errc::link_not_found;
             } else {
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
             }
         }
     }

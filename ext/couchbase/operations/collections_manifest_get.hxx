@@ -54,7 +54,7 @@ struct collections_manifest_get_request {
 
 collections_manifest_get_response
 make_response(error_context::key_value&& ctx,
-              collections_manifest_get_request&,
+              collections_manifest_get_request& /* request */,
               collections_manifest_get_request::encoded_response_type&& encoded)
 {
     collections_manifest_get_response response{ ctx };

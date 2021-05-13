@@ -39,7 +39,7 @@ struct bucket_drop_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "DELETE";
         encoded.path = fmt::format("/pools/default/buckets/{}", name);
@@ -48,19 +48,19 @@ struct bucket_drop_request {
 };
 
 bucket_drop_response
-make_response(error_context::http&& ctx, bucket_drop_request&, bucket_drop_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, bucket_drop_request& /* request */, bucket_drop_request::encoded_response_type&& encoded)
 {
     bucket_drop_response response{ ctx };
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 404:
-                response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
+                response.ctx.ec = error::common_errc::bucket_not_found;
                 break;
             case 200:
                 response.ctx.ec = {};
                 break;
             default:
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
                 break;
         }
     }

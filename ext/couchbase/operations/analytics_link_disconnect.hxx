@@ -48,7 +48,7 @@ struct analytics_link_disconnect_request {
     std::string dataverse_name{ "Default" };
     std::string link_name;
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         tao::json::value body{
             { "statement", fmt::format("DISCONNECT LINK `{}`.`{}`", dataverse_name, link_name) },
@@ -63,7 +63,7 @@ struct analytics_link_disconnect_request {
 
 analytics_link_disconnect_response
 make_response(error_context::http&& ctx,
-              analytics_link_disconnect_request&,
+              analytics_link_disconnect_request& /* request */,
               analytics_link_disconnect_request::encoded_response_type&& encoded)
 {
     analytics_link_disconnect_response response{ ctx };
@@ -72,7 +72,7 @@ make_response(error_context::http&& ctx,
         try {
             payload = tao::json::from_string(encoded.body);
         } catch (tao::json::pegtl::parse_error& e) {
-            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
         response.status = payload.at("status").get_string();
@@ -96,9 +96,9 @@ make_response(error_context::http&& ctx,
                 }
             }
             if (link_not_found) {
-                response.ctx.ec = std::make_error_code(error::analytics_errc::link_not_found);
+                response.ctx.ec = error::analytics_errc::link_not_found;
             } else {
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
             }
         }
     }

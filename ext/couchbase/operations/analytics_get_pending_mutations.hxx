@@ -66,7 +66,7 @@ make_response(error_context::http&& ctx,
         try {
             payload = tao::json::from_string(encoded.body);
         } catch (tao::json::pegtl::parse_error& e) {
-            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
         if (encoded.status_code == 200) {
@@ -91,7 +91,7 @@ make_response(error_context::http&& ctx,
                 response.errors.emplace_back(err);
             }
         }
-        response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+        response.ctx.ec = error::common_errc::internal_server_failure;
     }
     return response;
 }

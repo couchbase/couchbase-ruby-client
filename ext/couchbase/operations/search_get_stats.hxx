@@ -39,7 +39,7 @@ struct search_index_stats_request {
     std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "GET";
         encoded.path = "/api/nsstats";
@@ -48,7 +48,9 @@ struct search_index_stats_request {
 };
 
 search_index_stats_response
-make_response(error_context::http&& ctx, search_index_stats_request&, search_index_stats_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx,
+              search_index_stats_request& /* request */,
+              search_index_stats_request::encoded_response_type&& encoded)
 {
     search_index_stats_response response{ ctx };
     if (!response.ctx.ec) {

@@ -81,7 +81,7 @@ class dns_client
                                                                                     std::size_t /* bytes_transferred */) mutable {
                   if (ec1 == asio::error::operation_aborted) {
                       self->deadline_.cancel();
-                      return handler({ std::make_error_code(error::common_errc::unambiguous_timeout) });
+                      return handler({ error::common_errc::unambiguous_timeout });
                   }
                   if (ec1) {
                       self->deadline_.cancel();
@@ -148,7 +148,7 @@ class dns_client
                         if (ec2) {
                             self->deadline_.cancel();
                             if (ec2 == asio::error::operation_aborted) {
-                                ec2 = std::make_error_code(error::common_errc::unambiguous_timeout);
+                                ec2 = error::common_errc::unambiguous_timeout;
                             }
                             return handler({ ec2 });
                         }

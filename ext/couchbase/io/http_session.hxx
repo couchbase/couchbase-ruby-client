@@ -172,7 +172,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         {
             std::scoped_lock lock(command_handlers_mutex_);
             for (auto& handler : command_handlers_) {
-                handler(std::make_error_code(error::common_errc::ambiguous_timeout), {});
+                handler(error::common_errc::ambiguous_timeout, {});
             }
             command_handlers_.clear();
         }

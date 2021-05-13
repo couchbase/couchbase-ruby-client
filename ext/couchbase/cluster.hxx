@@ -153,7 +153,7 @@ class cluster
         if (bucket == buckets_.end()) {
             error_context::key_value ctx{};
             ctx.id = request.id;
-            ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
+            ctx.ec = error::common_errc::bucket_not_found;
             using response_type = typename Request::encoded_response_type;
             return handler(operations::make_response(std::move(ctx), request, response_type{}));
         }
@@ -166,7 +166,7 @@ class cluster
         auto session = session_manager_->check_out(Request::type, origin_.credentials());
         if (!session) {
             typename Request::error_context_type ctx{};
-            ctx.ec = std::make_error_code(error::common_errc::service_not_available);
+            ctx.ec = error::common_errc::service_not_available;
             return handler(operations::make_response(std::move(ctx), request, {}));
         }
         auto cmd = std::make_shared<operations::http_command<Request>>(ctx_, request);

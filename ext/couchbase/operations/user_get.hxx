@@ -44,7 +44,7 @@ struct user_get_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "GET";
         encoded.path = fmt::format("/settings/rbac/users/{}/{}", domain, username);
@@ -54,7 +54,7 @@ struct user_get_request {
 };
 
 user_get_response
-make_response(error_context::http&& ctx, user_get_request&, user_get_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, user_get_request& /* request */, user_get_request::encoded_response_type&& encoded)
 {
     user_get_response response{ ctx };
     if (!response.ctx.ec) {
@@ -63,15 +63,15 @@ make_response(error_context::http&& ctx, user_get_request&, user_get_request::en
                 try {
                     response.user = tao::json::from_string(encoded.body).as<rbac::user_and_metadata>();
                 } catch (tao::json::pegtl::parse_error& e) {
-                    response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                    response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }
             } break;
             case 404:
-                response.ctx.ec = std::make_error_code(error::management_errc::user_not_found);
+                response.ctx.ec = error::management_errc::user_not_found;
                 break;
             default:
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
                 break;
         }
     }

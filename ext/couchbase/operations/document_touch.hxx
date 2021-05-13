@@ -51,7 +51,7 @@ struct touch_request {
 };
 
 touch_response
-make_response(error_context::key_value&& ctx, touch_request&, touch_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, touch_request& /* request */, touch_request::encoded_response_type&& encoded)
 {
     touch_response response{ ctx };
     if (!response.ctx.ec) {

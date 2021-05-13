@@ -42,7 +42,7 @@ struct group_drop_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "DELETE";
         encoded.path = fmt::format("/settings/rbac/groups/{}", name);
@@ -51,7 +51,7 @@ struct group_drop_request {
 };
 
 group_drop_response
-make_response(error_context::http&& ctx, group_drop_request&, group_drop_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, group_drop_request& /* request */, group_drop_request::encoded_response_type&& encoded)
 {
     group_drop_response response{ ctx };
     if (!response.ctx.ec) {
@@ -59,10 +59,10 @@ make_response(error_context::http&& ctx, group_drop_request&, group_drop_request
             case 200:
                 break;
             case 404:
-                response.ctx.ec = std::make_error_code(error::management_errc::group_not_found);
+                response.ctx.ec = error::management_errc::group_not_found;
                 break;
             default:
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
                 break;
         }
     }

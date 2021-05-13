@@ -73,8 +73,7 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
                 handler_ = nullptr;
             }
         }
-        invoke_handler(std::make_error_code(request.retries.idempotent ? error::common_errc::unambiguous_timeout
-                                                                       : error::common_errc::ambiguous_timeout));
+        invoke_handler(request.retries.idempotent ? error::common_errc::unambiguous_timeout : error::common_errc::ambiguous_timeout);
         retry_backoff.cancel();
         deadline.cancel();
     }
@@ -100,9 +99,9 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
           req.data(session_->supports_feature(protocol::hello_feature::snappy)),
           [self = this->shared_from_this()](std::error_code ec, io::retry_reason /* reason */, io::mcbp_message&& msg) mutable {
               if (ec == asio::error::operation_aborted) {
-                  return self->invoke_handler(std::make_error_code(error::common_errc::ambiguous_timeout));
+                  return self->invoke_handler(error::common_errc::ambiguous_timeout);
               }
-              if (ec == std::make_error_code(error::common_errc::collection_not_found)) {
+              if (ec == error::common_errc::collection_not_found) {
                   if (self->request.id.collection_uid) {
                       return self->invoke_handler(ec);
                   }
@@ -130,8 +129,8 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
                       std::chrono::duration_cast<std::chrono::milliseconds>(time_left).count(),
                       id_);
         if (time_left < backoff) {
-            return invoke_handler(std::make_error_code(request.retries.idempotent ? error::common_errc::unambiguous_timeout
-                                                                                  : error::common_errc::ambiguous_timeout));
+            return invoke_handler(make_error_code(request.retries.idempotent ? error::common_errc::unambiguous_timeout
+                                                                             : error::common_errc::ambiguous_timeout));
         }
         retry_backoff.expires_after(backoff);
         retry_backoff.async_wait([self = this->shared_from_this()](std::error_code ec) mutable {
@@ -163,7 +162,7 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
                 }
             } else {
                 if (!request.id.collection.empty() && request.id.collection != "_default._default") {
-                    return invoke_handler(std::make_error_code(error::common_errc::unsupported_operation));
+                    return invoke_handler(error::common_errc::unsupported_operation);
                 }
             }
         }
@@ -178,10 +177,10 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
           [self = this->shared_from_this()](std::error_code ec, io::retry_reason reason, io::mcbp_message&& msg) mutable {
               self->retry_backoff.cancel();
               if (ec == asio::error::operation_aborted) {
-                  return self->invoke_handler(std::make_error_code(
-                    self->request.retries.idempotent ? error::common_errc::unambiguous_timeout : error::common_errc::ambiguous_timeout));
+                  return self->invoke_handler(make_error_code(self->request.retries.idempotent ? error::common_errc::unambiguous_timeout
+                                                                                               : error::common_errc::ambiguous_timeout));
               }
-              if (ec == std::make_error_code(error::common_errc::request_canceled)) {
+              if (ec == error::common_errc::request_canceled) {
                   if (reason == io::retry_reason::do_not_retry) {
                       return self->invoke_handler(ec);
                   }

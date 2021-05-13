@@ -39,7 +39,7 @@ struct http_noop_request {
 
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.headers["connection"] = "keep-alive";
         encoded.method = "GET";
@@ -62,14 +62,14 @@ struct http_noop_request {
                 break;
             case service_type::management:
             case service_type::kv:
-                return std::make_error_code(error::common_errc::feature_not_available);
+                return error::common_errc::feature_not_available;
         }
         return {};
     }
 };
 
 http_noop_response
-make_response(error_context::http&& ctx, http_noop_request&, http_noop_request::encoded_response_type&&)
+make_response(error_context::http&& ctx, http_noop_request& /* request */, http_noop_request::encoded_response_type&&)
 {
     http_noop_response response{ ctx };
     return response;

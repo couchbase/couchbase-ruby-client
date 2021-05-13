@@ -44,7 +44,7 @@ struct search_index_get_all_request {
 
     std::string index_name;
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "GET";
         encoded.path = fmt::format("/api/index");
@@ -53,7 +53,9 @@ struct search_index_get_all_request {
 };
 
 search_index_get_all_response
-make_response(error_context::http&& ctx, search_index_get_all_request&, search_index_get_all_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx,
+              search_index_get_all_request& /* request */,
+              search_index_get_all_request::encoded_response_type&& encoded)
 {
     search_index_get_all_response response{ ctx };
     if (!response.ctx.ec) {
@@ -62,7 +64,7 @@ make_response(error_context::http&& ctx, search_index_get_all_request&, search_i
             try {
                 payload = tao::json::from_string(encoded.body);
             } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             response.status = payload.at("status").get_string();

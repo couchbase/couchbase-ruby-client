@@ -44,7 +44,7 @@ struct bucket_create_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/pools/default/buckets");
@@ -129,23 +129,23 @@ struct bucket_create_request {
 };
 
 bucket_create_response
-make_response(error_context::http&& ctx, bucket_create_request&, bucket_create_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, bucket_create_request& /* request */, bucket_create_request::encoded_response_type&& encoded)
 {
     bucket_create_response response{ ctx };
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 404:
-                response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
+                response.ctx.ec = error::common_errc::bucket_not_found;
                 break;
             case 400: {
                 tao::json::value payload{};
                 try {
                     payload = tao::json::from_string(encoded.body);
                 } catch (tao::json::pegtl::parse_error& e) {
-                    response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                    response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }
-                response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
+                response.ctx.ec = error::common_errc::invalid_argument;
                 auto* errors = payload.find("errors");
                 if (errors != nullptr) {
                     std::vector<std::string> error_list{};
@@ -161,7 +161,7 @@ make_response(error_context::http&& ctx, bucket_create_request&, bucket_create_r
             case 202:
                 break;
             default:
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
                 break;
         }
     }

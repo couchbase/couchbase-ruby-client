@@ -240,7 +240,7 @@ make_response(error_context::analytics&& ctx, analytics_request& request, analyt
         try {
             response.payload = tao::json::from_string(encoded.body).as<analytics_response_payload>();
         } catch (tao::json::pegtl::parse_error& e) {
-            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
         Expects(response.payload.meta_data.client_context_id == request.client_context_id);
@@ -289,23 +289,23 @@ make_response(error_context::analytics&& ctx, analytics_request& request, analyt
                 }
             }
             if (compilation_failure) {
-                response.ctx.ec = std::make_error_code(error::analytics_errc::compilation_failure);
+                response.ctx.ec = error::analytics_errc::compilation_failure;
             } else if (link_not_found) {
-                response.ctx.ec = std::make_error_code(error::analytics_errc::link_not_found);
+                response.ctx.ec = error::analytics_errc::link_not_found;
             } else if (dataset_not_found) {
-                response.ctx.ec = std::make_error_code(error::analytics_errc::dataset_not_found);
+                response.ctx.ec = error::analytics_errc::dataset_not_found;
             } else if (dataverse_not_found) {
-                response.ctx.ec = std::make_error_code(error::analytics_errc::dataverse_not_found);
+                response.ctx.ec = error::analytics_errc::dataverse_not_found;
             } else if (server_timeout) {
-                response.ctx.ec = std::make_error_code(error::common_errc::unambiguous_timeout);
+                response.ctx.ec = error::common_errc::unambiguous_timeout;
             } else if (dataset_exists) {
-                response.ctx.ec = std::make_error_code(error::analytics_errc::dataset_exists);
+                response.ctx.ec = error::analytics_errc::dataset_exists;
             } else if (dataverse_exists) {
-                response.ctx.ec = std::make_error_code(error::analytics_errc::dataverse_exists);
+                response.ctx.ec = error::analytics_errc::dataverse_exists;
             } else if (job_queue_is_full) {
-                response.ctx.ec = std::make_error_code(error::analytics_errc::job_queue_full);
+                response.ctx.ec = error::analytics_errc::job_queue_full;
             } else {
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
             }
         }
     }

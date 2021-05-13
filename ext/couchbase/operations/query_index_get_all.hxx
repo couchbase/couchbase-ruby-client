@@ -56,7 +56,7 @@ struct query_index_get_all_request {
     std::string bucket_name;
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.headers["content-type"] = "application/json";
         tao::json::value body{
@@ -75,7 +75,9 @@ struct query_index_get_all_request {
 };
 
 query_index_get_all_response
-make_response(error_context::http&& ctx, query_index_get_all_request&, query_index_get_all_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx,
+              query_index_get_all_request& /* request */,
+              query_index_get_all_request::encoded_response_type&& encoded)
 {
     query_index_get_all_response response{ ctx };
     if (!response.ctx.ec) {
@@ -84,7 +86,7 @@ make_response(error_context::http&& ctx, query_index_get_all_request&, query_ind
             try {
                 payload = tao::json::from_string(encoded.body);
             } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             response.status = payload.at("status").get_string();

@@ -44,7 +44,7 @@ struct bucket_update_request {
 
     bucket_settings bucket{};
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/pools/default/buckets/{}", bucket.name);
@@ -111,17 +111,17 @@ make_response(error_context::http&& ctx, bucket_update_request& /* request */, b
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 404:
-                response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
+                response.ctx.ec = error::common_errc::bucket_not_found;
                 break;
             case 400: {
                 tao::json::value payload{};
                 try {
                     payload = tao::json::from_string(encoded.body);
                 } catch (tao::json::pegtl::parse_error& e) {
-                    response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                    response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }
-                response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
+                response.ctx.ec = error::common_errc::invalid_argument;
                 auto* errors = payload.find("errors");
                 if (errors != nullptr) {
                     std::vector<std::string> error_list{};
@@ -137,7 +137,7 @@ make_response(error_context::http&& ctx, bucket_update_request& /* request */, b
             case 202:
                 break;
             default:
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
                 break;
         }
     }

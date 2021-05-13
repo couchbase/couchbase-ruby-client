@@ -313,7 +313,7 @@ namespace detail
 struct common_error_category : std::error_category {
     [[nodiscard]] const char* name() const noexcept override
     {
-        return "common";
+        return "couchbase.common";
     }
 
     [[nodiscard]] std::string message(int ev) const noexcept override
@@ -372,7 +372,7 @@ get_common_category()
 struct key_value_error_category : std::error_category {
     [[nodiscard]] const char* name() const noexcept override
     {
-        return "key_value";
+        return "couchbase.key_value";
     }
 
     [[nodiscard]] std::string message(int ev) const noexcept override
@@ -442,7 +442,7 @@ get_key_value_category()
 struct query_error_category : std::error_category {
     [[nodiscard]] const char* name() const noexcept override
     {
-        return "query";
+        return "couchbase.query";
     }
 
     [[nodiscard]] std::string message(int ev) const noexcept override
@@ -469,7 +469,7 @@ get_query_category()
 struct search_error_category : std::error_category {
     [[nodiscard]] const char* name() const noexcept override
     {
-        return "search";
+        return "couchbase.search";
     }
 
     [[nodiscard]] std::string message(int ev) const noexcept override
@@ -494,7 +494,7 @@ get_search_category()
 struct view_error_category : std::error_category {
     [[nodiscard]] const char* name() const noexcept override
     {
-        return "view";
+        return "couchbase.view";
     }
 
     [[nodiscard]] std::string message(int ev) const noexcept override
@@ -519,7 +519,7 @@ get_view_category()
 struct analytics_error_category : std::error_category {
     [[nodiscard]] const char* name() const noexcept override
     {
-        return "analytics";
+        return "couchbase.analytics";
     }
 
     [[nodiscard]] std::string message(int ev) const noexcept override
@@ -554,7 +554,7 @@ get_analytics_category()
 struct management_error_category : std::error_category {
     [[nodiscard]] const char* name() const noexcept override
     {
-        return "management";
+        return "couchbase.management";
     }
 
     [[nodiscard]] std::string message(int ev) const noexcept override
@@ -589,7 +589,7 @@ get_management_category()
 struct network_error_category : std::error_category {
     [[nodiscard]] const char* name() const noexcept override
     {
-        return "network";
+        return "couchbase.network";
     }
 
     [[nodiscard]] std::string message(int ev) const noexcept override
@@ -654,7 +654,10 @@ struct is_error_code_enum<couchbase::error::management_errc> : true_type {
 template<>
 struct is_error_code_enum<couchbase::error::network_errc> : true_type {
 };
+} // namespace std
 
+namespace couchbase::error
+{
 inline std::error_code
 make_error_code(couchbase::error::common_errc e)
 {
@@ -703,4 +706,4 @@ make_error_code(couchbase::error::network_errc e)
     return { static_cast<int>(e), couchbase::error::detail::get_network_category() };
 }
 
-} // namespace std
+} // namespace couchbase::error

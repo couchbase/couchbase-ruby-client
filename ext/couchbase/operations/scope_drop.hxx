@@ -46,7 +46,7 @@ struct scope_drop_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "DELETE";
         encoded.path = fmt::format("/pools/default/buckets/{}/scopes/{}", bucket_name, scope_name);
@@ -61,14 +61,14 @@ make_response(error_context::http&& ctx, scope_drop_request& /* request */, scop
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 400:
-                response.ctx.ec = std::make_error_code(error::common_errc::unsupported_operation);
+                response.ctx.ec = error::common_errc::unsupported_operation;
                 break;
             case 404: {
                 std::regex scope_not_found("Scope with name .+ is not found");
                 if (std::regex_search(encoded.body, scope_not_found)) {
-                    response.ctx.ec = std::make_error_code(error::common_errc::scope_not_found);
+                    response.ctx.ec = error::common_errc::scope_not_found;
                 } else {
-                    response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
+                    response.ctx.ec = error::common_errc::bucket_not_found;
                 }
             } break;
             case 200: {
@@ -76,13 +76,13 @@ make_response(error_context::http&& ctx, scope_drop_request& /* request */, scop
                 try {
                     payload = tao::json::from_string(encoded.body);
                 } catch (tao::json::pegtl::parse_error& e) {
-                    response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                    response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }
                 response.uid = std::stoull(payload.at("uid").get_string(), 0, 16);
             } break;
             default:
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
                 break;
         }
     }

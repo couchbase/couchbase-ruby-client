@@ -41,7 +41,7 @@ struct view_index_get_all_request {
     std::string bucket_name;
     design_document::name_space name_space;
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "GET";
         encoded.path = fmt::format("/pools/default/buckets/{}/ddocs", bucket_name);
@@ -59,7 +59,7 @@ make_response(error_context::http&& ctx, view_index_get_all_request& request, vi
             try {
                 payload = tao::json::from_string(encoded.body);
             } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             auto* rows = payload.find("rows");
@@ -121,9 +121,9 @@ make_response(error_context::http&& ctx, view_index_get_all_request& request, vi
                 }
             }
         } else if (encoded.status_code == 404) {
-            response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
+            response.ctx.ec = error::common_errc::bucket_not_found;
         } else {
-            response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            response.ctx.ec = error::common_errc::internal_server_failure;
         }
     }
     return response;

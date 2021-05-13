@@ -46,7 +46,7 @@ struct scope_create_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/pools/default/buckets/{}/scopes", bucket_name);
@@ -65,28 +65,28 @@ make_response(error_context::http&& ctx, scope_create_request& /* request */, sc
             case 400: {
                 std::regex scope_exists("Scope with name .+ already exists");
                 if (std::regex_search(encoded.body, scope_exists)) {
-                    response.ctx.ec = std::make_error_code(error::management_errc::scope_exists);
+                    response.ctx.ec = error::management_errc::scope_exists;
                 } else if (encoded.body.find("Not allowed on this version of cluster") != std::string::npos) {
-                    response.ctx.ec = std::make_error_code(error::common_errc::feature_not_available);
+                    response.ctx.ec = error::common_errc::feature_not_available;
                 } else {
-                    response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
+                    response.ctx.ec = error::common_errc::invalid_argument;
                 }
             } break;
             case 404:
-                response.ctx.ec = std::make_error_code(error::common_errc::bucket_not_found);
+                response.ctx.ec = error::common_errc::bucket_not_found;
                 break;
             case 200: {
                 tao::json::value payload{};
                 try {
                     payload = tao::json::from_string(encoded.body);
                 } catch (tao::json::pegtl::parse_error& e) {
-                    response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                    response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }
                 response.uid = std::stoull(payload.at("uid").get_string(), 0, 16);
             } break;
             default:
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
                 break;
         }
     }

@@ -48,7 +48,7 @@ struct user_upsert_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "PUT";
         encoded.path = fmt::format("/settings/rbac/users/{}/{}", domain, user.username);
@@ -98,7 +98,7 @@ struct user_upsert_request {
 };
 
 user_upsert_response
-make_response(error_context::http&& ctx, user_upsert_request&, user_upsert_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, user_upsert_request& /* request */, user_upsert_request::encoded_response_type&& encoded)
 {
     user_upsert_response response{ ctx };
     if (!response.ctx.ec) {
@@ -110,10 +110,10 @@ make_response(error_context::http&& ctx, user_upsert_request&, user_upsert_reque
                 try {
                     payload = tao::json::from_string(encoded.body);
                 } catch (tao::json::pegtl::parse_error& e) {
-                    response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                    response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }
-                response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
+                response.ctx.ec = error::common_errc::invalid_argument;
                 const auto* errors = payload.find("errors");
                 if (errors != nullptr && errors->is_object()) {
                     for (const auto& entry : errors->get_object()) {
@@ -122,7 +122,7 @@ make_response(error_context::http&& ctx, user_upsert_request&, user_upsert_reque
                 }
             } break;
             default:
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
                 break;
         }
     }

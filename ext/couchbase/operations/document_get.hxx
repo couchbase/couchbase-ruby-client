@@ -52,7 +52,7 @@ struct get_request {
 };
 
 get_response
-make_response(error_context::key_value&& ctx, get_request&, get_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, get_request& /* request */, get_request::encoded_response_type&& encoded)
 {
     get_response response{ ctx };
     if (!response.ctx.ec) {

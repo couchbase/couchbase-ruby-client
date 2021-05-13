@@ -223,7 +223,7 @@ make_response(error_context::search&& ctx, search_request& request, search_reque
             try {
                 payload = tao::json::from_string(encoded.body);
             } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             response.meta_data.metrics.took = std::chrono::nanoseconds(payload.at("took").get_unsigned());
@@ -245,7 +245,7 @@ make_response(error_context::search&& ctx, search_request& request, search_reque
                     }
                 }
             } else {
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
                 return response;
             }
             const auto* rows = payload.find("hits");
@@ -366,25 +366,25 @@ make_response(error_context::search&& ctx, search_request& request, search_reque
             try {
                 payload = tao::json::from_string(encoded.body);
             } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             response.status = payload.at("status").get_string();
             response.error = payload.at("error").get_string();
             if (response.error.find("index not found") != std::string::npos) {
-                response.ctx.ec = std::make_error_code(error::common_errc::index_not_found);
+                response.ctx.ec = error::common_errc::index_not_found;
                 return response;
             }
             if (response.error.find("no planPIndexes for indexName") != std::string::npos) {
-                response.ctx.ec = std::make_error_code(error::search_errc::index_not_ready);
+                response.ctx.ec = error::search_errc::index_not_ready;
                 return response;
             }
             if (response.error.find("pindex_consistency mismatched partition") != std::string::npos) {
-                response.ctx.ec = std::make_error_code(error::search_errc::consistency_mismatch);
+                response.ctx.ec = error::search_errc::consistency_mismatch;
                 return response;
             }
         }
-        response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+        response.ctx.ec = error::common_errc::internal_server_failure;
     }
     return response;
 }

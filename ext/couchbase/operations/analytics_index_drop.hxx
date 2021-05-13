@@ -51,7 +51,7 @@ struct analytics_index_drop_request {
 
     bool ignore_if_does_not_exist{ false };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         std::string if_exists_clause = ignore_if_does_not_exist ? "IF EXISTS" : "";
 
@@ -67,7 +67,9 @@ struct analytics_index_drop_request {
 };
 
 analytics_index_drop_response
-make_response(error_context::http&& ctx, analytics_index_drop_request&, analytics_index_drop_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx,
+              analytics_index_drop_request& /* request */,
+              analytics_index_drop_request::encoded_response_type&& encoded)
 {
     analytics_index_drop_response response{ ctx };
     if (!response.ctx.ec) {
@@ -75,7 +77,7 @@ make_response(error_context::http&& ctx, analytics_index_drop_request&, analytic
         try {
             payload = tao::json::from_string(encoded.body);
         } catch (tao::json::pegtl::parse_error& e) {
-            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
         response.status = payload.at("status").get_string();
@@ -103,11 +105,11 @@ make_response(error_context::http&& ctx, analytics_index_drop_request&, analytic
                 }
             }
             if (index_does_not_exist) {
-                response.ctx.ec = std::make_error_code(error::common_errc::index_not_found);
+                response.ctx.ec = error::common_errc::index_not_found;
             } else if (dataset_not_found) {
-                response.ctx.ec = std::make_error_code(error::analytics_errc::dataset_not_found);
+                response.ctx.ec = error::analytics_errc::dataset_not_found;
             } else {
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
             }
         }
     }

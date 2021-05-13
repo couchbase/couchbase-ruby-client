@@ -342,7 +342,7 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
         try {
             response.payload = tao::json::from_string(encoded.body).as<query_response_payload>();
         } catch (tao::json::pegtl::parse_error& e) {
-            response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+            response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
         Expects(response.payload.meta_data.client_context_id.empty() ||
@@ -357,7 +357,7 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
                     try {
                         row = tao::json::from_string(response.payload.rows[0]);
                     } catch (tao::json::pegtl::parse_error& e) {
-                        response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                        response.ctx.ec = error::common_errc::parsing_failure;
                         return response;
                     }
                     auto* plan = row.find("encoded_plan");
@@ -366,10 +366,10 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
                         request.ctx_->cache.put(request.statement, name->get_string(), plan->get_string());
                         throw couchbase::priv::retry_http_request{};
                     }
-                    response.ctx.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
+                    response.ctx.ec = error::query_errc::prepared_statement_failure;
 
                 } else {
-                    response.ctx.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
+                    response.ctx.ec = error::query_errc::prepared_statement_failure;
                 }
             }
         } else {
@@ -422,23 +422,23 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
                 }
             }
             if (syntax_error) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
             } else if (invalid_argument) {
-                response.ctx.ec = std::make_error_code(error::common_errc::invalid_argument);
+                response.ctx.ec = error::common_errc::invalid_argument;
             } else if (server_timeout) {
-                response.ctx.ec = std::make_error_code(error::common_errc::unambiguous_timeout);
+                response.ctx.ec = error::common_errc::unambiguous_timeout;
             } else if (prepared_statement_failure) {
-                response.ctx.ec = std::make_error_code(error::query_errc::prepared_statement_failure);
+                response.ctx.ec = error::query_errc::prepared_statement_failure;
             } else if (index_failure) {
-                response.ctx.ec = std::make_error_code(error::query_errc::index_failure);
+                response.ctx.ec = error::query_errc::index_failure;
             } else if (planning_failure) {
-                response.ctx.ec = std::make_error_code(error::query_errc::planning_failure);
+                response.ctx.ec = error::query_errc::planning_failure;
             } else if (index_not_found) {
-                response.ctx.ec = std::make_error_code(error::common_errc::index_not_found);
+                response.ctx.ec = error::common_errc::index_not_found;
             } else if (cas_mismatch) {
-                response.ctx.ec = std::make_error_code(error::common_errc::cas_mismatch);
+                response.ctx.ec = error::common_errc::cas_mismatch;
             } else {
-                response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+                response.ctx.ec = error::common_errc::internal_server_failure;
             }
         }
     }

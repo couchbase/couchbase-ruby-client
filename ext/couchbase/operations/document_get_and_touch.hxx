@@ -53,7 +53,7 @@ struct get_and_touch_request {
 };
 
 get_and_touch_response
-make_response(error_context::key_value&& ctx, get_and_touch_request&, get_and_touch_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, get_and_touch_request& /* request */, get_and_touch_request::encoded_response_type&& encoded)
 {
     get_and_touch_response response{ ctx };
     if (!response.ctx.ec) {

@@ -42,7 +42,7 @@ struct role_get_all_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "GET";
         encoded.path = "/settings/rbac/roles";
@@ -52,7 +52,7 @@ struct role_get_all_request {
 };
 
 role_get_all_response
-make_response(error_context::http&& ctx, role_get_all_request&, role_get_all_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, role_get_all_request& /* request */, role_get_all_request::encoded_response_type&& encoded)
 {
     role_get_all_response response{ ctx };
     if (!response.ctx.ec) {
@@ -61,14 +61,14 @@ make_response(error_context::http&& ctx, role_get_all_request&, role_get_all_req
             try {
                 payload = tao::json::from_string(encoded.body);
             } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = std::make_error_code(error::common_errc::parsing_failure);
+                response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             for (const auto& entry : payload.get_array()) {
                 response.roles.emplace_back(entry.as<rbac::role_and_description>());
             }
         } else {
-            response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            response.ctx.ec = error::common_errc::internal_server_failure;
         }
     }
     return response;

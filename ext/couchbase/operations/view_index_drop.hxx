@@ -40,7 +40,7 @@ struct view_index_drop_request {
     std::string document_name;
     design_document::name_space name_space;
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
     {
         encoded.method = "DELETE";
         encoded.path =
@@ -50,16 +50,16 @@ struct view_index_drop_request {
 };
 
 view_index_drop_response
-make_response(error_context::http&& ctx, view_index_drop_request&, view_index_drop_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, view_index_drop_request& /* request */, view_index_drop_request::encoded_response_type&& encoded)
 {
     view_index_drop_response response{ ctx };
     if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
 
         } else if (encoded.status_code == 404) {
-            response.ctx.ec = std::make_error_code(error::view_errc::design_document_not_found);
+            response.ctx.ec = error::view_errc::design_document_not_found;
         } else {
-            response.ctx.ec = std::make_error_code(error::common_errc::internal_server_failure);
+            response.ctx.ec = error::common_errc::internal_server_failure;
         }
     }
     return response;
