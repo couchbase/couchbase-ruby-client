@@ -54,20 +54,35 @@ then
     CB_EXTRAS="CC=${cc_prefix}/bin/gcc CXX=${cc_prefix}/bin/g++"
   fi
   ruby-install --version
+  ruby-install --latest || true
   ruby-install --jobs=6 --no-reinstall ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS}
 fi
 if [ "$(uname -s)" = "Darwin" ]
 then
   sw_vers
   system_profiler SPSoftwareDataType
-  sudo xcode-select --print-path
+  xcode-select --print-path
 
-# brew install automake bison openssl readline libyaml gdbm libffi
+  brew doctor || true
+# brew install automake bison@2.7 openssl readline libyaml gdbm libffi
 # brew upgrade ruby-install chruby
-# brew install cmake gcc@10
-  cc_prefix=$(brew --prefix gcc@10)
+# brew install cmake gcc@11
+  cc_prefix=$(brew --prefix gcc@11)
+  ${cc_prefix}/bin/gcc-11 --version
+  ${cc_prefix}/bin/g++-11 --version
   ruby-install --version
-  ruby-install --jobs=6 --no-reinstall --no-install-deps ruby ${CB_RUBY_VERSION} -- CC="${cc_prefix}/bin/gcc-10" CXX="${cc_prefix}/bin/g++-10"
+  ruby-install --latest || true
+  export PATH="$(brew --prefix bison@2.7)/bin:$PATH"
+  bison --version
+  PATCH=
+  if [ "x${CB_RUBY_VERSION}" = "x2.6" ]
+  then
+      PATCH="--patch https://github.com/ruby/ruby/commit/5df653caaa1a666172d889760786cdf26952a1a7.patch"
+  elif [ "x${CB_RUBY_VERSION}" = "x2.7" -o "x${CB_RUBY_VERSION}" = "x3.0" ]
+  then
+      PATCH="--patch https://gist.githubusercontent.com/avsej/3cf6e57557ac13100f01cacebec10873/raw/d83398e9ef3c63081d3af1b6cc1c77a68f3bfb65/0001-Revert-merge-revision-s-e033c9d7db02a4e8d2973364ecb4.patch"
+  fi
+  ruby-install --jobs=6 --no-reinstall --no-install-deps ${PATCH} ruby ${CB_RUBY_VERSION} -- CC="${cc_prefix}/bin/gcc-11" CXX="${cc_prefix}/bin/g++-11"
 fi
 
 if [ "$(uname -s)" = "Linux" ]

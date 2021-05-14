@@ -43,9 +43,9 @@ fi
 if [ "$(uname -s)" = "Darwin" ]
 then
   source $(brew --prefix chruby)/share/chruby/chruby.sh
-  cc_prefix=$(brew --prefix gcc@10)
-  export CB_CC="${cc_prefix}/bin/gcc-10"
-  export CB_CXX="${cc_prefix}/bin/g++-10"
+  cc_prefix=$(brew --prefix gcc@11)
+  export CB_CC="${cc_prefix}/bin/gcc-11"
+  export CB_CXX="${cc_prefix}/bin/g++-11"
 fi
 chruby ruby-${CB_RUBY_VERSION}
 
