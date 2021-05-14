@@ -33,9 +33,9 @@ select_mechanism(const std::vector<std::string>& available_mechanisms)
                                                                    { std::string{ "SCRAM-SHA1" }, Mechanism::SCRAM_SHA1 },
                                                                    { std::string{ "PLAIN" }, Mechanism::PLAIN } };
 
-    for (const auto& mechanism : mechs) {
-        if (std::find(available_mechanisms.begin(), available_mechanisms.end(), mechanism.first) != available_mechanisms.end()) {
-            return mechanism.second;
+    for (const auto& [name, code] : mechs) {
+        if (std::find(available_mechanisms.begin(), available_mechanisms.end(), name) != available_mechanisms.end()) {
+            return code;
         }
     }
 

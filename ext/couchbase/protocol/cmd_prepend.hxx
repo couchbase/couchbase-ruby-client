@@ -39,7 +39,7 @@ class prepend_response_body
     mutation_token token_;
 
   public:
-    mutation_token& token()
+    [[nodiscard]] const mutation_token& token() const
     {
         return token_;
     }
@@ -50,7 +50,7 @@ class prepend_response_body
                std::uint16_t,
                std::uint8_t extras_size,
                const std::vector<uint8_t>& body,
-               const cmd_info&)
+               const cmd_info& /* info */)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success) {
@@ -110,33 +110,32 @@ class prepend_request_body
         }
     }
 
-    void content(const std::string& content)
+    void content(const std::string_view& content)
     {
         content_ = { content.begin(), content.end() };
     }
 
-    const std::string& key()
+    [[nodiscard]] const std::string& key() const
     {
         return key_;
     }
 
-    const std::vector<std::uint8_t>& framing_extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& framing_extras() const
     {
         return framing_extras_;
     }
 
-    const std::vector<std::uint8_t>& extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& extras() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    const std::vector<std::uint8_t>& value()
+    [[nodiscard]] const std::vector<std::uint8_t>& value() const
     {
         return content_;
     }
 
-    std::size_t size()
+    [[nodiscard]] std::size_t size() const
     {
         return framing_extras_.size() + key_.size() + content_.size();
     }

@@ -196,8 +196,7 @@ class dns_codec
                 save_offset = offset + sizeof(std::uint16_t);
                 offset = ptr;
             } else {
-                std::string label(payload.data() + offset + 1, payload.data() + offset + 1 + len);
-                name.labels.emplace_back(label);
+                name.labels.emplace_back(payload.data() + offset + 1, payload.data() + offset + 1 + len);
                 offset += static_cast<std::uint16_t>(1U + len);
             }
         }

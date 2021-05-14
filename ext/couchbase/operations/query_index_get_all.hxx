@@ -56,7 +56,7 @@ struct query_index_get_all_request {
     std::string bucket_name;
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.headers["content-type"] = "application/json";
         tao::json::value body{
@@ -76,47 +76,45 @@ struct query_index_get_all_request {
 
 query_index_get_all_response
 make_response(error_context::http&& ctx,
-              query_index_get_all_request& /* request */,
+              const query_index_get_all_request& /* request */,
               query_index_get_all_request::encoded_response_type&& encoded)
 {
-    query_index_get_all_response response{ ctx };
-    if (!response.ctx.ec) {
-        if (encoded.status_code == 200) {
-            tao::json::value payload{};
-            try {
-                payload = tao::json::from_string(encoded.body);
-            } catch (tao::json::pegtl::parse_error& e) {
-                response.ctx.ec = error::common_errc::parsing_failure;
-                return response;
-            }
-            response.status = payload.at("status").get_string();
-            if (response.status == "success") {
-                for (const auto& entry : payload.at("results").get_array()) {
-                    query_index_get_all_response::query_index index;
-                    index.id = entry.at("id").get_string();
-                    index.datastore_id = entry.at("datastore_id").get_string();
-                    index.namespace_id = entry.at("namespace_id").get_string();
-                    index.keyspace_id = entry.at("keyspace_id").get_string();
-                    index.type = entry.at("using").get_string();
-                    index.name = entry.at("name").get_string();
-                    index.state = entry.at("state").get_string();
-                    if (const auto* prop = entry.find("bucket_id")) {
-                        index.bucket_id = prop->get_string();
-                    }
-                    if (const auto* prop = entry.find("scope_id")) {
-                        index.scope_id = prop->get_string();
-                    }
-                    if (const auto* prop = entry.find("is_primary")) {
-                        index.is_primary = prop->get_boolean();
-                    }
-                    if (const auto* prop = entry.find("condition")) {
-                        index.condition = prop->get_string();
-                    }
-                    for (const auto& key : entry.at("index_key").get_array()) {
-                        index.index_key.emplace_back(key.get_string());
-                    }
-                    response.indexes.emplace_back(index);
+    query_index_get_all_response response{ std::move(ctx) };
+    if (!response.ctx.ec && encoded.status_code == 200) {
+        tao::json::value payload{};
+        try {
+            payload = tao::json::from_string(encoded.body);
+        } catch (const tao::json::pegtl::parse_error& e) {
+            response.ctx.ec = error::common_errc::parsing_failure;
+            return response;
+        }
+        response.status = payload.at("status").get_string();
+        if (response.status == "success") {
+            for (const auto& entry : payload.at("results").get_array()) {
+                query_index_get_all_response::query_index index;
+                index.id = entry.at("id").get_string();
+                index.datastore_id = entry.at("datastore_id").get_string();
+                index.namespace_id = entry.at("namespace_id").get_string();
+                index.keyspace_id = entry.at("keyspace_id").get_string();
+                index.type = entry.at("using").get_string();
+                index.name = entry.at("name").get_string();
+                index.state = entry.at("state").get_string();
+                if (const auto* prop = entry.find("bucket_id")) {
+                    index.bucket_id = prop->get_string();
                 }
+                if (const auto* prop = entry.find("scope_id")) {
+                    index.scope_id = prop->get_string();
+                }
+                if (const auto* prop = entry.find("is_primary")) {
+                    index.is_primary = prop->get_boolean();
+                }
+                if (const auto* prop = entry.find("condition")) {
+                    index.condition = prop->get_string();
+                }
+                for (const auto& key : entry.at("index_key").get_array()) {
+                    index.index_key.emplace_back(key.get_string());
+                }
+                response.indexes.emplace_back(index);
             }
         }
     }

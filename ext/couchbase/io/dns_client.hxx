@@ -207,7 +207,7 @@ class dns_client
     template<class Handler>
     void query_srv(const std::string& name, const std::string& service, Handler&& handler)
     {
-        dns_config& config = dns_config::get();
+        const dns_config& config = dns_config::get();
         auto cmd = std::make_shared<dns_srv_command>(ctx_, name, service, config.address(), config.port());
         cmd->execute(config.timeout(), std::forward<Handler>(handler));
     }

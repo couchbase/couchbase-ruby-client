@@ -33,8 +33,7 @@ cap_duration(std::chrono::milliseconds uncapped, std::shared_ptr<Command> comman
 {
     auto theoretical_deadline = std::chrono::steady_clock::now() + uncapped;
     auto absolute_deadline = command->deadline.expiry();
-    auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(theoretical_deadline - absolute_deadline);
-    if (delta.count() > 0) {
+    if (auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(theoretical_deadline - absolute_deadline); delta.count() > 0) {
         auto capped = uncapped - delta;
         if (capped.count() < 0) {
             return uncapped; // something went wrong, return the uncapped one as a safety net
@@ -93,8 +92,7 @@ maybe_retry(std::shared_ptr<Manager> manager, std::shared_ptr<Command> command, 
         return priv::retry_with_duration(manager, command, reason, priv::controlled_backoff(command->request.retries.retry_attempts));
     }
 
-    retry_action action = command->request.retries.strategy.should_retry(command->request, reason);
-    if (action.retry_requested) {
+    if (retry_action action = command->request.retries.strategy.should_retry(command->request, reason); action.retry_requested) {
         return priv::retry_with_duration(manager, command, reason, priv::cap_duration(action.duration, command));
     }
 

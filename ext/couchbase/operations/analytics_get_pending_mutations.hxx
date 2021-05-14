@@ -47,7 +47,7 @@ struct analytics_get_pending_mutations_request {
     std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "GET";
         encoded.path = "/analytics/node/agg/stats/remaining";
@@ -57,25 +57,23 @@ struct analytics_get_pending_mutations_request {
 
 analytics_get_pending_mutations_response
 make_response(error_context::http&& ctx,
-              analytics_get_pending_mutations_request& /* request */,
+              const analytics_get_pending_mutations_request& /* request */,
               analytics_get_pending_mutations_request::encoded_response_type&& encoded)
 {
-    analytics_get_pending_mutations_response response{ ctx };
+    analytics_get_pending_mutations_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         tao::json::value payload{};
         try {
             payload = tao::json::from_string(encoded.body);
-        } catch (tao::json::pegtl::parse_error& e) {
+        } catch (const tao::json::pegtl::parse_error& e) {
             response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
         if (encoded.status_code == 200) {
             if (payload.is_object()) {
-                for (const auto& entry : payload.get_object()) {
-                    std::string dataverse = entry.first + ".";
-                    for (const auto& stats : entry.second.get_object()) {
-                        std::string dataset = dataverse + stats.first;
-                        response.stats.emplace(dataset, stats.second.get_unsigned());
+                for (const auto& [dataverse, entry] : payload.get_object()) {
+                    for (const auto& [dataset, counter] : entry.get_object()) {
+                        response.stats.try_emplace(fmt::format("{}.{}", dataverse, dataset), counter.get_unsigned());
                     }
                 }
             }

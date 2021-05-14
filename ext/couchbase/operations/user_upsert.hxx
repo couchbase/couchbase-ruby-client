@@ -48,7 +48,7 @@ struct user_upsert_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "PUT";
         encoded.path = fmt::format("/settings/rbac/users/{}/{}", domain, user.username);
@@ -98,9 +98,9 @@ struct user_upsert_request {
 };
 
 user_upsert_response
-make_response(error_context::http&& ctx, user_upsert_request& /* request */, user_upsert_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, const user_upsert_request& /* request */, user_upsert_request::encoded_response_type&& encoded)
 {
-    user_upsert_response response{ ctx };
+    user_upsert_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 200:
@@ -109,15 +109,15 @@ make_response(error_context::http&& ctx, user_upsert_request& /* request */, use
                 tao::json::value payload{};
                 try {
                     payload = tao::json::from_string(encoded.body);
-                } catch (tao::json::pegtl::parse_error& e) {
+                } catch (const tao::json::pegtl::parse_error&) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }
                 response.ctx.ec = error::common_errc::invalid_argument;
                 const auto* errors = payload.find("errors");
                 if (errors != nullptr && errors->is_object()) {
-                    for (const auto& entry : errors->get_object()) {
-                        response.errors.emplace_back(fmt::format("{}: {}", entry.first, entry.second.get_string()));
+                    for (const auto& [code, message] : errors->get_object()) {
+                        response.errors.emplace_back(fmt::format("{}: {}", code, message.get_string()));
                     }
                 }
             } break;

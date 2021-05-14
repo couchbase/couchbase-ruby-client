@@ -120,8 +120,8 @@ struct origin {
     {
         std::vector<std::string> res;
         res.reserve(nodes_.size());
-        for (const auto& node : nodes_) {
-            res.emplace_back(fmt::format("\"{}:{}\"", node.first, node.second));
+        for (const auto& [hostname, port] : nodes_) {
+            res.emplace_back(fmt::format("\"{}:{}\"", hostname, port));
         }
         return res;
     }

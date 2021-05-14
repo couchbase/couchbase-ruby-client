@@ -79,18 +79,16 @@ struct traits<couchbase::operations::analytics_response_payload> {
         result.meta_data.request_id = v.at("requestID").get_string();
         result.meta_data.client_context_id = v.at("clientContextID").get_string();
         result.meta_data.status = v.at("status").get_string();
-        const auto s = v.find("signature");
-        if (s != nullptr) {
+
+        if (const auto* s = v.find("signature"); s != nullptr) {
             result.meta_data.signature = tao::json::to_string(*s);
         }
 
-        const auto p = v.find("profile");
-        if (p != nullptr) {
+        if (const auto* p = v.find("profile"); p != nullptr) {
             result.meta_data.profile = tao::json::to_string(*p);
         }
 
-        const auto m = v.find("metrics");
-        if (m != nullptr) {
+        if (const auto* m = v.find("metrics"); m != nullptr) {
             result.meta_data.metrics.result_count = m->at("resultCount").get_unsigned();
             result.meta_data.metrics.result_size = m->at("resultSize").get_unsigned();
             result.meta_data.metrics.elapsed_time = m->at("elapsedTime").get_string();
@@ -101,8 +99,7 @@ struct traits<couchbase::operations::analytics_response_payload> {
             result.meta_data.metrics.warning_count = m->template optional<std::uint64_t>("warningCount");
         }
 
-        const auto e = v.find("errors");
-        if (e != nullptr) {
+        if (const auto* e = v.find("errors"); e != nullptr) {
             std::vector<couchbase::operations::analytics_response_payload::analytics_problem> problems{};
             for (auto& err : e->get_array()) {
                 couchbase::operations::analytics_response_payload::analytics_problem problem;
@@ -113,8 +110,7 @@ struct traits<couchbase::operations::analytics_response_payload> {
             result.meta_data.errors.emplace(problems);
         }
 
-        const auto w = v.find("warnings");
-        if (w != nullptr) {
+        if (const auto* w = v.find("warnings"); w != nullptr) {
             std::vector<couchbase::operations::analytics_response_payload::analytics_problem> problems{};
             for (auto& warn : w->get_array()) {
                 couchbase::operations::analytics_response_payload::analytics_problem problem;
@@ -124,8 +120,8 @@ struct traits<couchbase::operations::analytics_response_payload> {
             }
             result.meta_data.warnings.emplace(problems);
         }
-        const auto r = v.find("results");
-        if (r != nullptr) {
+
+        if (const auto* r = v.find("results"); r != nullptr) {
             result.rows.reserve(result.meta_data.metrics.result_count);
             for (auto& row : r->get_array()) {
                 result.rows.emplace_back(tao::json::to_string(row));
@@ -178,13 +174,13 @@ struct analytics_request {
                                { "client_context_id", client_context_id },
                                { "timeout", fmt::format("{}ms", timeout.count()) } };
         if (positional_parameters.empty()) {
-            for (auto& param : named_parameters) {
-                Expects(param.first.empty() == false);
-                std::string key = param.first;
+            for (const auto& [name, value] : named_parameters) {
+                Expects(name.empty() == false);
+                std::string key = name;
                 if (key[0] != '$') {
                     key.insert(key.begin(), '$');
                 }
-                body[key] = param.second;
+                body[key] = value;
             }
         } else {
             body["args"] = positional_parameters;
@@ -204,13 +200,11 @@ struct analytics_request {
         }
         if (scope_qualifier) {
             body["query_context"] = scope_qualifier;
-        } else if (scope_name) {
-            if (bucket_name) {
-                body["query_context"] = fmt::format("default:`{}`.`{}`", *bucket_name, *scope_name);
-            }
+        } else if (scope_name && bucket_name) {
+            body["query_context"] = fmt::format("default:`{}`.`{}`", *bucket_name, *scope_name);
         }
-        for (auto& param : raw) {
-            body[param.first] = param.second;
+        for (const auto& [name, value] : raw) {
+            body[name] = value;
         }
         encoded.type = type;
         encoded.headers["content-type"] = "application/json";
@@ -231,15 +225,15 @@ struct analytics_request {
 };
 
 analytics_response
-make_response(error_context::analytics&& ctx, analytics_request& request, analytics_request::encoded_response_type&& encoded)
+make_response(error_context::analytics&& ctx, const analytics_request& request, analytics_request::encoded_response_type&& encoded)
 {
-    analytics_response response{ ctx };
+    analytics_response response{ std::move(ctx) };
     response.ctx.statement = request.statement;
     response.ctx.parameters = request.body_str;
     if (!response.ctx.ec) {
         try {
             response.payload = tao::json::from_string(encoded.body).as<analytics_response_payload>();
-        } catch (tao::json::pegtl::parse_error& e) {
+        } catch (const tao::json::pegtl::parse_error&) {
             response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }

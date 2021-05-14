@@ -36,7 +36,7 @@ enum class magic : uint8_t {
     server_response = 0x83
 };
 
-constexpr inline bool
+constexpr bool
 is_valid_magic(uint8_t code)
 {
     switch (magic(code)) {

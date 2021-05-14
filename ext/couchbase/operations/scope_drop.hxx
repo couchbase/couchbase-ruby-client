@@ -46,7 +46,7 @@ struct scope_drop_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "DELETE";
         encoded.path = fmt::format("/pools/default/buckets/{}/scopes/{}", bucket_name, scope_name);
@@ -55,9 +55,9 @@ struct scope_drop_request {
 };
 
 scope_drop_response
-make_response(error_context::http&& ctx, scope_drop_request& /* request */, scope_drop_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, const scope_drop_request& /* request */, scope_drop_request::encoded_response_type&& encoded)
 {
-    scope_drop_response response{ ctx };
+    scope_drop_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 400:
@@ -75,7 +75,7 @@ make_response(error_context::http&& ctx, scope_drop_request& /* request */, scop
                 tao::json::value payload{};
                 try {
                     payload = tao::json::from_string(encoded.body);
-                } catch (tao::json::pegtl::parse_error& e) {
+                } catch (const tao::json::pegtl::parse_error& e) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }

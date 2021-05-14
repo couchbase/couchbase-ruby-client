@@ -46,11 +46,8 @@ struct traits<couchbase::operations::search_index> {
         result.uuid = v.at("uuid").get_string();
         result.name = v.at("name").get_string();
         result.type = v.at("type").get_string();
-        {
-            const auto* params = v.find("params");
-            if (params != nullptr && params->is_object()) {
-                result.params_json = tao::json::to_string(*params);
-            }
+        if (const auto* params = v.find("params"); params != nullptr && params->is_object()) {
+            result.params_json = tao::json::to_string(*params);
         }
         if (v.find("sourceUUID") != nullptr) {
             result.source_uuid = v.at("sourceUUID").get_string();
@@ -61,17 +58,11 @@ struct traits<couchbase::operations::search_index> {
         if (v.find("sourceType") != nullptr) {
             result.source_type = v.at("sourceType").get_string();
         }
-        {
-            const auto* params = v.find("sourceParams");
-            if (params != nullptr && params->is_object()) {
-                result.source_params_json = tao::json::to_string(*params);
-            }
+        if (const auto* params = v.find("sourceParams"); params != nullptr && params->is_object()) {
+            result.source_params_json = tao::json::to_string(*params);
         }
-        {
-            const auto* params = v.find("planParams");
-            if (params != nullptr && params->is_object()) {
-                result.plan_params_json = tao::json::to_string(*params);
-            }
+        if (const auto* params = v.find("planParams"); params != nullptr && params->is_object()) {
+            result.plan_params_json = tao::json::to_string(*params);
         }
         return result;
     }

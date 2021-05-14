@@ -53,7 +53,7 @@ struct analytics_dataset_get_all_request {
     std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         tao::json::value body{
             { "statement", "SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\"" },
@@ -68,16 +68,16 @@ struct analytics_dataset_get_all_request {
 
 analytics_dataset_get_all_response
 make_response(error_context::http&& ctx,
-              analytics_dataset_get_all_request& /* request */,
+              const analytics_dataset_get_all_request& /* request */,
               analytics_dataset_get_all_request::encoded_response_type&& encoded)
 {
-    analytics_dataset_get_all_response response{ ctx };
+    analytics_dataset_get_all_response response{ std::move(ctx) };
 
     if (!response.ctx.ec) {
         tao::json::value payload{};
         try {
             payload = tao::json::from_string(encoded.body);
-        } catch (tao::json::pegtl::parse_error& e) {
+        } catch (const tao::json::pegtl::parse_error& e) {
             response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }

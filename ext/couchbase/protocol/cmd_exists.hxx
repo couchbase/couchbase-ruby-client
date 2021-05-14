@@ -37,22 +37,22 @@ class exists_response_body
     std::uint64_t cas_;
 
   public:
-    [[nodiscard]] std::uint16_t partition_id()
+    [[nodiscard]] std::uint16_t partition_id() const
     {
         return partition_id_;
     }
 
-    [[nodiscard]] std::uint64_t cas()
+    [[nodiscard]] std::uint64_t cas() const
     {
         return cas_;
     }
 
-    [[nodiscard]] const std::string& key()
+    [[nodiscard]] const std::string& key() const
     {
         return key_;
     }
 
-    [[nodiscard]] std::uint8_t status()
+    [[nodiscard]] std::uint8_t status() const
     {
         return status_;
     }
@@ -115,26 +115,23 @@ class exists_request_body
         }
     }
 
-    const std::string& key()
+    [[nodiscard]] const std::string& key() const
     {
         /* for observe key goes in the body */
-        static std::string empty;
-        return empty;
+        return empty_string;
     }
 
-    const std::vector<std::uint8_t>& framing_extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& framing_extras() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    const std::vector<std::uint8_t>& extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& extras() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    const std::vector<std::uint8_t>& value()
+    [[nodiscard]] const std::vector<std::uint8_t>& value()
     {
         if (value_.empty()) {
             fill_body();
@@ -142,7 +139,7 @@ class exists_request_body
         return value_;
     }
 
-    std::size_t size()
+    [[nodiscard]] std::size_t size()
     {
         if (value_.empty()) {
             fill_body();

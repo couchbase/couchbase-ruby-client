@@ -50,7 +50,7 @@ class client_request
     std::vector<std::uint8_t> payload_;
 
   public:
-    client_opcode opcode()
+    [[nodiscard]] client_opcode opcode() const
     {
         return opcode_;
     }
@@ -65,7 +65,7 @@ class client_request
         cas_ = utils::byte_swap_64(val);
     }
 
-    std::uint32_t opaque()
+    [[nodiscard]] std::uint32_t opaque() const
     {
         return opaque_;
     }

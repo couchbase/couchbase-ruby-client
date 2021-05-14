@@ -43,10 +43,9 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
     void send_to(std::shared_ptr<io::http_session> session, Handler&& handler)
     {
         encoded.type = request.type;
-        auto encoding_ec = request.encode_to(encoded, session->http_context());
-        if (encoding_ec) {
+        if (auto ec = request.encode_to(encoded, session->http_context()); ec) {
             error_context_type ctx{};
-            ctx.ec = encoding_ec;
+            ctx.ec = ec;
             ctx.client_context_id = request.client_context_id;
             return handler(make_response(std::move(ctx), request, {}));
         }
@@ -94,7 +93,7 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
                                              ctx.http_status = msg.status_code;
                                              ctx.http_body = msg.body;
                                              handler(make_response(std::move(ctx), self->request, std::move(msg)));
-                                         } catch (priv::retry_http_request&) {
+                                         } catch (const priv::retry_http_request&) {
                                              self->send_to(session, std::forward<Handler>(handler));
                                          }
                                      });

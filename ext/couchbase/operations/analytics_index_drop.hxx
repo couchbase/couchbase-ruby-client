@@ -51,7 +51,7 @@ struct analytics_index_drop_request {
 
     bool ignore_if_does_not_exist{ false };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         std::string if_exists_clause = ignore_if_does_not_exist ? "IF EXISTS" : "";
 
@@ -68,15 +68,15 @@ struct analytics_index_drop_request {
 
 analytics_index_drop_response
 make_response(error_context::http&& ctx,
-              analytics_index_drop_request& /* request */,
+              const analytics_index_drop_request& /* request */,
               analytics_index_drop_request::encoded_response_type&& encoded)
 {
-    analytics_index_drop_response response{ ctx };
+    analytics_index_drop_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         tao::json::value payload{};
         try {
             payload = tao::json::from_string(encoded.body);
-        } catch (tao::json::pegtl::parse_error& e) {
+        } catch (const tao::json::pegtl::parse_error& e) {
             response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
@@ -86,8 +86,7 @@ make_response(error_context::http&& ctx,
             bool index_does_not_exist = false;
             bool dataset_not_found = false;
 
-            auto* errors = payload.find("errors");
-            if (errors != nullptr && errors->is_array()) {
+            if (auto* errors = payload.find("errors"); errors != nullptr && errors->is_array()) {
                 for (const auto& error : errors->get_array()) {
                     analytics_index_drop_response::problem err{
                         error.at("code").as<std::uint32_t>(),

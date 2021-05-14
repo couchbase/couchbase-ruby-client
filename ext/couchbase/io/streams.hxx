@@ -87,7 +87,7 @@ class plain_stream_impl : public stream_impl
         return stream_.is_open();
     }
 
-    [[nodiscard]] virtual asio::ip::tcp::endpoint local_endpoint() const override
+    [[nodiscard]] asio::ip::tcp::endpoint local_endpoint() const override
     {
         std::error_code ec;
         auto res = stream_.local_endpoint(ec);
@@ -120,17 +120,17 @@ class plain_stream_impl : public stream_impl
     void async_connect(const asio::ip::tcp::resolver::results_type::endpoint_type& endpoint,
                        std::function<void(std::error_code)>&& handler) override
     {
-        return stream_.async_connect(endpoint, handler);
+        return stream_.async_connect(endpoint, std::move(handler));
     }
 
     void async_write(std::vector<asio::const_buffer>& buffers, std::function<void(std::error_code, std::size_t)>&& handler) override
     {
-        return asio::async_write(stream_, buffers, handler);
+        return asio::async_write(stream_, buffers, std::move(handler));
     }
 
     void async_read_some(asio::mutable_buffer buffer, std::function<void(std::error_code, std::size_t)>&& handler) override
     {
-        return stream_.async_read_some(buffer, handler);
+        return stream_.async_read_some(buffer, std::move(handler));
     }
 };
 
@@ -153,7 +153,7 @@ class tls_stream_impl : public stream_impl
         return stream_->lowest_layer().is_open();
     }
 
-    [[nodiscard]] virtual asio::ip::tcp::endpoint local_endpoint() const override
+    [[nodiscard]] asio::ip::tcp::endpoint local_endpoint() const override
     {
         std::error_code ec;
         auto res = stream_->lowest_layer().local_endpoint(ec);
@@ -204,12 +204,12 @@ class tls_stream_impl : public stream_impl
 
     void async_write(std::vector<asio::const_buffer>& buffers, std::function<void(std::error_code, std::size_t)>&& handler) override
     {
-        return asio::async_write(*stream_, buffers, handler);
+        return asio::async_write(*stream_, buffers, std::move(handler));
     }
 
     void async_read_some(asio::mutable_buffer buffer, std::function<void(std::error_code, std::size_t)>&& handler) override
     {
-        return stream_->async_read_some(buffer, handler);
+        return stream_->async_read_some(buffer, std::move(handler));
     }
 };
 

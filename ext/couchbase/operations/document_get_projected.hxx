@@ -46,7 +46,7 @@ struct get_projected_request {
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
     io::retry_context<io::retry_strategy::best_effort> retries{ true };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&& /* context */)
     {
         encoded.opaque(opaque);
         encoded.partition(partition);
@@ -111,8 +111,7 @@ subdoc_lookup(tao::json::value& root, const std::string& path)
                 break;
             }
             std::string key = path.substr(offset, idx - offset);
-            int array_index = std::stoi(key);
-            if (array_index == -1) {
+            if (int array_index = std::stoi(key); array_index == -1) {
                 cur = &cur->get_array().back();
             } else if (static_cast<std::size_t>(array_index) < cur->get_array().size()) {
                 cur = &cur->get_array().back();
@@ -196,9 +195,9 @@ subdoc_apply_projection(tao::json::value& root, const std::string& path, tao::js
 } // namespace priv
 
 get_projected_response
-make_response(error_context::key_value&& ctx, get_projected_request& request, get_projected_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, const get_projected_request& request, get_projected_request::encoded_response_type&& encoded)
 {
-    get_projected_response response{ ctx };
+    get_projected_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         response.cas = encoded.cas();
         if (request.with_expiry && !encoded.body().fields()[0].value.empty()) {
@@ -213,7 +212,7 @@ make_response(error_context::key_value&& ctx, get_projected_request& request, ge
                 tao::json::value full_doc{};
                 try {
                     full_doc = tao::json::from_string(encoded.body().fields()[request.with_expiry ? 1 : 0].value);
-                } catch (tao::json::pegtl::parse_error& e) {
+                } catch (const tao::json::pegtl::parse_error& e) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }
@@ -238,7 +237,7 @@ make_response(error_context::key_value&& ctx, get_projected_request& request, ge
                     tao::json::value value_to_apply{};
                     try {
                         value_to_apply = tao::json::from_string(field.value);
-                    } catch (tao::json::pegtl::parse_error& e) {
+                    } catch (const tao::json::pegtl::parse_error& e) {
                         response.ctx.ec = error::common_errc::parsing_failure;
                         return response;
                     }

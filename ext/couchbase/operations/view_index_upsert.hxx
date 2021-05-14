@@ -39,7 +39,7 @@ struct view_index_upsert_request {
     std::string bucket_name;
     design_document document;
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         tao::json::value body;
         body["views"] = tao::json::empty_object;
@@ -65,10 +65,10 @@ struct view_index_upsert_request {
 
 view_index_upsert_response
 make_response(error_context::http&& ctx,
-              view_index_upsert_request& /* request */,
+              const view_index_upsert_request& /* request */,
               view_index_upsert_request::encoded_response_type&& encoded)
 {
-    view_index_upsert_response response{ ctx };
+    view_index_upsert_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 200:

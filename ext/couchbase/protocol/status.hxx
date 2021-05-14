@@ -79,7 +79,7 @@ enum class status : uint16_t {
     subdoc_invalid_xattr_order = 0xd4,
 };
 
-constexpr inline bool
+constexpr bool
 is_valid_status(uint16_t code)
 {
     switch (status(code)) {

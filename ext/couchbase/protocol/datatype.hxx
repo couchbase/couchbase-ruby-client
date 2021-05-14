@@ -27,7 +27,7 @@ enum class datatype : uint8_t {
 
 };
 
-constexpr inline bool
+constexpr bool
 is_valid_datatype(uint8_t code)
 {
     switch (datatype(code)) {
@@ -40,7 +40,7 @@ is_valid_datatype(uint8_t code)
     return false;
 }
 
-constexpr inline bool
+constexpr bool
 has_json_datatype(uint8_t code)
 {
     return (code & uint8_t(datatype::json)) != 0;

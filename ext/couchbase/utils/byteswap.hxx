@@ -19,7 +19,7 @@
 
 namespace couchbase::utils
 {
-static inline std::uint64_t
+static constexpr std::uint64_t
 byte_swap_64(std::uint64_t val)
 {
     std::uint64_t ret = 0U;

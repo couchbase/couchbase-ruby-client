@@ -124,11 +124,6 @@ class exponential
 class best_effort
 {
   public:
-    best_effort()
-      : backoff_(std::chrono::milliseconds(1), 2, std::chrono::milliseconds(500))
-    {
-    }
-
     template<class Request>
     retry_action should_retry(Request& request, retry_reason reason)
     {
@@ -140,7 +135,7 @@ class best_effort
     }
 
   private:
-    backoff::exponential backoff_;
+    backoff::exponential backoff_{ std::chrono::milliseconds(1), 2, std::chrono::milliseconds(500) };
 };
 
 class fail_fast

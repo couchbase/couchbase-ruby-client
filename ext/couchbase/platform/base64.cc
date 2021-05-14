@@ -121,19 +121,19 @@ encode_triplet(const std::uint8_t* s, std::string& str)
 static int
 decode_quad(const std::uint8_t* s, std::string& d)
 {
-    uint32_t value = code2val(static_cast<std::uint8_t>(s[0])) << 18U;
-    value |= code2val(static_cast<std::uint8_t>(s[1])) << 12U;
+    uint32_t value = code2val(s[0]) << 18U;
+    value |= code2val(s[1]) << 12U;
 
     int ret = 3;
 
     if (s[2] == '=') {
         ret = 1;
     } else {
-        value |= code2val(static_cast<std::uint8_t>(s[2])) << 6U;
+        value |= code2val(s[2]) << 6U;
         if (s[3] == '=') {
             ret = 2;
         } else {
-            value |= code2val(static_cast<std::uint8_t>(s[3]));
+            value |= code2val(s[3]);
         }
     }
 
@@ -171,7 +171,7 @@ encode(const std::string_view blob, bool prettyprint)
         result.reserve(chunks * 4);
     }
 
-    const std::uint8_t* in = reinterpret_cast<const std::uint8_t*>(blob.data());
+    const auto* in = reinterpret_cast<const std::uint8_t*>(blob.data());
 
     chunks = 0;
     for (size_t ii = 0; ii < triplets; ++ii) {

@@ -55,7 +55,7 @@ struct query_index_create_request {
     std::optional<int> num_replicas{};
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.headers["content-type"] = "application/json";
         tao::json::value with{};
@@ -100,14 +100,16 @@ struct query_index_create_request {
 };
 
 query_index_create_response
-make_response(error_context::http&& ctx, query_index_create_request& request, query_index_create_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx,
+              const query_index_create_request& request,
+              query_index_create_request::encoded_response_type&& encoded)
 {
-    query_index_create_response response{ ctx };
+    query_index_create_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         tao::json::value payload{};
         try {
             payload = tao::json::from_string(encoded.body);
-        } catch (tao::json::pegtl::parse_error& e) {
+        } catch (const tao::json::pegtl::parse_error& e) {
             response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }

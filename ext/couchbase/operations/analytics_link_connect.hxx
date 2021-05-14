@@ -49,7 +49,7 @@ struct analytics_link_connect_request {
     std::string link_name;
     bool force{ false };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         std::string with_clause = force ? "WITH {\"force\": true}" : "";
 
@@ -66,15 +66,15 @@ struct analytics_link_connect_request {
 
 analytics_link_connect_response
 make_response(error_context::http&& ctx,
-              analytics_link_connect_request& /* request */,
+              const analytics_link_connect_request& /* request */,
               analytics_link_connect_request::encoded_response_type&& encoded)
 {
-    analytics_link_connect_response response{ ctx };
+    analytics_link_connect_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         tao::json::value payload{};
         try {
             payload = tao::json::from_string(encoded.body);
-        } catch (tao::json::pegtl::parse_error& e) {
+        } catch (const tao::json::pegtl::parse_error& e) {
             response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
@@ -83,8 +83,7 @@ make_response(error_context::http&& ctx,
         if (response.status != "success") {
             bool link_not_found = false;
 
-            auto* errors = payload.find("errors");
-            if (errors != nullptr && errors->is_array()) {
+            if (auto* errors = payload.find("errors"); errors != nullptr && errors->is_array()) {
                 for (const auto& error : errors->get_array()) {
                     analytics_link_connect_response::problem err{
                         error.at("code").as<std::uint32_t>(),

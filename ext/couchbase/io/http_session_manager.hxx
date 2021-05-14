@@ -212,21 +212,17 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
 
     void close()
     {
-        {
-            for (auto& sessions : idle_sessions_) {
-                for (auto& s : sessions.second) {
-                    if (s) {
-                        s->reset_idle();
-                        s.reset();
-                    }
+        for (auto& sessions : idle_sessions_) {
+            for (auto& s : sessions.second) {
+                if (s) {
+                    s->reset_idle();
+                    s.reset();
                 }
             }
         }
-        {
-            for (auto& sessions : busy_sessions_) {
-                for (auto& s : sessions.second) {
-                    s.reset();
-                }
+        for (auto& sessions : busy_sessions_) {
+            for (auto& s : sessions.second) {
+                s.reset();
             }
         }
     }
@@ -237,7 +233,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
         auto candidates = config_.nodes.size();
         while (candidates > 0) {
             --candidates;
-            auto& node = config_.nodes[next_index_];
+            const auto& node = config_.nodes[next_index_];
             next_index_ = (next_index_ + 1) % config_.nodes.size();
             std::uint16_t port = node.port_or(options_.network, type, options_.enable_tls, 0);
             if (port != 0) {

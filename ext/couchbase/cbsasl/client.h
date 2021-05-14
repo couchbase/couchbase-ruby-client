@@ -120,7 +120,7 @@ class ClientContext : public Context
         return backend->step(input);
     }
 
-  protected:
+  private:
     std::unique_ptr<MechanismBackend> backend;
 };
 

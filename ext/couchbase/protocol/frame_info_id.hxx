@@ -93,7 +93,7 @@ enum class request_frame_info_id : uint8_t {
     preserve_ttl = 0x05,
 };
 
-constexpr inline bool
+constexpr bool
 is_valid_request_frame_info_id(uint8_t value)
 {
     switch (request_frame_info_id(value)) {
@@ -129,7 +129,7 @@ enum class response_frame_info_id : uint8_t {
     server_duration = 0x00,
 };
 
-constexpr inline bool
+constexpr bool
 is_valid_response_frame_info_id(uint8_t value)
 {
     switch (response_frame_info_id(value)) {

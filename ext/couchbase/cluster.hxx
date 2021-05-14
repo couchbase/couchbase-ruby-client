@@ -88,12 +88,9 @@ class cluster
 {
   public:
     explicit cluster(asio::io_context& ctx)
-      : id_(uuid::to_string(uuid::random()))
-      , ctx_(ctx)
+      : ctx_(ctx)
       , work_(asio::make_work_guard(ctx_))
-      , tls_(asio::ssl::context::tls_client)
       , session_manager_(std::make_shared<io::http_session_manager>(id_, ctx_, tls_))
-      , dns_config_(io::dns::dns_config::get())
       , dns_client_(ctx_)
     {
     }
@@ -128,8 +125,7 @@ class cluster
     template<typename Handler>
     void open_bucket(const std::string& bucket_name, Handler&& handler)
     {
-        auto ptr = buckets_.find(bucket_name);
-        if (ptr != buckets_.end()) {
+        if (buckets_.find(bucket_name) != buckets_.end()) {
             return handler({});
         }
         std::vector<protocol::hello_feature> known_features;
@@ -187,8 +183,8 @@ class cluster
             if (session_) {
                 res.services[service_type::kv].emplace_back(session_->diag_info());
             }
-            for (const auto& bucket : buckets_) {
-                bucket.second->export_diag_info(res);
+            for (const auto& [name, bucket] : buckets_) {
+                bucket->export_diag_info(res);
             }
             session_manager_->export_diag_info(res);
             handler(std::move(res));
@@ -342,12 +338,12 @@ class cluster
         });
     }
 
-    std::string id_;
+    std::string id_{ uuid::to_string(uuid::random()) };
     asio::io_context& ctx_;
     asio::executor_work_guard<asio::io_context::executor_type> work_;
-    asio::ssl::context tls_;
+    asio::ssl::context tls_{ asio::ssl::context::tls_client };
     std::shared_ptr<io::http_session_manager> session_manager_;
-    io::dns::dns_config& dns_config_;
+    io::dns::dns_config& dns_config_{ io::dns::dns_config::get() };
     couchbase::io::dns::dns_client dns_client_;
     std::shared_ptr<io::mcbp_session> session_{};
     std::map<std::string, std::shared_ptr<bucket>> buckets_{};

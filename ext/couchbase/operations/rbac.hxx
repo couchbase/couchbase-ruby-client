@@ -84,8 +84,7 @@ struct traits<couchbase::operations::rbac::user_and_metadata> {
     static couchbase::operations::rbac::user_and_metadata as(const tao::json::basic_value<Traits>& v)
     {
         couchbase::operations::rbac::user_and_metadata result;
-        std::string domain = v.at("domain").get_string();
-        if (domain == "local") {
+        if (const std::string& domain = v.at("domain").get_string(); domain == "local") {
             result.domain = couchbase::operations::rbac::auth_domain::local;
         } else if (domain == "external") {
             result.domain = couchbase::operations::rbac::auth_domain::external;
@@ -93,78 +92,56 @@ struct traits<couchbase::operations::rbac::user_and_metadata> {
             spdlog::error(R"("unexpected domain for user with metadata: "{}")", domain);
         }
         result.username = v.at("id").get_string();
-        {
-            const auto* display_name = v.find("name");
-            if (display_name != nullptr && !display_name->get_string().empty()) {
-                result.display_name = display_name->get_string();
-            }
+        if (const auto* display_name = v.find("name"); display_name != nullptr && !display_name->get_string().empty()) {
+            result.display_name = display_name->get_string();
         }
         result.password_changed = v.template optional<std::string>("password_change_date");
-        {
-            const auto* external_groups = v.find("external_groups");
-            if (external_groups != nullptr) {
-                for (const auto& group : external_groups->get_array()) {
-                    result.external_groups.insert(group.get_string());
-                }
+        if (const auto* external_groups = v.find("external_groups"); external_groups != nullptr) {
+            for (const auto& group : external_groups->get_array()) {
+                result.external_groups.insert(group.get_string());
             }
         }
-        {
-            const auto* groups = v.find("groups");
-            if (groups != nullptr) {
-                for (const auto& group : groups->get_array()) {
-                    result.groups.insert(group.get_string());
-                }
+        if (const auto* groups = v.find("groups"); groups != nullptr) {
+            for (const auto& group : groups->get_array()) {
+                result.groups.insert(group.get_string());
             }
         }
-        {
-            const auto* roles = v.find("roles");
-            if (roles != nullptr) {
-                for (const auto& entry : roles->get_array()) {
-                    couchbase::operations::rbac::role_and_origins role{};
-                    role.name = entry.at("role").get_string();
-                    {
-                        const auto* bucket = entry.find("bucket_name");
-                        if (bucket != nullptr && !bucket->get_string().empty()) {
-                            role.bucket = bucket->get_string();
-                        }
-                    }
-                    {
-                        const auto* scope = entry.find("scope_name");
-                        if (scope != nullptr && !scope->get_string().empty()) {
-                            role.scope = scope->get_string();
-                        }
-                    }
-                    {
-                        const auto* collection = entry.find("collection_name");
-                        if (collection != nullptr && !collection->get_string().empty()) {
-                            role.collection = collection->get_string();
-                        }
-                    }
-                    {
-                        const auto* origins = entry.find("origins");
-                        if (origins != nullptr) {
-                            bool has_user_origin = false;
-                            for (const auto& ent : origins->get_array()) {
-                                couchbase::operations::rbac::origin origin{};
-                                origin.type = ent.at("type").get_string();
-                                if (origin.type == "user") {
-                                    has_user_origin = true;
-                                }
-                                const auto* name = ent.find("name");
-                                if (name != nullptr) {
-                                    origin.name = name->get_string();
-                                }
-                                role.origins.push_back(origin);
-                            }
-                            if (has_user_origin) {
-                                result.roles.push_back(role);
-                            }
-                        } else {
-                            result.roles.push_back(role);
-                        }
-                    }
-                    result.effective_roles.push_back(role);
+        if (const auto* roles = v.find("roles"); roles != nullptr) {
+            for (const auto& entry : roles->get_array()) {
+                couchbase::operations::rbac::role_and_origins role{};
+                role.name = entry.at("role").get_string();
+                if (const auto* bucket = entry.find("bucket_name"); bucket != nullptr && !bucket->get_string().empty()) {
+                    role.bucket = bucket->get_string();
                 }
+                if (const auto* scope = entry.find("scope_name"); scope != nullptr && !scope->get_string().empty()) {
+                    role.scope = scope->get_string();
+                }
+
+                if (const auto* collection = entry.find("collection_name"); collection != nullptr && !collection->get_string().empty()) {
+                    role.collection = collection->get_string();
+                }
+
+                if (const auto* origins = entry.find("origins"); origins != nullptr) {
+                    bool has_user_origin = false;
+                    for (const auto& ent : origins->get_array()) {
+                        couchbase::operations::rbac::origin origin{};
+                        origin.type = ent.at("type").get_string();
+                        if (origin.type == "user") {
+                            has_user_origin = true;
+                        }
+                        const auto* name = ent.find("name");
+                        if (name != nullptr) {
+                            origin.name = name->get_string();
+                        }
+                        role.origins.push_back(origin);
+                    }
+                    if (has_user_origin) {
+                        result.roles.push_back(role);
+                    }
+                } else {
+                    result.roles.push_back(role);
+                }
+                result.effective_roles.push_back(role);
             }
         }
         return result;

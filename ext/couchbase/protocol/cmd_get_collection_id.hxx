@@ -36,12 +36,12 @@ class get_collection_id_response_body
     std::uint32_t collection_uid_;
 
   public:
-    [[nodiscard]] std::uint64_t manifest_uid()
+    [[nodiscard]] std::uint64_t manifest_uid() const
     {
         return manifest_uid_;
     }
 
-    [[nodiscard]] std::uint32_t collection_uid()
+    [[nodiscard]] std::uint32_t collection_uid() const
     {
         return collection_uid_;
     }
@@ -52,7 +52,7 @@ class get_collection_id_response_body
                std::uint16_t key_size,
                std::uint8_t extras_size,
                const std::vector<uint8_t>& body,
-               const cmd_info&)
+               const cmd_info& /* info */)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success && extras_size == 12) {
@@ -80,35 +80,32 @@ class get_collection_id_request_body
     std::vector<std::uint8_t> value_{};
 
   public:
-    void collection_path(const std::string& path)
+    void collection_path(const std::string_view& path)
     {
         value_.assign(path.begin(), path.end());
     }
 
-    const std::string& key()
+    [[nodiscard]] const std::string& key() const
     {
-        static std::string empty;
-        return empty;
+        return empty_string;
     }
 
-    const std::vector<std::uint8_t>& framing_extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& framing_extras() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    const std::vector<std::uint8_t>& extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& extras() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    const std::vector<std::uint8_t>& value()
+    [[nodiscard]] const std::vector<std::uint8_t>& value() const
     {
         return value_;
     }
 
-    std::size_t size()
+    [[nodiscard]] std::size_t size() const
     {
         return value_.size();
     }

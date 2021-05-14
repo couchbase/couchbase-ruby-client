@@ -55,7 +55,7 @@ class client_response
 
   public:
     client_response() = default;
-    explicit client_response(io::mcbp_message& msg)
+    explicit client_response(io::mcbp_message&& msg)
     {
         header_ = msg.header_data();
         data_ = std::move(msg.body);
@@ -143,7 +143,7 @@ class client_response
         return error_;
     }
 
-    [[nodiscard]] std::string error_message()
+    [[nodiscard]] std::string error_message() const
     {
         if (error_) {
             return fmt::format(R"(magic={}, opcode={}, status={}, error={})", magic_, opcode_, status_, *error_);
@@ -161,12 +161,10 @@ class client_response
                 auto& err_obj = error["error"];
                 if (err_obj.is_object()) {
                     enhanced_error_info err{};
-                    auto& ref = err_obj["ref"];
-                    if (ref.is_string()) {
+                    if (auto& ref = err_obj["ref"]; ref.is_string()) {
                         err.reference = ref.get_string();
                     }
-                    auto& ctx = err_obj["context"];
-                    if (ctx.is_string()) {
+                    if (auto& ctx = err_obj["context"]; ctx.is_string()) {
                         err.context = ctx.get_string();
                     }
                     error_.emplace(err);
@@ -185,13 +183,12 @@ class client_response
             std::uint8_t frame_size = data_[offset] & 0xfU;
             std::uint8_t frame_id = (static_cast<std::uint32_t>(data_[offset]) >> 4U) & 0xfU;
             offset++;
-            if (frame_id == static_cast<std::uint8_t>(response_frame_info_id::server_duration)) {
-                if (frame_size == 2 && framing_extras_size_ - offset >= frame_size) {
-                    std::uint16_t encoded_duration{};
-                    std::memcpy(&encoded_duration, data_.data() + offset, sizeof(encoded_duration));
-                    encoded_duration = ntohs(encoded_duration);
-                    info_.server_duration_us = std::pow(encoded_duration, 1.74) / 2;
-                }
+            if (frame_id == static_cast<std::uint8_t>(response_frame_info_id::server_duration) && frame_size == 2 &&
+                framing_extras_size_ - offset >= frame_size) {
+                std::uint16_t encoded_duration{};
+                std::memcpy(&encoded_duration, data_.data() + offset, sizeof(encoded_duration));
+                encoded_duration = ntohs(encoded_duration);
+                info_.server_duration_us = std::pow(encoded_duration, 1.74) / 2;
             }
             offset += frame_size;
         }

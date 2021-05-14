@@ -95,7 +95,7 @@ enum class retry_reason {
     views_no_active_partition,
 };
 
-constexpr inline bool
+constexpr bool
 allows_non_idempotent_retry(retry_reason reason)
 {
     switch (reason) {
@@ -126,7 +126,7 @@ allows_non_idempotent_retry(retry_reason reason)
     return false;
 }
 
-constexpr inline bool
+constexpr bool
 always_retry(retry_reason reason)
 {
     switch (reason) {

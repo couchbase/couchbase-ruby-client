@@ -43,7 +43,7 @@ struct exists_request {
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
     io::retry_context<io::retry_strategy::best_effort> retries{ false };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&& /* context */) const
     {
         encoded.opaque(opaque);
         encoded.body().id(partition, id);
@@ -52,7 +52,7 @@ struct exists_request {
 };
 
 exists_response
-make_response(error_context::key_value&& ctx, exists_request& request, exists_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, const exists_request& request, exists_request::encoded_response_type&& encoded)
 {
     exists_response response{ ctx, request.partition };
     if (!ctx.ec) {

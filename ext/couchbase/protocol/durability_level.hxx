@@ -44,7 +44,7 @@ enum class durability_level : uint8_t {
     persist_to_majority = 0x03,
 };
 
-constexpr inline bool
+constexpr bool
 is_valid_durability_level(uint8_t value)
 {
     switch (durability_level(value)) {

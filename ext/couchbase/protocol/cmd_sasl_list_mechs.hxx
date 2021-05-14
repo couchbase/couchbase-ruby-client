@@ -42,7 +42,7 @@ class sasl_list_mechs_response_body
                std::uint16_t key_size,
                std::uint8_t extras_size,
                const std::vector<uint8_t>& body,
-               const cmd_info&)
+               const cmd_info& /* info */)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success) {
@@ -66,32 +66,27 @@ class sasl_list_mechs_request_body
     using response_body_type = sasl_list_mechs_response_body;
     static const inline client_opcode opcode = client_opcode::sasl_list_mechs;
 
-  public:
-    const std::string& key()
+    [[nodiscard]] const std::string& key() const
     {
-        static std::string empty;
-        return empty;
+        return empty_string;
     }
 
-    const std::vector<std::uint8_t>& framing_extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& framing_extras() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    const std::vector<std::uint8_t>& extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& extras() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    const std::vector<std::uint8_t>& value()
+    [[nodiscard]] const std::vector<std::uint8_t>& value() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    std::size_t size()
+    [[nodiscard]] std::size_t size() const
     {
         return 0;
     }

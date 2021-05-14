@@ -37,7 +37,7 @@ struct mcbp_noop_request {
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
     io::retry_context<io::retry_strategy::best_effort> retries{ true };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&& /* context */) const
     {
         encoded.opaque(opaque);
         encoded.partition(partition);
@@ -46,9 +46,9 @@ struct mcbp_noop_request {
 };
 
 mcbp_noop_response
-make_response(error_context::key_value&& ctx, mcbp_noop_request& /* request */, mcbp_noop_request::encoded_response_type&&)
+make_response(error_context::key_value&& ctx, const mcbp_noop_request& /* request */, mcbp_noop_request::encoded_response_type&&)
 {
-    mcbp_noop_response response{ ctx };
+    mcbp_noop_response response{ std::move(ctx) };
     return response;
 }
 

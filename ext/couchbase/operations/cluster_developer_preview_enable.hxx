@@ -39,7 +39,7 @@ struct cluster_developer_preview_enable_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "POST";
         encoded.headers["content-type"] = "application/x-www-form-urlencoded";
@@ -51,14 +51,12 @@ struct cluster_developer_preview_enable_request {
 
 cluster_developer_preview_enable_response
 make_response(error_context::http&& ctx,
-              cluster_developer_preview_enable_request& /* request */,
+              const cluster_developer_preview_enable_request& /* request */,
               scope_get_all_request::encoded_response_type&& encoded)
 {
-    cluster_developer_preview_enable_response response{ ctx };
-    if (!response.ctx.ec) {
-        if (encoded.status_code != 200) {
-            response.ctx.ec = error::common_errc::internal_server_failure;
-        }
+    cluster_developer_preview_enable_response response{ std::move(ctx) };
+    if (!response.ctx.ec && encoded.status_code != 200) {
+        response.ctx.ec = error::common_errc::internal_server_failure;
     }
     return response;
 }

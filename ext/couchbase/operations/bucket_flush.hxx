@@ -38,7 +38,7 @@ struct bucket_flush_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/pools/default/buckets/{}/controller/doFlush", name);
@@ -47,9 +47,9 @@ struct bucket_flush_request {
 };
 
 bucket_flush_response
-make_response(error_context::http&& ctx, bucket_flush_request& /* request */, bucket_flush_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, const bucket_flush_request& /* request */, bucket_flush_request::encoded_response_type&& encoded)
 {
-    bucket_flush_response response{ ctx };
+    bucket_flush_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 404:

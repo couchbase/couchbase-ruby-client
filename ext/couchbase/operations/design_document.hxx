@@ -27,8 +27,8 @@ struct design_document {
 
     struct view {
         std::string name;
-        std::optional<std::string> map;
-        std::optional<std::string> reduce;
+        std::optional<std::string> map{};
+        std::optional<std::string> reduce{};
     };
 
     std::string rev;

@@ -24,7 +24,7 @@ enum class server_opcode : uint8_t {
     invalid = 0xff,
 };
 
-constexpr inline bool
+constexpr bool
 is_valid_server_request_opcode(uint8_t code)
 {
     switch (server_opcode(code)) {

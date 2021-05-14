@@ -19,8 +19,8 @@
 
 #include <protocol/unsigned_leb128.h>
 
-#include <protocol/client_opcode.hxx>
 #include <document_id.hxx>
+#include <protocol/client_opcode.hxx>
 
 namespace couchbase::protocol
 {
@@ -41,12 +41,12 @@ class mutate_in_response_body
     mutation_token token_;
 
   public:
-    std::vector<mutate_in_field>& fields()
+    [[nodiscard]] const std::vector<mutate_in_field>& fields() const
     {
         return fields_;
     }
 
-    mutation_token& token()
+    [[nodiscard]] const mutation_token& token() const
     {
         return token_;
     }
@@ -57,7 +57,7 @@ class mutate_in_response_body
                std::uint16_t key_size,
                std::uint8_t extras_size,
                const std::vector<uint8_t>& body,
-               const cmd_info&)
+               const cmd_info& /* info */)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         if (status == protocol::status::success || status == protocol::status::subdoc_multi_path_failure) {
@@ -327,17 +327,17 @@ class mutate_in_request_body
         framing_extras_[extras_size + 0] = static_cast<std::uint8_t>(static_cast<std::uint32_t>(frame_id) << 4U | 0U);
     }
 
-    const std::string& key()
+    [[nodiscard]] const std::string& key() const
     {
         return key_;
     }
 
-    const std::vector<std::uint8_t>& framing_extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& framing_extras() const
     {
         return framing_extras_;
     }
 
-    const std::vector<std::uint8_t>& extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& extras()
     {
         if (extras_.empty()) {
             fill_extention();
@@ -345,7 +345,7 @@ class mutate_in_request_body
         return extras_;
     }
 
-    const std::vector<std::uint8_t>& value()
+    [[nodiscard]] const std::vector<std::uint8_t>& value()
     {
         if (value_.empty()) {
             fill_value();
@@ -353,7 +353,7 @@ class mutate_in_request_body
         return value_;
     }
 
-    std::size_t size()
+    [[nodiscard]] std::size_t size()
     {
         if (extras_.empty()) {
             fill_extention();
@@ -382,7 +382,7 @@ class mutate_in_request_body
     void fill_value()
     {
         size_t value_size = 0;
-        for (auto& spec : specs_.entries) {
+        for (const auto& spec : specs_.entries) {
             value_size += sizeof(spec.opcode) + sizeof(spec.flags) + sizeof(std::uint16_t) + spec.path.size() + sizeof(std::uint32_t) +
                           spec.param.size();
         }

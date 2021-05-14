@@ -47,7 +47,7 @@ struct group_upsert_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "PUT";
         encoded.path = fmt::format("/settings/rbac/groups/{}", group.name);
@@ -91,9 +91,9 @@ struct group_upsert_request {
 };
 
 group_upsert_response
-make_response(error_context::http&& ctx, group_upsert_request& /* request */, group_upsert_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, const group_upsert_request& /* request */, group_upsert_request::encoded_response_type&& encoded)
 {
-    group_upsert_response response{ ctx };
+    group_upsert_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 200:
@@ -103,14 +103,14 @@ make_response(error_context::http&& ctx, group_upsert_request& /* request */, gr
                 tao::json::value payload{};
                 try {
                     payload = tao::json::from_string(encoded.body);
-                } catch (tao::json::pegtl::parse_error& e) {
+                } catch (const tao::json::pegtl::parse_error&) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }
-                const auto* errors = payload.find("errors");
-                if (errors != nullptr && errors->is_object()) {
-                    for (const auto& entry : errors->get_object()) {
-                        response.errors.emplace_back(fmt::format("{}: {}", entry.first, entry.second.get_string()));
+
+                if (const auto* errors = payload.find("errors"); errors != nullptr && errors->is_object()) {
+                    for (const auto& [code, message] : errors->get_object()) {
+                        response.errors.emplace_back(fmt::format("{}: {}", code, message.get_string()));
                     }
                 }
             } break;

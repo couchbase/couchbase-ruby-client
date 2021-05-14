@@ -202,7 +202,7 @@ class http_session : public std::enable_shared_from_this<http_session>
         output_buffer_.push_back(buf);
     }
 
-    void write(const std::string& buf)
+    void write(const std::string_view& buf)
     {
         if (stopped_) {
             return;
@@ -221,7 +221,8 @@ class http_session : public std::enable_shared_from_this<http_session>
         do_write();
     }
 
-    void write_and_subscribe(io::http_request& request, std::function<void(std::error_code, io::http_response&&)>&& handler)
+    template<typename Handler>
+    void write_and_subscribe(io::http_request& request, Handler&& handler)
     {
         if (stopped_) {
             return;

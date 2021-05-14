@@ -52,19 +52,15 @@ struct lookup_in_request {
     std::chrono::milliseconds timeout{ timeout_defaults::key_value_timeout };
     io::retry_context<io::retry_strategy::best_effort> retries{ false };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&& /* context */)
     {
         for (std::size_t i = 0; i < specs.entries.size(); ++i) {
-            auto& entry = specs.entries[i];
-            entry.original_index = i;
+            specs.entries[i].original_index = i;
         }
-        std::stable_sort(specs.entries.begin(),
-                         specs.entries.end(),
-                         [](const protocol::lookup_in_request_body::lookup_in_specs::entry& lhs,
-                            const protocol::lookup_in_request_body::lookup_in_specs::entry& rhs) -> bool {
-                             return (lhs.flags & protocol::lookup_in_request_body::lookup_in_specs::path_flag_xattr) >
-                                    (rhs.flags & protocol::lookup_in_request_body::lookup_in_specs::path_flag_xattr);
-                         });
+        std::stable_sort(specs.entries.begin(), specs.entries.end(), [](const auto& lhs, const auto& rhs) {
+            return (lhs.flags & protocol::lookup_in_request_body::lookup_in_specs::path_flag_xattr) >
+                   (rhs.flags & protocol::lookup_in_request_body::lookup_in_specs::path_flag_xattr);
+        });
 
         encoded.opaque(opaque);
         encoded.partition(partition);
@@ -76,9 +72,9 @@ struct lookup_in_request {
 };
 
 lookup_in_response
-make_response(error_context::key_value&& ctx, lookup_in_request& request, lookup_in_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, const lookup_in_request& request, lookup_in_request::encoded_response_type&& encoded)
 {
-    lookup_in_response response{ ctx };
+    lookup_in_response response{ std::move(ctx) };
     if (encoded.status() == protocol::status::subdoc_success_deleted ||
         encoded.status() == protocol::status::subdoc_multi_path_failure_deleted) {
         response.deleted = true;
@@ -100,11 +96,9 @@ make_response(error_context::key_value&& ctx, lookup_in_request& request, lookup
               res_entry.status == protocol::status::success || res_entry.status == protocol::status::subdoc_success_deleted;
             response.fields[i].value = res_entry.value;
         }
-        std::sort(response.fields.begin(),
-                  response.fields.end(),
-                  [](const lookup_in_response::field& lhs, const lookup_in_response::field& rhs) -> bool {
-                      return lhs.original_index < rhs.original_index;
-                  });
+        std::sort(response.fields.begin(), response.fields.end(), [](const auto& lhs, const auto& rhs) {
+            return lhs.original_index < rhs.original_index;
+        });
     }
     return response;
 }

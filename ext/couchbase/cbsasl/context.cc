@@ -21,7 +21,7 @@
 namespace couchbase::sasl
 {
 
-std::string
+const std::string&
 Context::get_uuid()
 {
     if (uuid.empty()) {

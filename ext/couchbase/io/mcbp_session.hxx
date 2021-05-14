@@ -71,8 +71,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         [[nodiscard]] std::optional<std::uint32_t> get(const std::string& path)
         {
             Expects(!path.empty());
-            auto ptr = cid_map_.find(path);
-            if (ptr != cid_map_.end()) {
+            if (auto ptr = cid_map_.find(path); ptr != cid_map_.end()) {
                 return ptr->second;
             }
             return {};
@@ -124,8 +123,8 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
         explicit bootstrap_handler(std::shared_ptr<mcbp_session> session)
           : session_(session)
-          , sasl_([origin = session_->origin_]() -> std::string { return origin.username(); },
-                  [origin = session_->origin_]() -> std::string { return origin.password(); },
+          , sasl_([origin = session_->origin_]() { return origin.username(); },
+                  [origin = session_->origin_]() { return origin.password(); },
                   session_->origin_.credentials().allowed_sasl_mechanisms)
         {
             tao::json::value user_agent{
@@ -200,7 +199,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             Expects(protocol::is_valid_client_opcode(msg.header.opcode));
             switch (auto opcode = protocol::client_opcode(msg.header.opcode)) {
                 case protocol::client_opcode::hello: {
-                    protocol::client_response<protocol::hello_response_body> resp(msg);
+                    protocol::client_response<protocol::hello_response_body> resp(std::move(msg));
                     if (resp.status() == protocol::status::success) {
                         session_->supported_features_ = resp.body().supported_features();
                         spdlog::debug("{} supported_features=[{}]", session_->log_prefix_, fmt::join(session_->supported_features_, ", "));
@@ -217,7 +216,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                     }
                 } break;
                 case protocol::client_opcode::sasl_list_mechs: {
-                    protocol::client_response<protocol::sasl_list_mechs_response_body> resp(msg);
+                    protocol::client_response<protocol::sasl_list_mechs_response_body> resp(std::move(msg));
                     if (resp.status() != protocol::status::success) {
                         spdlog::warn("{} unexpected message status during bootstrap: {} (opaque={})",
                                      session_->log_prefix_,
@@ -227,7 +226,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                     }
                 } break;
                 case protocol::client_opcode::sasl_auth: {
-                    protocol::client_response<protocol::sasl_auth_response_body> resp(msg);
+                    protocol::client_response<protocol::sasl_auth_response_body> resp(std::move(msg));
                     if (resp.status() == protocol::status::success) {
                         return auth_success();
                     }
@@ -256,14 +255,14 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                     }
                 } break;
                 case protocol::client_opcode::sasl_step: {
-                    protocol::client_response<protocol::sasl_step_response_body> resp(msg);
+                    protocol::client_response<protocol::sasl_step_response_body> resp(std::move(msg));
                     if (resp.status() == protocol::status::success) {
                         return auth_success();
                     }
                     return complete(error::common_errc::authentication_failure);
                 }
                 case protocol::client_opcode::get_error_map: {
-                    protocol::client_response<protocol::get_error_map_response_body> resp(msg);
+                    protocol::client_response<protocol::get_error_map_response_body> resp(std::move(msg));
                     if (resp.status() == protocol::status::success) {
                         session_->error_map_.emplace(resp.body().errmap());
                     } else {
@@ -276,7 +275,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                     }
                 } break;
                 case protocol::client_opcode::select_bucket: {
-                    protocol::client_response<protocol::select_bucket_response_body> resp(msg);
+                    protocol::client_response<protocol::select_bucket_response_body> resp(std::move(msg));
                     if (resp.status() == protocol::status::success) {
                         spdlog::debug("{} selected bucket: {}", session_->log_prefix_, session_->bucket_name_.value_or(""));
                         session_->bucket_selected_ = true;
@@ -303,7 +302,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                     }
                 } break;
                 case protocol::client_opcode::get_cluster_config: {
-                    protocol::client_response<protocol::get_cluster_config_response_body> resp(msg);
+                    protocol::client_response<protocol::get_cluster_config_response_body> resp(std::move(msg));
                     if (resp.status() == protocol::status::success) {
                         session_->update_configuration(resp.body().config());
                         complete({});
@@ -379,7 +378,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                     Expects(protocol::is_valid_client_opcode(msg.header.opcode));
                     switch (auto opcode = protocol::client_opcode(msg.header.opcode)) {
                         case protocol::client_opcode::get_cluster_config: {
-                            protocol::client_response<protocol::get_cluster_config_response_body> resp(msg);
+                            protocol::client_response<protocol::get_cluster_config_response_body> resp(std::move(msg));
                             if (resp.status() == protocol::status::success) {
                                 if (session_) {
                                     session_->update_configuration(resp.body().config());
@@ -708,11 +707,10 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         {
             std::scoped_lock lock(command_handlers_mutex_);
-            for (auto& handler : command_handlers_) {
-                if (handler.second) {
-                    spdlog::debug(
-                      "{} MCBP cancel operation during session close, opaque={}, ec={}", log_prefix_, handler.first, ec.message());
-                    auto fun = std::move(handler.second);
+            for (auto& [opaque, handler] : command_handlers_) {
+                if (handler) {
+                    spdlog::debug("{} MCBP cancel operation during session close, opaque={}, ec={}", log_prefix_, opaque, ec.message());
+                    auto fun = std::move(handler);
                     fun(ec, reason, {});
                 }
             }
@@ -767,7 +765,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         {
             std::scoped_lock lock(command_handlers_mutex_);
-            command_handlers_.emplace(opaque, std::move(handler));
+            command_handlers_.try_emplace(opaque, std::move(handler));
         }
         if (bootstrapped_ && stream_->is_open()) {
             write_and_flush(data);
@@ -784,8 +782,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
             return false;
         }
         command_handlers_mutex_.lock();
-        auto handler = command_handlers_.find(opaque);
-        if (handler != command_handlers_.end()) {
+        if (auto handler = command_handlers_.find(opaque); handler != command_handlers_.end()) {
             spdlog::debug("{} MCBP cancel operation, opaque={}, ec={} ({})", log_prefix_, opaque, ec.value(), ec.message());
             if (handler->second) {
                 auto fun = std::move(handler->second);
@@ -845,7 +842,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         return ++opaque_;
     }
 
-    std::error_code map_status_code(protocol::client_opcode opcode, uint16_t status)
+    [[nodiscard]] std::error_code map_status_code(protocol::client_opcode opcode, uint16_t status) const
     {
         switch (protocol::status(status)) {
             case protocol::status::success:
@@ -1041,7 +1038,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
         }
         config_.emplace(config);
         spdlog::debug("{} received new configuration: {}", log_prefix_, config_.value());
-        for (auto& listener : config_listeners_) {
+        for (const auto& listener : config_listeners_) {
             listener(*config_);
         }
     }
@@ -1236,7 +1233,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
               for (;;) {
                   mcbp_message msg{};
                   switch (self->parser_.next(msg)) {
-                      case mcbp_parser::ok:
+                      case mcbp_parser::result::ok:
                           spdlog::trace(
                             "{} MCBP recv, opaque={}, {:n}", self->log_prefix_, msg.header.opaque, spdlog::to_hex(msg.header_data()));
                           SPDLOG_TRACE("{} MCBP recv, opaque={}{:a}{:a}",
@@ -1249,13 +1246,13 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                               return;
                           }
                           break;
-                      case mcbp_parser::need_data:
+                      case mcbp_parser::result::need_data:
                           self->reading_ = false;
                           if (!self->stopped_ && self->stream_->is_open()) {
                               self->do_read();
                           }
                           return;
-                      case mcbp_parser::failure:
+                      case mcbp_parser::result::failure:
                           return self->stop(retry_reason::kv_temporary_failure);
                   }
               }

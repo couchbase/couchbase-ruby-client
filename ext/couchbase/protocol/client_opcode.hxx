@@ -249,7 +249,7 @@ enum class subdoc_opcode : uint8_t {
     replace_body_with_xattr = 0xd3,
 };
 
-constexpr inline bool
+constexpr bool
 is_valid_client_opcode(uint8_t code)
 {
     switch (client_opcode(code)) {
@@ -328,7 +328,7 @@ is_valid_client_opcode(uint8_t code)
     return false;
 }
 
-constexpr inline bool
+constexpr bool
 is_valid_subdoc_opcode(uint8_t code)
 {
     switch (subdoc_opcode(code)) {
@@ -352,6 +352,9 @@ is_valid_subdoc_opcode(uint8_t code)
     }
     return false;
 }
+
+const inline static std::vector<std::uint8_t> empty_buffer;
+const inline static std::string empty_string;
 } // namespace couchbase::protocol
 
 template<>

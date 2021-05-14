@@ -41,7 +41,7 @@ struct view_index_get_all_request {
     std::string bucket_name;
     design_document::name_space name_space;
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "GET";
         encoded.path = fmt::format("/pools/default/buckets/{}/ddocs", bucket_name);
@@ -50,15 +50,17 @@ struct view_index_get_all_request {
 };
 
 view_index_get_all_response
-make_response(error_context::http&& ctx, view_index_get_all_request& request, view_index_get_all_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx,
+              const view_index_get_all_request& request,
+              view_index_get_all_request::encoded_response_type&& encoded)
 {
-    view_index_get_all_response response{ ctx };
+    view_index_get_all_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
             tao::json::value payload{};
             try {
                 payload = tao::json::from_string(encoded.body);
-            } catch (tao::json::pegtl::parse_error& e) {
+            } catch (const tao::json::pegtl::parse_error& e) {
                 response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
@@ -77,14 +79,12 @@ make_response(error_context::http&& ctx, view_index_get_all_request& request, vi
                     design_document document{};
                     document.rev = meta->at("rev").get_string();
                     auto id = meta->at("id").get_string();
-                    static const std::string prefix = "_design/";
-                    if (id.find(prefix) == 0) {
+                    if (static const std::string prefix = "_design/"; id.find(prefix) == 0) {
                         document.name = id.substr(prefix.size());
                     } else {
                         document.name = id; // fall back, should not happen
                     }
-                    static const std::string name_space_prefix = "dev_";
-                    if (document.name.find(name_space_prefix) == 0) {
+                    if (static const std::string name_space_prefix = "dev_"; document.name.find(name_space_prefix) == 0) {
                         document.name = document.name.substr(name_space_prefix.size());
                         document.ns = couchbase::operations::design_document::name_space::development;
                     } else {
@@ -98,18 +98,15 @@ make_response(error_context::http&& ctx, view_index_get_all_request& request, vi
                     if (json == nullptr || !json->is_object()) {
                         continue;
                     }
-                    const auto* views = json->find("views");
-                    if (views != nullptr && views->is_object()) {
-                        for (const auto& view_entry : views->get_object()) {
+                    if (const auto* views = json->find("views"); views != nullptr && views->is_object()) {
+                        for (const auto& [name, view_entry] : views->get_object()) {
                             couchbase::operations::design_document::view view;
-                            view.name = view_entry.first;
-                            if (view_entry.second.is_object()) {
-                                const auto* map = view_entry.second.find("map");
-                                if (map != nullptr && map->is_string()) {
+                            view.name = name;
+                            if (view_entry.is_object()) {
+                                if (const auto* map = view_entry.find("map"); map != nullptr && map->is_string()) {
                                     view.map = map->get_string();
                                 }
-                                const auto* reduce = view_entry.second.find("reduce");
-                                if (reduce != nullptr && reduce->is_string()) {
+                                if (const auto* reduce = view_entry.find("reduce"); reduce != nullptr && reduce->is_string()) {
                                     view.reduce = reduce->get_string();
                                 }
                             }

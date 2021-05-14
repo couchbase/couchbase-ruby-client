@@ -43,7 +43,7 @@ struct user_drop_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "DELETE";
         encoded.path = fmt::format("/settings/rbac/users/{}/{}", domain, username);
@@ -52,9 +52,9 @@ struct user_drop_request {
 };
 
 user_drop_response
-make_response(error_context::http&& ctx, user_drop_request& /* request */, user_drop_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, const user_drop_request& /* request */, user_drop_request::encoded_response_type&& encoded)
 {
-    user_drop_response response{ ctx };
+    user_drop_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 200:

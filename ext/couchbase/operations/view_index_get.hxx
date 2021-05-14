@@ -42,7 +42,7 @@ struct view_index_get_request {
     std::string document_name;
     design_document::name_space name_space;
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "GET";
         encoded.path =
@@ -52,9 +52,9 @@ struct view_index_get_request {
 };
 
 view_index_get_response
-make_response(error_context::http&& ctx, view_index_get_request& request, view_index_get_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, const view_index_get_request& request, view_index_get_request::encoded_response_type&& encoded)
 {
-    view_index_get_response response{ ctx };
+    view_index_get_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
             response.document.name = request.document_name;
@@ -63,22 +63,20 @@ make_response(error_context::http&& ctx, view_index_get_request& request, view_i
             tao::json::value payload{};
             try {
                 payload = tao::json::from_string(encoded.body);
-            } catch (tao::json::pegtl::parse_error& e) {
+            } catch (const tao::json::pegtl::parse_error& e) {
                 response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             const auto* views = payload.find("views");
             if (views != nullptr && views->is_object()) {
-                for (const auto& view_entry : views->get_object()) {
+                for (const auto& [name, view_entry] : views->get_object()) {
                     couchbase::operations::design_document::view view;
-                    view.name = view_entry.first;
-                    if (view_entry.second.is_object()) {
-                        const auto* map = view_entry.second.find("map");
-                        if (map != nullptr && map->is_string()) {
+                    view.name = name;
+                    if (view_entry.is_object()) {
+                        if (const auto* map = view_entry.find("map"); map != nullptr && map->is_string()) {
                             view.map = map->get_string();
                         }
-                        const auto* reduce = view_entry.second.find("reduce");
-                        if (reduce != nullptr && reduce->is_string()) {
+                        if (const auto* reduce = view_entry.find("reduce"); reduce != nullptr && reduce->is_string()) {
                             view.reduce = reduce->get_string();
                         }
                     }

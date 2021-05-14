@@ -35,13 +35,13 @@ class query_cache
     void put(const std::string& statement, const std::string& prepared)
     {
         std::scoped_lock lock(store_mutex_);
-        store_.emplace(statement, entry{ prepared });
+        store_.try_emplace(statement, entry{ prepared });
     }
 
     void put(const std::string& statement, const std::string& name, const std::string& encoded_plan)
     {
         std::scoped_lock lock(store_mutex_);
-        store_.emplace(statement, entry{ name, encoded_plan });
+        store_.try_emplace(statement, entry{ name, encoded_plan });
     }
 
     std::optional<entry> get(const std::string& statement)

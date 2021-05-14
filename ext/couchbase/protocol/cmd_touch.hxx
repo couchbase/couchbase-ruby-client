@@ -19,8 +19,8 @@
 
 #include <protocol/unsigned_leb128.h>
 
-#include <protocol/client_opcode.hxx>
 #include <document_id.hxx>
+#include <protocol/client_opcode.hxx>
 
 namespace couchbase::protocol
 {
@@ -30,7 +30,6 @@ class touch_response_body
   public:
     static const inline client_opcode opcode = client_opcode::touch;
 
-  public:
     bool parse(protocol::status /* status */,
                const header_buffer& header,
                std::uint8_t /* framing_extras_size */,
@@ -71,29 +70,27 @@ class touch_request_body
         memcpy(extras_.data(), &seconds, sizeof(seconds));
     }
 
-    const std::string& key()
+    [[nodiscard]] const std::string& key() const
     {
         return key_;
     }
 
-    const std::vector<std::uint8_t>& framing_extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& framing_extras() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    const std::vector<std::uint8_t>& extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& extras() const
     {
         return extras_;
     }
 
-    const std::vector<std::uint8_t>& value()
+    [[nodiscard]] const std::vector<std::uint8_t>& value() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    std::size_t size()
+    [[nodiscard]] std::size_t size() const
     {
         return key_.size() + extras_.size();
     }

@@ -98,11 +98,11 @@ class bucket : public std::enable_shared_from_this<bucket>
         if (!added.empty() || removed.empty()) {
             std::map<size_t, std::shared_ptr<io::mcbp_session>> new_sessions{};
 
-            for (auto entry : sessions_) {
+            for (auto& [index, session] : sessions_) {
                 std::size_t new_index = config.nodes.size() + 1;
                 for (const auto& node : config.nodes) {
-                    if (entry.second->bootstrap_hostname() == node.hostname_for(origin_.options().network) &&
-                        entry.second->bootstrap_port() ==
+                    if (session->bootstrap_hostname() == node.hostname_for(origin_.options().network) &&
+                        session->bootstrap_port() ==
                           std::to_string(node.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0))) {
                         new_index = node.index;
                         break;
@@ -112,18 +112,18 @@ class bucket : public std::enable_shared_from_this<bucket>
                     spdlog::debug(R"({} rev={}, preserve session="{}", address="{}:{}")",
                                   log_prefix_,
                                   config.rev_str(),
-                                  entry.second->id(),
-                                  entry.second->bootstrap_hostname(),
-                                  entry.second->bootstrap_port());
-                    new_sessions.emplace(new_index, std::move(entry.second));
+                                  session->id(),
+                                  session->bootstrap_hostname(),
+                                  session->bootstrap_port());
+                    new_sessions.emplace(new_index, std::move(session));
                 } else {
                     spdlog::debug(R"({} rev={}, drop session="{}", address="{}:{}")",
                                   log_prefix_,
                                   config.rev_str(),
-                                  entry.second->id(),
-                                  entry.second->bootstrap_hostname(),
-                                  entry.second->bootstrap_port());
-                    entry.second.reset();
+                                  session->id(),
+                                  session->bootstrap_hostname(),
+                                  session->bootstrap_port());
+                    session.reset();
                 }
             }
 
@@ -132,7 +132,7 @@ class bucket : public std::enable_shared_from_this<bucket>
                     continue;
                 }
 
-                auto hostname = node.hostname_for(origin_.options().network);
+                const auto& hostname = node.hostname_for(origin_.options().network);
                 auto port = node.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0);
                 if (port == 0) {
                     continue;
@@ -172,7 +172,7 @@ class bucket : public std::enable_shared_from_this<bucket>
             spdlog::debug(R"({} requested to restart session idx={}, which does not exist, ignoring)", log_prefix_, index);
             return;
         }
-        auto& old_session = ptr->second;
+        const auto& old_session = ptr->second;
         auto hostname = old_session->bootstrap_hostname();
         auto port = old_session->bootstrap_port();
         auto old_id = old_session->id();
@@ -242,7 +242,7 @@ class bucket : public std::enable_shared_from_this<bucket>
         auto cmd = std::make_shared<operations::mcbp_command<bucket, Request>>(ctx_, shared_from_this(), request);
         cmd->start([cmd, handler = std::forward<Handler>(handler)](std::error_code ec, std::optional<io::mcbp_message> msg) mutable {
             using encoded_response_type = typename Request::encoded_response_type;
-            auto resp = msg ? encoded_response_type(*msg) : encoded_response_type{};
+            auto resp = msg ? encoded_response_type(std::move(*msg)) : encoded_response_type{};
             error_context::key_value ctx{};
             ctx.id = cmd->request.id;
             ctx.opaque = resp.opaque();
@@ -280,10 +280,10 @@ class bucket : public std::enable_shared_from_this<bucket>
         closed_ = true;
 
         drain_deferred_queue();
-        for (auto& session : sessions_) {
-            if (session.second) {
-                spdlog::debug(R"({} shutdown session session="{}", idx={})", log_prefix_, session.second->id(), session.first);
-                session.second->stop(io::retry_reason::do_not_retry);
+        for (auto& [index, session] : sessions_) {
+            if (session) {
+                spdlog::debug(R"({} shutdown session session="{}", idx={})", log_prefix_, session->id(), index);
+                session->stop(io::retry_reason::do_not_retry);
             }
         }
     }
@@ -338,16 +338,16 @@ class bucket : public std::enable_shared_from_this<bucket>
 
     void export_diag_info(diag::diagnostics_result& res) const
     {
-        for (const auto& session : sessions_) {
-            res.services[service_type::kv].emplace_back(session.second->diag_info());
+        for (const auto& [index, session] : sessions_) {
+            res.services[service_type::kv].emplace_back(session->diag_info());
         }
     }
 
     template<typename Collector>
     void ping(std::shared_ptr<Collector> collector)
     {
-        for (const auto& session : sessions_) {
-            session.second->ping(collector->build_reporter());
+        for (const auto& [index, session] : sessions_) {
+            session->ping(collector->build_reporter());
         }
     }
 

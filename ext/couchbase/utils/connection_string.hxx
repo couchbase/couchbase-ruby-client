@@ -388,7 +388,7 @@ parse_connection_string(const std::string& input)
     try {
         connection_string::node node{};
         tao::json::pegtl::parse<priv::grammar, priv::action>(in, res, node);
-    } catch (tao::json::pegtl::parse_error& e) {
+    } catch (const tao::json::pegtl::parse_error& e) {
         for (const auto& position : e.positions()) {
             if (position.source == __FUNCTION__) {
                 res.error = fmt::format(

@@ -56,7 +56,7 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
 
     void start(mcbp_command_handler&& handler)
     {
-        handler_ = handler;
+        handler_ = std::move(handler);
         deadline.expires_after(request.timeout);
         deadline.async_wait([self = this->shared_from_this()](std::error_code ec) {
             if (ec == asio::error::operation_aborted) {
@@ -110,7 +110,7 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
               if (ec) {
                   return self->invoke_handler(ec);
               }
-              protocol::client_response<protocol::get_collection_id_response_body> resp(msg);
+              protocol::client_response<protocol::get_collection_id_response_body> resp(std::move(msg));
               self->session_->update_collection_uid(self->request.id.collection, resp.body().collection_uid());
               self->request.id.collection_uid = resp.body().collection_uid();
               return self->send();
@@ -166,9 +166,9 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
                 }
             }
         }
-        auto encoding_ec = request.encode_to(encoded, session_->context());
-        if (encoding_ec) {
-            return invoke_handler(encoding_ec);
+
+        if (auto ec = request.encode_to(encoded, session_->context()); ec) {
+            return invoke_handler(ec);
         }
 
         session_->write_and_subscribe(

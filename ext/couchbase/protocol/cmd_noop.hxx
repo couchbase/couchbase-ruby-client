@@ -19,8 +19,8 @@
 
 #include <protocol/unsigned_leb128.h>
 
-#include <protocol/client_opcode.hxx>
 #include <document_id.hxx>
+#include <protocol/client_opcode.hxx>
 
 namespace couchbase::protocol
 {
@@ -30,13 +30,13 @@ class mcbp_noop_response_body
   public:
     static const inline client_opcode opcode = client_opcode::noop;
 
-    bool parse(protocol::status,
+    bool parse(protocol::status /* status */,
                const header_buffer& header,
-               std::uint8_t,
-               std::uint16_t,
-               std::uint8_t,
-               const std::vector<uint8_t>&,
-               const cmd_info&)
+               std::uint8_t /* framing_extras_size */,
+               std::uint16_t /* key_size */,
+               std::uint8_t /* extras_size */,
+               const std::vector<uint8_t>& /* body */,
+               const cmd_info& /* info */)
     {
         Expects(header[1] == static_cast<uint8_t>(opcode));
         return false;
@@ -49,31 +49,27 @@ class mcbp_noop_request_body
     using response_body_type = mcbp_noop_response_body;
     static const inline client_opcode opcode = client_opcode::noop;
 
-    const std::string& key()
+    [[nodiscard]] const std::string& key() const
     {
-        static std::string empty;
-        return empty;
+        return empty_string;
     }
 
-    const std::vector<std::uint8_t>& framing_extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& framing_extras() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    const std::vector<std::uint8_t>& extras()
+    [[nodiscard]] const std::vector<std::uint8_t>& extras() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    const std::vector<std::uint8_t>& value()
+    [[nodiscard]] const std::vector<std::uint8_t>& value() const
     {
-        static std::vector<std::uint8_t> empty;
-        return empty;
+        return empty_buffer;
     }
 
-    std::size_t size()
+    [[nodiscard]] std::size_t size() const
     {
         return 0;
     }

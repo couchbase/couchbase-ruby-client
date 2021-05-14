@@ -43,7 +43,7 @@ struct scope_get_all_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "GET";
         encoded.path = fmt::format("/pools/default/buckets/{}/scopes", bucket_name);
@@ -52,9 +52,9 @@ struct scope_get_all_request {
 };
 
 scope_get_all_response
-make_response(error_context::http&& ctx, scope_get_all_request& /* request */, scope_get_all_request::encoded_response_type&& encoded)
+make_response(error_context::http&& ctx, const scope_get_all_request& /* request */, scope_get_all_request::encoded_response_type&& encoded)
 {
-    scope_get_all_response response{ ctx };
+    scope_get_all_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 400:
@@ -66,7 +66,7 @@ make_response(error_context::http&& ctx, scope_get_all_request& /* request */, s
             case 200:
                 try {
                     response.manifest = tao::json::from_string(encoded.body).as<collections_manifest>();
-                } catch (tao::json::pegtl::parse_error& e) {
+                } catch (const tao::json::pegtl::parse_error& e) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }

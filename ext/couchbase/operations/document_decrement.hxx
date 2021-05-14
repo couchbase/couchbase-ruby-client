@@ -47,7 +47,7 @@ struct decrement_request {
     io::retry_context<io::retry_strategy::best_effort> retries{ false };
     bool preserve_expiry{ false };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&& /* context */) const
     {
         encoded.opaque(opaque);
         encoded.partition(partition);
@@ -71,9 +71,9 @@ struct decrement_request {
 };
 
 decrement_response
-make_response(error_context::key_value&& ctx, decrement_request& request, decrement_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, const decrement_request& request, decrement_request::encoded_response_type&& encoded)
 {
-    decrement_response response{ ctx };
+    decrement_response response{ std::move(ctx) };
     if (!ctx.ec) {
         response.cas = encoded.cas();
         response.content = encoded.body().content();

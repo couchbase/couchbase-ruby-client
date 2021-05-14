@@ -46,7 +46,7 @@ struct collection_create_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
     std::string client_context_id{ uuid::to_string(uuid::random()) };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "POST";
         encoded.path = fmt::format("/pools/default/buckets/{}/scopes/{}/collections", bucket_name, scope_name);
@@ -61,10 +61,10 @@ struct collection_create_request {
 
 collection_create_response
 make_response(error_context::http&& ctx,
-              collection_create_request& /* request */,
+              const collection_create_request& /* request */,
               collection_create_request::encoded_response_type&& encoded)
 {
-    collection_create_response response{ ctx };
+    collection_create_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         switch (encoded.status_code) {
             case 400: {
@@ -89,7 +89,7 @@ make_response(error_context::http&& ctx,
                 tao::json::value payload{};
                 try {
                     payload = tao::json::from_string(encoded.body);
-                } catch (tao::json::pegtl::parse_error& e) {
+                } catch (const tao::json::pegtl::parse_error& e) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }

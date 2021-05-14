@@ -81,13 +81,10 @@ struct mutate_in_request {
             auto& entry = specs.entries[i];
             entry.original_index = i;
         }
-        std::stable_sort(specs.entries.begin(),
-                         specs.entries.end(),
-                         [](const protocol::mutate_in_request_body::mutate_in_specs::entry& lhs,
-                            const protocol::mutate_in_request_body::mutate_in_specs::entry& rhs) -> bool {
-                             return (lhs.flags & protocol::mutate_in_request_body::mutate_in_specs::path_flag_xattr) >
-                                    (rhs.flags & protocol::mutate_in_request_body::mutate_in_specs::path_flag_xattr);
-                         });
+        std::stable_sort(specs.entries.begin(), specs.entries.end(), [](const auto& lhs, const auto& rhs) {
+            return (lhs.flags & protocol::mutate_in_request_body::mutate_in_specs::path_flag_xattr) >
+                   (rhs.flags & protocol::mutate_in_request_body::mutate_in_specs::path_flag_xattr);
+        });
 
         encoded.opaque(opaque);
         encoded.partition(partition);
@@ -111,9 +108,9 @@ struct mutate_in_request {
 };
 
 mutate_in_response
-make_response(error_context::key_value&& ctx, mutate_in_request& request, mutate_in_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, const mutate_in_request& request, mutate_in_request::encoded_response_type&& encoded)
 {
-    mutate_in_response response{ ctx };
+    mutate_in_response response{ std::move(ctx) };
     if (encoded.status() == protocol::status::subdoc_success_deleted ||
         encoded.status() == protocol::status::subdoc_multi_path_failure_deleted) {
         response.deleted = true;
@@ -140,11 +137,9 @@ make_response(error_context::key_value&& ctx, mutate_in_request& request, mutate
                 break;
             }
         }
-        std::sort(response.fields.begin(),
-                  response.fields.end(),
-                  [](const mutate_in_response::field& lhs, const mutate_in_response::field& rhs) -> bool {
-                      return lhs.original_index < rhs.original_index;
-                  });
+        std::sort(response.fields.begin(), response.fields.end(), [](const auto& lhs, const auto& rhs) {
+            return lhs.original_index < rhs.original_index;
+        });
     } else if (request.store_semantics == protocol::mutate_in_request_body::store_semantics_type::insert &&
                response.ctx.ec == error::common_errc::cas_mismatch) {
         response.ctx.ec = error::key_value_errc::document_exists;

@@ -19,8 +19,8 @@
 
 #include <unistd.h>
 
-#include <string>
 #include <fstream>
+#include <string>
 
 #include <asio/ip/address.hpp>
 
@@ -31,9 +31,9 @@ namespace couchbase::io::dns
 class dns_config
 {
   public:
-    static inline constexpr auto default_resolv_conf_path = "/etc/resolv.conf";
-    static inline constexpr auto default_host = "8.8.8.8";
-    static inline constexpr std::uint16_t default_port = 53;
+    static constexpr auto default_resolv_conf_path = "/etc/resolv.conf";
+    static constexpr auto default_host = "8.8.8.8";
+    static constexpr std::uint16_t default_port = 53;
 
     [[nodiscard]] const asio::ip::address& address() const
     {
@@ -95,8 +95,7 @@ class dns_config
                 if (space == std::string::npos || space == offset || line.size() < space + 2) {
                     continue;
                 }
-                std::string keyword = line.substr(offset, space);
-                if (keyword != "nameserver") {
+                if (std::string keyword = line.substr(offset, space); keyword != "nameserver") {
                     continue;
                 }
                 offset = space + 1;

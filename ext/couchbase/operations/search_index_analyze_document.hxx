@@ -44,7 +44,7 @@ struct search_index_analyze_document_request {
     std::string index_name;
     std::string encoded_document;
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         encoded.method = "POST";
         encoded.headers["cache-control"] = "no-cache";
@@ -57,16 +57,16 @@ struct search_index_analyze_document_request {
 
 search_index_analyze_document_response
 make_response(error_context::http&& ctx,
-              search_index_analyze_document_request& /* request */,
+              const search_index_analyze_document_request& /* request */,
               search_index_analyze_document_request::encoded_response_type&& encoded)
 {
-    search_index_analyze_document_response response{ ctx };
+    search_index_analyze_document_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         if (encoded.status_code == 200) {
             tao::json::value payload{};
             try {
                 payload = tao::json::from_string(encoded.body);
-            } catch (tao::json::pegtl::parse_error& e) {
+            } catch (const tao::json::pegtl::parse_error& e) {
                 response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
@@ -83,7 +83,7 @@ make_response(error_context::http&& ctx,
             tao::json::value payload{};
             try {
                 payload = tao::json::from_string(encoded.body);
-            } catch (tao::json::pegtl::parse_error& e) {
+            } catch (const tao::json::pegtl::parse_error& e) {
                 response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }

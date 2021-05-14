@@ -69,9 +69,9 @@ struct http_noop_request {
 };
 
 http_noop_response
-make_response(error_context::http&& ctx, http_noop_request& /* request */, http_noop_request::encoded_response_type&&)
+make_response(error_context::http&& ctx, const http_noop_request& /* request */, http_noop_request::encoded_response_type&&)
 {
-    http_noop_response response{ ctx };
+    http_noop_response response{ std::move(ctx) };
     return response;
 }
 

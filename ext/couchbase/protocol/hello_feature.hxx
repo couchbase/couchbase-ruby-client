@@ -152,7 +152,7 @@ enum class hello_feature : uint16_t {
     subdoc_document_macro_support = 0x18,
 };
 
-constexpr inline bool
+constexpr bool
 is_valid_hello_feature(uint16_t code)
 {
     switch (hello_feature(code)) {

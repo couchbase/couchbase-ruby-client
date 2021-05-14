@@ -48,7 +48,7 @@ struct replace_request {
     io::retry_context<io::retry_strategy::best_effort> retries{ false };
     bool preserve_expiry{ false };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&&)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, mcbp_context&& /* context */) const
     {
         encoded.opaque(opaque);
         encoded.partition(partition);
@@ -68,9 +68,9 @@ struct replace_request {
 };
 
 replace_response
-make_response(error_context::key_value&& ctx, replace_request& request, replace_request::encoded_response_type&& encoded)
+make_response(error_context::key_value&& ctx, const replace_request& request, replace_request::encoded_response_type&& encoded)
 {
-    replace_response response{ ctx };
+    replace_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         response.cas = encoded.cas();
         response.token = encoded.body().token();

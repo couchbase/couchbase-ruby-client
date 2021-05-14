@@ -54,7 +54,7 @@ struct analytics_dataset_create_request {
 
     bool ignore_if_exists{ false };
 
-    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */)
+    [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         std::string where_clause = condition ? fmt::format("WHERE {}", *condition) : "";
         std::string if_not_exists_clause = ignore_if_exists ? "IF NOT EXISTS" : "";
@@ -74,15 +74,15 @@ struct analytics_dataset_create_request {
 
 analytics_dataset_create_response
 make_response(error_context::http&& ctx,
-              analytics_dataset_create_request& /* request */,
+              const analytics_dataset_create_request& /* request */,
               analytics_dataset_create_request::encoded_response_type&& encoded)
 {
-    analytics_dataset_create_response response{ ctx };
+    analytics_dataset_create_response response{ std::move(ctx) };
     if (!response.ctx.ec) {
         tao::json::value payload{};
         try {
             payload = tao::json::from_string(encoded.body);
-        } catch (tao::json::pegtl::parse_error& e) {
+        } catch (const tao::json::pegtl::parse_error& e) {
             response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
@@ -92,8 +92,7 @@ make_response(error_context::http&& ctx,
             bool dataset_exists = false;
             bool link_not_found = false;
 
-            auto* errors = payload.find("errors");
-            if (errors != nullptr && errors->is_array()) {
+            if (auto* errors = payload.find("errors"); errors != nullptr && errors->is_array()) {
                 for (const auto& error : errors->get_array()) {
                     analytics_dataset_create_response::problem err{
                         error.at("code").as<std::uint32_t>(),

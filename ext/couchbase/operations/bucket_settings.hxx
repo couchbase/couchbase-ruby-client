@@ -81,61 +81,52 @@ struct traits<couchbase::operations::bucket_settings> {
         result.ram_quota_mb = v.at("quota").at("rawRAM").get_unsigned() / megabyte;
         result.max_expiry = v.at("maxTTL").template as<std::uint32_t>();
         result.num_replicas = v.at("replicaNumber").template as<std::uint32_t>();
-        {
-            auto& str = v.at("bucketType").get_string();
-            if (str == "couchbase" || str == "membase") {
-                result.bucket_type = couchbase::operations::bucket_settings::bucket_type::couchbase;
-            } else if (str == "ephemeral") {
-                result.bucket_type = couchbase::operations::bucket_settings::bucket_type::ephemeral;
-            } else if (str == "memcached") {
-                result.bucket_type = couchbase::operations::bucket_settings::bucket_type::memcached;
+
+        if (auto& str = v.at("bucketType").get_string(); str == "couchbase" || str == "membase") {
+            result.bucket_type = couchbase::operations::bucket_settings::bucket_type::couchbase;
+        } else if (str == "ephemeral") {
+            result.bucket_type = couchbase::operations::bucket_settings::bucket_type::ephemeral;
+        } else if (str == "memcached") {
+            result.bucket_type = couchbase::operations::bucket_settings::bucket_type::memcached;
+        }
+
+        if (auto& str = v.at("compressionMode").get_string(); str == "active") {
+            result.compression_mode = couchbase::operations::bucket_settings::compression_mode::active;
+        } else if (str == "passive") {
+            result.compression_mode = couchbase::operations::bucket_settings::compression_mode::passive;
+        } else if (str == "off") {
+            result.compression_mode = couchbase::operations::bucket_settings::compression_mode::off;
+        }
+
+        if (auto& str = v.at("evictionPolicy").get_string(); str == "valueOnly") {
+            result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::value_only;
+        } else if (str == "fullEviction") {
+            result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::full;
+        } else if (str == "noEviction") {
+            result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::no_eviction;
+        } else if (str == "nruEviction") {
+            result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::not_recently_used;
+        }
+
+        if (auto* min_level = v.find("durabilityMinLevel"); min_level != nullptr) {
+            auto& str = min_level->get_string();
+            if (str == "none") {
+                result.minimum_durability_level = couchbase::protocol::durability_level::none;
+            } else if (str == "majority") {
+                result.minimum_durability_level = couchbase::protocol::durability_level::majority;
+            } else if (str == "majorityAndPersistActive") {
+                result.minimum_durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
+            } else if (str == "persistToMajority") {
+                result.minimum_durability_level = couchbase::protocol::durability_level::persist_to_majority;
             }
         }
-        {
-            auto& str = v.at("compressionMode").get_string();
-            if (str == "active") {
-                result.compression_mode = couchbase::operations::bucket_settings::compression_mode::active;
-            } else if (str == "passive") {
-                result.compression_mode = couchbase::operations::bucket_settings::compression_mode::passive;
-            } else if (str == "off") {
-                result.compression_mode = couchbase::operations::bucket_settings::compression_mode::off;
-            }
+
+        if (auto& str = v.at("conflictResolutionType").get_string(); str == "lww") {
+            result.conflict_resolution_type = couchbase::operations::bucket_settings::conflict_resolution_type::timestamp;
+        } else if (str == "seqno") {
+            result.conflict_resolution_type = couchbase::operations::bucket_settings::conflict_resolution_type::sequence_number;
         }
-        {
-            auto& str = v.at("evictionPolicy").get_string();
-            if (str == "valueOnly") {
-                result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::value_only;
-            } else if (str == "fullEviction") {
-                result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::full;
-            } else if (str == "noEviction") {
-                result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::no_eviction;
-            } else if (str == "nruEviction") {
-                result.eviction_policy = couchbase::operations::bucket_settings::eviction_policy::not_recently_used;
-            }
-        }
-        {
-            auto* min_level = v.find("durabilityMinLevel");
-            if (min_level != nullptr) {
-                auto& str = min_level->get_string();
-                if (str == "none") {
-                    result.minimum_durability_level = couchbase::protocol::durability_level::none;
-                } else if (str == "majority") {
-                    result.minimum_durability_level = couchbase::protocol::durability_level::majority;
-                } else if (str == "majorityAndPersistActive") {
-                    result.minimum_durability_level = couchbase::protocol::durability_level::majority_and_persist_to_active;
-                } else if (str == "persistToMajority") {
-                    result.minimum_durability_level = couchbase::protocol::durability_level::persist_to_majority;
-                }
-            }
-        }
-        {
-            auto& str = v.at("conflictResolutionType").get_string();
-            if (str == "lww") {
-                result.conflict_resolution_type = couchbase::operations::bucket_settings::conflict_resolution_type::timestamp;
-            } else if (str == "seqno") {
-                result.conflict_resolution_type = couchbase::operations::bucket_settings::conflict_resolution_type::sequence_number;
-            }
-        }
+
         result.flush_enabled = v.at("controllers").find("flush") != nullptr;
         const auto ri = v.find("replicaIndex");
         if (ri) {

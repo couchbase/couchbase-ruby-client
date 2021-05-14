@@ -177,9 +177,9 @@ struct document_view_request {
 };
 
 document_view_response
-make_response(error_context::view&& ctx, document_view_request& request, document_view_request::encoded_response_type&& encoded)
+make_response(error_context::view&& ctx, const document_view_request& request, document_view_request::encoded_response_type&& encoded)
 {
-    document_view_response response{ ctx };
+    document_view_response response{ std::move(ctx) };
     response.ctx.client_context_id = request.client_context_id;
     response.ctx.design_document_name = request.document_name;
     response.ctx.view_name = request.view_name;
@@ -189,24 +189,24 @@ make_response(error_context::view&& ctx, document_view_request& request, documen
             tao::json::value payload{};
             try {
                 payload = tao::json::from_string(encoded.body);
-            } catch (tao::json::pegtl::parse_error& e) {
+            } catch (const tao::json::pegtl::parse_error& e) {
                 response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
-            const auto* total_rows = payload.find("total_rows");
-            if (total_rows != nullptr && total_rows->is_unsigned()) {
+
+            if (const auto* total_rows = payload.find("total_rows"); total_rows != nullptr && total_rows->is_unsigned()) {
                 response.meta_data.total_rows = total_rows->get_unsigned();
             }
-            const auto* debug_info = payload.find("debug_info");
-            if (debug_info != nullptr && debug_info->is_object()) {
+
+            if (const auto* debug_info = payload.find("debug_info"); debug_info != nullptr && debug_info->is_object()) {
                 response.meta_data.debug_info.emplace(tao::json::to_string(*debug_info));
             }
-            const auto* rows = payload.find("rows");
-            if (rows != nullptr && rows->is_array()) {
+
+            if (const auto* rows = payload.find("rows"); rows != nullptr && rows->is_array()) {
                 for (const auto& entry : rows->get_array()) {
                     document_view_response::row row{};
-                    const auto* id = entry.find("id");
-                    if (id != nullptr && id->is_string()) {
+
+                    if (const auto* id = entry.find("id"); id != nullptr && id->is_string()) {
                         row.id = id->get_string();
                     }
                     row.key = tao::json::to_string(entry.at("key"));
@@ -218,17 +218,17 @@ make_response(error_context::view&& ctx, document_view_request& request, documen
             tao::json::value payload{};
             try {
                 payload = tao::json::from_string(encoded.body);
-            } catch (tao::json::pegtl::parse_error& e) {
+            } catch (const tao::json::pegtl::parse_error& e) {
                 response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }
             document_view_response::problem problem{};
-            const auto* error = payload.find("error");
-            if (error != nullptr && error->is_string()) {
+
+            if (const auto* error = payload.find("error"); error != nullptr && error->is_string()) {
                 problem.code = error->get_string();
             }
-            const auto* reason = payload.find("reason");
-            if (reason != nullptr && reason->is_string()) {
+
+            if (const auto* reason = payload.find("reason"); reason != nullptr && reason->is_string()) {
                 problem.message = reason->get_string();
             }
             response.error.emplace(problem);

@@ -35,7 +35,7 @@ class Context
      * Get the UUID used for errors by this connection. If none
      * is created a new one is generated.
      */
-    std::string get_uuid();
+    [[nodiscard]] const std::string& get_uuid();
 
     /**
      * Do this context contain a UUID?
@@ -45,7 +45,7 @@ class Context
         return !uuid.empty();
     }
 
-  protected:
+  private:
     std::string uuid;
 };
 

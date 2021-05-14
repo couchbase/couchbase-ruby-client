@@ -77,10 +77,10 @@ decodeAttributeList(const std::string& list, AttributeMap& attributes)
 
         auto comma = list.find(',', pos);
         if (comma == std::string::npos) {
-            attributes.insert(std::pair(key, list.substr(pos)));
+            attributes.try_emplace(key, list.substr(pos));
             pos = list.length();
         } else {
-            attributes.insert(std::pair(key, list.substr(pos, comma - pos)));
+            attributes.try_emplace(key, list.substr(pos, comma - pos));
             pos = comma + 1;
         }
     }
@@ -362,8 +362,7 @@ ClientBackend::step(std::string_view input)
         return { error::BAD_PARAM, {} };
     }
 
-    auto encoded = couchbase::base64::encode(getServerSignature());
-    if (encoded != attributes['v']) {
+    if (auto encoded = couchbase::base64::encode(getServerSignature()); encoded != attributes['v']) {
         spdlog::error("incorrect ServerKey received");
         return { error::FAIL, {} };
     }

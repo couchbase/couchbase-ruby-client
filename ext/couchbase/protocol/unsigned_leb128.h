@@ -46,8 +46,8 @@ struct Leb128NoThrow {
  *          leb128 data.
  */
 template<class T>
-typename std::enable_if<std::is_unsigned<T>::value, std::pair<T, std::string_view>>::type
-decode_unsigned_leb128(std::string_view buf, struct Leb128NoThrow)
+typename std::enable_if_t<std::is_unsigned_v<T>, std::pair<T, std::string_view>>
+decode_unsigned_leb128(std::string_view buf, struct Leb128NoThrow /* unused */)
 {
     T rv = static_cast<uint8_t>(buf[0]) & 0x7fULL;
     size_t end = 0;
@@ -83,7 +83,7 @@ decode_unsigned_leb128(std::string_view buf, struct Leb128NoThrow)
  *         a stop byte.
  */
 template<class T>
-typename std::enable_if<std::is_unsigned<T>::value, std::pair<T, std::string_view>>::type
+typename std::enable_if_t<std::is_unsigned_v<T>, std::pair<T, std::string_view>>
 decode_unsigned_leb128(std::string_view buf)
 {
     if (buf.size() > 0) {
@@ -99,25 +99,10 @@ decode_unsigned_leb128(std::string_view buf)
  * @return a buffer to the data after the leb128 prefix
  */
 template<class T>
-typename std::enable_if<std::is_unsigned<T>::value, std::string_view>::type
+typename std::enable_if_t<std::is_unsigned_v<T>, std::string_view>
 skip_unsigned_leb128(std::string_view buf)
 {
     return decode_unsigned_leb128<T>(buf).second;
-}
-
-/// @return the index of the stop byte within buf
-static inline std::optional<size_t>
-unsigned_leb128_get_stop_byte_index(std::string_view buf)
-{
-    // If buf does not contain a stop-byte, invalid
-    size_t stopByte = 0;
-    for (auto c : buf) {
-        if ((static_cast<uint8_t>(c) & 0x80ULL) == 0) {
-            return stopByte;
-        }
-        stopByte++;
-    }
-    return {};
 }
 
 // Empty, non specialised version of the decoder class
@@ -131,7 +116,7 @@ class unsigned_leb128
  * provides a const_byte_buffer for access to the encoded
  */
 template<class T>
-class unsigned_leb128<T, typename std::enable_if<std::is_unsigned<T>::value>::type>
+class unsigned_leb128<T, typename std::enable_if_t<std::is_unsigned_v<T>>>
 {
   public:
     explicit unsigned_leb128(T in)

@@ -28,7 +28,7 @@ struct mcbp_context {
     const std::optional<configuration>& config;
     const std::vector<protocol::hello_feature>& supported_features;
 
-    [[nodiscard]] bool supports_feature(protocol::hello_feature feature)
+    [[nodiscard]] bool supports_feature(protocol::hello_feature feature) const
     {
         return std::find(supported_features.begin(), supported_features.end(), feature) != supported_features.end();
     }

@@ -120,7 +120,7 @@ struct error_map {
         std::string description;
         std::set<attribute> attributes;
 
-        bool has_retry_attribute()
+        bool has_retry_attribute() const
         {
             return attributes.find(attribute::retry_now) != attributes.end() || attributes.find(attribute::retry_later) != attributes.end();
         }
