@@ -1563,6 +1563,7 @@ module Couchbase
       attr_accessor :highlight_fields # @return [Array<String>]
       attr_accessor :fields # @return [Array<String>]
       attr_accessor :disable_scoring # @return [Boolean]
+      attr_accessor :collections # @return [Array<String>, nil]
       attr_accessor :sort # @return [Array<String, Cluster::SearchSort>]
       attr_accessor :facets # @return [Hash<String => Cluster::SearchFacet>]
       attr_accessor :transcoder # @return [JsonTranscoder, #decode(String)]
@@ -1578,6 +1579,7 @@ module Couchbase
       #   were stored while indexing
       # @param [MutationState] mutation_state the mutation tokens this query should be consistent with
       # @param [Boolean] disable_scoring If set to true, the server will not perform any scoring on the hits
+      # @param [Array<String>, nil] collections list of collections by which to filter the results
       # @param [Array<String, Cluster::SearchSort>] sort Ordering rules to apply to the results. The list might contain
       #   either strings or special objects, that derive from {Cluster::SearchSort}. In case of String, the value
       #   represents the name of the field with optional +-+ in front of the name, which will turn on descending mode
@@ -1601,6 +1603,7 @@ module Couchbase
                      fields: nil,
                      mutation_state: nil,
                      disable_scoring: false,
+                     collections: nil,
                      sort: nil,
                      facets: nil,
                      transcoder: JsonTranscoder.new,
@@ -1616,6 +1619,7 @@ module Couchbase
         @highlight_fields = highlight_fields
         @fields = fields
         @disable_scoring = disable_scoring
+        @collections = collections
         @sort = sort
         @facets = facets
         @transcoder = transcoder
@@ -1658,13 +1662,15 @@ module Couchbase
       attr_reader :scan_consistency
 
       # @api private
-      def to_backend
+      def to_backend(scope_name: nil)
         {
           timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
           limit: @limit,
           skip: @skip,
           explain: @explain,
           disable_scoring: @disable_scoring,
+          scope: scope_name,
+          collections: scope_name ? @collections : nil,
           highlight_style: @highlight_style,
           highlight_fields: @highlight_fields,
           fields: @fields,

@@ -6040,6 +6040,22 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
             }
         }
 
+        VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name")));
+        if (!NIL_P(scope_name) && TYPE(scope_name) == T_STRING) {
+            req.scope_name.emplace(std::string(RSTRING_PTR(scope_name), static_cast<std::size_t>(RSTRING_LEN(scope_name))));
+            VALUE collections = rb_hash_aref(options, rb_id2sym(rb_intern("collections")));
+            if (!NIL_P(collections)) {
+                Check_Type(collections, T_ARRAY);
+                auto collections_size = static_cast<size_t>(RARRAY_LEN(collections));
+                req.collections.reserve(collections_size);
+                for (size_t i = 0; i < collections_size; ++i) {
+                    VALUE collection = rb_ary_entry(collections, static_cast<long>(i));
+                    Check_Type(collection, T_STRING);
+                    req.collections.emplace_back(std::string(RSTRING_PTR(collection), static_cast<std::size_t>(RSTRING_LEN(collection))));
+                }
+            }
+        }
+
         VALUE sort = rb_hash_aref(options, rb_id2sym(rb_intern("sort")));
         if (!NIL_P(sort)) {
             Check_Type(sort, T_ARRAY);

@@ -331,7 +331,7 @@ class bucket : public std::enable_shared_from_this<bucket>
         });
     }
 
-    [[nodiscard]] const std::string& log_prefix()
+    [[nodiscard]] const std::string& log_prefix() const
     {
         return log_prefix_;
     }

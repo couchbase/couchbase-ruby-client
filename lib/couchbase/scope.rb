@@ -124,5 +124,107 @@ module Couchbase
         res.instance_variable_set("@rows", resp[:rows])
       end
     end
+
+    # Performs a Full Text Search (FTS) query
+    #
+    # @param [String] index_name the name of the search index
+    # @param [SearchQuery] query the query tree
+    # @param [Options::Search] options the query tree
+    #
+    # @example Return first 10 results of "hop beer" query and request highlighting
+    #   cluster.search_query("travel_index", Cluster::SearchQuery.match_phrase("green"),
+    #                        Options::Search(
+    #                          limit: 10,
+    #                          collections: ["landmark", "hotel"]
+    #                          fields: %w[name],
+    #                          highlight_style: :html,
+    #                          highlight_fields: %w[name description]
+    #                        ))
+    #
+    # @return [SearchResult]
+    def search_query(index_name, query, options = Options::Search.new)
+      resp = @backend.document_search(index_name, JSON.generate(query), options.to_backend(scope_name: @name))
+
+      SearchResult.new do |res|
+        res.meta_data = SearchMetaData.new do |meta|
+          meta.metrics.max_score = resp[:meta_data][:metrics][:max_score]
+          meta.metrics.error_partition_count = resp[:meta_data][:metrics][:error_partition_count]
+          meta.metrics.success_partition_count = resp[:meta_data][:metrics][:success_partition_count]
+          meta.metrics.took = resp[:meta_data][:metrics][:took]
+          meta.metrics.total_rows = resp[:meta_data][:metrics][:total_rows]
+          meta.errors = resp[:meta_data][:errors]
+        end
+        res.rows = resp[:rows].map do |r|
+          SearchRow.new do |row|
+            row.transcoder = options.transcoder
+            row.index = r[:index]
+            row.id = r[:id]
+            row.score = r[:score]
+            row.fragments = r[:fragments]
+            row.locations = SearchRowLocations.new(
+              r[:locations].map do |loc|
+                SearchRowLocation.new do |location|
+                  location.field = loc[:field]
+                  location.term = loc[:term]
+                  location.position = loc[:position]
+                  location.start_offset = loc[:start_offset]
+                  location.end_offset = loc[:end_offset]
+                  location.array_positions = loc[:array_positions]
+                end
+              end
+            )
+            row.instance_variable_set("@fields", r[:fields])
+            row.explanation = JSON.parse(r[:explanation]) if r[:explanation]
+          end
+        end
+        if resp[:facets]
+          res.facets = resp[:facets].each_with_object({}) do |(k, v), o|
+            facet = case options.facets[k]
+                    when SearchFacet::SearchFacetTerm
+                      SearchFacetResult::TermFacetResult.new do |f|
+                        f.terms =
+                          if v[:terms]
+                            v[:terms].map do |t|
+                              SearchFacetResult::TermFacetResult::TermFacet.new(t[:term], t[:count])
+                            end
+                          else
+                            []
+                          end
+                      end
+                    when SearchFacet::SearchFacetDateRange
+                      SearchFacetResult::DateRangeFacetResult.new do |f|
+                        f.date_ranges =
+                          if v[:date_ranges]
+                            v[:date_ranges].map do |r|
+                              SearchFacetResult::DateRangeFacetResult::DateRangeFacet.new(r[:name], r[:count], r[:start_time], r[:end_time])
+                            end
+                          else
+                            []
+                          end
+                      end
+                    when SearchFacet::SearchFacetNumericRange
+                      SearchFacetResult::NumericRangeFacetResult.new do |f|
+                        f.numeric_ranges =
+                          if v[:numeric_ranges]
+                            v[:numeric_ranges].map do |r|
+                              SearchFacetResult::NumericRangeFacetResult::NumericRangeFacet.new(r[:name], r[:count], r[:min], r[:max])
+                            end
+                          else
+                            []
+                          end
+                      end
+                    else
+                      next # ignore unknown facet result
+                    end
+            facet.name = v[:name]
+            facet.field = v[:field]
+            facet.total = v[:total]
+            facet.missing = v[:missing]
+            facet.other = v[:other]
+            o[k] = facet
+          end
+        end
+      end
+    end
   end
 end

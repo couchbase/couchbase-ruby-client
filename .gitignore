@@ -6,6 +6,7 @@
 *.bundle
 .byebug_history
 /.rakeTasks
+/.ruby-version
 /.yardoc
 /_yardoc/
 /cmake-build-*/

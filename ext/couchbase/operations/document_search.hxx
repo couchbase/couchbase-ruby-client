@@ -119,6 +119,8 @@ struct search_request {
     std::optional<highlight_style_type> highlight_style{};
     std::vector<std::string> highlight_fields{};
     std::vector<std::string> fields{};
+    std::optional<std::string> scope_name{};
+    std::vector<std::string> collections{};
 
     enum class scan_consistency_type { not_bounded };
     std::optional<scan_consistency_type> scan_consistency{};
@@ -192,6 +194,10 @@ struct search_request {
                 { "level", "at_plus" },
                 { "vectors", { { index_name, scan_vectors } } },
             };
+        }
+        if (scope_name) {
+            body["scope"] = scope_name.value();
+            body["collections"] = collections;
         }
 
         encoded.type = type;
