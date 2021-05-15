@@ -7,11 +7,11 @@ on:
     branches: [ master ]
 
 jobs:
-  server-6_6_0:
+  mad_hatter:
     runs-on: ubuntu-20.04
     services:
       couchbase:
-        image: couchbase:enterprise-6.6.0
+        image: couchbase:enterprise-6.6.2
         ports:
           - 8091-8095:8091-8095
           - 11210:11210
@@ -42,7 +42,7 @@ jobs:
         timeout-minutes: 15
         env:
           DEVELOPER_PREVIEW: yes
-          TEST_SERVER_VERSION: 6.6.0
+          TEST_SERVER_VERSION: 6.6.2
           TEST_CONNECTION_STRING: couchbase://127.0.0.1
         run: |
           ulimit -c unlimited
@@ -60,11 +60,11 @@ jobs:
              fi
           done
 
-  server-6_0_3:
+  alice:
     runs-on: ubuntu-20.04
     services:
       couchbase:
-        image: couchbase:enterprise-6.0.3
+        image: couchbase:enterprise-6.0.5
         ports:
           - 8091-8095:8091-8095
           - 11210:11210
@@ -97,7 +97,7 @@ jobs:
           ulimit -c unlimited
           bundle exec rake test
         env:
-          TEST_SERVER_VERSION: 6.0.3
+          TEST_SERVER_VERSION: 6.0.5
           TEST_CONNECTION_STRING: couchbase://127.0.0.1
       - name: Display core dumps
         if: ${{ failure() }}
@@ -112,11 +112,11 @@ jobs:
              fi
           done
 
-  server-6_5_1-dev:
+  mad_hatter-dev:
     runs-on: ubuntu-20.04
     services:
       couchbase:
-        image: couchbase:enterprise-6.5.1
+        image: couchbase:enterprise-6.6.2
         ports:
           - 8091-8095:8091-8095
           - 11210:11210
@@ -152,7 +152,7 @@ jobs:
           bundle exec rake test
         env:
           DEVELOPER_PREVIEW: yes
-          TEST_SERVER_VERSION: 6.5.1
+          TEST_SERVER_VERSION: 6.6.2
           TEST_CONNECTION_STRING: couchbase://127.0.0.1
       - name: Display core dumps
         if: ${{ failure() }}
