@@ -35,6 +35,7 @@ struct query_index_get_all_response {
         std::string collection_name;
         std::string type;
         std::vector<std::string> index_key{};
+        std::optional<std::string> partition{};
         std::optional<std::string> condition{};
         std::optional<std::string> bucket_id{};
         std::optional<std::string> scope_id{};
@@ -110,6 +111,9 @@ make_response(error_context::http&& ctx,
                 }
                 if (const auto* prop = entry.find("condition")) {
                     index.condition = prop->get_string();
+                }
+                if (const auto* prop = entry.find("partition")) {
+                    index.partition = prop->get_string();
                 }
                 for (const auto& key : entry.at("index_key").get_array()) {
                     index.index_key.emplace_back(key.get_string());

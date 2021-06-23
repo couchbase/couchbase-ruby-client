@@ -4813,6 +4813,9 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
             if (idx.condition) {
                 rb_hash_aset(index, rb_id2sym(rb_intern("condition")), cb_str_new(idx.condition.value()));
             }
+            if (idx.partition) {
+                rb_hash_aset(index, rb_id2sym(rb_intern("partition")), cb_str_new(idx.partition.value()));
+            }
             rb_ary_push(indexes, index);
         }
 

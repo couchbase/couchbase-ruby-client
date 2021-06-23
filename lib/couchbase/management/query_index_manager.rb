@@ -47,6 +47,7 @@ module Couchbase
             index.name_space = idx[:namespace_id]
             index.index_key = idx[:index_key]
             index.condition = idx[:condition]
+            index.partition = idx[:partition]
           end
         end
       end
@@ -332,6 +333,9 @@ module Couchbase
       #   index. For instance it will wrap expressions with parentheses and show the fields in an escaped format
       #   (surrounded by backticks).
       attr_accessor :condition
+
+      # @return [String] the string representation of the index's partition
+      attr_accessor :partition
 
       # @yieldparam [QueryIndex] self
       def initialize
