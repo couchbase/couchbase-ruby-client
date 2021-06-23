@@ -20,6 +20,7 @@
 #include <tao/json.hpp>
 
 #include <error_context/http.hxx>
+#include <utils/name_codec.hxx>
 #include <version.hxx>
 
 namespace couchbase::operations
@@ -61,8 +62,12 @@ struct analytics_dataset_create_request {
 
         tao::json::value body{
             { "statement",
-              fmt::format(
-                "CREATE DATASET {} `{}`.`{}` ON `{}` {}", if_not_exists_clause, dataverse_name, dataset_name, bucket_name, where_clause) },
+              fmt::format("CREATE DATASET {} {}.`{}` ON `{}` {}",
+                          if_not_exists_clause,
+                          utils::analytics::uncompound_name(dataverse_name),
+                          dataset_name,
+                          bucket_name,
+                          where_clause) },
         };
         encoded.headers["content-type"] = "application/json";
         encoded.method = "POST";

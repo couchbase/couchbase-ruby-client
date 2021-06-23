@@ -19,7 +19,7 @@
 
 #include <tao/json.hpp>
 
-#include <version.hxx>
+#include <utils/name_codec.hxx>
 
 namespace couchbase::operations
 {
@@ -54,7 +54,7 @@ struct analytics_dataverse_drop_request {
         std::string if_exists_clause = ignore_if_does_not_exist ? "IF EXISTS" : "";
 
         tao::json::value body{
-            { "statement", fmt::format("DROP DATAVERSE `{}` {}", dataverse_name, if_exists_clause) },
+            { "statement", fmt::format("DROP DATAVERSE {} {}", utils::analytics::uncompound_name(dataverse_name), if_exists_clause) },
         };
         encoded.headers["content-type"] = "application/json";
         encoded.method = "POST";

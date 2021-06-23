@@ -71,7 +71,7 @@ add_library(
 target_include_directories(platform PRIVATE ${PROJECT_BINARY_DIR}/generated)
 target_link_libraries(platform PRIVATE ${PLATFORM_LIBRARIES})
 
-add_library(cbcrypto OBJECT couchbase/cbcrypto/cbcrypto.cc)
+add_library(cbcrypto OBJECT couchbase/cbcrypto/cbcrypto.cc couchbase/utils/name_codec.hxx)
 target_link_libraries(
   cbcrypto
   PRIVATE project_options

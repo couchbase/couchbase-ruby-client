@@ -19,7 +19,7 @@
 
 #include <tao/json.hpp>
 
-#include <version.hxx>
+#include <utils/name_codec.hxx>
 
 namespace couchbase::operations
 {
@@ -51,7 +51,7 @@ struct analytics_link_disconnect_request {
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {
         tao::json::value body{
-            { "statement", fmt::format("DISCONNECT LINK `{}`.`{}`", dataverse_name, link_name) },
+            { "statement", fmt::format("DISCONNECT LINK {}.`{}`", utils::analytics::uncompound_name(dataverse_name), link_name) },
         };
         encoded.headers["content-type"] = "application/json";
         encoded.method = "POST";

@@ -19,7 +19,7 @@
 
 #include <tao/json.hpp>
 
-#include <version.hxx>
+#include <utils/name_codec.hxx>
 
 namespace couchbase::operations
 {
@@ -54,7 +54,7 @@ struct analytics_link_connect_request {
         std::string with_clause = force ? "WITH {\"force\": true}" : "";
 
         tao::json::value body{
-            { "statement", fmt::format("CONNECT LINK `{}`.`{}` {}", dataverse_name, link_name, with_clause) },
+            { "statement", fmt::format("CONNECT LINK {}.`{}` {}",  utils::analytics::uncompound_name(dataverse_name), link_name, with_clause) },
         };
         encoded.headers["content-type"] = "application/json";
         encoded.method = "POST";

@@ -20,7 +20,7 @@
 #include <tao/json.hpp>
 
 #include <error_context/http.hxx>
-#include <version.hxx>
+#include <utils/name_codec.hxx>
 
 namespace couchbase::operations
 {
@@ -55,7 +55,7 @@ struct analytics_dataverse_create_request {
         std::string if_not_exists_clause = ignore_if_exists ? "IF NOT EXISTS" : "";
 
         tao::json::value body{
-            { "statement", fmt::format("CREATE DATAVERSE `{}` {}", dataverse_name, if_not_exists_clause) },
+            { "statement", fmt::format("CREATE DATAVERSE {} {}", utils::analytics::uncompound_name(dataverse_name), if_not_exists_clause) },
         };
         encoded.headers["content-type"] = "application/json";
         encoded.method = "POST";
