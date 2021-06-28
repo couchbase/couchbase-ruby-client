@@ -46,7 +46,7 @@ struct analytics_link_disconnect_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
     std::string dataverse_name{ "Default" };
-    std::string link_name;
+    std::string link_name{ "Local" };
 
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
     {

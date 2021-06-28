@@ -128,7 +128,7 @@ module Couchbase
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
-      # @yieldparam [Get] self
+      # @yieldparam [GetMulti] self
       def initialize(transcoder: JsonTranscoder.new,
                      timeout: nil,
                      retry_strategy: nil,

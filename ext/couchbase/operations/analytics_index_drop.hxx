@@ -56,7 +56,12 @@ struct analytics_index_drop_request {
         std::string if_exists_clause = ignore_if_does_not_exist ? "IF EXISTS" : "";
 
         tao::json::value body{
-            { "statement", fmt::format("DROP INDEX {}.`{}`.`{}` {}", utils::analytics::uncompound_name(dataverse_name), dataset_name, index_name, if_exists_clause) },
+            { "statement",
+              fmt::format("DROP INDEX {}.`{}`.`{}` {}",
+                          utils::analytics::uncompound_name(dataverse_name),
+                          dataset_name,
+                          index_name,
+                          if_exists_clause) },
         };
         encoded.headers["content-type"] = "application/json";
         encoded.method = "POST";

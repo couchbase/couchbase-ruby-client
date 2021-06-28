@@ -5275,7 +5275,7 @@ cb_extract_search_index(VALUE index, const couchbase::operations::search_index& 
 }
 
 static VALUE
-cb_Backend_search_index_get_all(VALUE self, VALUE timeout)
+cb_Backend_search_index_get_all(VALUE self, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -5288,7 +5288,7 @@ cb_Backend_search_index_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::search_index_get_all_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6289,7 +6289,7 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
 }
 
 static VALUE
-cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE timeout)
+cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -6302,7 +6302,7 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_get_pending_mutations_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6333,7 +6333,7 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_analytics_dataset_get_all(VALUE self, VALUE timeout)
+cb_Backend_analytics_dataset_get_all(VALUE self, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -6346,7 +6346,7 @@ cb_Backend_analytics_dataset_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataset_get_all_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6381,7 +6381,7 @@ cb_Backend_analytics_dataset_get_all(VALUE self, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE dataverse_name, VALUE ignore_if_does_not_exist, VALUE timeout)
+cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -6392,23 +6392,26 @@ cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE datavers
     }
 
     Check_Type(dataset_name, T_STRING);
-    if (!NIL_P(dataverse_name)) {
-        Check_Type(dataverse_name, T_STRING);
-    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataset_drop_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         req.dataset_name.assign(RSTRING_PTR(dataset_name), static_cast<size_t>(RSTRING_LEN(dataset_name)));
+        VALUE dataverse_name = Qnil;
+        exc = cb_extract_option_string(dataverse_name, options, "dataverse_name");
+        if (!NIL_P(exc)) {
+            break;
+        }
         if (!NIL_P(dataverse_name)) {
             req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
         }
-        if (!NIL_P(ignore_if_does_not_exist)) {
-            req.ignore_if_does_not_exist = RTEST(ignore_if_does_not_exist);
+        exc = cb_extract_option_bool(req.ignore_if_does_not_exist, options, "ignore_if_does_not_exist");
+        if (!NIL_P(exc)) {
+            break;
         }
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataset_drop_response>>();
         auto f = barrier->get_future();
@@ -6436,13 +6439,7 @@ cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE datavers
 }
 
 static VALUE
-cb_Backend_analytics_dataset_create(VALUE self,
-                                    VALUE dataset_name,
-                                    VALUE bucket_name,
-                                    VALUE condition,
-                                    VALUE dataverse_name,
-                                    VALUE ignore_if_exists,
-                                    VALUE timeout)
+cb_Backend_analytics_dataset_create(VALUE self, VALUE dataset_name, VALUE bucket_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -6454,30 +6451,35 @@ cb_Backend_analytics_dataset_create(VALUE self,
 
     Check_Type(dataset_name, T_STRING);
     Check_Type(bucket_name, T_STRING);
-    if (!NIL_P(condition)) {
-        Check_Type(condition, T_STRING);
-    }
-    if (!NIL_P(dataverse_name)) {
-        Check_Type(dataverse_name, T_STRING);
-    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataset_create_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         req.dataset_name.assign(RSTRING_PTR(dataset_name), static_cast<size_t>(RSTRING_LEN(dataset_name)));
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
+        VALUE condition = Qnil;
+        exc = cb_extract_option_string(condition, options, "condition");
+        if (!NIL_P(exc)) {
+            break;
+        }
         if (!NIL_P(condition)) {
             req.condition.emplace(std::string(RSTRING_PTR(condition), static_cast<size_t>(RSTRING_LEN(condition))));
+        }
+        VALUE dataverse_name = Qnil;
+        exc = cb_extract_option_string(dataverse_name, options, "dataverse_name");
+        if (!NIL_P(exc)) {
+            break;
         }
         if (!NIL_P(dataverse_name)) {
             req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
         }
-        if (!NIL_P(ignore_if_exists)) {
-            req.ignore_if_exists = RTEST(ignore_if_exists);
+        exc = cb_extract_option_bool(req.ignore_if_exists, options, "ignore_if_exists");
+        if (!NIL_P(exc)) {
+            break;
         }
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_dataset_create_response>>();
         auto f = barrier->get_future();
@@ -6505,7 +6507,7 @@ cb_Backend_analytics_dataset_create(VALUE self,
 }
 
 static VALUE
-cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE ignore_if_does_not_exist, VALUE timeout)
+cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -6520,11 +6522,12 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE igno
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataverse_drop_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
+        VALUE ignore_if_does_not_exist = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_does_not_exist")));
         if (!NIL_P(ignore_if_does_not_exist)) {
             req.ignore_if_does_not_exist = RTEST(ignore_if_does_not_exist);
         }
@@ -6551,7 +6554,7 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE igno
 }
 
 static VALUE
-cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE ignore_if_exists, VALUE timeout)
+cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -6569,11 +6572,12 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE ig
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_dataverse_create_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
+        VALUE ignore_if_exists = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_exists")));
         if (!NIL_P(ignore_if_exists)) {
             req.ignore_if_exists = RTEST(ignore_if_exists);
         }
@@ -6600,7 +6604,7 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE ig
 }
 
 static VALUE
-cb_Backend_analytics_index_get_all(VALUE self, VALUE timeout)
+cb_Backend_analytics_index_get_all(VALUE self, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -6613,7 +6617,7 @@ cb_Backend_analytics_index_get_all(VALUE self, VALUE timeout)
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_index_get_all_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6648,13 +6652,7 @@ cb_Backend_analytics_index_get_all(VALUE self, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_analytics_index_create(VALUE self,
-                                  VALUE index_name,
-                                  VALUE dataset_name,
-                                  VALUE fields,
-                                  VALUE dataverse_name,
-                                  VALUE ignore_if_exists,
-                                  VALUE timeout)
+cb_Backend_analytics_index_create(VALUE self, VALUE index_name, VALUE dataset_name, VALUE fields, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -6667,14 +6665,11 @@ cb_Backend_analytics_index_create(VALUE self,
     Check_Type(index_name, T_STRING);
     Check_Type(dataset_name, T_STRING);
     Check_Type(fields, T_ARRAY);
-    if (!NIL_P(dataverse_name)) {
-        Check_Type(dataverse_name, T_STRING);
-    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_index_create_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -6687,15 +6682,22 @@ cb_Backend_analytics_index_create(VALUE self,
             if (RARRAY_LEN(entry) == 2) {
                 VALUE field = rb_ary_entry(entry, 0);
                 VALUE type = rb_ary_entry(entry, 1);
-                req.fields.emplace(std::string(RSTRING_PTR(field), static_cast<std::size_t>(RSTRING_LEN(field))),
-                                   std::string(RSTRING_PTR(type), static_cast<std::size_t>(RSTRING_LEN(type))));
+                req.fields.try_emplace(std::string(RSTRING_PTR(field), static_cast<std::size_t>(RSTRING_LEN(field))),
+                                       std::string(RSTRING_PTR(type), static_cast<std::size_t>(RSTRING_LEN(type))));
             }
+        }
+
+        VALUE dataverse_name = Qnil;
+        exc = cb_extract_option_string(dataverse_name, options, "dataverse_name");
+        if (!NIL_P(exc)) {
+            break;
         }
         if (!NIL_P(dataverse_name)) {
             req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
         }
-        if (!NIL_P(ignore_if_exists)) {
-            req.ignore_if_exists = RTEST(ignore_if_exists);
+        exc = cb_extract_option_bool(req.ignore_if_exists, options, "ignore_if_exists");
+        if (!NIL_P(exc)) {
+            break;
         }
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_index_create_response>>();
         auto f = barrier->get_future();
@@ -6725,12 +6727,7 @@ cb_Backend_analytics_index_create(VALUE self,
 }
 
 static VALUE
-cb_Backend_analytics_index_drop(VALUE self,
-                                VALUE index_name,
-                                VALUE dataset_name,
-                                VALUE dataverse_name,
-                                VALUE ignore_if_does_not_exist,
-                                VALUE timeout)
+cb_Backend_analytics_index_drop(VALUE self, VALUE index_name, VALUE dataset_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -6742,24 +6739,27 @@ cb_Backend_analytics_index_drop(VALUE self,
 
     Check_Type(index_name, T_STRING);
     Check_Type(dataset_name, T_STRING);
-    if (!NIL_P(dataverse_name)) {
-        Check_Type(dataverse_name, T_STRING);
-    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_index_drop_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         req.dataset_name.assign(RSTRING_PTR(dataset_name), static_cast<size_t>(RSTRING_LEN(dataset_name)));
+        VALUE dataverse_name = Qnil;
+        exc = cb_extract_option_string(dataverse_name, options, "dataverse_name");
+        if (!NIL_P(exc)) {
+            break;
+        }
         if (!NIL_P(dataverse_name)) {
             req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
         }
-        if (!NIL_P(ignore_if_does_not_exist)) {
-            req.ignore_if_does_not_exist = RTEST(ignore_if_does_not_exist);
+        exc = cb_extract_option_bool(req.ignore_if_does_not_exist, options, "ignore_if_does_not_exist");
+        if (!NIL_P(exc)) {
+            break;
         }
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_index_drop_response>>();
         auto f = barrier->get_future();
@@ -6789,7 +6789,7 @@ cb_Backend_analytics_index_drop(VALUE self,
 }
 
 static VALUE
-cb_Backend_analytics_link_connect(VALUE self, VALUE link_name, VALUE force, VALUE dataverse_name, VALUE timeout)
+cb_Backend_analytics_link_connect(VALUE self, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -6799,24 +6799,32 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE link_name, VALUE force, VALU
         return Qnil;
     }
 
-    Check_Type(link_name, T_STRING);
-    if (!NIL_P(dataverse_name)) {
-        Check_Type(dataverse_name, T_STRING);
-    }
-
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_link_connect_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
-        req.link_name.assign(RSTRING_PTR(link_name), static_cast<size_t>(RSTRING_LEN(link_name)));
+        VALUE link_name = Qnil;
+        exc = cb_extract_option_string(link_name, options, "link_name");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(link_name)) {
+            req.link_name.assign(RSTRING_PTR(link_name), static_cast<size_t>(RSTRING_LEN(link_name)));
+        }
+        VALUE dataverse_name = Qnil;
+        exc = cb_extract_option_string(link_name, options, "dataverse_name");
+        if (!NIL_P(exc)) {
+            break;
+        }
         if (!NIL_P(dataverse_name)) {
             req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
         }
-        if (!NIL_P(force)) {
-            req.force = RTEST(force);
+        exc = cb_extract_option_bool(req.force, options, "force");
+        if (!NIL_P(exc)) {
+            break;
         }
         auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_connect_response>>();
         auto f = barrier->get_future();
@@ -6844,7 +6852,7 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE link_name, VALUE force, VALU
 }
 
 static VALUE
-cb_Backend_analytics_link_disconnect(VALUE self, VALUE link_name, VALUE dataverse_name, VALUE timeout)
+cb_Backend_analytics_link_disconnect(VALUE self, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -6854,19 +6862,26 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE link_name, VALUE datavers
         return Qnil;
     }
 
-    Check_Type(link_name, T_STRING);
-    if (!NIL_P(dataverse_name)) {
-        Check_Type(dataverse_name, T_STRING);
-    }
-
     VALUE exc = Qnil;
     do {
         couchbase::operations::analytics_link_disconnect_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
-        req.link_name.assign(RSTRING_PTR(link_name), static_cast<size_t>(RSTRING_LEN(link_name)));
+        VALUE link_name = Qnil;
+        exc = cb_extract_option_string(link_name, options, "link_name");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (!NIL_P(link_name)) {
+            req.link_name.assign(RSTRING_PTR(link_name), static_cast<size_t>(RSTRING_LEN(link_name)));
+        }
+        VALUE dataverse_name = Qnil;
+        exc = cb_extract_option_string(link_name, options, "dataverse_name");
+        if (!NIL_P(exc)) {
+            break;
+        }
         if (!NIL_P(dataverse_name)) {
             req.dataverse_name.assign(RSTRING_PTR(dataverse_name), static_cast<size_t>(RSTRING_LEN(dataverse_name)));
         }
@@ -7789,16 +7804,16 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "search_index_analyze_document", VALUE_FUNC(cb_Backend_search_index_analyze_document), 3);
 
     rb_define_method(cBackend, "analytics_get_pending_mutations", VALUE_FUNC(cb_Backend_analytics_get_pending_mutations), 1);
-    rb_define_method(cBackend, "analytics_dataverse_drop", VALUE_FUNC(cb_Backend_analytics_dataverse_drop), 3);
-    rb_define_method(cBackend, "analytics_dataverse_create", VALUE_FUNC(cb_Backend_analytics_dataverse_create), 3);
-    rb_define_method(cBackend, "analytics_dataset_create", VALUE_FUNC(cb_Backend_analytics_dataset_create), 6);
-    rb_define_method(cBackend, "analytics_dataset_drop", VALUE_FUNC(cb_Backend_analytics_dataset_drop), 4);
+    rb_define_method(cBackend, "analytics_dataverse_drop", VALUE_FUNC(cb_Backend_analytics_dataverse_drop), 2);
+    rb_define_method(cBackend, "analytics_dataverse_create", VALUE_FUNC(cb_Backend_analytics_dataverse_create), 2);
+    rb_define_method(cBackend, "analytics_dataset_create", VALUE_FUNC(cb_Backend_analytics_dataset_create), 3);
+    rb_define_method(cBackend, "analytics_dataset_drop", VALUE_FUNC(cb_Backend_analytics_dataset_drop), 2);
     rb_define_method(cBackend, "analytics_dataset_get_all", VALUE_FUNC(cb_Backend_analytics_dataset_get_all), 1);
     rb_define_method(cBackend, "analytics_index_get_all", VALUE_FUNC(cb_Backend_analytics_index_get_all), 1);
-    rb_define_method(cBackend, "analytics_index_create", VALUE_FUNC(cb_Backend_analytics_index_create), 6);
-    rb_define_method(cBackend, "analytics_index_drop", VALUE_FUNC(cb_Backend_analytics_index_drop), 5);
-    rb_define_method(cBackend, "analytics_link_connect", VALUE_FUNC(cb_Backend_analytics_link_connect), 4);
-    rb_define_method(cBackend, "analytics_link_disconnect", VALUE_FUNC(cb_Backend_analytics_link_disconnect), 3);
+    rb_define_method(cBackend, "analytics_index_create", VALUE_FUNC(cb_Backend_analytics_index_create), 4);
+    rb_define_method(cBackend, "analytics_index_drop", VALUE_FUNC(cb_Backend_analytics_index_drop), 3);
+    rb_define_method(cBackend, "analytics_link_connect", VALUE_FUNC(cb_Backend_analytics_link_connect), 1);
+    rb_define_method(cBackend, "analytics_link_disconnect", VALUE_FUNC(cb_Backend_analytics_link_disconnect), 1);
 
     rb_define_method(cBackend, "view_index_get_all", VALUE_FUNC(cb_Backend_view_index_get_all), 3);
     rb_define_method(cBackend, "view_index_get", VALUE_FUNC(cb_Backend_view_index_get), 4);

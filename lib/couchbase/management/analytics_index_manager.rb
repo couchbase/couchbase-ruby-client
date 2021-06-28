@@ -13,9 +13,485 @@
 #  limitations under the License.
 
 require "couchbase/errors"
+require "couchbase/options"
 
 module Couchbase
   module Management
+    module Options
+      module Analytics
+        # Options for {AnalyticsIndexManager#create_dataverse}
+        class CreateDataverse < ::Couchbase::Options::Base
+          attr_accessor :ignore_if_exists # @return [Boolean]
+
+          # Creates an instance of options for {AnalyticsIndexManager#create_dataverse}
+          #
+          # @param [Boolean] ignore_if_exists if +true+, the exception {Error::DataverseExists} will not be raised if the
+          #  dataverse with the specified name already exists.
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [CreateDataverse] self
+          def initialize(ignore_if_exists: false,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            @ignore_if_exists = ignore_if_exists
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              ignore_if_exists: @ignore_if_exists,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#drop_dataverse}
+        class DropDataverse < ::Couchbase::Options::Base
+          attr_accessor :ignore_if_does_not_exist # @return [Boolean]
+
+          # Creates an instance of options for {AnalyticsIndexManager#create_dataverse}
+          #
+          # @param [Boolean] ignore_if_does_not_exist if +true+, the exception {Error::DataverseNotFound} will not be raised
+          #  if the dataverse with the specified name does not exist.
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [DropDataverse] self
+          def initialize(ignore_if_does_not_exist: false,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            @ignore_if_does_not_exist = ignore_if_does_not_exist
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              ignore_if_does_not_exist: @ignore_if_does_not_exist,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#create_dataset}
+        class CreateDataset < ::Couchbase::Options::Base
+          attr_accessor :ignore_if_exists # @return [Boolean]
+          attr_accessor :condition # @return [String]
+          attr_accessor :dataverse_name # @return [String]
+
+          # Creates an instance of options for {AnalyticsIndexManager#create_dataset}
+          #
+          # @param [Boolean] ignore_if_exists if +true+, the exception {Error::DatasetExists} will not be raised
+          #  if the dataset with the specified name already exists.
+          # @param [String] condition WHERE clause to use for creating dataset
+          # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [CreateDataset] self
+          def initialize(ignore_if_exists: false,
+                         condition: nil,
+                         dataverse_name: nil,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            @ignore_if_exists = ignore_if_exists
+            @condition = condition
+            @dataverse_name = dataverse_name
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              condition: @condition,
+              dataverse_name: @dataverse_name,
+              ignore_if_exists: @ignore_if_exists,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#drop_dataset}
+        class DropDataset < ::Couchbase::Options::Base
+          attr_accessor :ignore_if_does_not_exist # @return [Boolean]
+          attr_accessor :dataverse_name # @return [String]
+
+          # Creates an instance of options for {AnalyticsIndexManager#drop_dataset}
+          #
+          # @param [Boolean] ignore_if_does_not_exist if +true+, the exception {Error::DatasetNotFound} will not be raised
+          #  if the dataset with the specified name does not exist.
+          # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [DropDataset] self
+          def initialize(ignore_if_does_not_exist: false,
+                         dataverse_name: nil,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            @ignore_if_does_not_exist = ignore_if_does_not_exist
+            @dataverse_name = dataverse_name
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              dataverse_name: @dataverse_name,
+              ignore_if_does_not_exist: @ignore_if_does_not_exist,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#get_all_datasets}
+        class GetAllDatasets < ::Couchbase::Options::Base
+          # Creates an instance of options for {AnalyticsIndexManager#get_all_datasets}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetAllDatasets] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#create_index}
+        class CreateIndex < ::Couchbase::Options::Base
+          attr_accessor :ignore_if_exists # @return [Boolean]
+          attr_accessor :dataverse_name # @return [String]
+
+          # Creates an instance of options for {AnalyticsIndexManager#create_index}
+          #
+          # @param [Boolean] ignore_if_exists if +true+, the exception {Error::DatasetExists} will not be raised
+          #  if the dataset with the specified name already exists.
+          # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [CreateIndex] self
+          def initialize(ignore_if_exists: false,
+                         dataverse_name: nil,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            @ignore_if_exists = ignore_if_exists
+            @dataverse_name = dataverse_name
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              dataverse_name: @dataverse_name,
+              ignore_if_exists: @ignore_if_exists,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#drop_index}
+        class DropIndex < ::Couchbase::Options::Base
+          attr_accessor :ignore_if_does_not_exist # @return [Boolean]
+          attr_accessor :dataverse_name # @return [String]
+
+          # Creates an instance of options for {AnalyticsIndexManager#drop_index}
+          #
+          # @param [Boolean] ignore_if_does_not_exist if +true+, the exception {Error::DatasetNotFound} will not be raised
+          #  if the dataset with the specified name does not exist.
+          # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [DropIndex] self
+          def initialize(ignore_if_does_not_exist: false,
+                         dataverse_name: nil,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            @ignore_if_does_not_exist = ignore_if_does_not_exist
+            @dataverse_name = dataverse_name
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              dataverse_name: @dataverse_name,
+              ignore_if_does_not_exist: @ignore_if_does_not_exist,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#get_all_indexes}
+        class GetAllIndexes < ::Couchbase::Options::Base
+          # Creates an instance of options for {AnalyticsIndexManager#get_all_indexes}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetAllIndexes] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#connect_link}
+        class ConnectLink < ::Couchbase::Options::Base
+          attr_accessor :link_name # @return [String]
+          attr_accessor :force # @return [Boolean]
+          attr_accessor :dataverse_name # @return [String]
+
+          # Creates an instance of options for {AnalyticsIndexManager#connect_link}
+          #
+          # @param [String] link_name the name of the link
+          # @param [Boolean] force if +true+, link creation will be forced even if the bucket UUID changed, for example
+          #   due to the bucket being deleted and recreated
+          # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [ConnectLinkOptions] self
+          def initialize(link_name: "Local",
+                         force: false,
+                         dataverse_name: nil,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            @link_name = link_name
+            @force = force
+            @dataverse_name = dataverse_name
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              link_name: @link_name,
+              force: @force,
+              dataverse_name: @dataverse_name,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#connect_link}
+        class DisconnectLink < ::Couchbase::Options::Base
+          attr_accessor :link_name # @return [String]
+          attr_accessor :dataverse_name # @return [String]
+
+          # Creates an instance of options for {AnalyticsIndexManager#disconnect_link}
+          #
+          # @param [String] link_name the name of the link
+          # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [DisconnectLinkOptions] self
+          def initialize(link_name: "Local",
+                         dataverse_name: nil,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            @link_name = link_name
+            @dataverse_name = dataverse_name
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              link_name: @link_name,
+              dataverse_name: @dataverse_name,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#get_pending_mutations}
+        class GetPendingMutations < ::Couchbase::Options::Base
+          # Creates an instance of options for {AnalyticsIndexManager#get_pending_mutations}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetPendingMutations] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # rubocop:disable Naming/MethodName constructor shortcuts
+        module_function
+
+        # Construct {CreateDataverse} options for {AnalyticsIndexManager#create_dataverse}
+        #
+        # @return [CreateDataverse]
+        def CreateDataverse(**args)
+          CreateDataverse.new(**args)
+        end
+
+        # Construct {DropDataverse} options for {AnalyticsIndexManager#drop_dataverse}
+        #
+        # @return [DropDataverse]
+        def DropDataverse(**args)
+          DropDataverse.new(**args)
+        end
+
+        # Construct {CreateDataset} options for {AnalyticsIndexManager#create_dataset}
+        #
+        # @return [CreateDataset]
+        def CreateDataset(**args)
+          CreateDataset.new(**args)
+        end
+
+        # Construct {DropDataset} options for {AnalyticsIndexManager#drop_dataset}
+        #
+        # @return [DropDataset]
+        def DropDataset(**args)
+          DropDataset.new(**args)
+        end
+
+        # Construct {GetAllDatasets} options for {AnalyticsIndexManager#get_all_datasets}
+        #
+        # @return [GetAllDatasets]
+        def GetAllDatasets(**args)
+          GetAllDatasets.new(**args)
+        end
+
+        # Construct {CreateIndex} options for {AnalyticsIndexManager#create_index}
+        #
+        # @return [CreateIndex]
+        def CreateIndex(**args)
+          CreateIndex.new(**args)
+        end
+
+        # Construct {DropIndex} options for {AnalyticsIndexManager#drop_index}
+        #
+        # @return [DropIndex]
+        def DropIndex(**args)
+          DropIndex.new(**args)
+        end
+
+        # Construct {GetAllIndexes} options for {AnalyticsIndexManager#get_all_indexes}
+        #
+        # @return [GetAllIndexes]
+        def GetAllIndexes(**args)
+          GetAllIndexes.new(**args)
+        end
+
+        # Construct {ConnectLink} options for {AnalyticsIndexManager#connect_link}
+        #
+        # @return [ConnectLink]
+        def ConnectLink(**args)
+          ConnectLink.new(**args)
+        end
+
+        # Construct {DisconnectLink} options for {AnalyticsIndexManager#disconnect_link}
+        #
+        # @return [DisconnectLink]
+        def DisconnectLink(**args)
+          DisconnectLink.new(**args)
+        end
+
+        # Construct {GetPendingMutations} options for {AnalyticsIndexManager#get_pending_mutations}
+        #
+        # @return [GetPendingMutations]
+        def GetPendingMutations(**args)
+          GetPendingMutations.new(**args)
+        end
+
+        # rubocop:enable Naming/MethodName
+      end
+    end
+
     class AnalyticsIndexManager
       alias inspect to_s
 
@@ -27,84 +503,64 @@ module Couchbase
       # Creates a new dataverse
       #
       # @param [String] dataverse_name
-      # @param [CreateDataverseOptions] options
+      # @param [Options::Analytics::CreateDataverse] options
       #
       # @return [void]
       #
       # @raise [ArgumentError]
       # @raise [Error::DataverseExists]
-      def create_dataverse(dataverse_name, options = CreateDataverseOptions.new)
-        @backend.analytics_dataverse_create(
-          dataverse_name,
-          options.ignore_if_exists,
-          options.timeout
-        )
+      def create_dataverse(dataverse_name, options = Options::Analytics::CreateDataverse.new)
+        @backend.analytics_dataverse_create(dataverse_name, options.to_backend)
       end
 
       # Drops a dataverse
       #
       # @param [String] dataverse_name name of the dataverse
-      # @param [DropDataverseOptions] options
+      # @param [Options::Analytics::DropDataverse] options
       #
       # @return [void]
       #
       # @raise [ArgumentError]
       # @raise [Error::DataverseNotFound]
-      def drop_dataverse(dataverse_name, options = DropDataverseOptions.new)
-        @backend.analytics_dataverse_drop(
-          dataverse_name,
-          options.ignore_if_does_not_exist,
-          options.timeout
-        )
+      def drop_dataverse(dataverse_name, options = Options::Analytics::DropDataverse.new)
+        @backend.analytics_dataverse_drop(dataverse_name, options.to_backend)
       end
 
       # Creates a new dataset
       #
       # @param [String] dataset_name name of dataset
       # @param [String] bucket_name name of the bucket
-      # @param [CreateDatasetOptions] options
+      # @param [Options::Analytics::CreateDataset] options
       #
       # @return [void]
       #
       # @raise [ArgumentError]
       # @raise [Error::DatasetExists]
       # @raise [Error::LinkNotFound]
-      def create_dataset(dataset_name, bucket_name, options = CreateDatasetOptions.new)
-        @backend.analytics_dataset_create(
-          dataset_name,
-          bucket_name,
-          options.condition,
-          options.dataverse_name,
-          options.ignore_if_exists,
-          options.timeout
-        )
+      def create_dataset(dataset_name, bucket_name, options = Options::Analytics::CreateDataset.new)
+        @backend.analytics_dataset_create(dataset_name, bucket_name, options.to_backend)
       end
 
       # Drops a dataset
       #
       # @param [String] dataset_name name of the dataset
-      # @param [DropDatasetOptions] options
+      # @param [Options::Analytics::DropDataset] options
       #
       # @return [void]
       #
       # @raise [ArgumentError]
       # @raise [Error::DatasetNotFound]
-      def drop_dataset(dataset_name, options = DropDatasetOptions.new)
-        @backend.analytics_dataset_drop(
-          dataset_name,
-          options.dataverse_name,
-          options.ignore_if_does_not_exist,
-          options.timeout
-        )
+      def drop_dataset(dataset_name, options = Options::Analytics::DropDataset.new)
+        @backend.analytics_dataset_drop(dataset_name, options.to_backend)
       end
 
       # Gets all datasets
       #
-      # @param [GetAllDatasetsOptions] options
+      # @param [Options::Analytics::GetAllDatasets] options
       #
       # @return [Array<AnalyticsDataset>]
-      def get_all_datasets(options = GetAllDatasetsOptions.new)
-        resp = @backend.analytics_dataset_get_all(options.timeout)
+      def get_all_datasets(options = Options::Analytics::GetAllDatasets.new)
+        resp = @backend.analytics_dataset_get_all(options.to_backend)
         resp.map do |entry|
           AnalyticsDataset.new do |dataset|
             dataset.name = entry[:name]
@@ -120,50 +576,37 @@ module Couchbase
       # @param [String] index_name name of the index
       # @param [String] dataset_name name of the dataset
       # @param [Hash<String => String>] fields mapping of the field name to field type
-      # @param [CreateIndexOptions] options
+      # @param [Options::Analytics::CreateIndex] options
       #
       # @return [void]
       #
       # @raise [ArgumentError]
       # @raise [Error::IndexExists]
-      def create_index(index_name, dataset_name, fields, options = CreateIndexOptions.new)
-        @backend.analytics_index_create(
-          index_name,
-          dataset_name,
-          fields.entries,
-          options.dataverse_name,
-          options.ignore_if_exists,
-          options.timeout
-        )
+      def create_index(index_name, dataset_name, fields, options = Options::Analytics::CreateIndex.new)
+        @backend.analytics_index_create(index_name, dataset_name, fields.entries, options.to_backend)
       end
 
       # Drops an index
       #
       # @param [String] index_name name of the index
       # @param [String] dataset_name name of the dataset
-      # @param [DropIndexOptions] options
+      # @param [Options::Analytics::DropIndex] options
       #
       # @return [void]
       #
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
-      def drop_index(index_name, dataset_name, options = DropIndexOptions.new)
-        @backend.analytics_index_drop(
-          index_name,
-          dataset_name,
-          options.dataverse_name,
-          options.ignore_if_does_not_exist,
-          options.timeout
-        )
+      def drop_index(index_name, dataset_name, options = Options::Analytics::DropIndex.new)
+        @backend.analytics_index_drop(index_name, dataset_name, options.to_backend)
       end
 
       # Gets all indexes
       #
-      # @param [GetAllIndexesOptions] options
+      # @param [Options::Analytics::GetAllIndexes] options
       #
       # @return [Array<AnalyticsIndex>]
-      def get_all_indexes(options = GetAllIndexesOptions.new)
-        resp = @backend.analytics_index_get_all(options.timeout)
+      def get_all_indexes(options = Options::Analytics::GetAllIndexes.new)
+        resp = @backend.analytics_index_get_all(options.to_backend)
         resp.map do |entry|
           AnalyticsIndex.new do |dataset|
             dataset.name = entry[:name]
@@ -176,35 +619,26 @@ module Couchbase
 
       # Connects a link
       #
-      # @param [ConnectLinkOptions] options
+      # @param [Options::Analytics::ConnectLink] options
       #
       # @return [void]
       #
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
-      def connect_link(options = ConnectLinkOptions.new)
-        @backend.analytics_link_connect(
-          options.link_name,
-          options.force,
-          options.dataverse_name,
-          options.timeout
-        )
+      def connect_link(options = Options::Analytics::ConnectLink.new)
+        @backend.analytics_link_connect(options.to_backend)
       end
 
       # Disconnects a link,
       #
-      # @param [DisconnectLinkOptions] options
+      # @param [Options::Analytics::DisconnectLink] options
       #
       # @return [void]
       #
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
-      def disconnect_link(options = DisconnectLinkOptions.new)
-        @backend.analytics_link_disconnect(
-          options.link_name,
-          options.dataverse_name,
-          options.timeout
-        )
+      def disconnect_link(options = Options::Analytics::DisconnectLink.new)
+        @backend.analytics_link_disconnect(options.to_backend)
       end
 
       # Gets the pending mutations for all datasets.
@@ -212,183 +646,53 @@ module Couchbase
       # @note If a link is disconnected then it will return no results. If all links are disconnected, then
       # an empty object is returned.
       #
-      # @param [GetPendingMutationsOptions] options
+      # @param [Options::Analytics::GetPendingMutations] options
       #
       # @return [Hash<String => Integer>] dictionary, where keys are dataset coordinates encoded as +"dataverse.dataset"+
       #   and values are number of mutations for given dataset.
-      def get_pending_mutations(options = GetPendingMutationsOptions.new)
-        @backend.analytics_get_pending_mutations(
-          options.timeout
-        )
+      def get_pending_mutations(options = Options::Analytics::GetPendingMutations.new)
+        @backend.analytics_get_pending_mutations(options.to_backend)
       end
 
-      class CreateDataverseOptions
-        # @return [Boolean] ignore if the dataverse already exists
-        attr_accessor :ignore_if_exists
+      # @api private
+      # TODO: deprecate after 3.2
+      CreateDataverseOptions = ::Couchbase::Management::Options::Analytics::CreateDataverse
 
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
+      # @api private
+      # TODO: deprecate after 3.2
+      DropDataverseOptions = ::Couchbase::Management::Options::Analytics::DropDataverse
 
-        # @yieldparam [CreateDataverseOptions]
-        def initialize
-          @ignore_if_exists = false
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # TODO: deprecate after 3.2
+      CreateDatasetOptions = ::Couchbase::Management::Options::Analytics::CreateDataset
 
-      class DropDataverseOptions
-        # @return [Boolean] ignore if the dataverse does not exists
-        attr_accessor :ignore_if_does_not_exist
+      # @api private
+      # TODO: deprecate after 3.2
+      DropDatasetOptions = ::Couchbase::Management::Options::Analytics::DropDataset
 
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
+      # @api private
+      # TODO: deprecate after 3.2
+      GetAllDatasetsOptions = ::Couchbase::Management::Options::Analytics::GetAllDatasets
 
-        # @yieldparam [DropDataverseOptions]
-        def initialize
-          @ignore_if_exists = false
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # TODO: deprecate after 3.2
+      CreateIndexOptions = ::Couchbase::Management::Options::Analytics::CreateIndex
 
-      class CreateDatasetOptions
-        # @return [Boolean] ignore if the dataset already exists
-        attr_accessor :ignore_if_exists
+      # @api private
+      # TODO: deprecate after 3.2
+      DropIndexOptions = ::Couchbase::Management::Options::Analytics::DropIndex
 
-        # @return [String] WHERE clause to use for creating dataset
-        attr_accessor :condition
+      # @api private
+      # TODO: deprecate after 3.2
+      GetAllIndexesOptions = ::Couchbase::Management::Options::Analytics::GetAllIndexes
 
-        # @return [String] The name of the dataverse to use (defaults to +nil+)
-        attr_accessor :dataverse_name
+      # @api private
+      # TODO: deprecate after 3.2
+      ConnectLinkOptions = ::Couchbase::Management::Options::Analytics::ConnectLink
 
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [CreateDatasetOptions]
-        def initialize
-          @ignore_if_exists = false
-          yield self if block_given?
-        end
-      end
-
-      class DropDatasetOptions
-        # @return [Boolean] ignore if the dataset does not exists
-        attr_accessor :ignore_if_does_not_exist
-
-        # @return [String] The name of the dataverse to use (defaults to +nil+)
-        attr_accessor :dataverse_name
-
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [DropDatasetOptions]
-        def initialize
-          @ignore_if_does_not_exist = false
-          yield self if block_given?
-        end
-      end
-
-      class GetAllDatasetsOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [GetAllDatasetsOptions]
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class CreateIndexOptions
-        # @return [Boolean] ignore if the index already exists
-        attr_accessor :ignore_if_exists
-
-        # @return [String] The name of the dataverse to use (defaults to +nil+)
-        attr_accessor :dataverse_name
-
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [CreateIndexOptions]
-        def initialize
-          @ignore_if_exists = false
-          yield self if block_given?
-        end
-      end
-
-      class DropIndexOptions
-        # @return [Boolean] ignore if the index does not exists
-        attr_accessor :ignore_if_does_not_exist
-
-        # @return [String] The name of the dataverse to use (defaults to +nil+)
-        attr_accessor :dataverse_name
-
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [DropIndexOptions]
-        def initialize
-          @ignore_if_does_not_exist = false
-          yield self if block_given?
-        end
-      end
-
-      class GetAllIndexesOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [GetAllIndexesOptions]
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class ConnectLinkOptions
-        # @return [String] The name of the link (defaults to +"Local"+)
-        attr_accessor :link_name
-
-        # @return [Boolean] Whether to force link creation even if the bucket UUID changed, for example due to the
-        #  bucket being deleted and recreated (defaults to +false+)
-        attr_accessor :force
-
-        # @return [String] The name of the dataverse to use (defaults to +nil+)
-        attr_accessor :dataverse_name
-
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [ConnectLinkOptions]
-        def initialize
-          @link_name = "Local"
-          @force = false
-          yield self if block_given?
-        end
-      end
-
-      class DisconnectLinkOptions
-        # @return [String] The name of the link (defaults to +"Local"+)
-        attr_accessor :link_name
-
-        # @return [String] The name of the dataverse to use (defaults to +nil+)
-        attr_accessor :dataverse_name
-
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [DisconnectLinkOptions]
-        def initialize
-          @link_name = "Local"
-          yield self if block_given?
-        end
-      end
-
-      class GetPendingMutationsOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [GetPendingMutationsOptions]
-        def initialize
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # TODO: deprecate after 3.2
+      GetPendingMutationsOptions = ::Couchbase::Management::Options::Analytics::GetPendingMutations
     end
 
     class AnalyticsDataset

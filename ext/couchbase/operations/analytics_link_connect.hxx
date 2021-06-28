@@ -46,7 +46,7 @@ struct analytics_link_connect_request {
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };
 
     std::string dataverse_name{ "Default" };
-    std::string link_name;
+    std::string link_name{ "Local" };
     bool force{ false };
 
     [[nodiscard]] std::error_code encode_to(encoded_request_type& encoded, http_context& /* context */) const
@@ -54,7 +54,8 @@ struct analytics_link_connect_request {
         std::string with_clause = force ? "WITH {\"force\": true}" : "";
 
         tao::json::value body{
-            { "statement", fmt::format("CONNECT LINK {}.`{}` {}",  utils::analytics::uncompound_name(dataverse_name), link_name, with_clause) },
+            { "statement",
+              fmt::format("CONNECT LINK {}.`{}` {}", utils::analytics::uncompound_name(dataverse_name), link_name, with_clause) },
         };
         encoded.headers["content-type"] = "application/json";
         encoded.method = "POST";
