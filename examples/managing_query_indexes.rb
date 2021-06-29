@@ -41,29 +41,27 @@ cluster = Cluster.connect("couchbase://localhost", options)
 display_indexes(cluster.query_indexes.get_all_indexes(bucket_name), bucket_name)
 
 index_name = "demo_index"
-options = Management::QueryIndexManager::DropIndexOptions.new
-options.ignore_if_does_not_exist = true
 measure("Index \"#{index_name}\" has been dropped") do
-  cluster.query_indexes.drop_index(bucket_name, index_name, options)
+  cluster.query_indexes.drop_index(bucket_name, index_name,
+                                   Management::Options::Query(ignore_if_does_not_exist: true))
 end
 
-options = Management::QueryIndexManager::CreateIndexOptions.new
-options.ignore_if_exists = true
-options.condition = "abv > 2"
 measure("Index \"#{index_name}\" has been created") do
-  cluster.query_indexes.create_index(bucket_name, index_name, %w[`type` `name`], options)
+  cluster.query_indexes.create_index(bucket_name, index_name, %w[`type` `name`],
+                                     Management::Options::Query::CreateIndex(
+                                       ignore_if_exists: true,
+                                       condition: "abv > 2"
+                                     ))
 end
 
-options = Management::QueryIndexManager::DropPrimaryIndexOptions.new
-options.ignore_if_does_not_exist = true
 measure("Primary index \"#{bucket_name}\" has been dropped") do
-  cluster.query_indexes.drop_primary_index(bucket_name, options)
+  cluster.query_indexes.drop_primary_index(bucket_name,
+                                           Management::Options::Query::DropPrimaryIndex(ignore_if_does_not_exists: true))
 end
 
-options = Management::QueryIndexManager::CreatePrimaryIndexOptions.new
-options.deferred = true
 measure("Primary index \"#{bucket_name}\" has been created") do
-  cluster.query_indexes.create_primary_index(bucket_name, options)
+  cluster.query_indexes.create_primary_index(bucket_name,
+                                             Management::Options::Query::CreatePrimaryIndex(deferred: true))
 end
 
 display_indexes(cluster.query_indexes.get_all_indexes(bucket_name), bucket_name)
@@ -74,10 +72,9 @@ end
 
 display_indexes(cluster.query_indexes.get_all_indexes(bucket_name), bucket_name)
 
-options = Management::QueryIndexManager::WatchIndexesOptions.new
-options.watch_primary = true
 measure("Watching for primary index build completion for \"#{bucket_name}\" has been finished") do
-  cluster.query_indexes.watch_indexes(bucket_name, [], 10_000_000, options)
+  cluster.query_indexes.watch_indexes(bucket_name, [], 10_000_000,
+                                      Management::Options::Query::WatchIndexes(watch_primary: true))
 end
 
 display_indexes(cluster.query_indexes.get_all_indexes(bucket_name), bucket_name)

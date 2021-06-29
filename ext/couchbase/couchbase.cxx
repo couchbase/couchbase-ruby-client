@@ -4790,7 +4790,7 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
 }
 
 static VALUE
-cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
+cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -4801,11 +4801,14 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
     }
 
     Check_Type(bucket_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_get_all_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4862,7 +4865,7 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, VALUE fields, VALUE options, VALUE timeout)
+cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, VALUE fields, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -4875,11 +4878,14 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
     Check_Type(bucket_name, T_STRING);
     Check_Type(index_name, T_STRING);
     Check_Type(fields, T_ARRAY);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_create_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4893,7 +4899,6 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
             req.fields.emplace_back(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry)));
         }
         if (!NIL_P(options)) {
-            Check_Type(options, T_HASH);
             VALUE ignore_if_exists = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_exists")));
             if (ignore_if_exists == Qtrue) {
                 req.ignore_if_exists = true;
@@ -4963,7 +4968,7 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
 }
 
 static VALUE
-cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VALUE options, VALUE timeout)
+cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -4975,18 +4980,20 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
 
     Check_Type(bucket_name, T_STRING);
     Check_Type(index_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_drop_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         req.index_name.assign(RSTRING_PTR(index_name), static_cast<size_t>(RSTRING_LEN(index_name)));
         if (!NIL_P(options)) {
-            Check_Type(options, T_HASH);
             VALUE ignore_if_does_not_exist = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_does_not_exist")));
             if (ignore_if_does_not_exist == Qtrue) {
                 req.ignore_if_does_not_exist = true;
@@ -5042,7 +5049,7 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
 }
 
 static VALUE
-cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE options, VALUE timeout)
+cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -5060,14 +5067,13 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_create_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         req.is_primary = true;
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         if (!NIL_P(options)) {
-            Check_Type(options, T_HASH);
             VALUE ignore_if_exists = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_exists")));
             if (ignore_if_exists == Qtrue) {
                 req.ignore_if_exists = true;
@@ -5136,7 +5142,7 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
 }
 
 static VALUE
-cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options, VALUE timeout)
+cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -5147,18 +5153,20 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
     }
 
     Check_Type(bucket_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_drop_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
         req.is_primary = true;
         req.bucket_name.assign(RSTRING_PTR(bucket_name), static_cast<size_t>(RSTRING_LEN(bucket_name)));
         if (!NIL_P(options)) {
-            Check_Type(options, T_HASH);
             VALUE ignore_if_does_not_exist = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_does_not_exist")));
             if (ignore_if_does_not_exist == Qtrue) {
                 req.ignore_if_does_not_exist = true;
@@ -5217,7 +5225,7 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
 }
 
 static VALUE
-cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE timeout)
+cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -5228,11 +5236,14 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE timeo
     }
 
     Check_Type(bucket_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::query_index_build_deferred_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -7815,10 +7826,10 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "collection_drop", VALUE_FUNC(cb_Backend_collection_drop), 4);
 
     rb_define_method(cBackend, "query_index_get_all", VALUE_FUNC(cb_Backend_query_index_get_all), 2);
-    rb_define_method(cBackend, "query_index_create", VALUE_FUNC(cb_Backend_query_index_create), 5);
-    rb_define_method(cBackend, "query_index_create_primary", VALUE_FUNC(cb_Backend_query_index_create_primary), 3);
-    rb_define_method(cBackend, "query_index_drop", VALUE_FUNC(cb_Backend_query_index_drop), 4);
-    rb_define_method(cBackend, "query_index_drop_primary", VALUE_FUNC(cb_Backend_query_index_drop_primary), 3);
+    rb_define_method(cBackend, "query_index_create", VALUE_FUNC(cb_Backend_query_index_create), 4);
+    rb_define_method(cBackend, "query_index_create_primary", VALUE_FUNC(cb_Backend_query_index_create_primary), 2);
+    rb_define_method(cBackend, "query_index_drop", VALUE_FUNC(cb_Backend_query_index_drop), 3);
+    rb_define_method(cBackend, "query_index_drop_primary", VALUE_FUNC(cb_Backend_query_index_drop_primary), 2);
     rb_define_method(cBackend, "query_index_build_deferred", VALUE_FUNC(cb_Backend_query_index_build_deferred), 2);
     rb_define_method(cBackend, "query_index_watch", VALUE_FUNC(cb_Backend_query_index_watch), 4);
 
