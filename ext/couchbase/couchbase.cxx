@@ -3515,7 +3515,7 @@ cb_generate_bucket_settings(VALUE bucket, couchbase::operations::bucket_settings
 }
 
 static VALUE
-cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE timeout)
+cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -3526,11 +3526,14 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE timeout)
     }
 
     Check_Type(bucket_settings, T_HASH);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_create_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3556,7 +3559,7 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE timeout)
+cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -3567,10 +3570,13 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE timeout)
     }
 
     Check_Type(bucket_settings, T_HASH);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_update_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3595,7 +3601,7 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE timeout)
+cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -3606,11 +3612,14 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE timeout)
     }
 
     Check_Type(bucket_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_drop_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3631,7 +3640,7 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE timeout)
+cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -3642,11 +3651,14 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE timeout)
     }
 
     Check_Type(bucket_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_flush_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3767,7 +3779,7 @@ cb_extract_bucket_settings(const couchbase::operations::bucket_settings& entry, 
 }
 
 static VALUE
-cb_Backend_bucket_get_all(VALUE self, VALUE timeout)
+cb_Backend_bucket_get_all(VALUE self, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -3777,10 +3789,14 @@ cb_Backend_bucket_get_all(VALUE self, VALUE timeout)
         return Qnil;
     }
 
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_get_all_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -3808,7 +3824,7 @@ cb_Backend_bucket_get_all(VALUE self, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE timeout)
+cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -3819,11 +3835,14 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE timeout)
     }
 
     Check_Type(bucket_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::bucket_get_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }

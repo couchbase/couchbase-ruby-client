@@ -12,12 +12,220 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/errors"
-
 require "rubygems/deprecate"
+
+require "couchbase/errors"
+require "couchbase/options"
 
 module Couchbase
   module Management
+    module Options
+      module Bucket
+        # Options for {BucketManager#create_bucket}
+        class CreateBucket < ::Couchbase::Options::Base
+          # Creates an instance of options for {BucketManager#create_bucket}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [CreateBucket] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # Options for {BucketManager#update_bucket}
+        class UpdateBucket < ::Couchbase::Options::Base
+          # Creates an instance of options for {BucketManager#update_bucket}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [UpdateBucket] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # Options for {BucketManager#drop_bucket}
+        class DropBucket < ::Couchbase::Options::Base
+          # Creates an instance of options for {BucketManager#drop_bucket}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [DropBucket] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # Options for {BucketManager#get_bucket}
+        class GetBucket < ::Couchbase::Options::Base
+          # Creates an instance of options for {BucketManager#get_bucket}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetBucket] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # Options for {BucketManager#get_all_buckets}
+        class GetAllBuckets < ::Couchbase::Options::Base
+          # Creates an instance of options for {BucketManager#get_all_buckets}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetAllBuckets] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # Options for {BucketManager#flush_bucket}
+        class FlushBucket < ::Couchbase::Options::Base
+          # Creates an instance of options for {BucketManager#flush_bucket}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [FlushBucket] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # rubocop:disable Naming/MethodName constructor shortcuts
+        module_function
+
+        # Construct {CreateBucket} options for {BucketManager#create_bucket}
+        #
+        # @return [CreateBucket]
+        def CreateBucket(**args)
+          CreateBucket.new(**args)
+        end
+
+        # Construct {UpdateBucket} options for {BucketManager#update_bucket}
+        #
+        # @return [UpdateBucket]
+        def UpdateBucket(**args)
+          UpdateBucket.new(**args)
+        end
+
+        # Construct {DropBucket} options for {BucketManager#drop_bucket}
+        #
+        # @return [DropBucket]
+        def DropBucket(**args)
+          DropBucket.new(**args)
+        end
+
+        # Construct {GetBucket} options for {BucketManager#get_bucket}
+        #
+        # @return [GetBucket]
+        def GetBucket(**args)
+          GetBucket.new(**args)
+        end
+
+        # Construct {GetAllBuckets} options for {BucketManager#get_all_buckets}
+        #
+        # @return [GetAllBuckets]
+        def GetAllBuckets(**args)
+          GetAllBuckets.new(**args)
+        end
+
+        # Construct {FlushBucket} options for {BucketManager#flush_bucket}
+        #
+        # @return [FlushBucket]
+        def FlushBucket(**args)
+          FlushBucket.new(**args)
+        end
+
+        # rubocop:enable Naming/MethodName
+      end
+    end
+
     class BucketManager
       alias inspect to_s
 
@@ -29,13 +237,13 @@ module Couchbase
       # Creates new bucket
       #
       # @param [BucketSettings] settings bucket settings
-      # @param [CreateBucketOptions] options
+      # @param [Options::Bucket::CreateBucket] options
       #
       # @return void
       #
       # @raise [ArgumentError]
       # @raise [Error::BucketExists]
-      def create_bucket(settings, options = CreateBucketOptions.new)
+      def create_bucket(settings, options = Options::Bucket::CreateBucket.new)
         @backend.bucket_create(
           {
 
@@ -50,20 +258,20 @@ module Couchbase
             compression_mode: settings.compression_mode,
             minimum_durability_level: settings.minimum_durability_level,
             conflict_resolution_type: settings.conflict_resolution_type,
-          }, options.timeout
+          }, options.to_backend
         )
       end
 
       # Updates the bucket settings
       #
       # @param [BucketSettings] settings bucket settings
-      # @param [UpdateBucketOptions] options
+      # @param [Options::Bucket::UpdateBucket] options
       #
       # @return void
       #
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
-      def update_bucket(settings, options = UpdateBucketOptions.new)
+      def update_bucket(settings, options = Options::Bucket::UpdateBucket.new)
         @backend.bucket_update(
           {
             name: settings.name,
@@ -76,110 +284,80 @@ module Couchbase
             max_expiry: settings.max_expiry,
             compression_mode: settings.compression_mode,
             minimum_durability_level: settings.minimum_durability_level,
-          }, options.timeout
+          }, options.to_backend
         )
       end
 
       # Removes a bucket
       #
       # @param [String] bucket_name name of the bucket
-      # @param [DropBucketOptions] options
+      # @param [Options::Bucket::DropBucket] options
       #
       # @return void
       #
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
-      def drop_bucket(bucket_name, options = DropBucketOptions.new)
-        @backend.bucket_drop(bucket_name, options.timeout)
+      def drop_bucket(bucket_name, options = Options::Bucket::DropBucket.new)
+        @backend.bucket_drop(bucket_name, options.to_backend)
       end
 
       # Fetch settings of the bucket
       #
       # @param [String] bucket_name name of the bucket
-      # @param [GetBucketOptions] options
+      # @param [Options::Bucket::GetBucket] options
       #
       # @return [BucketSettings]
       #
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
-      def get_bucket(bucket_name, options = GetBucketOptions.new)
-        res = @backend.bucket_get(bucket_name, options.timeout)
-        extract_bucket_settings(res)
+      def get_bucket(bucket_name, options = Options::Bucket::GetBucket.new)
+        extract_bucket_settings(@backend.bucket_get(bucket_name, options.to_backend))
       end
 
       # Get settings for all buckets
       #
-      # @param [GetAllBucketsOptions] options
+      # @param [Options::Bucket::GetAllBuckets] options
       # @return [Array<BucketSettings>]
-      def get_all_buckets(options = GetAllBucketsOptions.new)
-        res = @backend.bucket_get_all(options.timeout)
-        res.map { |entry| extract_bucket_settings(entry) }
+      def get_all_buckets(options = Options::Bucket::GetAllBuckets.new)
+        @backend.bucket_get_all(options.to_backend)
+                .map { |entry| extract_bucket_settings(entry) }
       end
 
       # @param [String] bucket_name name of the bucket
+      # @param [Options::Bucket::FlushBucket] options
       #
       # @return void
       #
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
       # @raise [Error::BucketNotFlushable]
-      def flush_bucket(bucket_name, options = FlushBucketOptions.new)
-        @backend.bucket_flush(bucket_name, options.timeout)
+      def flush_bucket(bucket_name, options = Options::Bucket::FlushBucket.new)
+        @backend.bucket_flush(bucket_name, options.to_backend)
       end
 
-      class CreateBucketOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
+      # @api private
+      # TODO: deprecate after 3.2
+      CreateBucketOptions = ::Couchbase::Management::Options::Bucket::CreateBucket
 
-        def initialize
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # TODO: deprecate after 3.2
+      UpdateBucketOptions = ::Couchbase::Management::Options::Bucket::UpdateBucket
 
-      class UpdateBucketOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
+      # @api private
+      # TODO: deprecate after 3.2
+      DropBucketOptions = ::Couchbase::Management::Options::Bucket::DropBucket
 
-        def initialize
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # TODO: deprecate after 3.2
+      GetBucketOptions = ::Couchbase::Management::Options::Bucket::GetBucket
 
-      class DropBucketOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
+      # @api private
+      # TODO: deprecate after 3.2
+      GetAllBucketsOptions = ::Couchbase::Management::Options::Bucket::GetAllBuckets
 
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class GetBucketOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class GetAllBucketsOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class FlushBucketOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        def initialize
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # TODO: deprecate after 3.2
+      FlushBucketOptions = ::Couchbase::Management::Options::Bucket::FlushBucket
 
       private
 
@@ -263,12 +441,14 @@ module Couchbase
       def ejection_policy
         @eviction_policy
       end
+
       deprecate :ejection_policy, :eviction_policy, 2021, 1
 
       # @deprecated Use {#eviction_policy=} instead
       def ejection_policy=(val)
         @eviction_policy = val
       end
+
       deprecate :ejection_policy=, :eviction_policy=, 2021, 1
 
       # @yieldparam [BucketSettings] self
