@@ -35,15 +35,8 @@ module Couchbase
                          retry_strategy: nil,
                          client_context: nil,
                          parent_span: nil)
-            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            super
             yield self if block_given?
-          end
-
-          # @api private
-          def to_backend
-            {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
-            }
           end
         end
 
@@ -61,15 +54,8 @@ module Couchbase
                          retry_strategy: nil,
                          client_context: nil,
                          parent_span: nil)
-            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            super
             yield self if block_given?
-          end
-
-          # @api private
-          def to_backend
-            {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
-            }
           end
         end
 
@@ -87,15 +73,8 @@ module Couchbase
                          retry_strategy: nil,
                          client_context: nil,
                          parent_span: nil)
-            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            super
             yield self if block_given?
-          end
-
-          # @api private
-          def to_backend
-            {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
-            }
           end
         end
 
@@ -113,15 +92,8 @@ module Couchbase
                          retry_strategy: nil,
                          client_context: nil,
                          parent_span: nil)
-            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            super
             yield self if block_given?
-          end
-
-          # @api private
-          def to_backend
-            {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
-            }
           end
         end
 
@@ -139,15 +111,8 @@ module Couchbase
                          retry_strategy: nil,
                          client_context: nil,
                          parent_span: nil)
-            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            super
             yield self if block_given?
-          end
-
-          # @api private
-          def to_backend
-            {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
-            }
           end
         end
 

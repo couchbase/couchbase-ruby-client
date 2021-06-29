@@ -40,6 +40,13 @@ module Couchbase
         @parent_span = parent_span
         yield self if block_given?
       end
+
+      # @api private
+      def to_backend
+        {
+          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+        }
+      end
     end
 
     # Options for {Collection#get}
