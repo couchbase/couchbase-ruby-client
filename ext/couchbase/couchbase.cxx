@@ -4493,7 +4493,7 @@ cb_Backend_cluster_enable_developer_preview(VALUE self)
 }
 
 static VALUE
-cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
+cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -4504,11 +4504,14 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE timeout)
     }
 
     Check_Type(bucket_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(bucket_name, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::scope_get_all_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4605,7 +4608,7 @@ cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout
 }
 
 static VALUE
-cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE timeout)
+cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -4617,11 +4620,14 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE t
 
     Check_Type(bucket_name, T_STRING);
     Check_Type(scope_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::scope_create_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4644,7 +4650,7 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE t
 }
 
 static VALUE
-cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE timeout)
+cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -4656,11 +4662,14 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE tim
 
     Check_Type(bucket_name, T_STRING);
     Check_Type(scope_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::scope_drop_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4683,7 +4692,7 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE tim
 }
 
 static VALUE
-cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE max_expiry, VALUE timeout)
+cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE max_expiry, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -4696,11 +4705,14 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
     Check_Type(bucket_name, T_STRING);
     Check_Type(scope_name, T_STRING);
     Check_Type(collection_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::collection_create_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
@@ -4731,7 +4743,7 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
 }
 
 static VALUE
-cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE timeout)
+cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE options)
 {
     cb_backend_data* backend = nullptr;
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
@@ -4744,11 +4756,14 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
     Check_Type(bucket_name, T_STRING);
     Check_Type(scope_name, T_STRING);
     Check_Type(collection_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
         couchbase::operations::collection_drop_request req{};
-        exc = cb_extract_timeout(req, timeout);
+        exc = cb_extract_timeout(req, options);
         if (!NIL_P(exc)) {
             break;
         }
