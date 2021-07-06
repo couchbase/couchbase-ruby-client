@@ -67,6 +67,17 @@ url_decode(std::string& s)
     return false;
 }
 
+std::string
+url_decode(const std::string& src)
+{
+    std::string dst{};
+    size_t n = 0;
+    if (url_decode(src.begin(), src.end(), dst.begin(), n)) {
+        dst.resize(n);
+    }
+    return dst;
+}
+
 namespace priv
 {
 inline bool
@@ -176,6 +187,14 @@ url_encode(const Tin& in, Tout& out)
     return url_encode(in.begin(), in.end(), out);
 }
 
+std::string
+url_encode(const std::string& src)
+{
+    std::string dst{};
+    url_encode(src.begin(), src.end(), dst);
+    return dst;
+}
+
 /* See: https://url.spec.whatwg.org/#urlencoded-serializing: */
 /*
  * 0x2A
@@ -221,5 +240,222 @@ form_encode(const std::string& src)
     form_encode(src.begin(), src.end(), dst);
     return dst;
 }
+
+namespace v2
+{
+enum class encoding {
+    encode_path,
+    encode_path_segment,
+    encode_host,
+    encode_zone,
+    encode_user_password,
+    encode_query_component,
+    encode_fragment,
+};
+
+bool
+should_escape(char c, encoding mode)
+{
+    // §2.3 Unreserved characters (alphanum)
+    if (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9')) {
+        return false;
+    }
+
+    if (mode == encoding::encode_host || mode == encoding::encode_zone) {
+        // §3.2.2 Host allows
+        //	sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
+        // as part of reg-name.
+        // We add : because we include :port as part of host.
+        // We add [ ] because we include [ipv6]:port as part of host.
+        // We add < > because they're the only characters left that we could possibly allow, and Parse will reject them if we escape them
+        // (because hosts can't use %-encoding for ASCII bytes).
+        switch (c) {
+            case '!':
+            case '$':
+            case '&':
+            case '\'':
+            case '(':
+            case ')':
+            case '*':
+            case '+':
+            case ',':
+            case ';':
+            case '=':
+            case ':':
+            case '[':
+            case ']':
+            case '<':
+            case '>':
+            case '"':
+                return false;
+
+            default:
+                break;
+        }
+    }
+
+    switch (c) {
+        case '-':
+        case '_':
+        case '.':
+        case '~':
+            // §2.3 Unreserved characters (mark)
+            return false;
+
+        case '$':
+        case '&':
+        case '+':
+        case ',':
+        case '/':
+        case ':':
+        case ';':
+        case '=':
+        case '?':
+        case '@':
+            // §2.2 Reserved characters (reserved)
+            // Different sections of the URL allow a few of
+            // the reserved characters to appear unescaped.
+            switch (mode) {
+                case encoding::encode_path: // §3.3
+                    // The RFC allows : @ & = + $ but saves / ; , for assigning meaning to individual path segments. This package only
+                    // manipulates the path as a whole, so we allow those last three as well. That leaves only ? to escape.
+                    return c == '?';
+
+                case encoding::encode_path_segment: // §3.3
+                    // The RFC allows : @ & = + $ but saves / ; , for assigning meaning to individual path segments.
+                    return c == '/' || c == ';' || c == ',' || c == '?';
+
+                case encoding::encode_user_password: // §3.2.1
+                    // The RFC allows ';', ':', '&', '=', '+', '$', and ',' in userinfo, so we must escape only '@', '/', and '?'. The
+                    // parsing of userinfo treats ':' as special so we must escape that too.
+                    return c == '@' || c == '/' || c == '?' || c == ':';
+
+                case encoding::encode_query_component: // §3.4
+                    // The RFC reserves (so we must escape) everything.
+                    return true;
+
+                case encoding::encode_fragment: // §4.1
+                    // The RFC text is silent but the grammar allows everything, so escape nothing.
+                    return false;
+
+                default:
+                    break;
+            }
+
+        default:
+            break;
+    }
+
+    if (mode == encoding::encode_fragment) {
+        // RFC 3986 §2.2 allows not escaping sub-delims. A subset of sub-delims are included in reserved from RFC 2396 §2.2. The remaining
+        // sub-delims do not need to be escaped. To minimize potential breakage, we apply two restrictions: (1) we always escape sub-delims
+        // outside of the fragment, and (2) we always escape single quote to avoid breaking callers that had previously assumed that single
+        // quotes would be escaped. See issue #19917.
+        switch (c) {
+            case '!':
+            case '(':
+            case ')':
+            case '*':
+                return false;
+
+            default:
+                break;
+        }
+    }
+
+    // Everything else must be escaped.
+    return true;
+}
+
+constexpr auto upper_hex = "0123456789ABCDEF";
+
+std::string
+escape(const std::string& s, encoding mode)
+{
+    std::size_t space_count{ 0 };
+    std::size_t hex_count{ 0 };
+
+    for (const auto& c : s) {
+        if (should_escape(c, mode)) {
+            if (c == ' ' && mode == encoding::encode_query_component) {
+                ++space_count;
+            } else {
+                ++hex_count;
+            }
+        }
+    }
+
+    if (space_count == 0 && hex_count == 0) {
+        return s;
+    }
+
+    std::size_t required = s.size() + 2 * hex_count;
+    std::string t;
+    t.resize(required);
+
+    if (hex_count == 0) {
+        for (std::size_t i = 0; i < s.size(); ++i) {
+            if (s[i] == ' ') {
+                t[i] = '+';
+            } else {
+                t[i] = s[i];
+            }
+        }
+        return t;
+    }
+
+    std::size_t j{ 0 };
+    for (const auto& c : s) {
+        if (c == ' ' && mode == encoding::encode_query_component) {
+            t[j++] = '+';
+        } else if (should_escape(c, mode)) {
+            t[j++] = '%';
+            t[j++] = upper_hex[(c >> 4U) & 0x0f];
+            t[j++] = upper_hex[c & 0x0f];
+        } else {
+            t[j++] = c;
+        }
+    }
+    return t;
+}
+
+/**
+ * Escapes the string so it can be safely placed inside a URL query.
+ *
+ * @param s
+ * @return
+ */
+std::string
+query_escape(const std::string& s)
+{
+    return escape(s, encoding::encode_query_component);
+}
+
+/**
+ * Escapes the string so it can be safely placed inside a URL path segment, replacing special characters (including /) with %XX sequences as
+ * needed.
+ */
+std::string
+path_escape(const std::string& s)
+{
+    return escape(s, encoding::encode_path);
+}
+
+std::string
+form_encode(const std::map<std::string, std::string>& values)
+{
+    std::stringstream ss;
+    bool first{ true };
+    for (const auto& [key, value] : values) {
+        if (first) {
+            first = false;
+        } else {
+            ss << '&';
+        }
+        ss << query_escape(key) << '=' << query_escape(value);
+    }
+    return ss.str();
+}
+} // namespace v2
 
 } // namespace couchbase::utils::string_codec

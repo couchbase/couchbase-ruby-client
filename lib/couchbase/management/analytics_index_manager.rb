@@ -304,7 +304,7 @@ module Couchbase
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
-          # @yieldparam [ConnectLinkOptions] self
+          # @yieldparam [ConnectLink] self
           def initialize(link_name: "Local",
                          force: false,
                          dataverse_name: nil,
@@ -345,7 +345,7 @@ module Couchbase
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
-          # @yieldparam [DisconnectLinkOptions] self
+          # @yieldparam [DisconnectLink] self
           def initialize(link_name: "Local",
                          dataverse_name: nil,
                          timeout: nil,
@@ -384,6 +384,130 @@ module Couchbase
                          parent_span: nil)
             super
             yield self if block_given?
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#create_link}
+        class CreateLink < ::Couchbase::Options::Base
+          # Creates an instance of options for {AnalyticsIndexManager#create_link}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [CreateLink] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#replace_link}
+        class ReplaceLink < ::Couchbase::Options::Base
+          # Creates an instance of options for {AnalyticsIndexManager#replace_link}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [ReplaceLink] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#drop_link}
+        class DropLink < ::Couchbase::Options::Base
+          # Creates an instance of options for {AnalyticsIndexManager#drop_link}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [DropLink] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+            }
+          end
+        end
+
+        # Options for {AnalyticsIndexManager#get_links}
+        class GetLinks < ::Couchbase::Options::Base
+          attr_accessor :dataverse # @return [String, nil]
+          attr_accessor :link_type # @return [Symbol, nil]
+          attr_accessor :name # @return [String, nil]
+
+          # Creates an instance of options for {AnalyticsIndexManager#get_links}
+          #
+          # @param [:s3, :azureblob, :couchbase, nil] link_type restricts the results to the given link type.
+          # @param [String, nil] dataverse restricts the results to a given dataverse, can be given in the form of
+          #   "namepart" or "namepart1/namepart2".
+          # @param [String, nil] name restricts the results to the link with the specified name. If set then dataverse
+          #   must also be set.
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to
+          #   complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Hash, nil] client_context the client context data, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetLinks] self
+          def initialize(link_type: nil,
+                         dataverse: nil,
+                         name: nil,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         client_context: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            @link_type = link_type
+            @dataverse = dataverse
+            @name = name
+            yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              link_type: @link_type.to_s,
+              dataverse: @dataverse,
+              name: @name,
+            }
           end
         end
 
@@ -465,6 +589,34 @@ module Couchbase
         # @return [GetPendingMutations]
         def GetPendingMutations(**args)
           GetPendingMutations.new(**args)
+        end
+
+        # Construct {CreateLink} options for {AnalyticsIndexManager#create_link}
+        #
+        # @return [CreateLink]
+        def CreateLink(**args)
+          CreateLink.new(**args)
+        end
+
+        # Construct {ReplaceLink} options for {AnalyticsIndexManager#replace_link}
+        #
+        # @return [ReplaceLink]
+        def ReplaceLink(**args)
+          ReplaceLink.new(**args)
+        end
+
+        # Construct {DropLink} options for {AnalyticsIndexManager#drop_link}
+        #
+        # @return [DropLink]
+        def DropLink(**args)
+          DropLink.new(**args)
+        end
+
+        # Construct {GetLinks} options for {AnalyticsIndexManager#get_links}
+        #
+        # @return [GetLinks]
+        def GetLinks(**args)
+          GetLinks.new(**args)
         end
 
         # rubocop:enable Naming/MethodName
@@ -633,6 +785,91 @@ module Couchbase
         @backend.analytics_get_pending_mutations(options.to_backend)
       end
 
+      # Creates a link
+      #
+      # @param [CouchbaseRemoteAnalyticsLink, AzureBlobExternalAnalyticsLink, S3ExternalAnalyticsLink] link
+      # @param [Options::Analytics::CreateLink] options
+      #
+      # @return [void]
+      #
+      # @raise [ArgumentError]
+      # @raise [Error::LinkExists]
+      def create_link(link, options = Options::Analytics::CreateLink.new)
+        @backend.analytics_link_create(link.to_backend, options.to_backend)
+      end
+
+      # Replaces the link
+      #
+      # @param [CouchbaseRemoteAnalyticsLink, AzureBlobExternalAnalyticsLink, S3ExternalAnalyticsLink] link
+      # @param [Options::Analytics::ReplaceLink] options
+      #
+      # @return [void]
+      #
+      # @raise [ArgumentError]
+      # @raise [Error::LinkNotFound]
+      def replace_link(link, options = Options::Analytics::ReplaceLink.new)
+        @backend.analytics_link_replace(link.to_backend, options.to_backend)
+      end
+
+      # Drops the link
+      #
+      # @param [String] link_name name of the link
+      # @param [String] dataverse_name dataverse where the link belongs
+      # @param [Options::Analytics::DropLink] options
+      #
+      # @return [void]
+      #
+      # @raise [ArgumentError]
+      # @raise [Error::LinkNotFound]
+      def drop_link(link_name, dataverse_name, options = Options::Analytics::DropLink.new)
+        @backend.analytics_link_drop(link_name, dataverse_name, options.to_backend)
+      end
+
+      # Retrieves the links
+      #
+      # @param [Options::Analytics::GetLinks] options
+      #
+      # @return [void]
+      #
+      # @raise [ArgumentError]
+      # @raise [Error::LinkNotFound]
+      def get_links(options = Options::Analytics::GetLinks.new)
+        resp = @backend.analytics_link_get_all(options.to_backend)
+        resp.map do |entry|
+          case entry[:type]
+          when :s3
+            S3ExternalAnalyticsLink.new(
+              entry[:link_name],
+              entry[:dataverse],
+              entry[:access_key_id],
+              nil,
+              entry[:region],
+              service_endpoint: entry[:service_endpoint]
+            )
+          when :couchbase
+            CouchbaseRemoteAnalyticsLink.new(
+              entry[:link_name],
+              entry[:dataverse],
+              entry[:hostname],
+              username: entry[:username],
+              encryption: EncryptionSettings.new(
+                level: entry[:encryption_level],
+                certificate: entry[:certificate],
+                client_certificate: entry[:client_certificate]
+              )
+            )
+          when :azureblob
+            AzureBlobExternalAnalyticsLink.new(
+              entry[:link_name],
+              entry[:dataverse],
+              account_name: entry[:account_name],
+              blob_endpoint: entry[:blob_endpoint],
+              endpoint_suffix: entry[:endpoint_suffix]
+            )
+          end
+        end
+      end
+
       # @api private
       # TODO: deprecate after 3.2
       CreateDataverseOptions = ::Couchbase::Management::Options::Analytics::CreateDataverse
@@ -710,6 +947,180 @@ module Couchbase
       # @yieldparam [AnalyticsIndex]
       def initialize
         yield self if block_given?
+      end
+    end
+
+    class EncryptionSettings
+      attr_accessor :level # @return [Symbol]
+      attr_accessor :certificate # @return [String, nil]
+      attr_accessor :client_certificate # @return [String, nil]
+      attr_accessor :client_key # @return [String, nil]
+
+      # @param [:none, :half, :full] level Specifies what level of encryption should be used.
+      # @param [String, nil] certificate
+      # @param [String, nil] client_certificate
+      # @param [String, nil] client_key
+      #
+      # @yieldparam [EncryptionSettings] self
+      def initialize(level: :none,
+                     certificate: nil,
+                     client_certificate: nil,
+                     client_key: nil)
+        @level = level
+        @certificate = certificate
+        @client_certificate = client_certificate
+        @client_key = client_key
+        yield self if block_given?
+      end
+    end
+
+    class CouchbaseRemoteAnalyticsLink
+      attr_accessor :name # @return [String]
+      attr_accessor :dataverse # @return [String]
+      attr_accessor :hostname # @return [String]
+      attr_accessor :username # @return [String, nil]
+      attr_accessor :password # @return [String, nil]
+      attr_accessor :encryption # @return [EncryptionSettings]
+
+      # @param [String] name the name of this link
+      # @param [String] dataverse the dataverse this link belongs to
+      # @param [String] hostname the hostname of the target Couchbase cluster
+      # @param [String, nil] username the username to use for authentication with the remote cluster. Optional if
+      #   client-certificate authentication is being used.
+      # @param [String, nil] password the password to use for authentication with the remote cluster. Optional if
+      #   client-certificate authentication is being used.
+      # @param [EncryptionSettings] encryption settings for connection encryption
+      #
+      # @yieldparam [CouchbaseRemoteLink] self
+      def initialize(name, dataverse, hostname,
+                     username: nil,
+                     password: nil,
+                     encryption: EncryptionSettings.new)
+        @name = name
+        @dataverse = dataverse
+        @hostname = hostname
+        @username = username
+        @password = password
+        @encryption = encryption
+        yield self if block_given?
+      end
+
+      # @api private
+      def to_backend
+        {
+          type: :couchbase,
+          link_name: @name,
+          dataverse: @dataverse,
+          hostname: @hostname,
+          username: @username,
+          password: @password,
+          encryption_level: @encryption.level,
+          certificate: @encryption.certificate,
+          client_certificate: @encryption.client_certificate,
+          client_key: @encryption.client_key,
+        }
+      end
+    end
+
+    class AzureBlobExternalAnalyticsLink
+      attr_accessor :name # @return [String]
+      attr_accessor :dataverse # @return [String]
+      attr_accessor :connection_string # @return [String, nil]
+      attr_accessor :account_name # @return [String, nil]
+      attr_accessor :account_key # @return [String, nil]
+      attr_accessor :shared_access_signature # @return [String, nil]
+      attr_accessor :blob_endpoint # @return [String, nil]
+      attr_accessor :endpoint_suffix # @return [String, nil]
+
+      # @param [String] name the name of this link
+      # @param [String] dataverse the dataverse this link belongs to
+      # @param [String, nil] connection_string the connection string can be used as an authentication method,
+      #  +connection_string+ contains other authentication methods embedded inside the string. Only a single
+      #  authentication method can be used. (e.g. "AccountName=myAccountName;AccountKey=myAccountKey").
+      # @param [String, nil] account_name Azure blob storage account name
+      # @param [String, nil] account_key Azure blob storage account key
+      # @param [String, nil] shared_access_signature token that can be used for authentication
+      # @param [String, nil] blob_endpoint Azure blob storage endpoint
+      # @param [String, nil] endpoint_suffix Azure blob endpoint suffix
+      #
+      # @yieldparam [AzureBlobExternalAnalyticsLink] self
+      def initialize(name, dataverse,
+                     connection_string: nil,
+                     account_name: nil,
+                     account_key: nil,
+                     shared_access_signature: nil,
+                     blob_endpoint: nil,
+                     endpoint_suffix: nil)
+        @name = name
+        @dataverse = dataverse
+        @connection_string = connection_string
+        @account_name = account_name
+        @account_key = account_key
+        @shared_access_signature = shared_access_signature
+        @blob_endpoint = blob_endpoint
+        @endpoint_suffix = endpoint_suffix
+        yield self if block_given?
+      end
+
+      # @api private
+      def to_backend
+        {
+          type: :azureblob,
+          link_name: @name,
+          dataverse: @dataverse,
+          connection_string: @connection_string,
+          account_name: @account_name,
+          account_key: @account_key,
+          shared_access_signature: @shared_access_signature,
+          blob_endpoint: @blob_endpoint,
+          endpoint_suffix: @endpoint_suffix,
+        }
+      end
+    end
+
+    class S3ExternalAnalyticsLink
+      attr_accessor :name # @return [String]
+      attr_accessor :dataverse # @return [String]
+      attr_accessor :access_key_id # @return [String]
+      attr_accessor :secret_access_key # @return [String]
+      attr_accessor :session_token # @return [String, nil]
+      attr_accessor :region # @return [String]
+      attr_accessor :service_endpoint # @return [String, nil]
+
+      # @param [String] name the name of this link
+      # @param [String] dataverse the dataverse this link belongs to
+      # @param [String] access_key_id AWS S3 access key ID
+      # @param [String] secret_access_key AWS S3 secret key
+      # @param [String] region  AWS S3 region
+      # @param [String, nil] session_token AWS S3 token if temporary credentials are provided. Only available in 7.0+
+      # @param [String, nil] service_endpoint AWS S3 service endpoint
+      #
+      # @yieldparam [S3ExternalAnalyticsLink] self
+      def initialize(name, dataverse, access_key_id, secret_access_key, region,
+                     session_token: nil,
+                     service_endpoint: nil)
+        @name = name
+        @dataverse = dataverse
+        @access_key_id = access_key_id
+        @secret_access_key = secret_access_key
+        @session_token = session_token
+        @region = region
+        @service_endpoint = service_endpoint
+        yield self if block_given?
+      end
+
+      # @api private
+      def to_backend
+        {
+          type: :s3,
+          link_name: @name,
+          dataverse: @dataverse,
+          access_key_id: @access_key_id,
+          secret_access_key: @secret_access_key,
+          session_token: @session_token,
+          region: @region,
+          service_endpoint: @service_endpoint,
+        }
       end
     end
   end

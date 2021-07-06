@@ -42,6 +42,7 @@
 #include <ruby/version.h>
 #endif
 #include <ruby/thread.h>
+#include <operations/analytics_link_drop.hxx>
 
 #if defined(RB_METHOD_DEFINITION_DECL) || RUBY_API_VERSION_MAJOR == 3
 #define VALUE_FUNC(f) f
@@ -55,6 +56,15 @@ static inline VALUE
 cb_str_new(const std::string& str)
 {
     return rb_external_str_new(str.data(), static_cast<long>(str.size()));
+}
+
+static inline VALUE
+cb_str_new(const std::optional<std::string>& str)
+{
+    if (str) {
+        return rb_external_str_new(str->data(), static_cast<long>(str->size()));
+    }
+    return Qnil;
 }
 
 static void
@@ -97,8 +107,8 @@ init_versions(VALUE mCouchbase)
 #endif
 
     VALUE version_info = rb_inspect(cb_Version);
-    spdlog::info("couchbase backend has been initialized: {}",
-                 std::string_view(RSTRING_PTR(version_info), static_cast<std::size_t>(RSTRING_LEN(version_info))));
+    spdlog::debug("couchbase backend has been initialized: {}",
+                  std::string_view(RSTRING_PTR(version_info), static_cast<std::size_t>(RSTRING_LEN(version_info))));
 
     VALUE cb_BuildInfo = rb_hash_new();
     rb_const_set(mCouchbase, rb_intern("BUILD_INFO"), cb_BuildInfo);
@@ -235,6 +245,7 @@ static VALUE eInternalServerFailure;
 static VALUE eInvalidArgument;
 static VALUE eJobQueueFull;
 static VALUE eLinkNotFound;
+static VALUE eLinkExists;
 static VALUE eNumberTooBig;
 static VALUE eParsingFailure;
 static VALUE ePathExists;
@@ -317,6 +328,7 @@ init_exceptions(VALUE mCouchbase)
     eInvalidArgument = rb_define_class_under(mError, "InvalidArgument", rb_eArgError);
     eJobQueueFull = rb_define_class_under(mError, "JobQueueFull", eCouchbaseError);
     eLinkNotFound = rb_define_class_under(mError, "LinkNotFound", eCouchbaseError);
+    eLinkExists = rb_define_class_under(mError, "LinkExists", eCouchbaseError);
     eNumberTooBig = rb_define_class_under(mError, "NumberTooBig", eCouchbaseError);
     eParsingFailure = rb_define_class_under(mError, "ParsingFailure", eCouchbaseError);
     ePathExists = rb_define_class_under(mError, "PathExists", eCouchbaseError);
@@ -541,6 +553,9 @@ cb_map_error_code(std::error_code ec, const std::string& message)
 
             case couchbase::error::analytics_errc::link_not_found:
                 return rb_exc_new_cstr(eLinkNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+
+            case couchbase::error::analytics_errc::link_exists:
+                return rb_exc_new_cstr(eLinkExists, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_management_category()) {
         switch (couchbase::error::management_errc(ec.value())) {
@@ -1304,6 +1319,40 @@ cb_extract_option_string(VALUE& val, VALUE options, const char* name)
             return Qnil;
         }
         if (TYPE(val) == T_STRING) {
+            return Qnil;
+        }
+        return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be an String, but given %+" PRIsVALUE, name, val));
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb_extract_option_string(std::string& target, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        if (TYPE(val) == T_STRING) {
+            target.assign(RSTRING_PTR(val), static_cast<size_t>(RSTRING_LEN(val)));
+            return Qnil;
+        }
+        return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be an String, but given %+" PRIsVALUE, name, val));
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb_extract_option_string(std::optional<std::string>& target, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        if (TYPE(val) == T_STRING) {
+            target.emplace(std::string(RSTRING_PTR(val), static_cast<size_t>(RSTRING_LEN(val))));
             return Qnil;
         }
         return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be an String, but given %+" PRIsVALUE, name, val));
@@ -6955,6 +7004,568 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE options)
     return Qnil;
 }
 
+static VALUE
+cb_fill_link(couchbase::operations::analytics_link::couchbase_remote& dst, VALUE src)
+{
+    VALUE exc;
+
+    exc = cb_extract_option_string(dst.link_name, src, "link_name");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.dataverse, src, "dataverse");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.hostname, src, "hostname");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.username, src, "username");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.password, src, "password");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    VALUE encryption_level = Qnil;
+    exc = cb_extract_option_symbol(encryption_level, src, "encryption_level");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    if (NIL_P(encryption_level)) {
+        encryption_level = rb_id2sym(rb_intern("none"));
+    }
+    ID level = rb_sym2id(encryption_level);
+    if (level == rb_intern("none")) {
+        dst.encryption.level = couchbase::operations::analytics_link::encryption_level::none;
+    } else if (level == rb_intern("half")) {
+        dst.encryption.level = couchbase::operations::analytics_link::encryption_level::half;
+    } else if (level == rb_intern("full")) {
+        dst.encryption.level = couchbase::operations::analytics_link::encryption_level::full;
+    }
+    exc = cb_extract_option_string(dst.encryption.certificate, src, "certificate");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.encryption.client_certificate, src, "client_certificate");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.encryption.client_key, src, "client_key");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_fill_link(couchbase::operations::analytics_link::azure_blob_external& dst, VALUE src)
+{
+    VALUE exc;
+
+    exc = cb_extract_option_string(dst.link_name, src, "link_name");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.dataverse, src, "dataverse");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.connection_string, src, "connection_string");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.account_name, src, "account_name");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.account_key, src, "account_key");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.shared_access_signature, src, "shared_access_signature");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.blob_endpoint, src, "blob_endpoint");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.endpoint_suffix, src, "endpoint_suffix");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_fill_link(couchbase::operations::analytics_link::s3_external& dst, VALUE src)
+{
+    VALUE exc;
+
+    exc = cb_extract_option_string(dst.link_name, src, "link_name");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.dataverse, src, "dataverse");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.access_key_id, src, "access_key_id");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.secret_access_key, src, "secret_access_key");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.session_token, src, "session_token");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.region, src, "region");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    exc = cb_extract_option_string(dst.service_endpoint, src, "service_endpoint");
+    if (!NIL_P(exc)) {
+        return exc;
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
+    }
+
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        VALUE link_type = Qnil;
+        exc = cb_extract_option_symbol(link_type, link, "type");
+        if (!NIL_P(exc)) {
+            return exc;
+        }
+
+        ID type = rb_sym2id(link_type);
+        if (type == rb_intern("couchbase")) {
+            couchbase::operations::analytics_link_create_request<couchbase::operations::analytics_link::couchbase_remote> req{};
+            exc = cb_extract_timeout(req, options);
+            if (!NIL_P(exc)) {
+                break;
+            }
+            exc = cb_fill_link(req.link, link);
+            if (!NIL_P(exc)) {
+                break;
+            }
+
+            auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_create_response>>();
+            auto f = barrier->get_future();
+            backend->cluster->execute_http(
+              req, [barrier](couchbase::operations::analytics_link_create_response&& resp) mutable { barrier->set_value(resp); });
+            auto resp = cb_wait_for_future(f);
+
+            if (resp.ctx.ec) {
+                if (resp.errors.empty()) {
+                    exc = cb_map_error_code(
+                      resp.ctx, fmt::format("unable to create couchbase_remote link `{}` on `{}`", req.link.link_name, req.link.dataverse));
+                } else {
+                    const auto& first_error = resp.errors.front();
+                    exc = cb_map_error_code(resp.ctx,
+                                            fmt::format("unable to create couchbase_remote link `{}` on `{}` ({}: {})",
+                                                        req.link.link_name,
+                                                        req.link.dataverse,
+                                                        first_error.code,
+                                                        first_error.message));
+                }
+                break;
+            }
+
+        } else if (type == rb_intern("azureblob")) {
+            couchbase::operations::analytics_link_create_request<couchbase::operations::analytics_link::azure_blob_external> req{};
+            exc = cb_extract_timeout(req, options);
+            if (!NIL_P(exc)) {
+                break;
+            }
+
+            exc = cb_fill_link(req.link, link);
+            if (!NIL_P(exc)) {
+                break;
+            }
+
+            auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_create_response>>();
+            auto f = barrier->get_future();
+            backend->cluster->execute_http(
+              req, [barrier](couchbase::operations::analytics_link_create_response&& resp) mutable { barrier->set_value(resp); });
+            auto resp = cb_wait_for_future(f);
+
+            if (resp.ctx.ec) {
+                if (resp.errors.empty()) {
+                    exc = cb_map_error_code(
+                      resp.ctx,
+                      fmt::format("unable to create azure_blob_external link `{}` on `{}`", req.link.link_name, req.link.dataverse));
+                } else {
+                    const auto& first_error = resp.errors.front();
+                    exc = cb_map_error_code(resp.ctx,
+                                            fmt::format("unable to create azure_blob_external link `{}` on `{}` ({}: {})",
+                                                        req.link.link_name,
+                                                        req.link.dataverse,
+                                                        first_error.code,
+                                                        first_error.message));
+                }
+                break;
+            }
+
+        } else if (type == rb_intern("s3")) {
+            couchbase::operations::analytics_link_create_request<couchbase::operations::analytics_link::s3_external> req{};
+            exc = cb_extract_timeout(req, options);
+            if (!NIL_P(exc)) {
+                break;
+            }
+
+            exc = cb_fill_link(req.link, link);
+            if (!NIL_P(exc)) {
+                break;
+            }
+
+            auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_create_response>>();
+            auto f = barrier->get_future();
+            backend->cluster->execute_http(
+              req, [barrier](couchbase::operations::analytics_link_create_response&& resp) mutable { barrier->set_value(resp); });
+            auto resp = cb_wait_for_future(f);
+
+            if (resp.ctx.ec) {
+                if (resp.errors.empty()) {
+                    exc = cb_map_error_code(
+                      resp.ctx, fmt::format("unable to create s3_external link `{}` on `{}`", req.link.link_name, req.link.dataverse));
+                } else {
+                    const auto& first_error = resp.errors.front();
+                    exc = cb_map_error_code(resp.ctx,
+                                            fmt::format("unable to create s3_external link `{}` on `{}` ({}: {})",
+                                                        req.link.link_name,
+                                                        req.link.dataverse,
+                                                        first_error.code,
+                                                        first_error.message));
+                }
+                break;
+            }
+        }
+
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
+    }
+
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        VALUE link_type = Qnil;
+        exc = cb_extract_option_symbol(link_type, link, "type");
+        if (!NIL_P(exc)) {
+            return exc;
+        }
+
+        ID type = rb_sym2id(link_type);
+        if (type == rb_intern("couchbase")) {
+            couchbase::operations::analytics_link_replace_request<couchbase::operations::analytics_link::couchbase_remote> req{};
+            exc = cb_extract_timeout(req, options);
+            if (!NIL_P(exc)) {
+                break;
+            }
+            exc = cb_fill_link(req.link, link);
+            if (!NIL_P(exc)) {
+                break;
+            }
+
+            auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_replace_response>>();
+            auto f = barrier->get_future();
+            backend->cluster->execute_http(
+              req, [barrier](couchbase::operations::analytics_link_replace_response&& resp) mutable { barrier->set_value(resp); });
+            auto resp = cb_wait_for_future(f);
+
+            if (resp.ctx.ec) {
+                if (resp.errors.empty()) {
+                    exc = cb_map_error_code(
+                      resp.ctx,
+                      fmt::format("unable to replace couchbase_remote link `{}` on `{}`", req.link.link_name, req.link.dataverse));
+                } else {
+                    const auto& first_error = resp.errors.front();
+                    exc = cb_map_error_code(resp.ctx,
+                                            fmt::format("unable to replace couchbase_remote link `{}` on `{}` ({}: {})",
+                                                        req.link.link_name,
+                                                        req.link.dataverse,
+                                                        first_error.code,
+                                                        first_error.message));
+                }
+                break;
+            }
+
+        } else if (type == rb_intern("azureblob")) {
+            couchbase::operations::analytics_link_replace_request<couchbase::operations::analytics_link::azure_blob_external> req{};
+            exc = cb_extract_timeout(req, options);
+            if (!NIL_P(exc)) {
+                break;
+            }
+
+            exc = cb_fill_link(req.link, link);
+            if (!NIL_P(exc)) {
+                break;
+            }
+
+            auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_replace_response>>();
+            auto f = barrier->get_future();
+            backend->cluster->execute_http(
+              req, [barrier](couchbase::operations::analytics_link_replace_response&& resp) mutable { barrier->set_value(resp); });
+            auto resp = cb_wait_for_future(f);
+
+            if (resp.ctx.ec) {
+                if (resp.errors.empty()) {
+                    exc = cb_map_error_code(
+                      resp.ctx,
+                      fmt::format("unable to replace azure_blob_external link `{}` on `{}`", req.link.link_name, req.link.dataverse));
+                } else {
+                    const auto& first_error = resp.errors.front();
+                    exc = cb_map_error_code(resp.ctx,
+                                            fmt::format("unable to replace azure_blob_external link `{}` on `{}` ({}: {})",
+                                                        req.link.link_name,
+                                                        req.link.dataverse,
+                                                        first_error.code,
+                                                        first_error.message));
+                }
+                break;
+            }
+
+        } else if (type == rb_intern("s3")) {
+            couchbase::operations::analytics_link_replace_request<couchbase::operations::analytics_link::s3_external> req{};
+            exc = cb_extract_timeout(req, options);
+            if (!NIL_P(exc)) {
+                break;
+            }
+
+            exc = cb_fill_link(req.link, link);
+            if (!NIL_P(exc)) {
+                break;
+            }
+
+            auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_replace_response>>();
+            auto f = barrier->get_future();
+            backend->cluster->execute_http(
+              req, [barrier](couchbase::operations::analytics_link_replace_response&& resp) mutable { barrier->set_value(resp); });
+            auto resp = cb_wait_for_future(f);
+
+            if (resp.ctx.ec) {
+                if (resp.errors.empty()) {
+                    exc = cb_map_error_code(
+                      resp.ctx, fmt::format("unable to replace s3_external link `{}` on `{}`", req.link.link_name, req.link.dataverse));
+                } else {
+                    const auto& first_error = resp.errors.front();
+                    exc = cb_map_error_code(resp.ctx,
+                                            fmt::format("unable to replace s3_external link `{}` on `{}` ({}: {})",
+                                                        req.link.link_name,
+                                                        req.link.dataverse,
+                                                        first_error.code,
+                                                        first_error.message));
+                }
+                break;
+            }
+        }
+
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_link_drop(VALUE self, VALUE link, VALUE dataverse, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
+    }
+
+    Check_Type(link, T_STRING);
+    Check_Type(dataverse, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_link_drop_request req{};
+        exc = cb_extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        req.link_name.assign(RSTRING_PTR(link), static_cast<size_t>(RSTRING_LEN(link)));
+        req.dataverse_name.assign(RSTRING_PTR(dataverse), static_cast<size_t>(RSTRING_LEN(dataverse)));
+
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_drop_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_link_drop_response&& resp) mutable { barrier->set_value(resp); });
+        auto resp = cb_wait_for_future(f);
+
+        if (resp.ctx.ec) {
+            if (resp.errors.empty()) {
+                exc = cb_map_error_code(resp.ctx, fmt::format("unable to drop link `{}` on `{}`", req.link_name, req.dataverse_name));
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc = cb_map_error_code(
+                  resp.ctx,
+                  fmt::format(
+                    "unable to drop link `{}` on `{}` ({}: {})", req.link_name, req.dataverse_name, first_error.code, first_error.message));
+            }
+            break;
+        }
+
+        return Qtrue;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_analytics_link_get_all(VALUE self, VALUE options)
+{
+    cb_backend_data* backend = nullptr;
+    TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
+
+    if (!backend->cluster) {
+        rb_raise(rb_eArgError, "Cluster has been closed already");
+        return Qnil;
+    }
+
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    VALUE exc = Qnil;
+    do {
+        couchbase::operations::analytics_link_get_all_request req{};
+        exc = cb_extract_timeout(req, options);
+        if (!NIL_P(exc)) {
+            break;
+        }
+
+        exc = cb_extract_option_string(req.link_type, options, "link_type");
+        if (!NIL_P(exc)) {
+            return exc;
+        }
+        exc = cb_extract_option_string(req.dataverse_name, options, "dataverse");
+        if (!NIL_P(exc)) {
+            return exc;
+        }
+        exc = cb_extract_option_string(req.link_name, options, "link_name");
+        if (!NIL_P(exc)) {
+            return exc;
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::operations::analytics_link_get_all_response>>();
+        auto f = barrier->get_future();
+        backend->cluster->execute_http(
+          req, [barrier](couchbase::operations::analytics_link_get_all_response&& resp) mutable { barrier->set_value(resp); });
+        auto resp = cb_wait_for_future(f);
+
+        if (resp.ctx.ec) {
+            if (resp.errors.empty()) {
+                exc = cb_map_error_code(
+                  resp.ctx,
+                  fmt::format(
+                    R"(unable to retrieve links type={}, dataverse="{}",  name="{}")", req.link_type, req.link_name, req.dataverse_name));
+            } else {
+                const auto& first_error = resp.errors.front();
+                exc = cb_map_error_code(resp.ctx,
+                                        fmt::format(R"(unable to retrieve links type={}, dataverse="{}",  name="{}" ({}: {}))",
+                                                    req.link_type,
+                                                    req.link_name,
+                                                    req.dataverse_name,
+                                                    first_error.code,
+                                                    first_error.message));
+            }
+            break;
+        }
+
+        VALUE res = rb_ary_new_capa(static_cast<long>(resp.couchbase.size() + resp.s3.size() + resp.azure_blob.size()));
+        for (const auto& link : resp.couchbase) {
+            VALUE row = rb_hash_new();
+            rb_hash_aset(row, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern("couchbase")));
+            rb_hash_aset(row, rb_id2sym(rb_intern("dataverse")), cb_str_new(link.dataverse));
+            rb_hash_aset(row, rb_id2sym(rb_intern("link_name")), cb_str_new(link.link_name));
+            rb_hash_aset(row, rb_id2sym(rb_intern("hostname")), cb_str_new(link.hostname));
+            switch (link.encryption.level) {
+                case couchbase::operations::analytics_link::encryption_level::none:
+                    rb_hash_aset(row, rb_id2sym(rb_intern("encryption_level")), rb_id2sym(rb_intern("none")));
+                    break;
+                case couchbase::operations::analytics_link::encryption_level::half:
+                    rb_hash_aset(row, rb_id2sym(rb_intern("encryption_level")), rb_id2sym(rb_intern("half")));
+                    break;
+                case couchbase::operations::analytics_link::encryption_level::full:
+                    rb_hash_aset(row, rb_id2sym(rb_intern("encryption_level")), rb_id2sym(rb_intern("full")));
+                    break;
+            }
+            rb_hash_aset(row, rb_id2sym(rb_intern("username")), cb_str_new(link.username));
+            rb_hash_aset(row, rb_id2sym(rb_intern("certificate")), cb_str_new(link.encryption.certificate));
+            rb_hash_aset(row, rb_id2sym(rb_intern("client_certificate")), cb_str_new(link.encryption.client_certificate));
+            rb_ary_push(res, row);
+        }
+        for (const auto& link : resp.s3) {
+            VALUE row = rb_hash_new();
+            rb_hash_aset(row, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern("s3")));
+            rb_hash_aset(row, rb_id2sym(rb_intern("dataverse")), cb_str_new(link.dataverse));
+            rb_hash_aset(row, rb_id2sym(rb_intern("link_name")), cb_str_new(link.link_name));
+            rb_hash_aset(row, rb_id2sym(rb_intern("access_key_id")), cb_str_new(link.access_key_id));
+            rb_hash_aset(row, rb_id2sym(rb_intern("region")), cb_str_new(link.region));
+            rb_hash_aset(row, rb_id2sym(rb_intern("service_endpoint")), cb_str_new(link.service_endpoint));
+            rb_ary_push(res, row);
+        }
+        for (const auto& link : resp.azure_blob) {
+            VALUE row = rb_hash_new();
+            rb_hash_aset(row, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern("azureblob")));
+            rb_hash_aset(row, rb_id2sym(rb_intern("dataverse")), cb_str_new(link.dataverse));
+            rb_hash_aset(row, rb_id2sym(rb_intern("link_name")), cb_str_new(link.link_name));
+            rb_hash_aset(row, rb_id2sym(rb_intern("account_name")), cb_str_new(link.account_name));
+            rb_hash_aset(row, rb_id2sym(rb_intern("blob_endpoint")), cb_str_new(link.blob_endpoint));
+            rb_hash_aset(row, rb_id2sym(rb_intern("endpoint_suffix")), cb_str_new(link.endpoint_suffix));
+            rb_ary_push(res, row);
+        }
+
+        return res;
+    } while (false);
+    rb_exc_raise(exc);
+    return Qnil;
+}
 static int
 cb_for_each_named_param_analytics(VALUE key, VALUE value, VALUE arg)
 {
@@ -7071,7 +7682,7 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
         VALUE res = rb_hash_new();
         VALUE rows = rb_ary_new_capa(static_cast<long>(resp.payload.rows.size()));
         rb_hash_aset(res, rb_id2sym(rb_intern("rows")), rows);
-        for (auto& row : resp.payload.rows) {
+        for (const auto& row : resp.payload.rows) {
             rb_ary_push(rows, cb_str_new(row));
         }
         VALUE meta = rb_hash_new();
@@ -7764,6 +8375,48 @@ cb_Backend_leb128_decode(VALUE self, VALUE data)
     return Qnil;
 }
 
+static VALUE
+cb_Backend_query_escape(VALUE self, VALUE data)
+{
+    (void)self;
+    Check_Type(data, T_STRING);
+    auto encoded =
+      couchbase::utils::string_codec::v2::query_escape(std::string(RSTRING_PTR(data), static_cast<std::size_t>(RSTRING_LEN(data))));
+    return cb_str_new(encoded);
+}
+
+static VALUE
+cb_Backend_path_escape(VALUE self, VALUE data)
+{
+    (void)self;
+    Check_Type(data, T_STRING);
+    auto encoded =
+      couchbase::utils::string_codec::v2::path_escape(std::string(RSTRING_PTR(data), static_cast<std::size_t>(RSTRING_LEN(data))));
+    return cb_str_new(encoded);
+}
+
+static int
+cb_for_each_form_encode_value(VALUE key, VALUE value, VALUE arg)
+{
+    auto* values = reinterpret_cast<std::map<std::string, std::string>*>(arg);
+    VALUE key_str = rb_obj_as_string(key);
+    VALUE value_str = rb_obj_as_string(value);
+    values->emplace(std::string(RSTRING_PTR(key_str), static_cast<std::size_t>(RSTRING_LEN(key_str))),
+                    std::string(RSTRING_PTR(value_str), static_cast<std::size_t>(RSTRING_LEN(value_str))));
+    return ST_CONTINUE;
+}
+
+static VALUE
+cb_Backend_form_encode(VALUE self, VALUE data)
+{
+    (void)self;
+    Check_Type(data, T_HASH);
+    std::map<std::string, std::string> values{};
+    rb_hash_foreach(data, INT_FUNC(cb_for_each_form_encode_value), reinterpret_cast<VALUE>(&values));
+    auto encoded = couchbase::utils::string_codec::v2::form_encode(values);
+    return cb_str_new(encoded);
+}
+
 static void
 init_backend(VALUE mCouchbase)
 {
@@ -7859,6 +8512,10 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "analytics_index_drop", VALUE_FUNC(cb_Backend_analytics_index_drop), 3);
     rb_define_method(cBackend, "analytics_link_connect", VALUE_FUNC(cb_Backend_analytics_link_connect), 1);
     rb_define_method(cBackend, "analytics_link_disconnect", VALUE_FUNC(cb_Backend_analytics_link_disconnect), 1);
+    rb_define_method(cBackend, "analytics_link_create", VALUE_FUNC(cb_Backend_analytics_link_create), 2);
+    rb_define_method(cBackend, "analytics_link_replace", VALUE_FUNC(cb_Backend_analytics_link_replace), 2);
+    rb_define_method(cBackend, "analytics_link_drop", VALUE_FUNC(cb_Backend_analytics_link_drop), 3);
+    rb_define_method(cBackend, "analytics_link_get_all", VALUE_FUNC(cb_Backend_analytics_link_get_all), 1);
 
     rb_define_method(cBackend, "view_index_get_all", VALUE_FUNC(cb_Backend_view_index_get_all), 3);
     rb_define_method(cBackend, "view_index_get", VALUE_FUNC(cb_Backend_view_index_get), 4);
@@ -7875,6 +8532,9 @@ init_backend(VALUE mCouchbase)
     rb_define_singleton_method(cBackend, "snappy_uncompress", VALUE_FUNC(cb_Backend_snappy_uncompress), 1);
     rb_define_singleton_method(cBackend, "leb128_encode", VALUE_FUNC(cb_Backend_leb128_encode), 1);
     rb_define_singleton_method(cBackend, "leb128_decode", VALUE_FUNC(cb_Backend_leb128_decode), 1);
+    rb_define_singleton_method(cBackend, "query_escape", VALUE_FUNC(cb_Backend_query_escape), 1);
+    rb_define_singleton_method(cBackend, "path_escape", VALUE_FUNC(cb_Backend_path_escape), 1);
+    rb_define_singleton_method(cBackend, "form_encode", VALUE_FUNC(cb_Backend_form_encode), 1);
 }
 
 void

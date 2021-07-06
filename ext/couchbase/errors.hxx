@@ -244,6 +244,9 @@ enum class analytics_errc {
 
     /// Raised When 24006
     link_not_found,
+
+    /// Raised When 24055
+    link_exists,
 };
 
 /// Errors related to Search service (CBFT)
@@ -539,6 +542,8 @@ struct analytics_error_category : std::error_category {
                 return "dataverse_exists";
             case analytics_errc::link_not_found:
                 return "link_not_found";
+            case analytics_errc::link_exists:
+                return "link_exists";
         }
         return "FIXME: unknown error code in analytics category (recompile with newer library)";
     }

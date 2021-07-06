@@ -26,7 +26,6 @@ options.authenticate("Administrator", "password")
 cluster = Cluster.connect("couchbase://localhost", options)
 
 manager = cluster.analytics_indexes
-
 options = Management::Options::Analytics::DropDataset(
   ignore_if_does_not_exist: true,
   dataverse_name: "beer-data"

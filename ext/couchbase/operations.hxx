@@ -100,6 +100,10 @@
 #include <operations/analytics_index_drop.hxx>
 #include <operations/analytics_link_connect.hxx>
 #include <operations/analytics_link_disconnect.hxx>
+#include <operations/analytics_link_create.hxx>
+#include <operations/analytics_link_replace.hxx>
+#include <operations/analytics_link_drop.hxx>
+#include <operations/analytics_link_get_all.hxx>
 
 #include <operations/view_index_get_all.hxx>
 #include <operations/view_index_get.hxx>

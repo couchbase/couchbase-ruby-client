@@ -293,6 +293,9 @@ module Couchbase
     class LinkNotFound < CouchbaseError
     end
 
+    class LinkExists < CouchbaseError
+    end
+
     # Search exceptions
 
     class IndexNotReady < CouchbaseError
