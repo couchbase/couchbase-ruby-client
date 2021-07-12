@@ -75,10 +75,7 @@ then
   export PATH="$(brew --prefix bison@2.7)/bin:$PATH"
   bison --version
   PATCH=
-  if [ "x${CB_RUBY_VERSION}" = "x2.6" ]
-  then
-      PATCH="--patch https://github.com/ruby/ruby/commit/5df653caaa1a666172d889760786cdf26952a1a7.patch"
-  elif [ "x${CB_RUBY_VERSION}" = "x2.7" -o "x${CB_RUBY_VERSION}" = "x3.0" ]
+  if [ "x${CB_RUBY_VERSION}" = "x2.7" -o "x${CB_RUBY_VERSION}" = "x3.0" ]
   then
       PATCH="--patch https://gist.githubusercontent.com/avsej/3cf6e57557ac13100f01cacebec10873/raw/d83398e9ef3c63081d3af1b6cc1c77a68f3bfb65/0001-Revert-merge-revision-s-e033c9d7db02a4e8d2973364ecb4.patch"
   fi
