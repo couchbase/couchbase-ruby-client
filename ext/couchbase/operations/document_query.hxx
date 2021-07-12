@@ -373,6 +373,7 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
             bool server_timeout = false;
             bool invalid_argument = false;
             bool cas_mismatch = false;
+            bool authentication_failure = false;
 
             if (response.payload.meta_data.errors) {
                 for (const auto& error : *response.payload.meta_data.errors) {
@@ -403,6 +404,9 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
                         case 12016: /* IKey: "datastore.couchbase.index_not_found" */
                             index_not_found = true;
                             break;
+                        case 13014: /* IKey: "datastore.couchbase.insufficient_credentials" */
+                            authentication_failure = true;
+                            break;
                         default:
                             if ((error.code >= 12000 && error.code < 13000) || (error.code >= 14000 && error.code < 15000)) {
                                 index_failure = true;
@@ -429,6 +433,8 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
                 response.ctx.ec = error::common_errc::index_not_found;
             } else if (cas_mismatch) {
                 response.ctx.ec = error::common_errc::cas_mismatch;
+            } else if (authentication_failure) {
+                response.ctx.ec = error::common_errc::authentication_failure;
             } else {
                 response.ctx.ec = error::common_errc::internal_server_failure;
             }
