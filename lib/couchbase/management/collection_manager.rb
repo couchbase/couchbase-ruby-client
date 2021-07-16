@@ -222,12 +222,12 @@ module Couchbase
       # Removes a scope
       #
       # @param [String] scope_name name of the scope
-      # @param [Option::Collection::DropScope] options
+      # @param [Options::Collection::DropScope] options
       #
       # @return void
       #
       # @raise [Error::ScopeNotFound]
-      def drop_scope(scope_name, options = Option::Collection::DropScope.new)
+      def drop_scope(scope_name, options = Options::Collection::DropScope.new)
         @backend.scope_drop(@bucket_name, scope_name, options.to_backend)
       end
 
