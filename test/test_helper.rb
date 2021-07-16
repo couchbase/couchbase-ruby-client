@@ -56,7 +56,7 @@ class ServerVersion
   end
 
   def supports_collections?
-    (mad_hatter? && @developer_preview) || cheshire_cat?
+    cheshire_cat?
   end
 
   def supports_sync_replication?
