@@ -4554,7 +4554,7 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options)
 
     Check_Type(bucket_name, T_STRING);
     if (!NIL_P(options)) {
-        Check_Type(bucket_name, T_HASH);
+        Check_Type(options, T_HASH);
     }
 
     VALUE exc = Qnil;
@@ -6018,7 +6018,9 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
 
     Check_Type(index_name, T_STRING);
     Check_Type(query, T_STRING);
-    Check_Type(options, T_HASH);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
@@ -7590,7 +7592,9 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
     }
 
     Check_Type(statement, T_STRING);
-    Check_Type(options, T_HASH);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
 
     VALUE exc = Qnil;
     do {
