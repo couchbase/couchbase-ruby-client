@@ -1006,15 +1006,13 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                 spdlog::debug("{} received a configuration with a different number of vbuckets, ignoring", log_prefix_);
                 return;
             }
-            if (config_->rev && config.rev) {
-                if (*config_->rev == *config.rev) {
-                    spdlog::trace("{} received a configuration with identical revision (rev={}), ignoring", log_prefix_, *config.rev);
-                    return;
-                }
-                if (*config_->rev > *config.rev) {
-                    spdlog::debug("{} received a configuration with older revision, ignoring", log_prefix_);
-                    return;
-                }
+            if (config == config_) {
+                spdlog::trace("{} received a configuration with identical revision (rev={}), ignoring", log_prefix_, config.rev_str());
+                return;
+            }
+            if (config < config_) {
+                spdlog::debug("{} received a configuration with older revision, ignoring", log_prefix_);
+                return;
             }
         }
         bool this_node_found = false;

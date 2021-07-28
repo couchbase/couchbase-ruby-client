@@ -80,7 +80,7 @@ class bucket : public std::enable_shared_from_this<bucket>
     {
         if (!config_) {
             spdlog::debug("{} initialize configuration rev={}", log_prefix_, config.rev_str());
-        } else if (config.rev && config_->rev && *config.rev > *config_->rev) {
+        } else if (config_ < config) {
             spdlog::debug("{} will update the configuration old={} -> new={}", log_prefix_, config_->rev_str(), config.rev_str());
         } else {
             return;

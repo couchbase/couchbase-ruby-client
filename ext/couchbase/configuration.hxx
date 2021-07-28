@@ -191,7 +191,8 @@ struct configuration {
 
     using vbucket_map = typename std::vector<std::vector<std::int16_t>>;
 
-    std::optional<std::uint64_t> rev{};
+    std::optional<std::int64_t> epoch{};
+    std::optional<std::int64_t> rev{};
     couchbase::uuid::uuid_t id{};
     std::optional<std::uint32_t> num_replicas{};
     std::vector<node> nodes{};
@@ -203,8 +204,26 @@ struct configuration {
     std::set<cluster_capability> cluster_capabilities{};
     node_locator_type node_locator{ node_locator_type::unknown };
 
+    bool operator==(const configuration& other) const
+    {
+        return epoch == other.epoch && rev == other.rev;
+    }
+
+    bool operator<(const configuration& other) const
+    {
+        return epoch < other.epoch && rev < other.rev;
+    }
+
+    bool operator>(const configuration& other) const
+    {
+        return other < *this;
+    }
+
     [[nodiscard]] std::string rev_str() const
     {
+        if (epoch) {
+            return fmt::format("{}:{}", epoch.value(), rev.value_or(0));
+        }
         return rev ? fmt::format("{}", *rev) : "(none)";
     }
 
@@ -250,6 +269,7 @@ make_blank_configuration(const std::string& hostname, std::uint16_t plain_port, 
 {
     configuration result;
     result.id = couchbase::uuid::random();
+    result.epoch = 0;
     result.rev = 0;
     result.nodes.resize(1);
     result.nodes[0].hostname = hostname;
@@ -400,7 +420,8 @@ struct traits<couchbase::configuration> {
     {
         couchbase::configuration result;
         result.id = couchbase::uuid::random();
-        result.rev = v.template optional<std::uint64_t>("rev");
+        result.epoch = v.template optional<std::int64_t>("revEpoch");
+        result.rev = v.template optional<std::int64_t>("rev");
         auto* node_locator = v.find("nodeLocator");
         if (node_locator != nullptr && node_locator->is_string()) {
             if (node_locator->get_string() == "ketama") {
