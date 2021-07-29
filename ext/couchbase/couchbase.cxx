@@ -899,6 +899,11 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
             if (!NIL_P(allowed_mechanisms)) {
                 Check_Type(allowed_mechanisms, T_ARRAY);
                 auto allowed_mechanisms_size = static_cast<size_t>(RARRAY_LEN(allowed_mechanisms));
+                if (allowed_mechanisms_size < 1) {
+                    exc = rb_exc_new_cstr(eInvalidArgument, "allowed_sasl_mechanisms list cannot be empty");
+                    break;
+                }
+                auth.allowed_sasl_mechanisms.clear();
                 auth.allowed_sasl_mechanisms.reserve(allowed_mechanisms_size);
                 for (size_t i = 0; i < allowed_mechanisms_size; ++i) {
                     VALUE mechanism = rb_ary_entry(allowed_mechanisms, static_cast<long>(i));
