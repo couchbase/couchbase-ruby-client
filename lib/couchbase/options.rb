@@ -1149,13 +1149,47 @@ module Couchbase
     class Cluster
       attr_accessor :authenticator # @return [PasswordAuthenticator, CertificateAuthenticator]
 
+      attr_accessor :enable_tracing # @return [Boolean]
+      attr_accessor :orphaned_emit_interval # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :orphaned_sample_size # @return [nil, Integer]
+      attr_accessor :threshold_emit_interval # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :threshold_sample_size # @return [nil, Integer]
+      attr_accessor :key_value_threshold # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :query_threshold # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :view_threshold # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :search_threshold # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :analytics_threshold # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :management_threshold # @return [nil, Integer, #in_milliseconds]
+
       # Creates an instance of options for {Couchbase::Cluster.connect}
       #
       # @param [PasswordAuthenticator, CertificateAuthenticator] authenticator
       #
       # @yieldparam [Cluster] self
-      def initialize(authenticator: nil)
+      def initialize(authenticator: nil,
+                     enable_tracing: nil,
+                     orphaned_emit_interval: nil,
+                     orphaned_sample_size: nil,
+                     threshold_emit_interval: nil,
+                     threshold_sample_size: nil,
+                     key_value_threshold: nil,
+                     query_threshold: nil,
+                     view_threshold: nil,
+                     search_threshold: nil,
+                     analytics_threshold: nil,
+                     management_threshold: nil)
         @authenticator = authenticator
+        @enable_tracing = enable_tracing
+        @orphaned_emit_interval = orphaned_emit_interval
+        @orphaned_sample_size = orphaned_sample_size
+        @threshold_emit_interval = threshold_emit_interval
+        @threshold_sample_size = threshold_sample_size
+        @key_value_threshold = key_value_threshold
+        @query_threshold = query_threshold
+        @view_threshold = view_threshold
+        @search_threshold = search_threshold
+        @analytics_threshold = analytics_threshold
+        @management_threshold = management_threshold
         yield self if block_given?
       end
 
@@ -1163,6 +1197,23 @@ module Couchbase
       # @param [String] password
       def authenticate(username, password)
         @authenticator = PasswordAuthenticator.new(username, password)
+      end
+
+      # @api private
+      def to_backend
+        {
+          enable_tracing: @enable_tracing,
+          orphaned_emit_interval: Utils::Time.extract_duration(@orphaned_emit_interval),
+          orphaned_sample_size: @orphaned_sample_size,
+          threshold_emit_interval: Utils::Time.extract_duration(@threshold_emit_interval),
+          threshold_sample_size: @threshold_sample_size,
+          key_value_threshold: Utils::Time.extract_duration(@key_value_threshold),
+          query_threshold: Utils::Time.extract_duration(@query_threshold),
+          view_threshold: Utils::Time.extract_duration(@view_threshold),
+          search_threshold: Utils::Time.extract_duration(@search_threshold),
+          analytics_threshold: Utils::Time.extract_duration(@analytics_threshold),
+          management_threshold: Utils::Time.extract_duration(@management_threshold),
+        }
       end
     end
 

@@ -42,7 +42,6 @@
 #include <ruby/version.h>
 #endif
 #include <ruby/thread.h>
-#include <operations/analytics_link_drop.hxx>
 
 #if defined(RB_METHOD_DEFINITION_DECL) || RUBY_API_VERSION_MAJOR == 3
 #define VALUE_FUNC(f) f
@@ -112,6 +111,7 @@ init_versions(VALUE mCouchbase)
 
     VALUE cb_BuildInfo = rb_hash_new();
     rb_const_set(mCouchbase, rb_intern("BUILD_INFO"), cb_BuildInfo);
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("cmake_version")), rb_str_freeze(rb_str_new_cstr(CMAKE_VERSION)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("cmake_build_type")), rb_str_freeze(rb_str_new_cstr(CMAKE_BUILD_TYPE)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("compile_definitions")), rb_str_freeze(rb_str_new_cstr(BACKEND_COMPILE_DEFINITIONS)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("compile_features")), rb_str_freeze(rb_str_new_cstr(BACKEND_COMPILE_FEATURES)));
@@ -851,6 +851,126 @@ cb_wait_for_future(Future&& f) -> decltype(f.get())
     return std::move(arg.res);
 }
 
+template<typename Request>
+[[nodiscard]] VALUE
+cb_extract_timeout(Request& req, VALUE options)
+{
+    if (!NIL_P(options)) {
+        switch (TYPE(options)) {
+            case T_HASH:
+                return cb_extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+            case T_FIXNUM:
+            case T_BIGNUM:
+                req.timeout = std::chrono::milliseconds(NUM2ULL(options));
+                break;
+            default:
+                return rb_exc_new_str(rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
+        }
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb_extract_timeout(std::chrono::milliseconds& timeout, VALUE options)
+{
+    if (!NIL_P(options)) {
+        switch (TYPE(options)) {
+            case T_HASH:
+                return cb_extract_timeout(timeout, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+            case T_FIXNUM:
+            case T_BIGNUM:
+                timeout = std::chrono::milliseconds(NUM2ULL(options));
+                break;
+            default:
+                return rb_exc_new_str(rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
+        }
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb_extract_option_bool(bool& field, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        switch (TYPE(val)) {
+            case T_TRUE:
+                field = true;
+                break;
+            case T_FALSE:
+                field = false;
+                break;
+            default:
+                return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be a Boolean, but given %+" PRIsVALUE, name, val));
+        }
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb_extract_option_number(std::size_t& field, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        switch (TYPE(val)) {
+            case T_FIXNUM:
+                field = FIX2ULONG(val);
+                break;
+            case T_BIGNUM:
+                field = NUM2ULL(val);
+                break;
+            default:
+                return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be a Integer, but given %+" PRIsVALUE, name, val));
+        }
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb_extract_option_milliseconds(std::chrono::milliseconds& field, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        switch (TYPE(val)) {
+            case T_FIXNUM:
+                field = std::chrono::milliseconds(FIX2ULONG(val));
+                break;
+            case T_BIGNUM:
+                field = std::chrono::milliseconds(NUM2ULL(val));
+                break;
+            default:
+                return rb_exc_new_str(rb_eArgError,
+                                      rb_sprintf("%s must be a Integer representing milliseconds, but given %+" PRIsVALUE, name, val));
+        }
+    }
+    return Qnil;
+}
+
+[[nodiscard]] VALUE
+cb_extract_option_array(VALUE& val, VALUE options, const char* name)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+        if (NIL_P(val)) {
+            return Qnil;
+        }
+        if (TYPE(val) == T_ARRAY) {
+            return Qnil;
+        }
+        return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be an Array, but given %+" PRIsVALUE, name, val));
+    }
+    return Qnil;
+}
+
 static VALUE
 cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE options)
 {
@@ -895,26 +1015,28 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
         if (NIL_P(certificate_path) || NIL_P(key_path)) {
             auth.username.assign(RSTRING_PTR(username), static_cast<size_t>(RSTRING_LEN(username)));
             auth.password.assign(RSTRING_PTR(password), static_cast<size_t>(RSTRING_LEN(password)));
-            VALUE allowed_mechanisms = rb_hash_aref(options, rb_id2sym(rb_intern("allowed_sasl_mechanisms")));
-            if (!NIL_P(allowed_mechanisms)) {
-                Check_Type(allowed_mechanisms, T_ARRAY);
-                auto allowed_mechanisms_size = static_cast<size_t>(RARRAY_LEN(allowed_mechanisms));
-                if (allowed_mechanisms_size < 1) {
-                    exc = rb_exc_new_cstr(eInvalidArgument, "allowed_sasl_mechanisms list cannot be empty");
-                    break;
-                }
-                auth.allowed_sasl_mechanisms.clear();
-                auth.allowed_sasl_mechanisms.reserve(allowed_mechanisms_size);
-                for (size_t i = 0; i < allowed_mechanisms_size; ++i) {
-                    VALUE mechanism = rb_ary_entry(allowed_mechanisms, static_cast<long>(i));
-                    if (mechanism == rb_id2sym(rb_intern("scram_sha512"))) {
-                        auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA512");
-                    } else if (mechanism == rb_id2sym(rb_intern("scram_sha256"))) {
-                        auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA256");
-                    } else if (mechanism == rb_id2sym(rb_intern("scram_sha1"))) {
-                        auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA1");
-                    } else if (mechanism == rb_id2sym(rb_intern("plain"))) {
-                        auth.allowed_sasl_mechanisms.emplace_back("PLAIN");
+            if (!NIL_P(options)) {
+                VALUE allowed_mechanisms = rb_hash_aref(options, rb_id2sym(rb_intern("allowed_sasl_mechanisms")));
+                if (!NIL_P(allowed_mechanisms)) {
+                    Check_Type(allowed_mechanisms, T_ARRAY);
+                    auto allowed_mechanisms_size = static_cast<size_t>(RARRAY_LEN(allowed_mechanisms));
+                    if (allowed_mechanisms_size < 1) {
+                        exc = rb_exc_new_cstr(eInvalidArgument, "allowed_sasl_mechanisms list cannot be empty");
+                        break;
+                    }
+                    auth.allowed_sasl_mechanisms.clear();
+                    auth.allowed_sasl_mechanisms.reserve(allowed_mechanisms_size);
+                    for (size_t i = 0; i < allowed_mechanisms_size; ++i) {
+                        VALUE mechanism = rb_ary_entry(allowed_mechanisms, static_cast<long>(i));
+                        if (mechanism == rb_id2sym(rb_intern("scram_sha512"))) {
+                            auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA512");
+                        } else if (mechanism == rb_id2sym(rb_intern("scram_sha256"))) {
+                            auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA256");
+                        } else if (mechanism == rb_id2sym(rb_intern("scram_sha1"))) {
+                            auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA1");
+                        } else if (mechanism == rb_id2sym(rb_intern("plain"))) {
+                            auth.allowed_sasl_mechanisms.emplace_back("PLAIN");
+                        }
                     }
                 }
             }
@@ -929,6 +1051,56 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
             auth.key_path.assign(RSTRING_PTR(key_path), static_cast<size_t>(RSTRING_LEN(key_path)));
         }
         couchbase::origin origin(auth, connstr);
+        exc = cb_extract_option_bool(origin.options().enable_tracing, options, "enable_tracing");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (origin.options().enable_tracing) {
+            exc =
+              cb_extract_option_milliseconds(origin.options().tracing_options.orphaned_emit_interval, options, "orphaned_emit_interval");
+            if (!NIL_P(exc)) {
+                break;
+            }
+            exc = cb_extract_option_number(origin.options().tracing_options.orphaned_sample_size, options, "orphaned_sample_size");
+            if (!NIL_P(exc)) {
+                break;
+            }
+
+            exc =
+              cb_extract_option_milliseconds(origin.options().tracing_options.threshold_emit_interval, options, "threshold_emit_interval");
+            if (!NIL_P(exc)) {
+                break;
+            }
+            exc = cb_extract_option_number(origin.options().tracing_options.threshold_sample_size, options, "threshold_sample_size");
+            if (!NIL_P(exc)) {
+                break;
+            }
+            exc = cb_extract_option_milliseconds(origin.options().tracing_options.key_value_threshold, options, "key_value_threshold");
+            if (!NIL_P(exc)) {
+                break;
+            }
+            exc = cb_extract_option_milliseconds(origin.options().tracing_options.query_threshold, options, "query_threshold");
+            if (!NIL_P(exc)) {
+                break;
+            }
+            exc = cb_extract_option_milliseconds(origin.options().tracing_options.view_threshold, options, "view_threshold");
+            if (!NIL_P(exc)) {
+                break;
+            }
+            exc = cb_extract_option_milliseconds(origin.options().tracing_options.search_threshold, options, "search_threshold");
+            if (!NIL_P(exc)) {
+                break;
+            }
+            exc = cb_extract_option_milliseconds(origin.options().tracing_options.analytics_threshold, options, "analytics_threshold");
+            if (!NIL_P(exc)) {
+                break;
+            }
+            exc = cb_extract_option_milliseconds(origin.options().tracing_options.management_threshold, options, "management_threshold");
+            if (!NIL_P(exc)) {
+                break;
+            }
+        }
+
         auto barrier = std::make_shared<std::promise<std::error_code>>();
         auto f = barrier->get_future();
         backend->cluster->open(origin, [barrier](std::error_code ec) mutable { barrier->set_value(ec); });
@@ -986,7 +1158,7 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
         for (const auto& svcs : resp.services) {
             VALUE type = Qnil;
             switch (svcs.first) {
-                case couchbase::service_type::kv:
+                case couchbase::service_type::key_value:
                     type = rb_id2sym(rb_intern("kv"));
                     break;
                 case couchbase::service_type::query:
@@ -998,7 +1170,7 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
                 case couchbase::service_type::search:
                     type = rb_id2sym(rb_intern("search"));
                     break;
-                case couchbase::service_type::views:
+                case couchbase::service_type::view:
                     type = rb_id2sym(rb_intern("views"));
                     break;
                 case couchbase::service_type::management:
@@ -1076,81 +1248,6 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
         rb_exc_raise(exc);
     }
 
-    return Qnil;
-}
-
-template<typename Request>
-[[nodiscard]] VALUE
-cb_extract_timeout(Request& req, VALUE options)
-{
-    if (!NIL_P(options)) {
-        switch (TYPE(options)) {
-            case T_HASH:
-                return cb_extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
-            case T_FIXNUM:
-            case T_BIGNUM:
-                req.timeout = std::chrono::milliseconds(NUM2ULL(options));
-                break;
-            default:
-                return rb_exc_new_str(rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
-        }
-    }
-    return Qnil;
-}
-
-[[nodiscard]] VALUE
-cb_extract_timeout(std::chrono::milliseconds& timeout, VALUE options)
-{
-    if (!NIL_P(options)) {
-        switch (TYPE(options)) {
-            case T_HASH:
-                return cb_extract_timeout(timeout, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
-            case T_FIXNUM:
-            case T_BIGNUM:
-                timeout = std::chrono::milliseconds(NUM2ULL(options));
-                break;
-            default:
-                return rb_exc_new_str(rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
-        }
-    }
-    return Qnil;
-}
-
-[[nodiscard]] VALUE
-cb_extract_option_bool(bool& field, VALUE options, const char* name)
-{
-    if (!NIL_P(options) && TYPE(options) == T_HASH) {
-        VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
-        if (NIL_P(val)) {
-            return Qnil;
-        }
-        switch (TYPE(val)) {
-            case T_TRUE:
-                field = true;
-                break;
-            case T_FALSE:
-                field = false;
-                break;
-            default:
-                return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be a Boolean, but given %+" PRIsVALUE, name, val));
-        }
-    }
-    return Qnil;
-}
-
-[[nodiscard]] VALUE
-cb_extract_option_array(VALUE& val, VALUE options, const char* name)
-{
-    if (!NIL_P(options) && TYPE(options) == T_HASH) {
-        val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
-        if (NIL_P(val)) {
-            return Qnil;
-        }
-        if (TYPE(val) == T_ARRAY) {
-            return Qnil;
-        }
-        return rb_exc_new_str(rb_eArgError, rb_sprintf("%s must be an Array, but given %+" PRIsVALUE, name, val));
-    }
     return Qnil;
 }
 
@@ -1485,7 +1582,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
             for (size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(services, static_cast<long>(i));
                 if (entry == rb_id2sym(rb_intern("kv"))) {
-                    selected_services.insert(couchbase::service_type::kv);
+                    selected_services.insert(couchbase::service_type::key_value);
                 } else if (entry == rb_id2sym(rb_intern("query"))) {
                     selected_services.insert(couchbase::service_type::query);
                 } else if (entry == rb_id2sym(rb_intern("analytics"))) {
@@ -1493,7 +1590,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
                 } else if (entry == rb_id2sym(rb_intern("search"))) {
                     selected_services.insert(couchbase::service_type::search);
                 } else if (entry == rb_id2sym(rb_intern("views"))) {
-                    selected_services.insert(couchbase::service_type::views);
+                    selected_services.insert(couchbase::service_type::view);
                 }
             }
         }
@@ -1512,7 +1609,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
         for (const auto& svcs : resp.services) {
             VALUE type = Qnil;
             switch (svcs.first) {
-                case couchbase::service_type::kv:
+                case couchbase::service_type::key_value:
                     type = rb_id2sym(rb_intern("kv"));
                     break;
                 case couchbase::service_type::query:
@@ -1524,7 +1621,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
                 case couchbase::service_type::search:
                     type = rb_id2sym(rb_intern("search"));
                     break;
-                case couchbase::service_type::views:
+                case couchbase::service_type::view:
                     type = rb_id2sym(rb_intern("views"));
                     break;
                 case couchbase::service_type::management:
@@ -7014,7 +7111,7 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE options)
 static VALUE
 cb_fill_link(couchbase::operations::analytics_link::couchbase_remote& dst, VALUE src)
 {
-    VALUE exc;
+    VALUE exc = Qnil;
 
     exc = cb_extract_option_string(dst.link_name, src, "link_name");
     if (!NIL_P(exc)) {
@@ -7070,7 +7167,7 @@ cb_fill_link(couchbase::operations::analytics_link::couchbase_remote& dst, VALUE
 static VALUE
 cb_fill_link(couchbase::operations::analytics_link::azure_blob_external& dst, VALUE src)
 {
-    VALUE exc;
+    VALUE exc = Qnil;
 
     exc = cb_extract_option_string(dst.link_name, src, "link_name");
     if (!NIL_P(exc)) {
@@ -7110,7 +7207,7 @@ cb_fill_link(couchbase::operations::analytics_link::azure_blob_external& dst, VA
 static VALUE
 cb_fill_link(couchbase::operations::analytics_link::s3_external& dst, VALUE src)
 {
-    VALUE exc;
+    VALUE exc = Qnil;
 
     exc = cb_extract_option_string(dst.link_name, src, "link_name");
     if (!NIL_P(exc)) {

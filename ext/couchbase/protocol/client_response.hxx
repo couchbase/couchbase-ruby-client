@@ -33,6 +33,34 @@
 namespace couchbase::protocol
 {
 
+double
+parse_server_duration_us(const io::mcbp_message& msg)
+{
+    if (msg.header.magic != static_cast<std::uint8_t>(magic::alt_client_response)) {
+        return 0;
+    }
+    std::uint8_t framing_extras_size = static_cast<std::uint8_t>(msg.header.keylen & 0xfU);
+    if (framing_extras_size == 0) {
+        return 0;
+    }
+    std::size_t offset = 0;
+    while (offset < framing_extras_size) {
+        std::uint8_t frame_size = static_cast<std::uint8_t>(msg.body[offset] & 0xfU);
+        std::uint8_t frame_id = static_cast<std::uint8_t>((static_cast<std::uint32_t>(msg.body[offset]) >> 4U) & 0xfU);
+        offset++;
+        if (frame_id == static_cast<std::uint8_t>(response_frame_info_id::server_duration)) {
+            if (frame_size == 2 && framing_extras_size - offset >= frame_size) {
+                std::uint16_t encoded_duration{};
+                std::memcpy(&encoded_duration, msg.body.data() + offset, sizeof(encoded_duration));
+                encoded_duration = ntohs(encoded_duration);
+                return std::pow(encoded_duration, 1.74) / 2;
+            }
+        }
+        offset += frame_size;
+    }
+    return 0;
+}
+
 template<typename Body>
 class client_response
 {

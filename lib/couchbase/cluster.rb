@@ -387,6 +387,7 @@ module Couchbase
 
           open_options[:allowed_sasl_mechanisms] = PasswordAuthenticator::DEFAULT_SASL_MECHANISMS
         when Options::Cluster
+          open_options = options&.to_backend || {}
           authenticator = options&.authenticator
           case authenticator
           when PasswordAuthenticator

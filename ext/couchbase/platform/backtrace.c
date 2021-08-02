@@ -62,7 +62,7 @@ describe_address(char* msg, size_t len, void* addr)
         // No symbol found.
         snprintf(msg, len, "[0x%p]", addr);
     }
-#else // !WIN32
+#else  // !WIN32
     Dl_info info;
     int status = dladdr(addr, &info);
 

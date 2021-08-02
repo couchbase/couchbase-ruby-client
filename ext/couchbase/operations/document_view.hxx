@@ -53,7 +53,7 @@ struct document_view_request {
     using encoded_response_type = io::http_response;
     using error_context_type = error_context::view;
 
-    static const inline service_type type = service_type::views;
+    static const inline service_type type = service_type::view;
 
     std::string client_context_id{ uuid::to_string(uuid::random()) };
     std::chrono::milliseconds timeout{ timeout_defaults::management_timeout };

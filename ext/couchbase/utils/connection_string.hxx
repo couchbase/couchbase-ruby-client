@@ -357,6 +357,16 @@ extract_options(connection_string& connstr)
                 } else if (param.second == "false" || param.second == "no" || param.second == "off") {
                     connstr.options.enable_compression = false;
                 }
+            } else if (param.first == "enable_tracing") {
+                /**
+                 * true - use threshold_logging_tracer
+                 * false - use noop_tracer
+                 */
+                if (param.second == "true" || param.second == "yes" || param.second == "on") {
+                    connstr.options.enable_tracing = true;
+                } else if (param.second == "false" || param.second == "no" || param.second == "off") {
+                    connstr.options.enable_tracing = false;
+                }
             } else {
                 spdlog::warn(R"(unknown parameter "{}" in connection string (value "{}"))", param.first, param.second);
             }

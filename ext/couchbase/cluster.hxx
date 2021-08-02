@@ -32,6 +32,9 @@
 #include <operations.hxx>
 #include <operations/document_query.hxx>
 
+#include <tracing/noop_tracer.hxx>
+#include <tracing/threshold_logging_tracer.hxx>
+
 #include <diagnostics.hxx>
 
 namespace couchbase
@@ -99,6 +102,12 @@ class cluster
     void open(const couchbase::origin& origin, Handler&& handler)
     {
         origin_ = origin;
+        if (origin_.options().enable_tracing) {
+            tracer_ = new tracing::threshold_logging_tracer(ctx_, origin.options().tracing_options);
+        } else {
+            tracer_ = new tracing::noop_tracer();
+        }
+        session_manager_->set_tracer(tracer_);
         if (origin_.options().enable_dns_srv) {
             return asio::post(asio::bind_executor(
               ctx_, [this, handler = std::forward<Handler>(handler)]() mutable { return do_dns_srv(std::forward<Handler>(handler)); }));
@@ -119,6 +128,8 @@ class cluster
             session_manager_->close();
             handler();
             work_.reset();
+            delete tracer_;
+            tracer_ = nullptr;
         }));
     }
 
@@ -132,7 +143,7 @@ class cluster
         if (session_ && session_->has_config()) {
             known_features = session_->supported_features();
         }
-        auto b = std::make_shared<bucket>(id_, ctx_, tls_, bucket_name, origin_, known_features);
+        auto b = std::make_shared<bucket>(id_, ctx_, tls_, tracer_, bucket_name, origin_, known_features);
         b->bootstrap([this, handler = std::forward<Handler>(handler)](std::error_code ec, const configuration& config) mutable {
             if (!ec && !session_->supports_gcccp()) {
                 session_manager_->set_configuration(config, origin_.options());
@@ -165,7 +176,7 @@ class cluster
             ctx.ec = error::common_errc::service_not_available;
             return handler(operations::make_response(std::move(ctx), request, {}));
         }
-        auto cmd = std::make_shared<operations::http_command<Request>>(ctx_, request);
+        auto cmd = std::make_shared<operations::http_command<Request>>(ctx_, request, tracer_);
         cmd->send_to(session, [this, session, handler = std::forward<Handler>(handler)](typename Request::response_type resp) mutable {
             handler(std::move(resp));
             session_manager_->check_in(Request::type, session);
@@ -181,7 +192,7 @@ class cluster
         asio::post(asio::bind_executor(ctx_, [this, report_id, handler = std::forward<Handler>(handler)]() mutable {
             diag::diagnostics_result res{ report_id.value(), couchbase::sdk_id() };
             if (session_) {
-                res.services[service_type::kv].emplace_back(session_->diag_info());
+                res.services[service_type::key_value].emplace_back(session_->diag_info());
             }
             for (const auto& [name, bucket] : buckets_) {
                 bucket->export_diag_info(res);
@@ -200,19 +211,19 @@ class cluster
             report_id = std::make_optional(uuid::to_string(uuid::random()));
         }
         if (services.empty()) {
-            services = { service_type::kv, service_type::views, service_type::query, service_type::search, service_type::analytics };
+            services = { service_type::key_value, service_type::view, service_type::query, service_type::search, service_type::analytics };
         }
         asio::post(asio::bind_executor(ctx_, [this, report_id, bucket_name, services, handler = std::move(handler)]() mutable {
             auto collector = std::make_shared<ping_collector>(report_id.value(), std::move(handler));
             if (bucket_name) {
-                if (services.find(service_type::kv) != services.end()) {
+                if (services.find(service_type::key_value) != services.end()) {
                     auto bucket = buckets_.find(bucket_name.value());
                     if (bucket != buckets_.end()) {
                         bucket->second->ping(collector);
                     }
                 }
             } else {
-                if (services.find(service_type::kv) != services.end()) {
+                if (services.find(service_type::key_value) != services.end()) {
                     if (session_) {
                         session_->ping(collector->build_reporter());
                     }
@@ -318,7 +329,7 @@ class cluster
                     origin::node_list nodes;
                     nodes.reserve(config.nodes.size());
                     for (const auto& address : config.nodes) {
-                        auto port = address.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0);
+                        auto port = address.port_or(origin_.options().network, service_type::key_value, origin_.options().enable_tls, 0);
                         if (port == 0) {
                             continue;
                         }
@@ -348,5 +359,6 @@ class cluster
     std::shared_ptr<io::mcbp_session> session_{};
     std::map<std::string, std::shared_ptr<bucket>> buckets_{};
     couchbase::origin origin_{};
+    tracing::request_tracer* tracer_{ nullptr };
 };
 } // namespace couchbase

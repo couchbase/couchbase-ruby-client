@@ -22,6 +22,7 @@
 
 #include <operations.hxx>
 #include <origin.hxx>
+#include <tracing/request_tracer.hxx>
 
 namespace couchbase
 {
@@ -31,6 +32,7 @@ class bucket : public std::enable_shared_from_this<bucket>
     explicit bucket(const std::string& client_id,
                     asio::io_context& ctx,
                     asio::ssl::context& tls,
+                    tracing::request_tracer* tracer,
                     std::string name,
                     couchbase::origin origin,
                     const std::vector<protocol::hello_feature>& known_features)
@@ -38,6 +40,7 @@ class bucket : public std::enable_shared_from_this<bucket>
       : client_id_(client_id)
       , ctx_(ctx)
       , tls_(tls)
+      , tracer_(tracer)
       , name_(std::move(name))
       , origin_(std::move(origin))
       , known_features_(known_features)
@@ -103,7 +106,8 @@ class bucket : public std::enable_shared_from_this<bucket>
                 for (const auto& node : config.nodes) {
                     if (session->bootstrap_hostname() == node.hostname_for(origin_.options().network) &&
                         session->bootstrap_port() ==
-                          std::to_string(node.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0))) {
+                          std::to_string(
+                            node.port_or(origin_.options().network, service_type::key_value, origin_.options().enable_tls, 0))) {
                         new_index = node.index;
                         break;
                     }
@@ -133,7 +137,7 @@ class bucket : public std::enable_shared_from_this<bucket>
                 }
 
                 const auto& hostname = node.hostname_for(origin_.options().network);
-                auto port = node.port_or(origin_.options().network, service_type::kv, origin_.options().enable_tls, 0);
+                auto port = node.port_or(origin_.options().network, service_type::key_value, origin_.options().enable_tls, 0);
                 if (port == 0) {
                     continue;
                 }
@@ -339,7 +343,7 @@ class bucket : public std::enable_shared_from_this<bucket>
     void export_diag_info(diag::diagnostics_result& res) const
     {
         for (const auto& [index, session] : sessions_) {
-            res.services[service_type::kv].emplace_back(session->diag_info());
+            res.services[service_type::key_value].emplace_back(session->diag_info());
         }
     }
 
@@ -351,10 +355,16 @@ class bucket : public std::enable_shared_from_this<bucket>
         }
     }
 
+    auto tracer() const
+    {
+        return tracer_;
+    }
+
   private:
     std::string client_id_;
     asio::io_context& ctx_;
     asio::ssl::context& tls_;
+    tracing::request_tracer* tracer_;
     std::string name_;
     origin origin_;
 

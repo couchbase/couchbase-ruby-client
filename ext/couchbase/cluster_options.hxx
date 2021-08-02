@@ -18,6 +18,8 @@
 #pragma once
 
 #include <timeout_defaults.hxx>
+#include <tracing/threshold_logging_options.hxx>
+#include <tracing/request_tracer.hxx>
 
 namespace couchbase
 {
@@ -43,14 +45,16 @@ struct cluster_options {
     bool enable_unordered_execution{ true };
     bool enable_clustermap_notification{ true };
     bool enable_compression{ true };
+    bool enable_tracing{ true };
     std::string network{ "auto" };
+    tracing::threshold_logging_options tracing_options{};
 
     std::chrono::milliseconds tcp_keep_alive_interval = timeout_defaults::tcp_keep_alive_interval;
     std::chrono::milliseconds config_poll_interval = timeout_defaults::config_poll_interval;
     std::chrono::milliseconds config_poll_floor = timeout_defaults::config_poll_floor;
     std::chrono::milliseconds config_idle_redial_timeout = timeout_defaults::config_idle_redial_timeout;
 
-    size_t max_http_connections{ 0 };
+    std::size_t max_http_connections{ 0 };
     std::chrono::milliseconds idle_http_connection_timeout = timeout_defaults::idle_http_connection_timeout;
 };
 

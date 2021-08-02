@@ -23,6 +23,8 @@
 #include <operations/http_noop.hxx>
 #include <io/http_command.hxx>
 
+#include <tracing/noop_tracer.hxx>
+
 #include <random>
 
 namespace couchbase::io
@@ -36,6 +38,11 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
       , ctx_(ctx)
       , tls_(tls)
     {
+    }
+
+    void set_tracer(tracing::request_tracer* tracer)
+    {
+        tracer_ = tracer;
     }
 
     void set_configuration(const configuration& config, const cluster_options& options)
@@ -74,7 +81,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
     template<typename Collector>
     void ping(std::set<service_type> services, std::shared_ptr<Collector> collector, const couchbase::cluster_credentials& credentials)
     {
-        std::array<service_type, 4> known_types{ service_type::query, service_type::analytics, service_type::search, service_type::views };
+        std::array<service_type, 4> known_types{ service_type::query, service_type::analytics, service_type::search, service_type::view };
         for (auto& node : config_.nodes) {
             for (auto type : known_types) {
                 if (services.find(type) == services.end()) {
@@ -116,7 +123,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
                     busy_sessions_[type].push_back(session);
                     operations::http_noop_request request{};
                     request.type = type;
-                    auto cmd = std::make_shared<operations::http_command<operations::http_noop_request>>(ctx_, request);
+                    auto cmd = std::make_shared<operations::http_command<operations::http_noop_request>>(ctx_, request, tracer_);
                     cmd->send_to(
                       session,
                       [start = std::chrono::steady_clock::now(),
@@ -246,7 +253,8 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
     std::string client_id_;
     asio::io_context& ctx_;
     asio::ssl::context& tls_;
-    cluster_options options_;
+    tracing::request_tracer* tracer_{ nullptr };
+    cluster_options options_{};
 
     configuration config_{};
     std::map<service_type, std::list<std::shared_ptr<http_session>>> busy_sessions_{};

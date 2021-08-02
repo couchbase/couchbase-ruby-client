@@ -564,7 +564,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
 
     [[nodiscard]] diag::endpoint_diag_info diag_info() const
     {
-        return { service_type::kv,
+        return { service_type::key_value,
                  id_,
                  last_active_.time_since_epoch().count() == 0 ? std::nullopt
                                                               : std::make_optional(std::chrono::duration_cast<std::chrono::microseconds>(
@@ -591,7 +591,7 @@ class mcbp_session : public std::enable_shared_from_this<mcbp_session>
                                     error.emplace(fmt::format("code={}, message={}, reason={}", ec.value(), ec.message(), reason));
                                 }
                                 handler(diag::endpoint_ping_info{
-                                  service_type::kv,
+                                  service_type::key_value,
                                   self->id_,
                                   std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start),
                                   self->remote_address(),

@@ -56,12 +56,12 @@ struct http_noop_request {
                 timeout = timeout_defaults::search_timeout;
                 encoded.path = "/api/ping";
                 break;
-            case service_type::views:
+            case service_type::view:
                 timeout = timeout_defaults::view_timeout;
                 encoded.path = "/";
                 break;
             case service_type::management:
-            case service_type::kv:
+            case service_type::key_value:
                 return error::common_errc::feature_not_available;
         }
         return {};

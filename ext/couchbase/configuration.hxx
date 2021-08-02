@@ -73,13 +73,13 @@ struct configuration {
                     case service_type::search:
                         return services_tls.search.value_or(default_value);
 
-                    case service_type::views:
+                    case service_type::view:
                         return services_tls.views.value_or(default_value);
 
                     case service_type::management:
                         return services_tls.management.value_or(default_value);
 
-                    case service_type::kv:
+                    case service_type::key_value:
                         return services_tls.key_value.value_or(default_value);
                 }
             }
@@ -93,13 +93,13 @@ struct configuration {
                 case service_type::search:
                     return services_plain.search.value_or(default_value);
 
-                case service_type::views:
+                case service_type::view:
                     return services_plain.views.value_or(default_value);
 
                 case service_type::management:
                     return services_plain.management.value_or(default_value);
 
-                case service_type::kv:
+                case service_type::key_value:
                     return services_plain.key_value.value_or(default_value);
             }
             return default_value;
@@ -139,13 +139,13 @@ struct configuration {
                     case service_type::search:
                         return address->second.services_tls.search.value_or(default_value);
 
-                    case service_type::views:
+                    case service_type::view:
                         return address->second.services_tls.views.value_or(default_value);
 
                     case service_type::management:
                         return address->second.services_tls.management.value_or(default_value);
 
-                    case service_type::kv:
+                    case service_type::key_value:
                         return address->second.services_tls.key_value.value_or(default_value);
                 }
             }
@@ -159,13 +159,13 @@ struct configuration {
                 case service_type::search:
                     return address->second.services_plain.search.value_or(default_value);
 
-                case service_type::views:
+                case service_type::view:
                     return address->second.services_plain.views.value_or(default_value);
 
                 case service_type::management:
                     return address->second.services_plain.management.value_or(default_value);
 
-                case service_type::kv:
+                case service_type::key_value:
                     return address->second.services_plain.key_value.value_or(default_value);
             }
             return default_value;

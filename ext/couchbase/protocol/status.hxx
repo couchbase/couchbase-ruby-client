@@ -154,7 +154,7 @@ status_to_string(uint16_t code)
     return fmt::format("{} (unknown)", code);
 }
 
-} // namespace couchbase
+} // namespace couchbase::protocol
 
 template<>
 struct fmt::formatter<couchbase::protocol::status> : formatter<string_view> {

@@ -20,11 +20,11 @@
 namespace couchbase
 {
 enum class service_type {
-    kv,
+    key_value = 0,
     query,
     analytics,
     search,
-    views,
+    view,
     management,
 };
 } // namespace couchbase
@@ -36,7 +36,7 @@ struct fmt::formatter<couchbase::service_type> : formatter<std::string_view> {
     {
         string_view name = "unknown";
         switch (type) {
-            case couchbase::service_type::kv:
+            case couchbase::service_type::key_value:
                 name = "kv";
                 break;
             case couchbase::service_type::query:
@@ -48,7 +48,7 @@ struct fmt::formatter<couchbase::service_type> : formatter<std::string_view> {
             case couchbase::service_type::search:
                 name = "search";
                 break;
-            case couchbase::service_type::views:
+            case couchbase::service_type::view:
                 name = "views";
                 break;
             case couchbase::service_type::management:

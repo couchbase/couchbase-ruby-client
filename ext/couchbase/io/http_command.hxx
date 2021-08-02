@@ -19,6 +19,8 @@
 
 #include <io/http_session.hxx>
 
+#include <tracing/request_tracer.hxx>
+
 namespace couchbase::operations
 {
 
@@ -31,12 +33,26 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
     asio::steady_timer retry_backoff;
     Request request;
     encoded_request_type encoded;
+    tracing::request_tracer* tracer_;
+    tracing::request_span* span_{ nullptr };
 
-    http_command(asio::io_context& ctx, Request req)
+    http_command(asio::io_context& ctx, Request req, tracing::request_tracer* tracer)
       : deadline(ctx)
       , retry_backoff(ctx)
       , request(req)
+      , tracer_(tracer)
     {
+    }
+
+    void finish_dispatch(const std::string& remote_address, const std::string& local_address)
+    {
+        if (!span_) {
+            return;
+        }
+        span_->add_tag(tracing::attributes::remote_socket, remote_address);
+        span_->add_tag(tracing::attributes::local_socket, local_address);
+        span_->end();
+        span_ = nullptr;
     }
 
     template<typename Handler>
@@ -66,10 +82,15 @@ struct http_command : public std::enable_shared_from_this<http_command<Request>>
                      request.client_context_id,
                      request.timeout.count(),
                      spdlog::to_hex(encoded.body));
+        span_ = tracer_->start_span(tracing::span_name_for_http_service(request.type), nullptr);
+        span_->add_tag(tracing::attributes::service, tracing::service_name_for_http_service(request.type));
+        span_->add_tag(tracing::attributes::operation_id, request.client_context_id);
+        span_->add_tag(tracing::attributes::local_id, session->id());
         session->write_and_subscribe(encoded,
                                      [self = this->shared_from_this(), log_prefix, session, handler = std::forward<Handler>(handler)](
                                        std::error_code ec, io::http_response&& msg) mutable {
                                          self->deadline.cancel();
+                                         self->finish_dispatch(session->remote_address(), session->local_address());
                                          encoded_response_type resp(msg);
                                          spdlog::trace(R"({} HTTP response: {}, client_context_id="{}", status={})",
                                                        log_prefix,
