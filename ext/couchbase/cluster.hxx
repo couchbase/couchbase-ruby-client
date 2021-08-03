@@ -34,6 +34,8 @@
 
 #include <tracing/noop_tracer.hxx>
 #include <tracing/threshold_logging_tracer.hxx>
+#include <metrics/noop_meter.hxx>
+#include <metrics/logging_meter.hxx>
 
 #include <diagnostics.hxx>
 
@@ -107,6 +109,11 @@ class cluster
         } else {
             tracer_ = new tracing::noop_tracer();
         }
+        if (origin_.options().enable_metrics) {
+            meter_ = new metrics::logging_meter(ctx_, origin.options().metrics_options);
+        } else {
+            meter_ = new metrics::noop_meter();
+        }
         session_manager_->set_tracer(tracer_);
         if (origin_.options().enable_dns_srv) {
             return asio::post(asio::bind_executor(
@@ -130,6 +137,8 @@ class cluster
             work_.reset();
             delete tracer_;
             tracer_ = nullptr;
+            delete meter_;
+            meter_ = nullptr;
         }));
     }
 
@@ -143,7 +152,7 @@ class cluster
         if (session_ && session_->has_config()) {
             known_features = session_->supported_features();
         }
-        auto b = std::make_shared<bucket>(id_, ctx_, tls_, tracer_, bucket_name, origin_, known_features);
+        auto b = std::make_shared<bucket>(id_, ctx_, tls_, tracer_, meter_, bucket_name, origin_, known_features);
         b->bootstrap([this, handler = std::forward<Handler>(handler)](std::error_code ec, const configuration& config) mutable {
             if (!ec && !session_->supports_gcccp()) {
                 session_manager_->set_configuration(config, origin_.options());
@@ -176,7 +185,7 @@ class cluster
             ctx.ec = error::common_errc::service_not_available;
             return handler(operations::make_response(std::move(ctx), request, {}));
         }
-        auto cmd = std::make_shared<operations::http_command<Request>>(ctx_, request, tracer_);
+        auto cmd = std::make_shared<operations::http_command<Request>>(ctx_, request, tracer_, meter_);
         cmd->send_to(session, [this, session, handler = std::forward<Handler>(handler)](typename Request::response_type resp) mutable {
             handler(std::move(resp));
             session_manager_->check_in(Request::type, session);
@@ -360,5 +369,6 @@ class cluster
     std::map<std::string, std::shared_ptr<bucket>> buckets_{};
     couchbase::origin origin_{};
     tracing::request_tracer* tracer_{ nullptr };
+    metrics::meter* meter_{ nullptr };
 };
 } // namespace couchbase

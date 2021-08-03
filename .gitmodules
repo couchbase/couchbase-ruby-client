@@ -22,3 +22,6 @@
 [submodule "ext/third_party/catch2"]
 	path = ext/third_party/catch2
 	url = git://github.com/catchorg/Catch2.git
+[submodule "ext/third_party/hdr_histogram_c"]
+	path = ext/third_party/hdr_histogram_c
+	url = git://github.com/HdrHistogram/HdrHistogram_c.git

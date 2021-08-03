@@ -19,7 +19,7 @@
 
 #include <timeout_defaults.hxx>
 #include <tracing/threshold_logging_options.hxx>
-#include <tracing/request_tracer.hxx>
+#include <metrics/logging_meter_options.hxx>
 
 namespace couchbase
 {
@@ -46,8 +46,10 @@ struct cluster_options {
     bool enable_clustermap_notification{ true };
     bool enable_compression{ true };
     bool enable_tracing{ true };
+    bool enable_metrics{ true };
     std::string network{ "auto" };
     tracing::threshold_logging_options tracing_options{};
+    metrics::logging_meter_options metrics_options{};
 
     std::chrono::milliseconds tcp_keep_alive_interval = timeout_defaults::tcp_keep_alive_interval;
     std::chrono::milliseconds config_poll_interval = timeout_defaults::config_poll_interval;

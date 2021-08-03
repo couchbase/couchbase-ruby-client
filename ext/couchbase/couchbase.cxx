@@ -1100,6 +1100,16 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
                 break;
             }
         }
+        exc = cb_extract_option_bool(origin.options().enable_metrics, options, "enable_metrics");
+        if (!NIL_P(exc)) {
+            break;
+        }
+        if (origin.options().enable_metrics) {
+            exc = cb_extract_option_milliseconds(origin.options().metrics_options.emit_interval, options, "metrics_emit_interval");
+            if (!NIL_P(exc)) {
+                break;
+            }
+        }
 
         auto barrier = std::make_shared<std::promise<std::error_code>>();
         auto f = barrier->get_future();

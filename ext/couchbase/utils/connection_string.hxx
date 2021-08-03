@@ -367,6 +367,16 @@ extract_options(connection_string& connstr)
                 } else if (param.second == "false" || param.second == "no" || param.second == "off") {
                     connstr.options.enable_tracing = false;
                 }
+            } else if (param.first == "enable_metrics") {
+                /**
+                 * true - use logging_meter
+                 * false - use noop_meter
+                 */
+                if (param.second == "true" || param.second == "yes" || param.second == "on") {
+                    connstr.options.enable_metrics = true;
+                } else if (param.second == "false" || param.second == "no" || param.second == "off") {
+                    connstr.options.enable_metrics = false;
+                }
             } else {
                 spdlog::warn(R"(unknown parameter "{}" in connection string (value "{}"))", param.first, param.second);
             }

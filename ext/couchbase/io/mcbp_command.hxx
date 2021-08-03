@@ -28,6 +28,7 @@
 #include <protocol/cmd_get_collection_id.hxx>
 
 #include <tracing/request_tracer.hxx>
+#include <metrics/meter.hxx>
 
 namespace couchbase::operations
 {
@@ -191,7 +192,17 @@ struct mcbp_command : public std::enable_shared_from_this<mcbp_command<Manager, 
         session_->write_and_subscribe(
           request.opaque,
           encoded.data(session_->supports_feature(protocol::hello_feature::snappy)),
-          [self = this->shared_from_this()](std::error_code ec, io::retry_reason reason, io::mcbp_message&& msg) mutable {
+          [self = this->shared_from_this(),
+           start = std::chrono::steady_clock::now()](std::error_code ec, io::retry_reason reason, io::mcbp_message&& msg) mutable {
+              static std::string meter_name = "db.couchbase.operations";
+              static std::map<std::string, std::string> tags = {
+                  { "db.couchbase.service", "kv" },
+                  { "db.operation", fmt::format("{}", encoded_request_type::body_type::opcode) },
+              };
+              self->manager_->meter()
+                ->get_value_recorder(meter_name, tags)
+                ->record_value(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count());
+
               self->retry_backoff.cancel();
               if (ec == asio::error::operation_aborted) {
                   self->span_->add_tag(tracing::attributes::orphan, "aborted");

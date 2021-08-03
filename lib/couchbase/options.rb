@@ -1149,6 +1149,8 @@ module Couchbase
     class Cluster
       attr_accessor :authenticator # @return [PasswordAuthenticator, CertificateAuthenticator]
 
+      attr_accessor :enable_metrics # @return [Boolean]
+      attr_accessor :metrics_emit_interval # @return [nil, Integer, #in_milliseconds]
       attr_accessor :enable_tracing # @return [Boolean]
       attr_accessor :orphaned_emit_interval # @return [nil, Integer, #in_milliseconds]
       attr_accessor :orphaned_sample_size # @return [nil, Integer]
@@ -1167,6 +1169,8 @@ module Couchbase
       #
       # @yieldparam [Cluster] self
       def initialize(authenticator: nil,
+                     enable_metrics: nil,
+                     metrics_emit_interval: nil,
                      enable_tracing: nil,
                      orphaned_emit_interval: nil,
                      orphaned_sample_size: nil,
@@ -1179,6 +1183,8 @@ module Couchbase
                      analytics_threshold: nil,
                      management_threshold: nil)
         @authenticator = authenticator
+        @enable_metrics = enable_metrics
+        @metrics_emit_interval = metrics_emit_interval
         @enable_tracing = enable_tracing
         @orphaned_emit_interval = orphaned_emit_interval
         @orphaned_sample_size = orphaned_sample_size
@@ -1202,6 +1208,8 @@ module Couchbase
       # @api private
       def to_backend
         {
+          enable_metrics: @enable_metrics,
+          metrics_emit_interval: Utils::Time.extract_duration(@metrics_emit_interval),
           enable_tracing: @enable_tracing,
           orphaned_emit_interval: Utils::Time.extract_duration(@orphaned_emit_interval),
           orphaned_sample_size: @orphaned_sample_size,

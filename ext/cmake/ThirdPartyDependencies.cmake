@@ -10,6 +10,12 @@ option(SNAPPY_BUILD_TESTS OFF)
 option(SNAPPY_INSTALL OFF)
 add_subdirectory(third_party/snappy)
 
+option(HDR_LOG_REQUIRED OFF)
+option(HDR_HISTOGRAM_BUILD_SHARED OFF)
+option(HDR_HISTOGRAM_BUILD_PROGRAMS OFF)
+add_subdirectory(third_party/hdr_histogram_c)
+include_directories(BEFORE SYSTEM third_party/hdr_histogram_c/src)
+
 include_directories(BEFORE SYSTEM third_party/gsl/include)
 include_directories(BEFORE SYSTEM third_party/asio/asio/include)
 include_directories(BEFORE SYSTEM third_party/json/include)

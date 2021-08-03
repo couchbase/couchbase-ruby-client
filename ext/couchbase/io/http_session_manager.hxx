@@ -24,6 +24,7 @@
 #include <io/http_command.hxx>
 
 #include <tracing/noop_tracer.hxx>
+#include <metrics/meter.hxx>
 
 #include <random>
 
@@ -43,6 +44,11 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
     void set_tracer(tracing::request_tracer* tracer)
     {
         tracer_ = tracer;
+    }
+
+    void set_meter(metrics::meter* meter)
+    {
+        meter_ = meter;
     }
 
     void set_configuration(const configuration& config, const cluster_options& options)
@@ -123,7 +129,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
                     busy_sessions_[type].push_back(session);
                     operations::http_noop_request request{};
                     request.type = type;
-                    auto cmd = std::make_shared<operations::http_command<operations::http_noop_request>>(ctx_, request, tracer_);
+                    auto cmd = std::make_shared<operations::http_command<operations::http_noop_request>>(ctx_, request, tracer_, meter_);
                     cmd->send_to(
                       session,
                       [start = std::chrono::steady_clock::now(),
@@ -254,6 +260,7 @@ class http_session_manager : public std::enable_shared_from_this<http_session_ma
     asio::io_context& ctx_;
     asio::ssl::context& tls_;
     tracing::request_tracer* tracer_{ nullptr };
+    metrics::meter* meter_{ nullptr };
     cluster_options options_{};
 
     configuration config_{};

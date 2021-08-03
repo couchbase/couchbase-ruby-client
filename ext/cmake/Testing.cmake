@@ -40,6 +40,7 @@ if(ENABLE_TESTING)
       cbcrypto
       cbsasl
       http_parser
+      hdr_histogram_static
       snappy
       spdlog::spdlog_header_only)
     catch_discover_tests(test_native_${name})

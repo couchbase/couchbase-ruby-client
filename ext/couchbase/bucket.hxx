@@ -23,6 +23,7 @@
 #include <operations.hxx>
 #include <origin.hxx>
 #include <tracing/request_tracer.hxx>
+#include <metrics/meter.hxx>
 
 namespace couchbase
 {
@@ -33,6 +34,7 @@ class bucket : public std::enable_shared_from_this<bucket>
                     asio::io_context& ctx,
                     asio::ssl::context& tls,
                     tracing::request_tracer* tracer,
+                    metrics::meter* meter,
                     std::string name,
                     couchbase::origin origin,
                     const std::vector<protocol::hello_feature>& known_features)
@@ -41,6 +43,7 @@ class bucket : public std::enable_shared_from_this<bucket>
       , ctx_(ctx)
       , tls_(tls)
       , tracer_(tracer)
+      , meter_(meter)
       , name_(std::move(name))
       , origin_(std::move(origin))
       , known_features_(known_features)
@@ -360,11 +363,17 @@ class bucket : public std::enable_shared_from_this<bucket>
         return tracer_;
     }
 
+    auto meter() const
+    {
+        return meter_;
+    }
+
   private:
     std::string client_id_;
     asio::io_context& ctx_;
     asio::ssl::context& tls_;
     tracing::request_tracer* tracer_;
+    metrics::meter* meter_;
     std::string name_;
     origin origin_;
 

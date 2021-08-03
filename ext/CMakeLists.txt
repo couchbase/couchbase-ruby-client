@@ -113,6 +113,7 @@ target_link_libraries(
           cbcrypto
           cbsasl
           http_parser
+          hdr_histogram_static
           snappy
           spdlog::spdlog_header_only)
 
@@ -121,6 +122,7 @@ set_target_properties(
   cbsasl
   platform
   snappy
+  hdr_histogram_static
   PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 if(APPLE)
