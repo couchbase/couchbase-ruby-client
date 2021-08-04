@@ -17,21 +17,21 @@ module Couchbase
   #
   # @example Display version and all dependencies in command line
   #   # ruby -rcouchbase -e 'pp Couchbase::VERSION'
-  #   {:sdk=>"3.1.1",
-  #    :backend=>"1.5.0",
-  #    :build_timestamp=>"2021-04-08 16:29:43",
-  #    :revision=>"a79d098eb238b3883e49e1738c35167642e8834f",
-  #    :platform=>"Linux-4.15.0-66-generic",
+  #   {:sdk=>"3.2.0",
+  #    :backend=>"1.6.0",
+  #    :build_timestamp=>"2021-08-04 10:10:35",
+  #    :revision=>"6c069e4e6965117c7240b331847dc3f62afe0554",
+  #    :platform=>"Linux-4.18.0-326.el8.x86_64",
   #    :cpu=>"x86_64",
-  #    :cc=>"GNU 9.3.1",
-  #    :cxx=>"GNU 9.3.1",
+  #    :cc=>"GNU 8.5.0",
+  #    :cxx=>"GNU 8.5.0",
   #    :ruby=>"2.7.0",
   #    :spdlog=>"1.8.1",
   #    :asio=>"1.18.0",
   #    :snappy=>"1.1.8",
   #    :http_parser=>"2.9.4",
-  #    :openssl_headers=>"OpenSSL 1.1.1g FIPS  21 Apr 2020",
-  #    :openssl_runtime=>"OpenSSL 1.1.1g FIPS  21 Apr 2020"}
+  #    :openssl_headers=>"OpenSSL 1.1.1k  FIPS 25 Mar 2021",
+  #    :openssl_runtime=>"OpenSSL 1.1.1k  FIPS 25 Mar 2021"}
   VERSION = {} unless defined?(VERSION) # rubocop:disable Style/MutableConstant
-  VERSION.update(:sdk => "3.2.0".freeze)
+  VERSION.update(:sdk => "3.2.1.snapshot".freeze)
 end
