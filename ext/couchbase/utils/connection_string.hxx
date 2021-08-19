@@ -377,6 +377,12 @@ extract_options(connection_string& connstr)
                 } else if (param.second == "false" || param.second == "no" || param.second == "off") {
                     connstr.options.enable_metrics = false;
                 }
+            } else if (param.first == "tls_verify") {
+                if (param.second == "none") {
+                    connstr.options.tls_verify = tls_verify_mode::none;
+                } else if (param.second == "peer") {
+                    connstr.options.tls_verify = tls_verify_mode::peer;
+                }
             } else {
                 spdlog::warn(R"(unknown parameter "{}" in connection string (value "{}"))", param.first, param.second);
             }

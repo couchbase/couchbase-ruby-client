@@ -286,6 +286,15 @@ class cluster
     {
         if (origin_.options().enable_tls) {
             tls_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2 | asio::ssl::context::no_sslv3);
+            switch (origin_.options().tls_verify) {
+                case tls_verify_mode::none:
+                    tls_.set_verify_mode(asio::ssl::verify_none);
+                    break;
+
+                case tls_verify_mode::peer:
+                    tls_.set_verify_mode(asio::ssl::verify_peer);
+                    break;
+            }
             if (!origin_.options().trust_certificate.empty()) {
                 std::error_code ec{};
                 spdlog::debug(R"([{}]: use TLS certificate chain: "{}")", id_, origin_.options().trust_certificate);

@@ -23,6 +23,11 @@
 
 namespace couchbase
 {
+enum class tls_verify_mode {
+    none,
+    peer,
+};
+
 struct cluster_options {
     std::chrono::milliseconds bootstrap_timeout = timeout_defaults::bootstrap_timeout;
     std::chrono::milliseconds connect_timeout = timeout_defaults::connect_timeout;
@@ -50,6 +55,7 @@ struct cluster_options {
     std::string network{ "auto" };
     tracing::threshold_logging_options tracing_options{};
     metrics::logging_meter_options metrics_options{};
+    tls_verify_mode tls_verify{ tls_verify_mode::peer };
 
     std::chrono::milliseconds tcp_keep_alive_interval = timeout_defaults::tcp_keep_alive_interval;
     std::chrono::milliseconds config_poll_interval = timeout_defaults::config_poll_interval;
