@@ -333,7 +333,7 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
     if (!response.ctx.ec) {
         try {
             response.payload = tao::json::from_string(encoded.body).as<query_response_payload>();
-        } catch (const tao::json::pegtl::parse_error&) {
+        } catch (const tao::pegtl::parse_error&) {
             response.ctx.ec = error::common_errc::parsing_failure;
             return response;
         }
@@ -348,7 +348,7 @@ make_response(error_context::query&& ctx, query_request& request, query_request:
                     tao::json::value row{};
                     try {
                         row = tao::json::from_string(response.payload.rows[0]);
-                    } catch (const tao::json::pegtl::parse_error&) {
+                    } catch (const tao::pegtl::parse_error&) {
                         response.ctx.ec = error::common_errc::parsing_failure;
                         return response;
                     }

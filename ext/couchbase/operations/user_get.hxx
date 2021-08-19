@@ -62,7 +62,7 @@ make_response(error_context::http&& ctx, const user_get_request& /* request */, 
             case 200: {
                 try {
                     response.user = tao::json::from_string(encoded.body).as<rbac::user_and_metadata>();
-                } catch (const tao::json::pegtl::parse_error& e) {
+                } catch (const tao::pegtl::parse_error& e) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }

@@ -55,7 +55,7 @@ class get_error_map_response_body
             try {
                 std::vector<uint8_t>::difference_type offset = framing_extras_size + key_size + extras_size;
                 errmap_ = tao::json::from_string(std::string(body.begin() + offset, body.end())).as<error_map>();
-            } catch (const tao::json::pegtl::parse_error& e) {
+            } catch (const tao::pegtl::parse_error& e) {
                 spdlog::critical("unable to parse JSON: {}, {}", e.message(), std::string(body.begin(), body.end()));
             }
             return true;

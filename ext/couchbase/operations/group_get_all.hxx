@@ -60,7 +60,7 @@ make_response(error_context::http&& ctx, const group_get_all_request& /* request
             tao::json::value payload{};
             try {
                 payload = tao::json::from_string(encoded.body);
-            } catch (const tao::json::pegtl::parse_error& e) {
+            } catch (const tao::pegtl::parse_error& e) {
                 response.ctx.ec = error::common_errc::parsing_failure;
                 return response;
             }

@@ -212,7 +212,7 @@ make_response(error_context::key_value&& ctx, const get_projected_request& reque
                 tao::json::value full_doc{};
                 try {
                     full_doc = tao::json::from_string(encoded.body().fields()[request.with_expiry ? 1 : 0].value);
-                } catch (const tao::json::pegtl::parse_error& e) {
+                } catch (const tao::pegtl::parse_error& e) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }
@@ -237,7 +237,7 @@ make_response(error_context::key_value&& ctx, const get_projected_request& reque
                     tao::json::value value_to_apply{};
                     try {
                         value_to_apply = tao::json::from_string(field.value);
-                    } catch (const tao::json::pegtl::parse_error& e) {
+                    } catch (const tao::pegtl::parse_error& e) {
                         response.ctx.ec = error::common_errc::parsing_failure;
                         return response;
                     }

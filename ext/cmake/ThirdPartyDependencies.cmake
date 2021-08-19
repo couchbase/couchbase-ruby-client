@@ -19,6 +19,7 @@ include_directories(BEFORE SYSTEM third_party/hdr_histogram_c/src)
 include_directories(BEFORE SYSTEM third_party/gsl/include)
 include_directories(BEFORE SYSTEM third_party/asio/asio/include)
 include_directories(BEFORE SYSTEM third_party/json/include)
+include_directories(BEFORE SYSTEM third_party/json/external/PEGTL/include)
 include_directories(BEFORE SYSTEM third_party/spdlog/include)
 include_directories(BEFORE SYSTEM third_party/http_parser)
 

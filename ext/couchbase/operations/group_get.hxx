@@ -61,7 +61,7 @@ make_response(error_context::http&& ctx, const group_get_request& /* request */,
             case 200: {
                 try {
                     response.group = tao::json::from_string(encoded.body).as<rbac::group>();
-                } catch (const tao::json::pegtl::parse_error& e) {
+                } catch (const tao::pegtl::parse_error& e) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }

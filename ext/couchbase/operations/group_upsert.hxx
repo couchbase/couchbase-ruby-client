@@ -103,7 +103,7 @@ make_response(error_context::http&& ctx, const group_upsert_request& /* request 
                 tao::json::value payload{};
                 try {
                     payload = tao::json::from_string(encoded.body);
-                } catch (const tao::json::pegtl::parse_error&) {
+                } catch (const tao::pegtl::parse_error&) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }

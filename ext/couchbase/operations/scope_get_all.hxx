@@ -66,7 +66,7 @@ make_response(error_context::http&& ctx, const scope_get_all_request& /* request
             case 200:
                 try {
                     response.manifest = tao::json::from_string(encoded.body).as<collections_manifest>();
-                } catch (const tao::json::pegtl::parse_error& e) {
+                } catch (const tao::pegtl::parse_error& e) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }

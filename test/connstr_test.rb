@@ -52,6 +52,8 @@ module Couchbase
       assert_equal(['2001:db8::1'], Couchbase::Backend.parse_connection_string('couchbase://[2001:db8::1]')[:nodes].map { |node| node[:address] })
       assert_equal(['2001:db8:85a3:8d3:1319:8a2e:370:7348'], Couchbase::Backend.parse_connection_string('couchbase://[2001:db8:85a3:8d3:1319:8a2e:370:7348]')[:nodes].map { |node| node[:address] })
       assert_equal(['example.com'], Couchbase::Backend.parse_connection_string('couchbase://example.com')[:nodes].map { |node| node[:address] })
+      assert_equal(['255example.com'], Couchbase::Backend.parse_connection_string('couchbase://255example.com')[:nodes].map { |node| node[:address] })
+      assert_equal(['256example.com'], Couchbase::Backend.parse_connection_string('couchbase://256example.com')[:nodes].map { |node| node[:address] })
 
       assert_equal "failed to parse connection string: empty input", Couchbase::Backend.parse_connection_string('')[:error]
       assert_equal 'failed to parse connection string (column: 15, trailer: "6.1.1.1")', Couchbase::Backend.parse_connection_string('couchbase://256.1.1.1')[:error]

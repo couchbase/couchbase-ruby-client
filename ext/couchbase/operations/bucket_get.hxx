@@ -62,7 +62,7 @@ make_response(error_context::http&& ctx, const bucket_get_request& /* request */
             case 200:
                 try {
                     response.bucket = tao::json::from_string(encoded.body).as<bucket_settings>();
-                } catch (const tao::json::pegtl::parse_error& e) {
+                } catch (const tao::pegtl::parse_error& e) {
                     response.ctx.ec = error::common_errc::parsing_failure;
                     return response;
                 }

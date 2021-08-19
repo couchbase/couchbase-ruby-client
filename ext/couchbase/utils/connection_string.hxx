@@ -19,8 +19,8 @@
 
 #include <string>
 
-#include <tao/json/external/pegtl.hpp>
-#include <tao/json/external/pegtl/contrib/uri.hpp>
+#include <tao/pegtl.hpp>
+#include <tao/pegtl/contrib/uri.hpp>
 
 #include <cluster_options.hxx>
 
@@ -63,7 +63,7 @@ struct connection_string {
 
 namespace priv
 {
-using namespace tao::json::pegtl;
+using namespace tao::pegtl;
 
 struct bucket_name : seq<uri::segment_nz> {
 };
@@ -86,7 +86,7 @@ using opt_bucket_name = opt_must<one<'/'>, bucket_name>;
 using opt_params = opt_must<one<'?'>, list_must<param, one<'&'>>>;
 using opt_nodes = seq<list_must<node, one<',', ';'>>, opt_bucket_name>;
 
-using grammar = must<seq<uri::scheme, one<':'>, uri::dslash, opt_nodes, opt_params, tao::json::pegtl::eof>>;
+using grammar = must<seq<uri::scheme, one<':'>, uri::dslash, opt_nodes, opt_params, tao::pegtl::eof>>;
 
 template<typename Rule>
 struct action {
@@ -404,11 +404,11 @@ parse_connection_string(const std::string& input)
         return res;
     }
 
-    auto in = tao::json::pegtl::memory_input(input, __FUNCTION__);
+    auto in = tao::pegtl::memory_input(input, __FUNCTION__);
     try {
         connection_string::node node{};
-        tao::json::pegtl::parse<priv::grammar, priv::action>(in, res, node);
-    } catch (const tao::json::pegtl::parse_error& e) {
+        tao::pegtl::parse<priv::grammar, priv::action>(in, res, node);
+    } catch (const tao::pegtl::parse_error& e) {
         for (const auto& position : e.positions()) {
             if (position.source == __FUNCTION__) {
                 res.error = fmt::format(
