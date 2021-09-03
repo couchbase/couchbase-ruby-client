@@ -17,6 +17,6 @@ require_relative "test_helper"
 class CouchbaseTest < Minitest::Test
   def test_that_it_has_a_version_number
     refute_nil ::Couchbase::VERSION[:sdk]
-    refute_nil ::Couchbase::VERSION[:backend]
+    refute_nil ::Couchbase::BUILD_INFO[:cxx_client][:version]
   end
 end

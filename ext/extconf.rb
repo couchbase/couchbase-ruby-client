@@ -37,11 +37,15 @@ cmake_flags = %W[
   -DCMAKE_BUILD_TYPE=#{build_type}
   -DRUBY_HDR_DIR=#{RbConfig::CONFIG['rubyhdrdir']}
   -DRUBY_ARCH_HDR_DIR=#{RbConfig::CONFIG['rubyarchhdrdir']}
+  -DCOUCHBASE_CXX_CLIENT_BUILD_TESTS=OFF
 ]
+
+revisions_path = File.join(__dir__, "revisions.rb")
+eval(File.read(revisions_path)) if File.exist?(revisions_path) # rubocop:disable Security/Eval
 
 cmake_flags << "-DCMAKE_C_COMPILER=#{ENV['CB_CC']}" if ENV["CB_CC"]
 cmake_flags << "-DCMAKE_CXX_COMPILER=#{ENV['CB_CXX']}" if ENV["CB_CXX"]
-cmake_flags << "-DSTATIC_STDLIB=ON" << "-DSTATIC_OPENSSL=ON" if ENV["CB_STATIC"]
+cmake_flags << "-DCOUCHBASE_CXX_CLIENT_STATIC_STDLIB=ON" << "-DCOUCHBASE_CXX_CLIENT_STATIC_OPENSSL=ON" if ENV["CB_STATIC"]
 cmake_flags << "-DENABLE_SANITIZER_ADDRESS=ON" if ENV["CB_ASAN"]
 cmake_flags << "-DENABLE_SANITIZER_LEAK=ON" if ENV["CB_LSAN"]
 cmake_flags << "-DENABLE_SANITIZER_MEMORY=ON" if ENV["CB_MSAN"]

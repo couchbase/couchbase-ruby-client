@@ -208,6 +208,7 @@ module Couchbase
       spec.name = collection_name
       ns_uid = manager.create_collection(spec)
       __wait_for_collections_manifest(ns_uid)
+      time_travel(3)
 
       manager = @cluster.query_indexes
       options = Management::QueryIndexManager::CreatePrimaryIndexOptions.new

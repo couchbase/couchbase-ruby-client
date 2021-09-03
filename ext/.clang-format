@@ -1,15 +1,1 @@
-# -*- mode: yaml; -*-
-
-Language: Cpp
-BasedOnStyle: Mozilla
-Standard: c++17
-
-UseTab: Never
-IndentWidth: 4
-ColumnLimit: 140
-AllowShortFunctionsOnASingleLine: None
-AllowShortBlocksOnASingleLine: Never
-AllowShortCaseLabelsOnASingleLine: false
-BreakBeforeBraces: Linux
-SortIncludes: false
-FixNamespaceComments: true
+couchbase/.clang-format

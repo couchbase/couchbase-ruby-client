@@ -15,27 +15,23 @@
  *   limitations under the License.
  */
 
-#include <build_info.hxx>
-#include <version.hxx>
+#include <couchbase/version.hxx>
+#include "ext_build_info.hxx"
+#include "ext_build_version.hxx"
 
 #include <asio.hpp>
-#include <openssl/crypto.h>
-
 #include <spdlog/spdlog.h>
-
 #include <spdlog/cfg/env.h>
-
-#include <http_parser.h>
 
 #include <snappy.h>
 
-#include <platform/terminate_handler.h>
+#include <couchbase/platform/terminate_handler.h>
 
-#include <cluster.hxx>
-#include <operations.hxx>
+#include <couchbase/cluster.hxx>
+#include <couchbase/operations.hxx>
 
-#include <io/dns_client.hxx>
-#include <utils/connection_string.hxx>
+#include <couchbase/io/dns_client.hxx>
+#include <couchbase/utils/connection_string.hxx>
 
 #include <ruby.h>
 #if defined(HAVE_RUBY_VERSION_H)
@@ -77,33 +73,13 @@ init_versions(VALUE mCouchbase)
         rb_const_set(mCouchbase, rb_intern("VERSION"), cb_Version);
     }
 
-    std::string ver;
-    ver = fmt::format("{}.{}.{}", couchbase::BACKEND_VERSION_MAJOR, couchbase::BACKEND_VERSION_MINOR, couchbase::BACKEND_VERSION_PATCH);
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("backend")), rb_str_freeze(cb_str_new(ver)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("build_timestamp")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_BUILD_TIMESTAMP)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("revision")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_GIT_REVISION)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("platform")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_SYSTEM)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("cpu")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_SYSTEM_PROCESSOR)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("cc")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_C_COMPILER)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("cxx")), rb_str_freeze(rb_str_new_cstr(couchbase::BACKEND_CXX_COMPILER)));
 #if defined(HAVE_RUBY_VERSION_H)
-    ver = fmt::format("{}.{}.{}", RUBY_API_VERSION_MAJOR, RUBY_API_VERSION_MINOR, RUBY_API_VERSION_TEENY);
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("ruby")), rb_str_freeze(cb_str_new(ver)));
+    rb_hash_aset(
+      cb_Version,
+      rb_id2sym(rb_intern("ruby_abi")),
+      rb_str_freeze(cb_str_new(fmt::format("{}.{}.{}", RUBY_API_VERSION_MAJOR, RUBY_API_VERSION_MINOR, RUBY_API_VERSION_TEENY))));
 #endif
-    ver = fmt::format("{}.{}.{}", SPDLOG_VER_MAJOR, SPDLOG_VER_MINOR, SPDLOG_VER_PATCH);
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("spdlog")), rb_str_freeze(cb_str_new(ver)));
-    ver = fmt::format("{}.{}.{}", ASIO_VERSION / 100'000, ASIO_VERSION / 100 % 1000, ASIO_VERSION % 100);
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("asio")), rb_str_freeze(cb_str_new(ver)));
-    ver = fmt::format("{}.{}.{}", SNAPPY_MAJOR, SNAPPY_MINOR, SNAPPY_PATCHLEVEL);
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("snappy")), rb_str_freeze(cb_str_new(ver)));
-    ver = fmt::format("{}.{}.{}", HTTP_PARSER_VERSION_MAJOR, HTTP_PARSER_VERSION_MINOR, HTTP_PARSER_VERSION_PATCH);
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("http_parser")), rb_str_freeze(cb_str_new(ver)));
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_headers")), rb_str_freeze(rb_str_new_cstr(OPENSSL_VERSION_TEXT)));
-#if defined(OPENSSL_VERSION)
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_runtime")), rb_str_freeze(rb_str_new_cstr(OpenSSL_version(OPENSSL_VERSION))));
-#elif defined(SSLEAY_VERSION)
-    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("openssl_runtime")), rb_str_freeze(rb_str_new_cstr(SSLeay_version(SSLEAY_VERSION))));
-#endif
+    rb_hash_aset(cb_Version, rb_id2sym(rb_intern("revision")), rb_str_freeze(rb_str_new_cstr(EXT_GIT_REVISION)));
 
     VALUE version_info = rb_inspect(cb_Version);
     spdlog::debug("couchbase backend has been initialized: {}",
@@ -111,27 +87,19 @@ init_versions(VALUE mCouchbase)
 
     VALUE cb_BuildInfo = rb_hash_new();
     rb_const_set(mCouchbase, rb_intern("BUILD_INFO"), cb_BuildInfo);
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("cmake_version")), rb_str_freeze(rb_str_new_cstr(CMAKE_VERSION)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("cmake_build_type")), rb_str_freeze(rb_str_new_cstr(CMAKE_BUILD_TYPE)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("compile_definitions")), rb_str_freeze(rb_str_new_cstr(BACKEND_COMPILE_DEFINITIONS)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("compile_features")), rb_str_freeze(rb_str_new_cstr(BACKEND_COMPILE_FEATURES)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("compile_flags")), rb_str_freeze(rb_str_new_cstr(BACKEND_COMPILE_FLAGS)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("compile_options")), rb_str_freeze(rb_str_new_cstr(BACKEND_COMPILE_OPTIONS)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("link_depends")), rb_str_freeze(rb_str_new_cstr(BACKEND_LINK_DEPENDS)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("link_flags")), rb_str_freeze(rb_str_new_cstr(BACKEND_LINK_FLAGS)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("link_libraries")), rb_str_freeze(rb_str_new_cstr(BACKEND_LINK_LIBRARIES)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("link_options")), rb_str_freeze(rb_str_new_cstr(BACKEND_LINK_OPTIONS)));
-#if defined(STATIC_STDLIB)
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("static_stdlib")), Qtrue);
-#endif
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("openssl_crypto_libraries")), rb_str_freeze(rb_str_new_cstr(OPENSSL_CRYPTO_LIBRARIES)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("openssl_ssl_libraries")), rb_str_freeze(rb_str_new_cstr(OPENSSL_SSL_LIBRARIES)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("openssl_include_dir")), rb_str_freeze(rb_str_new_cstr(OPENSSL_INCLUDE_DIR)));
-#if defined(STATIC_OPENSSL)
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("static_openssl")), Qtrue);
-#endif
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_library")), rb_str_freeze(rb_str_new_cstr(RUBY_LIBRARY)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_include_dir")), rb_str_freeze(rb_str_new_cstr(RUBY_INCLUDE_DIR)));
+    VALUE cb_CoreInfo = rb_hash_new();
+    for (const auto& [name, value] : couchbase::sdk_build_info()) {
+        if (name == "version_major" || name == "version_minor" || name == "version_patch" || name == "version_build") {
+            rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), INT2FIX(std::stoi(value)));
+        } else if (name == "snapshot" || name == "static_stdlib" || name == "static_openssl") {
+            rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), value == "true" ? Qtrue : Qfalse);
+        } else {
+            rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), rb_str_freeze(rb_str_new_cstr(value.c_str())));
+        }
+    }
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("cxx_client")), cb_CoreInfo);
     VALUE build_info = rb_inspect(cb_BuildInfo);
     spdlog::debug("couchbase backend build info: {}",
                   std::string_view(RSTRING_PTR(build_info), static_cast<std::size_t>(RSTRING_LEN(build_info))));

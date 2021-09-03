@@ -16,8 +16,10 @@ require "couchbase"
 include Couchbase # rubocop:disable Style/MixinUsage for brevity
 
 options = Cluster::ClusterOptions.new
+
 options.authenticate("Administrator", "password")
 cluster = Cluster.connect("couchbase://localhost", options)
+
 bucket = cluster.bucket("travel-sample")
 collection = bucket.default_collection
 

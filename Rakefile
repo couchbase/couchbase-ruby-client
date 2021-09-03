@@ -47,10 +47,14 @@ task :undocumented => :doc do
   sh "yard stats --list-undoc --compact"
 end
 
-desc "Encode git revision into 'build_version.hxx.in' template (dependency of 'build' task)"
+desc "Encode git revision into 'ext/extconf.rb' template (dependency of 'build' task)"
 task :render_git_revision do
-  build_version_path = File.join(__dir__, 'ext', 'build_version.hxx.in')
-  File.write(build_version_path, File.read(build_version_path).gsub('@BACKEND_GIT_REVISION@', `git rev-parse HEAD`.strip))
+  library_revision = Dir.chdir(__dir__) { `git rev-parse HEAD`.strip }
+  core_revision = Dir.chdir(File.join(__dir__, 'ext', 'couchbase')) { `git rev-parse HEAD`.strip }
+  File.write(File.join(__dir__, 'ext', 'revisions.rb'), <<~REVISIONS)
+    cmake_flags << "-DEXT_GIT_REVISION=#{library_revision}"
+    cmake_flags << "-DCOUCHBASE_CXX_CLIENT_GIT_REVISION=#{core_revision}"
+  REVISIONS
 end
 
 desc "Build the package"
