@@ -28,7 +28,7 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = "> 2.6"
 
   spec.metadata = {
-    "homepage_uri" => "https://docs.couchbase.com/ruby-sdk/3.0/hello-world/start-using-sdk.html",
+    "homepage_uri" => "https://docs.couchbase.com/ruby-sdk/3.2/hello-world/start-using-sdk.html",
     "bug_tracker_uri" => "https://couchbase.com/issues/browse/RCBC",
     "mailing_list_uri" => "https://forums.couchbase.com/c/ruby-sdk",
     "source_code_uri" => "https://github.com/couchbase/couchbase-ruby-client/tree/#{spec.version}",
@@ -62,8 +62,13 @@ Gem::Specification.new do |spec|
     "ext/third_party/hdr_histogram_c/LICENSE.txt",
     "ext/third_party/http_parser/LICENSE*",
     "ext/third_party/http_parser/http_parser.{c,h}",
+    "ext/third_party/json/.cmake/*",
     "ext/third_party/json/CMakeLists.txt",
     "ext/third_party/json/LICENSE*",
+    "ext/third_party/json/external/PEGTL/.cmake/*",
+    "ext/third_party/json/external/PEGTL/CMakeLists.txt",
+    "ext/third_party/json/external/PEGTL/LICENSE*",
+    "ext/third_party/json/external/PEGTL/include/**/*",
     "ext/third_party/json/include/**/*",
     "ext/third_party/snappy/CMakeLists.txt",
     "ext/third_party/snappy/COPYING",

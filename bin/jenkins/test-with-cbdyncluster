@@ -150,6 +150,7 @@ else
          ls -l $i
          file $i
          gdb $(which ruby) $i --batch -ex "thread apply all bt"
+         rm $i || true
        fi
     done
     mkdir server_logs

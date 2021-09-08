@@ -53,6 +53,12 @@ then
     cc_prefix=/opt/rh/devtoolset-9/root
     CB_EXTRAS="CC=${cc_prefix}/bin/gcc CXX=${cc_prefix}/bin/g++"
   fi
+  os=$(lsb_release -r | sed 's/Release:[\t ]*20.04/ubuntu20/g')
+  if [ "x${os}" = "xubuntu20" ]
+  then
+    sudo apt install -y libssl-dev \
+	    clang clang-format clang-tidy clang-tools libc++-dev libc++abi-dev
+  fi
   ruby-install --version
   ruby-install --latest || true
   ruby-install --jobs=6 --no-reinstall ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS}
@@ -64,9 +70,12 @@ then
   xcode-select --print-path
 
   brew doctor || true
-# brew install automake bison@2.7 openssl readline libyaml gdbm libffi
-# brew upgrade ruby-install chruby
-# brew install cmake gcc@11
+  if [ "x${CB_RUBY_VERSION}" = "x3.0" ]
+  then
+      brew install automake bison@2.7 openssl readline libyaml gdbm libffi
+      brew install ruby-install chruby
+      brew install cmake gcc@11
+  fi
   cc_prefix=$(brew --prefix gcc@11)
   ${cc_prefix}/bin/gcc-11 --version
   ${cc_prefix}/bin/g++-11 --version
@@ -89,5 +98,6 @@ then
       curl -L -o cmake-3.17.2-Linux-x86_64.tar.gz https://github.com/Kitware/CMake/releases/download/v3.17.2/cmake-3.17.2-Linux-x86_64.tar.gz
       tar xvf cmake-3.17.2-Linux-x86_64.tar.gz
       mv cmake-3.17.2-Linux-x86_64 ~/.cmake-3.17.2
+      rm cmake-3.17.2-Linux-x86_64.tar.gz
   fi
 fi

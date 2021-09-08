@@ -181,6 +181,19 @@ module Couchbase
       assert_equal({"foo" => "bar"}, res.rows.first)
     end
 
+    def __wait_for_collections_manifest(uid)
+      hits = 5 # make sure that the manifest has distributed well enough
+      while hits.positive?
+        backend = @cluster.instance_variable_get("@backend")
+        manifest = backend.collections_manifest_get(@bucket.name, 10_000)
+        if manifest[:uid] < uid
+          time_travel(0.1)
+          next
+        end
+        hits -= 1
+      end
+    end
+
     def test_scoped_query
       skip("The server does not support scoped queries (#{env.server_version})") unless env.server_version.supports_scoped_queries?
 
@@ -188,12 +201,13 @@ module Couchbase
       collection_name = uniq_id(:collection).delete(".")[0, 30]
 
       manager = @bucket.collections
-      manager.create_scope(scope_name)
+      ns_uid = manager.create_scope(scope_name)
+      __wait_for_collections_manifest(ns_uid)
       spec = Management::CollectionSpec.new
       spec.scope_name = scope_name
       spec.name = collection_name
-      manager.create_collection(spec)
-      time_travel(2)
+      ns_uid = manager.create_collection(spec)
+      __wait_for_collections_manifest(ns_uid)
 
       manager = @cluster.query_indexes
       options = Management::QueryIndexManager::CreatePrimaryIndexOptions.new

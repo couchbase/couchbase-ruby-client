@@ -22,13 +22,13 @@ echo "CONTAINER_TAG=${CONTAINER_TAG}"
 echo "JENKINS_SLAVE_LABELS=${JENKINS_SLAVE_LABELS}"
 echo "NODE_LABELS=${NODE_LABELS}"
 
+os=$(lsb_release -r | sed 's/Release:[\t ]*20.04/ubuntu20/g')
+if [ "x${os}" = "xubuntu20" ]
+then
+  sudo apt install -y clang-format
+fi
+
 set -x
 set -e
 
-if [ "$(uname -s)" = "Linux" ]
-then
-  sudo yum install -y llvm-toolset-7.0-git-clang-format
-fi
-
-mv -f "${PROJECT_ROOT}/ext/.clang-format.7" "${PROJECT_ROOT}/ext/.clang-format"
-scl enable llvm-toolset-7.0 bin/check-clang-format
+exec bin/check-clang-format

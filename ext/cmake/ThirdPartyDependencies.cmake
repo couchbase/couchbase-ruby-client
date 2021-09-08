@@ -2,6 +2,8 @@ add_subdirectory(third_party/gsl)
 
 option(TAOCPP_JSON_BUILD_TESTS OFF)
 option(TAOCPP_JSON_BUILD_EXAMPLES OFF)
+option(PEGTL_BUILD_TESTS OFF)
+option(PEGTL_BUILD_EXAMPLES OFF)
 add_subdirectory(third_party/json)
 
 add_subdirectory(third_party/spdlog)

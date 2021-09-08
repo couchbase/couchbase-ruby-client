@@ -31,5 +31,4 @@ chruby ruby-${CB_RUBY_VERSION}
 
 set -xe
 
-sudo patch -d/ -Np0 < ${PROJECT_ROOT}/bin/jenkins/scan-build-add-exclude-switch.patch || true
-scl enable llvm-toolset-7.0 bin/check-clang-static-analyzer
+exec bin/check-clang-static-analyzer

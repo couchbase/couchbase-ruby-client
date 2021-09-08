@@ -175,6 +175,9 @@ struct action<uri::port> {
     template<typename ActionInput>
     static void apply(const ActionInput& in, connection_string& /* cs */, connection_string::node& cur_node)
     {
+        if (in.empty()) {
+            return;
+        }
         cur_node.port = static_cast<std::uint16_t>(std::stoul(in.string()));
     }
 };

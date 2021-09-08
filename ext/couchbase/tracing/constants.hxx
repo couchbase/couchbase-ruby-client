@@ -66,6 +66,8 @@ constexpr auto mcbp_set = "cb.set";
 constexpr auto mcbp_map = "cb.map";
 constexpr auto mcbp_queue = "cb.queue";
 constexpr auto mcbp_ping = "cb.ping";
+
+constexpr auto mcbp_internal = "cb.internal";
 } // namespace operation
 
 namespace attributes
@@ -252,6 +254,8 @@ span_name_for_mcbp_command(protocol::client_opcode opcode)
         case protocol::client_opcode::get_scope_id:
         case protocol::client_opcode::get_cluster_config:
         case protocol::client_opcode::get_error_map:
+            return operation::mcbp_internal;
+
         case protocol::client_opcode::invalid:
             Expects(false);
     }
