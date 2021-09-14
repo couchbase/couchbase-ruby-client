@@ -14,8 +14,19 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+CB_STRICT_ENCRYPTION=${CB_STRICT_ENCRYPTION:-no}
+if [ "x${CB_STRICT_ENCRYPTION}" = "xno" ]; then
+    CB_DEFAULT_REST_PORT=8091
+    CB_QUERY_PORT_KEY="n1ql"
+    CB_SCHEME="http"
+else
+    CB_DEFAULT_REST_PORT=18091
+    CB_QUERY_PORT_KEY="n1qlSSL"
+    CB_SCHEME="--insecure https"
+fi
+
 CB_HOST=${CB_HOST:-localhost}
-CB_PORT=${CB_PORT:-8091}
+CB_PORT=${CB_PORT:-${CB_DEFAULT_REST_PORT}}
 CB_USERNAME=${CB_USERNAME:-Administrator}
 CB_PASSWORD=${CB_PASSWORD:-password}
 CB_BUCKET=${CB_BUCKET:-default}
@@ -32,34 +43,53 @@ sleep 1
 set -ex
 
 # Ping cluster
-curl -sS http://${CB_HOST}:${CB_PORT}/pools
+curl -sS ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/pools
 
 # Initialize Node
-curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/nodes/self/controller/settings \
+curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/nodes/self/controller/settings \
      -d 'path=%2Fopt%2Fcouchbase%2Fvar%2Flib%2Fcouchbase%2Fdata' \
      -d 'index_path=%2Fopt%2Fcouchbase%2Fvar%2Flib%2Fcouchbase%2Fdata'
 
 # Setup Memory Quotas
-curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/pools/default \
+curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/pools/default \
   -d "memoryQuota=${CB_SERVER_QUOTA}" \
   -d 'indexMemoryQuota=256'
 
 # Setup Services
-curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/node/controller/setupServices \
+curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/node/controller/setupServices \
      -d 'services=kv%2Cn1ql%2Cindex%2Cfts%2Ccbas'
 
+if [ "x${CB_STRICT_ENCRYPTION}" != "xno" ]; then
+    # Disable auto-failover
+    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/settings/autoFailover \
+        -d 'enabled=false'
+
+    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/node/controller/enableExternalListener \
+        -d 'nodeEncryption=on'
+
+    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/node/controller/setupNetConfig \
+        -d 'nodeEncryption=on'
+
+    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/node/controller/disableUnusedExternalListeners \
+        -X POST
+
+    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/settings/security \
+        -d 'clusterEncryptionLevel=strict'
+
+fi
+
 # Setup Administrator username and password
-curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/settings/web \
+curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/settings/web \
      -d "password=${CB_PASSWORD}" \
      -d "username=${CB_USERNAME}" \
      -d "port=SAME"
 
 # Setup index settings
-curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/settings/indexes \
+curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/settings/indexes \
      -d "storageMode=plasma"
 
 # Setup Bucket
-curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/pools/default/buckets \
+curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/pools/default/buckets \
      -d 'flushEnabled=1' \
      -d 'threadsNumber=3' \
      -d 'replicaIndex=0' \
@@ -70,18 +100,18 @@ curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/pools/default/bucke
      -d "name=${CB_BUCKET}"
 
 if [ "x${CB_BEER_SAMPLE}" != "xno" ]; then
-curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/sampleBuckets/install \
-     -d '["beer-sample"]'
+    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/sampleBuckets/install \
+        -d '["beer-sample"]'
 fi
 
 if [ "x${CB_TRAVEL_SAMPLE}" != "xno" ]; then
-curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/sampleBuckets/install \
-     -d '["travel-sample"]'
+    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/sampleBuckets/install \
+        -d '["travel-sample"]'
 fi
 
 if [ "x${CB_DEVELOPER_PREVIEW}" != "xno" ]; then
-curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/settings/developerPreview \
-     -d "enabled=true"
+    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/settings/developerPreview \
+        -d "enabled=true"
 fi
 
 sleep 2
@@ -90,9 +120,9 @@ QUERY_PORT=
 while [ "x${QUERY_PORT}" = "x" ]
 do
     sleep 1
-    QUERY_PORT=$(curl -sS -w '\n' -u ${CB_CREDS} http://${CB_HOST}:${CB_PORT}/pools/default/b/${CB_BUCKET} | ruby -rjson -e 'puts JSON.parse(STDIN.read)["nodesExt"][0]["services"]["n1ql"]')
+    QUERY_PORT=$(curl -sS -w '\n' -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/pools/default/b/${CB_BUCKET} | ruby -rjson -e "puts JSON.parse(STDIN.read)['nodesExt'][0]['services']['${CB_QUERY_PORT_KEY}']")
 done
 
-curl -sS -w "\n" -u ${CB_CREDS} http://${CB_HOST}:${QUERY_PORT}/query/service \
+curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${QUERY_PORT}/query/service \
      -d "statement=CREATE PRIMARY INDEX ON \`${CB_BUCKET}\` USING GSI"
 
