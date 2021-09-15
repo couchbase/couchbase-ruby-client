@@ -30,7 +30,7 @@ CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7}
 if [ "$(uname -s)" = "Linux" ]
 then
   sudo yum install -y libstdc++-static
-  export PATH="$(realpath ~/.cmake-3.17.2/bin):$PATH"
+  export PATH="$(realpath ~/.cmake-3.21.2/bin):$PATH"
 fi
 
 if [ "$(uname -s)" = "Linux" ]

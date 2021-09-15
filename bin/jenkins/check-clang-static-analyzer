@@ -24,7 +24,7 @@ echo "NODE_LABELS=${NODE_LABELS}"
 
 CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7}
 
-export CB_CMAKE=$(realpath ~/.cmake-3.17.2/bin/cmake)
+export CB_CMAKE=$(realpath ~/.cmake-3.21.2/bin/cmake)
 
 source /usr/local/share/chruby/chruby.sh
 chruby ruby-${CB_RUBY_VERSION}
