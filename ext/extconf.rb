@@ -54,7 +54,8 @@ cmake_flags << "-DENABLE_SANITIZER_UNDEFINED_BEHAVIOUR=ON" if ENV["CB_UBSAN"]
 
 case RbConfig::CONFIG["target_os"]
 when /darwin/
-  openssl_root = `brew --prefix openssl 2> /dev/null`.strip
+  openssl_root = `brew --prefix openssl@1.1 2> /dev/null`.strip
+  openssl_root = `brew --prefix openssl@3 2> /dev/null`.strip if openssl_root.empty?
   cmake_flags << "-DOPENSSL_ROOT_DIR=#{openssl_root}" unless openssl_root.empty?
 when /linux/
   openssl_root = ["/usr/lib64/openssl11", "/usr/include/openssl11"]
