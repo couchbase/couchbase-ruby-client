@@ -32,7 +32,7 @@ fi
 if [ "$(uname -s)" = "Darwin" ]
 then
   sw_vers
-  system_profiler SPSoftwareDataType
+  system_profiler SPSoftwareDataType SPHardwareDataType
   sudo xcode-select --print-path
 fi
 

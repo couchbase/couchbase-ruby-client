@@ -33,9 +33,22 @@ then
 fi
 if [ "$(uname -s)" = "Darwin" ]
 then
-  source $(brew --prefix chruby)/share/chruby/chruby.sh
+  if [ "x${CB_RUBY_VERSION}" = "xbrew" ]
+  then
+    ruby_prefix="$(brew --prefix ruby)"
+    ruby_abi_version=$(${ruby_prefix}/bin/ruby -rrbconfig -e'puts RbConfig::CONFIG["ruby_version"]')
+    export PATH="${ruby_prefix}/bin:${HOME}/.gem/ruby/${ruby_abi_version}/bin:$PATH"
+    export LDFLAGS="-L${ruby_prefix}/lib"
+    export CPPFLAGS="-L${ruby_prefix}/include"
+    export PKG_CONFIG_PATH="${ruby_prefix}/lib/pkgconfig"
+  else
+    source $(brew --prefix chruby)/share/chruby/chruby.sh
+  fi
 fi
-chruby ruby-${CB_RUBY_VERSION}
+if [ "x${CB_RUBY_VERSION}" != "xbrew" ]
+then
+  chruby ruby-${CB_RUBY_VERSION}
+fi
 
 export GEM_HOME="$PROJECT_ROOT/gems-${CB_RUBY_VERSION}"
 gem list --all

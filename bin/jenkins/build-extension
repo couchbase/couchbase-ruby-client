@@ -42,17 +42,36 @@ then
 fi
 if [ "$(uname -s)" = "Darwin" ]
 then
-  source $(brew --prefix chruby)/share/chruby/chruby.sh
-  cc_prefix=$(brew --prefix gcc@11)
-  export CB_CC="${cc_prefix}/bin/gcc-11"
-  export CB_CXX="${cc_prefix}/bin/g++-11"
+    if [ "x${CB_RUBY_VERSION}" = "xbrew" ]
+    then
+      ruby_prefix="$(brew --prefix ruby)"
+      ruby_abi_version=$(${ruby_prefix}/bin/ruby -rrbconfig -e'puts RbConfig::CONFIG["ruby_version"]')
+      export PATH="${ruby_prefix}/bin:${HOME}/.gem/ruby/${ruby_abi_version}/bin:$PATH"
+      export LDFLAGS="-L${ruby_prefix}/lib"
+      export CPPFLAGS="-L${ruby_prefix}/include"
+      export PKG_CONFIG_PATH="${ruby_prefix}/lib/pkgconfig"
+    else
+      source $(brew --prefix chruby)/share/chruby/chruby.sh
+    fi
+    cc_prefix=$(brew --prefix gcc@11)
+    export CB_CC="${cc_prefix}/bin/gcc-11"
+    export CB_CXX="${cc_prefix}/bin/g++-11"
 fi
-chruby ruby-${CB_RUBY_VERSION}
 
-gem install bundler gem-compiler
+CB_GEM_INSTALL_OPTIONS=
+if [ "x${CB_RUBY_VERSION}" = "xbrew" ]
+then
+  CB_GEM_INSTALL_OPTIONS="--user-install"
+else
+  chruby ruby-${CB_RUBY_VERSION}
+fi
 
+which ruby gem bundle
 ruby --version
 bundle --version
+
+gem install ${CB_GEM_INSTALL_OPTIONS} bundler gem-compiler
+
 bundle config set --local path ${PROJECT_ROOT}/vendor/bundle
 
 bundle install
@@ -65,8 +84,16 @@ source="${PROJECT_ROOT}/pkg/couchbase-${full_version}.gem"
 precompiled="${PROJECT_ROOT}/pkg/binary"
 mkdir -p ${precompiled}
 
+CB_GEM_COMPILE="gem compile"
+if [ "x${CB_RUBY_VERSION}" = "xbrew" ]
+then
+  gem_compiler_plugin=$(ruby -rrubygems -e "puts Gem.find_files('rubygems_plugin.rb').grep(/gem-compiler/)")
+  CB_GEM_COMPILE="ruby -rrubygems -r${gem_compiler_plugin} -S gem compile"
+fi
+
 export CB_REMOVE_EXT_DIRECTORY=1
-CB_STATIC=1 gem compile --prune --verbose --output ${precompiled} ${source}
+export CB_STATIC=1 
+${CB_GEM_COMPILE} --prune --verbose --output ${precompiled} ${source}
 ruby -rrbconfig -rfileutils \
      -e 'FileUtils.mv(ARGV[0], ARGV[0].gsub(/\.gem$/, "-#{RbConfig::CONFIG["ruby_version"]}.gem"))' \
      ${precompiled}/*.gem
