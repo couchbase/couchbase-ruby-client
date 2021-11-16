@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env ruby
 
 #  Copyright 2020-2021 Couchbase, Inc.
 #
@@ -14,115 +14,187 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-CB_STRICT_ENCRYPTION=${CB_STRICT_ENCRYPTION:-no}
-if [ "x${CB_STRICT_ENCRYPTION}" = "xno" ]; then
-    CB_DEFAULT_REST_PORT=8091
-    CB_QUERY_PORT_KEY="n1ql"
-    CB_SCHEME="http"
-else
-    CB_DEFAULT_REST_PORT=18091
-    CB_QUERY_PORT_KEY="n1qlSSL"
-    CB_SCHEME="--insecure https"
-fi
+require "set"
+require "optparse"
 
-CB_HOST=${CB_HOST:-localhost}
-CB_PORT=${CB_PORT:-${CB_DEFAULT_REST_PORT}}
-CB_USERNAME=${CB_USERNAME:-Administrator}
-CB_PASSWORD=${CB_PASSWORD:-password}
-CB_BUCKET=${CB_BUCKET:-default}
-CB_SERVER_QUOTA=${CB_SERVER_QUOTA:-512}
-CB_BUCKET_QUOTA=${CB_BUCKET_QUOTA:-100}
-CB_DEVELOPER_PREVIEW=${CB_DEVELOPER_PREVIEW:-no}
-CB_BEER_SAMPLE=${CB_BEER_SAMPLE:-no}
-CB_TRAVEL_SAMPLE=${CB_TRAVEL_SAMPLE:-no}
+class Object
+  def to_b
+    ![nil, false, 0, "", "0", "f", "F", "false", "FALSE", "off", "OFF", "no", "NO"].include?(self)
+  end
+end
 
-CB_CREDS="${CB_USERNAME}:${CB_PASSWORD}"
+options = {
+  verbose: ENV.fetch("CB_VERBOSE", true).to_b,
+  strict_encryption: ENV.fetch("CB_STRICT_ENCRYPTION", false).to_b,
+  host: ENV.fetch("CB_HOST", "127.0.0.1"),
+  username: ENV.fetch("CB_USERNAME", "Administrator"),
+  password: ENV.fetch("CB_PASSWORD", "password"),
+  bucket: ENV.fetch("CB_BUCKET", "default"),
+  server_quota: ENV.fetch("CB_SERVER_QUOTA", 512).to_i,
+  index_quota: ENV.fetch("CB_INDEX_QUOTA", 256).to_i,
+  bucket_quota: ENV.fetch("CB_BUCKET_QUOTA", 100).to_i,
+  enable_developer_preview: ENV.fetch("CB_DEVELOPER_PREVIEW", false).to_b,
+  cluster_run_nodes: ENV.fetch("CB_CLUSTER_RUN_NODES", 0).to_i,
+  sample_buckets: Set.new,
+}
+default_port = options[:strict_encryption] ? 18091 : 8091
+if (options[:cluster_run_nodes]).positive?
+  default_port = options[:strict_encryption] ? 19000 : 9000
+end
+options[:port] = ENV.fetch("CB_PORT", default_port).to_i
+options[:sample_buckets] << "beer-sample" if ENV.fetch("CB_BEER_SAMPLE", false).to_b
+options[:sample_buckets] << "travel-sample" if ENV.fetch("CB_TRAVEL_SAMPLE", false).to_b
 
-sleep 1
+require "net/http"
+require "json"
 
-set -ex
+class API
+  def initialize(options)
+    @options = options
+    connect
+  end
 
-# Ping cluster
-curl -sS ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/pools
+  def connect
+    @client = Net::HTTP.start(@options[:host], @options[:port],
+                              use_ssl: @options[:strict_encryption],
+                              verify_mode: OpenSSL::SSL::VERIFY_NONE)
+  end
 
-# Initialize Node
-curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/nodes/self/controller/settings \
-     -d 'path=%2Fopt%2Fcouchbase%2Fvar%2Flib%2Fcouchbase%2Fdata' \
-     -d 'index_path=%2Fopt%2Fcouchbase%2Fvar%2Flib%2Fcouchbase%2Fdata'
+  def url(path)
+    "#{@client.use_ssl? ? 'https' : 'http'}://#{@options[:username]}@#{@options[:host]}:#{@options[:port]}#{path}"
+  end
 
-# Setup Memory Quotas
-curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/pools/default \
-  -d "memoryQuota=${CB_SERVER_QUOTA}" \
-  -d 'indexMemoryQuota=256'
+  def decode_response(response)
+    payload =
+      if /application\/json/.match?(response['content-type'])
+        JSON.parse(response.body)
+      else
+        response.body
+      end
+    p payload if @options[:verbose]
+    payload
+  end
 
-# Setup Services
-curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/node/controller/setupServices \
-     -d 'services=kv%2Cn1ql%2Cindex%2Cfts%2Ccbas'
+  def setup_request(request)
+    request.basic_auth(@options[:username], @options[:password])
+    request['accept'] = "application/json"
+  end
 
-if [ "x${CB_STRICT_ENCRYPTION}" != "xno" ]; then
-    # Disable auto-failover
-    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/settings/autoFailover \
-        -d 'enabled=false'
+  def get(path)
+    puts "# GET #{url(path)}"
+    req = Net::HTTP::Get.new(path)
+    setup_request(req)
+    res = @client.request(req)
+    decode_response(res)
+  rescue EOFError
+    connect
+    retry
+  end
 
-    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/node/controller/enableExternalListener \
-        -d 'nodeEncryption=on'
+  def post_form(path, fields = {})
+    puts "# POST #{url(path)} #{fields}"
+    req = Net::HTTP::Post.new(path)
+    setup_request(req)
+    req.form_data = fields
+    res = @client.request(req)
+    decode_response(res)
+  rescue EOFError
+    connect
+    retry
+  end
 
-    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/node/controller/setupNetConfig \
-        -d 'nodeEncryption=on'
+  def post_json(path, object)
+    data = JSON.generate(object)
+    puts "# POST #{url(path)} #{data}"
+    req = Net::HTTP::Post.new(path)
+    setup_request(req)
+    res = @client.request(req, data)
+    decode_response(res)
+  rescue EOFError
+    connect
+    retry
+  end
+end
 
-    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/node/controller/disableUnusedExternalListeners \
-        -X POST
+sleep(1)
 
-    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/settings/security \
-        -d 'clusterEncryptionLevel=strict'
+api = API.new(options)
 
-fi
+api.get("/pools")
 
-# Setup Administrator username and password
-curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/settings/web \
-     -d "password=${CB_PASSWORD}" \
-     -d "username=${CB_USERNAME}" \
-     -d "port=SAME"
+api.post_form("/pools/default",
+              memoryQuota: options[:server_quota],
+              indexMemoryQuota: options[:index_quota])
+api.post_form("/node/controller/setupServices", services: "kv,n1ql,index,fts,cbas")
 
-# Setup index settings
-curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/settings/indexes \
-     -d "storageMode=plasma"
+if options[:strict_encryption]
+  api.post_form("/settings/autoFailover", enabled: false)
+  api.post_form("/node/controller/enableExternalListener", nodeEncryption: "on")
+  api.post_form("/node/controller/setupNetConfig", nodeEncryption: "on")
+  api.post_form("/node/controller/disableUnusedExternalListeners")
+  api.post_form("/settings/security", clusterEncryptionLevel: "strict")
+end
 
-# Setup Bucket
-curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/pools/default/buckets \
-     -d 'flushEnabled=1' \
-     -d 'threadsNumber=3' \
-     -d 'replicaIndex=0' \
-     -d 'replicaNumber=0' \
-     -d 'evictionPolicy=valueOnly' \
-     -d "ramQuotaMB=${CB_BUCKET_QUOTA}" \
-     -d 'bucketType=membase' \
-     -d "name=${CB_BUCKET}"
+api.post_form("/settings/web",
+              password: options[:password],
+              username: options[:username],
+              port: "SAME")
+api.post_form("/settings/indexes", storageMode: "plasma")
 
-if [ "x${CB_BEER_SAMPLE}" != "xno" ]; then
-    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/sampleBuckets/install \
-        -d '["beer-sample"]'
-fi
+if options[:cluster_run_nodes] > 1
+  known_nodes = []
+  (1...options[:cluster_run_nodes]).each do |index|
+    port = options[:port] + index
+    port += 10_000 unless options[:strict_encryption]
+    res = api.post_form("/pools/default/serverGroups/0/addNode",
+                        hostname: "#{options[:host]}:#{port}",
+                        services: "kv,n1ql,index,fts,cbas",
+                        user: options[:username],
+                        password: options[:password])
+    known_nodes << res["otpNode"]
+  end
+  config = api.get("/pools/default")
+  known_nodes << config["nodes"][0]["otpNode"]
+  api.post_form("/controller/rebalance", knownNodes: known_nodes.join(","))
 
-if [ "x${CB_TRAVEL_SAMPLE}" != "xno" ]; then
-    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/sampleBuckets/install \
-        -d '["travel-sample"]'
-fi
+  rebalance_running = true
+  while rebalance_running
+    res = api.get("/pools/default/tasks")
+    res.each do |task|
+      if task["type"] == "rebalance" && task["status"] == "notRunning"
+        rebalance_running = false
+        break
+      end
+      sleep 1
+    end
+  end
+end
 
-if [ "x${CB_DEVELOPER_PREVIEW}" != "xno" ]; then
-    curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/settings/developerPreview \
-        -d "enabled=true"
-fi
+number_of_replicas = 0
+if options[:cluster_run_nodes] > 1
+  number_of_replicas = [options[:cluster_run_nodes] - 1, 3].min
+end
+api.post_form("/pools/default/buckets",
+              flushEnabled: 1,
+              threadsNumber: 3,
+              replicaIndex: 0,
+              replicaNumber: number_of_replicas,
+              evictionPolicy: "valueOnly",
+              ramQuotaMB: options[:bucket_quota],
+              bucketType: "membase",
+              name: options[:bucket])
 
-sleep 2
+api.post_json("/sampleBuckets/install", options[:sample_buckets].to_a) if options[:sample_buckets].any?
 
-QUERY_PORT=
-while [ "x${QUERY_PORT}" = "x" ]
-do
-    sleep 1
-    QUERY_PORT=$(curl -sS -w '\n' -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${CB_PORT}/pools/default/b/${CB_BUCKET} | ruby -rjson -e "puts JSON.parse(STDIN.read)['nodesExt'][0]['services']['${CB_QUERY_PORT_KEY}']")
-done
+api.post_form("/settings/developerPreview", enabled: true) if options[:enable_developer_preview]
 
-curl -sS -w "\n" -u ${CB_CREDS} ${CB_SCHEME}://${CB_HOST}:${QUERY_PORT}/query/service \
-     -d "statement=CREATE PRIMARY INDEX ON \`${CB_BUCKET}\` USING GSI"
+query_port = 0
+while query_port.zero?
+  query_port_key = options[:strict_encryption] ? "n1qlSSL" : "n1ql"
+  config = api.get("/pools/default/b/#{options[:bucket]}")
+  query_port = config["nodesExt"][0]["services"][query_port_key].to_i
+  sleep 1
+end
 
+query_api = API.new(options.merge(port: query_port))
+query_api.post_json("/query/service", statement: "CREATE PRIMARY INDEX ON `#{options[:bucket]}` USING GSI")
