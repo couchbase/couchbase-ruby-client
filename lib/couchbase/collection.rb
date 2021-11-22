@@ -27,8 +27,8 @@ module Couchbase
 
     # @param [Couchbase::Backend] backend
     # @param [String] bucket_name name of the bucket
-    # @param [String, :_default] scope_name name of the scope
-    # @param [String, :_default] collection_name name of the collection
+    # @param [String] scope_name name of the scope
+    # @param [String] collection_name name of the collection
     def initialize(backend, bucket_name, scope_name, collection_name)
       @backend = backend
       @bucket_name = bucket_name
@@ -71,9 +71,9 @@ module Couchbase
     # @return [GetResult]
     def get(id, options = Options::Get.new)
       resp = if options.need_projected_get?
-               @backend.document_get_projected(bucket_name, "#{@scope_name}.#{@name}", id, options.to_backend)
+               @backend.document_get_projected(bucket_name, @scope_name, @name, id, options.to_backend)
              else
-               @backend.document_get(bucket_name, "#{@scope_name}.#{@name}", id, options.to_backend)
+               @backend.document_get(bucket_name, @scope_name, @name, id, options.to_backend)
              end
       GetResult.new do |res|
         res.transcoder = options.transcoder
@@ -99,8 +99,7 @@ module Couchbase
     #
     # @return [Array<GetResult>]
     def get_multi(ids, options = Options::GetMulti.new)
-      collection_spec = "#{@scope_name}.#{@name}"
-      resp = @backend.document_get_multi(ids.map { |id| [bucket_name, collection_spec, id] }, options.to_backend)
+      resp = @backend.document_get_multi(ids.map { |id| [bucket_name, @scope_name, @name, id] }, options.to_backend)
       resp.map do |entry|
         GetResult.new do |res|
           res.transcoder = options.transcoder
@@ -129,7 +128,7 @@ module Couchbase
     #
     # @return [GetResult]
     def get_and_lock(id, lock_time, options = Options::GetAndLock.new)
-      resp = @backend.document_get_and_lock(bucket_name, "#{@scope_name}.#{@name}", id,
+      resp = @backend.document_get_and_lock(bucket_name, @scope_name, @name, id,
                                             lock_time.respond_to?(:in_seconds) ? lock_time.public_send(:in_seconds) : lock_time,
                                             options.to_backend)
       GetResult.new do |res|
@@ -151,7 +150,7 @@ module Couchbase
     #
     # @return [GetResult]
     def get_and_touch(id, expiry, options = Options::GetAndTouch.new)
-      resp = @backend.document_get_and_touch(bucket_name, "#{@scope_name}.#{@name}", id,
+      resp = @backend.document_get_and_touch(bucket_name, @scope_name, @name, id,
                                              Utils::Time.extract_expiry_time(expiry),
                                              options.to_backend)
       GetResult.new do |res|
@@ -189,11 +188,15 @@ module Couchbase
     #
     # @return [ExistsResult]
     def exists(id, options = Options::Exists.new)
-      resp = @backend.document_exists(bucket_name, "#{@scope_name}.#{@name}", id, options.to_backend)
+      resp = @backend.document_exists(bucket_name, @scope_name, @name, id, options.to_backend)
       ExistsResult.new do |res|
-        res.status = resp[:status]
-        res.partition_id = resp[:partition_id]
-        res.cas = resp[:cas] if res.status != :not_found
+        res.deleted = resp[:deleted]
+        res.exists = resp[:exists]
+        res.expiry = resp[:expiry]
+        res.flags = resp[:flags]
+        res.sequence_number = resp[:sequence_number]
+        res.datatype = resp[:datatype]
+        res.cas = resp[:cas]
       end
     end
 
@@ -218,7 +221,7 @@ module Couchbase
     #
     # @return [MutationResult]
     def remove(id, options = Options::Remove.new)
-      resp = @backend.document_remove(bucket_name, "#{@scope_name}.#{@name}", id, options.to_backend)
+      resp = @backend.document_remove(bucket_name, @scope_name, @name, id, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
         res.mutation_token = extract_mutation_token(resp)
@@ -244,13 +247,12 @@ module Couchbase
     #
     # @return [Array<MutationResult>]
     def remove_multi(ids, options = Options::RemoveMulti.new)
-      collection_spec = "#{@scope_name}.#{@name}"
       resp = @backend.document_remove_multi(ids.map do |id|
         case id
         when String
-          [bucket_name, collection_spec, id, nil]
+          [bucket_name, @scope_name, @name, id, nil]
         when Array
-          [bucket_name, collection_spec, id[0], id[1]]
+          [bucket_name, @scope_name, @name, id[0], id[1]]
         else
           raise ArgumentError, "id argument of remove_multi must be a String or Array<String, Integer>, given: #{id.inspect}"
         end
@@ -285,7 +287,7 @@ module Couchbase
     # @return [MutationResult]
     def insert(id, content, options = Options::Insert.new)
       blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
-      resp = @backend.document_insert(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, options.to_backend)
+      resp = @backend.document_insert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
         res.mutation_token = extract_mutation_token(resp)
@@ -305,7 +307,7 @@ module Couchbase
     # @return [MutationResult]
     def upsert(id, content, options = Options::Upsert.new)
       blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
-      resp = @backend.document_upsert(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, options.to_backend)
+      resp = @backend.document_upsert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
         res.mutation_token = extract_mutation_token(resp)
@@ -331,10 +333,9 @@ module Couchbase
     #
     # @return [Array<MutationResult>]
     def upsert_multi(id_content, options = Options::UpsertMulti.new)
-      collection_spec = "#{@scope_name}.#{@name}"
       resp = @backend.document_upsert_multi(id_content.map do |(id, content)|
         blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
-        [bucket_name, collection_spec, id, blob, flags]
+        [bucket_name, @scope_name, @name, id, blob, flags]
       end, options.to_backend)
       resp.map do |entry|
         MutationResult.new do |res|
@@ -359,7 +360,7 @@ module Couchbase
     # @return [MutationResult]
     def replace(id, content, options = Options::Replace.new)
       blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
-      resp = @backend.document_replace(bucket_name, "#{@scope_name}.#{@name}", id, blob, flags, options.to_backend)
+      resp = @backend.document_replace(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
         res.mutation_token = extract_mutation_token(resp)
@@ -377,7 +378,7 @@ module Couchbase
     #
     # @return [MutationResult]
     def touch(id, expiry, options = Options::Touch.new)
-      resp = @backend.document_touch(bucket_name, "#{@scope_name}.#{@name}", id,
+      resp = @backend.document_touch(bucket_name, @scope_name, @name, id,
                                      Utils::Time.extract_expiry_time(expiry),
                                      options.to_backend)
       MutationResult.new do |res|
@@ -399,7 +400,7 @@ module Couchbase
     #
     # @raise [Error::DocumentNotFound]
     def unlock(id, cas, options = Options::Unlock.new)
-      @backend.document_unlock(bucket_name, "#{@scope_name}.#{@name}", id, cas, options.to_backend)
+      @backend.document_unlock(bucket_name, @scope_name, @name, id, cas, options.to_backend)
     end
 
     # Performs lookups to document fragments
@@ -422,7 +423,7 @@ module Couchbase
     # @return [LookupInResult]
     def lookup_in(id, specs, options = Options::LookupIn.new)
       resp = @backend.document_lookup_in(
-        bucket_name, "#{@scope_name}.#{@name}", id,
+        bucket_name, @scope_name, @name, id,
         specs.map do |s|
           {
             opcode: s.type,
@@ -471,7 +472,7 @@ module Couchbase
     # @return [MutateInResult]
     def mutate_in(id, specs, options = Options::MutateIn.new)
       resp = @backend.document_mutate_in(
-        bucket_name, "#{@scope_name}.#{@name}", id,
+        bucket_name, @scope_name, @name, id,
         specs.map do |s|
           {
             opcode: s.type,

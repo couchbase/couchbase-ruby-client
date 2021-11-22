@@ -26,7 +26,7 @@ module Couchbase
 
     # @param [Couchbase::Backend] backend
     # @param [String] bucket_name name of the bucket
-    # @param [String, :_default] scope_name name of the scope
+    # @param [String] scope_name name of the scope
     def initialize(backend, bucket_name, scope_name)
       @backend = backend
       @bucket_name = bucket_name

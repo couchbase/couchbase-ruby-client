@@ -171,9 +171,7 @@ if options[:cluster_run_nodes] > 1
 end
 
 number_of_replicas = 0
-if options[:cluster_run_nodes] > 1
-  number_of_replicas = [options[:cluster_run_nodes] - 1, 3].min
-end
+number_of_replicas = [options[:cluster_run_nodes] - 1, 3].min if options[:cluster_run_nodes] > 1
 api.post_form("/pools/default/buckets",
               flushEnabled: 1,
               threadsNumber: 3,

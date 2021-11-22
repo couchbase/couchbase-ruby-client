@@ -87,23 +87,37 @@ module Couchbase
       # @return [Integer] holds the CAS value of the fetched document
       attr_accessor :cas
 
-      # @api private
-      # @return [:found, :not_found, :persisted, :logically_deleted]
-      attr_accessor :status
+      # @return [Boolean] true if the document was deleted
+      attr_accessor :deleted
 
-      def exists?
-        status == :found || status == :persisted
-      end
+      # @return [Boolean] true if the document exists
+      attr_accessor :exists
+      alias exists? exists
 
       # @yieldparam [ExistsResult]
       def initialize
-        @durability_level = :none
         yield self if block_given?
       end
 
+      # @return [Integer] the expiration if fetched and present
+      attr_writer :expiry
+
+      # @return [Time] time when the document will expire
+      def expiry_time
+        Time.at(@expiry) if @expiry
+      end
+
       # @api private
-      # @return [Integer] holds the index of the partition, to which the given key is mapped
-      attr_accessor :partition_id
+      # @return [Integer] flags
+      attr_accessor :flags
+
+      # @api private
+      # @return [Integer] sequence_number
+      attr_accessor :sequence_number
+
+      # @api private
+      # @return [Integer] datatype
+      attr_accessor :datatype
     end
 
     class MutationResult

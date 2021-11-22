@@ -180,10 +180,12 @@ module Couchbase
   end
 end
 
-require "minitest/reporters"
-Minitest::Reporters.use!(
-  [
-    Minitest::Reporters::SpecReporter.new,
-    Minitest::Reporters::JUnitReporter.new,
-  ]
-)
+unless ENV['RM_INFO']
+  require "minitest/reporters"
+  Minitest::Reporters.use!(
+    [
+      Minitest::Reporters::SpecReporter.new,
+      Minitest::Reporters::JUnitReporter.new,
+    ]
+  )
+end

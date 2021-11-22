@@ -38,7 +38,7 @@ module Couchbase
     #
     # @return [Scope]
     def default_scope
-      Scope.new(@backend, @name, :_default)
+      Scope.new(@backend, @name, "_default")
     end
 
     # Get a named scope
@@ -63,7 +63,7 @@ module Couchbase
     #
     # @return [Collection]
     def default_collection
-      Collection.new(@backend, @name, :_default, :_default)
+      Collection.new(@backend, @name, "_default", "_default")
     end
 
     # Performs query to view index.

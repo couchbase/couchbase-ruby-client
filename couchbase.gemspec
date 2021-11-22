@@ -35,6 +35,7 @@ Gem::Specification.new do |spec|
     "changelog_uri" => "https://github.com/couchbase/couchbase-ruby-client/releases/tag/#{spec.version}",
     "documentation_uri" => "https://docs.couchbase.com/sdk-api/couchbase-ruby-client-#{spec.version}/index.html",
     "github_repo" => "ssh://github.com/couchbase/couchbase-ruby-client",
+    "rubygems_mfa_required" => "true",
   }
 
   spec.files = Dir[
@@ -53,6 +54,7 @@ Gem::Specification.new do |spec|
     "ext/couchbase/third_party/asio/LICENSE*",
     "ext/couchbase/third_party/asio/asio/include/*.hpp",
     "ext/couchbase/third_party/asio/asio/include/asio/**/*.[hi]pp",
+    "ext/couchbase/third_party/cxx_function/cxx_function.hpp",
     "ext/couchbase/third_party/gsl/CMakeLists.txt",
     "ext/couchbase/third_party/gsl/LICENSE*",
     "ext/couchbase/third_party/gsl/ThirdPartyNotices.txt",
@@ -67,11 +69,11 @@ Gem::Specification.new do |spec|
     "ext/couchbase/third_party/http_parser/http_parser.{c,h}",
     "ext/couchbase/third_party/json/CMakeLists.txt",
     "ext/couchbase/third_party/json/LICENSE*",
-    "ext/couchbase/third_party/json/include/**/*",
     "ext/couchbase/third_party/json/external/PEGTL/.cmake/*",
     "ext/couchbase/third_party/json/external/PEGTL/CMakeLists.txt",
     "ext/couchbase/third_party/json/external/PEGTL/LICENSE*",
     "ext/couchbase/third_party/json/external/PEGTL/include/**/*",
+    "ext/couchbase/third_party/json/include/**/*",
     "ext/couchbase/third_party/snappy/CMakeLists.txt",
     "ext/couchbase/third_party/snappy/COPYING",
     "ext/couchbase/third_party/snappy/cmake/*",

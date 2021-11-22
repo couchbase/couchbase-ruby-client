@@ -22,6 +22,7 @@ gem "rake"
 group :development do
   gem "flay"
   gem "flog"
+  gem "gem-compiler"
   gem "heckle"
   gem "minitest"
   gem "minitest-reporters"

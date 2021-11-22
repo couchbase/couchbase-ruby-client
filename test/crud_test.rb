@@ -80,7 +80,6 @@ module Couchbase
     end
 
     def test_exists_allows_to_check_document_existence
-      skip("#{name}: CAVES does not support 'exists' operation") if use_caves?
       doc_id = uniq_id(:foo)
 
       res = @collection.exists(doc_id)
@@ -93,6 +92,11 @@ module Couchbase
       res = @collection.exists(doc_id)
       assert res.exists?
       assert_equal cas, res.cas
+
+      @collection.remove(doc_id)
+
+      res = @collection.exists(doc_id)
+      refute res.exists?
     end
 
     def test_get_and_lock_protects_document_from_mutations
@@ -595,7 +599,6 @@ module Couchbase
         assert_equal(test_case[:expected], res.content,
                      "unexpected content for case #{test_case[:name]} with projections #{test_case[:project].inspect}")
       end
-      skip("#{name}: CAVES does not support nested arrays in subdocument path yet") if use_caves?
     end
 
     def test_projection_few_paths
