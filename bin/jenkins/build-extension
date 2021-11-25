@@ -90,6 +90,10 @@ then
   gem_compiler_plugin=$(ruby -rrubygems -e "puts Gem.find_files('rubygems_plugin.rb').grep(/gem-compiler/)")
   CB_GEM_COMPILE="ruby -rrubygems -r${gem_compiler_plugin} -S gem compile"
 fi
+if [ "$(uname -s)" = "Linux" -a "x${IS_RELEASE}" = "xtrue" ]
+then
+  CB_GEM_COMPILE="${CB_GEM_COMPILE} --strip"
+fi
 
 export CB_REMOVE_EXT_DIRECTORY=1
 export CB_STATIC=1 
@@ -97,3 +101,4 @@ ${CB_GEM_COMPILE} --prune --verbose --output ${precompiled} ${source}
 ruby -rrbconfig -rfileutils \
      -e 'FileUtils.mv(ARGV[0], ARGV[0].gsub(/\.gem$/, "-#{RbConfig::CONFIG["ruby_version"]}.gem"))' \
      ${precompiled}/*.gem
+ls -lh ${precompiled}/*.gem
