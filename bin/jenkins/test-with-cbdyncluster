@@ -36,6 +36,8 @@ then
   sudo xcode-select --print-path
 fi
 
+AUTH="ruby-sdk-${BUILD_NUMBER}@couchbase.com"
+
 cbdyncluster info
 cbdyncluster ps -a
 

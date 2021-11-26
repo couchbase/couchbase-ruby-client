@@ -15,13 +15,13 @@
  *   limitations under the License.
  */
 
-#include <couchbase/meta/version.hxx>
 #include "ext_build_info.hxx"
 #include "ext_build_version.hxx"
+#include <couchbase/meta/version.hxx>
 
 #include <asio.hpp>
-#include <spdlog/spdlog.h>
 #include <spdlog/cfg/env.h>
+#include <spdlog/spdlog.h>
 
 #include <snappy.h>
 
@@ -31,12 +31,13 @@
 #include <couchbase/operations.hxx>
 #include <couchbase/operations/management/analytics.hxx>
 #include <couchbase/operations/management/bucket.hxx>
+#include <couchbase/operations/management/cluster_developer_preview_enable.hxx>
 #include <couchbase/operations/management/collections.hxx>
+#include <couchbase/operations/management/design_document_fmt.hxx>
 #include <couchbase/operations/management/query.hxx>
 #include <couchbase/operations/management/search.hxx>
 #include <couchbase/operations/management/user.hxx>
 #include <couchbase/operations/management/view.hxx>
-#include <couchbase/operations/management/cluster_developer_preview_enable.hxx>
 
 #include <couchbase/io/dns_client.hxx>
 #include <couchbase/utils/connection_string.hxx>
@@ -3070,8 +3071,7 @@ cb_for_each_named_param(VALUE key, VALUE value, VALUE arg)
     } catch (const ruby_exception&) {
         return ST_STOP;
     }
-    preq->named_parameters.emplace(std::string_view(RSTRING_PTR(key), static_cast<std::size_t>(RSTRING_LEN(key))),
-                                   couchbase::utils::json::parse(RSTRING_PTR(value), static_cast<std::size_t>(RSTRING_LEN(value))));
+    preq->named_parameters.emplace(cb_string_new(key), cb_string_new(value));
     return ST_CONTINUE;
 }
 
@@ -3133,8 +3133,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             for (size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(positional_params, static_cast<long>(i));
                 cb_check_type(entry, T_STRING);
-                req.positional_parameters.emplace_back(
-                  couchbase::utils::json::parse(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry))));
+                req.positional_parameters.emplace_back(cb_string_new(entry));
             }
         }
         if (VALUE named_params = rb_hash_aref(options, rb_id2sym(rb_intern("named_parameters"))); !NIL_P(named_params)) {
@@ -5377,7 +5376,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         }
         cb_extract_timeout(req, options);
         req.index_name = cb_string_new(index_name);
-        req.query = couchbase::utils::json::parse(cb_string_new(query));
+        req.query = cb_string_new(query);
 
         cb_extract_option_bool(req.explain, options, "explain");
         cb_extract_option_bool(req.disable_scoring, options, "disable_scoring");
@@ -6537,8 +6536,7 @@ cb_for_each_named_param_analytics(VALUE key, VALUE value, VALUE arg)
     auto* preq = reinterpret_cast<couchbase::operations::analytics_request*>(arg);
     cb_check_type(key, T_STRING);
     cb_check_type(value, T_STRING);
-    preq->named_parameters.emplace(std::string_view(RSTRING_PTR(key), static_cast<std::size_t>(RSTRING_LEN(key))),
-                                   couchbase::utils::json::parse(RSTRING_PTR(value), static_cast<std::size_t>(RSTRING_LEN(value))));
+    preq->named_parameters.emplace(cb_string_new(key), cb_string_new(value));
     return ST_CONTINUE;
 }
 
@@ -6569,8 +6567,7 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
             for (size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(positional_params, static_cast<long>(i));
                 cb_check_type(entry, T_STRING);
-                req.positional_parameters.emplace_back(
-                  couchbase::utils::json::parse(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry))));
+                req.positional_parameters.emplace_back(cb_string_new(entry));
             }
         }
         if (VALUE named_params = rb_hash_aref(options, rb_id2sym(rb_intern("named_parameters"))); !NIL_P(named_params)) {
@@ -7398,7 +7395,7 @@ init_logger()
 {
     couchbase::logger::create_console_logger();
     if (auto env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_LOG_LEVEL"); !env_val.empty()) {
-        couchbase::logger::set_log_levels(spdlog::level::from_str(env_val));
+        couchbase::logger::set_log_levels(couchbase::logger::level_from_str(env_val));
     }
 
     if (auto env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_DONT_INSTALL_TERMINATE_HANDLER"); env_val.empty()) {
