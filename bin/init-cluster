@@ -195,4 +195,4 @@ while query_port.zero?
 end
 
 query_api = API.new(options.merge(port: query_port))
-query_api.post_json("/query/service", statement: "CREATE PRIMARY INDEX ON `#{options[:bucket]}` USING GSI")
+query_api.post_form("/query/service", statement: "CREATE PRIMARY INDEX ON `#{options[:bucket]}` USING GSI")
