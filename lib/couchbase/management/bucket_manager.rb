@@ -216,6 +216,7 @@ module Couchbase
             compression_mode: settings.compression_mode,
             minimum_durability_level: settings.minimum_durability_level,
             conflict_resolution_type: settings.conflict_resolution_type,
+            storage_backend: settings.storage_backend,
           }, options.to_backend
         )
       end
@@ -242,6 +243,7 @@ module Couchbase
             max_expiry: settings.max_expiry,
             compression_mode: settings.compression_mode,
             minimum_durability_level: settings.minimum_durability_level,
+            storage_backend: settings.storage_backend,
           }, options.to_backend
         )
       end
@@ -357,6 +359,9 @@ module Couchbase
       # @return [:couchbase, :memcached, :ephemeral] the type of the bucket. Defaults to +:couchbase+
       attr_accessor :bucket_type
 
+      # @return [nil, :couchstore, :magma] the type of the storage backend of the bucket
+      attr_accessor :storage_backend
+
       # Eviction policy to use
       #
       # :full:: During ejection, only the value will be ejected (key and metadata will remain in memory). Value Ejection
@@ -423,6 +428,7 @@ module Couchbase
         @compression_mode = :passive
         @conflict_resolution_type = :sequence_number
         @eviction_policy = :value_only
+        @storage_backend = nil
         yield self if block_given?
       end
     end

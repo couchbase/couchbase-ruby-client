@@ -3338,6 +3338,21 @@ cb_generate_bucket_settings(VALUE bucket, couchbase::operations::management::buc
         }
     }
 
+    if (VALUE storage_backend = rb_hash_aref(bucket, rb_id2sym(rb_intern("storage_backend"))); !NIL_P(storage_backend)) {
+        if (TYPE(storage_backend) == T_SYMBOL) {
+            if (storage_backend == rb_id2sym(rb_intern("couchstore"))) {
+                entry.storage_backend = couchbase::operations::management::bucket_settings::storage_backend_type::couchstore;
+            } else if (storage_backend == rb_id2sym(rb_intern("magma"))) {
+                entry.storage_backend = couchbase::operations::management::bucket_settings::storage_backend_type::magma;
+            } else {
+                throw ruby_exception(rb_eArgError, rb_sprintf("unknown storage backend type, given %+" PRIsVALUE, storage_backend));
+            }
+        } else {
+            throw ruby_exception(rb_eArgError,
+                                 rb_sprintf("bucket storage backend type must be a Symbol, given %+" PRIsVALUE, storage_backend));
+        }
+    }
+
     if (VALUE minimum_level = rb_hash_aref(bucket, rb_id2sym(rb_intern("minimum_durability_level"))); !NIL_P(minimum_level)) {
         if (TYPE(minimum_level) == T_SYMBOL) {
             if (minimum_level == rb_id2sym(rb_intern("none"))) {
