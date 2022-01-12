@@ -32,7 +32,7 @@ options = {
   bucket: ENV.fetch("CB_BUCKET", "default"),
   server_quota: ENV.fetch("CB_SERVER_QUOTA", 512).to_i,
   index_quota: ENV.fetch("CB_INDEX_QUOTA", 256).to_i,
-  bucket_quota: ENV.fetch("CB_BUCKET_QUOTA", 100).to_i,
+  bucket_quota: ENV.fetch("CB_BUCKET_QUOTA", 256).to_i,
   enable_developer_preview: ENV.fetch("CB_DEVELOPER_PREVIEW", false).to_b,
   cluster_run_nodes: ENV.fetch("CB_CLUSTER_RUN_NODES", 0).to_i,
   sample_buckets: Set.new,
@@ -120,12 +120,13 @@ sleep(1)
 
 api = API.new(options)
 
-api.get("/pools")
+resp = api.get("/pools")
+services = resp['allowedServices']
 
 api.post_form("/pools/default",
               memoryQuota: options[:server_quota],
               indexMemoryQuota: options[:index_quota])
-api.post_form("/node/controller/setupServices", services: "kv,n1ql,index,fts,cbas")
+api.post_form("/node/controller/setupServices", services: services.join(","))
 
 if options[:strict_encryption]
   api.post_form("/settings/autoFailover", enabled: false)
@@ -148,7 +149,7 @@ if options[:cluster_run_nodes] > 1
     port += 10_000 unless options[:strict_encryption]
     res = api.post_form("/pools/default/serverGroups/0/addNode",
                         hostname: "#{options[:host]}:#{port}",
-                        services: "kv,n1ql,index,fts,cbas",
+                        services: services.join(","),
                         user: options[:username],
                         password: options[:password])
     known_nodes << res["otpNode"]
