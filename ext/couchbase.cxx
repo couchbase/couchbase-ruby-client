@@ -3095,6 +3095,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         cb_extract_option_bool(req.metrics, options, "metrics");
         cb_extract_option_bool(req.readonly, options, "readonly");
         cb_extract_option_bool(req.flex_index, options, "flex_index");
+        cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
         cb_extract_option_uint64(req.scan_cap, options, "scan_cap");
         cb_extract_option_uint64(req.scan_wait, options, "scan_wait");
         cb_extract_option_uint64(req.max_parallelism, options, "max_parallelism");

@@ -1416,6 +1416,7 @@ module Couchbase
       attr_accessor :metrics # @return [Boolean]
       attr_accessor :profile # @return [Symbol]
       attr_accessor :flex_index # @return [Boolean]
+      attr_accessor :preserve_expiry # @return [Boolean]
       attr_accessor :scope_qualifier # @return [String]
       attr_accessor :transcoder # @return [JsonTranscoder, #decode(String)]
 
@@ -1459,6 +1460,8 @@ module Couchbase
       #     The indexer will wait until all mutations have been processed at the time of request before returning to
       #     the query engine.
       # @param [Boolean, nil] flex_index Tells the query engine to use a flex index (utilizing the search service)
+      # @param [Boolean, nil] preserve_expiry Tells the query engine to preserve expiration values set on any documents
+      #   modified by this query.
       # @param [String, nil] scope_qualifier Associate scope qualifier (also known as +query_context+) with the query.
       #   The qualifier must be in form +{bucket_name}.{scope_name}+ or +default:{bucket_name}.{scope_name}+.
       # @param [JsonTranscoder] transcoder to decode rows
@@ -1489,6 +1492,7 @@ module Couchbase
                      metrics: nil,
                      profile: :off,
                      flex_index: nil,
+                     preserve_expiry: nil,
                      scope_qualifier: nil,
                      scan_consistency: :not_bounded,
                      mutation_state: nil,
@@ -1513,6 +1517,7 @@ module Couchbase
         @metrics = metrics
         @profile = profile
         @flex_index = flex_index
+        @preserve_expiry = preserve_expiry
         @scope_qualifier = scope_qualifier
         @scan_consistency = scan_consistency
         @mutation_state = mutation_state
@@ -1602,6 +1607,7 @@ module Couchbase
           max_parallelism: @max_parallelism,
           readonly: @readonly,
           flex_index: @flex_index,
+          preserve_expiry: @preserve_expiry,
           scan_wait: @scan_wait.respond_to?(:in_milliseconds) ? @scan_wait.public_send(:in_milliseconds) : @scan_wait,
           scan_cap: @scan_cap,
           pipeline_batch: @pipeline_batch,
