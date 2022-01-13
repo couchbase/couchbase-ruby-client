@@ -5400,6 +5400,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
 
         cb_extract_option_bool(req.explain, options, "explain");
         cb_extract_option_bool(req.disable_scoring, options, "disable_scoring");
+        cb_extract_option_bool(req.include_locations, options, "include_locations");
 
         if (VALUE skip = rb_hash_aref(options, rb_id2sym(rb_intern("skip"))); !NIL_P(skip)) {
             cb_check_type(skip, T_FIXNUM);

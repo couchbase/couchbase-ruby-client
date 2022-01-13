@@ -1629,6 +1629,7 @@ module Couchbase
       attr_accessor :highlight_fields # @return [Array<String>]
       attr_accessor :fields # @return [Array<String>]
       attr_accessor :disable_scoring # @return [Boolean]
+      attr_accessor :include_locations # @return [Boolean]
       attr_accessor :collections # @return [Array<String>, nil]
       attr_accessor :sort # @return [Array<String, Cluster::SearchSort>]
       attr_accessor :facets # @return [Hash<String => Cluster::SearchFacet>]
@@ -1645,6 +1646,7 @@ module Couchbase
       #   were stored while indexing
       # @param [MutationState] mutation_state the mutation tokens this query should be consistent with
       # @param [Boolean] disable_scoring If set to true, the server will not perform any scoring on the hits
+      # @param [Boolean] include_locations UNCOMMITTED: If set to true, will include the vector of search_location in rows
       # @param [Array<String>, nil] collections list of collections by which to filter the results
       # @param [Array<String, Cluster::SearchSort>] sort Ordering rules to apply to the results. The list might contain
       #   either strings or special objects, that derive from {Cluster::SearchSort}. In case of String, the value
@@ -1669,6 +1671,7 @@ module Couchbase
                      fields: nil,
                      mutation_state: nil,
                      disable_scoring: false,
+                     include_locations: false,
                      collections: nil,
                      sort: nil,
                      facets: nil,
@@ -1685,6 +1688,7 @@ module Couchbase
         @highlight_fields = highlight_fields
         @fields = fields
         @disable_scoring = disable_scoring
+        @include_locations = include_locations
         @collections = collections
         @sort = sort
         @facets = facets
@@ -1735,6 +1739,7 @@ module Couchbase
           skip: @skip,
           explain: @explain,
           disable_scoring: @disable_scoring,
+          include_locations: @include_locations,
           scope: scope_name,
           collections: scope_name ? @collections : nil,
           highlight_style: @highlight_style,
