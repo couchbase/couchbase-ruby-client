@@ -3382,6 +3382,8 @@ cb_generate_bucket_settings(VALUE bucket, couchbase::operations::management::buc
                 } else if (conflict_resolution_type == rb_id2sym(rb_intern("sequence_number"))) {
                     entry.conflict_resolution_type =
                       couchbase::operations::management::bucket_settings::conflict_resolution_type::sequence_number;
+                } else if (conflict_resolution_type == rb_id2sym(rb_intern("custom"))) {
+                    entry.conflict_resolution_type = couchbase::operations::management::bucket_settings::conflict_resolution_type::custom;
                 } else {
                     throw ruby_exception(rb_eArgError,
                                          rb_sprintf("unknown conflict resolution type, given %+" PRIsVALUE, conflict_resolution_type));
@@ -3569,6 +3571,9 @@ cb_extract_bucket_settings(const couchbase::operations::management::bucket_setti
             break;
         case couchbase::operations::management::bucket_settings::conflict_resolution_type::sequence_number:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("conflict_resolution_type")), rb_id2sym(rb_intern("sequence_number")));
+            break;
+        case couchbase::operations::management::bucket_settings::conflict_resolution_type::custom:
+            rb_hash_aset(bucket, rb_id2sym(rb_intern("conflict_resolution_type")), rb_id2sym(rb_intern("custom")));
             break;
         case couchbase::operations::management::bucket_settings::conflict_resolution_type::unknown:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("conflict_resolution_type")), Qnil);

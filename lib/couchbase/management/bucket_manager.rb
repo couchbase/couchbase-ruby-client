@@ -388,7 +388,7 @@ module Couchbase
       # @return [:off, :passive, :active] the compression mode to use
       attr_accessor :compression_mode
 
-      # @return [:timestamp, :sequence_number] conflict resolution policy
+      # @return [:timestamp, :sequence_number, :custom] conflict resolution policy
       attr_accessor :conflict_resolution_type
 
       # @return [nil, :none, :majority, :majority_and_persist_to_active, :persist_to_majority] the minimum durability level
