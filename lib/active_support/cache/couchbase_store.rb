@@ -60,10 +60,10 @@ module ActiveSupport
 
         def write_multi_entries(entries, **options)
           if options[:raw] && local_cache
-            raw_entries = entries.map do |_key, entry|
+            raw_entries = entries.to_h do |_key, entry|
               raw_entry = Entry.new(serialize_entry(entry, raw: true))
               raw_entry.expires_at = entry.expires_at
-            end.to_h
+            end
 
             super(raw_entries, **options)
           else

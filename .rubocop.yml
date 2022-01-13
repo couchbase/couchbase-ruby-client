@@ -12,6 +12,7 @@ AllCops:
   SuggestExtensions: false
   Exclude:
     - 'vendor/**/*'
+    - 'ext/**/*'
     # Copied from Rails v6.1.0-38-gbf165e3e19
     - 'test/active_support/behaviors/*.rb'
     - 'test/active_support/behaviors.rb'

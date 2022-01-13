@@ -23,7 +23,7 @@ module Couchbase
     # @param [Couchbase::Collection] collection parent collection
     def initialize(collection)
       @collection = collection
-      @backend = collection.instance_variable_get("@backend")
+      @backend = collection.instance_variable_get(:@backend)
     end
 
     # Appends binary content to the document

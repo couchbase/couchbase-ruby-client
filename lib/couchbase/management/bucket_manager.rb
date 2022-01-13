@@ -333,7 +333,7 @@ module Couchbase
           bucket.eviction_policy = entry[:eviction_policy]
           bucket.minimum_durability_level = entry[:minimum_durability_level]
           bucket.compression_mode = entry[:compression_mode]
-          bucket.instance_variable_set("@healthy", entry[:nodes].all? { |node| node[:status] == "healthy" })
+          bucket.instance_variable_set(:@healthy, entry[:nodes].all? { |node| node[:status] == "healthy" })
         end
       end
     end

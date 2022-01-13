@@ -116,7 +116,7 @@ module Couchbase
           end
           res[:warnings] = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
         end
-        res.instance_variable_set("@rows", resp[:rows])
+        res.instance_variable_set(:@rows, resp[:rows])
       end
     end
 
@@ -154,7 +154,7 @@ module Couchbase
           end
           res[:warnings] = resp[:warnings].map { |warn| AnalyticsWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
         end
-        res.instance_variable_set("@rows", resp[:rows])
+        res.instance_variable_set(:@rows, resp[:rows])
       end
     end
 
@@ -205,7 +205,7 @@ module Couchbase
                 end
               end
             )
-            row.instance_variable_set("@fields", r[:fields])
+            row.instance_variable_set(:@fields, r[:fields])
             row.explanation = JSON.parse(r[:explanation]) if r[:explanation]
           end
         end

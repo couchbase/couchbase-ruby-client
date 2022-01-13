@@ -737,7 +737,7 @@ module Couchbase
     def __wait_for_collections_manifest(uid)
       hits = 5 # make sure that the manifest has distributed well enough
       while hits.positive?
-        backend = @cluster.instance_variable_get("@backend")
+        backend = @cluster.instance_variable_get(:@backend)
         manifest = backend.collections_manifest_get(@bucket.name, 10_000)
         if manifest[:uid] < uid
           time_travel(0.1)
