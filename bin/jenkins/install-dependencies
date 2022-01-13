@@ -71,7 +71,7 @@ then
 
   brew doctor || true
   brew list --versions || true
-  if [ "x${CB_RUBY_VERSION}" = "x3.0" -o "x${CB_RUBY_VERSION}" = "xbrew" ]
+  if [ "x${CB_RUBY_VERSION}" = "xbrew" ]
   then
       brew install automake bison@2.7 openssl@1.1 readline libyaml gdbm libffi
       brew install ruby-install chruby
