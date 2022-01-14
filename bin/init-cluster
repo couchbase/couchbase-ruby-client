@@ -121,7 +121,7 @@ sleep(1)
 api = API.new(options)
 
 resp = api.get("/pools")
-services = resp['allowedServices']
+services = resp['allowedServices'] || ["kv", "n1ql", "index", "fts", "cbas"]
 
 api.post_form("/pools/default",
               memoryQuota: options[:server_quota],
