@@ -29,16 +29,30 @@ CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7}
 
 if [ "$(uname -s)" = "Linux" ]
 then
+  OS_ID=unknown
+  OS_VERSION=unknown
+  if [ -f /etc/os-release ]
+  then
+      OS_ID=$(grep -o '^ID=.*' /etc/os-release | sed 's/ID=\|"//g')
+      OS_VERSION=$(grep -o '^VERSION_ID=.*' /etc/os-release | sed 's/VERSION_ID=\|"//g')
+  fi
+
   if [ -f /etc/alpine-release ]
   then
       export CB_CC="/usr/bin/gcc"
       export CB_CXX="/usr/bin/g++"
   else
       export PATH="$(realpath ~/.cmake-3.21.2/bin):$PATH"
-      sudo yum install -y libstdc++-static
-      cc_prefix=/opt/rh/devtoolset-9/root
-      export CB_CC="${cc_prefix}/bin/gcc"
-      export CB_CXX="${cc_prefix}/bin/g++"
+      if [ "${OS_ID}" = "amzn" ]
+      then
+          export CB_CC="gcc10-cc"
+          export CB_CXX="gcc10-c++"
+      else
+          sudo yum install -y libstdc++-static
+          cc_prefix=/opt/rh/devtoolset-9/root
+          export CB_CC="${cc_prefix}/bin/gcc"
+          export CB_CXX="${cc_prefix}/bin/g++"
+      fi
   fi
   source /usr/local/share/chruby/chruby.sh
 fi
@@ -92,9 +106,13 @@ then
   gem_compiler_plugin=$(ruby -rrubygems -e "puts Gem.find_files('rubygems_plugin.rb').grep(/gem-compiler/)")
   CB_GEM_COMPILE="ruby -rrubygems -r${gem_compiler_plugin} -S gem compile"
 fi
-if [ "$(uname -s)" = "Linux" -a "x${IS_RELEASE}" = "xtrue" ]
+if [ "$(uname -s)" = "Linux" ]
 then
-  CB_GEM_COMPILE="${CB_GEM_COMPILE} --strip"
+    strip --version
+    if [ "x${IS_RELEASE}" = "xtrue" ]
+    then
+        CB_GEM_COMPILE="${CB_GEM_COMPILE} --strip"
+    fi
 fi
 
 export CB_REMOVE_EXT_DIRECTORY=1
