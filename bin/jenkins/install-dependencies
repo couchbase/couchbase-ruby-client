@@ -29,6 +29,12 @@ CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7}
 
 if [ "$(uname -s)" = "Linux" ]
 then
+  if [ -f /etc/alpine-release ]
+  then
+    cat /etc/alpine-release
+    sudo /sbin/apk add openssl libcrypto1.1 openssl-dev clang clang-extra-tools curl make bash gcc g++ xz cmake zlib-dev linux-headers
+  fi
+
   if  [ ! -x /usr/local/bin/ruby-install ]
   then
       curl -L -o ruby-install-0.8.1.tar.gz https://github.com/postmodern/ruby-install/archive/v0.8.1.tar.gz
@@ -100,11 +106,17 @@ fi
 
 if [ "$(uname -s)" = "Linux" ]
 then
-  if [ ! -d ~/.cmake-3.21.2 ]
+  if [ -f /etc/alpine-release ]
   then
-      curl -L -o cmake-3.21.2-linux-x86_64.tar.gz https://github.com/Kitware/CMake/releases/download/v3.21.2/cmake-3.21.2-linux-x86_64.tar.gz
-      tar xvf cmake-3.21.2-linux-x86_64.tar.gz
-      mv cmake-3.21.2-linux-x86_64 ~/.cmake-3.21.2
-      rm cmake-3.21.2-linux-x86_64.tar.gz
+      cmake --version
+  else
+      if [ ! -d ${HOME}/.cmake-3.21.2 ]
+      then
+          curl -L -o cmake-3.21.2-linux-x86_64.tar.gz https://github.com/Kitware/CMake/releases/download/v3.21.2/cmake-3.21.2-linux-x86_64.tar.gz
+          tar xvf cmake-3.21.2-linux-x86_64.tar.gz
+          mv cmake-3.21.2-linux-x86_64 ${HOME}/.cmake-3.21.2
+          rm cmake-3.21.2-linux-x86_64.tar.gz
+      fi
+      ${HOME}/.cmake-3.21.2/bin/cmake --version
   fi
 fi

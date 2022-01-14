@@ -29,16 +29,18 @@ CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7}
 
 if [ "$(uname -s)" = "Linux" ]
 then
-  sudo yum install -y libstdc++-static
-  export PATH="$(realpath ~/.cmake-3.21.2/bin):$PATH"
-fi
-
-if [ "$(uname -s)" = "Linux" ]
-then
+  if [ -f /etc/alpine-release ]
+  then
+      export CB_CC="/usr/bin/gcc"
+      export CB_CXX="/usr/bin/g++"
+  else
+      export PATH="$(realpath ~/.cmake-3.21.2/bin):$PATH"
+      sudo yum install -y libstdc++-static
+      cc_prefix=/opt/rh/devtoolset-9/root
+      export CB_CC="${cc_prefix}/bin/gcc"
+      export CB_CXX="${cc_prefix}/bin/g++"
+  fi
   source /usr/local/share/chruby/chruby.sh
-  cc_prefix=/opt/rh/devtoolset-9/root
-  export CB_CC="${cc_prefix}/bin/gcc"
-  export CB_CXX="${cc_prefix}/bin/g++"
 fi
 if [ "$(uname -s)" = "Darwin" ]
 then
@@ -96,7 +98,10 @@ then
 fi
 
 export CB_REMOVE_EXT_DIRECTORY=1
-export CB_STATIC=1 
+if [ ! -f /etc/alpine-release ]
+then
+    export CB_STATIC=1 
+fi
 ${CB_GEM_COMPILE} --prune --verbose --output ${precompiled} ${source}
 ruby -rrbconfig -rfileutils \
      -e 'FileUtils.mv(ARGV[0], ARGV[0].gsub(/\.gem$/, "-#{RbConfig::CONFIG["ruby_version"]}.gem"))' \
