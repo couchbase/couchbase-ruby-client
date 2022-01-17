@@ -123,7 +123,8 @@ cat /proc/sys/kernel/core_pattern
 echo "${PWD}/core.%h.%e.%t" | sudo tee /proc/sys/kernel/core_pattern
 ulimit -c unlimited
 
-gem install minitest-reporters simplecov-cobertura
+bundle config set --local path ${PROJECT_ROOT}/vendor/bundle
+bundle install
 
 cat <<EOF > Rakefile
 require "rake/testtask"
@@ -134,7 +135,7 @@ Rake::TestTask.new(:test) do |t|
 end
 EOF
 
-rake test
+bundle exec rake test
 STATUS=$?
 set -e
 
