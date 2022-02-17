@@ -23,7 +23,7 @@ require "socket"
 class Caves
   attr_accessor :verbose
 
-  VERSION = "v0.0.1-48".freeze
+  VERSION = "v0.0.1-56".freeze
   FORK = "couchbaselabs".freeze
 
   def download_mock(url = caves_url)

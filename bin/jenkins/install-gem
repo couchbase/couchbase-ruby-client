@@ -50,7 +50,7 @@ then
   chruby ruby-${CB_RUBY_VERSION}
 fi
 
-export GEM_HOME="$PROJECT_ROOT/gems-${CB_RUBY_VERSION}"
+export GEM_HOME="${PROJECT_ROOT}/vendor/bundle/ruby/$(ruby -rrbconfig -e'puts RbConfig::CONFIG["ruby_version"]')"
 gem list --all
 gem install $*
 gem list --all

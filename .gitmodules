@@ -1,6 +1,6 @@
 [submodule "test_data/sdk_test_cases"]
 	path = test_data/sdk_test_cases
-	url = git://github.com/couchbaselabs/sdk-testcases.git
+	url = https://github.com/couchbaselabs/sdk-testcases.git
 [submodule "ext/couchbase"]
 	path = ext/couchbase
-	url = git://github.com/couchbaselabs/couchbase-cxx-client.git
+	url = https://github.com/couchbaselabs/couchbase-cxx-client.git

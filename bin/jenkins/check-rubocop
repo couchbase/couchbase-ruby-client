@@ -37,7 +37,7 @@ then
 fi
 chruby ruby-${CB_RUBY_VERSION}
 
-export GEM_HOME="${PROJECT_ROOT}/../gems-${CB_RUBY_VERSION}"
-bundle config set --local path ${GEM_HOME}/bundle
+bundle config set --local path ${PROJECT_ROOT}/vendor/bundle
+
 bundle install
 bundle exec rubocop

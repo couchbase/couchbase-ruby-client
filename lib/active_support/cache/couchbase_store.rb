@@ -14,6 +14,7 @@
 
 require "couchbase"
 require "digest/sha2"
+require "active_support/cache"
 
 module ActiveSupport
   module Cache
@@ -45,39 +46,11 @@ module ActiveSupport
         true
       end
 
-      module LocalCacheWithRaw # :nodoc:
-        private
-
-        def write_entry(key, entry, **options)
-          if options[:raw] && local_cache
-            raw_entry = Entry.new(entry.value.to_s)
-            raw_entry.expires_at = entry.expires_at
-            super(key, raw_entry, **options)
-          else
-            super
-          end
-        end
-
-        def write_multi_entries(entries, **options)
-          if options[:raw] && local_cache
-            raw_entries = entries.to_h do |_key, entry|
-              raw_entry = Entry.new(serialize_entry(entry, raw: true))
-              raw_entry.expires_at = entry.expires_at
-            end
-
-            super(raw_entries, **options)
-          else
-            super
-          end
-        end
-      end
-
       prepend Strategy::LocalCache
-      prepend LocalCacheWithRaw
 
       def initialize(options = nil)
         super
-        @error_handler = options.delete(:error_handler) { DEFAULT_ERROR_HANDLER }
+        @error_handler = @options.delete(:error_handler) { DEFAULT_ERROR_HANDLER }
         @couchbase_options = {}
         @couchbase_options[:connection_string] =
           @options.delete(:connection_string) do
@@ -195,7 +168,7 @@ module ActiveSupport
 
       private
 
-      def deserialize_entry(payload, raw:)
+      def deserialize_entry(payload, raw: false, **)
         if payload && raw
           Entry.new(payload, compress: false)
         else
@@ -203,19 +176,29 @@ module ActiveSupport
         end
       end
 
-      def serialize_entry(entry, raw: false)
+      def serialize_entry(entry, raw: false, **options)
         if raw
           entry.value.to_s
         else
-          super(entry)
+          super(entry, **options)
+        end
+      end
+
+      def serialize_entries(entries, **options)
+        entries.transform_values do |entry|
+          serialize_entry(entry, **options)
         end
       end
 
       # Reads an entry from the cache
       def read_entry(key, **options)
+        deserialize_entry(read_serialized_entry(key, **options), **options)
+      end
+
+      def read_serialized_entry(key, **)
         failsafe(:read_entry, returning: nil) do
-          result = collection.get(key, ::Couchbase::Options::Get(transcoder: nil))
-          deserialize_entry(result.content, raw: options&.fetch(:raw, false))
+          res = collection.get(key, ::Couchbase::Options::Get(transcoder: nil))
+          res.content
         end
       end
 
@@ -241,21 +224,24 @@ module ActiveSupport
       end
 
       # Writes an entry to the cache
-      def write_entry(key, entry, raw: false, expires_in: nil, race_condition_ttl: nil, **_options)
+      def write_entry(key, entry, raw: false, **options)
+        write_serialized_entry(key, serialize_entry(entry, raw: raw, **options), raw: raw, **options)
+      end
+
+      def write_serialized_entry(key, payload, expires_in: nil, race_condition_ttl: nil, raw: false, **)
         if race_condition_ttl && expires_in && expires_in.positive? && !raw
           # Add few minutes to expiry in the future to support race condition TTLs on read
           expires_in += 5.minutes
         end
         failsafe(:write_entry, returning: false) do
-          res = collection.upsert(key, serialize_entry(entry, raw: raw),
-                                  ::Couchbase::Options::Upsert(transcoder: nil, expiry: expires_in))
+          res = collection.upsert(key, payload, ::Couchbase::Options::Upsert(transcoder: nil, expiry: expires_in))
           @last_mutation_token = res.mutation_token
           true
         end
       end
 
-      def write_multi_entries(hash, **options)
-        return 0 if hash.empty?
+      def write_multi_entries(entries, **options)
+        return 0 if entries.empty?
 
         return super if local_cache
 
@@ -265,12 +251,8 @@ module ActiveSupport
           expires_in += 5.minutes
         end
         operation_options = ::Couchbase::Options::UpsertMulti(transcoder: nil, expiry: expires_in)
-
-        pairs = hash.map do |key, entry|
-          [key, options[:raw] ? entry.value.to_s : serialize_entry(entry)]
-        end
         failsafe(:write_multi_entries, returning: nil) do
-          successful = collection.upsert_multi(pairs, operation_options).select(&:success?)
+          successful = collection.upsert_multi(serialize_entries(entries, **options), operation_options).select(&:success?)
           return 0 if successful.empty?
 
           @last_mutation_token = successful.max_by { |r| r.mutation_token.sequence_number }
@@ -304,16 +286,9 @@ module ActiveSupport
       def failsafe(method, returning: nil)
         yield
       rescue ::Couchbase::Error::CouchbaseError => e
-        handle_exception(exception: e, method: method, returning: returning)
+        ActiveSupport.error_reporter&.report(e, handled: true, severity: :warning)
+        @error_handler&.call(method: method, exception: e, returning: returning)
         returning
-      end
-
-      def handle_exception(exception:, method:, returning:)
-        return unless @error_handler
-
-        @error_handler.call(method: method, exception: exception, returning: returning)
-      rescue StandardError => e
-        warn "CouchbaseStore ignored exception in handle_exception: #{e.class}: #{e.message}\n  #{e.backtrace.join("\n  ")}"
       end
 
       # Truncate keys that exceed 250 characters

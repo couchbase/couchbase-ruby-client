@@ -83,20 +83,20 @@ module Couchbase
       doc_id = uniq_id(:foo)
 
       res = @collection.exists(doc_id)
-      refute res.exists?
+      refute_predicate res, :exists?
 
       document = {"value" => 42}
       res = @collection.upsert(doc_id, document)
       cas = res.cas
 
       res = @collection.exists(doc_id)
-      assert res.exists?
+      assert_predicate res, :exists?
       assert_equal cas, res.cas
 
       @collection.remove(doc_id)
 
       res = @collection.exists(doc_id)
-      refute res.exists?
+      refute_predicate res, :exists?
     end
 
     def test_get_and_lock_protects_document_from_mutations

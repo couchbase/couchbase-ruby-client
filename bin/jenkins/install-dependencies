@@ -78,7 +78,8 @@ then
   fi
   ruby-install --version
   ruby-install --latest || true
-  ruby-install --jobs=6 --no-reinstall ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS}
+  ruby-install --jobs=6 --no-reinstall ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS} || \
+      ruby-install --jobs=6 --no-reinstall --no-install-deps ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS}
 fi
 if [ "$(uname -s)" = "Darwin" ]
 then

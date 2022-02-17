@@ -81,6 +81,7 @@ Gem::Specification.new do |spec|
     "ext/couchbase/third_party/json/external/PEGTL/LICENSE*",
     "ext/couchbase/third_party/json/external/PEGTL/include/**/*",
     "ext/couchbase/third_party/json/include/**/*",
+    "ext/couchbase/third_party/jsonsl/*",
     "ext/couchbase/third_party/snappy/CMakeLists.txt",
     "ext/couchbase/third_party/snappy/COPYING",
     "ext/couchbase/third_party/snappy/cmake/*",

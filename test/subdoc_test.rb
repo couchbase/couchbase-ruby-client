@@ -266,7 +266,7 @@ module Couchbase
                                     }),
                                   ])
 
-      assert res.success?
+      assert_predicate res, :success?
       assert_equal 1, res.content(1)
     end
 
@@ -1239,7 +1239,7 @@ module Couchbase
       res = @collection.mutate_in(doc_id, [
                                     MutateInSpec.upsert("meta.field", "b").xattr.create_path,
                                   ], options)
-      assert res.deleted?, "the document should be marked as 'deleted'"
+      assert_predicate res, :deleted?, "the document should be marked as 'deleted'"
 
       assert_raises(Error::DocumentNotFound) do
         @collection.get(doc_id)
@@ -1251,7 +1251,7 @@ module Couchbase
                                     LookupInSpec.get("meta").xattr,
                                   ], options)
       assert_equal({"field" => "b"}, res.content(0))
-      assert res.deleted?, "the document should be marked as 'deleted'"
+      assert_predicate res, :deleted?, "the document should be marked as 'deleted'"
     end
   end
 end

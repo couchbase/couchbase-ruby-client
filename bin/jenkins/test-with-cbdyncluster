@@ -72,7 +72,8 @@ then
   source $(brew --prefix chruby)/share/chruby/chruby.sh
 fi
 chruby ruby-${CB_RUBY_VERSION}
-export GEM_HOME="${PROJECT_ROOT}/gems-${CB_RUBY_VERSION}"
+
+export GEM_HOME="${PROJECT_ROOT}/vendor/bundle/ruby/$(ruby -rrbconfig -e'puts RbConfig::CONFIG["ruby_version"]')"
 
 CB_CREDS="Administrator:password"
 
@@ -123,7 +124,8 @@ cat /proc/sys/kernel/core_pattern
 echo "${PWD}/core.%h.%e.%t" | sudo tee /proc/sys/kernel/core_pattern
 ulimit -c unlimited
 
-bundle config set --local path ${PROJECT_ROOT}/vendor/bundle
+sed -i 's/^gemspec$/gem "couchbase"/' Gemfile
+bundle config set --local path "${PROJECT_ROOT}/vendor/bundle"
 bundle install
 
 cat <<EOF > Rakefile

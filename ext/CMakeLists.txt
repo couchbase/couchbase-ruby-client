@@ -43,7 +43,7 @@ constexpr auto RUBY_INCLUDE_DIR = \"${RUBY_INCLUDE_DIR}\";
 add_library(couchbase SHARED couchbase.cxx)
 target_include_directories(couchbase PRIVATE ${PROJECT_BINARY_DIR}/generated)
 target_link_libraries(couchbase PRIVATE project_options project_warnings couchbase_cxx_client snappy)
-if (CMAKE_C_COMPILER_ID MATCHES ".*Clang")
+if (CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
   target_compile_options(couchbase PRIVATE -fdeclspec)
 endif()
 

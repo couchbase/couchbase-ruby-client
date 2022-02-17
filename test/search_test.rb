@@ -92,7 +92,7 @@ module Couchbase
           time_travel(0.5)
           next
         end
-        assert res.success?, "res=#{res.inspect}"
+        assert_predicate res, :success?, "res=#{res.inspect}"
         refute_empty res.rows, "expected non empty result"
         assert res.rows.find { |row| row.id == doc_id }, "result expected to include #{doc_id}"
         break

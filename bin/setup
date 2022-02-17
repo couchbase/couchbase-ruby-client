@@ -19,6 +19,6 @@ PROJECT_ROOT="$( cd "$(dirname "$0"/..)" >/dev/null 2>&1 ; pwd -P )"
 set -euo pipefail
 IFS=$'\n\t'
 set -vx
-git submodule update --init
+git submodule update --init --recursive
 bundle config set --local path ${PROJECT_ROOT}/vendor/bundle
 bundle install
