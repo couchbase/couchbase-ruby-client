@@ -344,5 +344,8 @@ module Couchbase
     # Environment name string cannot be determined
     class NoEnvironment < CouchbaseError
     end
+
+    class ClusterClosed < CouchbaseError
+    end
   end
 end

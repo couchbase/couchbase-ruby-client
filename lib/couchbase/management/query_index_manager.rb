@@ -349,11 +349,9 @@ module Couchbase
             index.is_primary = idx[:is_primary]
             index.type = idx[:type]
             index.state = idx[:state]
-            index.bucket = idx[:bucket_id]
-            index.collection = idx[:collection_id]
-            index.scope = idx[:scope_id]
-            index.key_space = idx[:keyspace_id]
-            index.name_space = idx[:namespace_id]
+            index.bucket = idx[:bucket_name]
+            index.scope = idx[:scope_name]
+            index.collection = idx[:collection_name]
             index.index_key = idx[:index_key]
             index.condition = idx[:condition]
             index.partition = idx[:partition]
@@ -496,12 +494,6 @@ module Couchbase
 
       # @return [String, nil] the name of the collection
       attr_accessor :collection
-
-      # @return [String] the key space for the index, typically the bucket name.
-      attr_accessor :key_space
-
-      # @return [String] the namespace for the index. A namespace is a resource pool that contains multiple key spaces.
-      attr_accessor :name_space
 
       # @return [Array<String>] an array of Strings that represent the index key(s). The array is empty in the case of a
       #   PRIMARY INDEX.

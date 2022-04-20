@@ -577,8 +577,6 @@ module Couchbase
     end
 
     def test_array_insert_duplicated_unique_does_not_exist
-      skip("#{name}: CAVES does not support transactional subdocument operations yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo" => %w[hello world]})
@@ -1177,8 +1175,6 @@ module Couchbase
     end
 
     def test_two_commands_one_fails
-      skip("#{name}: CAVES does not support transactional subdocument operations yet") if use_caves?
-
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {"foo1" => "bar_orig_1"})

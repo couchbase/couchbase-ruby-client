@@ -28,12 +28,12 @@
 #include <couchbase/platform/terminate_handler.h>
 
 #include <couchbase/cluster.hxx>
+#include <couchbase/design_document_namespace_fmt.hxx>
 #include <couchbase/operations.hxx>
 #include <couchbase/operations/management/analytics.hxx>
 #include <couchbase/operations/management/bucket.hxx>
 #include <couchbase/operations/management/cluster_developer_preview_enable.hxx>
 #include <couchbase/operations/management/collections.hxx>
-#include <couchbase/operations/management/design_document_fmt.hxx>
 #include <couchbase/operations/management/query.hxx>
 #include <couchbase/operations/management/search.hxx>
 #include <couchbase/operations/management/user.hxx>
@@ -189,12 +189,12 @@ cb_str_new(const std::optional<std::string>& str)
 }
 
 static inline VALUE
-cb_cas_to_num(const couchbase::protocol::cas& cas)
+cb_cas_to_num(const couchbase::cas& cas)
 {
     return ULL2NUM(cas.value);
 }
 
-static inline couchbase::protocol::cas
+static inline couchbase::cas
 cb_num_to_cas(VALUE num)
 {
     return { NUM2ULL(num) };
@@ -314,6 +314,8 @@ cb_Backend_allocate(VALUE klass)
     return obj;
 }
 
+static VALUE eClusterClosed;
+
 static inline const std::shared_ptr<couchbase::cluster>&
 cb_backend_to_cluster(VALUE self)
 {
@@ -321,7 +323,7 @@ cb_backend_to_cluster(VALUE self)
     TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
 
     if (!backend->cluster) {
-        rb_raise(rb_eArgError, "Cluster has been closed already");
+        rb_raise(eClusterClosed, "Cluster has been closed already");
     }
     return backend->cluster;
 }
@@ -493,13 +495,14 @@ init_exceptions(VALUE mCouchbase)
     eHandshakeFailure = rb_define_class_under(mError, "HandshakeFailure", eNetworkError);
     eProtocolError = rb_define_class_under(mError, "ProtocolError", eNetworkError);
     eConfigurationNotAvailable = rb_define_class_under(mError, "ConfigurationNotAvailable", eNetworkError);
+    eClusterClosed = rb_define_class_under(mError, "ClusterClosed", eCouchbaseError);
 }
 
 [[nodiscard]] static VALUE
 cb_map_error_code(std::error_code ec, const std::string& message)
 {
     if (ec.category() == couchbase::error::detail::get_common_category()) {
-        switch (couchbase::error::common_errc(ec.value())) {
+        switch (static_cast<couchbase::error::common_errc>(ec.value())) {
             case couchbase::error::common_errc::unambiguous_timeout:
                 return rb_exc_new_cstr(eUnambiguousTimeout, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -564,7 +567,7 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 return rb_exc_new_cstr(eQuotaLimited, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_key_value_category()) {
-        switch (couchbase::error::key_value_errc(ec.value())) {
+        switch (static_cast<couchbase::error::key_value_errc>(ec.value())) {
             case couchbase::error::key_value_errc::document_not_found:
                 return rb_exc_new_cstr(eDocumentNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -647,7 +650,7 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 return rb_exc_new_cstr(eCannotReviveLivingDocument, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_query_category()) {
-        switch (couchbase::error::query_errc(ec.value())) {
+        switch (static_cast<couchbase::error::query_errc>(ec.value())) {
             case couchbase::error::query_errc::planning_failure:
                 return rb_exc_new_cstr(ePlanningFailure, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -662,14 +665,14 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 break;
         }
     } else if (ec.category() == couchbase::error::detail::get_search_category()) {
-        switch (couchbase::error::search_errc(ec.value())) {
+        switch (static_cast<couchbase::error::search_errc>(ec.value())) {
             case couchbase::error::search_errc::index_not_ready:
                 return rb_exc_new_cstr(eIndexNotReady, fmt::format("{}: {}", message, ec.message()).c_str());
             case couchbase::error::search_errc::consistency_mismatch:
                 return rb_exc_new_cstr(eConsistencyMismatch, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_view_category()) {
-        switch (couchbase::error::view_errc(ec.value())) {
+        switch (static_cast<couchbase::error::view_errc>(ec.value())) {
             case couchbase::error::view_errc::view_not_found:
                 return rb_exc_new_cstr(eViewNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -677,7 +680,7 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 return rb_exc_new_cstr(eDesignDocumentNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_analytics_category()) {
-        switch (couchbase::error::analytics_errc(ec.value())) {
+        switch (static_cast<couchbase::error::analytics_errc>(ec.value())) {
             case couchbase::error::analytics_errc::compilation_failure:
                 return rb_exc_new_cstr(eCompilationFailure, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -703,7 +706,7 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 return rb_exc_new_cstr(eLinkExists, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::get_management_category()) {
-        switch (couchbase::error::management_errc(ec.value())) {
+        switch (static_cast<couchbase::error::management_errc>(ec.value())) {
             case couchbase::error::management_errc::collection_exists:
                 return rb_exc_new_cstr(eCollectionExists, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -726,7 +729,7 @@ cb_map_error_code(std::error_code ec, const std::string& message)
                 return rb_exc_new_cstr(eBucketNotFlushable, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     } else if (ec.category() == couchbase::error::detail::network_error_category()) {
-        switch (couchbase::error::network_errc(ec.value())) {
+        switch (static_cast<couchbase::error::network_errc>(ec.value())) {
             case couchbase::error::network_errc::resolve_failure:
                 return rb_exc_new_cstr(eResolveFailure, fmt::format("{}: {}", message, ec.message()).c_str());
 
@@ -741,6 +744,9 @@ cb_map_error_code(std::error_code ec, const std::string& message)
 
             case couchbase::error::network_errc::configuration_not_available:
                 return rb_exc_new_cstr(eConfigurationNotAvailable, fmt::format("{}: {}", message, ec.message()).c_str());
+
+            case couchbase::error::network_errc::cluster_closed:
+                return rb_exc_new_cstr(eClusterClosed, fmt::format("{}: {}", message, ec.message()).c_str());
         }
     }
 
@@ -1082,7 +1088,7 @@ cb_extract_timeout(std::chrono::milliseconds& field, VALUE options)
 }
 
 static void
-cb_extract_cas(couchbase::protocol::cas& field, VALUE cas)
+cb_extract_cas(couchbase::cas& field, VALUE cas)
 {
     switch (TYPE(cas)) {
         case T_FIXNUM:
@@ -1329,6 +1335,9 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
                 case couchbase::service_type::management:
                     type = rb_id2sym(rb_intern("mgmt"));
                     break;
+                case couchbase::service_type::eventing:
+                    type = rb_id2sym(rb_intern("eventing"));
+                    break;
             }
             VALUE endpoints = rb_ary_new();
             rb_hash_aset(services, type, endpoints);
@@ -1491,7 +1500,7 @@ cb_extract_array_of_id_content(std::vector<std::tuple<couchbase::document_id, st
 }
 
 static void
-cb_extract_array_of_id_cas(std::vector<std::pair<couchbase::document_id, couchbase::protocol::cas>>& id_cas, VALUE arg)
+cb_extract_array_of_id_cas(std::vector<std::pair<couchbase::document_id, couchbase::cas>>& id_cas, VALUE arg)
 {
     if (TYPE(arg) != T_ARRAY) {
         throw ruby_exception(rb_eArgError, rb_sprintf("Type of ID/CAS tuples must be an Array, but given %+" PRIsVALUE, arg));
@@ -1525,7 +1534,7 @@ cb_extract_array_of_id_cas(std::vector<std::pair<couchbase::document_id, couchba
         if (TYPE(id) != T_STRING) {
             throw ruby_exception(rb_eArgError, rb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
         }
-        couchbase::protocol::cas cas_val{};
+        couchbase::cas cas_val{};
         if (VALUE cas = rb_ary_entry(entry, 4); !NIL_P(cas)) {
             cb_extract_cas(cas_val, cas);
         }
@@ -1660,7 +1669,7 @@ cb_extract_option_uint64(T& field, VALUE options, const char* name)
 }
 
 static void
-cb_extract_durability(couchbase::protocol::durability_level& output_level, std::optional<std::uint16_t>& output_timeout, VALUE options)
+cb_extract_durability(couchbase::protocol::durability_level& output_level, VALUE options)
 {
     VALUE durability_level = Qnil;
     cb_extract_option_symbol(durability_level, options, "durability_level");
@@ -1676,11 +1685,6 @@ cb_extract_durability(couchbase::protocol::durability_level& output_level, std::
         } else {
             throw ruby_exception(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
         }
-        VALUE durability_timeout = Qnil;
-        cb_extract_option_fixnum(durability_timeout, options, "durability_timeout");
-        if (!NIL_P(durability_timeout)) {
-            output_timeout = FIX2UINT(durability_timeout);
-        }
     }
 }
 
@@ -1688,7 +1692,7 @@ template<typename Request>
 static void
 cb_extract_durability(Request& req, VALUE options)
 {
-    cb_extract_durability(req.durability_level, req.durability_timeout, options);
+    cb_extract_durability(req.durability_level, options);
 }
 
 static VALUE
@@ -2246,8 +2250,7 @@ cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
         cb_extract_timeout(timeout, options);
 
         couchbase::protocol::durability_level durability_level{ couchbase::protocol::durability_level::none };
-        std::optional<std::uint16_t> durability_timeout{ std::nullopt };
-        cb_extract_durability(durability_level, durability_timeout, options);
+        cb_extract_durability(durability_level, options);
 
         VALUE expiry = Qnil;
         cb_extract_option_fixnum(expiry, options, "expiry");
@@ -2269,7 +2272,6 @@ cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
             }
             req.flags = flags;
             req.durability_level = durability_level;
-            req.durability_timeout = durability_timeout;
             if (!NIL_P(expiry)) {
                 req.expiry = FIX2UINT(expiry);
             }
@@ -2535,10 +2537,9 @@ cb_Backend_document_remove_multi(VALUE self, VALUE id_cas, VALUE options)
         cb_extract_timeout(timeout, options);
 
         couchbase::protocol::durability_level durability_level{ couchbase::protocol::durability_level::none };
-        std::optional<std::uint16_t> durability_timeout{ std::nullopt };
-        cb_extract_durability(durability_level, durability_timeout, options);
+        cb_extract_durability(durability_level, options);
 
-        std::vector<std::pair<couchbase::document_id, couchbase::protocol::cas>> tuples{};
+        std::vector<std::pair<couchbase::document_id, couchbase::cas>> tuples{};
         cb_extract_array_of_id_cas(tuples, id_cas);
 
         auto num_of_tuples = tuples.size();
@@ -2552,7 +2553,6 @@ cb_Backend_document_remove_multi(VALUE self, VALUE id_cas, VALUE options)
                 req.timeout = timeout;
             }
             req.durability_level = durability_level;
-            req.durability_timeout = durability_timeout;
             auto barrier = std::make_shared<std::promise<couchbase::operations::remove_response>>();
             cluster->execute(req, [barrier](couchbase::operations::remove_response&& resp) { barrier->set_value(std::move(resp)); });
             barriers.emplace_back(barrier);
@@ -3081,7 +3081,7 @@ cb_for_each_named_param(VALUE key, VALUE value, VALUE arg)
     } catch (const ruby_exception&) {
         return ST_STOP;
     }
-    preq->named_parameters.emplace(cb_string_new(key), cb_string_new(value));
+    preq->named_parameters[cb_string_new(key)] = cb_string_new(value);
     return ST_CONTINUE;
 }
 
@@ -3130,11 +3130,11 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             cb_check_type(profile, T_SYMBOL);
             ID mode = rb_sym2id(profile);
             if (mode == rb_intern("phases")) {
-                req.profile = couchbase::operations::query_request::profile_mode::phases;
+                req.profile = couchbase::query_profile_mode::phases;
             } else if (mode == rb_intern("timings")) {
-                req.profile = couchbase::operations::query_request::profile_mode::timings;
+                req.profile = couchbase::query_profile_mode::timings;
             } else if (mode == rb_intern("off")) {
-                req.profile = couchbase::operations::query_request::profile_mode::off;
+                req.profile = couchbase::query_profile_mode::off;
             }
         }
         if (VALUE positional_params = rb_hash_aref(options, rb_id2sym(rb_intern("positional_parameters"))); !NIL_P(positional_params)) {
@@ -3155,9 +3155,9 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             cb_check_type(scan_consistency, T_SYMBOL);
             ID type = rb_sym2id(scan_consistency);
             if (type == rb_intern("not_bounded")) {
-                req.scan_consistency = couchbase::operations::query_request::scan_consistency_type::not_bounded;
+                req.scan_consistency = couchbase::query_scan_consistency::not_bounded;
             } else if (type == rb_intern("request_plus")) {
-                req.scan_consistency = couchbase::operations::query_request::scan_consistency_type::request_plus;
+                req.scan_consistency = couchbase::query_scan_consistency::request_plus;
             }
         }
         if (VALUE mutation_state = rb_hash_aref(options, rb_id2sym(rb_intern("mutation_state"))); !NIL_P(mutation_state)) {
@@ -3258,15 +3258,15 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
 }
 
 static void
-cb_generate_bucket_settings(VALUE bucket, couchbase::operations::management::bucket_settings& entry, bool is_create)
+cb_generate_bucket_settings(VALUE bucket, couchbase::management::cluster::bucket_settings& entry, bool is_create)
 {
     if (VALUE bucket_type = rb_hash_aref(bucket, rb_id2sym(rb_intern("bucket_type"))); TYPE(bucket_type) == T_SYMBOL) {
         if (bucket_type == rb_id2sym(rb_intern("couchbase")) || bucket_type == rb_id2sym(rb_intern("membase"))) {
-            entry.bucket_type = couchbase::operations::management::bucket_settings::bucket_type::couchbase;
+            entry.bucket_type = couchbase::management::cluster::bucket_type::couchbase;
         } else if (bucket_type == rb_id2sym(rb_intern("memcached"))) {
-            entry.bucket_type = couchbase::operations::management::bucket_settings::bucket_type::memcached;
+            entry.bucket_type = couchbase::management::cluster::bucket_type::memcached;
         } else if (bucket_type == rb_id2sym(rb_intern("ephemeral"))) {
-            entry.bucket_type = couchbase::operations::management::bucket_settings::bucket_type::ephemeral;
+            entry.bucket_type = couchbase::management::cluster::bucket_type::ephemeral;
         } else {
             throw ruby_exception(rb_eArgError, rb_sprintf("unknown bucket type, given %+" PRIsVALUE, bucket_type));
         }
@@ -3314,11 +3314,11 @@ cb_generate_bucket_settings(VALUE bucket, couchbase::operations::management::buc
     if (VALUE compression_mode = rb_hash_aref(bucket, rb_id2sym(rb_intern("compression_mode"))); !NIL_P(compression_mode)) {
         if (TYPE(compression_mode) == T_SYMBOL) {
             if (compression_mode == rb_id2sym(rb_intern("active"))) {
-                entry.compression_mode = couchbase::operations::management::bucket_settings::compression_mode::active;
+                entry.compression_mode = couchbase::management::cluster::bucket_compression::active;
             } else if (compression_mode == rb_id2sym(rb_intern("passive"))) {
-                entry.compression_mode = couchbase::operations::management::bucket_settings::compression_mode::passive;
+                entry.compression_mode = couchbase::management::cluster::bucket_compression::passive;
             } else if (compression_mode == rb_id2sym(rb_intern("off"))) {
-                entry.compression_mode = couchbase::operations::management::bucket_settings::compression_mode::off;
+                entry.compression_mode = couchbase::management::cluster::bucket_compression::off;
             } else {
                 throw ruby_exception(rb_eArgError, rb_sprintf("unknown compression mode, given %+" PRIsVALUE, compression_mode));
             }
@@ -3331,13 +3331,13 @@ cb_generate_bucket_settings(VALUE bucket, couchbase::operations::management::buc
     if (VALUE eviction_policy = rb_hash_aref(bucket, rb_id2sym(rb_intern("eviction_policy"))); !NIL_P(eviction_policy)) {
         if (TYPE(eviction_policy) == T_SYMBOL) {
             if (eviction_policy == rb_id2sym(rb_intern("full"))) {
-                entry.eviction_policy = couchbase::operations::management::bucket_settings::eviction_policy::full;
+                entry.eviction_policy = couchbase::management::cluster::bucket_eviction_policy::full;
             } else if (eviction_policy == rb_id2sym(rb_intern("value_only"))) {
-                entry.eviction_policy = couchbase::operations::management::bucket_settings::eviction_policy::value_only;
+                entry.eviction_policy = couchbase::management::cluster::bucket_eviction_policy::value_only;
             } else if (eviction_policy == rb_id2sym(rb_intern("no_eviction"))) {
-                entry.eviction_policy = couchbase::operations::management::bucket_settings::eviction_policy::no_eviction;
+                entry.eviction_policy = couchbase::management::cluster::bucket_eviction_policy::no_eviction;
             } else if (eviction_policy == rb_id2sym(rb_intern("not_recently_used"))) {
-                entry.eviction_policy = couchbase::operations::management::bucket_settings::eviction_policy::not_recently_used;
+                entry.eviction_policy = couchbase::management::cluster::bucket_eviction_policy::not_recently_used;
             } else {
                 throw ruby_exception(rb_eArgError, rb_sprintf("unknown eviction policy, given %+" PRIsVALUE, eviction_policy));
             }
@@ -3349,9 +3349,9 @@ cb_generate_bucket_settings(VALUE bucket, couchbase::operations::management::buc
     if (VALUE storage_backend = rb_hash_aref(bucket, rb_id2sym(rb_intern("storage_backend"))); !NIL_P(storage_backend)) {
         if (TYPE(storage_backend) == T_SYMBOL) {
             if (storage_backend == rb_id2sym(rb_intern("couchstore"))) {
-                entry.storage_backend = couchbase::operations::management::bucket_settings::storage_backend_type::couchstore;
+                entry.storage_backend = couchbase::management::cluster::bucket_storage_backend::couchstore;
             } else if (storage_backend == rb_id2sym(rb_intern("magma"))) {
-                entry.storage_backend = couchbase::operations::management::bucket_settings::storage_backend_type::magma;
+                entry.storage_backend = couchbase::management::cluster::bucket_storage_backend::magma;
             } else {
                 throw ruby_exception(rb_eArgError, rb_sprintf("unknown storage backend type, given %+" PRIsVALUE, storage_backend));
             }
@@ -3385,13 +3385,11 @@ cb_generate_bucket_settings(VALUE bucket, couchbase::operations::management::buc
             !NIL_P(conflict_resolution_type)) {
             if (TYPE(conflict_resolution_type) == T_SYMBOL) {
                 if (conflict_resolution_type == rb_id2sym(rb_intern("timestamp"))) {
-                    entry.conflict_resolution_type =
-                      couchbase::operations::management::bucket_settings::conflict_resolution_type::timestamp;
+                    entry.conflict_resolution_type = couchbase::management::cluster::bucket_conflict_resolution::timestamp;
                 } else if (conflict_resolution_type == rb_id2sym(rb_intern("sequence_number"))) {
-                    entry.conflict_resolution_type =
-                      couchbase::operations::management::bucket_settings::conflict_resolution_type::sequence_number;
+                    entry.conflict_resolution_type = couchbase::management::cluster::bucket_conflict_resolution::sequence_number;
                 } else if (conflict_resolution_type == rb_id2sym(rb_intern("custom"))) {
-                    entry.conflict_resolution_type = couchbase::operations::management::bucket_settings::conflict_resolution_type::custom;
+                    entry.conflict_resolution_type = couchbase::management::cluster::bucket_conflict_resolution::custom;
                 } else {
                     throw ruby_exception(rb_eArgError,
                                          rb_sprintf("unknown conflict resolution type, given %+" PRIsVALUE, conflict_resolution_type));
@@ -3519,19 +3517,19 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE options)
 }
 
 static void
-cb_extract_bucket_settings(const couchbase::operations::management::bucket_settings& entry, VALUE bucket)
+cb_extract_bucket_settings(const couchbase::management::cluster::bucket_settings& entry, VALUE bucket)
 {
     switch (entry.bucket_type) {
-        case couchbase::operations::management::bucket_settings::bucket_type::couchbase:
+        case couchbase::management::cluster::bucket_type::couchbase:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("bucket_type")), rb_id2sym(rb_intern("couchbase")));
             break;
-        case couchbase::operations::management::bucket_settings::bucket_type::memcached:
+        case couchbase::management::cluster::bucket_type::memcached:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("bucket_type")), rb_id2sym(rb_intern("memcached")));
             break;
-        case couchbase::operations::management::bucket_settings::bucket_type::ephemeral:
+        case couchbase::management::cluster::bucket_type::ephemeral:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("bucket_type")), rb_id2sym(rb_intern("ephemeral")));
             break;
-        case couchbase::operations::management::bucket_settings::bucket_type::unknown:
+        case couchbase::management::cluster::bucket_type::unknown:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("bucket_type")), Qnil);
             break;
     }
@@ -3540,16 +3538,16 @@ cb_extract_bucket_settings(const couchbase::operations::management::bucket_setti
     rb_hash_aset(bucket, rb_id2sym(rb_intern("ram_quota_mb")), ULL2NUM(entry.ram_quota_mb));
     rb_hash_aset(bucket, rb_id2sym(rb_intern("max_expiry")), ULONG2NUM(entry.max_expiry));
     switch (entry.compression_mode) {
-        case couchbase::operations::management::bucket_settings::compression_mode::off:
+        case couchbase::management::cluster::bucket_compression::off:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), rb_id2sym(rb_intern("off")));
             break;
-        case couchbase::operations::management::bucket_settings::compression_mode::active:
+        case couchbase::management::cluster::bucket_compression::active:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), rb_id2sym(rb_intern("active")));
             break;
-        case couchbase::operations::management::bucket_settings::compression_mode::passive:
+        case couchbase::management::cluster::bucket_compression::passive:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), rb_id2sym(rb_intern("passive")));
             break;
-        case couchbase::operations::management::bucket_settings::compression_mode::unknown:
+        case couchbase::management::cluster::bucket_compression::unknown:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), Qnil);
             break;
     }
@@ -3557,33 +3555,33 @@ cb_extract_bucket_settings(const couchbase::operations::management::bucket_setti
     rb_hash_aset(bucket, rb_id2sym(rb_intern("replica_indexes")), entry.replica_indexes ? Qtrue : Qfalse);
     rb_hash_aset(bucket, rb_id2sym(rb_intern("flush_enabled")), entry.flush_enabled ? Qtrue : Qfalse);
     switch (entry.eviction_policy) {
-        case couchbase::operations::management::bucket_settings::eviction_policy::full:
+        case couchbase::management::cluster::bucket_eviction_policy::full:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("eviction_policy")), rb_id2sym(rb_intern("full")));
             break;
-        case couchbase::operations::management::bucket_settings::eviction_policy::value_only:
+        case couchbase::management::cluster::bucket_eviction_policy::value_only:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("eviction_policy")), rb_id2sym(rb_intern("value_only")));
             break;
-        case couchbase::operations::management::bucket_settings::eviction_policy::no_eviction:
+        case couchbase::management::cluster::bucket_eviction_policy::no_eviction:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("eviction_policy")), rb_id2sym(rb_intern("no_eviction")));
             break;
-        case couchbase::operations::management::bucket_settings::eviction_policy::not_recently_used:
+        case couchbase::management::cluster::bucket_eviction_policy::not_recently_used:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("eviction_policy")), rb_id2sym(rb_intern("not_recently_used")));
             break;
-        case couchbase::operations::management::bucket_settings::eviction_policy::unknown:
+        case couchbase::management::cluster::bucket_eviction_policy::unknown:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("eviction_policy")), Qnil);
             break;
     }
     switch (entry.conflict_resolution_type) {
-        case couchbase::operations::management::bucket_settings::conflict_resolution_type::timestamp:
+        case couchbase::management::cluster::bucket_conflict_resolution::timestamp:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("conflict_resolution_type")), rb_id2sym(rb_intern("timestamp")));
             break;
-        case couchbase::operations::management::bucket_settings::conflict_resolution_type::sequence_number:
+        case couchbase::management::cluster::bucket_conflict_resolution::sequence_number:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("conflict_resolution_type")), rb_id2sym(rb_intern("sequence_number")));
             break;
-        case couchbase::operations::management::bucket_settings::conflict_resolution_type::custom:
+        case couchbase::management::cluster::bucket_conflict_resolution::custom:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("conflict_resolution_type")), rb_id2sym(rb_intern("custom")));
             break;
-        case couchbase::operations::management::bucket_settings::conflict_resolution_type::unknown:
+        case couchbase::management::cluster::bucket_conflict_resolution::unknown:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("conflict_resolution_type")), Qnil);
             break;
     }
@@ -3687,7 +3685,7 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options)
 }
 
 static void
-cb_extract_role(const couchbase::operations::management::rbac::role_and_description& entry, VALUE role)
+cb_extract_role(const couchbase::management::rbac::role_and_description& entry, VALUE role)
 {
     rb_hash_aset(role, rb_id2sym(rb_intern("name")), cb_str_new(entry.name));
     rb_hash_aset(role, rb_id2sym(rb_intern("display_name")), cb_str_new(entry.display_name));
@@ -3734,17 +3732,17 @@ cb_Backend_role_get_all(VALUE self, VALUE timeout)
 }
 
 static void
-cb_extract_user(const couchbase::operations::management::rbac::user_and_metadata& entry, VALUE user)
+cb_extract_user(const couchbase::management::rbac::user_and_metadata& entry, VALUE user)
 {
     rb_hash_aset(user, rb_id2sym(rb_intern("username")), cb_str_new(entry.username));
     switch (entry.domain) {
-        case couchbase::operations::management::rbac::auth_domain::local:
+        case couchbase::management::rbac::auth_domain::local:
             rb_hash_aset(user, rb_id2sym(rb_intern("domain")), rb_id2sym(rb_intern("local")));
             break;
-        case couchbase::operations::management::rbac::auth_domain::external:
+        case couchbase::management::rbac::auth_domain::external:
             rb_hash_aset(user, rb_id2sym(rb_intern("domain")), rb_id2sym(rb_intern("external")));
             break;
-        case couchbase::operations::management::rbac::auth_domain::unknown:
+        case couchbase::management::rbac::auth_domain::unknown:
             break;
     }
     VALUE external_groups = rb_ary_new_capa(static_cast<long>(entry.external_groups.size()));
@@ -3819,9 +3817,9 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
         couchbase::operations::management::user_get_all_request req{};
         cb_extract_timeout(req, timeout);
         if (domain == rb_id2sym(rb_intern("local"))) {
-            req.domain = couchbase::operations::management::rbac::auth_domain::local;
+            req.domain = couchbase::management::rbac::auth_domain::local;
         } else if (domain == rb_id2sym(rb_intern("external"))) {
-            req.domain = couchbase::operations::management::rbac::auth_domain::external;
+            req.domain = couchbase::management::rbac::auth_domain::external;
         } else {
             throw ruby_exception(eInvalidArgument, rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
         }
@@ -3859,9 +3857,9 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
         couchbase::operations::management::user_get_request req{};
         cb_extract_timeout(req, timeout);
         if (domain == rb_id2sym(rb_intern("local"))) {
-            req.domain = couchbase::operations::management::rbac::auth_domain::local;
+            req.domain = couchbase::management::rbac::auth_domain::local;
         } else if (domain == rb_id2sym(rb_intern("external"))) {
-            req.domain = couchbase::operations::management::rbac::auth_domain::external;
+            req.domain = couchbase::management::rbac::auth_domain::external;
         } else {
             throw ruby_exception(eInvalidArgument, rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
         }
@@ -3896,9 +3894,9 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
         couchbase::operations::management::user_drop_request req{};
         cb_extract_timeout(req, timeout);
         if (domain == rb_id2sym(rb_intern("local"))) {
-            req.domain = couchbase::operations::management::rbac::auth_domain::local;
+            req.domain = couchbase::management::rbac::auth_domain::local;
         } else if (domain == rb_id2sym(rb_intern("external"))) {
-            req.domain = couchbase::operations::management::rbac::auth_domain::external;
+            req.domain = couchbase::management::rbac::auth_domain::external;
         } else {
             throw ruby_exception(eInvalidArgument, rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
         }
@@ -3930,9 +3928,9 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
         couchbase::operations::management::user_upsert_request req{};
         cb_extract_timeout(req, timeout);
         if (domain == rb_id2sym(rb_intern("local"))) {
-            req.domain = couchbase::operations::management::rbac::auth_domain::local;
+            req.domain = couchbase::management::rbac::auth_domain::local;
         } else if (domain == rb_id2sym(rb_intern("external"))) {
-            req.domain = couchbase::operations::management::rbac::auth_domain::external;
+            req.domain = couchbase::management::rbac::auth_domain::external;
         } else {
             throw ruby_exception(eInvalidArgument, rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
         }
@@ -3962,11 +3960,10 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
             for (size_t i = 0; i < roles_size; ++i) {
                 VALUE entry = rb_ary_entry(roles, static_cast<long>(i));
                 if (TYPE(entry) == T_HASH) {
-                    couchbase::operations::management::rbac::role role{};
+                    couchbase::management::rbac::role role{};
                     VALUE role_name = rb_hash_aref(entry, rb_id2sym(rb_intern("name")));
                     role.name = cb_string_new(role_name);
-                    VALUE bucket = rb_hash_aref(entry, rb_id2sym(rb_intern("bucket")));
-                    if (!NIL_P(bucket) && TYPE(bucket) == T_STRING) {
+                    if (VALUE bucket = rb_hash_aref(entry, rb_id2sym(rb_intern("bucket"))); !NIL_P(bucket) && TYPE(bucket) == T_STRING) {
                         role.bucket = cb_string_new(bucket);
                         VALUE scope = rb_hash_aref(entry, rb_id2sym(rb_intern("scope")));
                         if (!NIL_P(scope) && TYPE(scope) == T_STRING) {
@@ -4000,7 +3997,7 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
 }
 
 static void
-cb_extract_group(const couchbase::operations::management::rbac::group& entry, VALUE group)
+cb_extract_group(const couchbase::management::rbac::group& entry, VALUE group)
 {
     rb_hash_aset(group, rb_id2sym(rb_intern("name")), cb_str_new(entry.name));
     if (entry.description) {
@@ -4141,7 +4138,7 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
             req.group.roles.reserve(roles_size);
             for (size_t i = 0; i < roles_size; ++i) {
                 if (VALUE entry = rb_ary_entry(roles, static_cast<long>(i)); TYPE(entry) == T_HASH) {
-                    couchbase::operations::management::rbac::role role{};
+                    couchbase::management::rbac::role role{};
                     VALUE role_name = rb_hash_aref(entry, rb_id2sym(rb_intern("name")));
                     role.name = cb_string_new(role_name);
                     if (VALUE bucket = rb_hash_aref(entry, rb_id2sym(rb_intern("bucket"))); !NIL_P(bucket) && TYPE(bucket) == T_STRING) {
@@ -4458,12 +4455,8 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE options)
         VALUE indexes = rb_ary_new_capa(static_cast<long>(resp.indexes.size()));
         for (const auto& idx : resp.indexes) {
             VALUE index = rb_hash_new();
-            rb_hash_aset(index, rb_id2sym(rb_intern("id")), cb_str_new(idx.id));
             rb_hash_aset(index, rb_id2sym(rb_intern("state")), cb_str_new(idx.state));
             rb_hash_aset(index, rb_id2sym(rb_intern("name")), cb_str_new(idx.name));
-            rb_hash_aset(index, rb_id2sym(rb_intern("datastore_id")), cb_str_new(idx.datastore_id));
-            rb_hash_aset(index, rb_id2sym(rb_intern("keyspace_id")), cb_str_new(idx.keyspace_id));
-            rb_hash_aset(index, rb_id2sym(rb_intern("namespace_id")), cb_str_new(idx.namespace_id));
             rb_hash_aset(index, rb_id2sym(rb_intern("type")), cb_str_new(idx.type));
             rb_hash_aset(index, rb_id2sym(rb_intern("is_primary")), idx.is_primary ? Qtrue : Qfalse);
             VALUE index_key = rb_ary_new_capa(static_cast<long>(idx.index_key.size()));
@@ -4471,12 +4464,13 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE options)
                 rb_ary_push(index_key, cb_str_new(key));
             }
             rb_hash_aset(index, rb_id2sym(rb_intern("index_key")), index_key);
-            if (idx.scope_id) {
-                rb_hash_aset(index, rb_id2sym(rb_intern("scope_id")), cb_str_new(idx.scope_id.value()));
+            if (idx.collection_name) {
+                rb_hash_aset(index, rb_id2sym(rb_intern("collection_name")), cb_str_new(idx.collection_name.value()));
             }
-            if (idx.bucket_id) {
-                rb_hash_aset(index, rb_id2sym(rb_intern("bucket_id")), cb_str_new(idx.bucket_id.value()));
+            if (idx.scope_name) {
+                rb_hash_aset(index, rb_id2sym(rb_intern("scope_name")), cb_str_new(idx.scope_name.value()));
             }
+            rb_hash_aset(index, rb_id2sym(rb_intern("bucket_name")), cb_str_new(idx.bucket_name));
             if (idx.condition) {
                 rb_hash_aset(index, rb_id2sym(rb_intern("condition")), cb_str_new(idx.condition.value()));
             }
@@ -4850,7 +4844,7 @@ cb_Backend_query_index_watch(VALUE /* self */, VALUE bucket_name, VALUE index_na
 }
 
 static void
-cb_extract_search_index(VALUE index, const couchbase::operations::management::search_index& idx)
+cb_extract_search_index(VALUE index, const couchbase::management::search::index& idx)
 {
     rb_hash_aset(index, rb_id2sym(rb_intern("uuid")), cb_str_new(idx.uuid));
     rb_hash_aset(index, rb_id2sym(rb_intern("name")), cb_str_new(idx.name));
@@ -5422,9 +5416,9 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
             cb_check_type(highlight_style, T_SYMBOL);
             ID type = rb_sym2id(highlight_style);
             if (type == rb_intern("html")) {
-                req.highlight_style = couchbase::operations::search_request::highlight_style_type::html;
+                req.highlight_style = couchbase::search_highlight_style::html;
             } else if (type == rb_intern("ansi")) {
-                req.highlight_style = couchbase::operations::search_request::highlight_style_type::ansi;
+                req.highlight_style = couchbase::search_highlight_style::ansi;
             }
         }
 
@@ -5442,7 +5436,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         if (VALUE scan_consistency = rb_hash_aref(options, rb_id2sym(rb_intern("scan_consistency"))); !NIL_P(scan_consistency)) {
             cb_check_type(scan_consistency, T_SYMBOL);
             if (ID type = rb_sym2id(scan_consistency); type == rb_intern("not_bounded")) {
-                req.scan_consistency = couchbase::operations::search_request::scan_consistency_type::not_bounded;
+                req.scan_consistency = couchbase::search_scan_consistency::not_bounded;
             }
         }
 
@@ -6165,7 +6159,7 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE options)
 }
 
 static void
-cb_fill_link(couchbase::operations::management::analytics_link::couchbase_remote& dst, VALUE src)
+cb_fill_link(couchbase::management::analytics::couchbase_remote_link& dst, VALUE src)
 {
     cb_extract_option_string(dst.link_name, src, "link_name");
     cb_extract_option_string(dst.dataverse, src, "dataverse");
@@ -6178,11 +6172,11 @@ cb_fill_link(couchbase::operations::management::analytics_link::couchbase_remote
         encryption_level = rb_id2sym(rb_intern("none"));
     }
     if (ID level = rb_sym2id(encryption_level); level == rb_intern("none")) {
-        dst.encryption.level = couchbase::operations::management::analytics_link::encryption_level::none;
+        dst.encryption.level = couchbase::management::analytics::couchbase_link_encryption_level::none;
     } else if (level == rb_intern("half")) {
-        dst.encryption.level = couchbase::operations::management::analytics_link::encryption_level::half;
+        dst.encryption.level = couchbase::management::analytics::couchbase_link_encryption_level::half;
     } else if (level == rb_intern("full")) {
-        dst.encryption.level = couchbase::operations::management::analytics_link::encryption_level::full;
+        dst.encryption.level = couchbase::management::analytics::couchbase_link_encryption_level::full;
     }
     cb_extract_option_string(dst.encryption.certificate, src, "certificate");
     cb_extract_option_string(dst.encryption.client_certificate, src, "client_certificate");
@@ -6190,7 +6184,7 @@ cb_fill_link(couchbase::operations::management::analytics_link::couchbase_remote
 }
 
 static void
-cb_fill_link(couchbase::operations::management::analytics_link::azure_blob_external& dst, VALUE src)
+cb_fill_link(couchbase::management::analytics::azure_blob_external_link& dst, VALUE src)
 {
     cb_extract_option_string(dst.link_name, src, "link_name");
     cb_extract_option_string(dst.dataverse, src, "dataverse");
@@ -6203,7 +6197,7 @@ cb_fill_link(couchbase::operations::management::analytics_link::azure_blob_exter
 }
 
 static void
-cb_fill_link(couchbase::operations::management::analytics_link::s3_external& dst, VALUE src)
+cb_fill_link(couchbase::management::analytics::s3_external_link& dst, VALUE src)
 {
     cb_extract_option_string(dst.link_name, src, "link_name");
     cb_extract_option_string(dst.dataverse, src, "dataverse");
@@ -6227,9 +6221,7 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
         VALUE link_type = Qnil;
         cb_extract_option_symbol(link_type, link, "type");
         if (ID type = rb_sym2id(link_type); type == rb_intern("couchbase")) {
-            couchbase::operations::management::analytics_link_create_request<
-              couchbase::operations::management::analytics_link::couchbase_remote>
-              req{};
+            couchbase::operations::management::analytics_link_create_request<couchbase::management::analytics::couchbase_remote_link> req{};
             cb_extract_timeout(req, options);
             cb_fill_link(req.link, link);
 
@@ -6255,8 +6247,7 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
             }
 
         } else if (type == rb_intern("azureblob")) {
-            couchbase::operations::management::analytics_link_create_request<
-              couchbase::operations::management::analytics_link::azure_blob_external>
+            couchbase::operations::management::analytics_link_create_request<couchbase::management::analytics::azure_blob_external_link>
               req{};
             cb_extract_timeout(req, options);
             cb_fill_link(req.link, link);
@@ -6284,8 +6275,7 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
             }
 
         } else if (type == rb_intern("s3")) {
-            couchbase::operations::management::analytics_link_create_request<couchbase::operations::management::analytics_link::s3_external>
-              req{};
+            couchbase::operations::management::analytics_link_create_request<couchbase::management::analytics::s3_external_link> req{};
             cb_extract_timeout(req, options);
             cb_fill_link(req.link, link);
 
@@ -6332,8 +6322,7 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
         cb_extract_option_symbol(link_type, link, "type");
 
         if (ID type = rb_sym2id(link_type); type == rb_intern("couchbase")) {
-            couchbase::operations::management::analytics_link_replace_request<
-              couchbase::operations::management::analytics_link::couchbase_remote>
+            couchbase::operations::management::analytics_link_replace_request<couchbase::management::analytics::couchbase_remote_link>
               req{};
             cb_extract_timeout(req, options);
             cb_fill_link(req.link, link);
@@ -6361,8 +6350,7 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
             }
 
         } else if (type == rb_intern("azureblob")) {
-            couchbase::operations::management::analytics_link_replace_request<
-              couchbase::operations::management::analytics_link::azure_blob_external>
+            couchbase::operations::management::analytics_link_replace_request<couchbase::management::analytics::azure_blob_external_link>
               req{};
             cb_extract_timeout(req, options);
             cb_fill_link(req.link, link);
@@ -6390,9 +6378,7 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
             }
 
         } else if (type == rb_intern("s3")) {
-            couchbase::operations::management::analytics_link_replace_request<
-              couchbase::operations::management::analytics_link::s3_external>
-              req{};
+            couchbase::operations::management::analytics_link_replace_request<couchbase::management::analytics::s3_external_link> req{};
             cb_extract_timeout(req, options);
             cb_fill_link(req.link, link);
 
@@ -6517,13 +6503,13 @@ cb_Backend_analytics_link_get_all(VALUE self, VALUE options)
             rb_hash_aset(row, rb_id2sym(rb_intern("link_name")), cb_str_new(link.link_name));
             rb_hash_aset(row, rb_id2sym(rb_intern("hostname")), cb_str_new(link.hostname));
             switch (link.encryption.level) {
-                case couchbase::operations::management::analytics_link::encryption_level::none:
+                case couchbase::management::analytics::couchbase_link_encryption_level::none:
                     rb_hash_aset(row, rb_id2sym(rb_intern("encryption_level")), rb_id2sym(rb_intern("none")));
                     break;
-                case couchbase::operations::management::analytics_link::encryption_level::half:
+                case couchbase::management::analytics::couchbase_link_encryption_level::half:
                     rb_hash_aset(row, rb_id2sym(rb_intern("encryption_level")), rb_id2sym(rb_intern("half")));
                     break;
-                case couchbase::operations::management::analytics_link::encryption_level::full:
+                case couchbase::management::analytics::couchbase_link_encryption_level::full:
                     rb_hash_aset(row, rb_id2sym(rb_intern("encryption_level")), rb_id2sym(rb_intern("full")));
                     break;
             }
@@ -6565,7 +6551,7 @@ cb_for_each_named_param_analytics(VALUE key, VALUE value, VALUE arg)
     auto* preq = reinterpret_cast<couchbase::operations::analytics_request*>(arg);
     cb_check_type(key, T_STRING);
     cb_check_type(value, T_STRING);
-    preq->named_parameters.emplace(cb_string_new(key), cb_string_new(value));
+    preq->named_parameters[cb_string_new(key)] = cb_string_new(value);
     return ST_CONTINUE;
 }
 
@@ -6606,9 +6592,9 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
         if (VALUE scan_consistency = rb_hash_aref(options, rb_id2sym(rb_intern("scan_consistency"))); !NIL_P(scan_consistency)) {
             cb_check_type(scan_consistency, T_SYMBOL);
             if (ID type = rb_sym2id(scan_consistency); type == rb_intern("not_bounded")) {
-                req.scan_consistency = couchbase::operations::analytics_request::scan_consistency_type::not_bounded;
+                req.scan_consistency = couchbase::analytics_scan_consistency::not_bounded;
             } else if (type == rb_intern("request_plus")) {
-                req.scan_consistency = couchbase::operations::analytics_request::scan_consistency_type::request_plus;
+                req.scan_consistency = couchbase::analytics_scan_consistency::request_plus;
             }
         }
 
@@ -6762,11 +6748,11 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
     Check_Type(bucket_name, T_STRING);
     Check_Type(name_space, T_SYMBOL);
 
-    couchbase::operations::design_document::name_space ns{};
+    couchbase::design_document_namespace ns{};
     if (ID type = rb_sym2id(name_space); type == rb_intern("development")) {
-        ns = couchbase::operations::design_document::name_space::development;
+        ns = couchbase::design_document_namespace::development;
     } else if (type == rb_intern("production")) {
-        ns = couchbase::operations::design_document::name_space::production;
+        ns = couchbase::design_document_namespace::production;
     } else {
         rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
         return Qnil;
@@ -6775,7 +6761,7 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
     try {
         couchbase::operations::management::view_index_get_all_request req{};
         req.bucket_name = cb_string_new(bucket_name);
-        req.name_space = ns;
+        req.ns = ns;
         cb_extract_timeout(req, timeout);
         auto barrier = std::make_shared<std::promise<couchbase::operations::management::view_index_get_all_response>>();
         auto f = barrier->get_future();
@@ -6791,10 +6777,10 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
             rb_hash_aset(dd, rb_id2sym(rb_intern("name")), cb_str_new(entry.name));
             rb_hash_aset(dd, rb_id2sym(rb_intern("rev")), cb_str_new(entry.rev));
             switch (entry.ns) {
-                case couchbase::operations::design_document::name_space::development:
+                case couchbase::design_document_namespace::development:
                     rb_hash_aset(dd, rb_id2sym(rb_intern("namespace")), rb_id2sym(rb_intern("development")));
                     break;
-                case couchbase::operations::design_document::name_space::production:
+                case couchbase::design_document_namespace::production:
                     rb_hash_aset(dd, rb_id2sym(rb_intern("namespace")), rb_id2sym(rb_intern("production")));
                     break;
             }
@@ -6830,11 +6816,11 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
     Check_Type(document_name, T_STRING);
     Check_Type(name_space, T_SYMBOL);
 
-    couchbase::operations::design_document::name_space ns{};
+    couchbase::design_document_namespace ns{};
     if (ID type = rb_sym2id(name_space); type == rb_intern("development")) {
-        ns = couchbase::operations::design_document::name_space::development;
+        ns = couchbase::design_document_namespace::development;
     } else if (type == rb_intern("production")) {
-        ns = couchbase::operations::design_document::name_space::production;
+        ns = couchbase::design_document_namespace::production;
     } else {
         rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
         return Qnil;
@@ -6844,7 +6830,7 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
         couchbase::operations::management::view_index_get_request req{};
         req.bucket_name = cb_string_new(bucket_name);
         req.document_name = cb_string_new(document_name);
-        req.name_space = ns;
+        req.ns = ns;
         cb_extract_timeout(req, timeout);
         auto barrier = std::make_shared<std::promise<couchbase::operations::management::view_index_get_response>>();
         auto f = barrier->get_future();
@@ -6854,16 +6840,16 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
         if (resp.ctx.ec) {
             cb_throw_error_code(
               resp.ctx,
-              fmt::format(R"(unable to get design document "{}" ({}) on bucket "{}")", req.document_name, req.name_space, req.bucket_name));
+              fmt::format(R"(unable to get design document "{}" ({}) on bucket "{}")", req.document_name, req.ns, req.bucket_name));
         }
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("name")), cb_str_new(resp.document.name));
         rb_hash_aset(res, rb_id2sym(rb_intern("rev")), cb_str_new(resp.document.rev));
         switch (resp.document.ns) {
-            case couchbase::operations::design_document::name_space::development:
+            case couchbase::design_document_namespace::development:
                 rb_hash_aset(res, rb_id2sym(rb_intern("namespace")), rb_id2sym(rb_intern("development")));
                 break;
-            case couchbase::operations::design_document::name_space::production:
+            case couchbase::design_document_namespace::production:
                 rb_hash_aset(res, rb_id2sym(rb_intern("namespace")), rb_id2sym(rb_intern("production")));
                 break;
         }
@@ -6897,11 +6883,11 @@ cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, V
     Check_Type(document_name, T_STRING);
     Check_Type(name_space, T_SYMBOL);
 
-    couchbase::operations::design_document::name_space ns{};
+    couchbase::design_document_namespace ns{};
     if (ID type = rb_sym2id(name_space); type == rb_intern("development")) {
-        ns = couchbase::operations::design_document::name_space::development;
+        ns = couchbase::design_document_namespace::development;
     } else if (type == rb_intern("production")) {
-        ns = couchbase::operations::design_document::name_space::production;
+        ns = couchbase::design_document_namespace::production;
     } else {
         rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
         return Qnil;
@@ -6911,7 +6897,7 @@ cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, V
         couchbase::operations::management::view_index_drop_request req{};
         req.bucket_name = cb_string_new(bucket_name);
         req.document_name = cb_string_new(document_name);
-        req.name_space = ns;
+        req.ns = ns;
         cb_extract_timeout(req, timeout);
         auto barrier = std::make_shared<std::promise<couchbase::operations::management::view_index_drop_response>>();
         auto f = barrier->get_future();
@@ -6921,8 +6907,7 @@ cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, V
         if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
             cb_throw_error_code(
               resp.ctx,
-              fmt::format(
-                R"(unable to drop design document "{}" ({}) on bucket "{}")", req.document_name, req.name_space, req.bucket_name));
+              fmt::format(R"(unable to drop design document "{}" ({}) on bucket "{}")", req.document_name, req.ns, req.bucket_name));
         }
         return Qtrue;
     } catch (const ruby_exception& e) {
@@ -6940,11 +6925,11 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
     Check_Type(document, T_HASH);
     Check_Type(name_space, T_SYMBOL);
 
-    couchbase::operations::design_document::name_space ns{};
+    couchbase::design_document_namespace ns{};
     if (ID type = rb_sym2id(name_space); type == rb_intern("development")) {
-        ns = couchbase::operations::design_document::name_space::development;
+        ns = couchbase::design_document_namespace::development;
     } else if (type == rb_intern("production")) {
-        ns = couchbase::operations::design_document::name_space::production;
+        ns = couchbase::design_document_namespace::production;
     } else {
         rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
         return Qnil;
@@ -6964,7 +6949,7 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
             for (size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(views, static_cast<long>(i));
                 Check_Type(entry, T_HASH);
-                couchbase::operations::design_document::view view;
+                couchbase::management::views::design_document::view view;
                 VALUE name = rb_hash_aref(entry, rb_id2sym(rb_intern("name")));
                 Check_Type(name, T_STRING);
                 view.name = cb_string_new(name);
@@ -7007,11 +6992,11 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
     Check_Type(view_name, T_STRING);
     Check_Type(name_space, T_SYMBOL);
 
-    couchbase::operations::design_document::name_space ns{};
+    couchbase::design_document_namespace ns{};
     if (ID type = rb_sym2id(name_space); type == rb_intern("development")) {
-        ns = couchbase::operations::design_document::name_space::development;
+        ns = couchbase::design_document_namespace::development;
     } else if (type == rb_intern("production")) {
-        ns = couchbase::operations::design_document::name_space::production;
+        ns = couchbase::design_document_namespace::production;
     } else {
         rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
         return Qnil;
@@ -7025,7 +7010,7 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
         req.bucket_name = cb_string_new(bucket_name);
         req.document_name = cb_string_new(design_document_name);
         req.view_name = cb_string_new(view_name);
-        req.name_space = ns;
+        req.ns = ns;
         cb_extract_timeout(req, options);
         if (!NIL_P(options)) {
             cb_extract_option_bool(req.debug, options, "debug");
@@ -7034,11 +7019,11 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
             if (VALUE scan_consistency = rb_hash_aref(options, rb_id2sym(rb_intern("scan_consistency"))); !NIL_P(scan_consistency)) {
                 cb_check_type(scan_consistency, T_SYMBOL);
                 if (ID consistency = rb_sym2id(scan_consistency); consistency == rb_intern("request_plus")) {
-                    req.consistency = couchbase::operations::document_view_request::scan_consistency::request_plus;
+                    req.consistency = couchbase::view_scan_consistency::request_plus;
                 } else if (consistency == rb_intern("update_after")) {
-                    req.consistency = couchbase::operations::document_view_request::scan_consistency::update_after;
+                    req.consistency = couchbase::view_scan_consistency::update_after;
                 } else if (consistency == rb_intern("not_bounded")) {
-                    req.consistency = couchbase::operations::document_view_request::scan_consistency::not_bounded;
+                    req.consistency = couchbase::view_scan_consistency::not_bounded;
                 }
             }
             if (VALUE key = rb_hash_aref(options, rb_id2sym(rb_intern("key"))); !NIL_P(key)) {
@@ -7077,9 +7062,9 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
             if (VALUE sort_order = rb_hash_aref(options, rb_id2sym(rb_intern("order"))); !NIL_P(sort_order)) {
                 cb_check_type(sort_order, T_SYMBOL);
                 if (ID order = rb_sym2id(sort_order); order == rb_intern("ascending")) {
-                    req.order = couchbase::operations::document_view_request::sort_order::ascending;
+                    req.order = couchbase::view_sort_order::ascending;
                 } else if (order == rb_intern("descending")) {
-                    req.order = couchbase::operations::document_view_request::sort_order::descending;
+                    req.order = couchbase::view_sort_order::descending;
                 }
             }
             if (VALUE keys = rb_hash_aref(options, rb_id2sym(rb_intern("keys"))); !NIL_P(keys)) {

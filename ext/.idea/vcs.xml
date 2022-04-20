@@ -5,7 +5,6 @@
     <mapping directory="$PROJECT_DIR$/couchbase" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/couchbase/third_party/asio" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/couchbase/third_party/catch2" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/cxx_function" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/couchbase/third_party/fmt" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/couchbase/third_party/gsl" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/couchbase/third_party/hdr_histogram_c" vcs="Git" />
