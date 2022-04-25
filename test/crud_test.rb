@@ -856,7 +856,7 @@ module Couchbase
 
     def test_massive_multi_ops
       # github often chokes on such a big batches (and raises Error::Timeout)
-      num_keys = ENV["TEST_MASSIVE_MULTI_OPS_NUM_KEYS"] || 1_000
+      num_keys = ENV.fetch("TEST_MASSIVE_MULTI_OPS_NUM_KEYS", nil) || 1_000
       keys = (0..num_keys).map { |idx| uniq_id("key_#{idx}") }
 
       res = @collection.upsert_multi(keys.map { |k| [k, {"value" => k}] })

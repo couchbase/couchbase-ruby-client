@@ -160,11 +160,11 @@ class Caves
   end
 
   def caves_dir
-    @caves_dir ||= ENV["CB_CAVES_DIR"] || File.join(Dir.tmpdir, "cb-gocaves")
+    @caves_dir ||= ENV.fetch("CB_CAVES_DIR", nil) || File.join(Dir.tmpdir, "cb-gocaves")
   end
 
   def logs_dir
-    @logs_dir ||= ENV["CB_CAVES_LOGS_DIR"] || File.join(caves_dir, "logs")
+    @logs_dir ||= ENV.fetch("CB_CAVES_LOGS_DIR", nil) || File.join(caves_dir, "logs")
   end
 
   def logs_path
@@ -172,7 +172,7 @@ class Caves
   end
 
   def verbose?
-    @verbose = %w[yes true on 1].include?(ENV["CB_CAVES_VERBOSE"]) unless defined? @verbose
+    @verbose = %w[yes true on 1].include?(ENV.fetch("CB_CAVES_VERBOSE", nil)) unless defined? @verbose
     @verbose
   end
 

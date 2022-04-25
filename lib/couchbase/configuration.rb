@@ -50,7 +50,7 @@ module Couchbase
       elsif defined?(::Sinatra)
         ::Sinatra::Base.environment.to_s
       else
-        ENV["RACK_ENV"] || ENV["COUCHBASE_ENV"] or raise ::Couchbase::Error::NoEnvironment
+        ENV.fetch("RACK_ENV", nil) || ENV.fetch("COUCHBASE_ENV", nil) or raise ::Couchbase::Error::NoEnvironment
       end
     end
   end
