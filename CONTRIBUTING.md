@@ -96,7 +96,7 @@ The most common are:
 
 * "You are not authorized to push to this repository".
   You will get this if your account has not yet been approved.
-  Feel free to ask about in gitter.im/couchbase or in the forums for help if blocked.
+  Feel free to ask about in [Discord](https://discord.com/invite/sQ5qbPZuTh) or in the forums for help if blocked.
 
 * "Missing Change-Id". You need to install the `commit-msg` hook as described above.
   Note that even once you do this, you will need to ensure that any prior commits already have this header --- this may be

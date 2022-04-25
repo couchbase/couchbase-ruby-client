@@ -11,7 +11,7 @@ This repository contains the third generation of the official Couchbase SDK for 
 ## Support and Feedback
 
 If you find an issue, please file it in [our JIRA issue tracker](https://couchbase.com/issues/browse/RCBC). Also you are
-always welcome on [our forum](https://forums.couchbase.com/c/ruby-sdk).
+always welcome on [our forum](https://forums.couchbase.com/c/ruby-sdk) and [Discord](https://discord.com/invite/sQ5qbPZuTh).
 
 Please attach version information to ticket/post. To obtain this information use the following command:
 
