@@ -204,7 +204,7 @@ module Couchbase
                   location.array_positions = loc[:array_positions]
                 end
               end
-            )
+            ) unless r[:locations].empty?
             row.instance_variable_set(:@fields, r[:fields])
             row.explanation = JSON.parse(r[:explanation]) if r[:explanation]
           end
