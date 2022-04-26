@@ -73,7 +73,8 @@ then
   fi
   if [ "${OS_ID}" = "ubuntu" -a "${OS_VERSION}" = "20.04" ]
   then
-    sudo apt install -y libssl-dev \
+    sudo apt-get update -y
+    sudo apt-get install -y libssl-dev \
 	    clang clang-format clang-tidy clang-tools libc++-dev libc++abi-dev
   fi
   ruby-install --version
