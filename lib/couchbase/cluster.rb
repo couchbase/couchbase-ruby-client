@@ -193,18 +193,20 @@ module Couchbase
             row.id = r[:id]
             row.score = r[:score]
             row.fragments = r[:fragments]
-            row.locations = SearchRowLocations.new(
-              r[:locations].map do |loc|
-                SearchRowLocation.new do |location|
-                  location.field = loc[:field]
-                  location.term = loc[:term]
-                  location.position = loc[:position]
-                  location.start_offset = loc[:start_offset]
-                  location.end_offset = loc[:end_offset]
-                  location.array_positions = loc[:array_positions]
+            unless r[:locations].empty?
+              row.locations = SearchRowLocations.new(
+                r[:locations].map do |loc|
+                  SearchRowLocation.new do |location|
+                    location.field = loc[:field]
+                    location.term = loc[:term]
+                    location.position = loc[:position]
+                    location.start_offset = loc[:start_offset]
+                    location.end_offset = loc[:end_offset]
+                    location.array_positions = loc[:array_positions]
+                  end
                 end
-              end
-            ) unless r[:locations].empty?
+              )
+            end
             row.instance_variable_set(:@fields, r[:fields])
             row.explanation = JSON.parse(r[:explanation]) if r[:explanation]
           end

@@ -14,12 +14,12 @@
 #  limitations under the License.
 
 # do not patch version for releases
-if ENV["IS_RELEASE"] && ENV["IS_RELEASE"].strip == "true"
+if ENV.fetch("IS_RELEASE", nil) && ENV["IS_RELEASE"].strip == "true"
   puts "Building release version, do not append snapshot number."
   exit
 end
 
-build_num = ARGV[0] || ENV["BUILD_NUMBER"] || 0
+build_num = ARGV[0] || ENV.fetch("BUILD_NUMBER", nil) || 0
 suffix = ARGV[1] || "snapshot"
 
 ver_file = File.join(__dir__, "../../lib/couchbase/version.rb")

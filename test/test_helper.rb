@@ -93,7 +93,7 @@ module Couchbase
     attr_writer :connection_string
 
     def connection_string
-      @connection_string ||= ENV["TEST_CONNECTION_STRING"]
+      @connection_string ||= ENV.fetch("TEST_CONNECTION_STRING", nil)
     end
 
     def want_caves?
@@ -101,24 +101,27 @@ module Couchbase
     end
 
     def username
-      @username ||= ENV["TEST_USERNAME"] || "Administrator"
+      @username ||= ENV.fetch("TEST_USERNAME", nil) || "Administrator"
     end
 
     def password
-      @password ||= ENV["TEST_PASSWORD"] || "password"
+      @password ||= ENV.fetch("TEST_PASSWORD", nil) || "password"
     end
 
     def bucket
-      @bucket ||= ENV["TEST_BUCKET"] || "default"
+      @bucket ||= ENV.fetch("TEST_BUCKET", nil) || "default"
     end
 
     def developer_preview?
-      @developer_preview = ENV.key?("TEST_DEVELOPER_PREVIEW") && ENV["TEST_DEVELOPER_PREVIEW"] == "yes" unless defined?(@developer_preview)
+      unless defined?(@developer_preview)
+        @developer_preview = ENV.key?("TEST_DEVELOPER_PREVIEW") && ENV.fetch("TEST_DEVELOPER_PREVIEW",
+                                                                             nil) == "yes"
+      end
       @developer_preview
     end
 
     def server_version
-      @server_version ||= ServerVersion.new(ENV["TEST_SERVER_VERSION"] || "6.6.0", developer_preview: developer_preview?)
+      @server_version ||= ServerVersion.new(ENV.fetch("TEST_SERVER_VERSION", nil) || "6.6.0", developer_preview: developer_preview?)
     end
   end
 
