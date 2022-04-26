@@ -23,7 +23,7 @@ require "socket"
 class Caves
   attr_accessor :verbose
 
-  VERSION = "v0.0.1-72".freeze
+  VERSION = "v0.0.1-74".freeze
   FORK = "couchbaselabs".freeze
 
   def download_mock(url = caves_url)
@@ -46,6 +46,10 @@ class Caves
     end
   end
 
+  def windows?
+    RUBY_PLATFORM.include?('mingw')
+  end
+
   def start
     download_mock unless binary_ready?
 
@@ -53,15 +57,17 @@ class Caves
     FileUtils.mkdir_p(logs_dir, verbose: verbose?)
     started = false
     until started
-      trap("CLD") do
-        puts "CAVES died unexpectedly during startup, check logs at #{logs_path}. Retrying"
-        next
+      unless windows?
+        trap("CLD") do
+          puts "CAVES died unexpectedly during startup, check logs at #{logs_path}. Retrying"
+          next
+        end
       end
       @pid = Process.spawn(mock_path, "--control-port=#{control_port}",
                            chdir: caves_dir,
                            out: File.join(logs_dir, "#{@logs_prefix}.out.txt"),
                            err: File.join(logs_dir, "#{@logs_prefix}.err.txt"))
-      trap("CLD", "SIG_DFL")
+      trap("CLD", "SIG_DFL") unless windows?
       started = true
     end
     @caves, = @control_sock.accept
@@ -176,28 +182,34 @@ class Caves
     @verbose
   end
 
+  def executable_ext
+    windows? ? ".exe" : ""
+  end
+
   def caves_url
     go_os = case RUBY_PLATFORM
             when /linux/
               "linux-amd64"
             when /darwin/
               "macos"
+            when /mingw/
+              "windows"
             else
               raise "Unknown platform: #{RUBY_PLATFORM}. Sorry, but CAVES does not work here"
             end
-    "https://github.com/#{FORK}/gocaves/releases/download/#{VERSION}/gocaves-#{go_os}"
+    "https://github.com/#{FORK}/gocaves/releases/download/#{VERSION}/gocaves-#{go_os}#{executable_ext}"
   end
 
   def mock_path
-    File.join(caves_dir, "gocaves")
+    File.join(caves_dir, "gocaves#{executable_ext}")
   end
 
   def binary_ready?
-    File.executable?(mock_path) && `#{mock_path} --help > /dev/null 2>&1`
+    File.executable?(mock_path) && `#{mock_path} --help #{windows? ? ">NUL 2>NUL" : ">/dev/null 2>&1"}`
   end
 
   def open_control_socket
-    @control_sock = TCPServer.new(nil, 0)
+    @control_sock = TCPServer.new("127.0.0.1", 0)
     @control_sock.listen(10)
     _, @control_port, = @control_sock.addr
   end
