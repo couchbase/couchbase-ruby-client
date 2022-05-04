@@ -97,8 +97,10 @@ then
       brew install cmake gcc@11
   fi
   cc_prefix=$(brew --prefix gcc@11)
-  ${cc_prefix}/bin/gcc-11 --version
-  ${cc_prefix}/bin/g++-11 --version
+  ${cc_prefix}/bin/gcc-11 -v
+  ${cc_prefix}/bin/g++-11 -v
+  rm -rf /Users/couchbase/.rubies/
+  env
   if [ "x${CB_RUBY_VERSION}" = "xbrew" ]
   then
       brew install ruby
@@ -113,8 +115,38 @@ then
       then
           PATCH="--patch https://gist.githubusercontent.com/avsej/3cf6e57557ac13100f01cacebec10873/raw/d83398e9ef3c63081d3af1b6cc1c77a68f3bfb65/0001-Revert-merge-revision-s-e033c9d7db02a4e8d2973364ecb4.patch"
       fi
-      ruby-install --jobs=6 --no-reinstall --no-install-deps ${PATCH} ruby ${CB_RUBY_VERSION} -- CC="${cc_prefix}/bin/gcc-11" CXX="${cc_prefix}/bin/g++-11"
+      ruby-install --jobs=6 --no-reinstall --no-install-deps ${PATCH} ruby ${CB_RUBY_VERSION} -- \
+      CC="${cc_prefix}/bin/gcc-11" CXX="${cc_prefix}/bin/g++-11" || cat /Users/couchbase/src/ruby-2.7.6/config.log
   fi
+
+  if [ "x${CB_RUBY_VERSION}" = "xbrew" ]
+  then
+    ruby_prefix="$(brew --prefix ruby)"
+    ruby_abi_version=$(${ruby_prefix}/bin/ruby -rrbconfig -e'puts RbConfig::CONFIG["ruby_version"]')
+    export PATH="${ruby_prefix}/bin:${HOME}/.gem/ruby/${ruby_abi_version}/bin:$PATH"
+    export LDFLAGS="-L${ruby_prefix}/lib"
+    export CPPFLAGS="-L${ruby_prefix}/include"
+    export PKG_CONFIG_PATH="${ruby_prefix}/lib/pkgconfig"
+  else
+    source $(brew --prefix chruby)/share/chruby/chruby.sh
+  fi
+  CB_GEM_INSTALL_OPTIONS=
+  if [ "x${CB_RUBY_VERSION}" = "xbrew" ]
+  then
+    CB_GEM_INSTALL_OPTIONS="--user-install"
+  else
+    chruby ruby-${CB_RUBY_VERSION}
+  fi
+  chruby ruby-${CB_RUBY_VERSION}
+  which ruby gem bundle
+  ruby --version
+  bundle --version
+  gem env
+  export CC="${cc_prefix}/bin/gcc-11"
+  export CXX="${cc_prefix}/bin/g++-11"
+  gem install ${CB_GEM_INSTALL_OPTIONS} strscan || \
+      cat /Users/couchbase/.gem/ruby/2.7.6/extensions/x86_64-darwin-20/2.7.0-static/strscan-3.0.1/mkmf.log \
+      /Users/couchbase/.gem/ruby/2.7.6/extensions/x86_64-darwin-20/2.7.0-static/strscan-3.0.1/gem_make.out
 fi
 
 if [ "$(uname -s)" = "Linux" ]
