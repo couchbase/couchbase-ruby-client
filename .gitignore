@@ -1,9 +1,10 @@
 *.a
+*.bundle
+*.dylib
 *.gem
 *.o
 *.so
-*.dylib
-*.bundle
+*~
 .byebug_history
 /.rakeTasks
 /.ruby-version

@@ -225,8 +225,11 @@ init_versions(VALUE mCouchbase)
 
     VALUE cb_BuildInfo = rb_hash_new();
     rb_const_set(mCouchbase, rb_intern("BUILD_INFO"), cb_BuildInfo);
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_library")), rb_str_freeze(rb_str_new_cstr(RUBY_LIBRARY)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_librubyarg")),
+                 rb_str_freeze(rb_str_new_cstr(RUBY_LIBRUBYARG)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_include_dir")), rb_str_freeze(rb_str_new_cstr(RUBY_INCLUDE_DIR)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_library_dir")),
+                 rb_str_freeze(rb_str_new_cstr(RUBY_LIBRARY_DIR)));
     VALUE cb_CoreInfo = rb_hash_new();
     for (const auto& [name, value] : couchbase::meta::sdk_build_info()) {
         if (name == "version_major" || name == "version_minor" || name == "version_patch" || name == "version_build") {
@@ -7405,14 +7408,15 @@ init_logger()
 }
 
 extern "C" {
-void
-Init_libcouchbase(void)
-{
-    init_logger();
+#if defined(_WIN32)
+__declspec(dllexport)
+#endif
+    void Init_libcouchbase(void) {
+  init_logger();
 
-    VALUE mCouchbase = rb_define_module("Couchbase");
-    init_versions(mCouchbase);
-    init_backend(mCouchbase);
-    init_exceptions(mCouchbase);
+  VALUE mCouchbase = rb_define_module("Couchbase");
+  init_versions(mCouchbase);
+  init_backend(mCouchbase);
+  init_exceptions(mCouchbase);
 }
 }

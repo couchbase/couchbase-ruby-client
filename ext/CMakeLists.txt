@@ -1,17 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
 project(ruby_client LANGUAGES CXX)
 
+if(WIN32)
+  add_definitions(-D_WIN32_WINNT=0x0601)
+endif()
+
 if(RUBY_HDR_DIR)
   set(RUBY_INCLUDE_DIR ${RUBY_HDR_DIR} ${RUBY_ARCH_HDR_DIR})
 else()
   find_package(Ruby 2.6.0 REQUIRED)
   message(STATUS "RUBY_VERSION: ${RUBY_VERSION}")
   message(STATUS "RUBY_EXECUTABLE: ${RUBY_EXECUTABLE}")
-endif()
-message(STATUS "RUBY_LIBRARY: ${RUBY_LIBRARY}")
-if(RUBY_INCLUDE_DIR)
-  message(STATUS "RUBY_INCLUDE_DIR: ${RUBY_INCLUDE_DIR}")
-  include_directories(BEFORE SYSTEM "${RUBY_INCLUDE_DIR}")
 endif()
 
 add_subdirectory(couchbase)
@@ -36,14 +35,29 @@ file(
   CONTENT
     "
 #pragma once
-constexpr auto RUBY_LIBRARY = \"${RUBY_LIBRARY}\";
+constexpr auto RUBY_LIBRUBYARG = \"${RUBY_LIBRUBYARG}\";
 constexpr auto RUBY_INCLUDE_DIR = \"${RUBY_INCLUDE_DIR}\";
+constexpr auto RUBY_LIBRARY_DIR = \"${RUBY_LIBRARY_DIR}\";
 ")
 
+message(STATUS "RUBY_LIBRUBYARG: ${RUBY_LIBRUBYARG}")
+message(STATUS "RUBY_INCLUDE_DIR: ${RUBY_INCLUDE_DIR}")
+message(STATUS "RUBY_LIBRARY_DIR: ${RUBY_LIBRARY_DIR}")
+
 add_library(couchbase SHARED couchbase.cxx)
-target_include_directories(couchbase PRIVATE ${PROJECT_BINARY_DIR}/generated)
-target_link_libraries(couchbase PRIVATE project_options project_warnings couchbase_cxx_client snappy)
-if (CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
+target_include_directories(couchbase PRIVATE ${PROJECT_BINARY_DIR}/generated ${RUBY_INCLUDE_DIR})
+target_link_libraries(
+  couchbase
+  PRIVATE project_options
+          project_warnings
+          couchbase_cxx_client
+          snappy)
+if(RUBY_LIBRUBY)
+  target_link_directories(couchbase PRIVATE "${RUBY_LIBRARY_DIR}")
+  target_link_libraries(couchbase PRIVATE "${RUBY_LIBRUBY}")
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
   target_compile_options(couchbase PRIVATE -fdeclspec)
 endif()
 

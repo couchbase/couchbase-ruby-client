@@ -21,10 +21,21 @@ require "couchbase/version"
 
 SDK_VERSION = Couchbase::VERSION[:sdk]
 
-cmake = find_executable("cmake")
-cmake = find_executable("cmake3") if `#{cmake} --version`[/cmake version (\d+\.\d+)/, 1].to_f < 3.15
+def check_version(name)
+  executable = find_executable(name)
+  version = nil
+  IO.popen([executable, "--version"]) do |io|
+    version = io.read.split("\n").first
+  end
+  [executable, version]
+end
+
+cmake, version = check_version("cmake")
+if version[/cmake version (\d+\.\d+)/, 1].to_f < 3.15
+  cmake, version = check_version("cmake3")
+end
 abort "ERROR: CMake is required to build couchbase extension." unless cmake
-puts "-- #{`#{cmake} --version`.split("\n").first}"
+puts "-- #{version}, #{cmake}"
 
 def sys(*cmd)
   puts "-- #{Dir.pwd}"
@@ -33,24 +44,29 @@ def sys(*cmd)
 end
 
 build_type = ENV["DEBUG"] ? "Debug" : "RelWithDebInfo"
-cmake_flags = %W[
-  -DCMAKE_BUILD_TYPE=#{build_type}
-  -DRUBY_HDR_DIR=#{RbConfig::CONFIG['rubyhdrdir']}
-  -DRUBY_ARCH_HDR_DIR=#{RbConfig::CONFIG['rubyarchhdrdir']}
-  -DCOUCHBASE_CXX_CLIENT_BUILD_TESTS=OFF
+cmake_flags = [
+  "-DCMAKE_BUILD_TYPE=#{build_type}",
+  "-DRUBY_HDR_DIR=#{RbConfig::CONFIG['rubyhdrdir']}",
+  "-DRUBY_ARCH_HDR_DIR=#{RbConfig::CONFIG['rubyarchhdrdir']}",
+  "-DRUBY_LIBRARY_DIR=#{RbConfig::CONFIG['libdir']}",
+  "-DRUBY_LIBRUBYARG=#{RbConfig::CONFIG['LIBRUBYARG_SHARED']}",
+  "-DCOUCHBASE_CXX_CLIENT_BUILD_TESTS=OFF",
+  "-DCOUCHBASE_CXX_CLIENT_BUILD_EXAMPLES=OFF",
 ]
 
 revisions_path = File.join(__dir__, "revisions.rb")
 eval(File.read(revisions_path)) if File.exist?(revisions_path) # rubocop:disable Security/Eval
 
-cmake_flags << "-DCMAKE_C_COMPILER=#{ENV['CB_CC']}" if ENV["CB_CC"]
-cmake_flags << "-DCMAKE_CXX_COMPILER=#{ENV['CB_CXX']}" if ENV["CB_CXX"]
-cmake_flags << "-DCOUCHBASE_CXX_CLIENT_STATIC_STDLIB=ON" << "-DCOUCHBASE_CXX_CLIENT_STATIC_OPENSSL=ON" if ENV["CB_STATIC"]
+cmake_flags << "-DCOUCHBASE_CXX_CLIENT_STATIC_STDLIB=ON" if ENV["CB_STATIC"] || ENV["CB_STATIC_STDLIB"]
+cmake_flags << "-DCOUCHBASE_CXX_CLIENT_STATIC_OPENSSL=ON" if ENV["CB_STATIC"] || ENV["CB_STATIC_OPENSSL"]
 cmake_flags << "-DENABLE_SANITIZER_ADDRESS=ON" if ENV["CB_ASAN"]
 cmake_flags << "-DENABLE_SANITIZER_LEAK=ON" if ENV["CB_LSAN"]
 cmake_flags << "-DENABLE_SANITIZER_MEMORY=ON" if ENV["CB_MSAN"]
 cmake_flags << "-DENABLE_SANITIZER_THREAD=ON" if ENV["CB_TSAN"]
 cmake_flags << "-DENABLE_SANITIZER_UNDEFINED_BEHAVIOUR=ON" if ENV["CB_UBSAN"]
+
+cc = ENV["CB_CC"]
+cxx = ENV["CB_CXX"]
 
 case RbConfig::CONFIG["target_os"]
 when /darwin/
@@ -60,7 +76,21 @@ when /darwin/
 when /linux/
   openssl_root = ["/usr/lib64/openssl11", "/usr/include/openssl11"]
   cmake_flags << "-DOPENSSL_ROOT_DIR=#{openssl_root.join(';')}" if openssl_root.all? { |path| File.directory?(path) }
+when /mingw/
+  require "ruby_installer/runtime"
+  RubyInstaller::Runtime.enable_dll_search_paths
+  RubyInstaller::Runtime.enable_msys_apps
+  cc = RbConfig::CONFIG["CC"]
+  cxx = RbConfig::CONFIG["CXX"]
+  cmake_flags << "-G MSYS Makefiles"
+  cmake_flags << "-DRUBY_LIBRUBY=#{File.basename(RbConfig::CONFIG["LIBRUBY_SO"], ".#{RbConfig::CONFIG["SOEXT"]}")}"
+  # ridk install 1
+  # ridk install 3
+  # ridk exec pacman -S --noconfirm mingw-w64-ucrt-x86_64-openssl
 end
+
+cmake_flags << "-DCMAKE_C_COMPILER=#{cc}" if cc
+cmake_flags << "-DCMAKE_CXX_COMPILER=#{cxx}" if cxx
 
 project_path = File.expand_path(File.join(__dir__))
 build_dir = ENV['CB_EXT_BUILD_DIR'] ||
@@ -77,6 +107,9 @@ extension_name = "libcouchbase.#{RbConfig::CONFIG['SOEXT'] || RbConfig::CONFIG['
 extension_path = File.expand_path(File.join(build_dir, extension_name))
 abort "ERROR: failed to build extension in #{extension_path}" unless File.file?(extension_path)
 extension_name.gsub!(/\.dylib/, '.bundle')
+if RbConfig::CONFIG["target_os"] =~ /mingw/
+  extension_name.gsub!(/\.dll$/, '.so')
+end
 install_path = File.expand_path(File.join(__dir__, "..", "lib", "couchbase", extension_name))
 puts "-- copy extension to #{install_path}"
 FileUtils.cp(extension_path, install_path, verbose: true)
