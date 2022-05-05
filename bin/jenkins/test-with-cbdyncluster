@@ -124,7 +124,17 @@ cat /proc/sys/kernel/core_pattern
 echo "${PWD}/core.%h.%e.%t" | sudo tee /proc/sys/kernel/core_pattern
 ulimit -c unlimited
 
-sed -i 's/^gemspec$/gem "couchbase"/' Gemfile
+if [ ! -z "$1" ]
+then
+  export GEM_HOME="${PROJECT_ROOT}/vendor/bundle/ruby/$(ruby -rrbconfig -e'puts RbConfig::CONFIG["ruby_version"]')"
+  gem install $1
+  gem list --all
+  version=$(ruby -r couchbase/version -e "puts Couchbase::VERSION[:sdk]")
+  sed -i "s/^gemspec$/gem 'couchbase', '${version}'/" Gemfile
+else
+  sed -i "s/^gemspec$/gem 'couchbase'/" Gemfile
+fi
+
 bundle config set --local path "${PROJECT_ROOT}/vendor/bundle"
 bundle install
 
@@ -136,6 +146,9 @@ Rake::TestTask.new(:test) do |t|
   t.test_files = FileList["test/**/*_test.rb"]
 end
 EOF
+
+bundle exec ruby -rcouchbase -e 'pp Couchbase::VERSION'
+bundle exec ruby -rcouchbase -e 'pp Couchbase::BUILD_INFO'
 
 bundle exec rake test
 STATUS=$?
