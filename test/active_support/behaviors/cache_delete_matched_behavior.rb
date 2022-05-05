@@ -12,7 +12,7 @@ module CacheDeleteMatchedBehavior
     @cache.write("foo/bar", "baz")
     @cache.write("fu/baz", "bar")
     @cache.delete_matched(/oo/)
-    sleep(0.3) while @cache.exist?("foo") # HACK: to ensure that query changes have been propagated
+    sleep(0.5) while @cache.exist?("foo") # HACK: to ensure that query changes have been propagated
     assert_not @cache.exist?("foo")
     assert @cache.exist?("fu")
     assert_not @cache.exist?("foo/bar")
