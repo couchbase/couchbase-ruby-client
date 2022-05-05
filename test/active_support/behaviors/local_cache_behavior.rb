@@ -145,6 +145,7 @@ module LocalCacheBehavior
   end
 
   def test_local_cache_of_delete_matched
+    skip("#{name}: delete_matched is not stable on 6.x servers, version=#{env.server_version}") if use_caves? || env.server_version.mad_hatter?
     begin
       @cache.delete_matched("*")
     rescue NotImplementedError
@@ -160,7 +161,8 @@ module LocalCacheBehavior
       @cache.write(key, SecureRandom.alphanumeric)
       @cache.write(other_key, SecureRandom.alphanumeric)
       @cache.write(third_key, value)
-      @cache.delete_matched("#{prefix}*")
+      deleted = @cache.delete_matched("#{prefix}*")
+      assert deleted >= 2
       sleep(0.3) while @cache.exist?(key) || @cache.exist?(other_key) # HACK: to ensure that query changes have been propagated
       assert_not @cache.exist?(key)
       assert_not @cache.exist?(other_key)
