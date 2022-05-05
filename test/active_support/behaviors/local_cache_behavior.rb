@@ -161,7 +161,7 @@ module LocalCacheBehavior
       @cache.write(other_key, SecureRandom.alphanumeric)
       @cache.write(third_key, value)
       @cache.delete_matched("#{prefix}*")
-      sleep(0.3) while @cache.exist?(key) # HACK: to ensure that query changes have been propagated
+      sleep(0.3) while @cache.exist?(key) || @cache.exist?(other_key) # HACK: to ensure that query changes have been propagated
       assert_not @cache.exist?(key)
       assert_not @cache.exist?(other_key)
       assert_equal value, @cache.read(third_key)
