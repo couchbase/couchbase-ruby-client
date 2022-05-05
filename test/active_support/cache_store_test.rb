@@ -84,7 +84,7 @@ module Couchbase
       bar = uniq_id(:bar)
       @cache.write(bar, "value_bar")
       @cache.delete_matched(/foo/)
-      sleep(0.5) while @cache.exist?(foo) # HACK: to ensure that query changes have been propagated
+      sleep(0.3) while @cache.exist?(foo) # HACK: to ensure that query changes have been propagated
       assert_nil @cache.read(foo)
       assert_equal "value_bar", @cache.read(bar)
     end
