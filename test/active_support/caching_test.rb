@@ -41,7 +41,7 @@ module Couchbase
     def setup
       @namespace = "test-#{SecureRandom.hex}"
 
-      @cache = lookup_store(expires_in: 60.seconds)
+      @cache = lookup_store(expires_in: 300.seconds)
     end
   end
 
@@ -59,7 +59,7 @@ module Couchbase
       super
 
       # for LocalCacheBehavior
-      @peek = lookup_store(expires_in: 60.seconds)
+      @peek = lookup_store(expires_in: 300.seconds)
     end
   end
 
