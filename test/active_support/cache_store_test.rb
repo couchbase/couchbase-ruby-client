@@ -77,13 +77,15 @@ module Couchbase
 
     def test_delete_matched
       skip("#{name}: CAVES does not support query service yet for delete_matched in cache adapter") if use_caves?
+      skip("#{name}: delete_matched is not stable on 6.x servers, version=#{env.server_version}") if env.server_version.mad_hatter?
 
       skip("The server #{env.server_version} does not support delete_matched") unless env.server_version.supports_regexp_matches?
       foo = uniq_id(:foo)
       @cache.write(foo, "value_foo")
       bar = uniq_id(:bar)
       @cache.write(bar, "value_bar")
-      @cache.delete_matched(/foo/)
+      deleted = @cache.delete_matched(/foo/)
+      assert deleted >= 2
       sleep(0.3) while @cache.exist?(foo) # HACK: to ensure that query changes have been propagated
       assert_nil @cache.read(foo)
       assert_equal "value_bar", @cache.read(bar)

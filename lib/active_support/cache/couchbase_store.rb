@@ -103,10 +103,11 @@ module ActiveSupport
           else
             raise NotImplementedError, "Unable to convert #{matcher.inspect} to Regexp pattern"
           end
-        operation_options = ::Couchbase::Options::Query(named_parameters: {"pattern" => pattern})
+        operation_options = ::Couchbase::Options::Query(named_parameters: {"pattern" => pattern}, metrics: true)
         operation_options.consistent_with(::Couchbase::MutationState.new(@last_mutation_token)) if @last_mutation_token
         begin
-          cluster.query("DELETE FROM #{scope_qualifier} cache WHERE REGEXP_MATCHES(META(cache).id, $pattern)", operation_options)
+          result = cluster.query("DELETE FROM #{scope_qualifier} cache WHERE REGEXP_MATCHES(META(cache).id, $pattern)", operation_options)
+          result.meta_data.metrics.mutation_count
         rescue ::Couchbase::Error::ParsingFailure, ::Couchbase::Error::ServiceNotAvailable
           raise NotImplementedError, "The server does not support delete_matched operation"
         end

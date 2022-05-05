@@ -2,6 +2,7 @@
 
 module CacheDeleteMatchedBehavior
   def test_delete_matched
+    skip("#{name}: delete_matched is not stable on 6.x servers, version=#{env.server_version}") if use_caves? || env.server_version.mad_hatter?
     begin
       @cache.delete_matched("*")
     rescue NotImplementedError
@@ -11,7 +12,8 @@ module CacheDeleteMatchedBehavior
     @cache.write("fu", "baz")
     @cache.write("foo/bar", "baz")
     @cache.write("fu/baz", "bar")
-    @cache.delete_matched(/oo/)
+    deleted = @cache.delete_matched(/oo/)
+    assert deleted >= 2
     sleep(0.3) while @cache.exist?("foo") || @cache.exist?("foo/bar") # HACK: to ensure that query changes have been propagated
     assert_not @cache.exist?("foo")
     assert @cache.exist?("fu")
