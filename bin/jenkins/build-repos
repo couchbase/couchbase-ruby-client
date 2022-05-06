@@ -57,7 +57,6 @@ gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :source => "https://#{s3_bucket}
 # gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_31, :source => "https://#{s3_bucket}/ruby/3.1.0/"
 # gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_30, :source => "https://#{s3_bucket}/ruby/3.0.0/"
 # gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_27, :source => "https://#{s3_bucket}/ruby/2.7.0/"
-# gem "couchbase", "#{Couchbase::VERSION[:sdk]}", :platforms => :mri_26, :source => "https://#{s3_bucket}/ruby/2.6.0/"
 EOS
 old_content = File.read("README.md")
 new_content = old_content.gsub(/(gem "couchbase", ").*?"/, gemfile)
@@ -68,7 +67,7 @@ ruby -r./lib/couchbase/version.rb ../../patch-readme.rb
 yard doc --hide-api private --output-dir ../../gem-doc/couchbase-ruby-client-${VERSION} lib --main README.md
 cd ../..
 
-RUBY_ABI="2.6.0 2.7.0 3.0.0 3.1.0"
+RUBY_ABI="2.7.0 3.0.0 3.1.0"
 for ABI in ${RUBY_ABI}
 do
     rm -rf ./repos/${ABI}/gems/
