@@ -1146,6 +1146,22 @@ module Couchbase
     end
 
     # Options for {Couchbase::Cluster.connect}
+    #
+    # @example Pass authenticator object to Options
+    #   Cluster.connect("couchbase://localhost",
+    #     Options::Cluster(authenticator: PasswordAuthenticator.new("Administrator", "password")))
+    #
+    # @example Shorter version, more useful for interactive sessions
+    #   Cluster.connect("couchbase://localhost", "Administrator", "password")
+    #
+    # @example Authentication with TLS client certificate (note +couchbases://+ schema)
+    #   Cluster.connect("couchbases://localhost?trust_certificate=/tmp/ca.pem",
+    #     Options::Cluster(authenticator: CertificateAuthenticator.new("/tmp/certificate.pem", "/tmp/private.key")))
+    #
+    # @see https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html
+    #
+    # @see .Cluster
+    #
     class Cluster
       attr_accessor :authenticator # @return [PasswordAuthenticator, CertificateAuthenticator]
 
@@ -1163,9 +1179,33 @@ module Couchbase
       attr_accessor :analytics_threshold # @return [nil, Integer, #in_milliseconds]
       attr_accessor :management_threshold # @return [nil, Integer, #in_milliseconds]
 
+      attr_accessor :bootstrap_timeout # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :resolve_timeout # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :connect_timeout # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :key_value_timeout # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :view_timeout # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :query_timeout # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :analytics_timeout # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :search_timeout # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :management_timeout # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :dns_srv_timeout # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :tcp_keep_alive_interval # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :config_poll_interval # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :config_poll_floor # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :config_idle_redial_timeout # @return [nil, Integer, #in_milliseconds]
+      attr_accessor :idle_http_connection_timeout # @return [nil, Integer, #in_milliseconds]
+
       # Creates an instance of options for {Couchbase::Cluster.connect}
       #
       # @param [PasswordAuthenticator, CertificateAuthenticator] authenticator
+      # @param [nil, Integer, #in_milliseconds] key_value_timeout default timeout for Key/Value operations, e.g. {Collection#get}
+      # @param [nil, Integer, #in_milliseconds] view_timeout default timeout for View query
+      # @param [nil, Integer, #in_milliseconds] query_timeout default timeout for N1QL query
+      # @param [nil, Integer, #in_milliseconds] analytics_timeout default timeout for Analytics query
+      # @param [nil, Integer, #in_milliseconds] search_timeout default timeout for Search query
+      # @param [nil, Integer, #in_milliseconds] management_timeout default timeout for management operations
+      #
+      # @see .Cluster
       #
       # @yieldparam [Cluster] self
       def initialize(authenticator: nil,
@@ -1181,7 +1221,22 @@ module Couchbase
                      view_threshold: nil,
                      search_threshold: nil,
                      analytics_threshold: nil,
-                     management_threshold: nil)
+                     management_threshold: nil,
+                     bootstrap_timeout: nil,
+                     resolve_timeout: nil,
+                     connect_timeout: nil,
+                     key_value_timeout: nil,
+                     view_timeout: nil,
+                     query_timeout: nil,
+                     analytics_timeout: nil,
+                     search_timeout: nil,
+                     management_timeout: nil,
+                     dns_srv_timeout: nil,
+                     tcp_keep_alive_interval: nil,
+                     config_poll_interval: nil,
+                     config_poll_floor: nil,
+                     config_idle_redial_timeout: nil,
+                     idle_http_connection_timeout: nil)
         @authenticator = authenticator
         @enable_metrics = enable_metrics
         @metrics_emit_interval = metrics_emit_interval
@@ -1196,6 +1251,21 @@ module Couchbase
         @search_threshold = search_threshold
         @analytics_threshold = analytics_threshold
         @management_threshold = management_threshold
+        @bootstrap_timeout = bootstrap_timeout
+        @resolve_timeout = resolve_timeout
+        @connect_timeout = connect_timeout
+        @key_value_timeout = key_value_timeout
+        @view_timeout = view_timeout
+        @query_timeout = query_timeout
+        @analytics_timeout = analytics_timeout
+        @search_timeout = search_timeout
+        @management_timeout = management_timeout
+        @dns_srv_timeout = dns_srv_timeout
+        @tcp_keep_alive_interval = tcp_keep_alive_interval
+        @config_poll_interval = config_poll_interval
+        @config_poll_floor = config_poll_floor
+        @config_idle_redial_timeout = config_idle_redial_timeout
+        @idle_http_connection_timeout = idle_http_connection_timeout
         yield self if block_given?
       end
 
@@ -1221,6 +1291,21 @@ module Couchbase
           search_threshold: Utils::Time.extract_duration(@search_threshold),
           analytics_threshold: Utils::Time.extract_duration(@analytics_threshold),
           management_threshold: Utils::Time.extract_duration(@management_threshold),
+          bootstrap_timeout: Utils::Time.extract_duration(@bootstrap_timeout),
+          resolve_timeout: Utils::Time.extract_duration(@resolve_timeout),
+          connect_timeout: Utils::Time.extract_duration(@connect_timeout),
+          key_value_timeout: Utils::Time.extract_duration(@key_value_timeout),
+          view_timeout: Utils::Time.extract_duration(@view_timeout),
+          query_timeout: Utils::Time.extract_duration(@query_timeout),
+          analytics_timeout: Utils::Time.extract_duration(@analytics_timeout),
+          search_timeout: Utils::Time.extract_duration(@search_timeout),
+          management_timeout: Utils::Time.extract_duration(@management_timeout),
+          dns_srv_timeout: Utils::Time.extract_duration(@dns_srv_timeout),
+          tcp_keep_alive_interval: Utils::Time.extract_duration(@tcp_keep_alive_interval),
+          config_poll_interval: Utils::Time.extract_duration(@config_poll_interval),
+          config_poll_floor: Utils::Time.extract_duration(@config_poll_floor),
+          config_idle_redial_timeout: Utils::Time.extract_duration(@config_idle_redial_timeout),
+          idle_http_connection_timeout: Utils::Time.extract_duration(@idle_http_connection_timeout),
         }
       end
     end
@@ -2131,18 +2216,7 @@ module Couchbase
 
     # Construct {Cluster} options for {Cluster.connect}
     #
-    # @example Pass authenticator object to Options
-    #   Cluster.connect("couchbase://localhost",
-    #     Options::Cluster(authenticator: PasswordAuthenticator.new("Administrator", "password")))
-    #
-    # @example Shorter version, more useful for interactive sessions
-    #   Cluster.connect("couchbase://localhost", "Administrator", "password")
-    #
-    # @example Authentication with TLS client certificate (note +couchbases://+ schema)
-    #   Cluster.connect("couchbases://localhost?trust_certificate=/tmp/ca.pem",
-    #     Options::Cluster(authenticator: CertificateAuthenticator.new("/tmp/certificate.pem", "/tmp/private.key")))
-    #
-    # @see https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html
+    # It forwards all its arguments to {Cluster#initialize}
     #
     # @return [Cluster]
     def Cluster(**args)

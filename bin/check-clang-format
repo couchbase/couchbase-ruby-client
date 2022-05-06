@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#  Copyright 2020-2021 Couchbase, Inc.
+#  Copyright 2020-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 cd "${PROJECT_ROOT}/ext"
+${CB_CLANG_FORMAT} --version
 
 format_diff="$(${CB_GIT_CLANG_FORMAT} --binary ${CB_CLANG_FORMAT} --diff --commit HEAD^)"
 
