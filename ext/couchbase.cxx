@@ -225,11 +225,9 @@ init_versions(VALUE mCouchbase)
 
     VALUE cb_BuildInfo = rb_hash_new();
     rb_const_set(mCouchbase, rb_intern("BUILD_INFO"), cb_BuildInfo);
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_librubyarg")),
-                 rb_str_freeze(rb_str_new_cstr(RUBY_LIBRUBYARG)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_librubyarg")), rb_str_freeze(rb_str_new_cstr(RUBY_LIBRUBYARG)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_include_dir")), rb_str_freeze(rb_str_new_cstr(RUBY_INCLUDE_DIR)));
-    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_library_dir")),
-                 rb_str_freeze(rb_str_new_cstr(RUBY_LIBRARY_DIR)));
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_library_dir")), rb_str_freeze(rb_str_new_cstr(RUBY_LIBRARY_DIR)));
     VALUE cb_CoreInfo = rb_hash_new();
     for (const auto& [name, value] : couchbase::meta::sdk_build_info()) {
         if (name == "version_major" || name == "version_minor" || name == "version_patch" || name == "version_build") {
@@ -1182,6 +1180,12 @@ cb_extract_option_array(VALUE& val, VALUE options, const char* name)
     }
 }
 
+static void
+cb_extract_option_string(std::string& target, VALUE options, const char* name);
+
+static void
+cb_extract_option_symbol(VALUE& val, VALUE options, const char* name);
+
 static VALUE
 cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE options)
 {
@@ -1270,6 +1274,65 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
         if (origin.options().enable_metrics) {
             cb_extract_option_milliseconds(origin.options().metrics_options.emit_interval, options, "metrics_emit_interval");
         }
+        cb_extract_option_milliseconds(origin.options().bootstrap_timeout, options, "bootstrap_timeout");
+        cb_extract_option_milliseconds(origin.options().resolve_timeout, options, "resolve_timeout");
+        cb_extract_option_milliseconds(origin.options().connect_timeout, options, "connect_timeout");
+        cb_extract_option_milliseconds(origin.options().key_value_timeout, options, "key_value_timeout");
+        cb_extract_option_milliseconds(origin.options().key_value_durable_timeout, options, "key_value_durable_timeout");
+        cb_extract_option_milliseconds(origin.options().view_timeout, options, "view_timeout");
+        cb_extract_option_milliseconds(origin.options().query_timeout, options, "query_timeout");
+        cb_extract_option_milliseconds(origin.options().analytics_timeout, options, "analytics_timeout");
+        cb_extract_option_milliseconds(origin.options().search_timeout, options, "search_timeout");
+        cb_extract_option_milliseconds(origin.options().management_timeout, options, "management_timeout");
+        cb_extract_option_milliseconds(origin.options().dns_srv_timeout, options, "dns_srv_timeout");
+        cb_extract_option_milliseconds(origin.options().tcp_keep_alive_interval, options, "tcp_keep_alive_interval");
+        cb_extract_option_milliseconds(origin.options().config_poll_interval, options, "config_poll_interval");
+        cb_extract_option_milliseconds(origin.options().config_poll_floor, options, "config_poll_floor");
+        cb_extract_option_milliseconds(origin.options().config_idle_redial_timeout, options, "config_idle_redial_timeout");
+        cb_extract_option_milliseconds(origin.options().idle_http_connection_timeout, options, "idle_http_connection_timeout");
+
+        cb_extract_option_number(origin.options().max_http_connections, options, "max_http_connections");
+
+        cb_extract_option_bool(origin.options().enable_tls, options, "enable_tls");
+        cb_extract_option_bool(origin.options().enable_mutation_tokens, options, "enable_mutation_tokens");
+        cb_extract_option_bool(origin.options().enable_tcp_keep_alive, options, "enable_tcp_keep_alive");
+        cb_extract_option_bool(origin.options().enable_dns_srv, options, "enable_dns_srv");
+        cb_extract_option_bool(origin.options().show_queries, options, "show_queries");
+        cb_extract_option_bool(origin.options().enable_unordered_execution, options, "enable_unordered_execution");
+        cb_extract_option_bool(origin.options().enable_clustermap_notification, options, "enable_clustermap_notification");
+        cb_extract_option_bool(origin.options().enable_compression, options, "enable_compression");
+
+        cb_extract_option_string(origin.options().trust_certificate, options, "trust_certificate");
+        cb_extract_option_string(origin.options().network, options, "network");
+
+        VALUE proto = Qnil;
+        cb_extract_option_symbol(proto, options, "use_ip_protocol");
+        if (proto == rb_id2sym(rb_intern("any"))) {
+            origin.options().use_ip_protocol = couchbase::io::ip_protocol::any;
+        } else if (proto == rb_id2sym(rb_intern("force_ipv4"))) {
+            origin.options().use_ip_protocol = couchbase::io::ip_protocol::force_ipv4;
+        } else if (proto == rb_id2sym(rb_intern("force_ipv6"))) {
+            origin.options().use_ip_protocol = couchbase::io::ip_protocol::force_ipv6;
+        } else if (!NIL_P(proto)) {
+            throw ruby_exception(eInvalidArgument, "Failed to detect preferred IP protocol");
+        }
+
+        VALUE mode = Qnil;
+        cb_extract_option_symbol(mode, options, "tls_verify");
+        if (mode == rb_id2sym(rb_intern("none"))) {
+            origin.options().tls_verify = couchbase::tls_verify_mode::none;
+        } else if (mode == rb_id2sym(rb_intern("peer"))) {
+            origin.options().tls_verify = couchbase::tls_verify_mode::peer;
+        } else if (!NIL_P(mode)) {
+            throw ruby_exception(eInvalidArgument, "Failed to select verification mode for TLS");
+        }
+
+        origin.options().user_agent_extra =
+          fmt::format("ruby_sdk/{};ssl/{:x}", std::string(EXT_GIT_REVISION).substr(0, 8), OpenSSL_version_num());
+#if defined(HAVE_RUBY_VERSION_H)
+        origin.options().user_agent_extra.append(
+          fmt::format(";ruby_abi/{}.{}.{}", RUBY_API_VERSION_MAJOR, RUBY_API_VERSION_MINOR, RUBY_API_VERSION_TEENY));
+#endif
 
         auto barrier = std::make_shared<std::promise<std::error_code>>();
         auto f = barrier->get_future();
@@ -7411,12 +7474,13 @@ extern "C" {
 #if defined(_WIN32)
 __declspec(dllexport)
 #endif
-    void Init_libcouchbase(void) {
-  init_logger();
+  void Init_libcouchbase(void)
+{
+    init_logger();
 
-  VALUE mCouchbase = rb_define_module("Couchbase");
-  init_versions(mCouchbase);
-  init_backend(mCouchbase);
-  init_exceptions(mCouchbase);
+    VALUE mCouchbase = rb_define_module("Couchbase");
+    init_versions(mCouchbase);
+    init_backend(mCouchbase);
+    init_exceptions(mCouchbase);
 }
 }
