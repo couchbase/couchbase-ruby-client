@@ -230,7 +230,8 @@ init_versions(VALUE mCouchbase)
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_library_dir")), rb_str_freeze(rb_str_new_cstr(RUBY_LIBRARY_DIR)));
     VALUE cb_CoreInfo = rb_hash_new();
     for (const auto& [name, value] : couchbase::meta::sdk_build_info()) {
-        if (name == "version_major" || name == "version_minor" || name == "version_patch" || name == "version_build") {
+        if (name == "version_major" || name == "version_minor" || name == "version_patch" || name == "version_build" ||
+            name == "__cplusplus" || name == "_MSC_VER") {
             rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), INT2FIX(std::stoi(value)));
         } else if (name == "snapshot" || name == "static_stdlib" || name == "static_openssl") {
             rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), value == "true" ? Qtrue : Qfalse);
