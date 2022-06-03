@@ -32,6 +32,9 @@ module Couchbase
       # @return [Error::CouchbaseError, nil] error associated with the result, or nil (used in {Collection#get_multi})
       attr_accessor :error
 
+      # @return [String, nil] identifier of the document (used for {Collection#get_multi})
+      attr_accessor :id
+
       # @return [Boolean] true if error was not associated with the result (useful for multi-operations)
       def success?
         !error
@@ -59,6 +62,7 @@ module Couchbase
       def initialize
         @expiry = nil
         @error = nil
+        @id = nil
         yield self if block_given?
       end
 
@@ -74,6 +78,7 @@ module Couchbase
       def expiry # rubocop:disable Style/TrivialAccessors will be removed in next major release
         @expiry
       end
+
       deprecate :expiry, :expiry_time, 2021, 1
     end
 
@@ -131,6 +136,10 @@ module Couchbase
       #   {Collection#remove_multi})
       attr_accessor :error
 
+      # @return [String, nil] identifier of the document (used in multi-operations like {Collection#upsert_multi},
+      #   {Collection#remove_multi})
+      attr_accessor :id
+
       # @return [Boolean] true if error was not associated with the result (useful for multi-operations)
       def success?
         !error
@@ -139,6 +148,7 @@ module Couchbase
       # @yieldparam [MutationResult] self
       def initialize
         @error = nil
+        @id = nil
         yield self if block_given?
       end
     end

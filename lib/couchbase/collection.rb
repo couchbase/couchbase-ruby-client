@@ -103,6 +103,7 @@ module Couchbase
       resp.map do |entry|
         GetResult.new do |res|
           res.transcoder = options.transcoder
+          res.id = entry[:id]
           res.cas = entry[:cas]
           res.flags = entry[:flags]
           res.encoded = entry[:content]
@@ -262,6 +263,7 @@ module Couchbase
           res.cas = entry[:cas]
           res.mutation_token = extract_mutation_token(entry)
           res.error = entry[:error]
+          res.id = entry[:id]
         end
       end
     end
@@ -342,6 +344,7 @@ module Couchbase
           res.cas = entry[:cas]
           res.mutation_token = extract_mutation_token(entry)
           res.error = entry[:error]
+          res.id = entry[:id]
         end
       end
     end
