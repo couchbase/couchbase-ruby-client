@@ -1949,6 +1949,7 @@ cb_Backend_document_get_multi(VALUE self, VALUE keys, VALUE options)
             if (resp.ctx.ec) {
                 rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb_map_error_code(resp.ctx, "unable to (multi)fetch document"));
             }
+            rb_hash_aset(entry, rb_id2sym(rb_intern("id")), cb_str_new(resp.ctx.id.key()));
             rb_hash_aset(entry, rb_id2sym(rb_intern("content")), cb_str_new(resp.value));
             rb_hash_aset(entry, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
             rb_hash_aset(entry, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
@@ -2355,6 +2356,7 @@ cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
             if (resp.ctx.ec) {
                 rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb_map_error_code(resp.ctx, "unable (multi)upsert"));
             }
+            rb_hash_aset(entry, rb_id2sym(rb_intern("id")), cb_str_new(resp.ctx.id.key()));
             rb_ary_push(res, entry);
         }
         return res;
@@ -2632,6 +2634,7 @@ cb_Backend_document_remove_multi(VALUE self, VALUE id_cas, VALUE options)
             if (resp.ctx.ec) {
                 rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb_map_error_code(resp.ctx, "unable (multi)remove"));
             }
+            rb_hash_aset(entry, rb_id2sym(rb_intern("id")), cb_str_new(resp.ctx.id.key()));
             rb_ary_push(res, entry);
         }
 

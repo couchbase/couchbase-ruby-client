@@ -827,6 +827,8 @@ module Couchbase
       assert_equal 2, res.size
       assert_nil res[0].error
       assert_nil res[1].error
+      assert_equal res[0].id, doc_id1
+      assert_equal res[1].id, doc_id2
 
       cas2 = res[1].cas
 
@@ -835,6 +837,8 @@ module Couchbase
       assert_equal 3, res.size
       assert_nil res[0].error
       assert_nil res[1].error
+      assert_equal res[0].id, doc_id1
+      assert_equal res[1].id, doc_id2
       assert_kind_of Error::DocumentNotFound, res[2].error
 
       assert_equal({"foo" => 32}, res[0].content)
@@ -846,12 +850,16 @@ module Couchbase
       assert_equal 2, res.size
       assert_nil res[0].error
       assert_nil res[1].error
+      assert_equal res[0].id, doc_id1
+      assert_equal res[1].id, doc_id2
 
       res = @collection.get_multi([doc_id1, doc_id2])
       assert_kind_of Array, res
       assert_equal 2, res.size
       assert_kind_of Error::DocumentNotFound, res[0].error
       assert_kind_of Error::DocumentNotFound, res[1].error
+      assert_equal res[0].id, doc_id1
+      assert_equal res[1].id, doc_id2
     end
 
     def test_massive_multi_ops
