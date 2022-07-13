@@ -173,10 +173,28 @@ cb_string_new(VALUE str)
     return { RSTRING_PTR(str), static_cast<std::size_t>(RSTRING_LEN(str)) };
 }
 
+static inline std::vector<std::byte>
+cb_binary_new(VALUE str)
+{
+    return couchbase::utils::to_binary(static_cast<const char*>(RSTRING_PTR(str)), static_cast<std::size_t>(RSTRING_LEN(str)));
+}
+
 static inline VALUE
 cb_str_new(const std::string& str)
 {
     return rb_external_str_new(str.data(), static_cast<long>(str.size()));
+}
+
+static inline VALUE
+cb_str_new(const std::vector<std::byte>& binary)
+{
+    return rb_external_str_new(reinterpret_cast<const char*>(binary.data()), static_cast<long>(binary.size()));
+}
+
+static inline VALUE
+cb_str_new(const std::byte* data, std::size_t size)
+{
+    return rb_external_str_new(reinterpret_cast<const char*>(data), static_cast<long>(size));
 }
 
 static inline VALUE
@@ -664,7 +682,6 @@ cb_map_error_code(std::error_code ec, const std::string& message)
 
             case couchbase::error::query_errc::dml_failure:
                 return rb_exc_new_cstr(eDmlFailure, fmt::format("{}: {}", message, ec.message()).c_str());
-                break;
         }
     } else if (ec.category() == couchbase::error::detail::get_search_category()) {
         switch (static_cast<couchbase::error::search_errc>(ec.value())) {
@@ -1511,7 +1528,8 @@ cb_extract_array_of_ids(std::vector<couchbase::document_id>& ids, VALUE arg)
 }
 
 static void
-cb_extract_array_of_id_content(std::vector<std::tuple<couchbase::document_id, std::string, std::uint32_t>>& id_content, VALUE arg)
+cb_extract_array_of_id_content(std::vector<std::tuple<couchbase::document_id, std::vector<std::byte>, std::uint32_t>>& id_content,
+                               VALUE arg)
 {
     if (TYPE(arg) != T_ARRAY) {
         throw ruby_exception(rb_eArgError, rb_sprintf("Type of ID/content tuples must be an Array, but given %+" PRIsVALUE, arg));
@@ -1561,7 +1579,7 @@ cb_extract_array_of_id_content(std::vector<std::tuple<couchbase::document_id, st
             cb_string_new(collection),
             cb_string_new(id),
           },
-          cb_string_new(content),
+          cb_binary_new(content),
           FIX2UINT(flags));
     }
 }
@@ -2283,9 +2301,8 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
             cb_string_new(collection),
             cb_string_new(id),
         };
-        std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
-        couchbase::operations::upsert_request req{ doc_id, value };
+        couchbase::operations::upsert_request req{ doc_id, cb_binary_new(content) };
         cb_extract_timeout(req, options);
         req.flags = FIX2UINT(flags);
 
@@ -2326,7 +2343,7 @@ cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
         bool preserve_expiry{ false };
         cb_extract_option_bool(preserve_expiry, options, "preserve_expiry");
 
-        std::vector<std::tuple<couchbase::document_id, std::string, std::uint32_t>> tuples{};
+        std::vector<std::tuple<couchbase::document_id, std::vector<std::byte>, std::uint32_t>> tuples{};
         cb_extract_array_of_id_content(tuples, id_content);
 
         auto num_of_tuples = tuples.size();
@@ -2387,9 +2404,8 @@ cb_Backend_document_append(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
             cb_string_new(collection),
             cb_string_new(id),
         };
-        std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
-        couchbase::operations::append_request req{ doc_id, value };
+        couchbase::operations::append_request req{ doc_id, cb_binary_new(content) };
         cb_extract_timeout(req, options);
         cb_extract_durability(req, options);
 
@@ -2429,9 +2445,8 @@ cb_Backend_document_prepend(VALUE self, VALUE bucket, VALUE scope, VALUE collect
             cb_string_new(collection),
             cb_string_new(id),
         };
-        std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
-        couchbase::operations::prepend_request req{ doc_id, value };
+        couchbase::operations::prepend_request req{ doc_id, cb_binary_new(content) };
         cb_extract_timeout(req, options);
         cb_extract_durability(req, options);
 
@@ -2472,9 +2487,8 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE scope, VALUE collect
             cb_string_new(collection),
             cb_string_new(id),
         };
-        std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
-        couchbase::operations::replace_request req{ doc_id, value };
+        couchbase::operations::replace_request req{ doc_id, cb_binary_new(content) };
         cb_extract_timeout(req, options);
         req.flags = FIX2UINT(flags);
 
@@ -2524,9 +2538,8 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
             cb_string_new(collection),
             cb_string_new(id),
         };
-        std::string value(RSTRING_PTR(content), static_cast<size_t>(RSTRING_LEN(content)));
 
-        couchbase::operations::insert_request req{ doc_id, value };
+        couchbase::operations::insert_request req{ doc_id, cb_binary_new(content) };
         cb_extract_timeout(req, options);
         req.flags = FIX2UINT(flags);
 
@@ -2672,7 +2685,6 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE scope, VALUE colle
         cb_extract_option_uint64(req.delta, options, "delta");
         cb_extract_option_uint64(req.initial_value, options, "initial_value");
         cb_extract_option_uint32(req.expiry, options, "expiry");
-        cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::increment_response>>();
         auto f = barrier->get_future();
@@ -2717,7 +2729,6 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE scope, VALUE colle
         cb_extract_option_uint64(req.delta, options, "delta");
         cb_extract_option_uint64(req.initial_value, options, "initial_value");
         cb_extract_option_uint32(req.expiry, options, "expiry");
-        cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
 
         auto barrier = std::make_shared<std::promise<couchbase::operations::decrement_response>>();
         auto f = barrier->get_future();
@@ -7280,8 +7291,7 @@ cb_Backend_leb128_encode(VALUE self, VALUE number)
             rb_raise(rb_eArgError, "The value must be a number");
     }
     couchbase::utils::unsigned_leb128<std::uint64_t> encoded(NUM2ULL(number));
-    std::string buf = encoded.get();
-    return cb_str_new(buf);
+    return cb_str_new(encoded.data(), encoded.size());
 }
 
 static VALUE
