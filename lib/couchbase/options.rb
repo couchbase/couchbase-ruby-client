@@ -893,15 +893,12 @@ module Couchbase
       attr_accessor :initial # @return [Integer]
       attr_accessor :expiry # @return [Integer, #in_seconds]
       attr_accessor :durability_level # @return [Symbol]
-      attr_accessor :preserve_expiry # @return [Boolean]
 
       # Creates an instance of options for {BinaryCollection#increment}
       #
       # @param [Integer] delta the delta for the operation
       # @param [Integer] initial if present, holds the initial value
       # @param [Integer, #in_seconds, Time, nil] expiry if set, holds the expiration for the operation
-      # @param [Boolean] preserve_expiry if true and the document exists, the server will preserve current expiration
-      #  for the document, otherwise will use {expiry} from the operation.
       # @param [Symbol] durability_level level of durability
       #  +:none+::
       #     no enhanced durability required for the mutation
@@ -925,7 +922,6 @@ module Couchbase
       def initialize(delta: 1,
                      initial: nil,
                      expiry: nil,
-                     preserve_expiry: false,
                      durability_level: :none,
                      timeout: nil,
                      retry_strategy: nil,
@@ -937,7 +933,6 @@ module Couchbase
         @delta = delta
         @initial = initial
         @expiry = Utils::Time.extract_expiry_time(expiry)
-        @preserve_expiry = preserve_expiry
         @durability_level = durability_level
         yield self if block_given?
       end
@@ -956,7 +951,6 @@ module Couchbase
           delta: @delta,
           initial_value: @initial,
           expiry: @expiry,
-          preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
         }
       end
@@ -968,15 +962,12 @@ module Couchbase
       attr_accessor :initial # @return [Integer]
       attr_accessor :expiry # @return [Integer, #in_seconds]
       attr_accessor :durability_level # @return [Symbol]
-      attr_accessor :preserve_expiry # @return [Boolean]
 
       # Creates an instance of options for {BinaryCollection#decrement}
       #
       # @param [Integer] delta the delta for the operation
       # @param [Integer] initial if present, holds the initial value
       # @param [Integer, #in_seconds, Time, nil] expiry if set, holds the expiration for the operation
-      # @param [Boolean] preserve_expiry if true and the document exists, the server will preserve current expiration
-      #  for the document, otherwise will use {expiry} from the operation.
       # @param [Symbol] durability_level level of durability
       #  +:none+::
       #     no enhanced durability required for the mutation
@@ -1000,7 +991,6 @@ module Couchbase
       def initialize(delta: 1,
                      initial: nil,
                      expiry: nil,
-                     preserve_expiry: false,
                      durability_level: :none,
                      timeout: nil,
                      retry_strategy: nil,
@@ -1012,7 +1002,6 @@ module Couchbase
         @delta = delta
         @initial = initial
         @expiry = Utils::Time.extract_expiry_time(expiry)
-        @preserve_expiry = preserve_expiry
         @durability_level = durability_level
         yield self if block_given?
       end
@@ -1031,7 +1020,6 @@ module Couchbase
           delta: @delta,
           initial_value: @initial,
           expiry: @expiry,
-          preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
         }
       end
