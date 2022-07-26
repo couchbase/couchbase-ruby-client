@@ -41,7 +41,8 @@ then
   then
       export CB_CC="/usr/bin/gcc"
       export CB_CXX="/usr/bin/g++"
-  else
+  elif [ ! "${OS_ID}" = "ubuntu" ]
+  then
       export PATH="$(realpath ~/.cmake-3.21.2/bin):$PATH"
       if [ "${OS_ID}" = "amzn" ]
       then
