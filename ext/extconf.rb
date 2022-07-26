@@ -51,7 +51,7 @@ cmake_flags = [
   "-DRUBY_LIBRARY_DIR=#{RbConfig::CONFIG['libdir']}",
   "-DRUBY_LIBRUBYARG=#{RbConfig::CONFIG['LIBRUBYARG_SHARED']}",
   "-DCOUCHBASE_CXX_CLIENT_BUILD_TESTS=OFF",
-  "-DCOUCHBASE_CXX_CLIENT_BUILD_EXAMPLES=OFF",
+  "-DCOUCHBASE_CXX_CLIENT_BUILD_DOCS=OFF",
 ]
 
 revisions_path = File.join(__dir__, "revisions.rb")
