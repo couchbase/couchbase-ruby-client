@@ -48,6 +48,7 @@ Gem::Specification.new do |spec|
     "ext/couchbase/CMakeLists.txt",
     "ext/couchbase/LICENSE.txt",
     "ext/couchbase/cmake/*",
+    "ext/couchbase/core/**/*",
     "ext/couchbase/couchbase/**/*",
     "ext/couchbase/test/*",
     "ext/couchbase/third_party/asio/COPYING",
