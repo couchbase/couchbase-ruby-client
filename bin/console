@@ -53,6 +53,15 @@ def cluster
   end
 end
 
+def shutdown
+  return unless @cluster
+
+  @cluster.disconnect
+  @cluster = nil
+end
+
+at_exit { shutdown }
+
 def default_collection(bucket_name = "default")
   @collections ||= {}
   @collections[bucket_name] ||= cluster.bucket(bucket_name).default_collection
