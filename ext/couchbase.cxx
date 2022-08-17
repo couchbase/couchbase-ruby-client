@@ -48,6 +48,8 @@
 #include <core/utils/connection_string.hxx>
 #include <core/utils/unsigned_leb128.hxx>
 
+#include <couchbase/cluster.hxx>
+
 #include <ruby.h>
 #if defined(HAVE_RUBY_VERSION_H)
 #include <ruby/version.h>
@@ -153,6 +155,7 @@ class ruby_exception : public std::exception
   private:
     VALUE exc_;
 };
+
 /*
  * Destructor-friendly rb_check_type from error.c
  *
@@ -1139,6 +1142,42 @@ cb_throw_error_code(const couchbase::core::error_context::http& ctx, const std::
 }
 
 [[nodiscard]] static VALUE
+cb_map_error_code(const couchbase::manager_error_context& ctx, const std::string& message)
+{
+    VALUE exc = cb_map_error_code(ctx.ec(), message);
+    VALUE error_context = rb_hash_new();
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), cb_str_new(ctx.ec().message()));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("client_context_id")), cb_str_new(ctx.client_context_id()));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("path")), cb_str_new(ctx.path()));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("http_status")), INT2FIX(ctx.http_status()));
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("http_body")), cb_str_new(ctx.content()));
+    if (ctx.retry_attempts() > 0) {
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_attempts")), INT2FIX(ctx.retry_attempts()));
+        if (!ctx.retry_reasons().empty()) {
+            VALUE retry_reasons = rb_ary_new_capa(static_cast<long>(ctx.retry_reasons().size()));
+            for (const auto& reason : ctx.retry_reasons()) {
+                auto reason_str = fmt::format("{}", reason);
+                rb_ary_push(retry_reasons, rb_id2sym(rb_intern(reason_str.c_str())));
+            }
+            rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_reasons")), retry_reasons);
+        }
+    }
+    if (ctx.last_dispatched_to()) {
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_to")), cb_str_new(ctx.last_dispatched_to().value()));
+    }
+    if (ctx.last_dispatched_from()) {
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_from")), cb_str_new(ctx.last_dispatched_from().value()));
+    }
+    rb_iv_set(exc, "@context", error_context);
+    return exc;
+}
+[[noreturn]] static void
+cb_throw_error_code(const couchbase::manager_error_context& ctx, const std::string& message)
+{
+    throw ruby_exception(cb_map_error_code(ctx, message));
+}
+
+[[nodiscard]] static VALUE
 cb_map_error_code(const couchbase::core::error_context::search& ctx, const std::string& message)
 {
     VALUE exc = cb_map_error_code(ctx.ec, message);
@@ -1216,6 +1255,24 @@ cb_extract_timeout(Request& req, VALUE options)
             case T_FIXNUM:
             case T_BIGNUM:
                 req.timeout = std::chrono::milliseconds(NUM2ULL(options));
+                break;
+            default:
+                throw ruby_exception(rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
+        }
+    }
+}
+
+template<typename CommandOptions>
+static void
+cb_options_set_timeout(CommandOptions& opts, VALUE options)
+{
+    if (!NIL_P(options)) {
+        switch (TYPE(options)) {
+            case T_HASH:
+                return cb_options_set_timeout(opts, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+            case T_FIXNUM:
+            case T_BIGNUM:
+                opts.timeout(std::chrono::milliseconds(NUM2ULL(options)));
                 break;
             default:
                 throw ruby_exception(rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
@@ -1386,7 +1443,7 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
                 VALUE allowed_mechanisms = rb_hash_aref(options, rb_id2sym(rb_intern("allowed_sasl_mechanisms")));
                 if (!NIL_P(allowed_mechanisms)) {
                     cb_check_type(allowed_mechanisms, T_ARRAY);
-                    auto allowed_mechanisms_size = static_cast<size_t>(RARRAY_LEN(allowed_mechanisms));
+                    auto allowed_mechanisms_size = static_cast<std::size_t>(RARRAY_LEN(allowed_mechanisms));
                     if (allowed_mechanisms_size < 1) {
                         throw ruby_exception(eInvalidArgument, "allowed_sasl_mechanisms list cannot be empty");
                     }
@@ -1615,7 +1672,7 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
     bool wait = RTEST(wait_until_ready);
 
     try {
-        std::string name(RSTRING_PTR(bucket), static_cast<size_t>(RSTRING_LEN(bucket)));
+        std::string name(RSTRING_PTR(bucket), static_cast<std::size_t>(RSTRING_LEN(bucket)));
 
         if (wait) {
             auto barrier = std::make_shared<std::promise<std::error_code>>();
@@ -1898,19 +1955,19 @@ cb_extract_option_uint64(T& field, VALUE options, const char* name)
 }
 
 static void
-cb_extract_durability(couchbase::core::protocol::durability_level& output_level, VALUE options)
+cb_extract_durability(couchbase::durability_level& output_level, VALUE options)
 {
     VALUE durability_level = Qnil;
     cb_extract_option_symbol(durability_level, options, "durability_level");
     if (!NIL_P(durability_level)) {
         if (ID level = rb_sym2id(durability_level); level == rb_intern("none")) {
-            output_level = couchbase::core::protocol::durability_level::none;
+            output_level = couchbase::durability_level::none;
         } else if (level == rb_intern("majority")) {
-            output_level = couchbase::core::protocol::durability_level::majority;
+            output_level = couchbase::durability_level::majority;
         } else if (level == rb_intern("majority_and_persist_to_active")) {
-            output_level = couchbase::core::protocol::durability_level::majority_and_persist_to_active;
+            output_level = couchbase::durability_level::majority_and_persist_to_active;
         } else if (level == rb_intern("persist_to_majority")) {
-            output_level = couchbase::core::protocol::durability_level::persist_to_majority;
+            output_level = couchbase::durability_level::persist_to_majority;
         } else {
             throw ruby_exception(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
         }
@@ -1951,7 +2008,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
         cb_extract_option_array(services, options, "service_types");
         std::set<couchbase::core::service_type> selected_services{};
         if (!NIL_P(services)) {
-            auto entries_num = static_cast<size_t>(RARRAY_LEN(services));
+            auto entries_num = static_cast<std::size_t>(RARRAY_LEN(services));
             for (size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(services, static_cast<long>(i));
                 if (entry == rb_id2sym(rb_intern("kv"))) {
@@ -2153,7 +2210,7 @@ cb_Backend_document_get_projected(VALUE self, VALUE bucket, VALUE scope, VALUE c
         VALUE projections = Qnil;
         cb_extract_option_array(projections, options, "projections");
         if (!NIL_P(projections)) {
-            auto entries_num = static_cast<size_t>(RARRAY_LEN(projections));
+            auto entries_num = static_cast<std::size_t>(RARRAY_LEN(projections));
             if (entries_num == 0) {
                 throw ruby_exception(rb_eArgError, "projections array must not be empty");
             }
@@ -2287,10 +2344,10 @@ cb_extract_mutation_result(Response resp)
     VALUE res = rb_hash_new();
     rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
     VALUE token = rb_hash_new();
-    rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid));
-    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULL2NUM(resp.token.sequence_number));
-    rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id));
-    rb_hash_aset(token, rb_id2sym(rb_intern("bucket_name")), cb_str_new(resp.token.bucket_name));
+    rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid()));
+    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULL2NUM(resp.token.sequence_number()));
+    rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id()));
+    rb_hash_aset(token, rb_id2sym(rb_intern("bucket_name")), cb_str_new(resp.token.bucket_name()));
     rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
     return res;
 }
@@ -2481,7 +2538,7 @@ cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
         std::chrono::milliseconds timeout{ 0 };
         cb_extract_timeout(timeout, options);
 
-        couchbase::core::protocol::durability_level durability_level{ couchbase::core::protocol::durability_level::none };
+        couchbase::durability_level durability_level{ couchbase::durability_level::none };
         cb_extract_durability(durability_level, options);
 
         VALUE expiry = Qnil;
@@ -2765,7 +2822,7 @@ cb_Backend_document_remove_multi(VALUE self, VALUE id_cas, VALUE options)
         std::chrono::milliseconds timeout{ 0 };
         cb_extract_timeout(timeout, options);
 
-        couchbase::core::protocol::durability_level durability_level{ couchbase::core::protocol::durability_level::none };
+        couchbase::durability_level durability_level{ couchbase::durability_level::none };
         cb_extract_durability(durability_level, options);
 
         std::vector<std::pair<couchbase::core::document_id, couchbase::cas>> tuples{};
@@ -3099,7 +3156,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
         couchbase::core::operations::lookup_in_request req{ doc_id };
         cb_extract_timeout(req, options);
         cb_extract_option_bool(req.access_deleted, options, "access_deleted");
-        auto entries_size = static_cast<size_t>(RARRAY_LEN(specs));
+        auto entries_size = static_cast<std::size_t>(RARRAY_LEN(specs));
         req.specs.entries.reserve(entries_size);
         for (size_t i = 0; i < entries_size; ++i) {
             VALUE entry = rb_ary_entry(specs, static_cast<long>(i));
@@ -3201,61 +3258,86 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
         VALUE store_semantics = Qnil;
         cb_extract_option_symbol(store_semantics, options, "store_semantics");
         if (ID semantics = rb_sym2id(store_semantics); semantics == rb_intern("replace")) {
-            req.store_semantics = couchbase::core::protocol::mutate_in_request_body::store_semantics_type::replace;
+            req.store_semantics = couchbase::store_semantics::replace;
         } else if (semantics == rb_intern("insert")) {
-            req.store_semantics = couchbase::core::protocol::mutate_in_request_body::store_semantics_type::insert;
+            req.store_semantics = couchbase::store_semantics::insert;
         } else if (semantics == rb_intern("upsert")) {
-            req.store_semantics = couchbase::core::protocol::mutate_in_request_body::store_semantics_type::upsert;
+            req.store_semantics = couchbase::store_semantics::upsert;
         }
-        auto entries_size = static_cast<size_t>(RARRAY_LEN(specs));
-        req.specs.entries.reserve(entries_size);
+        couchbase::mutate_in_specs cxx_specs;
+        auto entries_size = static_cast<std::size_t>(RARRAY_LEN(specs));
         for (size_t i = 0; i < entries_size; ++i) {
             VALUE entry = rb_ary_entry(specs, static_cast<long>(i));
             cb_check_type(entry, T_HASH);
-            VALUE operation = rb_hash_aref(entry, rb_id2sym(rb_intern("opcode")));
-            cb_check_type(operation, T_SYMBOL);
-            couchbase::core::protocol::subdoc_opcode opcode{};
-            if (ID operation_id = rb_sym2id(operation); operation_id == rb_intern("dict_add")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::dict_add;
-            } else if (operation_id == rb_intern("dict_upsert")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::dict_upsert;
-            } else if (operation_id == rb_intern("remove")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::remove;
-            } else if (operation_id == rb_intern("replace")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::replace;
-            } else if (operation_id == rb_intern("array_push_last")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::array_push_last;
-            } else if (operation_id == rb_intern("array_push_first")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::array_push_first;
-            } else if (operation_id == rb_intern("array_insert")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::array_insert;
-            } else if (operation_id == rb_intern("array_add_unique")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::array_add_unique;
-            } else if (operation_id == rb_intern("counter")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::counter;
-            } else if (operation_id == rb_intern("set_doc")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::set_doc;
-            } else if (operation_id == rb_intern("remove_doc")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::remove_doc;
-            } else {
-                throw ruby_exception(eInvalidArgument,
-                                     rb_sprintf("unsupported operation for subdocument mutation: %+" PRIsVALUE, operation));
-            }
             bool xattr = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("xattr"))));
             bool create_path = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("create_path"))));
             bool expand_macros = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("expand_macros"))));
             VALUE path = rb_hash_aref(entry, rb_id2sym(rb_intern("path")));
             cb_check_type(path, T_STRING);
-            if (VALUE param = rb_hash_aref(entry, rb_id2sym(rb_intern("param"))); NIL_P(param)) {
-                req.specs.add_spec(opcode, xattr, cb_string_new(path));
-            } else if (opcode == couchbase::core::protocol::subdoc_opcode::counter) {
-                cb_check_type(param, T_FIXNUM);
-                req.specs.add_spec(opcode, xattr, create_path, expand_macros, cb_string_new(path), FIX2LONG(param));
-            } else {
+            VALUE operation = rb_hash_aref(entry, rb_id2sym(rb_intern("opcode")));
+            cb_check_type(operation, T_SYMBOL);
+            VALUE param = rb_hash_aref(entry, rb_id2sym(rb_intern("param")));
+            if (ID operation_id = rb_sym2id(operation); operation_id == rb_intern("dict_add")) {
                 cb_check_type(param, T_STRING);
-                req.specs.add_spec(opcode, xattr, create_path, expand_macros, cb_string_new(path), cb_string_new(param));
+                cxx_specs.push_back(couchbase::mutate_in_specs::insert_raw(cb_string_new(path), cb_binary_new(param), expand_macros)
+                                      .xattr(xattr)
+                                      .create_path(create_path));
+            } else if (operation_id == rb_intern("dict_upsert")) {
+                cb_check_type(param, T_STRING);
+                cxx_specs.push_back(couchbase::mutate_in_specs::upsert_raw(cb_string_new(path), cb_binary_new(param), expand_macros)
+                                      .xattr(xattr)
+                                      .create_path(create_path));
+            } else if (operation_id == rb_intern("remove")) {
+                cxx_specs.push_back(couchbase::mutate_in_specs::remove(cb_string_new(path)).xattr(xattr));
+            } else if (operation_id == rb_intern("replace")) {
+                cb_check_type(param, T_STRING);
+                cxx_specs.push_back(
+                  couchbase::mutate_in_specs::replace_raw(cb_string_new(path), cb_binary_new(param), expand_macros).xattr(xattr));
+            } else if (operation_id == rb_intern("array_push_last")) {
+                cb_check_type(param, T_STRING);
+                cxx_specs.push_back(couchbase::mutate_in_specs::array_append_raw(cb_string_new(path), cb_binary_new(param))
+                                      .xattr(xattr)
+                                      .create_path(create_path));
+            } else if (operation_id == rb_intern("array_push_first")) {
+                cb_check_type(param, T_STRING);
+                cxx_specs.push_back(couchbase::mutate_in_specs::array_prepend_raw(cb_string_new(path), cb_binary_new(param))
+                                      .xattr(xattr)
+                                      .create_path(create_path));
+            } else if (operation_id == rb_intern("array_insert")) {
+                cb_check_type(param, T_STRING);
+                cxx_specs.push_back(couchbase::mutate_in_specs::array_insert_raw(cb_string_new(path), cb_binary_new(param))
+                                      .xattr(xattr)
+                                      .create_path(create_path));
+            } else if (operation_id == rb_intern("array_add_unique")) {
+                cb_check_type(param, T_STRING);
+                cxx_specs.push_back(
+                  couchbase::mutate_in_specs::array_add_unique_raw(cb_string_new(path), cb_binary_new(param), expand_macros)
+                    .xattr(xattr)
+                    .create_path(create_path));
+            } else if (operation_id == rb_intern("counter")) {
+                if (TYPE(param) == T_FIXNUM || TYPE(param) == T_BIGNUM) {
+                    if (std::int64_t num = NUM2LL(param); num < 0) {
+                        cxx_specs.push_back(
+                          couchbase::mutate_in_specs::decrement(cb_string_new(path), -1 * num).xattr(xattr).create_path(create_path));
+                    } else {
+                        cxx_specs.push_back(
+                          couchbase::mutate_in_specs::increment(cb_string_new(path), num).xattr(xattr).create_path(create_path));
+                    }
+                } else {
+                    throw ruby_exception(eInvalidArgument,
+                                         rb_sprintf("subdocument counter operation expects number, but given: %+" PRIsVALUE, param));
+                }
+            } else if (operation_id == rb_intern("set_doc")) {
+                cb_check_type(param, T_STRING);
+                cxx_specs.push_back(couchbase::mutate_in_specs::replace_raw("", cb_binary_new(param), expand_macros).xattr(xattr));
+            } else if (operation_id == rb_intern("remove_doc")) {
+                cxx_specs.push_back(couchbase::mutate_in_specs::remove("").xattr(xattr));
+            } else {
+                throw ruby_exception(eInvalidArgument,
+                                     rb_sprintf("unsupported operation for subdocument mutation: %+" PRIsVALUE, operation));
             }
         }
+        req.specs = cxx_specs.specs();
 
         auto barrier = std::make_shared<std::promise<couchbase::core::operations::mutate_in_response>>();
         auto f = barrier->get_future();
@@ -3278,18 +3360,19 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
             VALUE entry = rb_hash_new();
             rb_hash_aset(entry, rb_id2sym(rb_intern("index")), ULL2NUM(i));
             rb_hash_aset(entry, rb_id2sym(rb_intern("path")), cb_str_new(resp.fields[i].path));
-            if (resp.fields[i].status == couchbase::key_value_status_code::success ||
-                resp.fields[i].status == couchbase::key_value_status_code::subdoc_success_deleted) {
-                if (resp.fields[i].opcode == couchbase::core::protocol::subdoc_opcode::counter) {
+            if (resp.fields_meta[i].status == couchbase::key_value_status_code::success ||
+                resp.fields_meta[i].status == couchbase::key_value_status_code::subdoc_success_deleted) {
+                if (resp.fields_meta[i].opcode == couchbase::core::protocol::subdoc_opcode::counter) {
                     if (!resp.fields[i].value.empty()) {
-                        rb_hash_aset(entry, rb_id2sym(rb_intern("value")), LL2NUM(std::stoll(resp.fields[i].value)));
+                        std::string value(reinterpret_cast<const char*>(resp.fields[i].value.data()), resp.fields[i].value.size());
+                        rb_hash_aset(entry, rb_id2sym(rb_intern("value")), LL2NUM(std::stoll(value)));
                     }
                 } else {
                     rb_hash_aset(entry, rb_id2sym(rb_intern("value")), cb_str_new(resp.fields[i].value));
                 }
             }
-            cb_map_subdoc_status(resp.fields[i].status, i, resp.fields[i].path, entry);
-            rb_hash_aset(entry, rb_id2sym(rb_intern("type")), cb_map_subdoc_opcode(resp.fields[i].opcode));
+            cb_map_subdoc_status(resp.fields_meta[i].status, i, resp.fields[i].path, entry);
+            rb_hash_aset(entry, rb_id2sym(rb_intern("type")), cb_map_subdoc_opcode(resp.fields_meta[i].opcode));
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
         return res;
@@ -3367,7 +3450,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         }
         if (VALUE positional_params = rb_hash_aref(options, rb_id2sym(rb_intern("positional_parameters"))); !NIL_P(positional_params)) {
             cb_check_type(positional_params, T_ARRAY);
-            auto entries_num = static_cast<size_t>(RARRAY_LEN(positional_params));
+            auto entries_num = static_cast<std::size_t>(RARRAY_LEN(positional_params));
             req.positional_parameters.reserve(entries_num);
             for (size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(positional_params, static_cast<long>(i));
@@ -3390,7 +3473,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         }
         if (VALUE mutation_state = rb_hash_aref(options, rb_id2sym(rb_intern("mutation_state"))); !NIL_P(mutation_state)) {
             cb_check_type(mutation_state, T_ARRAY);
-            auto state_size = static_cast<size_t>(RARRAY_LEN(mutation_state));
+            auto state_size = static_cast<std::size_t>(RARRAY_LEN(mutation_state));
             req.mutation_state.reserve(state_size);
             for (size_t i = 0; i < state_size; ++i) {
                 VALUE token = rb_ary_entry(mutation_state, static_cast<long>(i));
@@ -3415,10 +3498,10 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
                     default:
                         rb_raise(rb_eArgError, "sequence_number must be an Integer");
                 }
-                req.mutation_state.emplace_back(couchbase::core::mutation_token{ NUM2ULL(partition_uuid),
-                                                                                 NUM2ULL(sequence_number),
-                                                                                 gsl::narrow_cast<std::uint16_t>(NUM2UINT(partition_id)),
-                                                                                 cb_string_new(bucket_name) });
+                req.mutation_state.emplace_back(NUM2ULL(partition_uuid),
+                                                NUM2ULL(sequence_number),
+                                                gsl::narrow_cast<std::uint16_t>(NUM2UINT(partition_id)),
+                                                cb_string_new(bucket_name));
             }
         }
 
@@ -3592,13 +3675,13 @@ cb_generate_bucket_settings(VALUE bucket, couchbase::core::management::cluster::
     if (VALUE minimum_level = rb_hash_aref(bucket, rb_id2sym(rb_intern("minimum_durability_level"))); !NIL_P(minimum_level)) {
         if (TYPE(minimum_level) == T_SYMBOL) {
             if (minimum_level == rb_id2sym(rb_intern("none"))) {
-                entry.minimum_durability_level = couchbase::core::protocol::durability_level::none;
+                entry.minimum_durability_level = couchbase::durability_level::none;
             } else if (minimum_level == rb_id2sym(rb_intern("majority"))) {
-                entry.minimum_durability_level = couchbase::core::protocol::durability_level::majority;
+                entry.minimum_durability_level = couchbase::durability_level::majority;
             } else if (minimum_level == rb_id2sym(rb_intern("majority_and_persist_to_active"))) {
-                entry.minimum_durability_level = couchbase::core::protocol::durability_level::majority_and_persist_to_active;
+                entry.minimum_durability_level = couchbase::durability_level::majority_and_persist_to_active;
             } else if (minimum_level == rb_id2sym(rb_intern("persist_to_majority"))) {
-                entry.minimum_durability_level = couchbase::core::protocol::durability_level::persist_to_majority;
+                entry.minimum_durability_level = couchbase::durability_level::persist_to_majority;
             } else {
                 throw ruby_exception(rb_eArgError, rb_sprintf("unknown durability level, given %+" PRIsVALUE, minimum_level));
             }
@@ -3815,17 +3898,17 @@ cb_extract_bucket_settings(const couchbase::core::management::cluster::bucket_se
     }
     if (entry.minimum_durability_level) {
         switch (entry.minimum_durability_level.value()) {
-            case couchbase::core::protocol::durability_level::none:
+            case couchbase::durability_level::none:
                 rb_hash_aset(bucket, rb_id2sym(rb_intern("minimum_durability_level")), rb_id2sym(rb_intern("none")));
                 break;
-            case couchbase::core::protocol::durability_level::majority:
+            case couchbase::durability_level::majority:
                 rb_hash_aset(bucket, rb_id2sym(rb_intern("minimum_durability_level")), rb_id2sym(rb_intern("majority")));
                 break;
-            case couchbase::core::protocol::durability_level::majority_and_persist_to_active:
+            case couchbase::durability_level::majority_and_persist_to_active:
                 rb_hash_aset(
                   bucket, rb_id2sym(rb_intern("minimum_durability_level")), rb_id2sym(rb_intern("majority_and_persist_to_active")));
                 break;
-            case couchbase::core::protocol::durability_level::persist_to_majority:
+            case couchbase::durability_level::persist_to_majority:
                 rb_hash_aset(bucket, rb_id2sym(rb_intern("minimum_durability_level")), rb_id2sym(rb_intern("persist_to_majority")));
                 break;
         }
@@ -4175,7 +4258,7 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
             req.user.password = cb_string_new(password);
         }
         if (VALUE groups = rb_hash_aref(user, rb_id2sym(rb_intern("groups"))); !NIL_P(groups) && TYPE(groups) == T_ARRAY) {
-            auto groups_size = static_cast<size_t>(RARRAY_LEN(groups));
+            auto groups_size = static_cast<std::size_t>(RARRAY_LEN(groups));
             for (size_t i = 0; i < groups_size; ++i) {
                 if (VALUE entry = rb_ary_entry(groups, static_cast<long>(i)); TYPE(entry) == T_STRING) {
                     req.user.groups.emplace(cb_string_new(entry));
@@ -4183,7 +4266,7 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
             }
         }
         if (VALUE roles = rb_hash_aref(user, rb_id2sym(rb_intern("roles"))); !NIL_P(roles) && TYPE(roles) == T_ARRAY) {
-            auto roles_size = static_cast<size_t>(RARRAY_LEN(roles));
+            auto roles_size = static_cast<std::size_t>(RARRAY_LEN(roles));
             req.user.roles.reserve(roles_size);
             for (size_t i = 0; i < roles_size; ++i) {
                 VALUE entry = rb_ary_entry(roles, static_cast<long>(i));
@@ -4362,7 +4445,7 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
             req.group.description = cb_string_new(description);
         }
         if (VALUE roles = rb_hash_aref(group, rb_id2sym(rb_intern("roles"))); !NIL_P(roles) && TYPE(roles) == T_ARRAY) {
-            auto roles_size = static_cast<size_t>(RARRAY_LEN(roles));
+            auto roles_size = static_cast<std::size_t>(RARRAY_LEN(roles));
             req.group.roles.reserve(roles_size);
             for (size_t i = 0; i < roles_size; ++i) {
                 if (VALUE entry = rb_ary_entry(roles, static_cast<long>(i)); TYPE(entry) == T_HASH) {
@@ -4737,7 +4820,7 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
         cb_extract_timeout(req, options);
         req.bucket_name = cb_string_new(bucket_name);
         req.index_name = cb_string_new(index_name);
-        auto fields_num = static_cast<size_t>(RARRAY_LEN(fields));
+        auto fields_num = static_cast<std::size_t>(RARRAY_LEN(fields));
         req.fields.reserve(fields_num);
         for (size_t i = 0; i < fields_num; ++i) {
             VALUE entry = rb_ary_entry(fields, static_cast<long>(i));
@@ -5037,26 +5120,13 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE optio
     }
 
     try {
-        couchbase::core::operations::management::query_index_build_deferred_request req{};
-        cb_extract_timeout(req, options);
-        req.bucket_name = cb_string_new(bucket_name);
-        auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::query_index_build_deferred_response>>();
-        auto f = barrier->get_future();
-        cluster->execute(req, [barrier](couchbase::core::operations::management::query_index_build_deferred_response&& resp) {
-            barrier->set_value(std::move(resp));
-        });
-        if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
-            if (!resp.errors.empty()) {
-                const auto& first_error = resp.errors.front();
-                cb_throw_error_code(
-                  resp.ctx,
-                  fmt::format(
-                    R"(unable to drop primary index on the bucket "{}" ({}: {}))", req.bucket_name, first_error.code, first_error.message));
+        couchbase::build_query_index_options opts;
+        cb_options_set_timeout(opts, options);
+        auto bucket = cb_string_new(bucket_name);
 
-            } else {
-                cb_throw_error_code(resp.ctx,
-                                    fmt::format("unable to trigger build for deferred indexes for the bucket \"{}\"", req.bucket_name));
-            }
+        auto f = couchbase::cluster(cluster).query_indexes().build_deferred_indexes(bucket, opts);
+        if (auto ctx = cb_wait_for_future(f); ctx.ec()) {
+            cb_throw_error_code(ctx, fmt::format("unable to trigger build for deferred indexes for the bucket \"{}\"", bucket));
         }
         return Qtrue;
     } catch (const ruby_exception& e) {
@@ -5664,7 +5734,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
 
         if (VALUE highlight_fields = rb_hash_aref(options, rb_id2sym(rb_intern("highlight_fields"))); !NIL_P(highlight_fields)) {
             cb_check_type(highlight_fields, T_ARRAY);
-            auto highlight_fields_size = static_cast<size_t>(RARRAY_LEN(highlight_fields));
+            auto highlight_fields_size = static_cast<std::size_t>(RARRAY_LEN(highlight_fields));
             req.highlight_fields.reserve(highlight_fields_size);
             for (size_t i = 0; i < highlight_fields_size; ++i) {
                 VALUE field = rb_ary_entry(highlight_fields, static_cast<long>(i));
@@ -5682,7 +5752,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
 
         if (VALUE mutation_state = rb_hash_aref(options, rb_id2sym(rb_intern("mutation_state"))); !NIL_P(mutation_state)) {
             cb_check_type(mutation_state, T_ARRAY);
-            auto state_size = static_cast<size_t>(RARRAY_LEN(mutation_state));
+            auto state_size = static_cast<std::size_t>(RARRAY_LEN(mutation_state));
             req.mutation_state.reserve(state_size);
             for (size_t i = 0; i < state_size; ++i) {
                 VALUE token = rb_ary_entry(mutation_state, static_cast<long>(i));
@@ -5707,16 +5777,16 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
                     default:
                         throw ruby_exception(rb_eArgError, "sequence_number must be an Integer");
                 }
-                req.mutation_state.emplace_back(couchbase::core::mutation_token{ NUM2ULL(partition_uuid),
-                                                                                 NUM2ULL(sequence_number),
-                                                                                 gsl::narrow_cast<std::uint16_t>(NUM2UINT(partition_id)),
-                                                                                 cb_string_new(bucket_name) });
+                req.mutation_state.emplace_back(couchbase::mutation_token{ NUM2ULL(partition_uuid),
+                                                                           NUM2ULL(sequence_number),
+                                                                           gsl::narrow_cast<std::uint16_t>(NUM2UINT(partition_id)),
+                                                                           cb_string_new(bucket_name) });
             }
         }
 
         if (VALUE fields = rb_hash_aref(options, rb_id2sym(rb_intern("fields"))); !NIL_P(fields)) {
             cb_check_type(fields, T_ARRAY);
-            auto fields_size = static_cast<size_t>(RARRAY_LEN(fields));
+            auto fields_size = static_cast<std::size_t>(RARRAY_LEN(fields));
             req.fields.reserve(fields_size);
             for (size_t i = 0; i < fields_size; ++i) {
                 VALUE field = rb_ary_entry(fields, static_cast<long>(i));
@@ -5731,7 +5801,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
             VALUE collections = rb_hash_aref(options, rb_id2sym(rb_intern("collections")));
             if (!NIL_P(collections)) {
                 cb_check_type(collections, T_ARRAY);
-                auto collections_size = static_cast<size_t>(RARRAY_LEN(collections));
+                auto collections_size = static_cast<std::size_t>(RARRAY_LEN(collections));
                 req.collections.reserve(collections_size);
                 for (size_t i = 0; i < collections_size; ++i) {
                     VALUE collection = rb_ary_entry(collections, static_cast<long>(i));
@@ -6245,7 +6315,7 @@ cb_Backend_analytics_index_create(VALUE self, VALUE index_name, VALUE dataset_na
         cb_extract_timeout(req, options);
         req.index_name = cb_string_new(index_name);
         req.dataset_name = cb_string_new(dataset_name);
-        auto fields_num = static_cast<size_t>(RARRAY_LEN(fields));
+        auto fields_num = static_cast<std::size_t>(RARRAY_LEN(fields));
         for (size_t i = 0; i < fields_num; ++i) {
             VALUE entry = rb_ary_entry(fields, static_cast<long>(i));
             Check_Type(entry, T_ARRAY);
@@ -6858,7 +6928,7 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
         cb_extract_option_bool(req.priority, options, "priority");
         if (VALUE positional_params = rb_hash_aref(options, rb_id2sym(rb_intern("positional_parameters"))); !NIL_P(positional_params)) {
             cb_check_type(positional_params, T_ARRAY);
-            auto entries_num = static_cast<size_t>(RARRAY_LEN(positional_params));
+            auto entries_num = static_cast<std::size_t>(RARRAY_LEN(positional_params));
             req.positional_parameters.reserve(entries_num);
             for (size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(positional_params, static_cast<long>(i));
@@ -6951,7 +7021,7 @@ cb_Backend_parse_connection_string(VALUE self, VALUE connection_string)
     (void)self;
     Check_Type(connection_string, T_STRING);
 
-    std::string input(RSTRING_PTR(connection_string), static_cast<size_t>(RSTRING_LEN(connection_string)));
+    std::string input(RSTRING_PTR(connection_string), static_cast<std::size_t>(RSTRING_LEN(connection_string)));
     auto connstr = couchbase::core::utils::parse_connection_string(input);
 
     VALUE res = rb_hash_new();
@@ -7227,7 +7297,7 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
         }
         if (VALUE views = rb_hash_aref(document, rb_id2sym(rb_intern("views"))); !NIL_P(views)) {
             Check_Type(views, T_ARRAY);
-            auto entries_num = static_cast<size_t>(RARRAY_LEN(views));
+            auto entries_num = static_cast<std::size_t>(RARRAY_LEN(views));
             for (size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(views, static_cast<long>(i));
                 Check_Type(entry, T_HASH);
@@ -7352,7 +7422,7 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
             }
             if (VALUE keys = rb_hash_aref(options, rb_id2sym(rb_intern("keys"))); !NIL_P(keys)) {
                 cb_check_type(keys, T_ARRAY);
-                auto entries_num = static_cast<size_t>(RARRAY_LEN(keys));
+                auto entries_num = static_cast<std::size_t>(RARRAY_LEN(keys));
                 req.keys.reserve(entries_num);
                 for (size_t i = 0; i < entries_num; ++i) {
                     VALUE entry = rb_ary_entry(keys, static_cast<long>(i));
