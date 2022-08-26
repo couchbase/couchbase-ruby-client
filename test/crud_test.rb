@@ -48,6 +48,23 @@ module Couchbase
       end
     end
 
+    def test_reads_from_replica
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document)
+
+      res = @collection.get_any_replica(doc_id)
+      assert_equal document, res.content
+      assert_respond_to res, :replica?
+
+      res = @collection.get_all_replicas(doc_id)
+      refute_empty res
+      res.each do |entry|
+        assert_equal document, entry.content
+        assert_respond_to entry, :replica?
+      end
+    end
+
     def test_touch_sets_expiration
       document = {"value" => 42}
       doc_id = uniq_id(:foo)
