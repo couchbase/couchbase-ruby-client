@@ -3157,29 +3157,29 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
         cb_extract_timeout(req, options);
         cb_extract_option_bool(req.access_deleted, options, "access_deleted");
         auto entries_size = static_cast<std::size_t>(RARRAY_LEN(specs));
-        req.specs.entries.reserve(entries_size);
+        couchbase::lookup_in_specs cxx_specs;
         for (size_t i = 0; i < entries_size; ++i) {
             VALUE entry = rb_ary_entry(specs, static_cast<long>(i));
             cb_check_type(entry, T_HASH);
             VALUE operation = rb_hash_aref(entry, rb_id2sym(rb_intern("opcode")));
             cb_check_type(operation, T_SYMBOL);
-            couchbase::core::protocol::subdoc_opcode opcode{};
-            if (ID operation_id = rb_sym2id(operation); operation_id == rb_intern("get_doc")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::get_doc;
-            } else if (operation_id == rb_intern("get")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::get;
-            } else if (operation_id == rb_intern("exists")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::exists;
-            } else if (operation_id == rb_intern("count")) {
-                opcode = couchbase::core::protocol::subdoc_opcode::get_count;
-            } else {
-                throw ruby_exception(eInvalidArgument, rb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
-            }
             bool xattr = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("xattr"))));
             VALUE path = rb_hash_aref(entry, rb_id2sym(rb_intern("path")));
             cb_check_type(path, T_STRING);
-            req.specs.add_spec(opcode, xattr, cb_string_new(path));
+            if (ID operation_id = rb_sym2id(operation); operation_id == rb_intern("get_doc")) {
+                cxx_specs.push_back(couchbase::lookup_in_specs::get("").xattr(xattr));
+            } else if (operation_id == rb_intern("get")) {
+                cxx_specs.push_back(couchbase::lookup_in_specs::get(cb_string_new(path)).xattr(xattr));
+            } else if (operation_id == rb_intern("exists")) {
+                cxx_specs.push_back(couchbase::lookup_in_specs::exists(cb_string_new(path)).xattr(xattr));
+            } else if (operation_id == rb_intern("count")) {
+                cxx_specs.push_back(couchbase::lookup_in_specs::count(cb_string_new(path)).xattr(xattr));
+            } else {
+                throw ruby_exception(eInvalidArgument, rb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
+            }
+            cb_check_type(path, T_STRING);
         }
+        req.specs = cxx_specs.specs();
 
         auto barrier = std::make_shared<std::promise<couchbase::core::operations::lookup_in_response>>();
         auto f = barrier->get_future();
@@ -3202,11 +3202,11 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
             rb_hash_aset(entry, rb_id2sym(rb_intern("exists")), resp.fields[i].exists ? Qtrue : Qfalse);
             rb_hash_aset(entry, rb_id2sym(rb_intern("path")), cb_str_new(resp.fields[i].path));
             rb_hash_aset(entry, rb_id2sym(rb_intern("value")), cb_str_new(resp.fields[i].value));
-            cb_map_subdoc_status(resp.fields[i].status, i, resp.fields[i].path, entry);
-            if (resp.fields[i].opcode == couchbase::core::protocol::subdoc_opcode::get && resp.fields[i].path.empty()) {
+            cb_map_subdoc_status(resp.fields_meta[i].status, i, resp.fields[i].path, entry);
+            if (resp.fields_meta[i].opcode == couchbase::core::protocol::subdoc_opcode::get && resp.fields[i].path.empty()) {
                 rb_hash_aset(entry, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern("get_doc")));
             } else {
-                rb_hash_aset(entry, rb_id2sym(rb_intern("type")), cb_map_subdoc_opcode(resp.fields[i].opcode));
+                rb_hash_aset(entry, rb_id2sym(rb_intern("type")), cb_map_subdoc_opcode(resp.fields_meta[i].opcode));
             }
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
@@ -3348,8 +3348,8 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
         }
 
         VALUE res = cb_extract_mutation_result(resp);
-        if (resp.first_error_index) {
-            rb_hash_aset(res, rb_id2sym(rb_intern("first_error_index")), ULL2NUM(resp.first_error_index.value()));
+        if (resp.ctx.first_error_index()) {
+            rb_hash_aset(res, rb_id2sym(rb_intern("first_error_index")), ULL2NUM(resp.ctx.first_error_index().value()));
         }
         if (resp.deleted) {
             rb_hash_aset(res, rb_id2sym(rb_intern("deleted")), Qtrue);
