@@ -924,7 +924,7 @@ cb_map_error_code(const couchbase::key_value_error_context& ctx, const std::stri
 {
     VALUE exc = cb_map_error_code(ctx.ec(), message);
     VALUE error_context = rb_hash_new();
-    std::string error(fmt::format("{}, {}", ctx.ec().value(), ctx.ec().message()));
+    std::string error(ctx.ec().message());
     rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), cb_str_new(error));
     rb_hash_aset(error_context, rb_id2sym(rb_intern("id")), cb_str_new(ctx.id()));
     rb_hash_aset(error_context, rb_id2sym(rb_intern("scope")), cb_str_new(ctx.scope()));
@@ -2128,6 +2128,95 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE scope, VALUE collection,
         rb_hash_aset(res, rb_id2sym(rb_intern("content")), cb_str_new(resp.value));
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
         rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
+        return res;
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
+}
+
+struct passthrough_transcoder {
+    using document_type = couchbase::codec::encoded_value;
+
+    static auto decode(const couchbase::codec::encoded_value& data) -> document_type
+    {
+        return data;
+    }
+};
+
+template<>
+struct couchbase::codec::is_transcoder<passthrough_transcoder> : public std::true_type {
+};
+
+static VALUE
+cb_Backend_document_get_any_replica(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE options)
+{
+    const auto& core = cb_backend_to_cluster(self);
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(scope, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+
+    try {
+        couchbase::get_any_replica_options opts;
+        cb_options_set_timeout(opts, options);
+
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .get_any_replica(cb_string_new(id), opts);
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to get replica of the document");
+        }
+
+        auto value = resp.content_as<passthrough_transcoder>();
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("content")), cb_str_new(value.data));
+        rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas()));
+        rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(value.flags));
+        return res;
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_document_get_all_replicas(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE options)
+{
+    const auto& core = cb_backend_to_cluster(self);
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(scope, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+
+    try {
+        couchbase::get_all_replicas_options opts;
+        cb_options_set_timeout(opts, options);
+
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .get_all_replicas(cb_string_new(id), opts);
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to get all replicas for the document");
+        }
+
+        VALUE res = rb_ary_new_capa(static_cast<long>(resp.size()));
+        for (const auto& entry : resp) {
+            VALUE response = rb_hash_new();
+            auto value = entry.content_as<passthrough_transcoder>();
+            rb_hash_aset(response, rb_id2sym(rb_intern("content")), cb_str_new(value.data));
+            rb_hash_aset(response, rb_id2sym(rb_intern("cas")), cb_cas_to_num(entry.cas()));
+            rb_hash_aset(response, rb_id2sym(rb_intern("flags")), UINT2NUM(value.flags));
+            rb_ary_push(res, response);
+        }
         return res;
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
@@ -7671,6 +7760,8 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "ping", VALUE_FUNC(cb_Backend_ping), 2);
 
     rb_define_method(cBackend, "document_get", VALUE_FUNC(cb_Backend_document_get), 5);
+    rb_define_method(cBackend, "document_get_any_replica", VALUE_FUNC(cb_Backend_document_get_any_replica), 5);
+    rb_define_method(cBackend, "document_get_all_replicas", VALUE_FUNC(cb_Backend_document_get_all_replicas), 5);
     rb_define_method(cBackend, "document_get_multi", VALUE_FUNC(cb_Backend_document_get_multi), 2);
     rb_define_method(cBackend, "document_get_projected", VALUE_FUNC(cb_Backend_document_get_projected), 5);
     rb_define_method(cBackend, "document_get_and_lock", VALUE_FUNC(cb_Backend_document_get_and_lock), 6);

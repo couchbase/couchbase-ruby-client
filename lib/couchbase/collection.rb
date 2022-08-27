@@ -168,15 +168,46 @@ module Couchbase
     # @param [Options::GetAllReplicas] options request customization
     #
     # @return [Array<GetReplicaResult>]
-    def get_all_replicas(id, options = Options::GetAllReplicas.new) end
+    def get_all_replicas(id, options = Options::GetAllReplicas.new)
+      resp = @backend.document_get_all_replicas(@bucket_name, @scope_name, @name, id, options.to_backend)
+      resp.map do |entry|
+        GetReplicaResult.new do |res|
+          res.transcoder = options.transcoder
+          res.cas = entry[:cas]
+          res.flags = entry[:flags]
+          res.encoded = entry[:content]
+          res.is_replica = entry[:is_replica]
+        end
+      end
+    end
 
-    # Reads all available replicas, and returns the first found
+    # Reads all available replicas and active, and returns the first found.
     #
     # @param [String] id the document id which is used to uniquely identify it.
     # @param [Options::GetAnyReplica] options request customization
     #
+    # @example Get document contents
+    #   res = collection.get_any_replica("customer123")
+    #   res.is_active #=> false
+    #   res.content["addresses"]
+    #
+    #   # {"billing"=>
+    #   #   {"line1"=>"123 Any Street", "line2"=>"Anytown", "country"=>"United Kingdom"},
+    #   #  "delivery"=>
+    #   #   {"line1"=>"123 Any Street", "line2"=>"Anytown", "country"=>"United Kingdom"}}
+    #
+    #
     # @return [GetReplicaResult]
-    def get_any_replica(id, options = Options::GetAnyReplica.new) end
+    def get_any_replica(id, options = Options::GetAnyReplica.new)
+      resp = @backend.document_get_any_replica(@bucket_name, @scope_name, @name, id, options.to_backend)
+      GetReplicaResult.new do |res|
+        res.transcoder = options.transcoder
+        res.cas = resp[:cas]
+        res.flags = resp[:flags]
+        res.encoded = resp[:content]
+        res.is_replica = resp[:is_replica]
+      end
+    end
 
     # Checks if the given document ID exists on the active partition.
     #
