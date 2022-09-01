@@ -44,7 +44,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
         }
       end
     end
@@ -109,7 +109,7 @@ module Couchbase
       # @api private
       def to_backend
         options = {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
         }
         options.update(with_expiry: true) if @with_expiry
         unless @projections&.empty?
@@ -149,7 +149,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
         }
       end
     end
@@ -181,7 +181,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
         }
       end
     end
@@ -213,7 +213,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
         }
       end
     end
@@ -245,7 +245,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
         }
       end
     end
@@ -277,7 +277,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
         }
       end
     end
@@ -303,7 +303,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
         }
       end
     end
@@ -329,7 +329,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
         }
       end
     end
@@ -355,7 +355,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
         }
       end
     end
@@ -381,6 +381,18 @@ module Couchbase
       #  +:persist_to_majority+::
       #     The mutation must be persisted to a majority of the Data Service nodes.
       #     Accordingly, it will be written to disk on those nodes.
+      # @param [Symbol] replicate_to number of nodes to replicate
+      #  +:none+:: do not apply any replication requirements.
+      #  +:one+::  wait for replication to at least one node.
+      #  +:two+::  wait for replication to at least two nodes.
+      #  +:three+:: wait for replication to at least three nodes.
+      # @param [Symbol] persist_to number of nodes to persist
+      #  +:none+:: do not apply any persistence requirements.
+      #  +:active+::  wait for persistence to active node
+      #  +:one+::  wait for persistence to at least one node.
+      #  +:two+:: wait for persistence to at least two nodes.
+      #  +:three+:: wait for persistence to at least three nodes.
+      #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -390,12 +402,20 @@ module Couchbase
       # @yieldparam [Remove]
       def initialize(cas: nil,
                      durability_level: :none,
+                     replicate_to: :none,
+                     persist_to: :none,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @cas = cas
+        if durability_level != :none && (replicate_to != :none || persist_to != :none)
+          raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
+        end
+
+        @persist_to = replicate_to
+        @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
       end
@@ -403,8 +423,10 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           durability_level: @durability_level,
+          persist_to: @persist_to,
+          replicate_to: @replicate_to,
           cas: @cas,
         }
       end
@@ -429,6 +451,18 @@ module Couchbase
       #  +:persist_to_majority+::
       #     The mutation must be persisted to a majority of the Data Service nodes.
       #     Accordingly, it will be written to disk on those nodes.
+      # @param [Symbol] replicate_to number of nodes to replicate
+      #  +:none+:: do not apply any replication requirements.
+      #  +:one+::  wait for replication to at least one node.
+      #  +:two+::  wait for replication to at least two nodes.
+      #  +:three+:: wait for replication to at least three nodes.
+      # @param [Symbol] persist_to number of nodes to persist
+      #  +:none+:: do not apply any persistence requirements.
+      #  +:active+::  wait for persistence to active node
+      #  +:one+::  wait for persistence to at least one node.
+      #  +:two+:: wait for persistence to at least two nodes.
+      #  +:three+:: wait for persistence to at least three nodes.
+      #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -437,11 +471,19 @@ module Couchbase
       #
       # @yieldparam [Remove]
       def initialize(durability_level: :none,
+                     replicate_to: :none,
+                     persist_to: :none,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+        if durability_level != :none && (replicate_to != :none || persist_to != :none)
+          raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
+        end
+
+        @persist_to = replicate_to
+        @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
       end
@@ -449,8 +491,10 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           durability_level: @durability_level,
+          persist_to: @persist_to,
+          replicate_to: @replicate_to,
         }
       end
     end
@@ -478,6 +522,18 @@ module Couchbase
       #  +:persist_to_majority+::
       #     The mutation must be persisted to a majority of the Data Service nodes.
       #     Accordingly, it will be written to disk on those nodes.
+      # @param [Symbol] replicate_to number of nodes to replicate
+      #  +:none+:: do not apply any replication requirements.
+      #  +:one+::  wait for replication to at least one node.
+      #  +:two+::  wait for replication to at least two nodes.
+      #  +:three+:: wait for replication to at least three nodes.
+      # @param [Symbol] persist_to number of nodes to persist
+      #  +:none+:: do not apply any persistence requirements.
+      #  +:active+::  wait for persistence to active node
+      #  +:one+::  wait for persistence to at least one node.
+      #  +:two+:: wait for persistence to at least two nodes.
+      #  +:three+:: wait for persistence to at least three nodes.
+      #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -488,6 +544,8 @@ module Couchbase
       def initialize(expiry: nil,
                      transcoder: JsonTranscoder.new,
                      durability_level: :none,
+                     replicate_to: :none,
+                     persist_to: :none,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
@@ -495,6 +553,12 @@ module Couchbase
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @expiry = Utils::Time.extract_expiry_time(expiry)
         @transcoder = transcoder
+        if durability_level != :none && (replicate_to != :none || persist_to != :none)
+          raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
+        end
+
+        @persist_to = replicate_to
+        @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
       end
@@ -502,9 +566,11 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           expiry: @expiry,
           durability_level: @durability_level,
+          persist_to: @persist_to,
+          replicate_to: @replicate_to,
         }
       end
     end
@@ -535,6 +601,18 @@ module Couchbase
       #  +:persist_to_majority+::
       #     The mutation must be persisted to a majority of the Data Service nodes.
       #     Accordingly, it will be written to disk on those nodes.
+      # @param [Symbol] replicate_to number of nodes to replicate
+      #  +:none+:: do not apply any replication requirements.
+      #  +:one+::  wait for replication to at least one node.
+      #  +:two+::  wait for replication to at least two nodes.
+      #  +:three+:: wait for replication to at least three nodes.
+      # @param [Symbol] persist_to number of nodes to persist
+      #  +:none+:: do not apply any persistence requirements.
+      #  +:active+::  wait for persistence to active node
+      #  +:one+::  wait for persistence to at least one node.
+      #  +:two+:: wait for persistence to at least two nodes.
+      #  +:three+:: wait for persistence to at least three nodes.
+      #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -546,6 +624,8 @@ module Couchbase
                      preserve_expiry: false,
                      transcoder: JsonTranscoder.new,
                      durability_level: :none,
+                     replicate_to: :none,
+                     persist_to: :none,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
@@ -554,16 +634,24 @@ module Couchbase
         @expiry = Utils::Time.extract_expiry_time(expiry)
         @preserve_expiry = preserve_expiry
         @transcoder = transcoder
+        if durability_level != :none && (replicate_to != :none || persist_to != :none)
+          raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
+        end
+
+        @persist_to = replicate_to
+        @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
       end
 
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           expiry: @expiry,
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
+          persist_to: @persist_to,
+          replicate_to: @replicate_to,
         }
       end
     end
@@ -594,6 +682,18 @@ module Couchbase
       #  +:persist_to_majority+::
       #     The mutation must be persisted to a majority of the Data Service nodes.
       #     Accordingly, it will be written to disk on those nodes.
+      # @param [Symbol] replicate_to number of nodes to replicate
+      #  +:none+:: do not apply any replication requirements.
+      #  +:one+::  wait for replication to at least one node.
+      #  +:two+::  wait for replication to at least two nodes.
+      #  +:three+:: wait for replication to at least three nodes.
+      # @param [Symbol] persist_to number of nodes to persist
+      #  +:none+:: do not apply any persistence requirements.
+      #  +:active+::  wait for persistence to active node
+      #  +:one+::  wait for persistence to at least one node.
+      #  +:two+:: wait for persistence to at least two nodes.
+      #  +:three+:: wait for persistence to at least three nodes.
+      #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -605,6 +705,8 @@ module Couchbase
                      preserve_expiry: false,
                      transcoder: JsonTranscoder.new,
                      durability_level: :none,
+                     replicate_to: :none,
+                     persist_to: :none,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
@@ -613,16 +715,24 @@ module Couchbase
         @expiry = Utils::Time.extract_expiry_time(expiry)
         @preserve_expiry = preserve_expiry
         @transcoder = transcoder
+        if durability_level != :none && (replicate_to != :none || persist_to != :none)
+          raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
+        end
+
+        @persist_to = replicate_to
+        @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
       end
 
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           expiry: @expiry,
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
+          persist_to: @persist_to,
+          replicate_to: @replicate_to,
         }
       end
     end
@@ -655,6 +765,18 @@ module Couchbase
       #  +:persist_to_majority+::
       #     The mutation must be persisted to a majority of the Data Service nodes.
       #     Accordingly, it will be written to disk on those nodes.
+      # @param [Symbol] replicate_to number of nodes to replicate
+      #  +:none+:: do not apply any replication requirements.
+      #  +:one+::  wait for replication to at least one node.
+      #  +:two+::  wait for replication to at least two nodes.
+      #  +:three+:: wait for replication to at least three nodes.
+      # @param [Symbol] persist_to number of nodes to persist
+      #  +:none+:: do not apply any persistence requirements.
+      #  +:active+::  wait for persistence to active node
+      #  +:one+::  wait for persistence to at least one node.
+      #  +:two+:: wait for persistence to at least two nodes.
+      #  +:three+:: wait for persistence to at least three nodes.
+      #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -667,6 +789,8 @@ module Couchbase
                      transcoder: JsonTranscoder.new,
                      cas: nil,
                      durability_level: :none,
+                     replicate_to: :none,
+                     persist_to: :none,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
@@ -676,16 +800,24 @@ module Couchbase
         @preserve_expiry = preserve_expiry
         @transcoder = transcoder
         @cas = cas
+        if durability_level != :none && (replicate_to != :none || persist_to != :none)
+          raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
+        end
+
+        @persist_to = replicate_to
+        @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
       end
 
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           expiry: @expiry,
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
+          persist_to: @persist_to,
+          replicate_to: @replicate_to,
           cas: @cas,
         }
       end
@@ -725,6 +857,18 @@ module Couchbase
       #  +:persist_to_majority+::
       #     The mutation must be persisted to a majority of the Data Service nodes.
       #     Accordingly, it will be written to disk on those nodes.
+      # @param [Symbol] replicate_to number of nodes to replicate
+      #  +:none+:: do not apply any replication requirements.
+      #  +:one+::  wait for replication to at least one node.
+      #  +:two+::  wait for replication to at least two nodes.
+      #  +:three+:: wait for replication to at least three nodes.
+      # @param [Symbol] persist_to number of nodes to persist
+      #  +:none+:: do not apply any persistence requirements.
+      #  +:active+::  wait for persistence to active node
+      #  +:one+::  wait for persistence to at least one node.
+      #  +:two+:: wait for persistence to at least two nodes.
+      #  +:three+:: wait for persistence to at least three nodes.
+      #  +:four+:: wait for persistence to four nodes (active and replicas).
       # @param [JsonTranscoder, #encode(Object)] transcoder used for encoding
       #
       # @param [Integer, #in_milliseconds, nil] timeout
@@ -740,6 +884,8 @@ module Couchbase
                      access_deleted: false,
                      create_as_deleted: false,
                      durability_level: :none,
+                     replicate_to: :none,
+                     persist_to: :none,
                      transcoder: JsonTranscoder.new,
                      timeout: nil,
                      retry_strategy: nil,
@@ -752,6 +898,12 @@ module Couchbase
         @cas = cas
         @access_deleted = access_deleted
         @create_as_deleted = create_as_deleted
+        if durability_level != :none && (replicate_to != :none || persist_to != :none)
+          raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
+        end
+
+        @persist_to = replicate_to
+        @replicate_to = replicate_to
         @durability_level = durability_level
         @transcoder = transcoder
         yield self if block_given?
@@ -760,10 +912,12 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           expiry: @expiry,
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
+          persist_to: @persist_to,
+          replicate_to: @replicate_to,
           cas: @cas,
           store_semantics: @store_semantics,
           access_deleted: @access_deleted,
@@ -810,7 +964,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           access_deleted: @access_deleted,
         }
       end
@@ -847,7 +1001,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           cas: @cas,
         }
       end
@@ -881,7 +1035,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           cas: @cas,
         }
       end
@@ -912,6 +1066,18 @@ module Couchbase
       #  +:persist_to_majority+::
       #     The mutation must be persisted to a majority of the Data Service nodes.
       #     Accordingly, it will be written to disk on those nodes.
+      # @param [Symbol] replicate_to number of nodes to replicate
+      #  +:none+:: do not apply any replication requirements.
+      #  +:one+::  wait for replication to at least one node.
+      #  +:two+::  wait for replication to at least two nodes.
+      #  +:three+:: wait for replication to at least three nodes.
+      # @param [Symbol] persist_to number of nodes to persist
+      #  +:none+:: do not apply any persistence requirements.
+      #  +:active+::  wait for persistence to active node
+      #  +:one+::  wait for persistence to at least one node.
+      #  +:two+:: wait for persistence to at least two nodes.
+      #  +:three+:: wait for persistence to at least three nodes.
+      #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -923,6 +1089,8 @@ module Couchbase
                      initial: nil,
                      expiry: nil,
                      durability_level: :none,
+                     replicate_to: :none,
+                     persist_to: :none,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
@@ -933,6 +1101,12 @@ module Couchbase
         @delta = delta
         @initial = initial
         @expiry = Utils::Time.extract_expiry_time(expiry)
+        if durability_level != :none && (replicate_to != :none || persist_to != :none)
+          raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
+        end
+
+        @persist_to = replicate_to
+        @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
       end
@@ -947,11 +1121,13 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           delta: @delta,
           initial_value: @initial,
           expiry: @expiry,
           durability_level: @durability_level,
+          persist_to: @persist_to,
+          replicate_to: @replicate_to,
         }
       end
     end
@@ -981,6 +1157,18 @@ module Couchbase
       #  +:persist_to_majority+::
       #     The mutation must be persisted to a majority of the Data Service nodes.
       #     Accordingly, it will be written to disk on those nodes.
+      # @param [Symbol] replicate_to number of nodes to replicate
+      #  +:none+:: do not apply any replication requirements.
+      #  +:one+::  wait for replication to at least one node.
+      #  +:two+::  wait for replication to at least two nodes.
+      #  +:three+:: wait for replication to at least three nodes.
+      # @param [Symbol] persist_to number of nodes to persist
+      #  +:none+:: do not apply any persistence requirements.
+      #  +:active+::  wait for persistence to active node
+      #  +:one+::  wait for persistence to at least one node.
+      #  +:two+:: wait for persistence to at least two nodes.
+      #  +:three+:: wait for persistence to at least three nodes.
+      #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -992,6 +1180,8 @@ module Couchbase
                      initial: nil,
                      expiry: nil,
                      durability_level: :none,
+                     replicate_to: :none,
+                     persist_to: :none,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
@@ -1002,6 +1192,12 @@ module Couchbase
         @delta = delta
         @initial = initial
         @expiry = Utils::Time.extract_expiry_time(expiry)
+        if durability_level != :none && (replicate_to != :none || persist_to != :none)
+          raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
+        end
+
+        @persist_to = replicate_to
+        @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
       end
@@ -1016,11 +1212,13 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           delta: @delta,
           initial_value: @initial,
           expiry: @expiry,
           durability_level: @durability_level,
+          persist_to: @persist_to,
+          replicate_to: @replicate_to,
         }
       end
     end
@@ -1338,7 +1536,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           service_types: @service_types,
           report_id: @report_id,
         }
@@ -1443,7 +1641,7 @@ module Couchbase
       # @api private
       def to_backend(scope_name: nil, bucket_name: nil)
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           client_context_id: @client_context_id,
           scan_consistency: @scan_consistency,
           readonly: @readonly,
@@ -1674,14 +1872,14 @@ module Couchbase
       # @api private
       def to_backend(scope_name: nil, bucket_name: nil)
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           adhoc: @adhoc,
           client_context_id: @client_context_id,
           max_parallelism: @max_parallelism,
           readonly: @readonly,
           flex_index: @flex_index,
           preserve_expiry: @preserve_expiry,
-          scan_wait: @scan_wait.respond_to?(:in_milliseconds) ? @scan_wait.public_send(:in_milliseconds) : @scan_wait,
+          scan_wait: Utils::Time.extract_duration(@scan_wait),
           scan_cap: @scan_cap,
           pipeline_batch: @pipeline_batch,
           pipeline_cap: @pipeline_cap,
@@ -1813,7 +2011,7 @@ module Couchbase
       # @api private
       def to_backend(scope_name: nil)
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           limit: @limit,
           skip: @skip,
           explain: @explain,
@@ -1932,7 +2130,7 @@ module Couchbase
       # @api private
       def to_backend
         {
-          timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+          timeout: Utils::Time.extract_duration(@timeout),
           scan_consistency: @scan_consistency,
           skip: @skip,
           limit: @limit,

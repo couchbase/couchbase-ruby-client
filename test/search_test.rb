@@ -85,11 +85,11 @@ module Couchbase
           attempts += 1
           res = @cluster.search_query(@index_name, Cluster::SearchQuery.query_string("arthur"), options)
         rescue Error::ConsistencyMismatch
-          time_travel(0.5)
+          sleep(0.5)
           retry
         end
         if res.rows.empty?
-          time_travel(0.5)
+          sleep(0.5)
           next
         end
         assert_predicate res, :success?, "res=#{res.inspect}"

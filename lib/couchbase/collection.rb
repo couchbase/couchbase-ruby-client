@@ -279,12 +279,12 @@ module Couchbase
     #
     # @return [Array<MutationResult>]
     def remove_multi(ids, options = Options::RemoveMulti.new)
-      resp = @backend.document_remove_multi(ids.map do |id|
+      resp = @backend.document_remove_multi(bucket_name, @scope_name, @name, ids.map do |id|
         case id
         when String
-          [bucket_name, @scope_name, @name, id, nil]
+          [id, nil]
         when Array
-          [bucket_name, @scope_name, @name, id[0], id[1]]
+          id
         else
           raise ArgumentError, "id argument of remove_multi must be a String or Array<String, Integer>, given: #{id.inspect}"
         end
@@ -366,9 +366,9 @@ module Couchbase
     #
     # @return [Array<MutationResult>]
     def upsert_multi(id_content, options = Options::UpsertMulti.new)
-      resp = @backend.document_upsert_multi(id_content.map do |(id, content)|
+      resp = @backend.document_upsert_multi(bucket_name, @scope_name, @name, id_content.map do |(id, content)|
         blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
-        [bucket_name, @scope_name, @name, id, blob, flags]
+        [id, blob, flags]
       end, options.to_backend)
       resp.map do |entry|
         MutationResult.new do |res|
@@ -475,10 +475,7 @@ module Couchbase
             f.exists = field[:exists]
             f.index = field[:index]
             f.path = field[:path]
-            f.status = field[:status]
-            f.error = field[:error]
             f.value = field[:value]
-            f.type = field[:type]
           end
         end
       end
@@ -518,31 +515,26 @@ module Couchbase
           }
         end, options.to_backend
       )
-      result = MutateInResult.new do |res|
+      MutateInResult.new do |res|
         res.transcoder = options.transcoder
         res.cas = resp[:cas]
         res.deleted = resp[:deleted]
         res.mutation_token = extract_mutation_token(resp)
-        res.first_error_index = resp[:first_error_index]
         res.encoded = resp[:fields].map do |field|
           SubDocumentField.new do |f|
-            f.exists = field[:exists]
+            f.index = field[:index]
             f.path = field[:path]
-            f.status = field[:status]
-            f.error = field[:error]
             f.value = field[:value]
-            f.type = field[:type]
           end
         end
       end
-      raise result.first_error unless result.success?
-
-      result
     end
 
     private
 
     def extract_mutation_token(resp)
+      return unless resp.key?(:mutation_token)
+
       MutationToken.new do |token|
         token.partition_id = resp[:mutation_token][:partition_id]
         token.partition_uuid = resp[:mutation_token][:partition_uuid]
