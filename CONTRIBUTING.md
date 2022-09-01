@@ -1,110 +1,35 @@
 # Contributing
 
-In addition to filing bugs, you may contribute by submitting patches to fix bugs in the library.  Contributions may be
-submitting to http://review.couchbase.com.
+Welcome, and thanks for lending a hand! Before we get started, please read the
+[Couchbase Code of Conduct](CODE_OF_CONDUCT.md).
 
-We use Gerrit as our code review system --- and thus submitting a change requires an account there.  Note that pull
-requests will not be ignored but will be responded to more quickly and with more detail in Gerrit.
+## Discussion
 
-For something to be accepted into the codebase, it must be formatted properly and have undergone proper testing.
-We use `rubocop` for linting with a configuration stored in `.rubocop.yml`.
+We'd love for you to join us on the [Couchbase Forum](https://forums.couchbase.com).
+For more interactive discussions we have `#ruby` channel on our [Discord](https://discord.com/invite/sQ5qbPZuTh).
 
-To install and use the linter you can use `./bin/setup` and then run `rubocop` in the project root directory.
+## Reporting Issues
 
-## Branches and Tags
+The simplest way to help is to report bugs or request new features.
 
-Released versions of the library are marked as annotated tags inside the repository.
+We use Jira for issue tracking: [https://issues.couchbase.com/projects/RCBC/](https://issues.couchbase.com/projects/RCBC/)
 
-* The `master` branch represents the mainline branch. The master branch typically consists of content going into the
-  next release.
+To create an issue, or comment on an existing issue, you'll need to sign up
+for an account. It's quick and painless (or if it's not, click on the
+"Report a problem" link on the signup page or get in touch via the forum).
 
-## Contributing Patches
+## Pull Requests
 
-If you wish to contribute a new feature or a bug fix to the library, try to follow the following guidelines to help
-ensure your change gets merged upstream.
+We use Github for code review. But to allow us to integrate your changes, you need to register for a Gerrit account and
+sign a Contributor License Agreement (CLA).
 
-### Before you begin
+> We acknowledge Gerrit can be intimidating for new users.
+> We're considering alternates that will make it easier for GitHub
+> natives to contribute.
 
-For any code change, ensure the new code you write looks similar to the code surrounding it and that linting does not
-produce errors.
+  1. Visit [https://review.couchbase.org](https://review.couchbase.org) and register for an account.
+  2. Review our [Contributor Licence Agreement (CLA)](https://review.couchbase.org/static/individual_agreement.html).
+  3. Agree to the CLA by visiting [https://review.couchbase.org/settings/#Agreements](https://review.couchbase.org/settings/#Agreements)
+     Otherwise, we won't be able to merge your changes.
 
-If your change is going to involve a substantial amount of time or effort, please attempt to discuss it with the project
-developers first who will provide assistance and direction where possible.
-
-#### For new features
-
-Ensure the feature you are adding does not already exist, and think about how this feature may be useful for other users.
-In general less intrusive changes are more likely to be accepted.
-
-#### For fixing bugs
-
-Ensure the bug you are fixing is actually a bug (and not a usage error), and that it has not been fixed in a more recent
-version. Please read the release notes as well as the issue tracker to see a list of open and resolved issues.
-
-### Code Review
-
-#### Signing up on Gerrit
-
-Everything that is merged into the library goes through a code review process.  The code review process is done via
-[Gerrit](https://review.couchbase.org).
-
-To sign up for a gerrit account, go to https://review.couchbase.org and click on the _Register_ link at the top right.
-Once you've signed in you will need to agree to the CLA (Contributor License Agreement) by going you your gerrit
-account page and selecting the _Agreements_ link on the left.
-
-When you've done that, everything should flow through just fine.
-
-Be sure that you have registered your email address at http://review.couchbase.org/#/settings/contact as many sign-up
-methods won't pass emails along.
-
-Note that your email address in your code commit and in the gerrit settings must match.
-
-Add your public SSH key to gerrit before submitting.
-
-#### Setting up your fork with Gerrit
-
-Assuming you have a repository created like so:
-
-```
-$ git clone https://github.com/couchbase/couchbase-ruby-client.git
-```
-
-you can simply perform two simple steps to get started with gerrit:
-
-```
-$ git remote add gerrit ssh://${USERNAME}@review.couchbase.org:29418/couchbase-ruby-client
-
-$ scp -P 29418 ${USERNAME}@review.couchbase.org:hooks/commit-msg .git/hooks
-$ chmod a+x .git/hooks/commit-msg
-```
-
-The last change is required for annotating each commit message with a special header known as `Change-Id`.
-This allows Gerrit to group together different revisions of the same patch.
-
-#### Pushing a changeset
-
-Now that you have your change and a gerrit account to push to, you need to upload the change for review.
-To do so, invoke the following incantation:
-
-```
-$ git push gerrit HEAD:refs/for/master
-```
-
-Where `gerrit` is the name of the _remote_ added earlier.
-You may encounter some errors when pushing.
-The most common are:
-
-* "You are not authorized to push to this repository".
-  You will get this if your account has not yet been approved.
-  Feel free to ask about in [Discord](https://discord.com/invite/sQ5qbPZuTh) or in the forums for help if blocked.
-
-* "Missing Change-Id". You need to install the `commit-msg` hook as described above.
-  Note that even once you do this, you will need to ensure that any prior commits already have this header --- this may be
-  done by doing an interactive rebase (e.g.  `git rebase -i origin/master` and selecting `reword` for all the commits;
-  which will automatically fillin the Change-Id).
-
-
-Once you've pushed your changeset you can add people to review.
-Currently these are:
-
-* Sergey Avseyev
+If you need any help along the way, please contact us on the [Couchbase Forum](https://forums.couchbase.com).
