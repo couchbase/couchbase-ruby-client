@@ -27,7 +27,7 @@ group :development do
   gem "minitest"
   gem "minitest-reporters"
   gem "rack"
-  gem "rails", "~> 7.0.3"
+  gem "activesupport", "~> 7.0.3"
   gem "reek"
   gem "rubocop"
   gem "rubocop-minitest"
