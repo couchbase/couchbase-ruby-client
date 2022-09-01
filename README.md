@@ -3,7 +3,6 @@
 [![license](https://img.shields.io/github/license/couchbase/couchbase-ruby-client?color=brightgreen)](https://opensource.org/licenses/Apache-2.0)
 [![gem](https://img.shields.io/gem/v/couchbase?color=brightgreen)](https://rubygems.org/gems/couchbase)
 [![commits](https://img.shields.io/github/commits-since/couchbase/couchbase-ruby-client/latest?color=brightgreen)](https://github.com/couchbase/couchbase-ruby-client/commits/master)
-[![tests](https://img.shields.io/github/workflow/status/couchbase/couchbase-ruby-client/tests?label=tests)](https://github.com/couchbase/couchbase-ruby-client/actions?query=workflow%3Atests)
 [![linters](https://img.shields.io/github/workflow/status/couchbase/couchbase-ruby-client/linters?label=linters)](https://github.com/couchbase/couchbase-ruby-client/actions?query=workflow%3Alinters)
 
 This repository contains the third generation of the official Couchbase SDK for Ruby (aka. SDKv3)
