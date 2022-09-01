@@ -91,7 +91,7 @@ gem install ${CB_GEM_INSTALL_OPTIONS} bundler gem-compiler
 
 bundle config set --local path ${PROJECT_ROOT}/vendor/bundle
 
-bundle install
+bundle install --verbose
 export CB_EXT_BUILD_DIR="${PROJECT_ROOT}/build-${RUBY_VERSION}-${BUILD_NUMBER}"
 ${PROJECT_ROOT}/bin/jenkins/patch-version ${BUILD_NUMBER}
 
