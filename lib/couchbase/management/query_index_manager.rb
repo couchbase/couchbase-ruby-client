@@ -85,7 +85,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               ignore_if_exists: @ignore_if_exists,
               condition: @condition,
               deferred: @deferred,
@@ -139,7 +139,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               ignore_if_exists: @ignore_if_exists,
               deferred: @deferred,
               num_replicas: @num_replicas,
@@ -184,7 +184,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               ignore_if_does_not_exist: @ignore_if_does_not_exist,
               scope_name: @scope_name,
               collection_name: @collection_name,
@@ -227,7 +227,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               ignore_if_does_not_exist: @ignore_if_does_not_exist,
               scope_name: @scope_name,
               collection_name: @collection_name,
@@ -438,9 +438,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def watch_indexes(bucket_name, index_names, timeout, options = Options::Query::WatchIndexes.new)
-        @backend.query_index_watch(bucket_name, index_names,
-                                   timeout.respond_to?(:in_milliseconds) ? timeout.public_send(:in_milliseconds) : timeout,
-                                   options.to_backend)
+        @backend.query_index_watch(bucket_name, index_names, Utils::Time.extract_duration(timeout), options.to_backend)
       end
 
       # @api private

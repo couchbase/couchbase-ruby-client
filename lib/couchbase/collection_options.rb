@@ -157,22 +157,36 @@ module Couchbase
       # @return [Integer] holds the CAS value of the fetched document
       attr_accessor :cas
 
-      # Decodes the content at the given index
+      # Decodes the content at the given index (or path)
       #
-      # @param [Integer] index the index of the subdocument value to decode
+      # @param [Integer, String] path_or_index the index (or path) of the subdocument value to decode
       #
       # @return [Object] the decoded
-      def content(index, transcoder = self.transcoder)
-        transcoder.decode(get_field_at_index(index).value, :json)
+      def content(path_or_index, transcoder = self.transcoder)
+        field = get_field_at_index(path_or_index)
+        raise Error::PathNotFound, "Path is not found: #{path_or_index}" unless field.exists
+
+        transcoder.decode(field.value, :json)
       end
 
       # Allows to check if a value at the given index exists
       #
-      # @param [Integer] index the index of the subdocument value to check
+      # @param [Integer, String] path_or_index the index (or path) of the subdocument value to check
       #
       # @return [Boolean] true if a value is present at the index, false otherwise
-      def exists?(index)
-        !encoded[index].nil? && encoded[index].exists
+      def exists?(path_or_index)
+        field =
+          case path_or_index
+          when String
+            encoded.find { |f| f.path == path_or_index }
+          else
+            return false unless path_or_index >= 0 && path_or_index < encoded.size
+
+            encoded[path_or_index]
+          end
+        return false unless field
+
+        field.exists
       end
 
       # @return [Array<SubDocumentField>] holds the encoded subdocument responses
@@ -201,29 +215,27 @@ module Couchbase
 
       private
 
-      def get_field_at_index(index)
-        raise Error::PathInvalid, "Index is out of bounds: #{index}" unless index >= 0 && index < encoded.size
+      def get_field_at_index(path_or_index)
+        case path_or_index
+        when String
+          encoded.find { |field| field.path == path_or_index } or raise Error::PathInvalid, "Path is not found: #{path_or_index}"
+        else
+          raise Error::PathInvalid, "Index is out of bounds: #{path_or_index}" unless path_or_index >= 0 && path_or_index < encoded.size
 
-        field = encoded[index]
-        raise field.error unless field.success?
-
-        field
+          encoded[path_or_index]
+        end
       end
     end
 
     class MutateInResult < MutationResult
       # Decodes the content at the given index
       #
-      # @param [Integer] index the index of the subdocument value to decode
+      # @param [Integer, String] path_or_index the index (or path) of the subdocument value to decode
       #
       # @return [Object] the decoded
-      def content(index, transcoder = self.transcoder)
-        field = get_field_at_index(index)
-        if field.type == :counter
-          field.value
-        else
-          transcoder.decode(field.value, :json)
-        end
+      def content(path_or_index, transcoder = self.transcoder)
+        field = get_field_at_index(path_or_index)
+        transcoder.decode(field.value, :json)
       end
 
       # @yieldparam [MutateInResult] self
@@ -232,23 +244,9 @@ module Couchbase
         yield self if block_given?
       end
 
-      # @api private
-      def success?
-        first_error_index.nil?
-      end
-
-      # @api private
-      def first_error
-        encoded[first_error_index].error unless success?
-      end
-
       # @return [Array<SubDocumentField>] holds the encoded subdocument responses
       # @api private
       attr_accessor :encoded
-
-      # @return [Integer, nil] index of first operation entry that generated an error
-      # @api private
-      attr_accessor :first_error_index
 
       # @return [JsonTranscoder] The default transcoder which should be used
       attr_accessor :transcoder
@@ -267,13 +265,15 @@ module Couchbase
 
       private
 
-      def get_field_at_index(index)
-        raise Error::PathInvalid, "Index is out of bounds: #{index}" unless index >= 0 && index < encoded.size
+      def get_field_at_index(path_or_index)
+        case path_or_index
+        when String
+          encoded.find { |field| field.path == path_or_index } or raise Error::PathInvalid, "Path is not found: #{path_or_index}"
+        else
+          raise Error::PathInvalid, "Index is out of bounds: #{path_or_index}" unless path_or_index >= 0 && path_or_index < encoded.size
 
-        field = encoded[index]
-        raise field.error unless field.success?
-
-        field
+          encoded[path_or_index]
+        end
       end
     end
 
@@ -291,63 +291,9 @@ module Couchbase
       # @return [String] path
       attr_accessor :path
 
-      # Operation type
-      #
-      # * +:set_doc+
-      # * +:counter+
-      # * +:replace+
-      # * +:dict_add+
-      # * +:dict_upsert+
-      # * +:array_push_first+
-      # * +:array_push_last+
-      # * +:array_add_unique+
-      # * +:array_insert+
-      # * +:delete+
-      # * +:get+
-      # * +:exists+
-      # * +:count+
-      # * +:get_doc+
-      #
-      # @return [Symbol]
-      attr_accessor :type
-
-      # Status of the subdocument path operation.
-      #
-      # [+:success+] Indicates a successful response in general.
-      # [+:path_not_found+] The provided path does not exist in the document
-      # [+:path_mismatch+] One of path components treats a non-dictionary as a dictionary, or a non-array as an array, or value the path
-      #   points to is not a number
-      # [+:path_invalid+] The path's syntax was incorrect
-      # [+:path_too_big+] The path provided is too large: either the string is too long, or it contains too many components
-      # [+:value_cannot_insert+] The value provided will invalidate the JSON if inserted
-      # [+:doc_not_json+] The existing document is not valid JSON
-      # [+:num_range+] The existing number is out of the valid range for arithmetic operations
-      # [+:delta_invalid+] The operation would result in a number outside the valid range
-      # [+:path_exists+] The requested operation requires the path to not already exist, but it exists
-      # [+:value_too_deep+] Inserting the value would cause the document to be too deep
-      # [+:invalid_combo+] An invalid combination of commands was specified
-      # [+:xattr_invalid_flag_combo+] An invalid combination of operations, using macros when not using extended attributes
-      # [+:xattr_invalid_key_combo+] Only single xattr key may be accessed at the same time
-      # [+:xattr_unknown_macro+] The server has no knowledge of the requested macro
-      # [+:xattr_unknown_vattr+] Unknown virtual attribute.
-      # [+:xattr_cannot_modify_vattr+] Cannot modify this virtual attribute.
-      # [+:unknown+] Unknown error.
-      #
-      # @return [Symbol]
-      attr_accessor :status
-
-      # @return [nil, Exception]
-      attr_accessor :error
-
       # @yieldparam [SubDocumentField] self
       def initialize
-        @status = :unknown
         yield self if block_given?
-      end
-
-      # @return [Boolean] true if the path does not have associated error
-      def success?
-        status == :success
       end
     end
   end

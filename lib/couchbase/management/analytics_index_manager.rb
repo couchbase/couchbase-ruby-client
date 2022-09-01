@@ -47,7 +47,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               ignore_if_exists: @ignore_if_exists,
             }
           end
@@ -81,7 +81,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               ignore_if_does_not_exist: @ignore_if_does_not_exist,
             }
           end
@@ -123,7 +123,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               condition: @condition,
               dataverse_name: @dataverse_name,
               ignore_if_exists: @ignore_if_exists,
@@ -163,7 +163,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               dataverse_name: @dataverse_name,
               ignore_if_does_not_exist: @ignore_if_does_not_exist,
             }
@@ -221,7 +221,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               dataverse_name: @dataverse_name,
               ignore_if_exists: @ignore_if_exists,
             }
@@ -260,7 +260,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               dataverse_name: @dataverse_name,
               ignore_if_does_not_exist: @ignore_if_does_not_exist,
             }
@@ -322,7 +322,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               link_name: @link_name,
               force: @force,
               dataverse_name: @dataverse_name,
@@ -361,7 +361,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               link_name: @link_name,
               dataverse_name: @dataverse_name,
             }
@@ -408,7 +408,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
             }
           end
         end
@@ -434,7 +434,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
             }
           end
         end
@@ -460,7 +460,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
             }
           end
         end
@@ -503,7 +503,7 @@ module Couchbase
           # @api private
           def to_backend
             {
-              timeout: @timeout.respond_to?(:in_milliseconds) ? @timeout.public_send(:in_milliseconds) : @timeout,
+              timeout: Utils::Time.extract_duration(@timeout),
               link_type: @link_type.to_s,
               dataverse: @dataverse,
               name: @name,

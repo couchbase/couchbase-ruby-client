@@ -15,6 +15,7 @@
  *   limitations under the License.
  */
 
+#include "core/utils/json.hxx"
 #include "ext_build_info.hxx"
 #include "ext_build_version.hxx"
 #include <core/meta/version.hxx>
@@ -660,257 +661,262 @@ init_exceptions(VALUE mCouchbase)
 }
 
 [[nodiscard]] static VALUE
-cb_map_error_code(std::error_code ec, const std::string& message)
+cb_map_error_code(std::error_code ec, const std::string& message, bool include_error_code = true)
 {
+    std::string what = message;
+    if (include_error_code) {
+        what += fmt::format(": {}", ec.message());
+    }
+
     if (ec.category() == couchbase::core::impl::common_category()) {
         switch (static_cast<couchbase::errc::common>(ec.value())) {
             case couchbase::errc::common::unambiguous_timeout:
-                return rb_exc_new_cstr(eUnambiguousTimeout, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eUnambiguousTimeout, what.c_str());
 
             case couchbase::errc::common::ambiguous_timeout:
-                return rb_exc_new_cstr(eAmbiguousTimeout, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eAmbiguousTimeout, what.c_str());
 
             case couchbase::errc::common::request_canceled:
-                return rb_exc_new_cstr(eRequestCanceled, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eRequestCanceled, what.c_str());
 
             case couchbase::errc::common::invalid_argument:
-                return rb_exc_new_cstr(eInvalidArgument, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eInvalidArgument, what.c_str());
 
             case couchbase::errc::common::service_not_available:
-                return rb_exc_new_cstr(eServiceNotAvailable, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eServiceNotAvailable, what.c_str());
 
             case couchbase::errc::common::internal_server_failure:
-                return rb_exc_new_cstr(eInternalServerFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eInternalServerFailure, what.c_str());
 
             case couchbase::errc::common::authentication_failure:
-                return rb_exc_new_cstr(eAuthenticationFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eAuthenticationFailure, what.c_str());
 
             case couchbase::errc::common::temporary_failure:
-                return rb_exc_new_cstr(eTemporaryFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eTemporaryFailure, what.c_str());
 
             case couchbase::errc::common::parsing_failure:
-                return rb_exc_new_cstr(eParsingFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eParsingFailure, what.c_str());
 
             case couchbase::errc::common::cas_mismatch:
-                return rb_exc_new_cstr(eCasMismatch, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eCasMismatch, what.c_str());
 
             case couchbase::errc::common::bucket_not_found:
-                return rb_exc_new_cstr(eBucketNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eBucketNotFound, what.c_str());
 
             case couchbase::errc::common::scope_not_found:
-                return rb_exc_new_cstr(eScopeNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eScopeNotFound, what.c_str());
 
             case couchbase::errc::common::collection_not_found:
-                return rb_exc_new_cstr(eCollectionNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eCollectionNotFound, what.c_str());
 
             case couchbase::errc::common::unsupported_operation:
-                return rb_exc_new_cstr(eUnsupportedOperation, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eUnsupportedOperation, what.c_str());
 
             case couchbase::errc::common::feature_not_available:
-                return rb_exc_new_cstr(eFeatureNotAvailable, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eFeatureNotAvailable, what.c_str());
 
             case couchbase::errc::common::encoding_failure:
-                return rb_exc_new_cstr(eEncodingFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eEncodingFailure, what.c_str());
 
             case couchbase::errc::common::decoding_failure:
-                return rb_exc_new_cstr(eDecodingFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDecodingFailure, what.c_str());
 
             case couchbase::errc::common::index_not_found:
-                return rb_exc_new_cstr(eIndexNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eIndexNotFound, what.c_str());
 
             case couchbase::errc::common::index_exists:
-                return rb_exc_new_cstr(eIndexExists, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eIndexExists, what.c_str());
 
             case couchbase::errc::common::rate_limited:
-                return rb_exc_new_cstr(eRateLimited, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eRateLimited, what.c_str());
 
             case couchbase::errc::common::quota_limited:
-                return rb_exc_new_cstr(eQuotaLimited, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eQuotaLimited, what.c_str());
         }
     } else if (ec.category() == couchbase::core::impl::key_value_category()) {
         switch (static_cast<couchbase::errc::key_value>(ec.value())) {
             case couchbase::errc::key_value::document_not_found:
-                return rb_exc_new_cstr(eDocumentNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDocumentNotFound, what.c_str());
 
             case couchbase::errc::key_value::document_irretrievable:
-                return rb_exc_new_cstr(eDocumentIrretrievable, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDocumentIrretrievable, what.c_str());
 
             case couchbase::errc::key_value::document_locked:
-                return rb_exc_new_cstr(eDocumentLocked, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDocumentLocked, what.c_str());
 
             case couchbase::errc::key_value::value_too_large:
-                return rb_exc_new_cstr(eValueTooLarge, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eValueTooLarge, what.c_str());
 
             case couchbase::errc::key_value::document_exists:
-                return rb_exc_new_cstr(eDocumentExists, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDocumentExists, what.c_str());
 
             case couchbase::errc::key_value::durability_level_not_available:
-                return rb_exc_new_cstr(eDurabilityLevelNotAvailable, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDurabilityLevelNotAvailable, what.c_str());
 
             case couchbase::errc::key_value::durability_impossible:
-                return rb_exc_new_cstr(eDurabilityImpossible, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDurabilityImpossible, what.c_str());
 
             case couchbase::errc::key_value::durability_ambiguous:
-                return rb_exc_new_cstr(eDurabilityAmbiguous, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDurabilityAmbiguous, what.c_str());
 
             case couchbase::errc::key_value::durable_write_in_progress:
-                return rb_exc_new_cstr(eDurableWriteInProgress, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDurableWriteInProgress, what.c_str());
 
             case couchbase::errc::key_value::durable_write_re_commit_in_progress:
-                return rb_exc_new_cstr(eDurableWriteReCommitInProgress, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDurableWriteReCommitInProgress, what.c_str());
 
             case couchbase::errc::key_value::path_not_found:
-                return rb_exc_new_cstr(ePathNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(ePathNotFound, what.c_str());
 
             case couchbase::errc::key_value::path_mismatch:
-                return rb_exc_new_cstr(ePathMismatch, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(ePathMismatch, what.c_str());
 
             case couchbase::errc::key_value::path_invalid:
-                return rb_exc_new_cstr(ePathInvalid, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(ePathInvalid, what.c_str());
 
             case couchbase::errc::key_value::path_too_big:
-                return rb_exc_new_cstr(ePathTooBig, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(ePathTooBig, what.c_str());
 
             case couchbase::errc::key_value::path_too_deep:
-                return rb_exc_new_cstr(ePathTooDeep, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(ePathTooDeep, what.c_str());
 
             case couchbase::errc::key_value::value_too_deep:
-                return rb_exc_new_cstr(eValueTooDeep, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eValueTooDeep, what.c_str());
 
             case couchbase::errc::key_value::value_invalid:
-                return rb_exc_new_cstr(eValueInvalid, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eValueInvalid, what.c_str());
 
             case couchbase::errc::key_value::document_not_json:
-                return rb_exc_new_cstr(eDocumentNotJson, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDocumentNotJson, what.c_str());
 
             case couchbase::errc::key_value::number_too_big:
-                return rb_exc_new_cstr(eNumberTooBig, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eNumberTooBig, what.c_str());
 
             case couchbase::errc::key_value::delta_invalid:
-                return rb_exc_new_cstr(eDeltaInvalid, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDeltaInvalid, what.c_str());
 
             case couchbase::errc::key_value::path_exists:
-                return rb_exc_new_cstr(ePathExists, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(ePathExists, what.c_str());
 
             case couchbase::errc::key_value::xattr_unknown_macro:
-                return rb_exc_new_cstr(eXattrUnknownMacro, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eXattrUnknownMacro, what.c_str());
 
             case couchbase::errc::key_value::xattr_invalid_key_combo:
-                return rb_exc_new_cstr(eXattrInvalidKeyCombo, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eXattrInvalidKeyCombo, what.c_str());
 
             case couchbase::errc::key_value::xattr_unknown_virtual_attribute:
-                return rb_exc_new_cstr(eXattrUnknownVirtualAttribute, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eXattrUnknownVirtualAttribute, what.c_str());
 
             case couchbase::errc::key_value::xattr_cannot_modify_virtual_attribute:
-                return rb_exc_new_cstr(eXattrCannotModifyVirtualAttribute, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eXattrCannotModifyVirtualAttribute, what.c_str());
 
             case couchbase::errc::key_value::xattr_no_access:
-                return rb_exc_new_cstr(eXattrNoAccess, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eXattrNoAccess, what.c_str());
 
             case couchbase::errc::key_value::cannot_revive_living_document:
-                return rb_exc_new_cstr(eCannotReviveLivingDocument, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eCannotReviveLivingDocument, what.c_str());
         }
     } else if (ec.category() == couchbase::core::impl::query_category()) {
         switch (static_cast<couchbase::errc::query>(ec.value())) {
             case couchbase::errc::query::planning_failure:
-                return rb_exc_new_cstr(ePlanningFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(ePlanningFailure, what.c_str());
 
             case couchbase::errc::query::index_failure:
-                return rb_exc_new_cstr(eIndexFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eIndexFailure, what.c_str());
 
             case couchbase::errc::query::prepared_statement_failure:
-                return rb_exc_new_cstr(ePreparedStatementFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(ePreparedStatementFailure, what.c_str());
 
             case couchbase::errc::query::dml_failure:
-                return rb_exc_new_cstr(eDmlFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDmlFailure, what.c_str());
         }
     } else if (ec.category() == couchbase::core::impl::search_category()) {
         switch (static_cast<couchbase::errc::search>(ec.value())) {
             case couchbase::errc::search::index_not_ready:
-                return rb_exc_new_cstr(eIndexNotReady, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eIndexNotReady, what.c_str());
             case couchbase::errc::search::consistency_mismatch:
-                return rb_exc_new_cstr(eConsistencyMismatch, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eConsistencyMismatch, what.c_str());
         }
     } else if (ec.category() == couchbase::core::impl::view_category()) {
         switch (static_cast<couchbase::errc::view>(ec.value())) {
             case couchbase::errc::view::view_not_found:
-                return rb_exc_new_cstr(eViewNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eViewNotFound, what.c_str());
 
             case couchbase::errc::view::design_document_not_found:
-                return rb_exc_new_cstr(eDesignDocumentNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDesignDocumentNotFound, what.c_str());
         }
     } else if (ec.category() == couchbase::core::impl::analytics_category()) {
         switch (static_cast<couchbase::errc::analytics>(ec.value())) {
             case couchbase::errc::analytics::compilation_failure:
-                return rb_exc_new_cstr(eCompilationFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eCompilationFailure, what.c_str());
 
             case couchbase::errc::analytics::job_queue_full:
-                return rb_exc_new_cstr(eJobQueueFull, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eJobQueueFull, what.c_str());
 
             case couchbase::errc::analytics::dataset_not_found:
-                return rb_exc_new_cstr(eDatasetNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDatasetNotFound, what.c_str());
 
             case couchbase::errc::analytics::dataverse_not_found:
-                return rb_exc_new_cstr(eDataverseNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDataverseNotFound, what.c_str());
 
             case couchbase::errc::analytics::dataset_exists:
-                return rb_exc_new_cstr(eDatasetExists, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDatasetExists, what.c_str());
 
             case couchbase::errc::analytics::dataverse_exists:
-                return rb_exc_new_cstr(eDataverseExists, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eDataverseExists, what.c_str());
 
             case couchbase::errc::analytics::link_not_found:
-                return rb_exc_new_cstr(eLinkNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eLinkNotFound, what.c_str());
 
             case couchbase::errc::analytics::link_exists:
-                return rb_exc_new_cstr(eLinkExists, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eLinkExists, what.c_str());
         }
     } else if (ec.category() == couchbase::core::impl::management_category()) {
         switch (static_cast<couchbase::errc::management>(ec.value())) {
             case couchbase::errc::management::collection_exists:
-                return rb_exc_new_cstr(eCollectionExists, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eCollectionExists, what.c_str());
 
             case couchbase::errc::management::scope_exists:
-                return rb_exc_new_cstr(eScopeExists, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eScopeExists, what.c_str());
 
             case couchbase::errc::management::user_not_found:
-                return rb_exc_new_cstr(eUserNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eUserNotFound, what.c_str());
 
             case couchbase::errc::management::group_not_found:
-                return rb_exc_new_cstr(eGroupNotFound, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eGroupNotFound, what.c_str());
 
             case couchbase::errc::management::user_exists:
-                return rb_exc_new_cstr(eUserExists, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eUserExists, what.c_str());
 
             case couchbase::errc::management::bucket_exists:
-                return rb_exc_new_cstr(eBucketExists, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eBucketExists, what.c_str());
 
             case couchbase::errc::management::bucket_not_flushable:
-                return rb_exc_new_cstr(eBucketNotFlushable, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eBucketNotFlushable, what.c_str());
         }
     } else if (ec.category() == couchbase::core::impl::network_category()) {
         switch (static_cast<couchbase::errc::network>(ec.value())) {
             case couchbase::errc::network::resolve_failure:
-                return rb_exc_new_cstr(eResolveFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eResolveFailure, what.c_str());
 
             case couchbase::errc::network::no_endpoints_left:
-                return rb_exc_new_cstr(eNoEndpointsLeft, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eNoEndpointsLeft, what.c_str());
 
             case couchbase::errc::network::handshake_failure:
-                return rb_exc_new_cstr(eHandshakeFailure, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eHandshakeFailure, what.c_str());
 
             case couchbase::errc::network::protocol_error:
-                return rb_exc_new_cstr(eProtocolError, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eProtocolError, what.c_str());
 
             case couchbase::errc::network::configuration_not_available:
-                return rb_exc_new_cstr(eConfigurationNotAvailable, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eConfigurationNotAvailable, what.c_str());
 
             case couchbase::errc::network::cluster_closed:
-                return rb_exc_new_cstr(eClusterClosed, fmt::format("{}: {}", message, ec.message()).c_str());
+                return rb_exc_new_cstr(eClusterClosed, what.c_str());
         }
     }
 
-    return rb_exc_new_cstr(eBackendError, fmt::format("{}: {}", message, ec.message()).c_str());
+    return rb_exc_new_cstr(eBackendError, what.c_str());
 }
 
 [[noreturn]] static void
@@ -968,8 +974,29 @@ cb_map_error_code(const couchbase::key_value_error_context& ctx, const std::stri
     return exc;
 }
 
+[[nodiscard]] static VALUE
+cb_map_error_code(const couchbase::subdocument_error_context& ctx, const std::string& message)
+{
+    VALUE exc = cb_map_error_code(static_cast<const couchbase::key_value_error_context&>(ctx), message);
+    VALUE error_context = rb_iv_get(exc, "@context");
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("deleted")), ctx.deleted() ? Qtrue : Qfalse);
+    if (ctx.first_error_index()) {
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("first_error_index")), ULL2NUM(ctx.first_error_index().value()));
+    }
+    if (ctx.first_error_path()) {
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("first_error_path")), cb_str_new(ctx.first_error_path().value()));
+    }
+    return exc;
+}
+
 [[noreturn]] static void
 cb_throw_error_code(const couchbase::key_value_error_context& ctx, const std::string& message)
+{
+    throw ruby_exception(cb_map_error_code(ctx, message));
+}
+
+[[noreturn]] static void
+cb_throw_error_code(const couchbase::subdocument_error_context& ctx, const std::string& message)
 {
     throw ruby_exception(cb_map_error_code(ctx, message));
 }
@@ -1262,23 +1289,438 @@ cb_extract_timeout(Request& req, VALUE options)
     }
 }
 
+namespace couchbase
+{
+namespace ruby
+{
+
 template<typename CommandOptions>
 static void
-cb_options_set_timeout(CommandOptions& opts, VALUE options)
+set_timeout(CommandOptions& opts, VALUE options)
 {
+    static VALUE property_name = rb_id2sym(rb_intern("timeout"));
     if (!NIL_P(options)) {
-        switch (TYPE(options)) {
-            case T_HASH:
-                return cb_options_set_timeout(opts, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
+        if (TYPE(options) != T_HASH) {
+            throw ruby_exception(rb_eArgError, rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+        }
+        VALUE val = rb_hash_aref(options, property_name);
+        if (NIL_P(val)) {
+            return;
+        }
+        switch (TYPE(val)) {
             case T_FIXNUM:
             case T_BIGNUM:
-                opts.timeout(std::chrono::milliseconds(NUM2ULL(options)));
+                opts.timeout(std::chrono::milliseconds(NUM2ULL(val)));
                 break;
+
             default:
-                throw ruby_exception(rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
+                throw ruby_exception(rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, val));
         }
     }
 }
+
+enum class expiry_type {
+    none,
+    relative,
+    absolute,
+};
+
+static std::pair<expiry_type, std::chrono::seconds>
+unpack_expiry(VALUE val, bool allow_nil = true)
+{
+    if (TYPE(val) == T_FIXNUM || TYPE(val) == T_BIGNUM) {
+        return { expiry_type::relative, std::chrono::seconds(NUM2ULL(val)) };
+    }
+    if (TYPE(val) != T_ARRAY || RARRAY_LEN(val) != 2) {
+        throw ruby_exception(rb_eArgError, rb_sprintf("expected expiry to be Array[Symbol, Integer|nil], given %+" PRIsVALUE, val));
+    }
+    VALUE expiry = rb_ary_entry(val, 1);
+    if (NIL_P(expiry)) {
+        if (allow_nil) {
+            return { expiry_type::none, {} };
+        }
+        throw ruby_exception(rb_eArgError, "expiry value must be nil");
+    }
+    if (TYPE(expiry) != T_FIXNUM && TYPE(expiry) != T_BIGNUM) {
+        throw ruby_exception(rb_eArgError, rb_sprintf("expiry value must be an Integer, but given %+" PRIsVALUE, expiry));
+    }
+    auto duration = std::chrono::seconds(NUM2ULL(expiry));
+
+    VALUE type = rb_ary_entry(val, 0);
+    if (TYPE(type) != T_SYMBOL) {
+        throw ruby_exception(rb_eArgError, rb_sprintf("expiry type must be a Symbol, but given %+" PRIsVALUE, type));
+    }
+    static VALUE duration_type = rb_id2sym(rb_intern("duration"));
+    static VALUE time_point_type = rb_id2sym(rb_intern("time_point"));
+    if (type == duration_type) {
+        return { expiry_type::relative, duration };
+    }
+    if (type == time_point_type) {
+        return { expiry_type::absolute, duration };
+    }
+    throw ruby_exception(rb_eArgError, rb_sprintf("unknown expiry type: %+" PRIsVALUE, type));
+}
+
+template<typename CommandOptions>
+static void
+set_expiry(CommandOptions& opts, VALUE options)
+{
+    static VALUE property_name = rb_id2sym(rb_intern("expiry"));
+    if (!NIL_P(options)) {
+        if (TYPE(options) != T_HASH) {
+            throw ruby_exception(rb_eArgError, rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+        }
+        VALUE val = rb_hash_aref(options, property_name);
+        if (NIL_P(val)) {
+            return;
+        }
+
+        switch (auto [type, duration] = unpack_expiry(val); type) {
+            case expiry_type::relative:
+                opts.expiry(duration);
+                break;
+
+            case expiry_type::absolute:
+                opts.expiry(std::chrono::system_clock::time_point(duration));
+                break;
+
+            case expiry_type::none:
+                break;
+        }
+    }
+}
+
+template<typename CommandOptions>
+static void
+set_access_deleted(CommandOptions& opts, VALUE options)
+{
+    static VALUE property_name = rb_id2sym(rb_intern("access_deleted"));
+    if (!NIL_P(options)) {
+        if (TYPE(options) != T_HASH) {
+            throw ruby_exception(rb_eArgError, rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+        }
+        VALUE val = rb_hash_aref(options, property_name);
+        if (NIL_P(val)) {
+            return;
+        }
+        switch (TYPE(val)) {
+            case T_TRUE:
+                opts.access_deleted(true);
+                break;
+            case T_FALSE:
+                opts.access_deleted(false);
+                break;
+
+            default:
+                throw ruby_exception(rb_eArgError, rb_sprintf("access_deleted must be an Boolean, but given %+" PRIsVALUE, val));
+        }
+    }
+}
+
+template<typename CommandOptions>
+static void
+set_create_as_deleted(CommandOptions& opts, VALUE options)
+{
+    static VALUE property_name = rb_id2sym(rb_intern("create_as_deleted"));
+    if (!NIL_P(options)) {
+        if (TYPE(options) != T_HASH) {
+            throw ruby_exception(rb_eArgError, rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+        }
+        VALUE val = rb_hash_aref(options, property_name);
+        if (NIL_P(val)) {
+            return;
+        }
+        switch (TYPE(val)) {
+            case T_TRUE:
+                opts.create_as_deleted(true);
+                break;
+            case T_FALSE:
+                opts.create_as_deleted(false);
+                break;
+
+            default:
+                throw ruby_exception(rb_eArgError, rb_sprintf("create_as_deleted must be an Boolean, but given %+" PRIsVALUE, val));
+        }
+    }
+}
+
+template<typename CommandOptions>
+static void
+set_preserve_expiry(CommandOptions& opts, VALUE options)
+{
+    static VALUE property_name = rb_id2sym(rb_intern("preserve_expiry"));
+    if (!NIL_P(options)) {
+        if (TYPE(options) != T_HASH) {
+            throw ruby_exception(rb_eArgError, rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+        }
+        VALUE val = rb_hash_aref(options, property_name);
+        if (NIL_P(val)) {
+            return;
+        }
+        switch (TYPE(val)) {
+            case T_TRUE:
+                opts.preserve_expiry(true);
+                break;
+            case T_FALSE:
+                opts.preserve_expiry(false);
+                break;
+            default:
+                throw ruby_exception(rb_eArgError, rb_sprintf("preserve_expiry must be a Boolean, but given %+" PRIsVALUE, val));
+        }
+    }
+}
+
+template<typename CommandOptions>
+static void
+set_cas(CommandOptions& opts, VALUE options)
+{
+    static VALUE property_name = rb_id2sym(rb_intern("cas"));
+    if (!NIL_P(options)) {
+        if (TYPE(options) != T_HASH) {
+            throw ruby_exception(rb_eArgError, rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+        }
+        VALUE val = rb_hash_aref(options, property_name);
+        if (NIL_P(val)) {
+            return;
+        }
+        switch (TYPE(val)) {
+            case T_FIXNUM:
+            case T_BIGNUM:
+                opts.cas(couchbase::cas{ static_cast<std::uint64_t>(NUM2ULL(val)) });
+                break;
+
+            default:
+                throw ruby_exception(rb_eArgError, rb_sprintf("cas must be an Integer, but given %+" PRIsVALUE, val));
+        }
+    }
+}
+
+template<typename CommandOptions>
+static void
+set_delta(CommandOptions& opts, VALUE options)
+{
+    static VALUE property_name = rb_id2sym(rb_intern("delta"));
+    if (!NIL_P(options)) {
+        if (TYPE(options) != T_HASH) {
+            throw ruby_exception(rb_eArgError, rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+        }
+        VALUE val = rb_hash_aref(options, property_name);
+        if (NIL_P(val)) {
+            return;
+        }
+        switch (TYPE(val)) {
+            case T_FIXNUM:
+            case T_BIGNUM:
+                opts.delta(NUM2ULL(val));
+                break;
+
+            default:
+                throw ruby_exception(rb_eArgError, rb_sprintf("delta must be an Integer, but given %+" PRIsVALUE, val));
+        }
+    }
+}
+
+template<typename CommandOptions>
+static void
+set_initial_value(CommandOptions& opts, VALUE options)
+{
+    static VALUE property_name = rb_id2sym(rb_intern("initial_value"));
+    if (!NIL_P(options)) {
+        if (TYPE(options) != T_HASH) {
+            throw ruby_exception(rb_eArgError, rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+        }
+        VALUE val = rb_hash_aref(options, property_name);
+        if (NIL_P(val)) {
+            return;
+        }
+        switch (TYPE(val)) {
+            case T_FIXNUM:
+            case T_BIGNUM:
+                opts.initial(NUM2ULL(val));
+                break;
+
+            default:
+                throw ruby_exception(rb_eArgError, rb_sprintf("initial_value must be an Integer, but given %+" PRIsVALUE, val));
+        }
+    }
+}
+
+static std::optional<couchbase::durability_level>
+extract_durability_level(VALUE options)
+{
+    static VALUE property_name{ rb_id2sym(rb_intern("durability_level")) };
+    if (VALUE val = rb_hash_aref(options, property_name); !NIL_P(val)) {
+        ID level = rb_sym2id(val);
+        if (level == rb_intern("none")) {
+            return couchbase::durability_level::none;
+        }
+        if (level == rb_intern("majority")) {
+            return couchbase::durability_level::majority;
+        }
+        if (level == rb_intern("majority_and_persist_to_active")) {
+            return couchbase::durability_level::majority_and_persist_to_active;
+        }
+        if (level == rb_intern("persist_to_majority")) {
+            return couchbase::durability_level::persist_to_majority;
+        }
+        throw ruby_exception(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, val));
+    }
+    return couchbase::durability_level::none;
+}
+
+static std::optional<couchbase::persist_to>
+extract_legacy_durability_persist_to(VALUE options)
+{
+    static VALUE property_name{ rb_id2sym(rb_intern("persist_to")) };
+    if (VALUE val = rb_hash_aref(options, property_name); !NIL_P(val)) {
+        ID mode = rb_sym2id(val);
+        if (mode == rb_intern("none")) {
+            return couchbase::persist_to::none;
+        }
+        if (mode == rb_intern("active")) {
+            return couchbase::persist_to::active;
+        }
+        if (mode == rb_intern("one")) {
+            return couchbase::persist_to::one;
+        }
+        if (mode == rb_intern("two")) {
+            return couchbase::persist_to::two;
+        }
+        if (mode == rb_intern("three")) {
+            return couchbase::persist_to::three;
+        }
+        if (mode == rb_intern("four")) {
+            return couchbase::persist_to::four;
+        }
+        throw ruby_exception(eInvalidArgument, rb_sprintf("unknown persist_to value: %+" PRIsVALUE, val));
+    }
+    return couchbase::persist_to::none;
+}
+
+static std::optional<couchbase::replicate_to>
+extract_legacy_durability_replicate_to(VALUE options)
+{
+    static VALUE property_name{ rb_id2sym(rb_intern("replicate_to")) };
+    if (VALUE val = rb_hash_aref(options, property_name); !NIL_P(val)) {
+        ID mode = rb_sym2id(val);
+        if (mode == rb_intern("none")) {
+            return couchbase::replicate_to::none;
+        }
+        if (mode == rb_intern("one")) {
+            return couchbase::replicate_to::one;
+        }
+        if (mode == rb_intern("two")) {
+            return couchbase::replicate_to::two;
+        }
+        if (mode == rb_intern("three")) {
+            return couchbase::replicate_to::three;
+        }
+        throw ruby_exception(eInvalidArgument, rb_sprintf("unknown replicate_to: %+" PRIsVALUE, val));
+    }
+    return couchbase::replicate_to::none;
+}
+
+static std::optional<std::pair<couchbase::persist_to, couchbase::replicate_to>>
+extract_legacy_durability_constraints(VALUE options)
+{
+    auto replicate_to = extract_legacy_durability_replicate_to(options);
+    auto persist_to = extract_legacy_durability_persist_to(options);
+    if (!persist_to && !replicate_to) {
+        return {};
+    }
+    return { { persist_to.value_or(couchbase::persist_to::none), replicate_to.value_or(couchbase::replicate_to::none) } };
+}
+
+template<typename CommandOptions>
+static void
+set_durability(CommandOptions& opts, VALUE options)
+{
+    if (!NIL_P(options)) {
+        if (TYPE(options) != T_HASH) {
+            throw ruby_exception(rb_eArgError, rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+        }
+        if (auto level = extract_durability_level(options); level.has_value()) {
+            opts.durability(level.value());
+        }
+        if (auto constraints = extract_legacy_durability_constraints(options); constraints.has_value()) {
+            auto [persist_to, replicate_to] = constraints.value();
+            opts.durability(persist_to, replicate_to);
+        }
+    }
+}
+
+template<typename CommandOptions>
+static void
+set_store_semantics(CommandOptions& opts, VALUE options)
+{
+    static VALUE property_name = rb_id2sym(rb_intern("store_semantics"));
+    if (!NIL_P(options)) {
+        if (TYPE(options) != T_HASH) {
+            throw ruby_exception(rb_eArgError, rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+        }
+
+        VALUE val = rb_hash_aref(options, property_name);
+        if (NIL_P(val)) {
+            return;
+        }
+        if (TYPE(val) != T_SYMBOL) {
+            throw ruby_exception(rb_eArgError, rb_sprintf("store_semantics must be a Symbol, but given %+" PRIsVALUE, val));
+        }
+
+        if (ID mode = rb_sym2id(val); mode == rb_intern("replace")) {
+            opts.store_semantics(couchbase::store_semantics::replace);
+        } else if (mode == rb_intern("insert")) {
+            opts.store_semantics(couchbase::store_semantics::insert);
+        } else if (mode == rb_intern("upsert")) {
+            opts.store_semantics(couchbase::store_semantics::upsert);
+        } else {
+            throw ruby_exception(rb_eArgError, rb_sprintf("unexpected store_semantics, given %+" PRIsVALUE, val));
+        }
+    }
+}
+
+static VALUE
+to_cas_value(couchbase::cas cas)
+{
+    return ULL2NUM(cas.value());
+}
+
+template<typename Response>
+static VALUE
+to_mutation_result_value(Response resp)
+{
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), to_cas_value(resp.cas()));
+    if (resp.mutation_token()) {
+        VALUE token = rb_hash_new();
+        rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.mutation_token()->partition_uuid()));
+        rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULL2NUM(resp.mutation_token()->sequence_number()));
+        rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.mutation_token()->partition_id()));
+        rb_hash_aset(token, rb_id2sym(rb_intern("bucket_name")), cb_str_new(resp.mutation_token()->bucket_name()));
+        rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
+    }
+    return res;
+}
+
+struct passthrough_transcoder {
+    using document_type = codec::encoded_value;
+
+    static auto decode(const codec::encoded_value& data) -> document_type
+    {
+        return data;
+    }
+
+    static auto encode(codec::encoded_value document) -> codec::encoded_value
+    {
+        return document;
+    }
+};
+} // namespace ruby
+
+template<>
+struct codec::is_transcoder<ruby::passthrough_transcoder> : public std::true_type {
+};
+} // namespace couchbase
 
 template<typename Field>
 static void
@@ -1449,7 +1891,7 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
                     }
                     auth.allowed_sasl_mechanisms.clear();
                     auth.allowed_sasl_mechanisms.reserve(allowed_mechanisms_size);
-                    for (size_t i = 0; i < allowed_mechanisms_size; ++i) {
+                    for (std::size_t i = 0; i < allowed_mechanisms_size; ++i) {
                         VALUE mechanism = rb_ary_entry(allowed_mechanisms, static_cast<long>(i));
                         if (mechanism == rb_id2sym(rb_intern("scram_sha512"))) {
                             auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA512");
@@ -1556,6 +1998,8 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
         if (auto ec = cb_wait_for_future(f)) {
             throw ruby_exception(cb_map_error_code(ec, fmt::format("unable open cluster at {}", origin.next_address().first)));
         }
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -1657,6 +2101,8 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
             }
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
         return Qnil;
@@ -1684,6 +2130,8 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
         } else {
             cluster->open_bucket(name, [name](std::error_code ec) { LOG_WARNING("unable open bucket \"{}\": {}", name, ec.message()); });
         }
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -1729,8 +2177,7 @@ cb_extract_array_of_ids(std::vector<couchbase::core::document_id>& ids, VALUE ar
 }
 
 static void
-cb_extract_array_of_id_content(std::vector<std::tuple<couchbase::core::document_id, std::vector<std::byte>, std::uint32_t>>& id_content,
-                               VALUE arg)
+cb_extract_array_of_id_content(std::vector<std::pair<std::string, couchbase::codec::encoded_value>>& id_content, VALUE arg)
 {
     if (TYPE(arg) != T_ARRAY) {
         throw ruby_exception(rb_eArgError, rb_sprintf("Type of ID/content tuples must be an Array, but given %+" PRIsVALUE, arg));
@@ -1742,51 +2189,29 @@ cb_extract_array_of_id_content(std::vector<std::tuple<couchbase::core::document_
     id_content.reserve(num_of_tuples);
     for (std::size_t i = 0; i < num_of_tuples; ++i) {
         VALUE entry = rb_ary_entry(arg, static_cast<long>(i));
-        if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 6) {
+        if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 3) {
             throw ruby_exception(
               rb_eArgError,
-              rb_sprintf(
-                "ID/content tuple must be represented as an Array[bucket, scope, collection, id, content, flags], but given %+" PRIsVALUE,
-                entry));
+              rb_sprintf("ID/content tuple must be represented as an Array[id, content, flags], but given %+" PRIsVALUE, entry));
         }
-        VALUE bucket = rb_ary_entry(entry, 0);
-        if (TYPE(bucket) != T_STRING) {
-            throw ruby_exception(rb_eArgError, rb_sprintf("Bucket must be a String, but given %+" PRIsVALUE, bucket));
-        }
-        VALUE scope = rb_ary_entry(entry, 1);
-        if (TYPE(scope) != T_STRING) {
-            throw ruby_exception(rb_eArgError, rb_sprintf("Scope must be a String, but given %+" PRIsVALUE, scope));
-        }
-        VALUE collection = rb_ary_entry(entry, 2);
-        if (TYPE(collection) != T_STRING) {
-            throw ruby_exception(rb_eArgError, rb_sprintf("Collection must be a String, but given %+" PRIsVALUE, collection));
-        }
-        VALUE id = rb_ary_entry(entry, 3);
+        VALUE id = rb_ary_entry(entry, 0);
         if (TYPE(id) != T_STRING) {
             throw ruby_exception(rb_eArgError, rb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
         }
-        VALUE content = rb_ary_entry(entry, 4);
+        VALUE content = rb_ary_entry(entry, 1);
         if (TYPE(content) != T_STRING) {
             throw ruby_exception(rb_eArgError, rb_sprintf("Content must be a String, but given %+" PRIsVALUE, content));
         }
-        VALUE flags = rb_ary_entry(entry, 5);
+        VALUE flags = rb_ary_entry(entry, 2);
         if (TYPE(flags) != T_FIXNUM) {
             throw ruby_exception(rb_eArgError, rb_sprintf("Flags must be an Integer, but given %+" PRIsVALUE, flags));
         }
-        id_content.emplace_back(
-          couchbase::core::document_id{
-            cb_string_new(bucket),
-            cb_string_new(scope),
-            cb_string_new(collection),
-            cb_string_new(id),
-          },
-          cb_binary_new(content),
-          FIX2UINT(flags));
+        id_content.emplace_back(cb_string_new(id), couchbase::codec::encoded_value{ cb_binary_new(content), FIX2UINT(flags) });
     }
 }
 
 static void
-cb_extract_array_of_id_cas(std::vector<std::pair<couchbase::core::document_id, couchbase::cas>>& id_cas, VALUE arg)
+cb_extract_array_of_id_cas(std::vector<std::pair<std::string, couchbase::cas>>& id_cas, VALUE arg)
 {
     if (TYPE(arg) != T_ARRAY) {
         throw ruby_exception(rb_eArgError, rb_sprintf("Type of ID/CAS tuples must be an Array, but given %+" PRIsVALUE, arg));
@@ -1798,41 +2223,20 @@ cb_extract_array_of_id_cas(std::vector<std::pair<couchbase::core::document_id, c
     id_cas.reserve(num_of_tuples);
     for (std::size_t i = 0; i < num_of_tuples; ++i) {
         VALUE entry = rb_ary_entry(arg, static_cast<long>(i));
-        if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 5) {
-            throw ruby_exception(
-              rb_eArgError,
-              rb_sprintf("ID/content tuple must be represented as an Array[bucket, scope, collection, id, CAS], but given %+" PRIsVALUE,
-                         entry));
+        if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 2) {
+            throw ruby_exception(rb_eArgError,
+                                 rb_sprintf("ID/content tuple must be represented as an Array[id, CAS], but given %+" PRIsVALUE, entry));
         }
-        VALUE bucket = rb_ary_entry(entry, 0);
-        if (TYPE(bucket) != T_STRING) {
-            throw ruby_exception(rb_eArgError, rb_sprintf("Bucket must be a String, but given %+" PRIsVALUE, bucket));
-        }
-        VALUE scope = rb_ary_entry(entry, 1);
-        if (TYPE(scope) != T_STRING) {
-            throw ruby_exception(rb_eArgError, rb_sprintf("Scope must be a String, but given %+" PRIsVALUE, scope));
-        }
-        VALUE collection = rb_ary_entry(entry, 2);
-        if (TYPE(collection) != T_STRING) {
-            throw ruby_exception(rb_eArgError, rb_sprintf("Collection must be a String, but given %+" PRIsVALUE, collection));
-        }
-        VALUE id = rb_ary_entry(entry, 3);
+        VALUE id = rb_ary_entry(entry, 0);
         if (TYPE(id) != T_STRING) {
             throw ruby_exception(rb_eArgError, rb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
         }
         couchbase::cas cas_val{};
-        if (VALUE cas = rb_ary_entry(entry, 4); !NIL_P(cas)) {
+        if (VALUE cas = rb_ary_entry(entry, 1); !NIL_P(cas)) {
             cb_extract_cas(cas_val, cas);
         }
 
-        id_cas.emplace_back(
-          couchbase::core::document_id{
-            cb_string_new(bucket),
-            cb_string_new(scope),
-            cb_string_new(collection),
-            cb_string_new(id),
-          },
-          cas_val);
+        id_cas.emplace_back(cb_string_new(id), cas_val);
     }
 }
 
@@ -1913,17 +2317,6 @@ cb_extract_option_fixnum(VALUE& val, VALUE options, const char* name)
     }
 }
 
-template<typename T>
-static void
-cb_extract_option_uint32(T& field, VALUE options, const char* name)
-{
-    VALUE val = Qnil;
-    cb_extract_option_fixnum(val, options, name);
-    if (!NIL_P(val)) {
-        field = FIX2UINT(val);
-    }
-}
-
 static void
 cb_extract_option_bignum(VALUE& val, VALUE options, const char* name)
 {
@@ -1954,33 +2347,6 @@ cb_extract_option_uint64(T& field, VALUE options, const char* name)
     }
 }
 
-static void
-cb_extract_durability(couchbase::durability_level& output_level, VALUE options)
-{
-    VALUE durability_level = Qnil;
-    cb_extract_option_symbol(durability_level, options, "durability_level");
-    if (!NIL_P(durability_level)) {
-        if (ID level = rb_sym2id(durability_level); level == rb_intern("none")) {
-            output_level = couchbase::durability_level::none;
-        } else if (level == rb_intern("majority")) {
-            output_level = couchbase::durability_level::majority;
-        } else if (level == rb_intern("majority_and_persist_to_active")) {
-            output_level = couchbase::durability_level::majority_and_persist_to_active;
-        } else if (level == rb_intern("persist_to_majority")) {
-            output_level = couchbase::durability_level::persist_to_majority;
-        } else {
-            throw ruby_exception(eInvalidArgument, rb_sprintf("unknown durability level: %+" PRIsVALUE, durability_level));
-        }
-    }
-}
-
-template<typename Request>
-static void
-cb_extract_durability(Request& req, VALUE options)
-{
-    cb_extract_durability(req.durability_level, options);
-}
-
 static VALUE
 cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
 {
@@ -2009,7 +2375,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
         std::set<couchbase::core::service_type> selected_services{};
         if (!NIL_P(services)) {
             auto entries_num = static_cast<std::size_t>(RARRAY_LEN(services));
-            for (size_t i = 0; i < entries_num; ++i) {
+            for (std::size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(services, static_cast<long>(i));
                 if (entry == rb_id2sym(rb_intern("kv"))) {
                     selected_services.insert(couchbase::core::service_type::key_value);
@@ -2090,6 +2456,8 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
             }
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2129,24 +2497,13 @@ cb_Backend_document_get(VALUE self, VALUE bucket, VALUE scope, VALUE collection,
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
         rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
     return Qnil;
 }
-
-struct passthrough_transcoder {
-    using document_type = couchbase::codec::encoded_value;
-
-    static auto decode(const couchbase::codec::encoded_value& data) -> document_type
-    {
-        return data;
-    }
-};
-
-template<>
-struct couchbase::codec::is_transcoder<passthrough_transcoder> : public std::true_type {
-};
 
 static VALUE
 cb_Backend_document_get_any_replica(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE options)
@@ -2160,7 +2517,7 @@ cb_Backend_document_get_any_replica(VALUE self, VALUE bucket, VALUE scope, VALUE
 
     try {
         couchbase::get_any_replica_options opts;
-        cb_options_set_timeout(opts, options);
+        couchbase::ruby::set_timeout(opts, options);
 
         auto f = couchbase::cluster(core)
                    .bucket(cb_string_new(bucket))
@@ -2172,12 +2529,14 @@ cb_Backend_document_get_any_replica(VALUE self, VALUE bucket, VALUE scope, VALUE
             cb_throw_error_code(ctx, "unable to get replica of the document");
         }
 
-        auto value = resp.content_as<passthrough_transcoder>();
+        auto value = resp.content_as<couchbase::ruby::passthrough_transcoder>();
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("content")), cb_str_new(value.data));
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas()));
         rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(value.flags));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2196,7 +2555,7 @@ cb_Backend_document_get_all_replicas(VALUE self, VALUE bucket, VALUE scope, VALU
 
     try {
         couchbase::get_all_replicas_options opts;
-        cb_options_set_timeout(opts, options);
+        couchbase::ruby::set_timeout(opts, options);
 
         auto f = couchbase::cluster(core)
                    .bucket(cb_string_new(bucket))
@@ -2211,13 +2570,15 @@ cb_Backend_document_get_all_replicas(VALUE self, VALUE bucket, VALUE scope, VALU
         VALUE res = rb_ary_new_capa(static_cast<long>(resp.size()));
         for (const auto& entry : resp) {
             VALUE response = rb_hash_new();
-            auto value = entry.content_as<passthrough_transcoder>();
+            auto value = entry.content_as<couchbase::ruby::passthrough_transcoder>();
             rb_hash_aset(response, rb_id2sym(rb_intern("content")), cb_str_new(value.data));
             rb_hash_aset(response, rb_id2sym(rb_intern("cas")), cb_cas_to_num(entry.cas()));
             rb_hash_aset(response, rb_id2sym(rb_intern("flags")), UINT2NUM(value.flags));
             rb_ary_push(res, response);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2265,6 +2626,8 @@ cb_Backend_document_get_multi(VALUE self, VALUE keys, VALUE options)
         }
 
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2304,7 +2667,7 @@ cb_Backend_document_get_projected(VALUE self, VALUE bucket, VALUE scope, VALUE c
                 throw ruby_exception(rb_eArgError, "projections array must not be empty");
             }
             req.projections.reserve(entries_num);
-            for (size_t i = 0; i < entries_num; ++i) {
+            for (std::size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(projections, static_cast<long>(i));
                 cb_check_type(entry, T_STRING);
                 req.projections.emplace_back(cb_string_new(entry));
@@ -2328,6 +2691,8 @@ cb_Backend_document_get_projected(VALUE self, VALUE bucket, VALUE scope, VALUE c
             rb_hash_aset(res, rb_id2sym(rb_intern("expiry")), UINT2NUM(resp.expiry.value()));
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2374,6 +2739,8 @@ cb_Backend_document_get_and_lock(VALUE self, VALUE bucket, VALUE scope, VALUE co
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
         rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2389,7 +2756,6 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE scope, VALUE c
     Check_Type(scope, T_STRING);
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
-    Check_Type(expiry, T_FIXNUM);
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
     }
@@ -2404,7 +2770,8 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE scope, VALUE c
 
         couchbase::core::operations::get_and_touch_request req{ doc_id };
         cb_extract_timeout(req, options);
-        req.expiry = NUM2UINT(expiry);
+        auto [type, duration] = couchbase::ruby::unpack_expiry(expiry, false);
+        req.expiry = static_cast<std::uint32_t>(duration.count());
 
         auto barrier = std::make_shared<std::promise<couchbase::core::operations::get_and_touch_response>>();
         auto f = barrier->get_future();
@@ -2420,25 +2787,12 @@ cb_Backend_document_get_and_touch(VALUE self, VALUE bucket, VALUE scope, VALUE c
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
         rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
     return Qnil;
-}
-
-template<typename Response>
-static VALUE
-cb_extract_mutation_result(Response resp)
-{
-    VALUE res = rb_hash_new();
-    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
-    VALUE token = rb_hash_new();
-    rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid()));
-    rb_hash_aset(token, rb_id2sym(rb_intern("sequence_number")), ULL2NUM(resp.token.sequence_number()));
-    rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id()));
-    rb_hash_aset(token, rb_id2sym(rb_intern("bucket_name")), cb_str_new(resp.token.bucket_name()));
-    rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
-    return res;
 }
 
 static VALUE
@@ -2450,7 +2804,6 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE scope, VALUE collectio
     Check_Type(scope, T_STRING);
     Check_Type(collection, T_STRING);
     Check_Type(id, T_STRING);
-    Check_Type(expiry, T_FIXNUM);
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
     }
@@ -2465,7 +2818,8 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE scope, VALUE collectio
 
         couchbase::core::operations::touch_request req{ doc_id };
         cb_extract_timeout(req, options);
-        req.expiry = NUM2UINT(expiry);
+        auto [type, duration] = couchbase::ruby::unpack_expiry(expiry, false);
+        req.expiry = static_cast<std::uint32_t>(duration.count());
 
         auto barrier = std::make_shared<std::promise<couchbase::core::operations::touch_response>>();
         auto f = barrier->get_future();
@@ -2478,6 +2832,8 @@ cb_Backend_document_touch(VALUE self, VALUE bucket, VALUE scope, VALUE collectio
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2525,6 +2881,8 @@ cb_Backend_document_exists(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
         rb_hash_aset(res, rb_id2sym(rb_intern("sequence_number")), ULL2NUM(resp.sequence_number));
         rb_hash_aset(res, rb_id2sym(rb_intern("datatype")), UINT2NUM(resp.datatype));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2566,6 +2924,8 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2575,7 +2935,7 @@ cb_Backend_document_unlock(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
 static VALUE
 cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE content, VALUE flags, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     Check_Type(bucket, T_STRING);
     Check_Type(scope, T_STRING);
@@ -2588,30 +2948,27 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
     }
 
     try {
-        couchbase::core::document_id doc_id{
-            cb_string_new(bucket),
-            cb_string_new(scope),
-            cb_string_new(collection),
-            cb_string_new(id),
-        };
+        couchbase::upsert_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_expiry(opts, options);
+        couchbase::ruby::set_durability(opts, options);
+        couchbase::ruby::set_preserve_expiry(opts, options);
 
-        couchbase::core::operations::upsert_request req{ doc_id, cb_binary_new(content) };
-        cb_extract_timeout(req, options);
-        req.flags = FIX2UINT(flags);
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .upsert<couchbase::ruby::passthrough_transcoder>(
+                     cb_string_new(id), couchbase::codec::encoded_value{ cb_binary_new(content), FIX2UINT(flags) }, opts);
 
-        cb_extract_durability(req, options);
-        cb_extract_option_uint32(req.expiry, options, "expiry");
-        cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
-
-        auto barrier = std::make_shared<std::promise<couchbase::core::operations::upsert_response>>();
-        auto f = barrier->get_future();
-        cluster->execute(req, [barrier](couchbase::core::operations::upsert_response&& resp) { barrier->set_value(std::move(resp)); });
-        auto resp = cb_wait_for_future(f);
-        if (resp.ctx.ec()) {
-            cb_throw_error_code(resp.ctx, "unable to upsert");
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to upsert");
         }
 
-        return cb_extract_mutation_result(resp);
+        return couchbase::ruby::to_mutation_result_value(resp);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2619,57 +2976,43 @@ cb_Backend_document_upsert(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
 }
 
 static VALUE
-cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
+cb_Backend_document_upsert_multi(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id_content, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     try {
-        std::chrono::milliseconds timeout{ 0 };
-        cb_extract_timeout(timeout, options);
+        couchbase::upsert_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_expiry(opts, options);
+        couchbase::ruby::set_durability(opts, options);
+        couchbase::ruby::set_preserve_expiry(opts, options);
 
-        couchbase::durability_level durability_level{ couchbase::durability_level::none };
-        cb_extract_durability(durability_level, options);
+        auto c = couchbase::cluster(core).bucket(cb_string_new(bucket)).scope(cb_string_new(scope)).collection(cb_string_new(collection));
 
-        VALUE expiry = Qnil;
-        cb_extract_option_fixnum(expiry, options, "expiry");
-
-        bool preserve_expiry{ false };
-        cb_extract_option_bool(preserve_expiry, options, "preserve_expiry");
-
-        std::vector<std::tuple<couchbase::core::document_id, std::vector<std::byte>, std::uint32_t>> tuples{};
+        std::vector<std::pair<std::string, couchbase::codec::encoded_value>> tuples{};
         cb_extract_array_of_id_content(tuples, id_content);
 
         auto num_of_tuples = tuples.size();
-        std::vector<std::shared_ptr<std::promise<couchbase::core::operations::upsert_response>>> barriers;
-        barriers.reserve(num_of_tuples);
+        std::vector<std::future<std::pair<couchbase::key_value_error_context, couchbase::mutation_result>>> futures;
+        futures.reserve(num_of_tuples);
 
-        for (auto& [id, content, flags] : tuples) {
-            couchbase::core::operations::upsert_request req{ std::move(id), std::move(content) };
-            if (timeout.count() > 0) {
-                req.timeout = timeout;
-            }
-            req.flags = flags;
-            req.durability_level = durability_level;
-            if (!NIL_P(expiry)) {
-                req.expiry = FIX2UINT(expiry);
-            }
-            req.preserve_expiry = preserve_expiry;
-            auto barrier = std::make_shared<std::promise<couchbase::core::operations::upsert_response>>();
-            cluster->execute(req, [barrier](couchbase::core::operations::upsert_response&& resp) { barrier->set_value(std::move(resp)); });
-            barriers.emplace_back(barrier);
+        for (auto& [id, content] : tuples) {
+            futures.emplace_back(c.upsert<couchbase::ruby::passthrough_transcoder>(std::move(id), content, opts));
         }
 
         VALUE res = rb_ary_new_capa(static_cast<long>(num_of_tuples));
-        for (const auto& barrier : barriers) {
-            auto resp = barrier->get_future().get();
-            VALUE entry = cb_extract_mutation_result(resp);
-            if (resp.ctx.ec()) {
-                rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb_map_error_code(resp.ctx, "unable (multi)upsert"));
+        for (auto& f : futures) {
+            auto [ctx, resp] = f.get();
+            VALUE entry = couchbase::ruby::to_mutation_result_value(resp);
+            if (ctx.ec()) {
+                rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb_map_error_code(ctx, "unable (multi)upsert"));
             }
-            rb_hash_aset(entry, rb_id2sym(rb_intern("id")), cb_str_new(resp.ctx.id()));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("id")), cb_str_new(ctx.id()));
             rb_ary_push(res, entry);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2679,7 +3022,7 @@ cb_Backend_document_upsert_multi(VALUE self, VALUE id_content, VALUE options)
 static VALUE
 cb_Backend_document_append(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE content, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     Check_Type(bucket, T_STRING);
     Check_Type(scope, T_STRING);
@@ -2691,26 +3034,25 @@ cb_Backend_document_append(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
     }
 
     try {
-        couchbase::core::document_id doc_id{
-            cb_string_new(bucket),
-            cb_string_new(scope),
-            cb_string_new(collection),
-            cb_string_new(id),
-        };
+        couchbase::append_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_durability(opts, options);
 
-        couchbase::core::operations::append_request req{ doc_id, cb_binary_new(content) };
-        cb_extract_timeout(req, options);
-        cb_extract_durability(req, options);
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .binary()
+                   .append(cb_string_new(id), cb_binary_new(content), opts);
 
-        auto barrier = std::make_shared<std::promise<couchbase::core::operations::append_response>>();
-        auto f = barrier->get_future();
-        cluster->execute(req, [barrier](couchbase::core::operations::append_response&& resp) { barrier->set_value(std::move(resp)); });
-        auto resp = cb_wait_for_future(f);
-        if (resp.ctx.ec()) {
-            cb_throw_error_code(resp.ctx, "unable to append");
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to append");
         }
 
-        return cb_extract_mutation_result(resp);
+        return couchbase::ruby::to_mutation_result_value(resp);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2720,7 +3062,7 @@ cb_Backend_document_append(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
 static VALUE
 cb_Backend_document_prepend(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE content, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     Check_Type(bucket, T_STRING);
     Check_Type(scope, T_STRING);
@@ -2732,26 +3074,25 @@ cb_Backend_document_prepend(VALUE self, VALUE bucket, VALUE scope, VALUE collect
     }
 
     try {
-        couchbase::core::document_id doc_id{
-            cb_string_new(bucket),
-            cb_string_new(scope),
-            cb_string_new(collection),
-            cb_string_new(id),
-        };
+        couchbase::prepend_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_durability(opts, options);
 
-        couchbase::core::operations::prepend_request req{ doc_id, cb_binary_new(content) };
-        cb_extract_timeout(req, options);
-        cb_extract_durability(req, options);
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .binary()
+                   .prepend(cb_string_new(id), cb_binary_new(content), opts);
 
-        auto barrier = std::make_shared<std::promise<couchbase::core::operations::prepend_response>>();
-        auto f = barrier->get_future();
-        cluster->execute(req, [barrier](couchbase::core::operations::prepend_response&& resp) { barrier->set_value(std::move(resp)); });
-        auto resp = cb_wait_for_future(f);
-        if (resp.ctx.ec()) {
-            cb_throw_error_code(resp.ctx, "unable to prepend");
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to prepend");
         }
 
-        return cb_extract_mutation_result(resp);
+        return couchbase::ruby::to_mutation_result_value(resp);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2761,7 +3102,7 @@ cb_Backend_document_prepend(VALUE self, VALUE bucket, VALUE scope, VALUE collect
 static VALUE
 cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE content, VALUE flags, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     Check_Type(bucket, T_STRING);
     Check_Type(scope, T_STRING);
@@ -2774,35 +3115,28 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE scope, VALUE collect
     }
 
     try {
-        couchbase::core::document_id doc_id{
-            cb_string_new(bucket),
-            cb_string_new(scope),
-            cb_string_new(collection),
-            cb_string_new(id),
-        };
+        couchbase::replace_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_expiry(opts, options);
+        couchbase::ruby::set_durability(opts, options);
+        couchbase::ruby::set_preserve_expiry(opts, options);
+        couchbase::ruby::set_cas(opts, options);
 
-        couchbase::core::operations::replace_request req{ doc_id, cb_binary_new(content) };
-        cb_extract_timeout(req, options);
-        req.flags = FIX2UINT(flags);
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .replace<couchbase::ruby::passthrough_transcoder>(
+                     cb_string_new(id), couchbase::codec::encoded_value{ cb_binary_new(content), FIX2UINT(flags) }, opts);
 
-        cb_extract_durability(req, options);
-        cb_extract_option_uint32(req.expiry, options, "expiry");
-        cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
-        VALUE cas = Qnil;
-        cb_extract_option_bignum(cas, options, "cas");
-        if (!NIL_P(cas)) {
-            cb_extract_cas(req.cas, cas);
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to replace");
         }
 
-        auto barrier = std::make_shared<std::promise<couchbase::core::operations::replace_response>>();
-        auto f = barrier->get_future();
-        cluster->execute(req, [barrier](couchbase::core::operations::replace_response&& resp) { barrier->set_value(std::move(resp)); });
-        auto resp = cb_wait_for_future(f);
-        if (resp.ctx.ec()) {
-            cb_throw_error_code(resp.ctx, "unable to replace");
-        }
-
-        return cb_extract_mutation_result(resp);
+        return couchbase::ruby::to_mutation_result_value(resp);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2812,7 +3146,7 @@ cb_Backend_document_replace(VALUE self, VALUE bucket, VALUE scope, VALUE collect
 static VALUE
 cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE content, VALUE flags, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     Check_Type(bucket, T_STRING);
     Check_Type(scope, T_STRING);
@@ -2825,29 +3159,26 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
     }
 
     try {
-        couchbase::core::document_id doc_id{
-            cb_string_new(bucket),
-            cb_string_new(scope),
-            cb_string_new(collection),
-            cb_string_new(id),
-        };
+        couchbase::insert_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_expiry(opts, options);
+        couchbase::ruby::set_durability(opts, options);
 
-        couchbase::core::operations::insert_request req{ doc_id, cb_binary_new(content) };
-        cb_extract_timeout(req, options);
-        req.flags = FIX2UINT(flags);
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .insert<couchbase::ruby::passthrough_transcoder>(
+                     cb_string_new(id), couchbase::codec::encoded_value{ cb_binary_new(content), FIX2UINT(flags) }, opts);
 
-        cb_extract_durability(req, options);
-        cb_extract_option_uint32(req.expiry, options, "expiry");
-
-        auto barrier = std::make_shared<std::promise<couchbase::core::operations::insert_response>>();
-        auto f = barrier->get_future();
-        cluster->execute(req, [barrier](couchbase::core::operations::insert_response&& resp) { barrier->set_value(std::move(resp)); });
-        auto resp = cb_wait_for_future(f);
-        if (resp.ctx.ec()) {
-            cb_throw_error_code(resp.ctx, "unable to insert");
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to insert");
         }
 
-        return cb_extract_mutation_result(resp);
+        return couchbase::ruby::to_mutation_result_value(resp);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2857,7 +3188,7 @@ cb_Backend_document_insert(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
 static VALUE
 cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     Check_Type(bucket, T_STRING);
     Check_Type(scope, T_STRING);
@@ -2868,30 +3199,25 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
     }
 
     try {
-        couchbase::core::document_id doc_id{
-            cb_string_new(bucket),
-            cb_string_new(scope),
-            cb_string_new(collection),
-            cb_string_new(id),
-        };
+        couchbase::remove_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_durability(opts, options);
+        couchbase::ruby::set_cas(opts, options);
 
-        couchbase::core::operations::remove_request req{ doc_id };
-        cb_extract_timeout(req, options);
-        cb_extract_durability(req, options);
-        VALUE cas = Qnil;
-        cb_extract_option_bignum(cas, options, "cas");
-        if (!NIL_P(cas)) {
-            cb_extract_cas(req.cas, cas);
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .remove(cb_string_new(id), opts);
+
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to remove");
         }
 
-        auto barrier = std::make_shared<std::promise<couchbase::core::operations::remove_response>>();
-        auto f = barrier->get_future();
-        cluster->execute(req, [barrier](couchbase::core::operations::remove_response&& resp) { barrier->set_value(std::move(resp)); });
-        auto resp = cb_wait_for_future(f);
-        if (resp.ctx.ec()) {
-            cb_throw_error_code(resp.ctx, "unable to remove");
-        }
-        return cb_extract_mutation_result(resp);
+        return couchbase::ruby::to_mutation_result_value(resp);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2899,52 +3225,47 @@ cb_Backend_document_remove(VALUE self, VALUE bucket, VALUE scope, VALUE collecti
 }
 
 static VALUE
-cb_Backend_document_remove_multi(VALUE self, VALUE id_cas, VALUE options)
+cb_Backend_document_remove_multi(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id_cas, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
     }
 
     try {
-        std::chrono::milliseconds timeout{ 0 };
-        cb_extract_timeout(timeout, options);
+        couchbase::remove_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_durability(opts, options);
 
-        couchbase::durability_level durability_level{ couchbase::durability_level::none };
-        cb_extract_durability(durability_level, options);
-
-        std::vector<std::pair<couchbase::core::document_id, couchbase::cas>> tuples{};
+        std::vector<std::pair<std::string, couchbase::cas>> tuples{};
         cb_extract_array_of_id_cas(tuples, id_cas);
 
+        auto c = couchbase::cluster(core).bucket(cb_string_new(bucket)).scope(cb_string_new(scope)).collection(cb_string_new(collection));
+
         auto num_of_tuples = tuples.size();
-        std::vector<std::shared_ptr<std::promise<couchbase::core::operations::remove_response>>> barriers;
-        barriers.reserve(num_of_tuples);
+        std::vector<std::future<std::pair<couchbase::key_value_error_context, couchbase::mutation_result>>> futures;
+        futures.reserve(num_of_tuples);
 
         for (auto& [id, cas] : tuples) {
-            couchbase::core::operations::remove_request req{ std::move(id) };
-            req.cas = cas;
-            if (timeout.count() > 0) {
-                req.timeout = timeout;
-            }
-            req.durability_level = durability_level;
-            auto barrier = std::make_shared<std::promise<couchbase::core::operations::remove_response>>();
-            cluster->execute(req, [barrier](couchbase::core::operations::remove_response&& resp) { barrier->set_value(std::move(resp)); });
-            barriers.emplace_back(barrier);
+            opts.cas(cas);
+            futures.emplace_back(c.remove(std::move(id), opts));
         }
 
         VALUE res = rb_ary_new_capa(static_cast<long>(num_of_tuples));
-        for (const auto& barrier : barriers) {
-            auto resp = barrier->get_future().get();
-            VALUE entry = cb_extract_mutation_result(resp);
-            if (resp.ctx.ec()) {
-                rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb_map_error_code(resp.ctx, "unable (multi)remove"));
+        for (auto& f : futures) {
+            auto [ctx, resp] = f.get();
+            VALUE entry = couchbase::ruby::to_mutation_result_value(resp);
+            if (ctx.ec()) {
+                rb_hash_aset(entry, rb_id2sym(rb_intern("error")), cb_map_error_code(ctx, "unable (multi)remove"));
             }
-            rb_hash_aset(entry, rb_id2sym(rb_intern("id")), cb_str_new(resp.ctx.id()));
+            rb_hash_aset(entry, rb_id2sym(rb_intern("id")), cb_str_new(ctx.id()));
             rb_ary_push(res, entry);
         }
 
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2954,7 +3275,7 @@ cb_Backend_document_remove_multi(VALUE self, VALUE id_cas, VALUE options)
 static VALUE
 cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     Check_Type(bucket, T_STRING);
     Check_Type(scope, T_STRING);
@@ -2965,30 +3286,30 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE scope, VALUE colle
     }
 
     try {
-        couchbase::core::document_id doc_id{
-            cb_string_new(bucket),
-            cb_string_new(scope),
-            cb_string_new(collection),
-            cb_string_new(id),
-        };
+        couchbase::increment_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_durability(opts, options);
+        couchbase::ruby::set_expiry(opts, options);
+        couchbase::ruby::set_delta(opts, options);
+        couchbase::ruby::set_initial_value(opts, options);
 
-        couchbase::core::operations::increment_request req{ doc_id };
-        cb_extract_timeout(req, options);
-        cb_extract_durability(req, options);
-        cb_extract_option_uint64(req.delta, options, "delta");
-        cb_extract_option_uint64(req.initial_value, options, "initial_value");
-        cb_extract_option_uint32(req.expiry, options, "expiry");
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .binary()
+                   .increment(cb_string_new(id), opts);
 
-        auto barrier = std::make_shared<std::promise<couchbase::core::operations::increment_response>>();
-        auto f = barrier->get_future();
-        cluster->execute(req, [barrier](couchbase::core::operations::increment_response&& resp) { barrier->set_value(std::move(resp)); });
-        auto resp = cb_wait_for_future(f);
-        if (resp.ctx.ec()) {
-            cb_throw_error_code(resp.ctx.ec(), fmt::format(R"(unable to increment by {})", req.delta));
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to increment");
         }
-        VALUE res = cb_extract_mutation_result(resp);
-        rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content));
+
+        VALUE res = couchbase::ruby::to_mutation_result_value(resp);
+        rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content()));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -2998,7 +3319,7 @@ cb_Backend_document_increment(VALUE self, VALUE bucket, VALUE scope, VALUE colle
 static VALUE
 cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     Check_Type(bucket, T_STRING);
     Check_Type(scope, T_STRING);
@@ -3009,30 +3330,30 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE scope, VALUE colle
     }
 
     try {
-        couchbase::core::document_id doc_id{
-            cb_string_new(bucket),
-            cb_string_new(scope),
-            cb_string_new(collection),
-            cb_string_new(id),
-        };
+        couchbase::decrement_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_durability(opts, options);
+        couchbase::ruby::set_expiry(opts, options);
+        couchbase::ruby::set_delta(opts, options);
+        couchbase::ruby::set_initial_value(opts, options);
 
-        couchbase::core::operations::decrement_request req{ doc_id };
-        cb_extract_timeout(req, options);
-        cb_extract_durability(req, options);
-        cb_extract_option_uint64(req.delta, options, "delta");
-        cb_extract_option_uint64(req.initial_value, options, "initial_value");
-        cb_extract_option_uint32(req.expiry, options, "expiry");
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .binary()
+                   .decrement(cb_string_new(id), opts);
 
-        auto barrier = std::make_shared<std::promise<couchbase::core::operations::decrement_response>>();
-        auto f = barrier->get_future();
-        cluster->execute(req, [barrier](couchbase::core::operations::decrement_response&& resp) { barrier->set_value(std::move(resp)); });
-        auto resp = cb_wait_for_future(f);
-        if (resp.ctx.ec()) {
-            cb_throw_error_code(resp.ctx, fmt::format(R"(unable to decrement by {})", req.delta));
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to decrement");
         }
-        VALUE res = cb_extract_mutation_result(resp);
-        rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content));
+
+        VALUE res = couchbase::ruby::to_mutation_result_value(resp);
+        rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content()));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -3040,186 +3361,9 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE scope, VALUE colle
 }
 
 static VALUE
-cb_map_subdoc_opcode(couchbase::core::protocol::subdoc_opcode opcode)
-{
-    switch (opcode) {
-        case couchbase::core::protocol::subdoc_opcode::get:
-            return rb_id2sym(rb_intern("get"));
-
-        case couchbase::core::protocol::subdoc_opcode::exists:
-            return rb_id2sym(rb_intern("exists"));
-
-        case couchbase::core::protocol::subdoc_opcode::dict_add:
-            return rb_id2sym(rb_intern("dict_add"));
-
-        case couchbase::core::protocol::subdoc_opcode::dict_upsert:
-            return rb_id2sym(rb_intern("dict_upsert"));
-
-        case couchbase::core::protocol::subdoc_opcode::remove:
-            return rb_id2sym(rb_intern("remove"));
-
-        case couchbase::core::protocol::subdoc_opcode::replace:
-            return rb_id2sym(rb_intern("replace"));
-
-        case couchbase::core::protocol::subdoc_opcode::array_push_last:
-            return rb_id2sym(rb_intern("array_push_last"));
-
-        case couchbase::core::protocol::subdoc_opcode::array_push_first:
-            return rb_id2sym(rb_intern("array_push_first"));
-
-        case couchbase::core::protocol::subdoc_opcode::array_insert:
-            return rb_id2sym(rb_intern("array_insert"));
-
-        case couchbase::core::protocol::subdoc_opcode::array_add_unique:
-            return rb_id2sym(rb_intern("array_add_unique"));
-
-        case couchbase::core::protocol::subdoc_opcode::counter:
-            return rb_id2sym(rb_intern("counter"));
-
-        case couchbase::core::protocol::subdoc_opcode::get_count:
-            return rb_id2sym(rb_intern("count"));
-
-        case couchbase::core::protocol::subdoc_opcode::get_doc:
-            return rb_id2sym(rb_intern("get_doc"));
-
-        case couchbase::core::protocol::subdoc_opcode::set_doc:
-            return rb_id2sym(rb_intern("set_doc"));
-
-        case couchbase::core::protocol::subdoc_opcode::remove_doc:
-            return rb_id2sym(rb_intern("remove_doc"));
-
-        case couchbase::core::protocol::subdoc_opcode::replace_body_with_xattr:
-            return rb_id2sym(rb_intern("replace_body_with_xattr"));
-    }
-    return rb_id2sym(rb_intern("unknown"));
-}
-
-static void
-cb_map_subdoc_status(couchbase::key_value_status_code status, std::size_t index, const std::string& path, VALUE entry)
-{
-    switch (status) {
-        case couchbase::key_value_status_code::success:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("success")));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_path_not_found:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("path_not_found")));
-            rb_hash_aset(
-              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(ePathNotFound, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_path_mismatch:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("path_mismatch")));
-            rb_hash_aset(
-              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(ePathMismatch, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_path_invalid:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("path_invalid")));
-            rb_hash_aset(
-              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(ePathInvalid, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_path_too_big:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("path_too_big")));
-            rb_hash_aset(
-              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(ePathTooBig, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_value_cannot_insert:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("value_cannot_insert")));
-            rb_hash_aset(
-              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(eValueInvalid, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_doc_not_json:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("doc_not_json")));
-            rb_hash_aset(entry,
-                         rb_id2sym(rb_intern("error")),
-                         rb_exc_new_cstr(eDocumentNotJson, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_num_range_error:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("num_range")));
-            rb_hash_aset(
-              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(eNumberTooBig, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_delta_invalid:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("delta_invalid")));
-            rb_hash_aset(
-              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(eDeltaInvalid, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_path_exists:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("path_exists")));
-            rb_hash_aset(
-              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(ePathExists, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_value_too_deep:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("value_too_deep")));
-            rb_hash_aset(
-              entry, rb_id2sym(rb_intern("error")), rb_exc_new_cstr(eValueTooDeep, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_invalid_combo:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("invalid_combo")));
-            rb_hash_aset(entry,
-                         rb_id2sym(rb_intern("error")),
-                         rb_exc_new_cstr(eInvalidArgument, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_xattr_invalid_flag_combo:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("xattr_invalid_flag_combo")));
-            rb_hash_aset(entry,
-                         rb_id2sym(rb_intern("error")),
-                         rb_exc_new_cstr(eXattrInvalidKeyCombo, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_xattr_invalid_key_combo:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("xattr_invalid_key_combo")));
-            rb_hash_aset(entry,
-                         rb_id2sym(rb_intern("error")),
-                         rb_exc_new_cstr(eXattrInvalidKeyCombo, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_xattr_unknown_macro:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("xattr_unknown_macro")));
-            rb_hash_aset(entry,
-                         rb_id2sym(rb_intern("error")),
-                         rb_exc_new_cstr(eXattrUnknownMacro, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_xattr_unknown_vattr:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("xattr_unknown_vattr")));
-            rb_hash_aset(entry,
-                         rb_id2sym(rb_intern("error")),
-                         rb_exc_new_cstr(eXattrUnknownVirtualAttribute, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        case couchbase::key_value_status_code::subdoc_xattr_cannot_modify_vattr:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("xattr_cannot_modify_vattr")));
-            rb_hash_aset(entry,
-                         rb_id2sym(rb_intern("error")),
-                         rb_exc_new_cstr(eXattrCannotModifyVirtualAttribute, fmt::format("index={}, path={}", index, path).c_str()));
-            return;
-
-        default:
-            rb_hash_aset(entry, rb_id2sym(rb_intern("status")), rb_id2sym(rb_intern("unknown")));
-            rb_hash_aset(
-              entry,
-              rb_id2sym(rb_intern("error")),
-              rb_exc_new_cstr(eBackendError,
-                              fmt::format("unknown subdocument error status={}, index={}, path={}", status, index, path).c_str()));
-            return;
-    }
-}
-
-static VALUE
 cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE specs, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     Check_Type(bucket, T_STRING);
     Check_Type(scope, T_STRING);
@@ -3235,6 +3379,10 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
     }
 
     try {
+        couchbase::lookup_in_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_access_deleted(opts, options);
+
         couchbase::core::document_id doc_id{
             cb_string_new(bucket),
             cb_string_new(scope),
@@ -3242,18 +3390,19 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
             cb_string_new(id),
         };
 
-        couchbase::core::operations::lookup_in_request req{ doc_id };
-        cb_extract_timeout(req, options);
-        cb_extract_option_bool(req.access_deleted, options, "access_deleted");
+        static VALUE xattr_property = rb_id2sym(rb_intern("xattr"));
+        static VALUE path_property = rb_id2sym(rb_intern("path"));
+        static VALUE opcode_property = rb_id2sym(rb_intern("opcode"));
+
         auto entries_size = static_cast<std::size_t>(RARRAY_LEN(specs));
         couchbase::lookup_in_specs cxx_specs;
-        for (size_t i = 0; i < entries_size; ++i) {
+        for (std::size_t i = 0; i < entries_size; ++i) {
             VALUE entry = rb_ary_entry(specs, static_cast<long>(i));
             cb_check_type(entry, T_HASH);
-            VALUE operation = rb_hash_aref(entry, rb_id2sym(rb_intern("opcode")));
+            VALUE operation = rb_hash_aref(entry, opcode_property);
             cb_check_type(operation, T_SYMBOL);
-            bool xattr = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("xattr"))));
-            VALUE path = rb_hash_aref(entry, rb_id2sym(rb_intern("path")));
+            bool xattr = RTEST(rb_hash_aref(entry, xattr_property));
+            VALUE path = rb_hash_aref(entry, path_property);
             cb_check_type(path, T_STRING);
             if (ID operation_id = rb_sym2id(operation); operation_id == rb_intern("get_doc")) {
                 cxx_specs.push_back(couchbase::lookup_in_specs::get("").xattr(xattr));
@@ -3268,38 +3417,44 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
             }
             cb_check_type(path, T_STRING);
         }
-        req.specs = cxx_specs.specs();
 
-        auto barrier = std::make_shared<std::promise<couchbase::core::operations::lookup_in_response>>();
-        auto f = barrier->get_future();
-        cluster->execute(req, [barrier](couchbase::core::operations::lookup_in_response&& resp) { barrier->set_value(std::move(resp)); });
-        auto resp = cb_wait_for_future(f);
-        if (resp.ctx.ec()) {
-            cb_throw_error_code(resp.ctx, "unable fetch");
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .lookup_in(cb_string_new(id), cxx_specs, opts);
+
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to lookup_in");
         }
+
+        static VALUE deleted_property = rb_id2sym(rb_intern("deleted"));
+        static VALUE fields_property = rb_id2sym(rb_intern("fields"));
+        static VALUE index_property = rb_id2sym(rb_intern("index"));
+        static VALUE exists_property = rb_id2sym(rb_intern("exists"));
+        static VALUE cas_property = rb_id2sym(rb_intern("cas"));
+        static VALUE value_property = rb_id2sym(rb_intern("value"));
 
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
-        VALUE fields = rb_ary_new_capa(static_cast<long>(resp.fields.size()));
-        rb_hash_aset(res, rb_id2sym(rb_intern("fields")), fields);
-        if (resp.deleted) {
-            rb_hash_aset(res, rb_id2sym(rb_intern("deleted")), Qtrue);
-        }
-        for (size_t i = 0; i < resp.fields.size(); ++i) {
+        rb_hash_aset(res, cas_property, cb_cas_to_num(resp.cas()));
+        VALUE fields = rb_ary_new_capa(static_cast<long>(entries_size));
+        rb_hash_aset(res, fields_property, fields);
+        rb_hash_aset(res, deleted_property, resp.is_deleted() ? Qtrue : Qfalse);
+        for (std::size_t i = 0; i < entries_size; ++i) {
             VALUE entry = rb_hash_new();
-            rb_hash_aset(entry, rb_id2sym(rb_intern("index")), ULL2NUM(i));
-            rb_hash_aset(entry, rb_id2sym(rb_intern("exists")), resp.fields[i].exists ? Qtrue : Qfalse);
-            rb_hash_aset(entry, rb_id2sym(rb_intern("path")), cb_str_new(resp.fields[i].path));
-            rb_hash_aset(entry, rb_id2sym(rb_intern("value")), cb_str_new(resp.fields[i].value));
-            cb_map_subdoc_status(resp.fields_meta[i].status, i, resp.fields[i].path, entry);
-            if (resp.fields_meta[i].opcode == couchbase::core::protocol::subdoc_opcode::get && resp.fields[i].path.empty()) {
-                rb_hash_aset(entry, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern("get_doc")));
-            } else {
-                rb_hash_aset(entry, rb_id2sym(rb_intern("type")), cb_map_subdoc_opcode(resp.fields_meta[i].opcode));
+            rb_hash_aset(entry, index_property, ULL2NUM(i));
+            rb_hash_aset(entry, exists_property, resp.exists(i) ? Qtrue : Qfalse);
+            rb_hash_aset(entry, path_property, rb_hash_aref(rb_ary_entry(specs, static_cast<long>(i)), path_property));
+            if (resp.has_value(i)) {
+                auto value = resp.content_as<tao::json::value>(i);
+                rb_hash_aset(entry, value_property, cb_str_new(couchbase::core::utils::json::generate(value)));
             }
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -3309,7 +3464,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
 static VALUE
 cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE specs, VALUE options)
 {
-    const auto& cluster = cb_backend_to_cluster(self);
+    const auto& core = cb_backend_to_cluster(self);
 
     Check_Type(bucket, T_STRING);
     Check_Type(scope, T_STRING);
@@ -3325,47 +3480,36 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
     }
 
     try {
-        couchbase::core::document_id doc_id{
-            cb_string_new(bucket),
-            cb_string_new(scope),
-            cb_string_new(collection),
-            cb_string_new(id),
-        };
+        couchbase::mutate_in_options opts;
+        couchbase::ruby::set_timeout(opts, options);
+        couchbase::ruby::set_durability(opts, options);
+        couchbase::ruby::set_expiry(opts, options);
+        couchbase::ruby::set_preserve_expiry(opts, options);
+        couchbase::ruby::set_access_deleted(opts, options);
+        couchbase::ruby::set_create_as_deleted(opts, options);
+        couchbase::ruby::set_cas(opts, options);
+        couchbase::ruby::set_store_semantics(opts, options);
 
-        couchbase::core::operations::mutate_in_request req{ doc_id };
-        cb_extract_timeout(req, options);
-        cb_extract_durability(req, options);
-        VALUE cas = Qnil;
-        cb_extract_option_bignum(cas, options, "cas");
-        if (!NIL_P(cas)) {
-            cb_extract_cas(req.cas, cas);
-        }
-        cb_extract_option_uint32(req.expiry, options, "expiry");
-        cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
-        cb_extract_option_bool(req.access_deleted, options, "access_deleted");
-        cb_extract_option_bool(req.create_as_deleted, options, "create_as_deleted");
-        VALUE store_semantics = Qnil;
-        cb_extract_option_symbol(store_semantics, options, "store_semantics");
-        if (ID semantics = rb_sym2id(store_semantics); semantics == rb_intern("replace")) {
-            req.store_semantics = couchbase::store_semantics::replace;
-        } else if (semantics == rb_intern("insert")) {
-            req.store_semantics = couchbase::store_semantics::insert;
-        } else if (semantics == rb_intern("upsert")) {
-            req.store_semantics = couchbase::store_semantics::upsert;
-        }
+        static VALUE xattr_property = rb_id2sym(rb_intern("xattr"));
+        static VALUE create_path_property = rb_id2sym(rb_intern("create_path"));
+        static VALUE expand_macros_property = rb_id2sym(rb_intern("expand_macros"));
+        static VALUE path_property = rb_id2sym(rb_intern("path"));
+        static VALUE opcode_property = rb_id2sym(rb_intern("opcode"));
+        static VALUE param_property = rb_id2sym(rb_intern("param"));
+
         couchbase::mutate_in_specs cxx_specs;
         auto entries_size = static_cast<std::size_t>(RARRAY_LEN(specs));
-        for (size_t i = 0; i < entries_size; ++i) {
+        for (std::size_t i = 0; i < entries_size; ++i) {
             VALUE entry = rb_ary_entry(specs, static_cast<long>(i));
             cb_check_type(entry, T_HASH);
-            bool xattr = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("xattr"))));
-            bool create_path = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("create_path"))));
-            bool expand_macros = RTEST(rb_hash_aref(entry, rb_id2sym(rb_intern("expand_macros"))));
-            VALUE path = rb_hash_aref(entry, rb_id2sym(rb_intern("path")));
+            bool xattr = RTEST(rb_hash_aref(entry, xattr_property));
+            bool create_path = RTEST(rb_hash_aref(entry, create_path_property));
+            bool expand_macros = RTEST(rb_hash_aref(entry, expand_macros_property));
+            VALUE path = rb_hash_aref(entry, path_property);
             cb_check_type(path, T_STRING);
-            VALUE operation = rb_hash_aref(entry, rb_id2sym(rb_intern("opcode")));
+            VALUE operation = rb_hash_aref(entry, opcode_property);
             cb_check_type(operation, T_SYMBOL);
-            VALUE param = rb_hash_aref(entry, rb_id2sym(rb_intern("param")));
+            VALUE param = rb_hash_aref(entry, param_property);
             if (ID operation_id = rb_sym2id(operation); operation_id == rb_intern("dict_add")) {
                 cb_check_type(param, T_STRING);
                 cxx_specs.push_back(couchbase::mutate_in_specs::insert_raw(cb_string_new(path), cb_binary_new(param), expand_macros)
@@ -3426,45 +3570,45 @@ cb_Backend_document_mutate_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
                                      rb_sprintf("unsupported operation for subdocument mutation: %+" PRIsVALUE, operation));
             }
         }
-        req.specs = cxx_specs.specs();
 
-        auto barrier = std::make_shared<std::promise<couchbase::core::operations::mutate_in_response>>();
-        auto f = barrier->get_future();
-        cluster->execute(req, [barrier](couchbase::core::operations::mutate_in_response&& resp) { barrier->set_value(std::move(resp)); });
-        auto resp = cb_wait_for_future(f);
-        if (resp.ctx.ec()) {
-            cb_throw_error_code(resp.ctx, "unable to mutate");
+        auto f = couchbase::cluster(core)
+                   .bucket(cb_string_new(bucket))
+                   .scope(cb_string_new(scope))
+                   .collection(cb_string_new(collection))
+                   .mutate_in(cb_string_new(id), cxx_specs, opts);
+
+        auto [ctx, resp] = cb_wait_for_future(f);
+        if (ctx.ec()) {
+            cb_throw_error_code(ctx, "unable to mutate_in");
         }
 
-        VALUE res = cb_extract_mutation_result(resp);
-        if (resp.ctx.first_error_index()) {
-            rb_hash_aset(res, rb_id2sym(rb_intern("first_error_index")), ULL2NUM(resp.ctx.first_error_index().value()));
-        }
-        if (resp.deleted) {
-            rb_hash_aset(res, rb_id2sym(rb_intern("deleted")), Qtrue);
-        }
-        VALUE fields = rb_ary_new_capa(static_cast<long>(resp.fields.size()));
-        rb_hash_aset(res, rb_id2sym(rb_intern("fields")), fields);
-        for (size_t i = 0; i < resp.fields.size(); ++i) {
-            VALUE entry = rb_hash_new();
-            rb_hash_aset(entry, rb_id2sym(rb_intern("index")), ULL2NUM(i));
-            rb_hash_aset(entry, rb_id2sym(rb_intern("path")), cb_str_new(resp.fields[i].path));
-            if (resp.fields_meta[i].status == couchbase::key_value_status_code::success ||
-                resp.fields_meta[i].status == couchbase::key_value_status_code::subdoc_success_deleted) {
-                if (resp.fields_meta[i].opcode == couchbase::core::protocol::subdoc_opcode::counter) {
-                    if (!resp.fields[i].value.empty()) {
-                        std::string value(reinterpret_cast<const char*>(resp.fields[i].value.data()), resp.fields[i].value.size());
-                        rb_hash_aset(entry, rb_id2sym(rb_intern("value")), LL2NUM(std::stoll(value)));
-                    }
-                } else {
-                    rb_hash_aset(entry, rb_id2sym(rb_intern("value")), cb_str_new(resp.fields[i].value));
+        static VALUE deleted_property = rb_id2sym(rb_intern("deleted"));
+        static VALUE fields_property = rb_id2sym(rb_intern("fields"));
+        static VALUE index_property = rb_id2sym(rb_intern("index"));
+        static VALUE cas_property = rb_id2sym(rb_intern("cas"));
+        static VALUE value_property = rb_id2sym(rb_intern("value"));
+
+        VALUE res = couchbase::ruby::to_mutation_result_value(resp);
+        rb_hash_aset(res, deleted_property, resp.is_deleted() ? Qtrue : Qfalse);
+        if (!ctx.ec()) {
+            rb_hash_aset(res, cas_property, cb_cas_to_num(resp.cas()));
+
+            VALUE fields = rb_ary_new_capa(static_cast<long>(entries_size));
+            rb_hash_aset(res, fields_property, fields);
+            for (std::size_t i = 0; i < entries_size; ++i) {
+                VALUE entry = rb_hash_new();
+                rb_hash_aset(entry, index_property, ULL2NUM(i));
+                rb_hash_aset(entry, path_property, rb_hash_aref(rb_ary_entry(specs, static_cast<long>(i)), path_property));
+                if (resp.has_value(i)) {
+                    auto value = resp.content_as<tao::json::value>(i);
+                    rb_hash_aset(entry, value_property, cb_str_new(couchbase::core::utils::json::generate(value)));
                 }
+                rb_ary_store(fields, static_cast<long>(i), entry);
             }
-            cb_map_subdoc_status(resp.fields_meta[i].status, i, resp.fields[i].path, entry);
-            rb_hash_aset(entry, rb_id2sym(rb_intern("type")), cb_map_subdoc_opcode(resp.fields_meta[i].opcode));
-            rb_ary_store(fields, static_cast<long>(i), entry);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -3541,7 +3685,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             cb_check_type(positional_params, T_ARRAY);
             auto entries_num = static_cast<std::size_t>(RARRAY_LEN(positional_params));
             req.positional_parameters.reserve(entries_num);
-            for (size_t i = 0; i < entries_num; ++i) {
+            for (std::size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(positional_params, static_cast<long>(i));
                 cb_check_type(entry, T_STRING);
                 req.positional_parameters.emplace_back(cb_string_new(entry));
@@ -3564,7 +3708,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             cb_check_type(mutation_state, T_ARRAY);
             auto state_size = static_cast<std::size_t>(RARRAY_LEN(mutation_state));
             req.mutation_state.reserve(state_size);
-            for (size_t i = 0; i < state_size; ++i) {
+            for (std::size_t i = 0; i < state_size; ++i) {
                 VALUE token = rb_ary_entry(mutation_state, static_cast<long>(i));
                 cb_check_type(token, T_HASH);
                 VALUE bucket_name = rb_hash_aref(token, rb_id2sym(rb_intern("bucket_name")));
@@ -3651,6 +3795,8 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         }
 
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -3827,6 +3973,8 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE options)
         }
 
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -3855,6 +4003,8 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE options)
                                 fmt::format("unable to update bucket \"{}\" on the cluster ({})", req.bucket.name, resp.error_message));
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -3882,6 +4032,8 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE options)
             cb_throw_error_code(resp.ctx, fmt::format("unable to remove bucket \"{}\" on the cluster", req.name));
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -3910,6 +4062,8 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE options)
         }
 
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4047,6 +4201,8 @@ cb_Backend_bucket_get_all(VALUE self, VALUE options)
         }
 
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4078,6 +4234,8 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options)
         VALUE res = rb_hash_new();
         cb_extract_bucket_settings(resp.bucket, res);
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4125,6 +4283,8 @@ cb_Backend_role_get_all(VALUE self, VALUE timeout)
             rb_ary_push(res, role);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4239,6 +4399,8 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
             rb_ary_push(res, user);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4276,6 +4438,8 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
         VALUE res = rb_hash_new();
         cb_extract_user(resp.user, res);
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4310,6 +4474,8 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
         }
 
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4348,7 +4514,7 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
         }
         if (VALUE groups = rb_hash_aref(user, rb_id2sym(rb_intern("groups"))); !NIL_P(groups) && TYPE(groups) == T_ARRAY) {
             auto groups_size = static_cast<std::size_t>(RARRAY_LEN(groups));
-            for (size_t i = 0; i < groups_size; ++i) {
+            for (std::size_t i = 0; i < groups_size; ++i) {
                 if (VALUE entry = rb_ary_entry(groups, static_cast<long>(i)); TYPE(entry) == T_STRING) {
                     req.user.groups.emplace(cb_string_new(entry));
                 }
@@ -4357,7 +4523,7 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
         if (VALUE roles = rb_hash_aref(user, rb_id2sym(rb_intern("roles"))); !NIL_P(roles) && TYPE(roles) == T_ARRAY) {
             auto roles_size = static_cast<std::size_t>(RARRAY_LEN(roles));
             req.user.roles.reserve(roles_size);
-            for (size_t i = 0; i < roles_size; ++i) {
+            for (std::size_t i = 0; i < roles_size; ++i) {
                 VALUE entry = rb_ary_entry(roles, static_cast<long>(i));
                 if (TYPE(entry) == T_HASH) {
                     couchbase::core::management::rbac::role role{};
@@ -4390,6 +4556,8 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
         }
 
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4448,6 +4616,8 @@ cb_Backend_group_get_all(VALUE self, VALUE timeout)
             rb_ary_push(res, group);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4477,6 +4647,8 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
         VALUE res = rb_hash_new();
         cb_extract_group(resp.group, res);
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4503,6 +4675,8 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
             cb_throw_error_code(resp.ctx, fmt::format(R"(unable to drop group "{}")", req.name));
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4536,7 +4710,7 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
         if (VALUE roles = rb_hash_aref(group, rb_id2sym(rb_intern("roles"))); !NIL_P(roles) && TYPE(roles) == T_ARRAY) {
             auto roles_size = static_cast<std::size_t>(RARRAY_LEN(roles));
             req.group.roles.reserve(roles_size);
-            for (size_t i = 0; i < roles_size; ++i) {
+            for (std::size_t i = 0; i < roles_size; ++i) {
                 if (VALUE entry = rb_ary_entry(roles, static_cast<long>(i)); TYPE(entry) == T_HASH) {
                     couchbase::core::management::rbac::role role{};
                     VALUE role_name = rb_hash_aref(entry, rb_id2sym(rb_intern("name")));
@@ -4564,6 +4738,8 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
             cb_throw_error_code(resp.ctx, fmt::format(R"(unable to upsert group "{}" ({}))", req.group.name, fmt::join(resp.errors, ", ")));
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4590,6 +4766,8 @@ cb_Backend_cluster_enable_developer_preview(VALUE self)
           "Developer preview cannot be disabled once it is enabled. If you enter developer preview mode you will not be able to "
           "upgrade. DO NOT USE IN PRODUCTION.");
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4638,6 +4816,8 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options)
         rb_hash_aset(res, rb_id2sym(rb_intern("scopes")), scopes);
 
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4685,6 +4865,8 @@ cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout
         rb_hash_aset(res, rb_id2sym(rb_intern("scopes")), scopes);
 
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4715,6 +4897,8 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE o
                                 fmt::format(R"(unable to create the scope "{}" on the bucket "{}")", req.scope_name, req.bucket_name));
         }
         return ULL2NUM(resp.uid);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4745,6 +4929,8 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE opt
                                 fmt::format(R"(unable to drop the scope "{}" on the bucket "{}")", req.scope_name, req.bucket_name));
         }
         return ULL2NUM(resp.uid);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4786,6 +4972,8 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
                 R"(unable create the collection "{}.{}" on the bucket "{}")", req.scope_name, req.collection_name, req.bucket_name));
         }
         return ULL2NUM(resp.uid);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4823,6 +5011,8 @@ cb_Backend_collection_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALU
                 R"(unable to drop the collection  "{}.{}" on the bucket "{}")", req.scope_name, req.collection_name, req.bucket_name));
         }
         return ULL2NUM(resp.uid);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4886,6 +5076,8 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE options)
         rb_hash_aset(res, rb_id2sym(rb_intern("indexes")), indexes);
 
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -4911,7 +5103,7 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
         req.index_name = cb_string_new(index_name);
         auto fields_num = static_cast<std::size_t>(RARRAY_LEN(fields));
         req.fields.reserve(fields_num);
-        for (size_t i = 0; i < fields_num; ++i) {
+        for (std::size_t i = 0; i < fields_num; ++i) {
             VALUE entry = rb_ary_entry(fields, static_cast<long>(i));
             cb_check_type(entry, T_STRING);
             req.fields.emplace_back(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry)));
@@ -4974,6 +5166,8 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
             rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5044,6 +5238,8 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
             rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5121,6 +5317,8 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
             rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5192,6 +5390,8 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
             rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5210,7 +5410,7 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE optio
 
     try {
         couchbase::build_query_index_options opts;
-        cb_options_set_timeout(opts, options);
+        couchbase::ruby::set_timeout(opts, options);
         auto bucket = cb_string_new(bucket_name);
 
         auto f = couchbase::cluster(cluster).query_indexes().build_deferred_indexes(bucket, opts);
@@ -5218,6 +5418,8 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE optio
             cb_throw_error_code(ctx, fmt::format("unable to trigger build for deferred indexes for the bucket \"{}\"", bucket));
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5290,6 +5492,8 @@ cb_Backend_search_index_get_all(VALUE self, VALUE options)
         }
         rb_hash_aset(res, rb_id2sym(rb_intern("indexes")), indexes);
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5323,6 +5527,8 @@ cb_Backend_search_index_get(VALUE self, VALUE index_name, VALUE timeout)
         VALUE res = rb_hash_new();
         cb_extract_search_index(res, resp.index);
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5398,6 +5604,8 @@ cb_Backend_search_index_upsert(VALUE self, VALUE index_definition, VALUE timeout
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5431,6 +5639,8 @@ cb_Backend_search_index_drop(VALUE self, VALUE index_name, VALUE timeout)
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5468,6 +5678,8 @@ cb_Backend_search_index_get_documents_count(VALUE self, VALUE index_name, VALUE 
         rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         rb_hash_aset(res, rb_id2sym(rb_intern("count")), ULL2NUM(resp.count));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5500,6 +5712,8 @@ cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
             }
         }
         return cb_str_new(resp.stats);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5524,6 +5738,8 @@ cb_Backend_search_get_stats(VALUE self, VALUE timeout)
             cb_throw_error_code(resp.ctx, "unable to get stats for the search service");
         }
         return cb_str_new(resp.stats);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5559,6 +5775,8 @@ cb_Backend_search_index_pause_ingest(VALUE self, VALUE index_name, VALUE timeout
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5594,6 +5812,8 @@ cb_Backend_search_index_resume_ingest(VALUE self, VALUE index_name, VALUE timeou
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5629,6 +5849,8 @@ cb_Backend_search_index_allow_querying(VALUE self, VALUE index_name, VALUE timeo
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5664,6 +5886,8 @@ cb_Backend_search_index_disallow_querying(VALUE self, VALUE index_name, VALUE ti
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5698,6 +5922,8 @@ cb_Backend_search_index_freeze_plan(VALUE self, VALUE index_name, VALUE timeout)
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5733,6 +5959,8 @@ cb_Backend_search_index_unfreeze_plan(VALUE self, VALUE index_name, VALUE timeou
         VALUE res = rb_hash_new();
         rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5772,6 +6000,8 @@ cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE enc
         rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
         rb_hash_aset(res, rb_id2sym(rb_intern("analysis")), cb_str_new(resp.analysis));
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -5825,7 +6055,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
             cb_check_type(highlight_fields, T_ARRAY);
             auto highlight_fields_size = static_cast<std::size_t>(RARRAY_LEN(highlight_fields));
             req.highlight_fields.reserve(highlight_fields_size);
-            for (size_t i = 0; i < highlight_fields_size; ++i) {
+            for (std::size_t i = 0; i < highlight_fields_size; ++i) {
                 VALUE field = rb_ary_entry(highlight_fields, static_cast<long>(i));
                 cb_check_type(field, T_STRING);
                 req.highlight_fields.emplace_back(cb_string_new(field));
@@ -5843,7 +6073,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
             cb_check_type(mutation_state, T_ARRAY);
             auto state_size = static_cast<std::size_t>(RARRAY_LEN(mutation_state));
             req.mutation_state.reserve(state_size);
-            for (size_t i = 0; i < state_size; ++i) {
+            for (std::size_t i = 0; i < state_size; ++i) {
                 VALUE token = rb_ary_entry(mutation_state, static_cast<long>(i));
                 cb_check_type(token, T_HASH);
                 VALUE bucket_name = rb_hash_aref(token, rb_id2sym(rb_intern("bucket_name")));
@@ -5866,10 +6096,10 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
                     default:
                         throw ruby_exception(rb_eArgError, "sequence_number must be an Integer");
                 }
-                req.mutation_state.emplace_back(couchbase::mutation_token{ NUM2ULL(partition_uuid),
-                                                                           NUM2ULL(sequence_number),
-                                                                           gsl::narrow_cast<std::uint16_t>(NUM2UINT(partition_id)),
-                                                                           cb_string_new(bucket_name) });
+                req.mutation_state.emplace_back(NUM2ULL(partition_uuid),
+                                                NUM2ULL(sequence_number),
+                                                gsl::narrow_cast<std::uint16_t>(NUM2UINT(partition_id)),
+                                                cb_string_new(bucket_name));
             }
         }
 
@@ -5877,7 +6107,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
             cb_check_type(fields, T_ARRAY);
             auto fields_size = static_cast<std::size_t>(RARRAY_LEN(fields));
             req.fields.reserve(fields_size);
-            for (size_t i = 0; i < fields_size; ++i) {
+            for (std::size_t i = 0; i < fields_size; ++i) {
                 VALUE field = rb_ary_entry(fields, static_cast<long>(i));
                 cb_check_type(field, T_STRING);
                 req.fields.emplace_back(cb_string_new(field));
@@ -5892,7 +6122,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
                 cb_check_type(collections, T_ARRAY);
                 auto collections_size = static_cast<std::size_t>(RARRAY_LEN(collections));
                 req.collections.reserve(collections_size);
-                for (size_t i = 0; i < collections_size; ++i) {
+                for (std::size_t i = 0; i < collections_size; ++i) {
                     VALUE collection = rb_ary_entry(collections, static_cast<long>(i));
                     cb_check_type(collection, T_STRING);
                     req.collections.emplace_back(cb_string_new(collection));
@@ -5902,7 +6132,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
 
         if (VALUE sort = rb_hash_aref(options, rb_id2sym(rb_intern("sort"))); !NIL_P(sort)) {
             cb_check_type(sort, T_ARRAY);
-            for (size_t i = 0; i < static_cast<std::size_t>(RARRAY_LEN(sort)); ++i) {
+            for (std::size_t i = 0; i < static_cast<std::size_t>(RARRAY_LEN(sort)); ++i) {
                 VALUE sort_spec = rb_ary_entry(sort, static_cast<long>(i));
                 req.sort_specs.emplace_back(cb_string_new(sort_spec));
             }
@@ -5910,7 +6140,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
 
         if (VALUE facets = rb_hash_aref(options, rb_id2sym(rb_intern("facets"))); !NIL_P(facets)) {
             cb_check_type(facets, T_ARRAY);
-            for (size_t i = 0; i < static_cast<std::size_t>(RARRAY_LEN(facets)); ++i) {
+            for (std::size_t i = 0; i < static_cast<std::size_t>(RARRAY_LEN(facets)); ++i) {
                 VALUE facet_pair = rb_ary_entry(facets, static_cast<long>(i));
                 cb_check_type(facet_pair, T_ARRAY);
                 if (RARRAY_LEN(facet_pair) == 2) {
@@ -6065,6 +6295,8 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         }
 
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6117,6 +6349,8 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
             rb_ary_push(res, addr);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6152,6 +6386,8 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE options)
             rb_hash_aset(res, cb_str_new(name), ULL2NUM(counter));
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6190,6 +6426,8 @@ cb_Backend_analytics_dataset_get_all(VALUE self, VALUE options)
             rb_ary_push(res, dataset);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6233,6 +6471,8 @@ cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE options)
             }
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6275,6 +6515,8 @@ cb_Backend_analytics_dataset_create(VALUE self, VALUE dataset_name, VALUE bucket
             }
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6309,6 +6551,8 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE opti
             }
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6346,6 +6590,8 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE op
             }
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6384,6 +6630,8 @@ cb_Backend_analytics_index_get_all(VALUE self, VALUE options)
             rb_ary_push(res, index);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6405,7 +6653,7 @@ cb_Backend_analytics_index_create(VALUE self, VALUE index_name, VALUE dataset_na
         req.index_name = cb_string_new(index_name);
         req.dataset_name = cb_string_new(dataset_name);
         auto fields_num = static_cast<std::size_t>(RARRAY_LEN(fields));
-        for (size_t i = 0; i < fields_num; ++i) {
+        for (std::size_t i = 0; i < fields_num; ++i) {
             VALUE entry = rb_ary_entry(fields, static_cast<long>(i));
             Check_Type(entry, T_ARRAY);
             if (RARRAY_LEN(entry) == 2) {
@@ -6438,6 +6686,8 @@ cb_Backend_analytics_index_create(VALUE self, VALUE index_name, VALUE dataset_na
             }
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6480,6 +6730,8 @@ cb_Backend_analytics_index_drop(VALUE self, VALUE index_name, VALUE dataset_name
             }
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6517,6 +6769,8 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE options)
             }
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6552,6 +6806,8 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE options)
             }
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6706,6 +6962,8 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
         }
 
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6813,6 +7071,8 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
         }
 
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6856,6 +7116,8 @@ cb_Backend_analytics_link_drop(VALUE self, VALUE link, VALUE dataverse, VALUE op
         }
 
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -6949,6 +7211,8 @@ cb_Backend_analytics_link_get_all(VALUE self, VALUE options)
         }
 
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -7019,7 +7283,7 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
             cb_check_type(positional_params, T_ARRAY);
             auto entries_num = static_cast<std::size_t>(RARRAY_LEN(positional_params));
             req.positional_parameters.reserve(entries_num);
-            for (size_t i = 0; i < entries_num; ++i) {
+            for (std::size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(positional_params, static_cast<long>(i));
                 cb_check_type(entry, T_STRING);
                 req.positional_parameters.emplace_back(cb_string_new(entry));
@@ -7098,6 +7362,8 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
         rb_hash_aset(metrics, rb_id2sym(rb_intern("warning_count")), ULL2NUM(resp.meta.metrics.warning_count));
 
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -7241,6 +7507,8 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
             rb_ary_push(res, dd);
         }
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -7308,6 +7576,8 @@ cb_Backend_view_index_get(VALUE self, VALUE bucket_name, VALUE document_name, VA
         }
         rb_hash_aset(res, rb_id2sym(rb_intern("views")), views);
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -7351,6 +7621,8 @@ cb_Backend_view_index_drop(VALUE self, VALUE bucket_name, VALUE document_name, V
               fmt::format(R"(unable to drop design document "{}" ({}) on bucket "{}")", req.document_name, req.ns, req.bucket_name));
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -7387,7 +7659,7 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
         if (VALUE views = rb_hash_aref(document, rb_id2sym(rb_intern("views"))); !NIL_P(views)) {
             Check_Type(views, T_ARRAY);
             auto entries_num = static_cast<std::size_t>(RARRAY_LEN(views));
-            for (size_t i = 0; i < entries_num; ++i) {
+            for (std::size_t i = 0; i < entries_num; ++i) {
                 VALUE entry = rb_ary_entry(views, static_cast<long>(i));
                 Check_Type(entry, T_HASH);
                 couchbase::core::management::views::design_document::view view;
@@ -7418,6 +7690,8 @@ cb_Backend_view_index_upsert(VALUE self, VALUE bucket_name, VALUE document, VALU
                 R"(unable to store design document "{}" ({}) on bucket "{}")", req.document.name, req.document.ns, req.bucket_name));
         }
         return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -7513,7 +7787,7 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
                 cb_check_type(keys, T_ARRAY);
                 auto entries_num = static_cast<std::size_t>(RARRAY_LEN(keys));
                 req.keys.reserve(entries_num);
-                for (size_t i = 0; i < entries_num; ++i) {
+                for (std::size_t i = 0; i < entries_num; ++i) {
                     VALUE entry = rb_ary_entry(keys, static_cast<long>(i));
                     cb_check_type(entry, T_STRING);
                     req.keys.emplace_back(cb_string_new(entry));
@@ -7558,6 +7832,8 @@ cb_Backend_document_view(VALUE self, VALUE bucket_name, VALUE design_document_na
         rb_hash_aset(res, rb_id2sym(rb_intern("rows")), rows);
 
         return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
         rb_exc_raise(e.exception_object());
     }
@@ -7769,11 +8045,11 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_insert", VALUE_FUNC(cb_Backend_document_insert), 7);
     rb_define_method(cBackend, "document_replace", VALUE_FUNC(cb_Backend_document_replace), 7);
     rb_define_method(cBackend, "document_upsert", VALUE_FUNC(cb_Backend_document_upsert), 7);
-    rb_define_method(cBackend, "document_upsert_multi", VALUE_FUNC(cb_Backend_document_upsert_multi), 2);
+    rb_define_method(cBackend, "document_upsert_multi", VALUE_FUNC(cb_Backend_document_upsert_multi), 5);
     rb_define_method(cBackend, "document_append", VALUE_FUNC(cb_Backend_document_append), 6);
     rb_define_method(cBackend, "document_prepend", VALUE_FUNC(cb_Backend_document_prepend), 6);
     rb_define_method(cBackend, "document_remove", VALUE_FUNC(cb_Backend_document_remove), 5);
-    rb_define_method(cBackend, "document_remove_multi", VALUE_FUNC(cb_Backend_document_remove_multi), 2);
+    rb_define_method(cBackend, "document_remove_multi", VALUE_FUNC(cb_Backend_document_remove_multi), 5);
     rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 6);
     rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 6);
     rb_define_method(cBackend, "document_query", VALUE_FUNC(cb_Backend_document_query), 2);

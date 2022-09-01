@@ -329,7 +329,7 @@ module Couchbase
       doc = load_json_test_dataset("beer_sample_single")
 
       options = Collection::InsertOptions.new
-      options.expiry = 10
+      options.expiry = 1
       res = @collection.insert(doc_id, doc, options)
       refute_equal 0, res.cas
 
@@ -922,6 +922,13 @@ module Couchbase
       assert_raises(Couchbase::Error::DocumentNotFound) do
         @collection.get(doc_id)
       end
+    end
+
+    def test_legacy_durability
+      doc_id = uniq_id(:foo)
+      res = @collection.upsert(doc_id, {answer: 42}, Options::Upsert(persist_to: :active))
+      old_cas = res.cas
+      refute_equal 0, old_cas
     end
   end
 end
