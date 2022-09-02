@@ -20,6 +20,7 @@ gemspec
 gem "rake"
 
 group :development do
+  gem "activesupport", "~> 7.0.3"
   gem "flay"
   gem "flog"
   gem "gem-compiler"
@@ -27,7 +28,6 @@ group :development do
   gem "minitest"
   gem "minitest-reporters"
   gem "rack"
-  gem "activesupport", "~> 7.0.3"
   gem "reek"
   gem "rubocop"
   gem "rubocop-minitest"
