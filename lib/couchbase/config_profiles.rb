@@ -27,11 +27,9 @@ module Couchbase
       end
 
       def apply(profile_name, options)
-        if @profiles.key?(profile_name)
-          @profiles[profile_name].apply(options)
-          return
-        end
-        raise ArgumentError, "#{profile_name} is not a registered profile"
+        raise ArgumentError, "#{profile_name} is not a registered profile" unless @profiles.key?(profile_name)
+
+        @profiles[profile_name].apply(options)
       end
     end
 
