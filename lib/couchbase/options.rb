@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 require "couchbase/utils/time"
+require "couchbase/config_profiles"
 
 module Couchbase
   # Definition of the Option classes for data APIs
@@ -1459,6 +1460,11 @@ module Couchbase
       # @param [String] password
       def authenticate(username, password)
         @authenticator = PasswordAuthenticator.new(username, password)
+      end
+
+      # @param [String] profile_name The name of the configuration profile to apply (e.g. "wan_development")
+      def apply_profile(profile_name)
+        ConfigProfiles::KNOWN_PROFILES.apply(profile_name, self)
       end
 
       # @api private
