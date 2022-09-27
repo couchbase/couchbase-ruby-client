@@ -18,7 +18,7 @@ module Couchbase
       attr :profiles
 
       def initialize
-        @profiles = Hash.new
+        @profiles = {}
         register_profile("wan_development", DevelopmentProfile.new)
       end
 
@@ -42,7 +42,7 @@ module Couchbase
     class DevelopmentProfile < Profile
       def apply(options)
         options.key_value_timeout = 20 * 1000
-        # TODO Add `options.key_value_durable_timeout = 20 * 1000` when key_value_durable_timeout is added to Options::Cluster
+        # TODO: Add `options.key_value_durable_timeout = 20 * 1000` when key_value_durable_timeout is added to Options::Cluster
         options.connect_timeout = 20 * 1000
         options.view_timeout = 120 * 1000
         options.query_timeout = 120 * 1000
@@ -53,6 +53,5 @@ module Couchbase
     end
 
     KNOWN_PROFILES = Profiles.new
-
   end
 end
