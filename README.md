@@ -12,13 +12,13 @@ This repository contains the third generation of the official Couchbase SDK for 
 If you find an issue, please file it in [our JIRA issue tracker](https://couchbase.com/issues/browse/RCBC). Also you are
 always welcome on [our forum](https://forums.couchbase.com/c/ruby-sdk) and [Discord](https://discord.com/invite/sQ5qbPZuTh).
 
-Please attach version information to ticket/post. To obtain this information use the following command:
+Please attach version information to the ticket/post. To obtain this information, use the following command:
 
     $ ruby -r couchbase -e 'p Couchbase::VERSION'
 
 ## Installation
 
-The library tested with the MRI 2.7, 3.0 and 3.1. Supported platforms are Linux and MacOS.
+The library has been tested with MRI 2.7, 3.0 and 3.1. Supported platforms are Linux and MacOS.
 
 Add this line to your application's Gemfile:
 
@@ -34,13 +34,13 @@ Or install it yourself as:
 
     $ gem install couchbase
 
-For some platforms we precompile binary packages. When, for some reason, binary package cannot be used, pass
-`--platform=ruby` to `gem install` command (or check `specific_platform` and `force_ruby_platform` options of Bundler).
-In latter case, see [Development](#development) section for build dependencies.
+For some platforms we precompile binary packages. When, for some reason, binary packages cannot be used, pass
+`--platform=ruby` to the `gem install` command (or check the `specific_platform` and `force_ruby_platform` options of Bundler).
+In latter case, see the [Development](#development) section for build dependencies.
 
 ## Usage
 
-Here is a basic steps demonstrating basic operations with data:
+Here are some basic steps demonstrating basic operations with data:
 
 ```ruby
 require "couchbase"
@@ -91,10 +91,35 @@ end
 After checking out the repo, run `bin/setup` to install dependencies. You can also run `bin/console` for an interactive
 prompt that will allow you to experiment.
 
-Part of the library is written in C++, and requires both C and C++ compilers installed on the system. To configure build
-environment, it uses `cmake`. When these tools installed, the build process is easy:
+### Compiling
 
-    $ rake compile
+Part of the library is written in C++, and requires both C and C++ compilers installed on the system. To configure the build
+environment it uses `cmake`. When these tools are installed, the build process is easy:
+
+    $ bundle exec rake compile
+
+### Testing
+
+By default, a mock cluster is used for testing. If you wish to use a real cluster, you can define the
+`TEST_CONNECTION_STRING` environment variable (e.g. `TEST_CONNECTION_STRING=couchbase://localhost`). You might also need to set the values for the `TEST_USERNAME`, `TEST_PASSWORD`, and `TEST_BUCKET`
+ environment variables.
+
+To run the tests:
+
+    $ bundle exec rake test
+
+### Linting
+
+We use the [RuboCop linter](https://rubocop.org/). To run it:
+
+    $ bundle exec rubocop
+
+### Packaging
+
+To build and install the Ruby gem (where `VERSION` is the current version of the SDK):
+
+    $ gem build couchbase.gemspec
+    $ gem install couchbase-VERSION.snapshot.gem
 
 ## Generate Documentation
 
@@ -106,7 +131,7 @@ The following steps will generate API reference for selected git tag:
 
     $ rake doc
 
-Now the API reference is accessible using web browser (where `VERSION` is current version of the SDK)
+Now the API reference is accessible using a web browser (where `VERSION` is the current version of the SDK)
 
     $ firefox doc/couchbase-ruby-client-VERSION/index.html
 
