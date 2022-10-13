@@ -46,6 +46,7 @@
 #include <core/operations/management/view.hxx>
 
 #include <core/io/dns_client.hxx>
+#include <core/io/dns_config.hxx>
 #include <core/utils/connection_string.hxx>
 #include <core/utils/unsigned_leb128.hxx>
 
@@ -6332,9 +6333,14 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
         }
         auto barrier = std::make_shared<std::promise<couchbase::core::io::dns::dns_client::dns_srv_response>>();
         auto f = barrier->get_future();
-        client.query_srv(host_name, service_name, [barrier](couchbase::core::io::dns::dns_client::dns_srv_response&& resp) {
+        client.query_srv(
+          host_name,
+          service_name,
+          couchbase::core::io::dns::dns_config::system_config(),
+          [barrier](couchbase::core::io::dns::dns_client::dns_srv_response&& resp) {
             barrier->set_value(std::move(resp));
-        });
+          }
+        );
         ctx.run();
         auto resp = cb_wait_for_future(f);
         if (resp.ec) {
