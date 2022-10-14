@@ -3675,11 +3675,11 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             cb_check_type(profile, T_SYMBOL);
             ID mode = rb_sym2id(profile);
             if (mode == rb_intern("phases")) {
-                req.profile = couchbase::core::query_profile_mode::phases;
+                req.profile = couchbase::query_profile::phases;
             } else if (mode == rb_intern("timings")) {
-                req.profile = couchbase::core::query_profile_mode::timings;
+                req.profile = couchbase::query_profile::timings;
             } else if (mode == rb_intern("off")) {
-                req.profile = couchbase::core::query_profile_mode::off;
+                req.profile = couchbase::query_profile::off;
             }
         }
         if (VALUE positional_params = rb_hash_aref(options, rb_id2sym(rb_intern("positional_parameters"))); !NIL_P(positional_params)) {
@@ -3700,9 +3700,9 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             cb_check_type(scan_consistency, T_SYMBOL);
             ID type = rb_sym2id(scan_consistency);
             if (type == rb_intern("not_bounded")) {
-                req.scan_consistency = couchbase::core::query_scan_consistency::not_bounded;
+                req.scan_consistency = couchbase::query_scan_consistency::not_bounded;
             } else if (type == rb_intern("request_plus")) {
-                req.scan_consistency = couchbase::core::query_scan_consistency::request_plus;
+                req.scan_consistency = couchbase::query_scan_consistency::request_plus;
             }
         }
         if (VALUE mutation_state = rb_hash_aref(options, rb_id2sym(rb_intern("mutation_state"))); !NIL_P(mutation_state)) {
