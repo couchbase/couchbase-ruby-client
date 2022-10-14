@@ -6333,14 +6333,10 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
         }
         auto barrier = std::make_shared<std::promise<couchbase::core::io::dns::dns_client::dns_srv_response>>();
         auto f = barrier->get_future();
-        client.query_srv(
-          host_name,
-          service_name,
-          couchbase::core::io::dns::dns_config::system_config(),
-          [barrier](couchbase::core::io::dns::dns_client::dns_srv_response&& resp) {
-            barrier->set_value(std::move(resp));
-          }
-        );
+        client.query_srv(host_name,
+                         service_name,
+                         couchbase::core::io::dns::dns_config::system_config(),
+                         [barrier](couchbase::core::io::dns::dns_client::dns_srv_response&& resp) { barrier->set_value(std::move(resp)); });
         ctx.run();
         auto resp = cb_wait_for_future(f);
         if (resp.ec) {
