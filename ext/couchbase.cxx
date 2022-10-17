@@ -46,6 +46,7 @@
 #include <core/operations/management/view.hxx>
 
 #include <core/io/dns_client.hxx>
+#include <core/io/dns_config.hxx>
 #include <core/utils/connection_string.hxx>
 #include <core/utils/unsigned_leb128.hxx>
 
@@ -3674,11 +3675,11 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             cb_check_type(profile, T_SYMBOL);
             ID mode = rb_sym2id(profile);
             if (mode == rb_intern("phases")) {
-                req.profile = couchbase::core::query_profile_mode::phases;
+                req.profile = couchbase::query_profile::phases;
             } else if (mode == rb_intern("timings")) {
-                req.profile = couchbase::core::query_profile_mode::timings;
+                req.profile = couchbase::query_profile::timings;
             } else if (mode == rb_intern("off")) {
-                req.profile = couchbase::core::query_profile_mode::off;
+                req.profile = couchbase::query_profile::off;
             }
         }
         if (VALUE positional_params = rb_hash_aref(options, rb_id2sym(rb_intern("positional_parameters"))); !NIL_P(positional_params)) {
@@ -3699,9 +3700,9 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
             cb_check_type(scan_consistency, T_SYMBOL);
             ID type = rb_sym2id(scan_consistency);
             if (type == rb_intern("not_bounded")) {
-                req.scan_consistency = couchbase::core::query_scan_consistency::not_bounded;
+                req.scan_consistency = couchbase::query_scan_consistency::not_bounded;
             } else if (type == rb_intern("request_plus")) {
-                req.scan_consistency = couchbase::core::query_scan_consistency::request_plus;
+                req.scan_consistency = couchbase::query_scan_consistency::request_plus;
             }
         }
         if (VALUE mutation_state = rb_hash_aref(options, rb_id2sym(rb_intern("mutation_state"))); !NIL_P(mutation_state)) {
@@ -6332,9 +6333,10 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
         }
         auto barrier = std::make_shared<std::promise<couchbase::core::io::dns::dns_client::dns_srv_response>>();
         auto f = barrier->get_future();
-        client.query_srv(host_name, service_name, [barrier](couchbase::core::io::dns::dns_client::dns_srv_response&& resp) {
-            barrier->set_value(std::move(resp));
-        });
+        client.query_srv(host_name,
+                         service_name,
+                         couchbase::core::io::dns::dns_config::system_config(),
+                         [barrier](couchbase::core::io::dns::dns_client::dns_srv_response&& resp) { barrier->set_value(std::move(resp)); });
         ctx.run();
         auto resp = cb_wait_for_future(f);
         if (resp.ec) {
