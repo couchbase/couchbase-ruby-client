@@ -15,7 +15,6 @@
 
 require "json"
 require "net/http"
-require "pp"
 
 Net::HTTP.start("rubygems.org", use_ssl: true) do |client|
   case resp = client.get("/api/v1/versions/couchbase.json")

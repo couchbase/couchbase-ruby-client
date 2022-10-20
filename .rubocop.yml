@@ -30,11 +30,6 @@ Layout/SpaceInsideHashLiteralBraces:
   EnforcedStyle: no_space
   EnforcedStyleForEmptyBraces: no_space
 
-Style/Copyright:
-  Enabled: true
-  Notice: 'Copyright .*\d{4} Couchbase, Inc.'
-  AutocorrectNotice: '#   Copyright 2021 Couchbase, Inc.'
-
 Style/Lambda:
   EnforcedStyle: lambda
 

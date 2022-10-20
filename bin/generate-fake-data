@@ -1,0 +1,79 @@
+#!/usr/bin/env ruby
+
+#  Copyright 2022-Present Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+require "bundler/setup"
+require "couchbase"
+require "faker"
+
+connection_string = ARGV[0] || ENV.fetch("TEST_CONNECTION_STRING", "couchbase://localhost")
+username = ARGV[1] || ENV.fetch("TEST_USERNAME", "Administrator")
+password = ARGV[2] || ENV.fetch("TEST_PASSWORD", "password")
+bucket_name = ENV.fetch("TEST_BUCKET", "default")
+scope_name = ENV.fetch("TEST_SCOPE", "_default")
+collection_name = ENV.fetch("TEST_COLLECTION", "_default")
+
+cluster = Couchbase::Cluster.connect(connection_string, username, password)
+at_exit { cluster.disconnect }
+trap("SIGINT") do
+  puts
+  exit
+end
+collection = cluster.bucket(bucket_name).scope(scope_name).collection(collection_name)
+
+total = 0
+loop do
+  customer = {
+    "name" => Faker::Name.unique.name,
+    "email" => Faker::Internet.email,
+    "cell_phone" => Faker::PhoneNumber.cell_phone,
+    "addresses" =>
+      {
+        "billing" =>
+          {
+            "line1" => Faker::Address.street_address,
+            "line2" => Faker::Address.secondary_address,
+            "city" => Faker::Address.city,
+            "country" => Faker::Address.country,
+          },
+        "delivery" =>
+          {
+            "line1" => Faker::Address.street_address,
+            "line2" => Faker::Address.secondary_address,
+            "city" => Faker::Address.city,
+            "country" => Faker::Address.country,
+          },
+      },
+    "purchases" => {
+      "complete" => Array.new(rand(1..7)) do
+        {
+          "isbn" => Faker::Code.isbn,
+          "title" => "#{Faker::Book.title} by #{Faker::Book.author}",
+          "price" => Faker::Number.decimal(l_digits: 2),
+        }
+      end,
+      "abandoned" => Array.new(rand(0..3)) do
+        {
+          "isbn" => Faker::Code.isbn,
+          "title" => "#{Faker::Book.title} by #{Faker::Book.author}",
+        }
+      end,
+    },
+  }
+  document_id = Faker::Internet.username(specifier: customer["name"], separators: ["_"])
+  total += 1
+  printf "\r\u001b[2K%5d: #{document_id}", total
+  collection.upsert(document_id, customer)
+end
