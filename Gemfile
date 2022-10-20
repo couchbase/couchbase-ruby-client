@@ -21,6 +21,7 @@ gem "rake"
 
 group :development do
   gem "activesupport", "~> 7.0.3"
+  gem "faker"
   gem "flay"
   gem "flog"
   gem "gem-compiler"
