@@ -562,6 +562,13 @@ static VALUE eQuotaLimited;
 static VALUE eXattrNoAccess;
 static VALUE eCannotReviveLivingDocument;
 static VALUE eDmlFailure;
+static VALUE eEventingFunctionCompilationFailure;
+static VALUE eEventingFunctionDeployed;
+static VALUE eEventingFunctionIdentialKeyspace;
+static VALUE eEventingFunctionNotBootstrapped;
+static VALUE eEventingFunctionNotDeployed;
+static VALUE eEventingFunctionNotFound;
+static VALUE eEventingFunctionPaused;
 
 static VALUE eBackendError;
 static VALUE eNetworkError;
@@ -650,6 +657,13 @@ init_exceptions(VALUE mCouchbase)
     eXattrNoAccess = rb_define_class_under(mError, "XattrNoAccess", eCouchbaseError);
     eCannotReviveLivingDocument = rb_define_class_under(mError, "CannotReviveLivingDocument", eCouchbaseError);
     eDmlFailure = rb_define_class_under(mError, "DmlFailure", eCouchbaseError);
+    eEventingFunctionCompilationFailure = rb_define_class_under(mError, "EventingFunctionCompilationFailure", eCouchbaseError);
+    eEventingFunctionDeployed = rb_define_class_under(mError, "EventingFunctionDeployed", eCouchbaseError);
+    eEventingFunctionIdentialKeyspace = rb_define_class_under(mError, "EventingFunctionIdentialKeyspace", eCouchbaseError);
+    eEventingFunctionNotBootstrapped = rb_define_class_under(mError, "EventingFunctionNotBootstrapped", eCouchbaseError);
+    eEventingFunctionNotDeployed = rb_define_class_under(mError, "EventingFunctionNotDeployed", eCouchbaseError);
+    eEventingFunctionNotFound = rb_define_class_under(mError, "EventingFunctionNotFound", eCouchbaseError);
+    eEventingFunctionPaused = rb_define_class_under(mError, "EventingFunctionPaused", eCouchbaseError);
 
     eBackendError = rb_define_class_under(mError, "BackendError", eCouchbaseError);
     eNetworkError = rb_define_class_under(mError, "NetworkError", eBackendError);
@@ -894,6 +908,27 @@ cb_map_error_code(std::error_code ec, const std::string& message, bool include_e
 
             case couchbase::errc::management::bucket_not_flushable:
                 return rb_exc_new_cstr(eBucketNotFlushable, what.c_str());
+
+            case couchbase::errc::management::eventing_function_not_found:
+                return rb_exc_new_cstr(eEventingFunctionNotFound, what.c_str());
+
+            case couchbase::errc::management::eventing_function_not_deployed:
+                return rb_exc_new_cstr(eEventingFunctionNotDeployed, what.c_str());
+
+            case couchbase::errc::management::eventing_function_compilation_failure:
+                return rb_exc_new_cstr(eEventingFunctionCompilationFailure, what.c_str());
+
+            case couchbase::errc::management::eventing_function_identical_keyspace:
+                return rb_exc_new_cstr(eEventingFunctionIdentialKeyspace, what.c_str());
+
+            case couchbase::errc::management::eventing_function_not_bootstrapped:
+                return rb_exc_new_cstr(eEventingFunctionNotBootstrapped, what.c_str());
+
+            case couchbase::errc::management::eventing_function_deployed:
+                return rb_exc_new_cstr(eEventingFunctionDeployed, what.c_str());
+
+            case couchbase::errc::management::eventing_function_paused:
+                return rb_exc_new_cstr(eEventingFunctionPaused, what.c_str());
         }
     } else if (ec.category() == couchbase::core::impl::network_category()) {
         switch (static_cast<couchbase::errc::network>(ec.value())) {
@@ -2300,21 +2335,6 @@ cb_extract_option_string(std::optional<std::string>& target, VALUE options, cons
             return;
         }
         throw ruby_exception(rb_eArgError, rb_sprintf("%s must be an String, but given %+" PRIsVALUE, name, val));
-    }
-}
-
-static void
-cb_extract_option_fixnum(VALUE& val, VALUE options, const char* name)
-{
-    if (!NIL_P(options) && TYPE(options) == T_HASH) {
-        val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
-        if (NIL_P(val)) {
-            return;
-        }
-        if (TYPE(val) == T_FIXNUM) {
-            return;
-        }
-        throw ruby_exception(rb_eArgError, rb_sprintf("%s must be an Integer, but given %+" PRIsVALUE, name, val));
     }
 }
 
