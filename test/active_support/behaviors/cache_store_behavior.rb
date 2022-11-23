@@ -24,6 +24,8 @@ module CacheStoreBehavior
   end
 
   def test_fetch_with_cache_miss
+    skip("#{name}: skipping because of Ruby version: #{RUBY_VERSION}") if RUBY_VERSION.to_f < 3.0
+
     key = SecureRandom.uuid
     assert_called_with(@cache, :write, [key, "baz", @cache.options]) do
       assert_equal "baz", @cache.fetch(key) { "baz" }
@@ -42,6 +44,8 @@ module CacheStoreBehavior
   end
 
   def test_fetch_with_forced_cache_miss
+    skip("#{name}: skipping because of Ruby version: #{RUBY_VERSION}") if RUBY_VERSION.to_f < 3.0
+
     key = SecureRandom.uuid
     @cache.write(key, "bar")
     assert_not_called(@cache, :read) do

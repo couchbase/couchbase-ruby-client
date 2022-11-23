@@ -36,6 +36,7 @@ module Couchbase
     def test_apply_development_config_profile
       options = Couchbase::Options::Cluster.new
       options.apply_profile("wan_development")
+
       assert_equal 20000, options.key_value_timeout
       assert_equal 20000, options.connect_timeout
       assert_equal 120000, options.view_timeout
@@ -49,6 +50,7 @@ module Couchbase
       Couchbase::ConfigProfiles::KNOWN_PROFILES.register_profile("custom_profile", CustomProfile.new)
       options = Couchbase::Options::Cluster.new
       options.apply_profile("custom_profile")
+
       assert_equal 15000, options.key_value_timeout
       assert_equal 17000, options.connect_timeout
     end

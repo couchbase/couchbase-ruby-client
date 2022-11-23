@@ -33,6 +33,7 @@ module Couchbase
       document = {"value" => 42}
       @collection.upsert(doc_id, document)
       res = @collection.get(doc_id)
+
       assert_equal document, res.content
     end
 
@@ -54,10 +55,12 @@ module Couchbase
       @collection.upsert(doc_id, document)
 
       res = @collection.get_any_replica(doc_id)
+
       assert_equal document, res.content
       assert_respond_to res, :replica?
 
       res = @collection.get_all_replicas(doc_id)
+
       refute_empty res
       res.each do |entry|
         assert_equal document, entry.content
@@ -87,6 +90,7 @@ module Couchbase
       @collection.upsert(doc_id, document)
 
       res = @collection.get_and_touch(doc_id, 1)
+
       assert_equal 42, res.content["value"]
 
       time_travel(2)
@@ -100,6 +104,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
 
       res = @collection.exists(doc_id)
+
       refute_predicate res, :exists?
 
       document = {"value" => 42}
@@ -107,12 +112,14 @@ module Couchbase
       cas = res.cas
 
       res = @collection.exists(doc_id)
+
       assert_predicate res, :exists?
       assert_equal cas, res.cas
 
       @collection.remove(doc_id)
 
       res = @collection.exists(doc_id)
+
       refute_predicate res, :exists?
     end
 
@@ -204,19 +211,23 @@ module Couchbase
       @collection.upsert(doc_id, document, options)
 
       res = @collection.binary.increment(doc_id)
+
       assert_equal 43, res.content
 
       options = Collection::GetOptions.new
       options.transcoder = BinaryTranscoder.new
       res = @collection.get(doc_id, options)
+
       assert_equal "43", res.content
 
       res = @collection.binary.decrement(doc_id)
+
       assert_equal 42, res.content
 
       options = Collection::GetOptions.new
       options.transcoder = BinaryTranscoder.new
       res = @collection.get(doc_id, options)
+
       assert_equal "42", res.content
     end
 
@@ -238,26 +249,32 @@ module Couchbase
       options = BinaryCollection::IncrementOptions.new
       options.initial = 42
       res = @collection.binary.increment(doc_id, options)
+
       assert_equal 42, res.content
       res = @collection.binary.increment(doc_id, options)
+
       assert_equal 43, res.content
 
       options = Collection::GetOptions.new
       options.transcoder = BinaryTranscoder.new
       res = @collection.get(doc_id, options)
+
       assert_equal "43", res.content
 
       doc_id = uniq_id(:bar)
       options = BinaryCollection::DecrementOptions.new
       options.initial = 142
       res = @collection.binary.decrement(doc_id, options)
+
       assert_equal 142, res.content
       res = @collection.binary.decrement(doc_id, options)
+
       assert_equal 141, res.content
 
       options = Collection::GetOptions.new
       options.transcoder = BinaryTranscoder.new
       res = @collection.get(doc_id, options)
+
       assert_equal "141", res.content
     end
 
@@ -268,13 +285,16 @@ module Couchbase
       options.initial = 42
       options.delta = 50
       res = @collection.binary.increment(doc_id, options)
+
       assert_equal 42, res.content
       res = @collection.binary.increment(doc_id, options)
+
       assert_equal 92, res.content
 
       options = Collection::GetOptions.new
       options.transcoder = BinaryTranscoder.new
       res = @collection.get(doc_id, options)
+
       assert_equal "92", res.content
 
       doc_id = uniq_id(:bar)
@@ -282,13 +302,16 @@ module Couchbase
       options.initial = 142
       options.delta = 20
       res = @collection.binary.decrement(doc_id, options)
+
       assert_equal 142, res.content
       res = @collection.binary.decrement(doc_id, options)
+
       assert_equal 122, res.content
 
       options = Collection::GetOptions.new
       options.transcoder = BinaryTranscoder.new
       res = @collection.get(doc_id, options)
+
       assert_equal "122", res.content
     end
 
@@ -297,11 +320,13 @@ module Couchbase
       person = load_json_test_dataset("projection_doc")
 
       res = @collection.upsert(doc_id, person)
+
       assert_kind_of Integer, res.cas
       refute_equal 0, res.cas
       cas = res.cas
 
       res = @collection.get(doc_id)
+
       assert_equal cas, res.cas
       assert_equal person, res.content
     end
@@ -329,8 +354,9 @@ module Couchbase
       doc = load_json_test_dataset("beer_sample_single")
 
       options = Collection::InsertOptions.new
-      options.expiry = 1
+      options.expiry = 10
       res = @collection.insert(doc_id, doc, options)
+
       refute_equal 0, res.cas
 
       options = Collection::GetOptions.new
@@ -339,7 +365,9 @@ module Couchbase
 
       assert_equal doc, res.content
       assert_kind_of Time, res.expiry_time
-      assert res.expiry_time > Time.now
+      now = Time.now
+
+      assert res.expiry_time >= now, "now: #{now} (#{now.to_i}), expiry_time: #{res.expiry_time} (#{res.expiry_time.to_i})"
     end
 
     def test_expiry_option_as_time_instance
@@ -349,6 +377,7 @@ module Couchbase
       today = Time.now.round
       tomorrow = today + (24 * 60 * 60) # add one day
       res = @collection.insert(doc_id, doc, Options::Insert(expiry: tomorrow))
+
       refute_equal 0, res.cas
 
       res = @collection.get(doc_id, Options::Get(with_expiry: true))
@@ -363,6 +392,7 @@ module Couchbase
 
       forty_days_from_today = 40 * 24 * 60 * 60
       res = @collection.insert(doc_id, doc, Options::Insert(expiry: forty_days_from_today))
+
       refute_equal 0, res.cas
 
       res = @collection.get(doc_id, Options::Get(with_expiry: true))
@@ -378,234 +408,85 @@ module Couchbase
       person = load_json_test_dataset("projection_doc")
 
       res = @collection.upsert(doc_id, person)
+
       refute_equal 0, res.cas
 
       test_cases = [
         {name: "string", project: "name",
-         expected:
-            {
-              "name" => person["name"],
-            }},
+         expected: {"name" => person["name"]}},
 
         {name: "int", project: "age",
-         expected:
-            {
-              "age" => person["age"],
-            }},
+         expected: {"age" => person["age"]}},
 
         {name: "array", project: "animals",
-         expected:
-            {
-              "animals" => person["animals"],
-            }},
+         expected: {"animals" => person["animals"]}},
 
         {name: "array-index1", project: "animals[0]",
-         expected:
-            {
-              "animals" => [
-                person["animals"][0],
-              ],
-            }},
+         expected: {"animals" => [person["animals"][0]]}},
 
         {name: "array-index2", project: "animals[1]",
-         expected:
-            {
-              "animals" => [
-                person["animals"][1],
-              ],
-            }},
+         expected: {"animals" => [person["animals"][1]]}},
 
         {name: "array-index3", project: "animals[2]",
-         expected:
-            {
-              "animals" => [
-                person["animals"][2],
-              ],
-            }},
+         expected: {"animals" => [person["animals"][2]]}},
 
         {name: "full-object-field", project: "attributes",
-         expected:
-            {
-              "attributes" => person["attributes"],
-            }},
+         expected: {"attributes" => person["attributes"]}},
 
         {name: "nested-object-field1", project: "attributes.hair",
-         expected:
-            {
-              "attributes" => {
-                "hair" => person["attributes"]["hair"],
-              },
-            }},
+         expected: {"attributes" => {"hair" => person["attributes"]["hair"]}}},
 
         {name: "nested-object-field2", project: "attributes.dimensions",
-         expected:
-            {
-              "attributes" => {
-                "dimensions" => person["attributes"]["dimensions"],
-              },
-            }},
+         expected: {"attributes" => {"dimensions" => person["attributes"]["dimensions"]}}},
 
         {name: "nested-object-field3", project: "attributes.dimensions.height",
-         expected:
-            {
-              "attributes" => {
-                "dimensions" => {
-                  "height" => person["attributes"]["dimensions"]["height"],
-                },
-              },
-            }},
+         expected: {"attributes" => {"dimensions" => {"height" => person["attributes"]["dimensions"]["height"]}}}},
 
         {name: "nested-object-field4", project: "attributes.dimensions.weight",
-         expected:
-            {
-              "attributes" => {
-                "dimensions" => {
-                  "weight" => person["attributes"]["dimensions"]["weight"],
-                },
-              },
-            }},
+         expected: {"attributes" => {"dimensions" => {"weight" => person["attributes"]["dimensions"]["weight"]}}}},
 
         {name: "nested-object-field5", project: "attributes.hobbies",
-         expected:
-            {
-              "attributes" => {
-                "hobbies" => person["attributes"]["hobbies"],
-              },
-            }},
+         expected: {"attributes" => {"hobbies" => person["attributes"]["hobbies"]}}},
 
         {name: "nested-array-object-field1", project: "attributes.hobbies[0].type",
-         expected:
-            {
-              "attributes" => {
-                "hobbies" => [
-                  {
-                    "type" => person["attributes"]["hobbies"][0]["type"],
-                  },
-                ],
-              },
-            }},
+         expected: {"attributes" => {"hobbies" => [{"type" => person["attributes"]["hobbies"][0]["type"]}]}}},
 
         {name: "nested-array-object-field2", project: "attributes.hobbies[1].type",
-         expected:
-            {
-              "attributes" => {
-                "hobbies" => [
-                  {
-                    "type" => person["attributes"]["hobbies"][1]["type"],
-                  },
-                ],
-              },
-            }},
+         expected: {"attributes" => {"hobbies" => [{"type" => person["attributes"]["hobbies"][1]["type"]}]}}},
 
         {name: "nested-array-object-field3", project: "attributes.hobbies[0].name",
-         expected:
-            {
-              "attributes" => {
-                "hobbies" => [
-                  {
-                    "name" => person["attributes"]["hobbies"][0]["name"],
-                  },
-                ],
-              },
-            }},
+         expected: {"attributes" => {"hobbies" => [{"name" => person["attributes"]["hobbies"][0]["name"]}]}}},
 
         {name: "nested-array-object-field4", project: "attributes.hobbies[1].name",
-         expected:
-            {
-              "attributes" => {
-                "hobbies" => [
-                  {
-                    "name" => person["attributes"]["hobbies"][1]["name"],
-                  },
-                ],
-              },
-            }},
+         expected: {"attributes" => {"hobbies" => [{"name" => person["attributes"]["hobbies"][1]["name"]}]}}},
 
         {name: "nested-array-object-field5", project: "attributes.hobbies[1].details",
-         expected:
-            {
-              "attributes" => {
-                "hobbies" => [
-                  {
-                    "details" => person["attributes"]["hobbies"][1]["details"],
-                  },
-                ],
-              },
-            }},
+         expected: {"attributes" => {"hobbies" => [{"details" => person["attributes"]["hobbies"][1]["details"]}]}}},
 
         {name: "nested-array-object-nested-field1", project: "attributes.hobbies[1].details.location",
-         expected:
-            {
-              "attributes" => {
-                "hobbies" => [
-                  {
-                    "details" => {
-                      "location" => person["attributes"]["hobbies"][1]["details"]["location"],
-                    },
-                  },
-                ],
-              },
-            }},
+         expected: {"attributes" => {"hobbies" => [
+           {"details" => {"location" => person["attributes"]["hobbies"][1]["details"]["location"]}},
+         ]}}},
 
         {name: "nested-array-object-nested-nested-field1", project: "attributes.hobbies[1].details.location.lat",
-         expected:
-            {
-              "attributes" => {
-                "hobbies" => [
-                  {
-                    "details" => {
-                      "location" => {
-                        "lat" => person["attributes"]["hobbies"][1]["details"]["location"]["lat"],
-                      },
-                    },
-                  },
-                ],
-              },
-            }},
+         expected: {"attributes" => {"hobbies" => [
+           {"details" => {"location" => {"lat" => person["attributes"]["hobbies"][1]["details"]["location"]["lat"]}}},
+         ]}}},
 
         {name: "nested-array-object-nested-nested-field2", project: "attributes.hobbies[1].details.location.long",
-         expected:
-            {
-              "attributes" => {
-                "hobbies" => [
-                  {
-                    "details" => {
-                      "location" => {
-                        "long" => person["attributes"]["hobbies"][1]["details"]["location"]["long"],
-                      },
-                    },
-                  },
-                ],
-              },
-            }},
+         expected: {"attributes" => {"hobbies" => [
+           {"details" => {"location" => {"long" => person["attributes"]["hobbies"][1]["details"]["location"]["long"]}}},
+         ]}}},
       ]
 
       unless use_caves?
         test_cases |=
           [
             {name: "array-of-arrays-object", project: "tracking.locations[1][1].lat",
-             expected:
-                {
-                  "tracking" => {
-                    "locations" => [
-                      [
-                        {"lat" => person["tracking"]["locations"][1][1]["lat"]},
-                      ],
-                    ],
-                  },
-                }},
+             expected: {"tracking" => {"locations" => [[{"lat" => person["tracking"]["locations"][1][1]["lat"]}]]}}},
 
             {name: "array-of-arrays-native", project: "tracking.raw[1][1]",
-             expected:
-                {
-                  "tracking" => {
-                    "raw" => [
-                      [
-                        person["tracking"]["raw"][1][1],
-                      ],
-                    ],
-                  },
-                }},
+             expected: {"tracking" => {"raw" => [[person["tracking"]["raw"][1][1]]]}}},
           ]
       end
 
@@ -613,6 +494,7 @@ module Couchbase
         options = Collection::GetOptions.new
         options.project(test_case[:project])
         res = @collection.get(doc_id, options)
+
         assert_equal(test_case[:expected], res.content,
                      "unexpected content for case #{test_case[:name]} with projections #{test_case[:project].inspect}")
       end
@@ -623,30 +505,22 @@ module Couchbase
       person = load_json_test_dataset("projection_doc")
 
       res = @collection.upsert(doc_id, person)
+
       refute_equal 0, res.cas
 
       test_cases = [
         {name: "simple", project: %w[name age animals],
-         expected:
-            {
-              "name" => person["name"],
-              "age" => person["age"],
-              "animals" => person["animals"],
-            }},
+         expected: {"name" => person["name"], "age" => person["age"], "animals" => person["animals"]}},
+
         {name: "array entries", project: %w[animals[1] animals[0]],
-         expected:
-            {
-              "animals" => [
-                person["animals"][1],
-                person["animals"][0],
-              ],
-            }},
+         expected: {"animals" => [person["animals"][1], person["animals"][0]]}},
       ]
 
       test_cases.each do |test_case|
         options = Collection::GetOptions.new
         options.project(*test_case[:project])
         res = @collection.get(doc_id, options)
+
         assert_equal(test_case[:expected], res.content,
                      "unexpected content for case #{test_case[:name]} with projections #{test_case[:project].inspect}")
       end
@@ -657,33 +531,23 @@ module Couchbase
       person = load_json_test_dataset("projection_doc")
 
       res = @collection.upsert(doc_id, person)
+
       refute_equal 0, res.cas
 
       test_cases = [
         {name: "array entries", project: %w[animals[1] animals[0]],
-         expected:
-            {
-              "animals" => [
-                person["animals"][0],
-                person["animals"][1],
-              ],
-            }},
+         expected: {"animals" => [person["animals"][0], person["animals"][1]]}},
         {name: "with inner array", project: %w[attributes.hobbies[1].details.location.lat],
-         expected:
-            {
-              "attributes" => {
-                "hobbies" => [
-                  nil,
-                  {
-                    "details" => {
-                      "location" => {
-                        "lat" => person["attributes"]["hobbies"][1]["details"]["location"]["lat"],
-                      },
-                    },
-                  },
-                ],
-              },
-            }},
+         expected: {"attributes" => {"hobbies" => [
+           nil,
+           {
+             "details" => {
+               "location" => {
+                 "lat" => person["attributes"]["hobbies"][1]["details"]["location"]["lat"],
+               },
+             },
+           },
+         ]}}},
       ]
 
       test_cases.each do |test_case|
@@ -691,6 +555,7 @@ module Couchbase
         options.project(*test_case[:project])
         options.preserve_array_indexes = true
         res = @collection.get(doc_id, options)
+
         assert_equal(test_case[:expected], res.content,
                      "unexpected content for case #{test_case[:name]} with projections #{test_case[:project].inspect}")
       end
@@ -703,6 +568,7 @@ module Couchbase
       end
 
       res = @collection.insert(doc_id, doc)
+
       refute_equal 0, res.cas
 
       options = Collection::GetOptions.new
@@ -711,6 +577,7 @@ module Couchbase
       expected = (1..17).each_with_object({}) do |n, obj|
         obj["field#{n}"] = n
       end
+
       assert_equal(expected, res.content, "expected result do not include field18")
     end
 
@@ -723,6 +590,7 @@ module Couchbase
       options = Collection::UpsertOptions.new
       options.expiry = 60
       res = @collection.upsert(doc_id, doc, options)
+
       refute_equal 0, res.cas
 
       options = Collection::GetOptions.new
@@ -732,6 +600,7 @@ module Couchbase
       expected = (1..16).each_with_object({}) do |n, obj|
         obj["field#{n}"] = n
       end
+
       assert_equal(expected, res.content, "expected result do not include field17, field18")
       assert_kind_of(Time, res.expiry_time)
       assert(res.expiry_time > Time.now)
@@ -742,6 +611,7 @@ module Couchbase
       person = load_json_test_dataset("projection_doc")
 
       res = @collection.upsert(doc_id, person)
+
       refute_equal 0, res.cas
 
       options = Collection::GetOptions.new
@@ -787,6 +657,7 @@ module Couchbase
       options = Collection::UpsertOptions.new
       options.timeout = 15_000
       res = collection.upsert(doc_id, doc, options)
+
       refute_equal 0, res.cas
 
       # the following delete and create will recreate a collection with the same name but a different collection ID.
@@ -800,9 +671,11 @@ module Couchbase
       options = Collection::UpsertOptions.new
       options.timeout = 15_000
       res = collection.upsert(doc_id, doc, options)
+
       refute_equal 0, res.cas
 
       res = collection.get(doc_id)
+
       assert_equal doc, res.content
     end
 
@@ -810,12 +683,15 @@ module Couchbase
       doc_id = uniq_id(:append)
 
       res = @collection.upsert(doc_id, "foo")
+
       refute_equal 0, res.cas
 
       res = @collection.binary.append(doc_id, "bar")
+
       refute_equal 0, res.cas
 
       res = @collection.get(doc_id, Options::Get(transcoder: nil))
+
       refute_equal "foobar", res.content
     end
 
@@ -823,12 +699,15 @@ module Couchbase
       doc_id = uniq_id(:append)
 
       res = @collection.upsert(doc_id, "foo")
+
       refute_equal 0, res.cas
 
       res = @collection.binary.prepend(doc_id, "bar")
+
       refute_equal 0, res.cas
 
       res = @collection.get(doc_id, Options::Get(transcoder: nil))
+
       refute_equal "barfoo", res.content
     end
 
@@ -840,6 +719,7 @@ module Couchbase
                                        [doc_id1, {"foo" => 32}],
                                        [doc_id2, {"bar" => "bar42"}],
                                      ])
+
       assert_kind_of Array, res
       assert_equal 2, res.size
       assert_nil res[0].error
@@ -850,6 +730,7 @@ module Couchbase
       cas2 = res[1].cas
 
       res = @collection.get_multi([doc_id1, doc_id2, uniq_id(:does_not_exist)])
+
       assert_kind_of Array, res
       assert_equal 3, res.size
       assert_nil res[0].error
@@ -863,6 +744,7 @@ module Couchbase
       assert_equal(cas2, res[1].cas)
 
       res = @collection.remove_multi([doc_id1, [doc_id2, cas2]])
+
       assert_kind_of Array, res
       assert_equal 2, res.size
       assert_nil res[0].error
@@ -871,6 +753,7 @@ module Couchbase
       assert_equal res[1].id, doc_id2
 
       res = @collection.get_multi([doc_id1, doc_id2])
+
       assert_kind_of Array, res
       assert_equal 2, res.size
       assert_kind_of Error::DocumentNotFound, res[0].error
@@ -885,6 +768,7 @@ module Couchbase
       keys = (0..num_keys).map { |idx| uniq_id("key_#{idx}") }
 
       res = @collection.upsert_multi(keys.map { |k| [k, {"value" => k}] })
+
       assert_kind_of Array, res
       assert_equal keys.size, res.size
       res.each_with_index do |r, i|
@@ -892,6 +776,7 @@ module Couchbase
       end
 
       res = @collection.get_multi(keys)
+
       assert_kind_of Array, res
       assert_equal keys.size, res.size
       res.each_with_index do |r, i|
@@ -907,15 +792,18 @@ module Couchbase
       doc_id = uniq_id(:foo)
       res = @collection.upsert(doc_id, {answer: 42}, Options::Upsert(expiry: 1))
       old_cas = res.cas
+
       refute_equal 0, old_cas
 
       res = @collection.get(doc_id, Options::Get(with_expiry: true))
       old_expiry = res.expiry_time
 
       res = @collection.upsert(doc_id, {answer: 43}, Options::Upsert(expiry: 100, preserve_expiry: true))
+
       refute_equal old_cas, res.cas
 
       res = @collection.get(doc_id, Options::Get(with_expiry: true))
+
       assert_equal old_expiry, res.expiry_time
 
       time_travel(2)
@@ -928,6 +816,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       res = @collection.upsert(doc_id, {answer: 42}, Options::Upsert(persist_to: :active))
       old_cas = res.cas
+
       refute_equal 0, old_cas
     end
   end

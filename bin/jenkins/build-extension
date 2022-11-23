@@ -119,7 +119,7 @@ fi
 export CB_REMOVE_EXT_DIRECTORY=1
 if [ ! -f /etc/alpine-release ]
 then
-    export CB_STATIC=1 
+    export CB_STATIC_STDLIB=1
 fi
 ${CB_GEM_COMPILE} --prune --verbose --output ${precompiled} ${source}
 ruby -rrbconfig -rfileutils \

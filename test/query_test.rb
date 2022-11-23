@@ -35,6 +35,7 @@ module Couchbase
 
     def test_simple_query
       res = @cluster.query('SELECT "ruby rules" AS greeting')
+
       assert_equal "ruby rules", res.rows.first["greeting"]
     end
 
@@ -45,6 +46,7 @@ module Couchbase
 
       res = @cluster.query("SELECT META() AS meta FROM `#{@bucket.name}` WHERE self_id = $doc_id",
                            Options::Query(scan_consistency: :request_plus, named_parameters: {doc_id: doc_id}))
+
       assert_equal doc_id, res.rows.first["meta"]["id"]
       assert_equal cas, res.rows.first["meta"]["cas"]
     end
@@ -54,9 +56,11 @@ module Couchbase
       options.metrics = true
       options.timeout = 200_000 # 200 seconds
       res = @cluster.query('SELECT "ruby rules" AS greeting', options)
+
       assert_equal "ruby rules", res.rows.first["greeting"]
 
       metrics = res.meta_data.metrics
+
       refute metrics.error_count
       refute metrics.warning_count
       assert_equal 1, metrics.result_count
@@ -112,6 +116,7 @@ module Couchbase
       assert res.meta_data.signature
 
       rows = res.rows
+
       assert_equal 1, rows.size
       assert_equal({"foo" => "bar"}, rows.first["doc"])
     end
@@ -122,14 +127,17 @@ module Couchbase
 
       options.profile = :off
       res = @cluster.query('SELECT "ruby rules" AS greeting', options)
+
       refute res.meta_data.profile
 
       options.profile = :timings
       res = @cluster.query('SELECT "ruby rules" AS greeting', options)
+
       assert_kind_of Hash, res.meta_data.profile
 
       options.profile = :phases
       res = @cluster.query('SELECT "ruby rules" AS greeting', options)
+
       assert_kind_of Hash, res.meta_data.profile
     end
 
@@ -149,6 +157,7 @@ module Couchbase
       options.timeout = 200_000 # 200 seconds
 
       res = @cluster.query("SELECT `#{@bucket.name}`.* FROM `#{@bucket.name}` WHERE META().id = $id", options)
+
       assert_equal 1, res.rows.size
       assert_equal({"foo" => "bar"}, res.rows.first)
     end
@@ -163,6 +172,7 @@ module Couchbase
       options.timeout = 200_000 # 200 seconds
 
       res = @cluster.query("SELECT `#{@bucket.name}`.* FROM `#{@bucket.name}` WHERE META().id = $1", options)
+
       assert_equal 1, res.rows.size
       assert_equal({"foo" => "bar"}, res.rows.first)
     end
@@ -177,6 +187,7 @@ module Couchbase
       options.timeout = 200_000 # 200 seconds
 
       res = @cluster.query("SELECT `#{@bucket.name}`.* FROM `#{@bucket.name}` WHERE META().id = $1", options)
+
       assert_equal 1, res.rows.size
       assert_equal({"foo" => "bar"}, res.rows.first)
     end
@@ -232,14 +243,17 @@ module Couchbase
       options.timeout = 200_000 # 200 seconds
 
       res = @cluster.query("SELECT location FROM `#{@bucket.name}` WHERE META().id IN $1", options)
+
       assert_equal 1, res.rows.size
       assert_equal({"location" => "global"}, res.rows.first)
 
       res = @cluster.query("SELECT location FROM `#{@bucket.name}`.#{scope_name}.#{collection_name} WHERE META().id IN $1", options)
+
       assert_equal 1, res.rows.size
       assert_equal({"location" => "local"}, res.rows.first)
 
       res = scope.query("SELECT location FROM #{collection_name} WHERE META().id IN $1", options)
+
       assert_equal 1, res.rows.size
       assert_equal({"location" => "local"}, res.rows.first)
     end

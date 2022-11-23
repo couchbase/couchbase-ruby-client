@@ -36,6 +36,7 @@ module Couchbase
         default_port: 11210,
         default_mode: :gcccp,
       }
+
       assert_equal(expected, Couchbase::Backend.parse_connection_string("couchbase://localhost:8091=http;127.0.0.1=mcd/default?foo=bar&baz="))
 
       assert_equal 'couchbase', Couchbase::Backend.parse_connection_string('couchbase://127.0.0.1')[:scheme]
