@@ -42,6 +42,7 @@ module Couchbase
 
       expected = {"value" => 46}
       res = @collection.get(doc_id)
+
       assert_equal expected, res.content
     end
 
@@ -102,6 +103,7 @@ module Couchbase
       res = @collection.mutate_in(doc_id, [
                                     MutateInSpec.insert("foo", "bar"),
                                   ])
+
       assert res.cas && res.cas != 0
       assert_equal({"foo" => "bar"}, @collection.get(doc_id).content)
     end
@@ -128,11 +130,13 @@ module Couchbase
                                     LookupInSpec.get("does_not_exist"),
                                     LookupInSpec.get("foo"),
                                   ])
+
       refute res.exists?(0)
       assert res.exists?(1)
       assert_raises(Error::PathNotFound) do
         res.content(0)
       end
+
       assert_equal "bar", res.content(1)
     end
 
@@ -178,6 +182,7 @@ module Couchbase
       res = @collection.lookup_in(doc_id, [
                                     LookupInSpec.count("foo"),
                                   ])
+
       assert res.exists?(0)
       assert_equal 2, res.content(0)
     end
@@ -190,6 +195,7 @@ module Couchbase
       res = @collection.lookup_in(doc_id, [
                                     LookupInSpec.get(""),
                                   ])
+
       assert_equal({"foo" => "bar"}, res.content(0))
     end
 
@@ -207,6 +213,7 @@ module Couchbase
                             ], options)
 
       res = @collection.get(doc_id)
+
       assert_equal({"bar" => "foo"}, res.content)
     end
 
@@ -222,6 +229,7 @@ module Couchbase
                             ], options)
 
       res = @collection.get(doc_id)
+
       assert_equal({"bar" => "foo"}, res.content)
     end
 
@@ -240,6 +248,7 @@ module Couchbase
       res = @collection.lookup_in(doc_id, [
                                     LookupInSpec.get("$document").xattr,
                                   ], Options::LookupIn(access_deleted: true))
+
       assert_equal(cas, res.content(0)["CAS"].to_i(16))
     end
 
@@ -396,6 +405,7 @@ module Couchbase
       res = @collection.mutate_in(doc_id, [
                                     MutateInSpec.insert("foo", false),
                                   ])
+
       assert_kind_of Integer, res.cas
       refute_equal cas, res.cas
       assert_equal false, @collection.get(doc_id).content["foo"] # rubocop:disable Minitest/RefuteFalse
@@ -409,6 +419,7 @@ module Couchbase
       res = @collection.mutate_in(doc_id, [
                                     MutateInSpec.insert("foo", 42),
                                   ])
+
       assert_kind_of Integer, res.cas
       refute_equal cas, res.cas
       assert_equal 42, @collection.get(doc_id).content["foo"]
@@ -422,6 +433,7 @@ module Couchbase
       res = @collection.mutate_in(doc_id, [
                                     MutateInSpec.insert("foo", 13.8),
                                   ])
+
       assert_kind_of Integer, res.cas
       refute_equal cas, res.cas
       assert_in_delta 13.8, @collection.get(doc_id).content["foo"]
@@ -435,6 +447,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.replace("foo", "bar2"),
                             ])
+
       assert_equal "bar2", @collection.get(doc_id).content["foo"]
     end
 
@@ -446,6 +459,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.replace("", {"foo2" => "bar2"}),
                             ])
+
       assert_equal({"foo2" => "bar2"}, @collection.get(doc_id).content)
     end
 
@@ -469,6 +483,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.upsert("foo", "bar2"),
                             ])
+
       assert_equal "bar2", @collection.get(doc_id).content["foo"]
     end
 
@@ -480,6 +495,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.upsert("foo", "bar2"),
                             ])
+
       assert_equal "bar2", @collection.get(doc_id).content["foo"]
     end
 
@@ -491,6 +507,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_append("foo", ["world"]),
                             ])
+
       assert_equal %w[hello world], @collection.get(doc_id).content["foo"]
     end
 
@@ -502,6 +519,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_append("foo", %w[world mars]),
                             ])
+
       assert_equal %w[hello world mars], @collection.get(doc_id).content["foo"]
     end
 
@@ -513,6 +531,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_append("foo", ["world", %w[mars jupiter]]),
                             ])
+
       assert_equal ["hello", "world", %w[mars jupiter]], @collection.get(doc_id).content["foo"]
     end
 
@@ -524,11 +543,13 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_prepend("foo", ["world"]),
                             ])
+
       assert_equal %w[world hello], @collection.get(doc_id).content["foo"]
 
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_prepend("foo", ["!"]),
                             ])
+
       assert_equal %w[! world hello], @collection.get(doc_id).content["foo"]
     end
 
@@ -540,6 +561,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_prepend("foo", %w[world mars]),
                             ])
+
       assert_equal %w[world mars hello], @collection.get(doc_id).content["foo"]
     end
 
@@ -551,6 +573,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_insert("foo[1]", ["cruel"]),
                             ])
+
       assert_equal %w[hello cruel world], @collection.get(doc_id).content["foo"]
     end
 
@@ -562,6 +585,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_insert("foo[1]", %w[cruel mars]),
                             ])
+
       assert_equal %w[hello cruel mars world], @collection.get(doc_id).content["foo"]
     end
 
@@ -573,6 +597,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_add_unique("foo", "cruel"),
                             ])
+
       assert_equal %w[hello world cruel], @collection.get(doc_id).content["foo"]
     end
 
@@ -587,6 +612,7 @@ module Couchbase
                                 MutateInSpec.array_add_unique("foo", "cruel"),
                               ])
       end
+
       assert_equal %w[hello world], @collection.get(doc_id).content["foo"]
     end
 
@@ -600,6 +626,7 @@ module Couchbase
                                 MutateInSpec.array_add_unique("foo", "cruel"),
                               ])
       end
+
       assert_equal %w[hello cruel world], @collection.get(doc_id).content["foo"]
     end
 
@@ -611,6 +638,7 @@ module Couchbase
       res = @collection.mutate_in(doc_id, [
                                     MutateInSpec.increment("foo", 5),
                                   ])
+
       assert_equal 15, res.content(0)
       assert_equal 15, @collection.get(doc_id).content["foo"]
     end
@@ -623,6 +651,7 @@ module Couchbase
       res = @collection.mutate_in(doc_id, [
                                     MutateInSpec.decrement("foo", 5),
                                   ])
+
       assert_equal 5, res.content(0)
       assert_equal 5, @collection.get(doc_id).content["foo"]
     end
@@ -637,6 +666,7 @@ module Couchbase
                             ])
 
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_equal({"foo" => "bar2"}, res.content(0))
       assert_empty(@collection.get(doc_id).content)
     end
@@ -654,6 +684,7 @@ module Couchbase
                             ])
 
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_empty(res.content(0))
     end
 
@@ -696,6 +727,7 @@ module Couchbase
                               MutateInSpec.replace("x.foo", "bar2").xattr,
                             ])
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_equal({"foo" => "bar2"}, res.content(0))
     end
 
@@ -726,6 +758,7 @@ module Couchbase
                               MutateInSpec.upsert("x.foo", "bar2").xattr,
                             ])
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_equal({"foo" => "bar2"}, res.content(0))
     end
 
@@ -741,6 +774,7 @@ module Couchbase
                               MutateInSpec.upsert("x.foo2", "bar2").xattr,
                             ])
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_equal({"foo" => "bar", "foo2" => "bar2"}, res.content(0))
     end
 
@@ -756,6 +790,7 @@ module Couchbase
                               MutateInSpec.array_append("x.foo", ["world"]).xattr,
                             ])
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_equal({"foo" => %w[hello world]}, res.content(0))
     end
 
@@ -771,6 +806,7 @@ module Couchbase
                               MutateInSpec.array_prepend("x.foo", ["world"]).xattr,
                             ])
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_equal({"foo" => %w[world hello]}, res.content(0))
     end
 
@@ -786,6 +822,7 @@ module Couchbase
                               MutateInSpec.array_insert("x.foo[1]", ["cruel"]).xattr,
                             ])
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_equal({"foo" => %w[hello cruel world]}, res.content(0))
     end
 
@@ -801,6 +838,7 @@ module Couchbase
                               MutateInSpec.array_add_unique("x.foo", "cruel").xattr,
                             ])
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_equal({"foo" => %w[hello world cruel]}, res.content(0))
     end
 
@@ -831,6 +869,7 @@ module Couchbase
                               MutateInSpec.increment("x.foo", 5).xattr,
                             ])
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_equal({"foo" => 15}, res.content(0))
     end
 
@@ -846,6 +885,7 @@ module Couchbase
                               MutateInSpec.decrement("x.foo", 5).xattr,
                             ])
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_equal({"foo" => 5}, res.content(0))
     end
 
@@ -876,8 +916,10 @@ module Couchbase
                                     MutateInSpec.insert("foo2", "bar2"),
                                     MutateInSpec.increment("x.foo", 5).xattr,
                                   ])
+
       assert_equal 15, res.content(1)
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_equal({"foo" => 15}, res.content(0))
     end
 
@@ -893,6 +935,7 @@ module Couchbase
                               MutateInSpec.insert("x.foo", :cas).xattr,
                             ])
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_kind_of String, res.content(0)["foo"] # HEX encoded sequence number
       assert_equal res.content(0)["foo"].sub(/^0x0*/, ''), res.content(0)["foo"].to_i(16).to_s(16)
     end
@@ -909,6 +952,7 @@ module Couchbase
                               MutateInSpec.upsert("x.foo", :cas).xattr,
                             ])
       res = @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr])
+
       assert_kind_of String, res.content(0)["foo"] # HEX encoded sequence number
       assert_equal res.content(0)["foo"].sub(/^0x0*/, ''), res.content(0)["foo"].to_i(16).to_s(16)
     end
@@ -921,6 +965,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.insert("x.foo.baz", "bar2").xattr.create_path,
                             ])
+
       assert_equal({"foo" => {"baz" => "bar2"}},
                    @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr]).content(0))
     end
@@ -951,6 +996,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.upsert("x.foo.baz", "bar2").xattr.create_path,
                             ])
+
       assert_equal({"foo" => {"baz" => "bar2"}},
                    @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr]).content(0))
     end
@@ -963,6 +1009,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.upsert("x.foo.baz", "bar2").xattr.create_path,
                             ])
+
       assert_equal({"foo" => {"baz" => "bar2"}},
                    @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr]).content(0))
     end
@@ -975,6 +1022,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_append("x.foo", ["world"]).xattr.create_path,
                             ])
+
       assert_equal({"foo" => ["world"]},
                    @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr]).content(0))
     end
@@ -987,6 +1035,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_prepend("x.foo", ["world"]).xattr.create_path,
                             ])
+
       assert_equal({"foo" => ["world"]},
                    @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr]).content(0))
     end
@@ -1001,6 +1050,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.increment("x.foo", 5).xattr.create_path,
                             ])
+
       assert_equal({"foo" => 5},
                    @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr]).content(0))
     end
@@ -1015,6 +1065,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.decrement("x.foo", 3).xattr.create_path,
                             ])
+
       assert_equal({"foo" => -3},
                    @collection.lookup_in(doc_id, [LookupInSpec.get("x").xattr]).content(0))
     end
@@ -1027,6 +1078,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.insert("foo.baz", "bar2").create_path,
                             ])
+
       assert_equal({"foo" => {"baz" => "bar2"}}, @collection.get(doc_id).content)
     end
 
@@ -1050,6 +1102,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.upsert("foo.baz", "bar2").create_path,
                             ])
+
       assert_equal({"foo" => {"baz" => "bar2"}}, @collection.get(doc_id).content)
     end
 
@@ -1061,6 +1114,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.upsert("foo.baz", "bar2").create_path,
                             ])
+
       assert_equal({"foo" => {"baz" => "bar2"}}, @collection.get(doc_id).content)
     end
 
@@ -1072,6 +1126,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_append("foo", ["world"]).create_path,
                             ])
+
       assert_equal({"foo" => ["world"]}, @collection.get(doc_id).content)
     end
 
@@ -1083,6 +1138,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.array_prepend("foo", ["world"]).create_path,
                             ])
+
       assert_equal({"foo" => ["world"]}, @collection.get(doc_id).content)
     end
 
@@ -1096,6 +1152,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.increment("foo", 5).create_path,
                             ])
+
       assert_equal({"foo" => 5}, @collection.get(doc_id).content)
     end
 
@@ -1109,6 +1166,7 @@ module Couchbase
       @collection.mutate_in(doc_id, [
                               MutateInSpec.decrement("foo", 3).create_path,
                             ])
+
       assert_equal({"foo" => -3}, @collection.get(doc_id).content)
     end
 
@@ -1128,6 +1186,7 @@ module Couchbase
       options = Collection::GetOptions.new
       options.with_expiry = true
       res = @collection.get(doc_id, options)
+
       assert_kind_of Time, res.expiry_time
       assert res.expiry_time > Time.now
     end
@@ -1235,6 +1294,7 @@ module Couchbase
       res = @collection.mutate_in(doc_id, [
                                     MutateInSpec.upsert("meta.field", "b").xattr.create_path,
                                   ], options)
+
       assert_predicate res, :deleted?, "the document should be marked as 'deleted'"
 
       assert_raises(Error::DocumentNotFound) do
@@ -1246,6 +1306,7 @@ module Couchbase
       res = @collection.lookup_in(doc_id, [
                                     LookupInSpec.get("meta").xattr,
                                   ], options)
+
       assert_equal({"field" => "b"}, res.content(0))
       assert_predicate res, :deleted?, "the document should be marked as 'deleted'"
     end

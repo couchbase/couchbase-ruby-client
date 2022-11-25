@@ -34,6 +34,7 @@ module Couchbase
       def test_new_set_empty
         doc_id = uniq_id(:foo)
         set = CouchbaseSet.new(doc_id, @collection)
+
         assert_equal 0, set.size
         assert_empty set
       end
@@ -45,6 +46,7 @@ module Couchbase
         set.each do |element|
           actual << element
         end
+
         assert_empty actual
       end
 
@@ -59,6 +61,7 @@ module Couchbase
         set.each do |element|
           actual << element
         end
+
         assert_equal %w[foo], actual
       end
 
@@ -81,9 +84,11 @@ module Couchbase
         set = CouchbaseSet.new(doc_id, @collection)
 
         set.add("foo").add("bar")
+
         assert_equal 2, set.size
 
         set.delete("bar")
+
         assert_equal 1, set.size
 
         assert_includes set, "foo"

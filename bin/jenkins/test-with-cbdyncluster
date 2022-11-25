@@ -122,6 +122,15 @@ set +e
 
 cat /proc/sys/kernel/core_pattern
 echo "${PWD}/core.%h.%e.%t" | sudo tee /proc/sys/kernel/core_pattern
+if [ -e /usr/bin/apport-unpack ]
+then
+    mkdir -p $HOME/.config/apport
+    cat <<EOF >$HOME/.config/apport/settings
+[main]
+unpackaged=true
+EOF
+fi
+
 ulimit -c unlimited
 
 if [ ! -z "$1" ]
@@ -160,26 +169,40 @@ then
     cbdyncluster ps -a
 else
     date
-    for i in "${PWD}/core*" /tmp/core.*
-    do
-       if [ -f $i ]
-       then
-         echo $i
-         ls -l $i
-         file $i
-         gdb $(which ruby) $i --batch -ex "thread apply all bt"
-         rm $i || true
-       fi
-    done
+    if [ -e /usr/bin/coredumpctl -a "$(grep -c systemd /proc/sys/kernel/core_pattern)" -ne 0 ]
+    then
+        /usr/bin/coredumpctl list --no-pager
+        /usr/bin/coredumpctl -1 info
+    elif [ -e /usr/bin/apport-unpack ]
+    then
+        for crash in /var/crash/*
+        do
+           if [ -f $crash ]
+           then
+             echo $crash
+             /usr/bin/apport-unpack $crash /tmp/the_crash/
+             executable=$(cat /tmp/the_crash/ExecutablePath)
+             gdb $executable /tmp/the_crash/CoreDump --batch -ex "thread apply all bt"
+             rm -rf $crash /tmp/the_crash
+           fi
+        done
+    else
+        ls -l /tmp/core.* "${PWD}/core*" || true
+        for core in /tmp/core.* "${PWD}/core*"
+        do
+            if [ -f $core ]
+            then
+                echo $core
+                executable=$(file $core | ruby -e "print ARGF.read[/execfn: '([^']+)'/, 1]")
+                echo $executable
+                gdb $executable $core --batch -ex "thread apply all bt"
+                rm -f $core
+            fi
+        done
+    fi
+
     mkdir server_logs
-    for ip in $(cbdyncluster ips ${CLUSTER_ID} | ruby -e 'puts STDIN.read.split(",").join(" ")')
-    do
-      curl -sS -u${CB_CREDS} http://${ip}:8091/diag > "server_logs/${ip}-diag.log" || true
-      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/debug > "server_logs/${ip}-debug.log" || true
-      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/error > "server_logs/${ip}-error.log" || true
-      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/fts > "server_logs/${ip}-fts.log" || true
-      curl -sS -u${CB_CREDS} http://${ip}:8091/sasl_logs/query > "server_logs/${ip}-query.log" || true
-    done
+    (cd server_logs; cbdyncluster cbcollect ${CLUSTER_ID})
     tar cvf server_logs.tar server_logs || true
     gzip -9 server_logs.tar || true
     cbdyncluster rm ${CLUSTER_ID}

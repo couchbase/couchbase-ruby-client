@@ -34,6 +34,7 @@ module Couchbase
       def test_new_list_empty
         doc_id = uniq_id(:foo)
         list = CouchbaseList.new(doc_id, @collection)
+
         assert_equal 0, list.size
         assert_empty list
       end
@@ -45,12 +46,14 @@ module Couchbase
         list.each do |element|
           actual << element
         end
+
         assert_empty actual
       end
 
       def test_at_returns_nil_for_new_list
         doc_id = uniq_id(:foo)
         list = CouchbaseList.new(doc_id, @collection)
+
         refute list.at(0)
       end
 
@@ -58,10 +61,12 @@ module Couchbase
         doc_id = uniq_id(:foo)
         list = CouchbaseList.new(doc_id, @collection)
         list.push(1, 2, 3)
+
         assert_equal 3, list.size
         refute_empty list
 
         list = CouchbaseList.new(doc_id, @collection)
+
         assert_equal 3, list.size
         refute_empty list
       end
@@ -70,10 +75,12 @@ module Couchbase
         doc_id = uniq_id(:foo)
         list = CouchbaseList.new(doc_id, @collection)
         list.unshift(1, 2, 3)
+
         assert_equal 3, list.size
         refute_empty list
 
         list = CouchbaseList.new(doc_id, @collection)
+
         assert_equal 3, list.size
         refute_empty list
       end
@@ -82,12 +89,14 @@ module Couchbase
         doc_id = uniq_id(:foo)
         list = CouchbaseList.new(doc_id, @collection)
         list.push(1, 2, 3)
+
         assert_equal 3, list.size
 
         list.clear
         assert_raises(Error::DocumentNotFound) do
           @collection.get(doc_id)
         end
+
         assert_empty list
       end
 
@@ -95,6 +104,7 @@ module Couchbase
         doc_id = uniq_id(:foo)
         list = CouchbaseList.new(doc_id, @collection)
         list.push(1, 2, 3)
+
         assert_equal 3, list.size
         assert_equal 3, list.at(-1)
       end
@@ -103,11 +113,13 @@ module Couchbase
         doc_id = uniq_id(:foo)
         list = CouchbaseList.new(doc_id, @collection)
         list.push(1, 2, 3)
+
         assert_equal 3, list.size
 
         list.delete_at(-1)
 
         result = @collection.get(doc_id)
+
         assert_equal [1, 2], result.content
       end
 
@@ -119,6 +131,7 @@ module Couchbase
         list.insert(2, "hello", "world")
 
         result = @collection.get(doc_id)
+
         assert_equal [1, 2, "hello", "world", 3, 4], result.content
       end
     end

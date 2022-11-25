@@ -34,6 +34,7 @@ module Couchbase
       def test_new_queue_empty
         doc_id = uniq_id(:foo)
         queue = CouchbaseQueue.new(doc_id, @collection)
+
         assert_equal 0, queue.size
         assert_empty queue
       end
@@ -45,6 +46,7 @@ module Couchbase
         queue.each do |element|
           actual << element
         end
+
         assert_empty actual
       end
 
@@ -60,6 +62,7 @@ module Couchbase
         3.times do
           actual << queue.pop
         end
+
         assert_equal ["foo", "bar", 42], actual
       end
 

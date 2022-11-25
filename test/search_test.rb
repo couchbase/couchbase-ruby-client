@@ -92,12 +92,14 @@ module Couchbase
           sleep(0.5)
           next
         end
+
         assert_predicate res, :success?, "res=#{res.inspect}"
         refute_empty res.rows, "expected non empty result"
         assert res.rows.find { |row| row.id == doc_id }, "result expected to include #{doc_id}"
         break
       end
       warn "search with at_plus took #{attempts} attempts, probably server bug" if attempts > 1
+
       assert attempts < 20, "it is very suspicious that search with at_plus took more than 20 attempts (#{attempts})"
     end
   end

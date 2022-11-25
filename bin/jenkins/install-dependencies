@@ -75,7 +75,7 @@ then
   then
     sudo apt-get update -y
     sudo apt-get install -y libssl-dev \
-	    clang clang-format clang-tidy clang-tools libc++-dev libc++abi-dev
+	    clang clang-format clang-tidy clang-tools libc++-dev libc++abi-dev || true
   fi
   ruby-install --version
   ruby-install --latest || true

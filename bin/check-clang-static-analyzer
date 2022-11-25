@@ -40,7 +40,15 @@ SCAN_BUILD_ARGS="--exclude third_party -o ${REPORT_DIR} --use-analyzer=${CB_CC} 
 RUBY_HDR_DIR=$(ruby -rrbconfig -e "puts RbConfig::CONFIG['rubyhdrdir']")
 RUBY_ARCH_HDR_DIR=$(ruby -rrbconfig -e "puts RbConfig::CONFIG['rubyarchhdrdir']")
 
-${CB_SCAN_BUILD} ${SCAN_BUILD_ARGS} ${CB_CMAKE} -DENABLE_CACHE=OFF -DRUBY_HDR_DIR="${RUBY_HDR_DIR}" -DRUBY_ARCH_HDR_DIR="${RUBY_ARCH_HDR_DIR}" ..
+${CB_SCAN_BUILD} ${SCAN_BUILD_ARGS} ${CB_CMAKE} \
+    -DENABLE_CACHE=OFF \
+    -DRUBY_HDR_DIR="${RUBY_HDR_DIR}" \
+    -DRUBY_ARCH_HDR_DIR="${RUBY_ARCH_HDR_DIR}" \
+    -DCOUCHBASE_CXX_CLIENT_BUILD_TESTS=OFF \
+    -DCOUCHBASE_CXX_CLIENT_BUILD_DOCS=OFF \
+    -DCOUCHBASE_CXX_CLIENT_BUILD_EXAMPLES=OFF \
+    ..
+
 set +e
 ${CB_SCAN_BUILD} ${SCAN_BUILD_ARGS} ${CB_CMAKE} --build . --parallel 8 --verbose
 STATUS=$?
