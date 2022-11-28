@@ -52,7 +52,13 @@ module Couchbase
     def test_reads_from_replica
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
-      @collection.upsert(doc_id, document)
+      options =
+        if env.jenkins?
+          Options::Upsert(persist_to: :active, replicate_to: :one)
+        else
+          Options::Upsert(persist_to: :active)
+        end
+      @collection.upsert(doc_id, document, options)
 
       res = @collection.get_any_replica(doc_id)
 

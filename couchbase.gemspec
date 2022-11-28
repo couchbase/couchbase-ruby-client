@@ -56,6 +56,8 @@ Gem::Specification.new do |spec|
     "ext/couchbase/third_party/asio/asio/include/*.hpp",
     "ext/couchbase/third_party/asio/asio/include/asio/**/*.[hi]pp",
     "ext/couchbase/third_party/cxx_function/cxx_function.hpp",
+    "ext/couchbase/third_party/expected/COPYING",
+    "ext/couchbase/third_party/expected/include/**/*",
     "ext/couchbase/third_party/fmt/CMakeLists.txt",
     "ext/couchbase/third_party/fmt/ChangeLog.rst",
     "ext/couchbase/third_party/fmt/LICENSE.rst",

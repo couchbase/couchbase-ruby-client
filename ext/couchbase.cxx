@@ -66,6 +66,10 @@
 #define INT_FUNC(f) reinterpret_cast<int (*)(ANYARGS)>(f)
 #endif
 
+#include <gsl/span>
+
+#include <queue>
+
 static VALUE
 cb_displaying_class_of(VALUE x)
 {
@@ -2164,7 +2168,7 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
                 throw ruby_exception(cb_map_error_code(ec, fmt::format("unable open bucket \"{}\"", name)));
             }
         } else {
-            cluster->open_bucket(name, [name](std::error_code ec) { LOG_WARNING("unable open bucket \"{}\": {}", name, ec.message()); });
+            cluster->open_bucket(name, [name](std::error_code ec) { CB_LOG_WARNING("unable open bucket \"{}\": {}", name, ec.message()); });
         }
     } catch (const std::system_error& se) {
         rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
@@ -7986,12 +7990,12 @@ cb_Backend_leb128_decode(VALUE self, VALUE data)
 {
     (void)self;
     Check_Type(data, T_STRING);
-    std::string buf(RSTRING_PTR(data), static_cast<std::size_t>(RSTRING_LEN(data)));
+    auto buf = cb_binary_new(data);
     if (buf.empty()) {
         rb_raise(rb_eArgError, "Unable to decode the buffer as LEB128: the buffer is empty");
     }
 
-    auto [value, rest] = couchbase::core::utils::decode_unsigned_leb128<std::uint64_t>(buf, couchbase::core::utils::Leb128NoThrow());
+    auto [value, rest] = couchbase::core::utils::decode_unsigned_leb128<std::uint64_t>(buf, couchbase::core::utils::leb_128_no_throw());
     if (rest.data() != nullptr) {
         return ULL2NUM(value);
     }

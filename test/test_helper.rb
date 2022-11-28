@@ -112,6 +112,10 @@ module Couchbase
       @bucket ||= ENV.fetch("TEST_BUCKET", nil) || "default"
     end
 
+    def jenkins?
+      ENV.key?("JENKINS_HOME")
+    end
+
     def developer_preview?
       unless defined?(@developer_preview)
         @developer_preview = ENV.key?("TEST_DEVELOPER_PREVIEW") && ENV.fetch("TEST_DEVELOPER_PREVIEW",
