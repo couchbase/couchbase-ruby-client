@@ -100,7 +100,7 @@ module Couchbase
         total_deleted += deleted
       end
 
-      assert_predicate deleted, :positive?, "delete_matched performed #{total_deleted} mutations"
+      assert_predicate total_deleted, :positive?, "delete_matched performed #{total_deleted} mutations"
       sleep(0.3) while @cache.exist?(foo) # HACK: to ensure that query changes have been propagated
 
       assert_nil @cache.read(foo)
