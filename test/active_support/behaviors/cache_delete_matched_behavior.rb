@@ -15,7 +15,7 @@ module CacheDeleteMatchedBehavior
     total_deleted = 0
     loop do
       deleted = @cache.delete_matched(/oo/)
-      break if deleted == 0
+      break if deleted.zero?
       total_deleted += deleted
     end
     assert total_deleted >= 2, "delete_matched performed #{total_deleted} mutations"

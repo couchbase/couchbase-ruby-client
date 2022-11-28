@@ -33,5 +33,5 @@ module Couchbase
   #    :openssl_headers=>"OpenSSL 1.1.1k  FIPS 25 Mar 2021",
   #    :openssl_runtime=>"OpenSSL 1.1.1k  FIPS 25 Mar 2021"}
   VERSION = {} unless defined?(VERSION) # rubocop:disable Style/MutableConstant
-  VERSION.update(:sdk => "3.3.1.snapshot".freeze)
+  VERSION.update(:sdk => "3.4.0".freeze)
 end

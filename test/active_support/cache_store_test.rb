@@ -96,7 +96,8 @@ module Couchbase
       total_deleted = 0
       loop do
         deleted = @cache.delete_matched(/foo/)
-        break if deleted == 0
+        break if deleted.zero?
+
         total_deleted += deleted
       end
 
