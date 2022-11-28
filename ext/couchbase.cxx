@@ -3797,22 +3797,14 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         if (resp.meta.metrics) {
             VALUE metrics = rb_hash_new();
             rb_hash_aset(meta, rb_id2sym(rb_intern("metrics")), metrics);
-            rb_hash_aset(metrics, rb_id2sym(rb_intern("elapsed_time")), resp.meta.metrics->elapsed_time.count());
-            rb_hash_aset(metrics, rb_id2sym(rb_intern("execution_time")), resp.meta.metrics->execution_time.count());
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("elapsed_time")), ULL2NUM(resp.meta.metrics->elapsed_time.count()));
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("execution_time")), ULL2NUM(resp.meta.metrics->execution_time.count()));
             rb_hash_aset(metrics, rb_id2sym(rb_intern("result_count")), ULL2NUM(resp.meta.metrics->result_count));
             rb_hash_aset(metrics, rb_id2sym(rb_intern("result_size")), ULL2NUM(resp.meta.metrics->result_size));
-            if (resp.meta.metrics->sort_count > 0) {
-                rb_hash_aset(metrics, rb_id2sym(rb_intern("sort_count")), ULL2NUM(resp.meta.metrics->sort_count));
-            }
-            if (resp.meta.metrics->mutation_count > 0) {
-                rb_hash_aset(metrics, rb_id2sym(rb_intern("mutation_count")), ULL2NUM(resp.meta.metrics->mutation_count));
-            }
-            if (resp.meta.metrics->error_count > 0) {
-                rb_hash_aset(metrics, rb_id2sym(rb_intern("error_count")), ULL2NUM(resp.meta.metrics->error_count));
-            }
-            if (resp.meta.metrics->warning_count > 0) {
-                rb_hash_aset(metrics, rb_id2sym(rb_intern("warning_count")), ULL2NUM(resp.meta.metrics->warning_count));
-            }
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("sort_count")), ULL2NUM(resp.meta.metrics->sort_count));
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("mutation_count")), ULL2NUM(resp.meta.metrics->mutation_count));
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("error_count")), ULL2NUM(resp.meta.metrics->error_count));
+            rb_hash_aset(metrics, rb_id2sym(rb_intern("warning_count")), ULL2NUM(resp.meta.metrics->warning_count));
         }
 
         return res;

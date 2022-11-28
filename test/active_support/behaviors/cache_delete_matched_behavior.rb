@@ -12,8 +12,13 @@ module CacheDeleteMatchedBehavior
     @cache.write("fu", "baz")
     @cache.write("foo/bar", "baz")
     @cache.write("fu/baz", "bar")
-    deleted = @cache.delete_matched(/oo/)
-    assert deleted >= 2
+    total_deleted = 0
+    loop do
+      deleted = @cache.delete_matched(/oo/)
+      break if deleted == 0
+      total_deleted += deleted
+    end
+    assert total_deleted >= 2, "delete_matched performed #{total_deleted} mutations"
     sleep(0.3) while @cache.exist?("foo") || @cache.exist?("foo/bar") # HACK: to ensure that query changes have been propagated
     assert_not @cache.exist?("foo")
     assert @cache.exist?("fu")

@@ -93,9 +93,14 @@ module Couchbase
       @cache.write(foo, "value_foo")
       bar = uniq_id(:bar)
       @cache.write(bar, "value_bar")
-      deleted = @cache.delete_matched(/foo/)
+      total_deleted = 0
+      loop do
+        deleted = @cache.delete_matched(/foo/)
+        break if deleted == 0
+        total_deleted += deleted
+      end
 
-      assert_predicate deleted, :positive?
+      assert_predicate deleted, :positive?, "delete_matched performed #{total_deleted} mutations"
       sleep(0.3) while @cache.exist?(foo) # HACK: to ensure that query changes have been propagated
 
       assert_nil @cache.read(foo)

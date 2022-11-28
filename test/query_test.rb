@@ -61,8 +61,10 @@ module Couchbase
 
       metrics = res.meta_data.metrics
 
-      refute metrics.error_count
-      refute metrics.warning_count
+      assert_predicate metrics.elapsed_time, :positive?
+      assert_predicate metrics.execution_time, :positive?
+      assert_equal 0, metrics.error_count
+      assert_equal 0, metrics.warning_count
       assert_equal 1, metrics.result_count
     end
 
