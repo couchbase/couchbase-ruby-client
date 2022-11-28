@@ -71,12 +71,12 @@ module Couchbase
     end
 
     class QueryMetrics
-      # @return [Integer] The total time taken for the request, that is the time from when the request was received until the results were
-      #   returned.
+      # @return [Integer] The total time taken for the request (in nanoseconds), that is the time from when the request
+      #   was received until the results were returned.
       attr_accessor :elapsed_time
 
-      # @return [Integer] The time taken for the execution of the request, that is the time from when query execution started until the
-      #   results were returned
+      # @return [Integer] The time taken for the execution of the request (in nanoseconds), that is the time from when
+      #   query execution started until the results were returned
       attr_accessor :execution_time
 
       # @return [Integer] the total number of results selected by the engine before restriction through LIMIT clause.
