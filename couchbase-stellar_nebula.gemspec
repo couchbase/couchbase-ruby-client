@@ -22,17 +22,18 @@ Gem::Specification.new do |spec|
     "changelog_uri" => "https://github.com/couchbase/couchbase-ruby-client-stellar-nebula/releases/tag/#{spec.version}",
     "documentation_uri" => "https://docs.couchbase.com/sdk-api/couchbase-ruby-client-#{spec.version}/index.html",
     "github_repo" => "ssh://github.com/couchbase/couchbase-ruby-client",
-    "rubygems_mfa_required" => "true"
+    "rubygems_mfa_required" => "true",
   }
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
     `git ls-files -z`.split("\x0").reject do |f|
-      (f == __FILE__) || f.match(%r{\A(?:(?:bin|test|spec|features)/|\.(?:git|travis|circleci)|appveyor)})
+      (f == __FILE__) || f.match(/\A(?:(?:bin|test|spec|features)\/|\.(?:git|travis|circleci)|appveyor)/)
     end
   end
   spec.bindir = "exe"
-  spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
+  spec.executables = spec.files.grep(/\Aexe\//) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "grpc", "~> 1.50.0"
+  spec.add_dependency "googleapis-common-protos-types", "~> 1.4.0"
+  spec.add_dependency "grpc", "~> 1.50"
 end

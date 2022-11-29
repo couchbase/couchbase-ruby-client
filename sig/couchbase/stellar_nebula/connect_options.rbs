@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 #  Copyright 2022-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,14 +12,20 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "bundler/gem_tasks"
-require "rspec/core/rake_task"
+module Couchbase
+  module StellarNebula
+    class ConnectOptions
+      @client_certificate: String?
+      @password: String?
+      @private_key: String?
+      @root_certificates: String?
+      @username: String?
 
-RSpec::Core::RakeTask.new(:spec)
+      def initialize: (?username: String? username, ?password: String? password, ?root_certificates: String? root_certificates, ?client_certificate: String? client_certificate, ?private_key: String? private_key) -> void
 
-require "rubocop/rake_task"
-RuboCop::RakeTask.new
+      def grpc_credentials: () -> untyped
 
-task default: [:spec, :rubocop]
-
-load "task/grpc.rake"
+      def grpc_channel_args: () -> untyped
+    end
+  end
+end

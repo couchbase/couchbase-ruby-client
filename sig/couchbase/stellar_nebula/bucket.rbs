@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 #  Copyright 2022-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,14 +12,18 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "bundler/gem_tasks"
-require "rspec/core/rake_task"
+module Couchbase
+  module StellarNebula
+    class Bucket
+      attr_reader name: String
 
-RSpec::Core::RakeTask.new(:spec)
+      def initialize: (Client client, String name) -> void
 
-require "rubocop/rake_task"
-RuboCop::RakeTask.new
+      def scope: (String name) -> Scope
 
-task default: [:spec, :rubocop]
+      def collection: (String name) -> Collection
 
-load "task/grpc.rake"
+      def default_collection: () -> Collection
+    end
+  end
+end

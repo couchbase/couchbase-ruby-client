@@ -1,0 +1,47 @@
+Style/Documentation:
+  Enabled: false
+
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+Style/NumericLiterals:
+  Enabled: false
+
+Style/StringLiterals:
+  Enabled: false
+
+Style/HashSyntax:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  Enabled: false
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/PerceivedComplexity:
+  Enabled: false
+
+Naming/AccessorMethodName:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/BlockLength:
+  Enabled: false
+
+Naming/PredicateName:
+  Enabled: false
+
+Style/AccessorGrouping:
+  Enabled: false
+
+Style/ExplicitBlockArgument:
+  Enabled: false
+
+Lint/EmptyBlock:
+  Enabled: false

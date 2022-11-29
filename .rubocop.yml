@@ -1,0 +1,56 @@
+# For available configuration options, see:
+#   https://github.com/testdouble/standard
+
+inherit_from: .rubocop_todo.yml
+
+require:
+  - rubocop-rspec
+  - rubocop-packaging
+  - rubocop-performance
+  - rubocop-rake
+  - rubocop-thread_safety
+
+AllCops:
+  TargetRubyVersion: 2.7
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - 'vendor/**/*'
+
+Metrics/ParameterLists:
+  Max: 30
+
+Layout/LineLength:
+  Max: 200
+
+Metrics/BlockNesting:
+  Max: 4
+
+Layout/SpaceInsideHashLiteralBraces:
+  EnforcedStyle: no_space
+  EnforcedStyleForEmptyBraces: no_space
+
+Style/Lambda:
+  EnforcedStyle: lambda
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/HashSyntax:
+  EnforcedStyle: hash_rockets
+
+Style/SymbolArray:
+  EnforcedStyle: brackets
+
+Style/RegexpLiteral:
+  EnforcedStyle: mixed
+  AllowInnerSlashes: true
+
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: comma
+
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: comma
+
+Layout/FirstHashElementIndentation:
+  EnforcedStyle: consistent

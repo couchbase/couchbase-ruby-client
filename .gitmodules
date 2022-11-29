@@ -1,0 +1,3 @@
+[submodule "deps/stellar-nebula"]
+	path = deps/stellar-nebula
+	url = https://github.com/couchbase/stellar-nebula.git

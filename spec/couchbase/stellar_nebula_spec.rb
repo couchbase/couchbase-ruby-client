@@ -16,6 +16,6 @@
 
 RSpec.describe Couchbase::StellarNebula do
   it "has a version number" do
-    expect(Couchbase::StellarNebula::VERSION).not_to be nil
+    expect(Couchbase::StellarNebula::VERSION).not_to be_nil
   end
 end

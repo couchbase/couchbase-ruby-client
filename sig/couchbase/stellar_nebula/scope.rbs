@@ -1,0 +1,12 @@
+module Couchbase
+  module StellarNebula
+    class Scope
+      @bucket_name: String
+      @client: Client
+
+      attr_reader name: String
+
+      def collection: -> Collection
+    end
+  end
+end

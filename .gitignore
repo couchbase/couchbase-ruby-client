@@ -6,8 +6,9 @@
 *.so
 *~
 .byebug_history
-.rspec_status
+/.idea
 /.rakeTasks
+/.rspec_status
 /.ruby-version
 /.yardoc
 /_yardoc/

@@ -14,12 +14,34 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require_relative "stellar_nebula/version"
-require_relative "stellar_nebula/cluster"
+require_relative "get_options"
+
+require_relative "generated/kv.v1_pb"
 
 module Couchbase
   module StellarNebula
-    class Error < StandardError; end
-    # Your code goes here...
+    class Collection
+      attr_reader :name
+
+      def initialize(client, bucket_name, scope_name, name)
+        @client = client
+        @bucket_name = bucket_name
+        @scope_name = scope_name
+        @name = name
+      end
+
+      def get(id, _options = GetOptions::DEFAULT)
+        resp = @client.get(
+          Generated::KV::V1::GetRequest.new(
+            bucket_name: @bucket_name,
+            scope_name: @scope_name,
+            collection_name: @name,
+            key: id
+          )
+        )
+        pp resp
+        resp
+      end
+    end
   end
 end

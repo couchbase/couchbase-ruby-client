@@ -14,14 +14,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "bundler/gem_tasks"
-require "rspec/core/rake_task"
-
-RSpec::Core::RakeTask.new(:spec)
-
-require "rubocop/rake_task"
-RuboCop::RakeTask.new
-
-task default: [:spec, :rubocop]
-
-load "task/grpc.rake"
+module Couchbase
+  module StellarNebula
+    class GetOptions
+      DEFAULT = GetOptions.new.freeze
+    end
+  end
+end

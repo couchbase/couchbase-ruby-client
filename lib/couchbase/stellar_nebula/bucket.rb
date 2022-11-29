@@ -14,14 +14,29 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "bundler/gem_tasks"
-require "rspec/core/rake_task"
+require_relative "scope"
 
-RSpec::Core::RakeTask.new(:spec)
+module Couchbase
+  module StellarNebula
+    class Bucket
+      attr_reader :name
 
-require "rubocop/rake_task"
-RuboCop::RakeTask.new
+      def initialize(client, name)
+        @client = client
+        @name = name
+      end
 
-task default: [:spec, :rubocop]
+      def scope(name)
+        Scope.new(@client, @name, name)
+      end
 
-load "task/grpc.rake"
+      def collection(name)
+        Scope.new(@client, @name, "_default").collection(name)
+      end
+
+      def default_collection
+        Scope.new(@client, @name, "_default").collection("_default")
+      end
+    end
+  end
+end
