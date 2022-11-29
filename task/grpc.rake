@@ -61,4 +61,5 @@ task :generate_grpc_client do
   end
 end
 
+desc "Re-generate gRPC client and reformat using Rubocop"
 task generate: %w[generate_grpc_client rubocop:autocorrect_all]
