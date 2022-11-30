@@ -161,8 +161,13 @@ module LocalCacheBehavior
       @cache.write(key, SecureRandom.alphanumeric)
       @cache.write(other_key, SecureRandom.alphanumeric)
       @cache.write(third_key, value)
-      deleted = @cache.delete_matched("#{prefix}*")
-      assert deleted >= 2
+      total_deleted = 0
+      loop do
+        deleted = @cache.delete_matched("#{prefix}*")
+        break if deleted.zero?
+        total_deleted += deleted
+      end
+      assert total_deleted >= 2, "delete_matched performed #{total_deleted} mutations"
       sleep(0.3) while @cache.exist?(key) || @cache.exist?(other_key) # HACK: to ensure that query changes have been propagated
       assert_not @cache.exist?(key)
       assert_not @cache.exist?(other_key)
