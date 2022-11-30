@@ -182,7 +182,7 @@ else
              echo $crash
              /usr/bin/apport-unpack $crash /tmp/the_crash/
              executable=$(cat /tmp/the_crash/ExecutablePath)
-             gdb $executable /tmp/the_crash/CoreDump --batch -ex "thread apply all bt"
+             gdb $executable /tmp/the_crash/CoreDump --batch -ex "thread apply all bt" || true
              rm -rf $crash /tmp/the_crash
            fi
         done
@@ -195,7 +195,7 @@ else
                 echo $core
                 executable=$(file $core | ruby -e "print ARGF.read[/execfn: '([^']+)'/, 1]")
                 echo $executable
-                gdb $executable $core --batch -ex "thread apply all bt"
+                gdb $executable $core --batch -ex "thread apply all bt" || true
                 rm -f $core
             fi
         done

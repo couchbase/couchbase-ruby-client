@@ -207,6 +207,17 @@ module Couchbase
       end
     end
 
+    def retry_on(exception)
+      attempts = 5
+      begin
+        yield
+      rescue exception => e
+        attempts -= 1
+        retry if attempts.positive?
+        raise e
+      end
+    end
+
     def test_scoped_query
       skip("The server does not support scoped queries (#{env.server_version})") unless env.server_version.supports_scoped_queries?
 
@@ -227,8 +238,10 @@ module Couchbase
       options = Management::QueryIndexManager::CreatePrimaryIndexOptions.new
       options.collection_name = collection_name
       options.scope_name = scope_name
-      manager.create_primary_index(@bucket.name, options)
-      time_travel(1)
+      retry_on(Couchbase::Error::ScopeNotFound) do
+        manager.create_primary_index(@bucket.name, options)
+        time_travel(1)
+      end
 
       scope = @bucket.scope(scope_name)
       collection = scope.collection(collection_name)
