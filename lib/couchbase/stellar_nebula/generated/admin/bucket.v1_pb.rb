@@ -3,46 +3,89 @@
 
 require 'google/protobuf'
 
+require_relative 'kv.v1_pb'
+
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_file("couchbase/admin/bucket.v1.proto", :syntax => :proto3) do
-    add_message "couchbase.admin.bucket.v1.ListCollectionsRequest" do
+    add_message "couchbase.admin.bucket.v1.ListBucketsRequest" do
+    end
+    add_message "couchbase.admin.bucket.v1.ListBucketsResponse" do
+      repeated :buckets, :message, 1, "couchbase.admin.bucket.v1.ListBucketsResponse.Bucket"
+    end
+    add_message "couchbase.admin.bucket.v1.ListBucketsResponse.Bucket" do
+      optional :bucket_name, :string, 1
+      optional :flush_enabled, :bool, 2
+      optional :ram_quota_bytes, :uint64, 3
+      optional :num_replicas, :uint32, 4
+      optional :replica_indexes, :bool, 5
+      optional :bucket_type, :enum, 6, "couchbase.admin.bucket.v1.BucketType"
+      optional :eviction_mode, :enum, 7, "couchbase.admin.bucket.v1.EvictionMode"
+      optional :max_expiry_secs, :uint32, 8
+      optional :compression_mode, :enum, 9, "couchbase.admin.bucket.v1.CompressionMode"
+      optional :minimum_durability_level, :enum, 10, "couchbase.kv.v1.DurabilityLevel"
+      optional :storage_backend, :enum, 11, "couchbase.admin.bucket.v1.StorageBackend"
+      optional :conflict_resolution_type, :enum, 12, "couchbase.admin.bucket.v1.ConflictResolutionType"
+    end
+    add_message "couchbase.admin.bucket.v1.CreateBucketRequest" do
+      optional :bucket_name, :string, 1
+      optional :bucket_type, :enum, 2, "couchbase.admin.bucket.v1.BucketType"
+      optional :ram_quota_bytes, :uint64, 3
+      optional :num_replicas, :uint32, 4
+      proto3_optional :flush_enabled, :bool, 5
+      proto3_optional :replica_indexes, :bool, 6
+      proto3_optional :eviction_mode, :enum, 7, "couchbase.admin.bucket.v1.EvictionMode"
+      proto3_optional :max_expiry_secs, :uint32, 8
+      proto3_optional :compression_mode, :enum, 9, "couchbase.admin.bucket.v1.CompressionMode"
+      proto3_optional :minimum_durability_level, :enum, 10, "couchbase.kv.v1.DurabilityLevel"
+      proto3_optional :storage_backend, :enum, 11, "couchbase.admin.bucket.v1.StorageBackend"
+      proto3_optional :conflict_resolution_type, :enum, 12, "couchbase.admin.bucket.v1.ConflictResolutionType"
+    end
+    add_message "couchbase.admin.bucket.v1.CreateBucketResponse" do
+      optional :bucket_uuid, :string, 1
+    end
+    add_message "couchbase.admin.bucket.v1.UpdateBucketRequest" do
+      optional :bucket_name, :string, 1
+      proto3_optional :ram_quota_bytes, :uint64, 3
+      proto3_optional :num_replicas, :uint32, 4
+      proto3_optional :flush_enabled, :bool, 5
+      proto3_optional :replica_indexes, :bool, 6
+      proto3_optional :eviction_mode, :enum, 7, "couchbase.admin.bucket.v1.EvictionMode"
+      proto3_optional :max_expiry_secs, :uint32, 8
+      proto3_optional :compression_mode, :enum, 9, "couchbase.admin.bucket.v1.CompressionMode"
+      proto3_optional :minimum_durability_level, :enum, 10, "couchbase.kv.v1.DurabilityLevel"
+      proto3_optional :conflict_resolution_type, :enum, 12, "couchbase.admin.bucket.v1.ConflictResolutionType"
+    end
+    add_message "couchbase.admin.bucket.v1.UpdateBucketResponse" do
+    end
+    add_message "couchbase.admin.bucket.v1.DeleteBucketRequest" do
       optional :bucket_name, :string, 1
     end
-    add_message "couchbase.admin.bucket.v1.ListCollectionsResponse" do
-      repeated :scopes, :message, 1, "couchbase.admin.bucket.v1.ListCollectionsResponse.Scope"
+    add_message "couchbase.admin.bucket.v1.DeleteBucketResponse" do
     end
-    add_message "couchbase.admin.bucket.v1.ListCollectionsResponse.Collection" do
-      optional :name, :string, 1
+    add_enum "couchbase.admin.bucket.v1.BucketType" do
+      value :COUCHBASE, 0
+      value :MEMCACHED, 1
+      value :EPHEMERAL, 2
     end
-    add_message "couchbase.admin.bucket.v1.ListCollectionsResponse.Scope" do
-      optional :name, :string, 1
-      repeated :collections, :message, 2, "couchbase.admin.bucket.v1.ListCollectionsResponse.Collection"
+    add_enum "couchbase.admin.bucket.v1.EvictionMode" do
+      value :FULL, 0
+      value :NOT_RECENTLY_USED, 1
+      value :VALUE_ONLY, 2
+      value :NONE, 3
     end
-    add_message "couchbase.admin.bucket.v1.CreateScopeRequest" do
-      optional :bucket_name, :string, 1
-      optional :scope_name, :string, 2
+    add_enum "couchbase.admin.bucket.v1.CompressionMode" do
+      value :OFF, 0
+      value :PASSIVE, 1
+      value :ACTIVE, 2
     end
-    add_message "couchbase.admin.bucket.v1.CreateScopeResponse" do
+    add_enum "couchbase.admin.bucket.v1.StorageBackend" do
+      value :COUCHSTORE, 0
+      value :MAGMA, 1
     end
-    add_message "couchbase.admin.bucket.v1.DeleteScopeRequest" do
-      optional :bucket_name, :string, 1
-      optional :scope_name, :string, 2
-    end
-    add_message "couchbase.admin.bucket.v1.DeleteScopeResponse" do
-    end
-    add_message "couchbase.admin.bucket.v1.CreateCollectionRequest" do
-      optional :bucket_name, :string, 1
-      optional :scope_name, :string, 2
-      optional :collection_name, :string, 3
-    end
-    add_message "couchbase.admin.bucket.v1.CreateCollectionResponse" do
-    end
-    add_message "couchbase.admin.bucket.v1.DeleteCollectionRequest" do
-      optional :bucket_name, :string, 1
-      optional :scope_name, :string, 2
-      optional :collection_name, :string, 3
-    end
-    add_message "couchbase.admin.bucket.v1.DeleteCollectionResponse" do
+    add_enum "couchbase.admin.bucket.v1.ConflictResolutionType" do
+      value :TIMESTAMP, 0
+      value :SEQUENCE_NUMBER, 1
+      value :CUSTOM, 2
     end
   end
 end
@@ -50,20 +93,22 @@ end
 module Couchbase
   module StellarNebula
     module Generated
-      module Bucket
+      module BucketAdmin
         module V1
-          ListCollectionsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.ListCollectionsRequest").msgclass
-          ListCollectionsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.ListCollectionsResponse").msgclass
-          ListCollectionsResponse::Collection = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.ListCollectionsResponse.Collection").msgclass
-          ListCollectionsResponse::Scope = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.ListCollectionsResponse.Scope").msgclass
-          CreateScopeRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.CreateScopeRequest").msgclass
-          CreateScopeResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.CreateScopeResponse").msgclass
-          DeleteScopeRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.DeleteScopeRequest").msgclass
-          DeleteScopeResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.DeleteScopeResponse").msgclass
-          CreateCollectionRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.CreateCollectionRequest").msgclass
-          CreateCollectionResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.CreateCollectionResponse").msgclass
-          DeleteCollectionRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.DeleteCollectionRequest").msgclass
-          DeleteCollectionResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.DeleteCollectionResponse").msgclass
+          ListBucketsRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.ListBucketsRequest").msgclass
+          ListBucketsResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.ListBucketsResponse").msgclass
+          ListBucketsResponse::Bucket = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.ListBucketsResponse.Bucket").msgclass
+          CreateBucketRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.CreateBucketRequest").msgclass
+          CreateBucketResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.CreateBucketResponse").msgclass
+          UpdateBucketRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.UpdateBucketRequest").msgclass
+          UpdateBucketResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.UpdateBucketResponse").msgclass
+          DeleteBucketRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.DeleteBucketRequest").msgclass
+          DeleteBucketResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.DeleteBucketResponse").msgclass
+          BucketType = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.BucketType").enummodule
+          EvictionMode = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.EvictionMode").enummodule
+          CompressionMode = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.CompressionMode").enummodule
+          StorageBackend = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.StorageBackend").enummodule
+          ConflictResolutionType = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.bucket.v1.ConflictResolutionType").enummodule
         end
       end
     end
