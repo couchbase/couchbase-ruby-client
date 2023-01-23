@@ -25,7 +25,7 @@ echo "NODE_LABELS=${NODE_LABELS}"
 set -x
 set -e
 
-CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7}
+CB_RUBY_VERSION=${CB_RUBY_VERSION:-3.0}
 
 if [ "$(uname -s)" = "Linux" ]
 then

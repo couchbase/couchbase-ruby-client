@@ -18,7 +18,7 @@ Please attach version information to the ticket/post. To obtain this information
 
 ## Installation
 
-The library has been tested with MRI 2.7, 3.0 and 3.1. Supported platforms are Linux and MacOS.
+The library has been tested with MRI 3.0, 3.1 and 3.2. Supported platforms are Linux and MacOS.
 
 Add this line to your application's Gemfile:
 

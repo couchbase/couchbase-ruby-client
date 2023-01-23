@@ -25,21 +25,21 @@ echo "NODE_LABELS=${NODE_LABELS}"
 set -x
 set -e
 
-CB_RUBY_VERSION=${CB_RUBY_VERSION:-2.7}
+CB_RUBY_VERSION=${CB_RUBY_VERSION:-3.0}
 
 if [ "$(uname -s)" = "Linux" ]
 then
   if [ -f /etc/alpine-release ]
   then
     cat /etc/alpine-release
-    sudo /sbin/apk add openssl libcrypto1.1 openssl-dev clang clang-extra-tools curl make bash gcc g++ xz cmake zlib-dev linux-headers
+    sudo /sbin/apk add openssl libcrypto1.1 openssl-dev clang clang-extra-tools curl make bash gcc g++ xz cmake zlib-dev linux-headers readline-dev yaml-dev
   fi
 
   if  [ ! -x /usr/local/bin/ruby-install ]
   then
-      curl -L -o ruby-install-0.8.1.tar.gz https://github.com/postmodern/ruby-install/archive/v0.8.1.tar.gz
-      tar -xzvf ruby-install-0.8.1.tar.gz
-      cd ruby-install-0.8.1/
+      curl -L -o ruby-install-0.8.5.tar.gz https://github.com/postmodern/ruby-install/archive/v0.8.5.tar.gz
+      tar -xzvf ruby-install-0.8.5.tar.gz
+      cd ruby-install-0.8.5/
       sudo make install
   fi
 
@@ -62,7 +62,7 @@ then
   if [ "${OS_ID}" = "amzn" -a "${OS_VERSION}" = "2" ]
   then
     sudo yum erase -y openssl-devel || true
-    sudo yum install -y openssl11-static openssl11-devel gcc10 gcc10-c++
+    sudo yum install -y openssl11-static openssl11-devel gcc10 gcc10-c++ libyaml-devel readline-devel
     CB_EXTRAS="CC=gcc10-cc CXX=gcc10-c++"
   fi
   if [ "${OS_ID}" = "centos" -a "${OS_VERSION}" = "7" ]
@@ -78,7 +78,7 @@ then
 	    clang clang-format clang-tidy clang-tools libc++-dev libc++abi-dev || true
   fi
   ruby-install --version
-  ruby-install --latest || true
+  ruby-install --update || true
   ruby-install --jobs=6 --no-reinstall ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS} || \
       ruby-install --jobs=6 --no-reinstall --no-install-deps ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS}
 fi
@@ -105,7 +105,7 @@ then
       $(brew --prefix ruby)/bin/ruby --version
   else
       ruby-install --version
-      ruby-install --latest || true
+      ruby-install --update || true
       export PATH="$(brew --prefix bison@2.7)/bin:$PATH"
       bison --version
       PATCH=
