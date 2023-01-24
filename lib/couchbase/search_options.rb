@@ -707,8 +707,8 @@ module Couchbase
       # @yieldparam [ConjunctionQuery] query
       #
       # @return [ConjunctionQuery]
-      def self.conjuncts(*queries, &block)
-        ConjunctionQuery.new(*queries, &block)
+      def self.conjuncts(...)
+        ConjunctionQuery.new(...)
       end
 
       # Result documents must satisfy all of the child queries.
@@ -753,8 +753,8 @@ module Couchbase
       # @yieldparam [ConjunctionQuery] query
       #
       # @return [ConjunctionQuery]
-      def self.disjuncts(*queries, &block)
-        DisjunctionQuery.new(*queries, &block)
+      def self.disjuncts(...)
+        DisjunctionQuery.new(...)
       end
 
       # Result documents must satisfy a configurable min number of child queries.
@@ -966,8 +966,8 @@ module Couchbase
       # @param [*String] terms
       #
       # @return [PhraseQuery]
-      def self.phrase(*terms, &block)
-        PhraseQuery.new(*terms, &block)
+      def self.phrase(...)
+        PhraseQuery.new(...)
       end
 
       # A query that looks for **exact** match of several terms (in the exact order) in the index. Usual better alternative is
