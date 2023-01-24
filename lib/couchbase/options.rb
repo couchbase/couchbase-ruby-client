@@ -415,7 +415,7 @@ module Couchbase
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
         end
 
-        @persist_to = replicate_to
+        @persist_to = persist_to
         @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
@@ -483,7 +483,7 @@ module Couchbase
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
         end
 
-        @persist_to = replicate_to
+        @persist_to = persist_to
         @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
@@ -558,7 +558,7 @@ module Couchbase
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
         end
 
-        @persist_to = replicate_to
+        @persist_to = persist_to
         @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
@@ -639,7 +639,7 @@ module Couchbase
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
         end
 
-        @persist_to = replicate_to
+        @persist_to = persist_to
         @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
@@ -720,7 +720,7 @@ module Couchbase
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
         end
 
-        @persist_to = replicate_to
+        @persist_to = persist_to
         @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
@@ -805,7 +805,7 @@ module Couchbase
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
         end
 
-        @persist_to = replicate_to
+        @persist_to = persist_to
         @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
@@ -903,7 +903,7 @@ module Couchbase
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
         end
 
-        @persist_to = replicate_to
+        @persist_to = persist_to
         @replicate_to = replicate_to
         @durability_level = durability_level
         @transcoder = transcoder
@@ -1106,7 +1106,7 @@ module Couchbase
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
         end
 
-        @persist_to = replicate_to
+        @persist_to = persist_to
         @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
@@ -1197,7 +1197,7 @@ module Couchbase
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
         end
 
-        @persist_to = replicate_to
+        @persist_to = persist_to
         @replicate_to = replicate_to
         @durability_level = durability_level
         yield self if block_given?
