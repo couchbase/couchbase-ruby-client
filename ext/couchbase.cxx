@@ -4594,8 +4594,9 @@ cb_Backend_change_password(VALUE self, VALUE new_password, VALUE timeout)
         req.newPassword = cb_string_new(new_password);
         auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::change_password_response>>();
         auto f = barrier->get_future();
-        cluster->execute(
-          req, [barrier](couchbase::core::operations::management::change_password_response&& resp) { barrier->set_value(std::move(resp)); });
+        cluster->execute(req, [barrier](couchbase::core::operations::management::change_password_response&& resp) {
+          barrier->set_value(std::move(resp));
+        });
         if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
             cb_throw_error_code(resp.ctx, "unable to change password");
         }
