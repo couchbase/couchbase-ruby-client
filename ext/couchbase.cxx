@@ -4581,6 +4581,34 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
     return Qnil;
 }
 
+static VALUE
+cb_Backend_change_password(VALUE self, VALUE new_password, VALUE timeout)
+{
+    const auto& cluster = cb_backend_to_cluster(self);
+
+    Check_Type(new_password, T_STRING);
+
+    try {
+        couchbase::core::operations::management::change_password_request req{};
+        cb_extract_timeout(req, timeout);
+        req.newPassword = cb_string_new(new_password);
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::change_password_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(
+          req, [barrier](couchbase::core::operations::management::change_password_response&& resp) { barrier->set_value(std::move(resp)); });
+        if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+            cb_throw_error_code(resp.ctx, "unable to change password");
+        }
+
+        return Qtrue;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
+}
+
 static void
 cb_extract_group(const couchbase::core::management::rbac::group& entry, VALUE group)
 {
@@ -8096,6 +8124,8 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "group_get", VALUE_FUNC(cb_Backend_group_get), 2);
     rb_define_method(cBackend, "group_drop", VALUE_FUNC(cb_Backend_group_drop), 2);
     rb_define_method(cBackend, "group_upsert", VALUE_FUNC(cb_Backend_group_upsert), 2);
+
+    rb_define_method(cBackend, "change_password", VALUE_FUNC(cb_Backend_change_password), 2);
 
     rb_define_method(cBackend, "cluster_enable_developer_preview!", VALUE_FUNC(cb_Backend_cluster_enable_developer_preview), 0);
 

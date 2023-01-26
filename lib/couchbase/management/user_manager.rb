@@ -101,6 +101,15 @@ module Couchbase
         end
       end
 
+      # Changes the password of the currently authenticated user
+      #
+      # @param [ChangePasswordOptions] options
+      #
+      # @raise [ArgumentError]
+      def change_password(new_password, options = ChangePasswordOptions.new)
+        @backend.change_password(new_password, options.timeout)
+      end
+
       # Gets a group
       #
       # @param [String] group_name name of the group to get
@@ -209,6 +218,16 @@ module Couchbase
         # @yieldparam [DropUserOptions] self
         def initialize
           @domain = :local
+          yield self if block_given?
+        end
+      end
+
+      class ChangePasswordOptions
+        # @return [Integer] the time in milliseconds allowed for the operation to complete
+        attr_accessor :timeout
+
+        # @yieldparam [ChangePasswordOptions] self
+        def initialize
           yield self if block_given?
         end
       end
