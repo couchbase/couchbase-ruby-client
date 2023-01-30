@@ -54,3 +54,9 @@ Style/TrailingCommaInHashLiteral:
 
 Layout/FirstHashElementIndentation:
   EnforcedStyle: consistent
+
+RSpec/MultipleMemoizedHelpers:
+  Enabled: false
+
+RSpec/InstanceVariable:
+  Enabled: false

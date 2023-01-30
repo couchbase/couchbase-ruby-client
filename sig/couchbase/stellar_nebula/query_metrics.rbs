@@ -1,6 +1,4 @@
-# frozen_string_literal: true
-
-#  Copyright 2022-Present Couchbase, Inc.
+#  Copyright 2022-Present. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,11 +12,19 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require_relative "stellar_nebula/version"
-require_relative "stellar_nebula/cluster"
-require_relative "stellar_nebula/error"
-
 module Couchbase
   module StellarNebula
+    class QueryMetrics
+      attr_accessor elapsed_time: Integer
+      attr_accessor execution_time: Integer
+      attr_accessor sort_count: Integer
+      attr_accessor result_count: Integer
+      attr_accessor result_size: Integer
+      attr_accessor mutation_count: Integer
+      attr_accessor error_count: Integer
+      attr_accessor warning_count: Integer
+
+      def initialize: (untyped) -> void
+    end
   end
 end

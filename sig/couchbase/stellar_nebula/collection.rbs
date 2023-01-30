@@ -20,6 +20,28 @@ module Couchbase
       @scope_name: String
 
       attr_reader name: String
+
+      def initialize: (Client, String, String, String) -> void
+
+      def location: () -> Hash[Symbol, String]
+
+      def get: (String, GetOptions) -> GetResult
+
+      def get_and_touch: (String, untyped, GetAndTouchOptions) -> GetResult
+
+      def get_and_lock: (String, untyped, GetAndLockOptions) -> GetResult
+
+      def unlock: (String, Integer, UnlockOptions) -> void
+
+      def upsert: (String, untyped, UpsertOptions) -> MutationResult
+
+      def remove: (String, RemoveOptions) -> MutationResult
+
+      def insert: (String, untyped, InsertOptions) -> MutationResult
+
+      def replace: (String, untyped, ReplaceOptions) -> MutationResult
+
+      def exists: (String, ExistsOptions) -> ExistsResult
     end
   end
 end

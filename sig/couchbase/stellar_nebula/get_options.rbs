@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 #  Copyright 2022-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,11 +12,22 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require_relative "stellar_nebula/version"
-require_relative "stellar_nebula/cluster"
-require_relative "stellar_nebula/error"
-
 module Couchbase
   module StellarNebula
+    class GetOptions
+      DEFAULT: GetOptions
+
+      attr_accessor with_expiry: bool
+      attr_accessor transcoder: untyped
+      attr_accessor preserve_array_indexes: bool
+      attr_accessor projections: Array[String]
+      attr_accessor timeout: Integer?
+
+      def project: (untyped) -> void
+
+      def need_projected_get?: () -> bool
+
+      def to_request: () -> Hash[Symbol, untyped]
+    end
   end
 end

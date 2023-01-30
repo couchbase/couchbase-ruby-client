@@ -22,6 +22,8 @@ module Couchbase
       def close: () -> void
 
       def bucket: (String name) -> Bucket
+
+      def query: (String, QueryOptions) -> QueryResult
     end
   end
 end

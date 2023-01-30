@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-#  Copyright 2022-Present Couchbase, Inc.
+#  Copyright 2022-Present. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,11 +14,29 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require_relative "stellar_nebula/version"
-require_relative "stellar_nebula/cluster"
-require_relative "stellar_nebula/error"
-
 module Couchbase
   module StellarNebula
+    class RemoveOptions
+      attr_accessor :cas
+      attr_accessor :durability_level
+      attr_reader :timeout
+
+      def initialize(cas: nil,
+                     durability_level: :none,
+                     timeout: nil)
+        @cas = cas
+        @durability_level = durability_level
+        @timeout = timeout
+      end
+
+      def to_request
+        opts = {}
+        opts[:durability_level] = @durability_level.upcase unless @durability_level == :none
+        opts[:cas] = @cas unless @cas.nil?
+        opts
+      end
+
+      DEFAULT = RemoveOptions.new.freeze
+    end
   end
 end

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-#  Copyright 2022-Present Couchbase, Inc.
+#  Copyright 2022-Present. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,11 +14,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require_relative "stellar_nebula/version"
-require_relative "stellar_nebula/cluster"
-require_relative "stellar_nebula/error"
-
 module Couchbase
   module StellarNebula
+    class UnlockOptions
+      DEFAULT = UnlockOptions.new.freeze
+    end
   end
 end
