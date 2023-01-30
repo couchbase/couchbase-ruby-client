@@ -41,6 +41,91 @@ module Couchbase
       def close
         @channel.close
       end
+
+      def get(request, timeout: nil)
+        @kv_stub.get(request, deadline: get_deadline(timeout))
+      end
+
+      def get_and_touch(request, timeout: nil)
+        @kv_stub.get_and_touch(request, deadline: get_deadline(timeout))
+      end
+
+      def get_and_lock(request, timeout: nil)
+        @kv_stub.get_and_lock(request, deadline: get_deadline(timeout))
+      end
+
+      def unlock(request, timeout: nil)
+        @kv_stub.unlock(request, deadline: get_deadline(timeout))
+      end
+
+      def get_replica(request, timeout: nil)
+        @kv_stub.get_replica(request, deadline: get_deadline(timeout))
+      end
+
+      def touch(request, timeout: nil)
+        @kv_stub.touch(request, deadline: get_deadline(timeout))
+      end
+
+      def exists(request, timeout: nil)
+        @kv_stub.exists(request, deadline: get_deadline(timeout))
+      end
+
+      def insert(request, timeout: nil)
+        @kv_stub.insert(request, deadline: get_deadline(timeout))
+      end
+
+      def upsert(request, timeout: nil)
+        @kv_stub.upsert(request, deadline: get_deadline(timeout))
+      end
+
+      def replace(request, timeout: nil)
+        @kv_stub.replace(request, deadline: get_deadline(timeout))
+      end
+
+      def remove(request, timeout: nil)
+        @kv_stub.remove(request, deadline: get_deadline(timeout))
+      end
+
+      def increment(request, timeout: nil)
+        @kv_stub.increment(request, deadline: get_deadline(timeout))
+      end
+
+      def decrement(request, timeout: nil)
+        @kv_stub.decrement(request, deadline: get_deadline(timeout))
+      end
+
+      def append(request, timeout: nil)
+        @kv_stub.append(request, deadline: get_deadline(timeout))
+      end
+
+      def prepend(request, timeout: nil)
+        @kv_stub.prepend(request, deadline: get_deadline(timeout))
+      end
+
+      def lookup_in(request, timeout: nil)
+        @kv_stub.lookup_in(request, deadline: get_deadline(timeout))
+      end
+
+      def mutate_in(request, timeout: nil)
+        @kv_stub.mutate_in(request, deadline: get_deadline(timeout))
+      end
+
+      def range_scan(request, timeout: nil)
+        @kv_stub.range_scan(request, deadline: get_deadline(timeout))
+      end
+
+      def query(request, timeout: nil)
+        @query_stub.query(request, deadline: get_deadline(timeout))
+      end
+
+      def get_deadline(timeout_millis)
+        if timeout_millis.nil?
+          nil
+        else
+          Time.now + (timeout_millis * 1000)
+        end
+      end
+
     end
   end
 end

@@ -14,16 +14,23 @@
 
 module Couchbase
   module StellarNebula
-    class Cluster
-      @client: Client
+    class InsertOptions
+      DEFAULT: InsertOptions
 
-      def initialize: (untyped connection_string, ?untyped options) -> void
+      attr_accessor expiry: Integer | _CanInSeconds | nil
+      attr_accessor transcoder: JsonTranscoder | _CanEncode
+      attr_accessor durability_level: durability_level
+      attr_reader timeout: Integer | _CanInMilliseconds | nil
+      @document_content_type: document_content_type
 
-      def close: () -> void
+      def initialize: (
+          expiry: Integer | _CanInSeconds | nil,
+          transcoder: JsonTranscoder | _CanEncode,
+          durability_level: durability_level,
+          timeout: Integer | _CanInMilliseconds | nil,
+        ) -> void
 
-      def bucket: (String name) -> Bucket
-
-      def query: (String, QueryOptions) -> QueryResult
+      def to_request: () -> Hash[Symbol, untyped]
     end
   end
 end

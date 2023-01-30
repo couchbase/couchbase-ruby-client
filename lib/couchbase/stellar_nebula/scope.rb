@@ -15,6 +15,9 @@
 #  limitations under the License.
 
 require_relative "collection"
+require_relative "query_options"
+require_relative "query_result"
+require_relative "error"
 
 module Couchbase
   module StellarNebula
@@ -29,6 +32,19 @@ module Couchbase
 
       def collection(name)
         Collection.new(@client, @bucket_name, @name, name)
+      end
+
+      def query(statement, options = QueryOptions::DEFAULT)
+        req = Generated::Query::V1::QueryRequest.new(
+          statement: statement,
+          **options.to_request(scope_name: @name, bucket_name: @bucket_name)
+        )
+        begin
+          resps = @client.query(req, timeout: options.timeout)
+        rescue GRPC::DeadlineExceeded
+          raise Error::Timeout
+        end
+        QueryResult.new(resps)
       end
     end
   end

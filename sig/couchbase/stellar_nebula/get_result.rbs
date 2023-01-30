@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 #  Copyright 2022-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,11 +12,21 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require_relative "stellar_nebula/version"
-require_relative "stellar_nebula/cluster"
-require_relative "stellar_nebula/error"
-
 module Couchbase
   module StellarNebula
+    class GetResult
+      attr_reader encoded: String
+      attr_reader content_type: Symbol
+      attr_reader compression_type: Symbol
+      attr_reader cas: Integer
+      attr_reader expiry: Integer
+      attr_reader transcoder: JsonTranscoder
+
+      def success?: () -> bool
+
+      def initialize: (untyped, GetOptions) -> void
+
+      def content: (JsonTranscoder | _CanDecode) -> Object
+    end
   end
 end

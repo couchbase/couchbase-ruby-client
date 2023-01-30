@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2022-Present. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,17 +14,36 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require_relative "generated/kv.v1_pb"
+
 module Couchbase
   module StellarNebula
-    class Scope
-      @bucket_name: String
-      @client: Client
+    class MutationState
+      attr_accessor :tokens
 
-      attr_reader name: String
+      def initialize(*mutation_tokens)
+        @tokens = []
+        add(*mutation_tokens)
+      end
 
-      def collection: -> Collection
+      def add(*mutation_tokens)
+        @tokens |= mutation_tokens
+      end
 
-      def query: (String, QueryOptions) -> QueryResult
+      def to_a
+        @tokens.map do |t|
+          {
+            bucket_name: t.bucket_name,
+            partition_id: t.partition_id,
+            partition_uuid: t.partition_uuid,
+            sequence_number: t.sequence_number,
+          }
+        end
+      end
+
+      def to_proto
+        @tokens.map(&:to_proto)
+      end
     end
   end
 end

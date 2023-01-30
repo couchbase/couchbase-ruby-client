@@ -1,0 +1,16 @@
+module Couchbase
+  module StellarNebula
+    module Utils
+      module Time
+        RELATIVE_EXPIRY_CUTOFF_SECONDS: Integer
+        WORKAROUND_EXPIRY_CUTOFF_SECONDS: Integer
+
+        def extract_expiry_time: (Integer | _CanInSeconds | ::Time | nil) -> [:duration | :timepoint, Integer?]
+
+        def extract_duration: (Integer | _CanInMilliseconds | nil) -> Integer?
+
+        def extract_expiry_time_point: (Integer | _CanInSeconds | ::Time | nil) -> Integer?
+      end
+    end
+  end
+end

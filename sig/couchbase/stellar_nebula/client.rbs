@@ -15,11 +15,42 @@
 module Couchbase
   module StellarNebula
     class Client
+      @channel: Object
+      @routing_stub: Object
+      @kv_stub: Object
+      @query_stub: Object
+      @search_stub: Object
+      @analytics_stub: Object
+      @view_stub: Object
+
       def initialize: (String host, untyped credentials, untyped channel_args) -> void
 
       def kv: () -> untyped
 
       def close: () -> void
+
+      def get: (String, Integer) -> untyped
+      def get_and_touch: (untyped, Integer) -> untyped
+      def get_and_lock: (untyped, Integer) -> untyped
+      def unlock: (untyped, Integer) -> untyped
+      def get_replica: (untyped, Integer) -> untyped
+      def touch: (untyped, Integer) -> untyped
+      def exists: (untyped, Integer) -> untyped
+      def insert: (untyped, Integer) -> untyped
+      def upsert: (untyped, Integer) -> untyped
+      def replace: (untyped, Integer) -> untyped
+      def remove: (untyped, Integer) -> untyped
+      def increment: (untyped, Integer) -> untyped
+      def decrement: (untyped, Integer) -> untyped
+      def append: (untyped, Integer) -> untyped
+      def prepend: (untyped, Integer) -> untyped
+      def lookup_in: (untyped, Integer) -> untyped
+      def mutate_in: (untyped, Integer) -> untyped
+      def range_scan: (untyped, Integer) -> untyped
+
+      def query: (untyped, Integer) -> untyped
+
+      def get_deadline: (Integer?) -> Time?
     end
   end
 end

@@ -17,10 +17,19 @@
 require_relative "connect_options"
 require_relative "bucket"
 require_relative "client"
+require_relative "query_options"
+require_relative "query_result"
+require_relative "error"
+
+require_relative "generated/query.v1_pb"
+
+require "google/protobuf/well_known_types"
 
 module Couchbase
   module StellarNebula
     class Cluster
+      attr_reader :client
+
       def initialize(connection_string, options = ConnectOptions.new)
         host = connection_string.include?(":") ? connection_string : "#{connection_string}:18091"
         credentials = options.grpc_credentials
@@ -35,6 +44,19 @@ module Couchbase
 
       def bucket(name)
         Bucket.new(@client, name)
+      end
+
+      def query(statement, options = QueryOptions::DEFAULT)
+        req = Generated::Query::V1::QueryRequest.new(
+          statement: statement,
+          **options.to_request
+        )
+        begin
+          resps = @client.query(req, timeout: options.timeout)
+        rescue GRPC::DeadlineExceeded
+          raise Error::Timeout
+        end
+        QueryResult.new(resps)
       end
     end
   end

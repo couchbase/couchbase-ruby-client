@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-#  Copyright 2022-Present Couchbase, Inc.
+#  Copyright 2022-Present. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,11 +14,22 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require_relative "stellar_nebula/version"
-require_relative "stellar_nebula/cluster"
-require_relative "stellar_nebula/error"
+require "json"
 
 module Couchbase
   module StellarNebula
+    class JsonTranscoder
+      def document_content_type
+        :json
+      end
+
+      def encode(document)
+        JSON.generate(document)
+      end
+
+      def decode(blob)
+        JSON.parse(blob) unless blob&.empty?
+      end
+    end
   end
 end
