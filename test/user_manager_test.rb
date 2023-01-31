@@ -56,7 +56,7 @@ module Couchbase
 
       # Ensure that the user has been created (wait up to 10 seconds)
       deadline = Time.now + 10
-      while Time.now < deadline do
+      while Time.now < deadline
         begin
           @cluster.users.get_user(@test_username)
         rescue Error::UserNotFound
