@@ -53,6 +53,19 @@ module Couchbase
         ]
       end
       @cluster.users.upsert_user(@test_user)
+
+      # Ensure that the user has been created (wait up to 10 seconds)
+      deadline = Time.now + 10
+      while Time.now < deadline
+        begin
+          @cluster.users.get_user(@test_username)
+        rescue Error::UserNotFound
+          sleep(0.01)
+          next
+        end
+        return
+      end
+      raise "User could not be created"
     end
 
     def teardown
