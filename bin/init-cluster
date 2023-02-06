@@ -66,7 +66,7 @@ class API
 
   def decode_response(response)
     payload =
-      if /application\/json/.match?(response['content-type'])
+      if response['content-type'].include?('application/json')
         JSON.parse(response.body)
       else
         response.body
