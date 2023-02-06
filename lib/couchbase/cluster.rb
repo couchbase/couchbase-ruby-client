@@ -98,7 +98,7 @@ module Couchbase
     #                 Options::Query(consistent_with: MutationState.new(res.mutation_token)))
     #
     # @return [QueryResult]
-    def query(statement, options = Options::Query.new)
+    def query(statement, options = Options::Query::DEFAULT)
       resp = @backend.document_query(statement, options.to_backend)
 
       QueryResult.new do |res|
@@ -136,7 +136,7 @@ module Couchbase
     #                           Options::Analytics(named_parameters: {user_id: 2}))
     #
     # @return [AnalyticsResult]
-    def analytics_query(statement, options = Options::Analytics.new)
+    def analytics_query(statement, options = Options::Analytics::DEFAULT)
       resp = @backend.document_analytics(statement, options.to_backend)
 
       AnalyticsResult.new do |res|
@@ -180,7 +180,7 @@ module Couchbase
     #                        ))
     #
     # @return [SearchResult]
-    def search_query(index_name, query, options = Options::Search.new)
+    def search_query(index_name, query, options = Options::Search::DEFAULT)
       resp = @backend.document_search(index_name, JSON.generate(query), options.to_backend)
 
       SearchResult.new do |res|
@@ -306,7 +306,7 @@ module Couchbase
     # @param [Options::Diagnostics] options
     #
     # @return [DiagnosticsResult]
-    def diagnostics(options = Options::Diagnostics.new)
+    def diagnostics(options = Options::Diagnostics::DEFAULT)
       resp = @backend.diagnostics(options.report_id)
       DiagnosticsResult.new do |res|
         res.version = resp[:version]
@@ -332,7 +332,7 @@ module Couchbase
     # @param [Options::Ping] options
     #
     # @return [PingResult]
-    def ping(options = Options::Ping.new)
+    def ping(options = Options::Ping::DEFAULT)
       resp = @backend.ping(nil, options.to_backend)
       PingResult.new do |res|
         res.version = resp[:version]
