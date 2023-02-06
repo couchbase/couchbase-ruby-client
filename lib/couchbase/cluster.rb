@@ -15,6 +15,7 @@
 require "couchbase/configuration"
 require "couchbase/authenticator"
 require "couchbase/bucket"
+require "couchbase/cluster_registry"
 
 require "couchbase/management"
 require "couchbase/options"
@@ -62,7 +63,12 @@ module Couchbase
     #
     # @return [Cluster]
     def self.connect(connection_string, *options)
-      Cluster.new(connection_string, *options)
+      regexp = /^((couchbases?|http):\/\/.*)$/i
+      if regexp.match?(connection_string) || !connection_string.include?("://")
+        Cluster.new(connection_string, *options)
+      else
+        ClusterRegistry.instance.connect(connection_string, *options)
+      end
     end
 
     # Returns an instance of the {Bucket}
