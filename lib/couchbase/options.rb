@@ -121,6 +121,9 @@ module Couchbase
         end
         options
       end
+
+      # @api private
+      DEFAULT = Get.new.freeze
     end
 
     # Options for {Collection#get_multi}
@@ -153,6 +156,9 @@ module Couchbase
           timeout: Utils::Time.extract_duration(@timeout),
         }
       end
+
+      # @api private
+      DEFAULT = GetMulti.new.freeze
     end
 
     # Options for {Collection#get_and_lock}
@@ -185,6 +191,9 @@ module Couchbase
           timeout: Utils::Time.extract_duration(@timeout),
         }
       end
+
+      # @api private
+      DEFAULT = GetAndLock.new.freeze
     end
 
     # Options for {Collection#get_and_touch}
@@ -217,6 +226,9 @@ module Couchbase
           timeout: Utils::Time.extract_duration(@timeout),
         }
       end
+
+      # @api private
+      DEFAULT = GetAndTouch.new.freeze
     end
 
     # Options for {Collection#get_all_replicas}
@@ -249,6 +261,9 @@ module Couchbase
           timeout: Utils::Time.extract_duration(@timeout),
         }
       end
+
+      # @api private
+      DEFAULT = GetAllReplicas.new.freeze
     end
 
     # Options for {Collection#get_any_replica}
@@ -281,6 +296,9 @@ module Couchbase
           timeout: Utils::Time.extract_duration(@timeout),
         }
       end
+
+      # @api private
+      DEFAULT = GetAnyReplica.new.freeze
     end
 
     # Options for {Collection#exists}
@@ -307,6 +325,9 @@ module Couchbase
           timeout: Utils::Time.extract_duration(@timeout),
         }
       end
+
+      # @api private
+      DEFAULT = Exists.new.freeze
     end
 
     # Options for {Collection#touch}
@@ -333,6 +354,9 @@ module Couchbase
           timeout: Utils::Time.extract_duration(@timeout),
         }
       end
+
+      # @api private
+      DEFAULT = Touch.new.freeze
     end
 
     # Options for {Collection#unlock}
@@ -359,6 +383,9 @@ module Couchbase
           timeout: Utils::Time.extract_duration(@timeout),
         }
       end
+
+      # @api private
+      DEFAULT = Unlock.new.freeze
     end
 
     # Options for {Collection#remove}
@@ -431,6 +458,9 @@ module Couchbase
           cas: @cas,
         }
       end
+
+      # @api private
+      DEFAULT = Remove.new.freeze
     end
 
     # Options for {Collection#remove_multi}
@@ -498,6 +528,9 @@ module Couchbase
           replicate_to: @replicate_to,
         }
       end
+
+      # @api private
+      DEFAULT = RemoveMulti.new.freeze
     end
 
     # Options for {Collection#insert}
@@ -574,6 +607,9 @@ module Couchbase
           replicate_to: @replicate_to,
         }
       end
+
+      # @api private
+      DEFAULT = Insert.new.freeze
     end
 
     # Options for {Collection#upsert}
@@ -655,6 +691,9 @@ module Couchbase
           replicate_to: @replicate_to,
         }
       end
+
+      # @api private
+      DEFAULT = Upsert.new.freeze
     end
 
     # Options for {Collection#upsert_multi}
@@ -736,6 +775,9 @@ module Couchbase
           replicate_to: @replicate_to,
         }
       end
+
+      # @api private
+      DEFAULT = UpsertMulti.new.freeze
     end
 
     # Options for {Collection#replace}
@@ -822,6 +864,9 @@ module Couchbase
           cas: @cas,
         }
       end
+
+      # @api private
+      DEFAULT = Replace.new.freeze
     end
 
     # Options for {Collection#mutate_in}
@@ -933,6 +978,9 @@ module Couchbase
       # @api private
       # @return [Boolean]
       attr_accessor :create_as_deleted
+
+      # @api private
+      DEFAULT = MutateIn.new.freeze
     end
 
     # Options for {Collection#lookup_in}
@@ -973,6 +1021,9 @@ module Couchbase
       # @api private
       # @return [Boolean]
       attr_accessor :access_deleted
+
+      # @api private
+      DEFAULT = LookupIn.new.freeze
     end
 
     # Options for {BinaryCollection#append}
@@ -1006,6 +1057,9 @@ module Couchbase
           cas: @cas,
         }
       end
+
+      # @api private
+      DEFAULT = Append.new.freeze
     end
 
     # Options for {BinaryCollection#prepend}
@@ -1040,6 +1094,9 @@ module Couchbase
           cas: @cas,
         }
       end
+
+      # @api private
+      DEFAULT = Prepend.new.freeze
     end
 
     # Options for {BinaryCollection#increment}
@@ -1131,6 +1188,9 @@ module Couchbase
           replicate_to: @replicate_to,
         }
       end
+
+      # @api private
+      DEFAULT = Increment.new.freeze
     end
 
     # Options for {BinaryCollection#decrement}
@@ -1222,6 +1282,9 @@ module Couchbase
           replicate_to: @replicate_to,
         }
       end
+
+      # @api private
+      DEFAULT = Decrement.new.freeze
     end
 
     # Options for {Datastructures::CouchbaseList#initialize}
@@ -1515,6 +1578,9 @@ module Couchbase
         @report_id = report_id
         yield self if block_given?
       end
+
+      # @api private
+      DEFAULT = Diagnostics.new.freeze
     end
 
     # Options for {Couchbase::Bucket#ping}
@@ -1547,6 +1613,9 @@ module Couchbase
           report_id: @report_id,
         }
       end
+
+      # @api private
+      DEFAULT = Ping.new.freeze
     end
 
     # Options for {Couchbase::Cluster#analytics_query}
@@ -1660,6 +1729,9 @@ module Couchbase
           bucket_name: bucket_name,
         }
       end
+
+      # @api private
+      DEFAULT = Analytics.new.freeze
 
       private
 
@@ -1901,6 +1973,9 @@ module Couchbase
           bucket_name: bucket_name,
         }
       end
+
+      # @api private
+      DEFAULT = Query.new.freeze
     end
 
     # Options for {Couchbase::Cluster#search_query}
@@ -2034,6 +2109,9 @@ module Couchbase
           mutation_state: @mutation_state&.to_a,
         }
       end
+
+      # @api private
+      DEFAULT = Search.new.freeze
     end
 
     # Options for {Couchbase::Cluster#view_query}
@@ -2155,6 +2233,9 @@ module Couchbase
           debug: @debug,
         }
       end
+
+      # @api private
+      DEFAULT = View.new.freeze
     end
 
     # @api private

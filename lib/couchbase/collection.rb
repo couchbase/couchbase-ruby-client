@@ -69,7 +69,7 @@ module Couchbase
     #   #   "name"=>"Douglas Reynholm"}
     #
     # @return [GetResult]
-    def get(id, options = Options::Get.new)
+    def get(id, options = Options::Get::DEFAULT)
       resp = if options.need_projected_get?
                @backend.document_get_projected(bucket_name, @scope_name, @name, id, options.to_backend)
              else
@@ -98,7 +98,7 @@ module Couchbase
     #   res[1].content #=> content of "bar"
     #
     # @return [Array<GetResult>]
-    def get_multi(ids, options = Options::GetMulti.new)
+    def get_multi(ids, options = Options::GetMulti::DEFAULT)
       resp = @backend.document_get_multi(ids.map { |id| [bucket_name, @scope_name, @name, id] }, options.to_backend)
       resp.map do |entry|
         GetResult.new do |res|
@@ -128,7 +128,7 @@ module Couchbase
     #   collection.replace("user", user_data, Options::Upsert(cas: res.cas))
     #
     # @return [GetResult]
-    def get_and_lock(id, lock_time, options = Options::GetAndLock.new)
+    def get_and_lock(id, lock_time, options = Options::GetAndLock::DEFAULT)
       resp = @backend.document_get_and_lock(bucket_name, @scope_name, @name, id,
                                             lock_time.respond_to?(:in_seconds) ? lock_time.public_send(:in_seconds) : lock_time,
                                             options.to_backend)
@@ -150,7 +150,7 @@ module Couchbase
     #   collection.get_and_touch("customer123", 10)
     #
     # @return [GetResult]
-    def get_and_touch(id, expiry, options = Options::GetAndTouch.new)
+    def get_and_touch(id, expiry, options = Options::GetAndTouch::DEFAULT)
       resp = @backend.document_get_and_touch(bucket_name, @scope_name, @name, id,
                                              Utils::Time.extract_expiry_time(expiry),
                                              options.to_backend)
@@ -168,7 +168,7 @@ module Couchbase
     # @param [Options::GetAllReplicas] options request customization
     #
     # @return [Array<GetReplicaResult>]
-    def get_all_replicas(id, options = Options::GetAllReplicas.new)
+    def get_all_replicas(id, options = Options::GetAllReplicas::DEFAULT)
       resp = @backend.document_get_all_replicas(@bucket_name, @scope_name, @name, id, options.to_backend)
       resp.map do |entry|
         GetReplicaResult.new do |res|
@@ -198,7 +198,7 @@ module Couchbase
     #
     #
     # @return [GetReplicaResult]
-    def get_any_replica(id, options = Options::GetAnyReplica.new)
+    def get_any_replica(id, options = Options::GetAnyReplica::DEFAULT)
       resp = @backend.document_get_any_replica(@bucket_name, @scope_name, @name, id, options.to_backend)
       GetReplicaResult.new do |res|
         res.transcoder = options.transcoder
@@ -219,7 +219,7 @@ module Couchbase
     #   res.exists? #=> true
     #
     # @return [ExistsResult]
-    def exists(id, options = Options::Exists.new)
+    def exists(id, options = Options::Exists::DEFAULT)
       resp = @backend.document_exists(bucket_name, @scope_name, @name, id, options.to_backend)
       ExistsResult.new do |res|
         res.deleted = resp[:deleted]
@@ -252,7 +252,7 @@ module Couchbase
     #   end
     #
     # @return [MutationResult]
-    def remove(id, options = Options::Remove.new)
+    def remove(id, options = Options::Remove::DEFAULT)
       resp = @backend.document_remove(bucket_name, @scope_name, @name, id, options.to_backend)
       MutationResult.new do |res|
         res.cas = resp[:cas]
@@ -278,7 +278,7 @@ module Couchbase
     #   end
     #
     # @return [Array<MutationResult>]
-    def remove_multi(ids, options = Options::RemoveMulti.new)
+    def remove_multi(ids, options = Options::RemoveMulti::DEFAULT)
       resp = @backend.document_remove_multi(bucket_name, @scope_name, @name, ids.map do |id|
         case id
         when String
@@ -318,7 +318,7 @@ module Couchbase
     #   end
     #
     # @return [MutationResult]
-    def insert(id, content, options = Options::Insert.new)
+    def insert(id, content, options = Options::Insert::DEFAULT)
       blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
       resp = @backend.document_insert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
       MutationResult.new do |res|
@@ -338,7 +338,7 @@ module Couchbase
     #   res.cas #=> 242287264414742
     #
     # @return [MutationResult]
-    def upsert(id, content, options = Options::Upsert.new)
+    def upsert(id, content, options = Options::Upsert::DEFAULT)
       blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
       resp = @backend.document_upsert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
       MutationResult.new do |res|
@@ -365,7 +365,7 @@ module Couchbase
     #   res[1].cas #=> 7751418925851
     #
     # @return [Array<MutationResult>]
-    def upsert_multi(id_content, options = Options::UpsertMulti.new)
+    def upsert_multi(id_content, options = Options::UpsertMulti::DEFAULT)
       resp = @backend.document_upsert_multi(bucket_name, @scope_name, @name, id_content.map do |(id, content)|
         blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
         [id, blob, flags]
@@ -392,7 +392,7 @@ module Couchbase
     #   res.cas #=> 242287264414742
     #
     # @return [MutationResult]
-    def replace(id, content, options = Options::Replace.new)
+    def replace(id, content, options = Options::Replace::DEFAULT)
       blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
       resp = @backend.document_replace(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
       MutationResult.new do |res|
@@ -411,7 +411,7 @@ module Couchbase
     #   res = collection.touch("customer123", 30)
     #
     # @return [MutationResult]
-    def touch(id, expiry, options = Options::Touch.new)
+    def touch(id, expiry, options = Options::Touch::DEFAULT)
       resp = @backend.document_touch(bucket_name, @scope_name, @name, id,
                                      Utils::Time.extract_expiry_time(expiry),
                                      options.to_backend)
@@ -433,7 +433,7 @@ module Couchbase
     # @return [void]
     #
     # @raise [Error::DocumentNotFound]
-    def unlock(id, cas, options = Options::Unlock.new)
+    def unlock(id, cas, options = Options::Unlock::DEFAULT)
       @backend.document_unlock(bucket_name, @scope_name, @name, id, cas, options.to_backend)
     end
 
@@ -455,7 +455,7 @@ module Couchbase
     #     LookupInSpec.exists("purchases.pending[-1]"),
     #   ]
     # @return [LookupInResult]
-    def lookup_in(id, specs, options = Options::LookupIn.new)
+    def lookup_in(id, specs, options = Options::LookupIn::DEFAULT)
       resp = @backend.document_lookup_in(
         bucket_name, @scope_name, @name, id,
         specs.map do |s|
@@ -501,7 +501,7 @@ module Couchbase
     #   ])
     #
     # @return [MutateInResult]
-    def mutate_in(id, specs, options = Options::MutateIn.new)
+    def mutate_in(id, specs, options = Options::MutateIn::DEFAULT)
       resp = @backend.document_mutate_in(
         bucket_name, @scope_name, @name, id,
         specs.map do |s|

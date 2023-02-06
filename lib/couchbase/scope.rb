@@ -57,7 +57,7 @@ module Couchbase
     #                Options::Query(named_parameters: {type: "hotel"}, metrics: true))
     #
     # @return [QueryResult]
-    def query(statement, options = Options::Query.new)
+    def query(statement, options = Options::Query::DEFAULT)
       resp = @backend.document_query(statement, options.to_backend(scope_name: @name, bucket_name: @bucket_name))
 
       Cluster::QueryResult.new do |res|
@@ -97,7 +97,7 @@ module Couchbase
     #                          Options::Analytics(named_parameters: {user_id: 2}))
     #
     # @return [AnalyticsResult]
-    def analytics_query(statement, options = Options::Analytics.new)
+    def analytics_query(statement, options = Options::Analytics::DEFAULT)
       resp = @backend.document_analytics(statement, options.to_backend(scope_name: @name, bucket_name: @bucket_name))
 
       Cluster::AnalyticsResult.new do |res|
@@ -142,7 +142,7 @@ module Couchbase
     #                        ))
     #
     # @return [SearchResult]
-    def search_query(index_name, query, options = Options::Search.new)
+    def search_query(index_name, query, options = Options::Search::DEFAULT)
       resp = @backend.document_search(index_name, JSON.generate(query), options.to_backend(scope_name: @name))
 
       SearchResult.new do |res|

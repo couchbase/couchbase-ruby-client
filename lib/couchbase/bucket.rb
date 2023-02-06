@@ -80,7 +80,7 @@ module Couchbase
     #                     ))
     #
     # @return [ViewResult]
-    def view_query(design_document_name, view_name, options = Options::View.new)
+    def view_query(design_document_name, view_name, options = Options::View::DEFAULT)
       resp = @backend.document_view(@name, design_document_name, view_name, options.namespace, options.to_backend)
       ViewResult.new do |res|
         res.meta_data = ViewMetaData.new do |meta|
@@ -112,7 +112,7 @@ module Couchbase
     # @param [Options::Ping] options
     #
     # @return [PingResult]
-    def ping(options = Options::Ping.new)
+    def ping(options = Options::Ping::DEFAULT)
       resp = @backend.ping(@name, options.to_backend)
       PingResult.new do |res|
         res.version = resp[:version]
