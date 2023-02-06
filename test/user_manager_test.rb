@@ -63,6 +63,7 @@ module Couchbase
           sleep(0.01)
           next
         end
+        sleep(0.1)
         return
       end
       raise "User could not be created"
@@ -86,6 +87,8 @@ module Couchbase
       new_password = "a_new_password"
       @cluster.users.change_password(new_password)
 
+      sleep(0.1)
+
       # Verify that the connection fails with the old password
       assert_raises(Error::AuthenticationFailure) { Cluster.connect(@env.connection_string, orig_options) }
 
@@ -96,6 +99,8 @@ module Couchbase
 
       # Change the password back to the original one
       @cluster.users.change_password(@test_password)
+
+      sleep(0.1)
 
       # Verify that the connection fails with the new password
       assert_raises(Error::AuthenticationFailure) { Cluster.connect(@env.connection_string, new_options) }
