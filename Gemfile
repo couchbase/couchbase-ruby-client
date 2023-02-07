@@ -16,3 +16,5 @@ gem "rubocop-rspec"
 gem "rubocop-thread_safety"
 
 gem "rbs"
+
+gem "couchbase"

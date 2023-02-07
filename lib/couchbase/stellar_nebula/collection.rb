@@ -14,17 +14,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require_relative "get_options"
-require_relative "get_result"
-require_relative "exists_result"
-require_relative "mutation_token"
-require_relative "mutation_result"
-require_relative "upsert_options"
-require_relative "remove_options"
-require_relative "insert_options"
-require_relative "replace_options"
-require_relative "exists_options"
-require_relative "error"
+require "couchbase/options"
+require "couchbase/errors"
+require "couchbase/collection_options"
+
+require_relative "request_generator/kv"
+require_relative "response_converter/kv"
 
 require_relative "generated/kv.v1_pb"
 
@@ -40,6 +35,7 @@ module Couchbase
         @bucket_name = bucket_name
         @scope_name = scope_name
         @name = name
+        @kv_request_generator = RequestGenerator::KV.new(@bucket_name, @scope_name, @name)
       end
 
       def location
@@ -50,119 +46,84 @@ module Couchbase
         }
       end
 
-      def get(id, options = GetOptions::DEFAULT)
-        req = Generated::KV::V1::GetRequest.new(
-          key: id,
-          **location,
-          **options.to_request
-        )
+      def get(id, options = Couchbase::Options::Get::DEFAULT)
+        req = @kv_request_generator.get_request(id, options)
         begin
           resp = @client.get(req, timeout: options.timeout)
         rescue GRPC::NotFound
-          raise Error::DocumentNotFound
+          raise Couchbase::Error::DocumentNotFound
         rescue GRPC::DeadlineExceeded
-          throw Error::Timeout
+          throw Couchbase::Error::Timeout
         end
-        GetResult.new(resp)
+        ResponseConverter::KV.from_get_response(resp, options)
       end
 
-      def get_and_touch(id, expiry, options = GetAndTouchOptions::DEFAULT)
-        expiry = Google::Protobuf::Timestamp.new({:seconds => Utils::Time.extract_expiry_time_point(expiry)})
-        req = Generated::KV::V1::GetAndTouchRequest.new(
-          **location,
-          key: id,
-          expiry: expiry,
-          **options.to_request
-        )
+      def get_and_touch(id, expiry, options = Couchbase::Options::GetAndTouch::DEFAULT)
+        req = @kv_request_generator.get_and_touch_request(id, expiry, options)
         begin
           resp = @client.get_and_touch(req, timeout: options.timeout)
         rescue GRPC::NotFound
-          raise Error::DocumentNotFound
+          raise Couchbase::Error::DocumentNotFound
         rescue GRPC::DeadlineExceeded
-          throw Error::Timeout
+          throw Couchbase::Error::Timeout
         end
-        GetResult.new(resp)
+        ResponseConverter::KV.from_get_response(resp, options)
       end
 
-      def upsert(id, content, options = UpsertOptions::DEFAULT)
-        encoded = options.transcoder.encode(content)
-        req = Generated::KV::V1::UpsertRequest.new(
-          key: id,
-          content: encoded,
-          **location,
-          **options.to_request
-        )
+      def upsert(id, content, options = Couchbase::Options::Upsert::DEFAULT)
+        req = @kv_request_generator.upsert_request(id, content, options)
         begin
           resp = @client.upsert(req, timeout: options.timeout)
         rescue GRPC::DeadlineExceeded
-          raise Error::Timeout
+          raise Couchbase::Error::Timeout
         end
-        MutationResult.new(resp)
+        ResponseConverter::KV.from_upsert_response(resp)
       end
 
-      def remove(id, options = RemoveOptions::DEFAULT)
-        req = Generated::KV::V1::RemoveRequest.new(
-          key: id,
-          **location,
-          **options.to_request
-        )
+      def remove(id, options = Couchbase::Options::Remove::DEFAULT)
+        req = @kv_request_generator.remove_request(id, options)
         begin
           resp = @client.remove(req, timeout: options.timeout)
         rescue GRPC::DeadlineExceeded
-          raise Error::Timeout
+          raise Couchbase::Error::Timeout
         rescue GRPC::NotFound
-          raise Error::DocumentNotFound
+          raise Couchbase::Error::DocumentNotFound
         end
-        MutationResult.new(resp)
+        ResponseConverter::KV.from_remove_response(resp)
       end
 
-      def insert(id, content, options = InsertOptions::DEFAULT)
-        encoded = options.transcoder.encode(content)
-        req = Generated::KV::V1::InsertRequest.new(
-          key: id,
-          content: encoded,
-          **location,
-          **options.to_request
-        )
+      def insert(id, content, options = Couchbase::Options::Insert::DEFAULT)
+        req = @kv_request_generator.insert_request(id, content, options)
         begin
           resp = @client.insert(req, timeout: options.timeout)
         rescue GRPC::DeadlineExceeded
-          raise Error::Timeout
+          raise Couchbase::Error::Timeout
         rescue GRPC::AlreadyExists
-          raise Error::DocumentExists
+          raise Couchbase::Error::DocumentExists
         end
-        MutationResult.new(resp)
+        ResponseConverter::KV.from_insert_response(resp)
       end
 
-      def replace(id, content, options = ReplaceOptions::DEFAULT)
-        encoded = options.transcoder.encode(content)
-        req = Generated::KV::V1::ReplaceRequest.new(
-          key: id,
-          content: encoded,
-          **location,
-          **options.to_request
-        )
+      def replace(id, content, options = Couchbase::Options::Replace::DEFAULT)
+        req = @kv_request_generator.replace_request(id, content, options)
         begin
           resp = @client.replace(req, timeout: options.timeout)
         rescue GRPC::DeadlineExceeded
-          raise Error::Timeout
+          raise Couchbase::Error::Timeout
         rescue GRPC::NotFound
-          raise Error::DocumentNotFound
+          raise Couchbase::Error::DocumentNotFound
         end
-        MutationResult.new(resp)
+        ResponseConverter::KV.from_replace_response(resp)
       end
 
-      def exists(id, options = ExistsOptions::DEFAULT)
-        req = Generated::KV::V1::ExistsRequest.new(
-          key: id,
-          **location
-        )
+      def exists(id, options = Couchbase::Options::Exists::DEFAULT)
+        req = @kv_request_generator.exists_request(id, options)
         begin
           resp = @client.exists(req, timeout: options.timeout)
         rescue GRPC::DeadlineExceeded
-          raise Error::Timeout
+          raise Couchbase::Error::Timeout
         end
-        ExistsResult.new(resp)
+        ResponseConverter::KV.from_exists_response(resp)
       end
     end
   end

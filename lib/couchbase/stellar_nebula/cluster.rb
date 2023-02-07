@@ -17,25 +17,31 @@
 require_relative "connect_options"
 require_relative "bucket"
 require_relative "client"
-require_relative "query_options"
-require_relative "query_result"
-require_relative "error"
+require_relative "request_generator/query"
+require_relative "response_converter/query"
 
-require_relative "generated/query.v1_pb"
+require "couchbase/options"
 
-require "google/protobuf/well_known_types"
 
 module Couchbase
   module StellarNebula
     class Cluster
       attr_reader :client
 
+      def self.connect(connection_string, options = Couchbase::Options::Cluster.new)
+        connect_options = ConnectOptions.new(username: options.authenticator.username,
+                                             password: options.authenticator.password)
+        Cluster.new(connection_string.split("://")[1], connect_options)
+      end
+
       def initialize(connection_string, options = ConnectOptions.new)
-        host = connection_string.include?(":") ? connection_string : "#{connection_string}:18091"
+        host = connection_string.include?(":") ? connection_string : "#{connection_string}:18098"
         credentials = options.grpc_credentials
         channel_args = options.grpc_channel_args
 
         @client = Client.new(host, credentials, channel_args)
+
+        @query_request_generator = RequestGenerator::Query.new
       end
 
       def close
@@ -46,17 +52,14 @@ module Couchbase
         Bucket.new(@client, name)
       end
 
-      def query(statement, options = QueryOptions::DEFAULT)
-        req = Generated::Query::V1::QueryRequest.new(
-          statement: statement,
-          **options.to_request
-        )
+      def query(statement, options = Couchbase::Options::Query::DEFAULT)
+        req = @query_request_generator.query_request(statement, options)
         begin
           resps = @client.query(req, timeout: options.timeout)
         rescue GRPC::DeadlineExceeded
-          raise Error::Timeout
+          raise Couchbase::Error::Timeout
         end
-        QueryResult.new(resps)
+        ResponseConverter::Query.from_query_responses(resps)
       end
     end
   end

@@ -28,8 +28,8 @@ RSpec.describe Couchbase::StellarNebula::Cluster do
         statement = "SELECT * " \
                     "FROM `travel-sample`.inventory.airline " \
                     "WHERE id > 10000"
-        @query_result = cluster.query(statement, Couchbase::StellarNebula::QueryOptions.new(metrics: true))
-        @query_result.transcoder = Couchbase::StellarNebula::JsonTranscoder.new
+        @query_result = cluster.query(statement, Couchbase::Options::Query.new(metrics: true))
+        @query_result.transcoder = Couchbase::JsonTranscoder.new
       end
 
       it "the correct number of rows was returned" do
