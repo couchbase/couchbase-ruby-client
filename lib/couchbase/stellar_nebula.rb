@@ -14,11 +14,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "couchbase"
+
 require_relative "stellar_nebula/version"
 require_relative "stellar_nebula/cluster"
-require_relative "stellar_nebula/error"
 
 module Couchbase
   module StellarNebula
+    Couchbase::ClusterRegistry.instance.register_connection_handler(/^protostellar:\/\/.*$/i, StellarNebula::Cluster)
   end
 end

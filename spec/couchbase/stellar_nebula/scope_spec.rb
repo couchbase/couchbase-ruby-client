@@ -29,7 +29,7 @@ RSpec.describe Couchbase::StellarNebula::Scope do
         statement = "SELECT * " \
                     "FROM airline " \
                     "WHERE id > 10000"
-        @query_result = scope.query(statement, Couchbase::StellarNebula::QueryOptions.new(metrics: true))
+        @query_result = scope.query(statement, Couchbase::Options::Query.new(metrics: true))
         @query_result.transcoder = Couchbase::StellarNebula::JsonTranscoder.new
       end
 

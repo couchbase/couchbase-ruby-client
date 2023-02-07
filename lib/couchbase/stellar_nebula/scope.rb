@@ -14,10 +14,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "couchbase/errors"
+require "couchbase/options"
+
+require_relative "request_generator/query"
+require_relative "response_converter/query"
 require_relative "collection"
-require_relative "query_options"
-require_relative "query_result"
-require_relative "error"
 
 module Couchbase
   module StellarNebula
@@ -28,23 +30,22 @@ module Couchbase
         @client = client
         @bucket_name = bucket_name
         @name = name
+
+        @query_request_generator = RequestGenerator::Query.new(bucket_name: @bucket_name)
       end
 
       def collection(name)
         Collection.new(@client, @bucket_name, @name, name)
       end
 
-      def query(statement, options = QueryOptions::DEFAULT)
-        req = Generated::Query::V1::QueryRequest.new(
-          statement: statement,
-          **options.to_request(scope_name: @name, bucket_name: @bucket_name)
-        )
+      def query(statement, options = Couchbase::Options::Query::DEFAULT)
+        req = @query_request_generator.query_request(statement, options)
         begin
           resps = @client.query(req, timeout: options.timeout)
         rescue GRPC::DeadlineExceeded
-          raise Error::Timeout
+          raise Couchbase::Error::Timeout
         end
-        QueryResult.new(resps)
+        ResponseConverter::Query.from_query_responses(resps)
       end
     end
   end

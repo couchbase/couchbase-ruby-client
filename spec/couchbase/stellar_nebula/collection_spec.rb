@@ -36,7 +36,7 @@ RSpec.describe Couchbase::StellarNebula::Collection do
 
   def upsert_sample_document(name: :foo, content: sample_content, doc_id: nil)
     doc_id = unique_id(name) if doc_id.nil?
-    collection.upsert(doc_id, content, Couchbase::StellarNebula::UpsertOptions.new(transcoder: Couchbase::StellarNebula::JsonTranscoder.new))
+    collection.upsert(doc_id, content)
     doc_id
   end
 
@@ -71,7 +71,7 @@ RSpec.describe Couchbase::StellarNebula::Collection do
 
     context "when the document does not exist" do
       it "raises DocumentNotFound error" do
-        expect { collection.get(unique_id(name: :foo)) }.to raise_error(Couchbase::StellarNebula::Error::DocumentNotFound)
+        expect { collection.get(unique_id(name: :foo)) }.to raise_error(Couchbase::Error::DocumentNotFound)
       end
     end
   end
@@ -158,7 +158,7 @@ RSpec.describe Couchbase::StellarNebula::Collection do
       end
 
       it "raises DocumentExists error" do
-        expect { collection.insert(@doc_id, sample_content) }.to raise_error(Couchbase::StellarNebula::Error::DocumentExists)
+        expect { collection.insert(@doc_id, sample_content) }.to raise_error(Couchbase::Error::DocumentExists)
       end
     end
   end
@@ -193,7 +193,7 @@ RSpec.describe Couchbase::StellarNebula::Collection do
       end
 
       it "raises DocumentNotFound error" do
-        expect { collection.replace(@doc_id, updated_content) }.to raise_error(Couchbase::StellarNebula::Error::DocumentNotFound)
+        expect { collection.replace(@doc_id, updated_content) }.to raise_error(Couchbase::Error::DocumentNotFound)
       end
     end
   end
@@ -214,7 +214,7 @@ RSpec.describe Couchbase::StellarNebula::Collection do
       end
 
       it "the document no longer exists" do
-        expect { collection.get(@doc_id) }.to raise_error(Couchbase::StellarNebula::Error::DocumentNotFound)
+        expect { collection.get(@doc_id) }.to raise_error(Couchbase::Error::DocumentNotFound)
       end
     end
 
@@ -224,7 +224,7 @@ RSpec.describe Couchbase::StellarNebula::Collection do
       end
 
       it "raises DocumentNotFound error" do
-        expect { collection.remove(@doc_id) }.to raise_error(Couchbase::StellarNebula::Error::DocumentNotFound)
+        expect { collection.remove(@doc_id) }.to raise_error(Couchbase::Error::DocumentNotFound)
       end
     end
   end
