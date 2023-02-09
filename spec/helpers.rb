@@ -14,9 +14,9 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/stellar_nebula"
+require "couchbase/protostellar"
 module Helpers
-  include Couchbase::StellarNebula
+  include Couchbase::Protostellar
 
   DEFAULT_HOST = "localhost:18098"
   DEFAULT_USERNAME = "Administrator"
@@ -37,4 +37,3 @@ module Helpers
     cluster.bucket(bucket_name).default_collection
   end
 end
-

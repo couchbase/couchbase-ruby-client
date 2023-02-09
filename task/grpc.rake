@@ -40,14 +40,15 @@ desc "Re-generate gRPC client implementation"
 task :generate_grpc_client do
   protoc_binary = find_executable("grpc_tools_ruby_protoc")
   root_dir = File.expand_path("..", __dir__)
-  stellar_nebula_dir = File.expand_path("deps/stellar-nebula", root_dir)
-  proto_files = Dir["#{stellar_nebula_dir}/proto/**/*.proto"]
+  protostellar_dir = File.expand_path("deps/protostellar", root_dir)
+  googleapis_dir = File.expand_path("deps/googleapis", root_dir)
+  proto_files = Dir["#{protostellar_dir}/**/*.proto"] + Dir["#{googleapis_dir}/**/*.proto"]
   lib_dir = File.expand_path("lib", root_dir)
-  output_dir = File.join(lib_dir, "couchbase/stellar_nebula/generated")
+  output_dir = File.join(lib_dir, "couchbase/protostellar/generated")
   Dir.mktmpdir do |tmpdir|
     sh(protoc_binary,
-       "--proto_path=#{stellar_nebula_dir.shellescape}/proto",
-       "--proto_path=#{stellar_nebula_dir.shellescape}/contrib/googleapis",
+       "--proto_path=#{protostellar_dir.shellescape}",
+       "--proto_path=#{googleapis_dir.shellescape}",
        "--grpc_out=#{tmpdir.shellescape}",
        "--ruby_out=#{tmpdir.shellescape}",
        *proto_files)

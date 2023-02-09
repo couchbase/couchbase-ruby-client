@@ -14,19 +14,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/protostellar"
-require "helpers"
+require "couchbase"
 
-RSpec.configure do |config|
-  # Enable flags like --only-failures and --next-failure
-  config.example_status_persistence_file_path = ".rspec_status"
+require_relative "protostellar/version"
+require_relative "protostellar/cluster"
 
-  # Disable RSpec exposing methods globally on `Module` and `main`
-  config.disable_monkey_patching!
-
-  config.expect_with :rspec do |c|
-    c.syntax = :expect
+module Couchbase
+  module Protostellar
+    Couchbase::ClusterRegistry.instance.register_connection_handler(/^protostellar:\/\/.*$/i, Protostellar::Cluster)
   end
-
-  config.include Helpers
 end

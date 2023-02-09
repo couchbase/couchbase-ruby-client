@@ -1,6 +1,4 @@
-# frozen_string_literal: true
-
-#  Copyright 2022-Present Couchbase, Inc.
+#  Copyright 2022-Present. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,19 +12,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/protostellar"
-require "helpers"
+module Couchbase
+  module Protostellar
+    class Scope
+      @bucket_name: String
+      @client: Client
 
-RSpec.configure do |config|
-  # Enable flags like --only-failures and --next-failure
-  config.example_status_persistence_file_path = ".rspec_status"
+      attr_reader name: String
 
-  # Disable RSpec exposing methods globally on `Module` and `main`
-  config.disable_monkey_patching!
+      def collection: -> Collection
 
-  config.expect_with :rspec do |c|
-    c.syntax = :expect
+      def query: (String, QueryOptions) -> QueryResult
+    end
   end
-
-  config.include Helpers
 end

@@ -14,19 +14,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/protostellar"
-require "helpers"
-
-RSpec.configure do |config|
-  # Enable flags like --only-failures and --next-failure
-  config.example_status_persistence_file_path = ".rspec_status"
-
-  # Disable RSpec exposing methods globally on `Module` and `main`
-  config.disable_monkey_patching!
-
-  config.expect_with :rspec do |c|
-    c.syntax = :expect
+RSpec.describe Couchbase::Protostellar do
+  it "has a version number" do
+    expect(Couchbase::Protostellar::VERSION).not_to be_nil
   end
-
-  config.include Helpers
 end

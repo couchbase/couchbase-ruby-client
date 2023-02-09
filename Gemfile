@@ -2,7 +2,7 @@
 
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in couchbase-stellar_nebula.gemspec
+# Specify your gem's dependencies in couchbase-protostellar.gemspec
 gemspec
 
 gem "grpc-tools", "~> 1.50"

@@ -1,4 +1,4 @@
-# Couchbase::StellarNebula
+# Couchbase::Protostellar
 
 ## Development
 
