@@ -1,6 +1,4 @@
-# frozen_string_literal: true
-
-#  Copyright 2022-Present Couchbase, Inc.
+#  Copyright 2022-Present. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,19 +12,19 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/protostellar"
-require "helpers"
+module Couchbase
+  module Protostellar
+    class QueryMetrics
+      attr_accessor elapsed_time: Integer
+      attr_accessor execution_time: Integer
+      attr_accessor sort_count: Integer
+      attr_accessor result_count: Integer
+      attr_accessor result_size: Integer
+      attr_accessor mutation_count: Integer
+      attr_accessor error_count: Integer
+      attr_accessor warning_count: Integer
 
-RSpec.configure do |config|
-  # Enable flags like --only-failures and --next-failure
-  config.example_status_persistence_file_path = ".rspec_status"
-
-  # Disable RSpec exposing methods globally on `Module` and `main`
-  config.disable_monkey_patching!
-
-  config.expect_with :rspec do |c|
-    c.syntax = :expect
+      def initialize: (untyped) -> void
+    end
   end
-
-  config.include Helpers
 end

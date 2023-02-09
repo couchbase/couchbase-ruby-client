@@ -14,19 +14,29 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/protostellar"
-require "helpers"
+require_relative "scope"
 
-RSpec.configure do |config|
-  # Enable flags like --only-failures and --next-failure
-  config.example_status_persistence_file_path = ".rspec_status"
+module Couchbase
+  module Protostellar
+    class Bucket
+      attr_reader :name
 
-  # Disable RSpec exposing methods globally on `Module` and `main`
-  config.disable_monkey_patching!
+      def initialize(client, name)
+        @client = client
+        @name = name
+      end
 
-  config.expect_with :rspec do |c|
-    c.syntax = :expect
+      def scope(name)
+        Scope.new(@client, @name, name)
+      end
+
+      def collection(name)
+        Scope.new(@client, @name, "_default").collection(name)
+      end
+
+      def default_collection
+        Scope.new(@client, @name, "_default").collection("_default")
+      end
+    end
   end
-
-  config.include Helpers
 end

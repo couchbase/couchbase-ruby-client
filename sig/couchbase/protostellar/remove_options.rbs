@@ -1,6 +1,4 @@
-# frozen_string_literal: true
-
-#  Copyright 2022-Present Couchbase, Inc.
+#  Copyright 2022-Present. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,19 +12,22 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/protostellar"
-require "helpers"
+module Couchbase
+  module Protostellar
+    class RemoveOptions
+      DEFAULT: RemoveOptions
 
-RSpec.configure do |config|
-  # Enable flags like --only-failures and --next-failure
-  config.example_status_persistence_file_path = ".rspec_status"
+      attr_accessor cas: Integer?
+      attr_accessor durability_level: durability_level
+      attr_reader timeout: Integer | _CanInMilliseconds | nil
 
-  # Disable RSpec exposing methods globally on `Module` and `main`
-  config.disable_monkey_patching!
+      def initialize: (
+          cas: Integer?,
+          durability_level: durability_level,
+          timeout: Integer | _CanInMilliseconds | nil,
+        ) -> void
 
-  config.expect_with :rspec do |c|
-    c.syntax = :expect
+      def to_request: () -> Hash[Symbol, untyped]
+    end
   end
-
-  config.include Helpers
 end
