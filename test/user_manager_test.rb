@@ -93,9 +93,7 @@ module Couchbase
         end
       end
 
-      unless success
-        raise "Could not connect to the cluster using the newly created user"
-      end
+      raise "Could not connect to the cluster using the newly created user" unless success
 
       # Change the test user's password
       new_password = "a_new_password"
@@ -116,9 +114,7 @@ module Couchbase
         end
       end
 
-      unless success
-        raise "Could not connect to the cluster using the new password"
-      end
+      raise "Could not connect to the cluster using the new password" unless success
 
       # Verify that the connection fails with the old password
       assert_raises(Error::AuthenticationFailure) { Cluster.connect(@env.connection_string, orig_options) }
