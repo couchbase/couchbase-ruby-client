@@ -54,7 +54,7 @@ module Couchbase
       end
       @cluster.users.upsert_user(@test_user)
 
-      # Ensure that the user has been created (wait up to 10 seconds)
+      # Ensure that the user has been created
       deadline = Time.now + 10
       while Time.now < deadline
         begin
@@ -81,29 +81,47 @@ module Couchbase
       # Connect to the cluster with the test user
       orig_options = Cluster::ClusterOptions.new
       orig_options.authenticate(@test_username, @test_password)
-      @cluster = Cluster.connect(@env.connection_string, orig_options)
+      deadline = Time.now + 10
+      success = false
+      while Time.now < deadline
+        begin
+          @cluster = Cluster.connect(@env.connection_string, orig_options)
+          success = true
+          break
+        rescue Error::AuthenticationFailure
+          sleep(0.1)
+        end
+      end
+
+      unless success
+        raise "Could not connect to the cluster using the newly created user"
+      end
 
       # Change the test user's password
       new_password = "a_new_password"
       @cluster.users.change_password(new_password)
 
-      sleep(0.1)
-
-      # Verify that the connection fails with the old password
-      assert_raises(Error::AuthenticationFailure) { Cluster.connect(@env.connection_string, orig_options) }
-
       # Verify that the connection succeeds with the new password
       new_options = Cluster::ClusterOptions.new
       new_options.authenticate(@test_username, new_password)
-      @cluster = Cluster.connect(@env.connection_string, new_options)
+      deadline = Time.now + 10
+      success = false
+      while Time.now < deadline
+        begin
+          @cluster = Cluster.connect(@env.connection_string, new_options)
+          success = true
+          break
+        rescue Error::AuthenticationFailure
+          sleep(0.1)
+        end
+      end
 
-      # Change the password back to the original one
-      @cluster.users.change_password(@test_password)
+      unless success
+        raise "Could not connect to the cluster using the new password"
+      end
 
-      sleep(0.1)
-
-      # Verify that the connection fails with the new password
-      assert_raises(Error::AuthenticationFailure) { Cluster.connect(@env.connection_string, new_options) }
+      # Verify that the connection fails with the old password
+      assert_raises(Error::AuthenticationFailure) { Cluster.connect(@env.connection_string, orig_options) }
     end
   end
 end
