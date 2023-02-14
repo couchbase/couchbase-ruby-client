@@ -215,8 +215,8 @@ SELECT VALUE m.message
 FROM GleambookMessages m
 WHERE authorId = $user_id
 ", options)
-res.rows.each do |row|
-  p row
+res.rows.each_with_index do |row, index|
+  puts "row #{index}: #{row.inspect}"
 end
 
 # Positional parameters

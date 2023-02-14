@@ -73,5 +73,4 @@ document = {
   content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
 }
 analysis = cluster.search_indexes.analyze_document(search_index_name, document)
-puts "Analysis of document using definition of the index #{search_index_name}:"
-pp analysis
+puts "Analysis of document using definition of the index #{search_index_name}:\n#{analysis.pretty_inspect}"

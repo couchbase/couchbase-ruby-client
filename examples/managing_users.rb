@@ -79,7 +79,7 @@ options = Management::QueryIndexManager::CreatePrimaryIndexOptions.new
 options.ignore_if_exists = true
 cluster.query_indexes.create_primary_index(bucket_name, options)
 
-p returned_airline10_doc: user_collection.get("airline_10").content
+puts returned_airline10_doc: user_collection.get("airline_10").content
 
 airline11_object = {
   "callsign" => "MILE-AIR",
@@ -91,7 +91,7 @@ airline11_object = {
 }
 user_collection.upsert("airline_11", airline11_object)
 
-p returned_airline11_doc: user_collection.get("airline_11").content
+puts returned_airline11_doc: user_collection.get("airline_11").content
 
 result = user_cluster.query("SELECT * from `#{bucket_name}` LIMIT 5")
 result.rows.each_with_index do |row, idx|

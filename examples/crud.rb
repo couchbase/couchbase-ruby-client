@@ -24,13 +24,12 @@ bucket = cluster.bucket("travel-sample")
 collection = bucket.default_collection
 
 res = collection.upsert("foo", {"bar" => 42})
-p res.cas
+puts "Upsert: CAS=#{res.cas}"
 
 res = collection.get("foo")
-p res.content
-p res.cas
+puts "Get: CAS=#{res.cas}, content=#{res.content.inspect}"
 
 res = collection.remove("foo")
-p res
+puts "Removed: #{res.inspect}"
 
 cluster.disconnect

@@ -71,7 +71,7 @@ class API
       else
         response.body
       end
-    p payload if @options[:verbose]
+    puts "payload: #{payload.inspect}" if @options[:verbose]
     payload
   end
 
