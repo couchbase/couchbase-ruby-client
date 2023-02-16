@@ -1929,20 +1929,21 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
                     if (allowed_mechanisms_size < 1) {
                         throw ruby_exception(eInvalidArgument, "allowed_sasl_mechanisms list cannot be empty");
                     }
-                    auth.allowed_sasl_mechanisms.clear();
-                    auth.allowed_sasl_mechanisms.reserve(allowed_mechanisms_size);
+                    std::vector<std::string> mechanisms{};
+                    mechanisms.reserve(allowed_mechanisms_size);
                     for (std::size_t i = 0; i < allowed_mechanisms_size; ++i) {
                         VALUE mechanism = rb_ary_entry(allowed_mechanisms, static_cast<long>(i));
                         if (mechanism == rb_id2sym(rb_intern("scram_sha512"))) {
-                            auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA512");
+                            mechanisms.emplace_back("SCRAM-SHA512");
                         } else if (mechanism == rb_id2sym(rb_intern("scram_sha256"))) {
-                            auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA256");
+                            mechanisms.emplace_back("SCRAM-SHA256");
                         } else if (mechanism == rb_id2sym(rb_intern("scram_sha1"))) {
-                            auth.allowed_sasl_mechanisms.emplace_back("SCRAM-SHA1");
+                            mechanisms.emplace_back("SCRAM-SHA1");
                         } else if (mechanism == rb_id2sym(rb_intern("plain"))) {
-                            auth.allowed_sasl_mechanisms.emplace_back("PLAIN");
+                            mechanisms.emplace_back("PLAIN");
                         }
                     }
+                    auth.allowed_sasl_mechanisms.emplace(mechanisms);
                 }
             }
         } else {
