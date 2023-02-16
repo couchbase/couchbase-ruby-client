@@ -78,6 +78,10 @@ class ServerVersion
   def supports_preserve_expiry?
     cheshire_cat?
   end
+
+  def is_rcbc_408_applicable?
+    @version < Gem::Version.create("7.0.0")
+  end
 end
 
 require "couchbase"
