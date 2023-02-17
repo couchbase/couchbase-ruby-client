@@ -5084,9 +5084,9 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE options)
         VALUE indexes = rb_ary_new_capa(static_cast<long>(resp.indexes.size()));
         for (const auto& idx : resp.indexes) {
             VALUE index = rb_hash_new();
-            rb_hash_aset(index, rb_id2sym(rb_intern("state")), cb_str_new(idx.state));
+            rb_hash_aset(index, rb_id2sym(rb_intern("state")), rb_id2sym(rb_intern(idx.state.c_str())));
             rb_hash_aset(index, rb_id2sym(rb_intern("name")), cb_str_new(idx.name));
-            rb_hash_aset(index, rb_id2sym(rb_intern("type")), cb_str_new(idx.type));
+            rb_hash_aset(index, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern(idx.type.c_str())));
             rb_hash_aset(index, rb_id2sym(rb_intern("is_primary")), idx.is_primary ? Qtrue : Qfalse);
             VALUE index_key = rb_ary_new_capa(static_cast<long>(idx.index_key.size()));
             for (const auto& key : idx.index_key) {
@@ -5463,16 +5463,459 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE optio
 }
 
 static VALUE
-cb_Backend_query_index_watch(VALUE /* self */, VALUE bucket_name, VALUE index_names, VALUE timeout, VALUE options)
+cb_Backend_collection_query_index_get_all(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE options)
 {
+    const auto& cluster = cb_backend_to_cluster(self);
+
     Check_Type(bucket_name, T_STRING);
-    Check_Type(index_names, T_ARRAY);
-    Check_Type(timeout, T_FIXNUM);
+    Check_Type(scope_name, T_STRING);
+    Check_Type(collection_name, T_STRING);
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
     }
 
-    return Qtrue;
+    try {
+        couchbase::core::operations::management::query_index_get_all_request req{};
+        req.bucket_name = cb_string_new(bucket_name);
+        req.scope_name = cb_string_new(scope_name);
+        req.collection_name = cb_string_new(collection_name);
+        cb_extract_timeout(req, options);
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::query_index_get_all_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(req, [barrier](couchbase::core::operations::management::query_index_get_all_response&& resp) {
+            barrier->set_value(std::move(resp));
+        });
+        auto resp = cb_wait_for_future(f);
+        if (resp.ctx.ec) {
+            cb_throw_error_code(resp.ctx, fmt::format("unable to get list of the indexes of the collection \"{}\"", req.collection_name));
+        }
+
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
+        VALUE indexes = rb_ary_new_capa(static_cast<long>(resp.indexes.size()));
+        for (const auto& idx : resp.indexes) {
+            VALUE index = rb_hash_new();
+            rb_hash_aset(index, rb_id2sym(rb_intern("state")), rb_id2sym(rb_intern(idx.state.c_str())));
+            rb_hash_aset(index, rb_id2sym(rb_intern("name")), cb_str_new(idx.name));
+            rb_hash_aset(index, rb_id2sym(rb_intern("type")), rb_id2sym(rb_intern(idx.type.c_str())));
+            rb_hash_aset(index, rb_id2sym(rb_intern("is_primary")), idx.is_primary ? Qtrue : Qfalse);
+            VALUE index_key = rb_ary_new_capa(static_cast<long>(idx.index_key.size()));
+            for (const auto& key : idx.index_key) {
+                rb_ary_push(index_key, cb_str_new(key));
+            }
+            rb_hash_aset(index, rb_id2sym(rb_intern("index_key")), index_key);
+            if (idx.collection_name) {
+                rb_hash_aset(index, rb_id2sym(rb_intern("collection_name")), cb_str_new(idx.collection_name.value()));
+            }
+            if (idx.scope_name) {
+                rb_hash_aset(index, rb_id2sym(rb_intern("scope_name")), cb_str_new(idx.scope_name.value()));
+            }
+            rb_hash_aset(index, rb_id2sym(rb_intern("bucket_name")), cb_str_new(idx.bucket_name));
+            if (idx.condition) {
+                rb_hash_aset(index, rb_id2sym(rb_intern("condition")), cb_str_new(idx.condition.value()));
+            }
+            if (idx.partition) {
+                rb_hash_aset(index, rb_id2sym(rb_intern("partition")), cb_str_new(idx.partition.value()));
+            }
+            rb_ary_push(indexes, index);
+        }
+
+        rb_hash_aset(res, rb_id2sym(rb_intern("indexes")), indexes);
+
+        return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_collection_query_index_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE index_name, VALUE fields, VALUE options)
+{
+    const auto& cluster = cb_backend_to_cluster(self);
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(scope_name, T_STRING);
+    Check_Type(collection_name, T_STRING);
+    Check_Type(index_name, T_STRING);
+    Check_Type(fields, T_ARRAY);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    try {
+        couchbase::core::operations::management::query_index_create_request req{};
+        cb_extract_timeout(req, options);
+        req.bucket_name = cb_string_new(bucket_name);
+        req.scope_name = cb_string_new(scope_name);
+        req.collection_name = cb_string_new(collection_name);
+        req.index_name = cb_string_new(index_name);
+        auto fields_num = static_cast<std::size_t>(RARRAY_LEN(fields));
+        req.fields.reserve(fields_num);
+        for (std::size_t i = 0; i < fields_num; ++i) {
+            VALUE entry = rb_ary_entry(fields, static_cast<long>(i));
+            cb_check_type(entry, T_STRING);
+            req.fields.emplace_back(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry)));
+        }
+        if (!NIL_P(options)) {
+            if (VALUE ignore_if_exists = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_exists"))); ignore_if_exists == Qtrue) {
+                req.ignore_if_exists = true;
+            } else if (ignore_if_exists == Qfalse) {
+                req.ignore_if_exists = false;
+            } /* else use backend default */
+            if (VALUE deferred = rb_hash_aref(options, rb_id2sym(rb_intern("deferred"))); deferred == Qtrue) {
+                req.deferred = true;
+            } else if (deferred == Qfalse) {
+                req.deferred = false;
+            } /* else use backend default */
+            if (VALUE num_replicas = rb_hash_aref(options, rb_id2sym(rb_intern("num_replicas"))); !NIL_P(num_replicas)) {
+                req.num_replicas = NUM2UINT(num_replicas);
+            } /* else use backend default */
+            if (VALUE condition = rb_hash_aref(options, rb_id2sym(rb_intern("condition"))); !NIL_P(condition)) {
+                req.condition.emplace(cb_string_new(condition));
+            } /* else use backend default */
+            if (VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name"))); TYPE(scope_name) == T_STRING) {
+                req.scope_name = cb_string_new(scope_name);
+            }
+            if (VALUE collection_name = rb_hash_aref(options, rb_id2sym(rb_intern("collection_name"))); TYPE(collection_name) == T_STRING) {
+                req.collection_name = cb_string_new(collection_name);
+            }
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::query_index_create_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(req, [barrier](couchbase::core::operations::management::query_index_create_response&& resp) {
+            barrier->set_value(std::move(resp));
+        });
+        auto resp = cb_wait_for_future(f);
+        if (resp.ctx.ec) {
+            if (!resp.errors.empty()) {
+                const auto& first_error = resp.errors.front();
+                cb_throw_error_code(resp.ctx,
+                                    fmt::format(R"(unable to create index "{}" on the collection "{}" ({}: {}))",
+                                                req.index_name,
+                                                req.collection_name,
+                                                first_error.code,
+                                                first_error.message));
+            } else {
+                cb_throw_error_code(resp.ctx,
+                                    fmt::format(R"(unable to create index "{}" on the collection "{}")", req.index_name, req.collection_name));
+            }
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
+        if (!resp.errors.empty()) {
+            VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
+            for (const auto& err : resp.errors) {
+                VALUE error = rb_hash_new();
+                rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
+                rb_hash_aset(error, rb_id2sym(rb_intern("message")), cb_str_new(err.message));
+                rb_ary_push(errors, error);
+            }
+            rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
+        }
+        return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_collection_query_index_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE index_name, VALUE options)
+{
+    const auto& cluster = cb_backend_to_cluster(self);
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(scope_name, T_STRING);
+    Check_Type(collection_name, T_STRING);
+    Check_Type(index_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    try {
+        couchbase::core::operations::management::query_index_drop_request req{};
+        cb_extract_timeout(req, options);
+        req.bucket_name = cb_string_new(bucket_name);
+        req.scope_name = cb_string_new(scope_name);
+        req.collection_name = cb_string_new(collection_name);
+        req.index_name = cb_string_new(index_name);
+        if (!NIL_P(options)) {
+            if (VALUE ignore_if_does_not_exist = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_does_not_exist")));
+                ignore_if_does_not_exist == Qtrue) {
+                req.ignore_if_does_not_exist = true;
+            } else if (ignore_if_does_not_exist == Qfalse) {
+                req.ignore_if_does_not_exist = false;
+            } /* else use backend default */
+            if (VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name"))); TYPE(scope_name) == T_STRING) {
+                req.scope_name = cb_string_new(scope_name);
+            }
+            if (VALUE collection_name = rb_hash_aref(options, rb_id2sym(rb_intern("collection_name"))); TYPE(collection_name) == T_STRING) {
+                req.collection_name = cb_string_new(collection_name);
+            }
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::query_index_drop_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(req, [barrier](couchbase::core::operations::management::query_index_drop_response&& resp) {
+            barrier->set_value(std::move(resp));
+        });
+        auto resp = cb_wait_for_future(f);
+        if (resp.ctx.ec) {
+            if (!resp.errors.empty()) {
+                const auto& first_error = resp.errors.front();
+                cb_throw_error_code(resp.ctx,
+                                    fmt::format(R"(unable to drop index "{}" on the collection "{}" ({}: {}))",
+                                                req.index_name,
+                                                req.collection_name,
+                                                first_error.code,
+                                                first_error.message));
+            } else {
+                cb_throw_error_code(resp.ctx,
+                                    fmt::format(R"(unable to drop index "{}" on the collection "{}")", req.index_name, req.collection_name));
+            }
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
+        if (!resp.errors.empty()) {
+            VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
+            for (const auto& err : resp.errors) {
+                VALUE error = rb_hash_new();
+                rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
+                rb_hash_aset(error, rb_id2sym(rb_intern("message")), cb_str_new(err.message));
+                rb_ary_push(errors, error);
+            }
+            rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
+        }
+        return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_collection_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE options)
+{
+    const auto& cluster = cb_backend_to_cluster(self);
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(scope_name, T_STRING);
+    Check_Type(collection_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    try {
+        couchbase::core::operations::management::query_index_create_request req{};
+        cb_extract_timeout(req, options);
+        req.is_primary = true;
+        req.bucket_name = cb_string_new(bucket_name);
+        req.scope_name = cb_string_new(scope_name);
+        req.collection_name = cb_string_new(collection_name);
+        if (!NIL_P(options)) {
+            if (VALUE ignore_if_exists = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_exists"))); ignore_if_exists == Qtrue) {
+                req.ignore_if_exists = true;
+            } else if (ignore_if_exists == Qfalse) {
+                req.ignore_if_exists = false;
+            } /* else use backend default */
+            if (VALUE deferred = rb_hash_aref(options, rb_id2sym(rb_intern("deferred"))); deferred == Qtrue) {
+                req.deferred = true;
+            } else if (deferred == Qfalse) {
+                req.deferred = false;
+            } /* else use backend default */
+            if (VALUE num_replicas = rb_hash_aref(options, rb_id2sym(rb_intern("num_replicas"))); !NIL_P(num_replicas)) {
+                req.num_replicas = NUM2UINT(num_replicas);
+            } /* else use backend default */
+            if (VALUE index_name = rb_hash_aref(options, rb_id2sym(rb_intern("index_name"))); TYPE(index_name) == T_STRING) {
+                req.index_name = cb_string_new(index_name);
+            } /* else use backend default */
+            if (VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name"))); TYPE(scope_name) == T_STRING) {
+                req.scope_name = cb_string_new(scope_name);
+            }
+            if (VALUE collection_name = rb_hash_aref(options, rb_id2sym(rb_intern("collection_name"))); TYPE(collection_name) == T_STRING) {
+                req.collection_name = cb_string_new(collection_name);
+            }
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::query_index_create_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(req, [barrier](couchbase::core::operations::management::query_index_create_response&& resp) {
+            barrier->set_value(std::move(resp));
+        });
+        auto resp = cb_wait_for_future(f);
+        if (resp.ctx.ec) {
+            if (!resp.errors.empty()) {
+                const auto& first_error = resp.errors.front();
+                cb_throw_error_code(resp.ctx,
+                                    fmt::format(R"(unable to create primary index on the collection "{}" ({}: {}))",
+                                                req.collection_name,
+                                                first_error.code,
+                                                first_error.message));
+            } else {
+                cb_throw_error_code(resp.ctx, fmt::format(R"(unable to create primary index on the collection "{}")", req.collection_name));
+            }
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
+        if (!resp.errors.empty()) {
+            VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
+            for (const auto& err : resp.errors) {
+                VALUE error = rb_hash_new();
+                rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
+                rb_hash_aset(error, rb_id2sym(rb_intern("message")), cb_str_new(err.message));
+                rb_ary_push(errors, error);
+            }
+            rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
+        }
+        return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_collection_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE options)
+{
+    const auto& cluster = cb_backend_to_cluster(self);
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(scope_name, T_STRING);
+    Check_Type(collection_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    try {
+        couchbase::core::operations::management::query_index_drop_request req{};
+        cb_extract_timeout(req, options);
+        req.is_primary = true;
+        req.bucket_name = cb_string_new(bucket_name);
+        req.scope_name = cb_string_new(scope_name);
+        req.collection_name = cb_string_new(collection_name);
+        if (!NIL_P(options)) {
+            if (VALUE ignore_if_does_not_exist = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_does_not_exist")));
+                ignore_if_does_not_exist == Qtrue) {
+                req.ignore_if_does_not_exist = true;
+            } else if (ignore_if_does_not_exist == Qfalse) {
+                req.ignore_if_does_not_exist = false;
+            } /* else use backend default */
+            if (VALUE index_name = rb_hash_aref(options, rb_id2sym(rb_intern("index_name"))); !NIL_P(index_name)) {
+                cb_check_type(options, T_STRING);
+                req.is_primary = false;
+                req.bucket_name = cb_string_new(index_name);
+            }
+            if (VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name"))); TYPE(scope_name) == T_STRING) {
+                req.scope_name = cb_string_new(scope_name);
+            }
+            if (VALUE collection_name = rb_hash_aref(options, rb_id2sym(rb_intern("collection_name"))); TYPE(collection_name) == T_STRING) {
+                req.collection_name = cb_string_new(collection_name);
+            }
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::query_index_drop_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(req, [barrier](couchbase::core::operations::management::query_index_drop_response&& resp) {
+            barrier->set_value(std::move(resp));
+        });
+        auto resp = cb_wait_for_future(f);
+        if (resp.ctx.ec) {
+            if (!resp.errors.empty()) {
+                const auto& first_error = resp.errors.front();
+                cb_throw_error_code(
+                  resp.ctx,
+                  fmt::format(
+                    R"(unable to drop primary index on the collection "{}" ({}: {}))", req.collection_name, first_error.code, first_error.message));
+            } else {
+                cb_throw_error_code(resp.ctx, fmt::format(R"(unable to drop primary index on the collection "{}")", req.collection_name));
+            }
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
+        if (!resp.errors.empty()) {
+            VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
+            for (const auto& err : resp.errors) {
+                VALUE error = rb_hash_new();
+                rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
+                rb_hash_aset(error, rb_id2sym(rb_intern("message")), cb_str_new(err.message));
+                rb_ary_push(errors, error);
+            }
+            rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
+        }
+        return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_collection_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE options)
+{
+    const auto& cluster = cb_backend_to_cluster(self);
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(scope_name, T_STRING);
+    Check_Type(collection_name, T_STRING);
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    try {
+        couchbase::core::operations::management::query_index_build_deferred_request req{};
+        cb_extract_timeout(req, options);
+        req.bucket_name = cb_string_new(bucket_name);
+        req.scope_name = cb_string_new(scope_name);
+        req.collection_name = cb_string_new(collection_name);
+
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::query_index_build_deferred_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(req, [barrier](couchbase::core::operations::management::query_index_build_deferred_response&& resp) {
+            barrier->set_value(std::move(resp));
+        });
+        auto resp = cb_wait_for_future(f);
+        if (resp.ctx.ec) {
+            if (!resp.errors.empty()) {
+                const auto& first_error = resp.errors.front();
+                cb_throw_error_code(
+                  resp.ctx,
+                  fmt::format(
+                    R"(unable to build deferred indexes on the collection "{}" ({}: {}))", req.collection_name.value(), first_error.code, first_error.message));
+            } else {
+                cb_throw_error_code(resp.ctx, fmt::format(R"(unable to build deferred indexes on the collection "{}")", req.collection_name.value()));
+            }
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
+        if (!resp.errors.empty()) {
+            VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
+            for (const auto& err : resp.errors) {
+                VALUE error = rb_hash_new();
+                rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
+                rb_hash_aset(error, rb_id2sym(rb_intern("message")), cb_str_new(err.message));
+                rb_ary_push(errors, error);
+            }
+            rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
+        }
+        return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
 }
 
 static void
@@ -8132,7 +8575,13 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "query_index_drop", VALUE_FUNC(cb_Backend_query_index_drop), 3);
     rb_define_method(cBackend, "query_index_drop_primary", VALUE_FUNC(cb_Backend_query_index_drop_primary), 2);
     rb_define_method(cBackend, "query_index_build_deferred", VALUE_FUNC(cb_Backend_query_index_build_deferred), 2);
-    rb_define_method(cBackend, "query_index_watch", VALUE_FUNC(cb_Backend_query_index_watch), 4);
+
+    rb_define_method(cBackend, "collection_query_index_get_all", VALUE_FUNC(cb_Backend_collection_query_index_get_all), 4);
+    rb_define_method(cBackend, "collection_query_index_create", VALUE_FUNC(cb_Backend_collection_query_index_create), 6);
+    rb_define_method(cBackend, "collection_query_index_create_primary", VALUE_FUNC(cb_Backend_collection_query_index_create_primary), 4);
+    rb_define_method(cBackend, "collection_query_index_drop", VALUE_FUNC(cb_Backend_collection_query_index_drop), 5);
+    rb_define_method(cBackend, "collection_query_index_drop_primary", VALUE_FUNC(cb_Backend_collection_query_index_drop_primary), 4);
+    rb_define_method(cBackend, "collection_query_index_build_deferred", VALUE_FUNC(cb_Backend_collection_query_index_build_deferred), 4);
 
     rb_define_method(cBackend, "search_get_stats", VALUE_FUNC(cb_Backend_search_get_stats), 1);
     rb_define_method(cBackend, "search_index_get_all", VALUE_FUNC(cb_Backend_search_index_get_all), 1);

@@ -43,6 +43,11 @@ module Couchbase
       BinaryCollection.new(self)
     end
 
+    # @return [Management::CollectionQueryIndexManager]
+    def query_indexes
+      Management::CollectionQueryIndexManager.new(@backend, @bucket_name, @scope_name, @name)
+    end
+
     # Fetches the full document from the collection
     #
     # @param [String] id the document id which is used to uniquely identify it
