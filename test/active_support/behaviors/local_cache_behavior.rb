@@ -161,6 +161,7 @@ module LocalCacheBehavior
       @cache.write(key, SecureRandom.alphanumeric)
       @cache.write(other_key, SecureRandom.alphanumeric)
       @cache.write(third_key, value)
+      sleep(1)
       total_deleted = 0
       loop do
         deleted = @cache.delete_matched("#{prefix}*")
