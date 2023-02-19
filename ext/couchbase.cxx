@@ -3681,20 +3681,9 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
         cb_extract_option_uint64(req.max_parallelism, options, "max_parallelism");
         cb_extract_option_uint64(req.pipeline_cap, options, "pipeline_cap");
         cb_extract_option_uint64(req.pipeline_batch, options, "pipeline_batch");
-        if (VALUE scope_qualifier = rb_hash_aref(options, rb_id2sym(rb_intern("scope_qualifier")));
-            !NIL_P(scope_qualifier) && TYPE(scope_qualifier) == T_STRING) {
-            req.scope_qualifier.emplace(cb_string_new(scope_qualifier));
-        } else {
-            VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name")));
-            if (!NIL_P(scope_name) && TYPE(scope_name) == T_STRING) {
-                req.scope_name.emplace(cb_string_new(scope_name));
-                VALUE bucket_name = rb_hash_aref(options, rb_id2sym(rb_intern("bucket_name")));
-                if (NIL_P(bucket_name)) {
-                    throw ruby_exception(eInvalidArgument,
-                                         fmt::format("bucket must be specified for query in scope \"{}\"", req.scope_name.value()));
-                }
-                req.bucket_name.emplace(cb_string_new(bucket_name));
-            }
+        if (VALUE query_context = rb_hash_aref(options, rb_id2sym(rb_intern("query_context")));
+            !NIL_P(query_context) && TYPE(query_context) == T_STRING) {
+            req.query_context.emplace(cb_string_new(query_context));
         }
         if (VALUE profile = rb_hash_aref(options, rb_id2sym(rb_intern("profile"))); !NIL_P(profile)) {
             cb_check_type(profile, T_SYMBOL);

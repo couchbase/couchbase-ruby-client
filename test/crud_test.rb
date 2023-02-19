@@ -622,12 +622,14 @@ module Couchbase
 
       options = Collection::GetOptions.new
       options.project("this_field_does_not_exist")
-      res =  @collection.get(doc_id, options)
-      assert_equal({}, res.content)
+      res = @collection.get(doc_id, options)
+
+      assert_empty(res.content)
 
       options = Collection::GetOptions.new
       options.project("this_field_does_not_exist", "age", "attributes.hair")
-      res =  @collection.get(doc_id, options)
+      res = @collection.get(doc_id, options)
+
       assert_equal({"age" => 26, "attributes" => {"hair" => "brown"}}, res.content)
     end
 

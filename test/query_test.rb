@@ -19,7 +19,9 @@ module Couchbase
     include TestUtilities
 
     def setup
-      skip("skipped for (#{env.server_version}) because of query_context known issue, see RCBC-408") if env.server_version.is_rcbc_408_applicable?
+      if env.server_version.is_rcbc_408_applicable?
+        skip("skipped for (#{env.server_version}) because of query_context known issue, see RCBC-408")
+      end
       connect
       skip("#{name}: CAVES does not support query service yet") if use_caves?
       @bucket = @cluster.bucket(env.bucket)

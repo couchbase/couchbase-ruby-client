@@ -1949,6 +1949,9 @@ module Couchbase
 
       # @api private
       def to_backend(scope_name: nil, bucket_name: nil)
+        if scope_name && bucket_name
+          default_query_context = format("default:`%<bucket>s`.`%<scope>s`", bucket: bucket_name, scope: scope_name)
+        end
         {
           timeout: Utils::Time.extract_duration(@timeout),
           adhoc: @adhoc,
@@ -1968,9 +1971,7 @@ module Couchbase
           raw_parameters: @raw_parameters,
           scan_consistency: @scan_consistency,
           mutation_state: @mutation_state&.to_a,
-          scope_qualifier: @scope_qualifier,
-          scope_name: scope_name,
-          bucket_name: bucket_name,
+          query_context: @scope_qualifier || default_query_context,
         }
       end
 
