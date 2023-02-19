@@ -1,4 +1,4 @@
-#  Copyright 2020-2021 Couchbase, Inc.
+#  Copyright 2020-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -58,12 +58,12 @@ module Couchbase
   #   See {Utils::StdlibLoggerAdapter} and {Utils::GenericLoggerAdapter}
   # @param [Boolean] verbose if true, the message will also include source code location, where the message was
   #   generated (if available)
-  # @param [Symbol] log level, see {#log_level=} for allowed values
+  # @param [Symbol] level log level, see {::log_level=} for allowed values
   #
   # @example Specify custom logger and limit core messages to debug level
   #   Couchbase.set_logger(Logger.new(STDERR), level: :debug)
   #
-  # @since 3.3.1
+  # @since 3.4.0
   def self.set_logger(logger, adapter_class: nil, verbose: false, level: :info)
     @logger = logger # rubocop:disable ThreadSafety/InstanceVariableInClassMethod
     if @logger.nil? # rubocop:disable ThreadSafety/InstanceVariableInClassMethod

@@ -962,8 +962,7 @@ module Couchbase
 
       # Prepare {PhraseQuery} body
       #
-      # @yieldparam [PhraseQuery] query
-      # @param [*String] terms
+      # Creates a new instances {PhraseQuery} passing all parameters into {PhraseQuery#initialize}.
       #
       # @return [PhraseQuery]
       def self.phrase(...)
