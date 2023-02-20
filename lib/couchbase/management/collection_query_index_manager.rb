@@ -117,7 +117,6 @@ module Couchbase
         end
 
         @backend.collection_query_index_drop(@bucket_name, @scope_name, @collection_name, index_name, options.to_backend)
-        true
       end
 
       # Drops the primary index
@@ -138,7 +137,6 @@ module Couchbase
         end
 
         @backend.collection_query_index_drop_primary(@bucket_name, @scope_name, @collection_name, options.to_backend)
-        true
       end
 
       # Build all indexes which are currently in deferred state

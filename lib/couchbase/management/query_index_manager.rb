@@ -372,6 +372,10 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexExists]
       def create_index(bucket_name, index_name, fields, options = Options::Query::CreateIndex.new)
+        unless options.scope_name.nil? && options.collection_name.nil?
+          warn "The attributes 'scope_name' and 'collection_name' have been deprecated. Use 'collection.query_indexes' instead"
+        end
+
         @backend.query_index_create(bucket_name, index_name, fields, options.to_backend)
       end
 
@@ -385,6 +389,10 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexExists]
       def create_primary_index(bucket_name, options = Options::Query::CreatePrimaryIndex.new)
+        unless options.scope_name.nil? && options.collection_name.nil?
+          warn "The attributes 'scope_name' and 'collection_name' have been deprecated. Use 'collection.query_indexes' instead"
+        end
+
         @backend.query_index_create_primary(bucket_name, options.to_backend)
       end
 
@@ -399,8 +407,11 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def drop_index(bucket_name, index_name, options = Options::Query::DropIndex.new)
+        unless options.scope_name.nil? && options.collection_name.nil?
+          warn "The attributes 'scope_name' and 'collection_name' have been deprecated. Use 'collection.query_indexes' instead"
+        end
+
         @backend.query_index_drop(bucket_name, index_name, options.to_backend)
-        true
       end
 
       # Drops the primary index
@@ -413,8 +424,11 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def drop_primary_index(bucket_name, options = Options::Query::DropPrimaryIndex.new)
+        unless options.scope_name.nil? && options.collection_name.nil?
+          warn "The attributes 'scope_name' and 'collection_name' have been deprecated. Use 'collection.query_indexes' instead"
+        end
+
         @backend.query_index_drop_primary(bucket_name, options.to_backend)
-        true
       end
 
       # Build all indexes which are currently in deferred state
