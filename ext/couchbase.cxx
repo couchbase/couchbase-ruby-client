@@ -5532,7 +5532,13 @@ cb_Backend_collection_query_index_get_all(VALUE self, VALUE bucket_name, VALUE s
 }
 
 static VALUE
-cb_Backend_collection_query_index_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE index_name, VALUE fields, VALUE options)
+cb_Backend_collection_query_index_create(VALUE self,
+                                         VALUE bucket_name,
+                                         VALUE scope_name,
+                                         VALUE collection_name,
+                                         VALUE index_name,
+                                         VALUE fields,
+                                         VALUE options)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -5600,8 +5606,8 @@ cb_Backend_collection_query_index_create(VALUE self, VALUE bucket_name, VALUE sc
                                                 first_error.code,
                                                 first_error.message));
             } else {
-                cb_throw_error_code(resp.ctx,
-                                    fmt::format(R"(unable to create index "{}" on the collection "{}")", req.index_name, req.collection_name));
+                cb_throw_error_code(
+                  resp.ctx, fmt::format(R"(unable to create index "{}" on the collection "{}")", req.index_name, req.collection_name));
             }
         }
         VALUE res = rb_hash_new();
@@ -5626,7 +5632,12 @@ cb_Backend_collection_query_index_create(VALUE self, VALUE bucket_name, VALUE sc
 }
 
 static VALUE
-cb_Backend_collection_query_index_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE index_name, VALUE options)
+cb_Backend_collection_query_index_drop(VALUE self,
+                                       VALUE bucket_name,
+                                       VALUE scope_name,
+                                       VALUE collection_name,
+                                       VALUE index_name,
+                                       VALUE options)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -5676,8 +5687,8 @@ cb_Backend_collection_query_index_drop(VALUE self, VALUE bucket_name, VALUE scop
                                                 first_error.code,
                                                 first_error.message));
             } else {
-                cb_throw_error_code(resp.ctx,
-                                    fmt::format(R"(unable to drop index "{}" on the collection "{}")", req.index_name, req.collection_name));
+                cb_throw_error_code(
+                  resp.ctx, fmt::format(R"(unable to drop index "{}" on the collection "{}")", req.index_name, req.collection_name));
             }
         }
         VALUE res = rb_hash_new();
@@ -5832,10 +5843,11 @@ cb_Backend_collection_query_index_drop_primary(VALUE self, VALUE bucket_name, VA
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
-                cb_throw_error_code(
-                  resp.ctx,
-                  fmt::format(
-                    R"(unable to drop primary index on the collection "{}" ({}: {}))", req.collection_name, first_error.code, first_error.message));
+                cb_throw_error_code(resp.ctx,
+                                    fmt::format(R"(unable to drop primary index on the collection "{}" ({}: {}))",
+                                                req.collection_name,
+                                                first_error.code,
+                                                first_error.message));
             } else {
                 cb_throw_error_code(resp.ctx, fmt::format(R"(unable to drop primary index on the collection "{}")", req.collection_name));
             }
@@ -5889,12 +5901,14 @@ cb_Backend_collection_query_index_build_deferred(VALUE self, VALUE bucket_name, 
         if (resp.ctx.ec) {
             if (!resp.errors.empty()) {
                 const auto& first_error = resp.errors.front();
-                cb_throw_error_code(
-                  resp.ctx,
-                  fmt::format(
-                    R"(unable to build deferred indexes on the collection "{}" ({}: {}))", req.collection_name.value(), first_error.code, first_error.message));
+                cb_throw_error_code(resp.ctx,
+                                    fmt::format(R"(unable to build deferred indexes on the collection "{}" ({}: {}))",
+                                                req.collection_name.value(),
+                                                first_error.code,
+                                                first_error.message));
             } else {
-                cb_throw_error_code(resp.ctx, fmt::format(R"(unable to build deferred indexes on the collection "{}")", req.collection_name.value()));
+                cb_throw_error_code(resp.ctx,
+                                    fmt::format(R"(unable to build deferred indexes on the collection "{}")", req.collection_name.value()));
             }
         }
         VALUE res = rb_hash_new();
