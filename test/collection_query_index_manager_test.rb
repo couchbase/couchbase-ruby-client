@@ -19,8 +19,8 @@ module Couchbase
     include TestUtilities
 
     def setup
-      if env.server_version.is_rcbc_408_applicable?
-        skip("skipped for (#{env.server_version}) because of query_context known issue, see RCBC-408")
+      unless env.server_version.supports_collections?
+        skip("skipped for (#{env.server_version}) because support for collection management is needed to setup the test")
       end
 
       connect
