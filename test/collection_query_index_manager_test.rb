@@ -19,6 +19,10 @@ module Couchbase
     include TestUtilities
 
     def setup
+      if env.server_version.is_rcbc_408_applicable?
+        skip("skipped for (#{env.server_version}) because of query_context known issue, see RCBC-408")
+      end
+
       connect
       @bucket = @cluster.bucket(env.bucket)
 
