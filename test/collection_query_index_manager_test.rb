@@ -20,7 +20,7 @@ module Couchbase
 
     def setup
       unless env.server_version.supports_collections?
-        skip("skipped for (#{env.server_version}) because support for collection management is needed to setup the test")
+        skip("skipped for (#{env.server_version}) as the CollectionQueryIndexManager does not support versions earlier than 7.0")
       end
 
       connect
