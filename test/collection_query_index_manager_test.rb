@@ -33,7 +33,21 @@ module Couchbase
         s.scope_name = @scope_name
         s.max_expiry = nil
       end
-      collection_mgr.create_collection(collection_spec)
+
+      # Retry a few times in case the scope needs time to be created
+      deadline = Time.now + 5
+      success = false
+      while Time.now <= deadline
+        begin
+          collection_mgr.create_collection(collection_spec)
+          success = true
+          break
+        rescue Error::CouchbaseError
+          sleep(1)
+        end
+      end
+      raise "Failed to create scope/collection" unless success
+
       @collection = @bucket.scope(@scope_name).collection(collection_name)
 
       # Upsert something in the collection to make sure it's been created
