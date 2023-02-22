@@ -35,13 +35,7 @@ module Couchbase
         def self.from_mutation_response(resp)
           Couchbase::Collection::MutationResult.new do |res|
             res.cas = resp.cas
-            proto_token = resp.mutation_token
-            res.mutation_token = Couchbase::MutationToken.new do |token|
-              token.bucket_name = proto_token.bucket_name
-              token.partition_id = proto_token.vbucket_id
-              token.partition_uuid = proto_token.vbucket_uuid
-              token.sequence_number = proto_token.seq_no
-            end
+            res.mutation_token = extract_mutation_token(resp)
           end
         end
 
@@ -65,6 +59,47 @@ module Couchbase
           Couchbase::Collection::ExistsResult.new do |res|
             res.cas = resp.cas
             res.exists = resp.result
+          end
+        end
+
+        def self.from_lookup_in_response(resp, specs, options)
+          Couchbase::Collection::LookupInResult.new do |res|
+            res.cas = resp.cas
+            res.transcoder = options.transcoder
+            res.encoded = resp.specs.each_with_index.map do |s, idx|
+              Couchbase::Collection::SubDocumentField.new do |f|
+                f.exists = s.status.nil?
+                f.index = idx
+                f.path = specs[idx].path
+                f.value = s.content.empty? ? nil : s.content
+              end
+            end
+          end
+        end
+
+        def self.from_mutate_in_response(resp, specs, options)
+          Couchbase::Collection::MutateInResult.new do |res|
+            res.cas = resp.cas
+            res.transcoder = options.transcoder
+            res.deleted = false  # TODO: GRPC response has no deleted field for now
+            res.mutation_token = extract_mutation_token(resp)
+            res.encoded = resp.specs.each_with_index.map do |s, idx|
+              Couchbase::Collection::SubDocumentField.new do |f|
+                f.index = idx
+                f.path = specs[idx].path
+                f.value = s.content
+              end
+            end
+          end
+        end
+
+        def self.extract_mutation_token(resp)
+          proto_token = resp.mutation_token
+          Couchbase::MutationToken.new do |token|
+            token.bucket_name = proto_token.bucket_name
+            token.partition_id = proto_token.vbucket_id
+            token.partition_uuid = proto_token.vbucket_uuid
+            token.sequence_number = proto_token.seq_no
           end
         end
       end

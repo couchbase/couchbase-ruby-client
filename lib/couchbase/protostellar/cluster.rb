@@ -43,7 +43,7 @@ module Couchbase
         @query_request_generator = RequestGenerator::Query.new
       end
 
-      def close
+      def disconnect
         @client.close
       end
 
