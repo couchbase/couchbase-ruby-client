@@ -1,0 +1,8 @@
+module Couchbase
+  module Protostellar
+    module ResponseConverter
+      class KV
+      end
+    end
+  end
+end

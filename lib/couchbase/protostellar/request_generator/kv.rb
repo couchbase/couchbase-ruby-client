@@ -143,6 +143,35 @@ module Couchbase
           )
         end
 
+        def mutate_in_request(id, specs, options)
+          proto_opts = {
+            flags: get_mutate_in_flags(options),
+            store_semantic: get_mutate_in_store_semantic(options),
+            durability_level: get_durability_level(options),
+          }
+          proto_opts[:cas] = options.cas unless options.cas.nil?
+
+          Generated::KV::V1::MutateInRequest.new(
+            key: id,
+            **location,
+            specs: specs.map { |s| get_mutate_in_spec(s) },
+            **proto_opts
+          )
+        end
+
+        def lookup_in_request(id, specs, options)
+          proto_opts = {
+            flags: get_lookup_in_flags(options),
+          }
+
+          Generated::KV::V1::LookupInRequest.new(
+            key: id,
+            **location,
+            specs: specs.map { |s| get_lookup_in_spec(s) },
+            **proto_opts
+          )
+        end
+
         private
 
         def get_expiry(options_or_expiry)
@@ -171,7 +200,85 @@ module Couchbase
         end
 
         def get_durability_level(options)
-          options.durability_level.upcase
+          if options.durability_level == :none
+            nil
+          else
+            options.durability_level.upcase
+          end
+        end
+
+        def get_lookup_in_spec(lookup_in_spec)
+          Generated::KV::V1::LookupInRequest::Spec.new(
+            operation: get_lookup_in_operation(lookup_in_spec),
+            path: lookup_in_spec.path,
+            flags: get_lookup_in_spec_flags(lookup_in_spec)
+          )
+        end
+
+        def get_lookup_in_operation(lookup_in_spec)
+          case lookup_in_spec.type
+          when :get_doc
+            :GET
+          else
+            lookup_in_spec.type.upcase
+          end
+        end
+
+        def get_lookup_in_spec_flags(lookup_in_spec)
+          Generated::KV::V1::LookupInRequest::Spec::Flags.new(
+            xattr: lookup_in_spec.xattr?
+          )
+        end
+
+        def get_lookup_in_flags(options)
+          Generated::KV::V1::LookupInRequest::Flags.new(
+            access_deleted: options.access_deleted
+          )
+        end
+
+        def get_mutate_in_spec(mutate_in_spec)
+          Generated::KV::V1::MutateInRequest::Spec.new(
+            operation: get_mutate_in_operation(mutate_in_spec),
+            path: mutate_in_spec.path,
+            content: mutate_in_spec.param.to_s,
+            flags: get_mutate_in_spec_flags(mutate_in_spec)
+          )
+        end
+
+        def get_mutate_in_operation(mutate_in_spec)
+          case mutate_in_spec.type
+          when :set_doc
+            :REPLACE
+          when :dict_add
+            :INSERT
+          when :remove_doc
+            :REMOVE
+          when :dict_upsert
+            :UPSERT
+          when :array_push_last
+            :ARRAY_APPEND
+          when :array_push_first
+            :ARRAY_PREPEND
+          else
+            mutate_in_spec.type.upcase
+          end
+        end
+
+        def get_mutate_in_spec_flags(mutate_in_spec)
+          Generated::KV::V1::MutateInRequest::Spec::Flags.new(
+            create_path: mutate_in_spec.create_path?,
+            xattr: mutate_in_spec.xattr?
+          )
+        end
+
+        def get_mutate_in_flags(options)
+          Generated::KV::V1::MutateInRequest::Flags.new(
+            access_deleted: options.access_deleted
+          )
+        end
+
+        def get_mutate_in_store_semantic(options)
+          options.store_semantics.upcase
         end
       end
     end

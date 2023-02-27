@@ -1,0 +1,6 @@
+module Couchbase
+  module Protostellar
+    module RequestGenerator
+    end
+  end
+end

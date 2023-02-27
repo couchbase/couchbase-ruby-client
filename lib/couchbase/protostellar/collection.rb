@@ -125,6 +125,26 @@ module Couchbase
         end
         ResponseConverter::KV.from_exists_response(resp)
       end
+
+      def lookup_in(id, specs, options = Couchbase::Options::LookupIn::DEFAULT)
+        req = @kv_request_generator.lookup_in_request(id, specs, options)
+        begin
+          resp = @client.lookup_in(req, timeout: options.timeout)
+        rescue GRPC::DeadlineExceeded
+          raise Couchbase::Error::Timeout
+        end
+        ResponseConverter::KV.from_lookup_in_response(resp, specs, options)
+      end
+
+      def mutate_in(id, specs, options = Couchbase::Options::MutateIn::DEFAULT)
+        req = @kv_request_generator.mutate_in_request(id, specs, options)
+        begin
+          resp = @client.mutate_in(req, timeout: options.timeout)
+        rescue GRPC::DeadlineExceeded
+          raise Couchbase::Error::Timeout
+        end
+        ResponseConverter::KV.from_mutate_in_response(resp, specs, options)
+      end
     end
   end
 end
