@@ -19,6 +19,10 @@ module Couchbase
     include TestUtilities
 
     def setup
+      unless env.server_version.supports_collections?
+        skip("skipped for (#{env.server_version}) as the CollectionQueryIndexManager requires collection support")
+      end
+
       connect
       @bucket = @cluster.bucket(env.bucket)
 
@@ -68,7 +72,8 @@ module Couchbase
     end
 
     def teardown
-      @bucket.collections.drop_scope(@scope_name)
+      @bucket.collections.drop_scope(@scope_name) if defined? @bucket
+      disconnect
     end
 
     def test_collection_query_indexes
