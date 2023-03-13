@@ -1,0 +1,14 @@
+module Couchbase
+  module Protostellar
+    module Retry
+      class Action
+        attr_reader duration: Integer?
+
+        def initialize: (Integer?) -> void
+
+        def self.with_duration: (Integer) -> Action
+        def self.no_retry: () -> Action
+      end
+    end
+  end
+end

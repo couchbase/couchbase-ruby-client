@@ -1,0 +1,6 @@
+module Couchbase
+  module Protostellar
+    module Retry
+    end
+  end
+end

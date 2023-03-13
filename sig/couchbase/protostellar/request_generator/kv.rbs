@@ -2,6 +2,42 @@ module Couchbase
   module Protostellar
     module RequestGenerator
       class KV
+        attr_reader bucket_name: String
+        attr_reader scope_name: String
+        attr_reader collection_name: String
+        attr_reader default_timeout: _CanInMilliseconds | Integer
+
+        def initialize: (String, String, String, (_CanInMilliseconds | Integer)?) -> void
+
+        def location: () -> Hash[Symbol, String]
+
+        def get_request: (String, untyped) -> untyped
+        def get_and_touch_request: (String, (_CanInSeconds | Time | Integer), untyped) -> untyped
+        def upsert_request: (String, Object, untyped) -> untyped
+        def remove_request: (String, untyped) -> untyped
+        def insert_request: (String, Object, untyped) -> untyped
+        def replace_request: (String, Object, untyped) -> untyped
+        def exists_request: (String, untyped) -> untyped
+        def mutate_in_request: (String, Array[untyped], untyped) -> untyped
+        def lookup_in_request: (String, Array[untyped], untyped) -> untyped
+
+        private
+
+        def create_kv_request: (untyped, Symbol, untyped) -> untyped
+
+        def get_expiry: (untyped) -> untyped
+        def get_content_type: (untyped) -> Symbol
+        def get_durability_level: (untyped) -> Symbol?
+        def get_lookup_in_spec: (untyped) -> untyped
+        def get_lookup_in_operation: (untyped) -> untyped
+        def get_lookup_in_spec_flags: (untyped) -> untyped
+        def get_lookup_in_flags: (untyped) -> untyped
+        def get_mutate_in_spec: (untyped) -> untyped
+        def get_mutate_in_operation: (untyped) -> Symbol
+        def get_mutate_in_spec_flags: (untyped) -> untyped
+        def get_mutate_in_flags: (untyped) -> untyped
+        def get_mutate_in_store_semantic: (untyped) -> Symbol
+        def get_timeout: (untyped) -> (_CanInMilliseconds | Integer)
       end
     end
   end

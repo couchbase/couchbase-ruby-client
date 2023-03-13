@@ -1,0 +1,12 @@
+module Couchbase
+  module Protostellar
+    class RequestBehaviour
+      attr_reader retry_duration: Integer?
+      attr_reader error: StandardError?
+
+      def initialize: (retry_duration: Integer?, error: StandardError?) -> void
+      def self.fail: () -> RequestBehaviour
+      def self.retry: (Integer) -> RequestBehaviour
+    end
+  end
+end

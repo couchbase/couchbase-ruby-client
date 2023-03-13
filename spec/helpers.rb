@@ -36,4 +36,8 @@ module Helpers
   def default_collection(cluster, bucket_name: DEFAULT_BUCKET)
     cluster.bucket(bucket_name).default_collection
   end
+
+  def sample_content
+    {:content => "sample"}
+  end
 end

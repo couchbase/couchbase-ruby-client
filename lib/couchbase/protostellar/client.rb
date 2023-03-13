@@ -14,6 +14,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require_relative "error_handling"
+
 require_relative "generated/routing.v1_services_pb"
 require_relative "generated/kv.v1_services_pb"
 require_relative "generated/query.v1_services_pb"
@@ -34,95 +36,43 @@ module Couchbase
         @view_stub = Generated::View::V1::View::Stub.new(host, credentials, channel_override: @channel)
       end
 
-      def kv
-        @kv_stub
+      def stub(service)
+        case service
+        when :analytics
+          @analytics_stub
+        when :kv
+          @kv_stub
+        when :query
+          @query_stub
+        when :routing
+          @routing_stub
+        when :search
+          @search_stub
+        when :view
+          @view_stub
+        else
+          raise ArgumentError "service `#{service}' not recognised"
+        end
       end
 
       def close
         @channel.close
       end
 
-      def get(request, timeout: nil)
-        @kv_stub.get(request, deadline: get_deadline(timeout))
-      end
+      def send_request(request)
+        loop do
+          return stub(request.service).public_send(request.rpc, request.proto_request, deadline: request.deadline)
+        rescue GRPC::BadStatus => e
+          request_behaviour = ErrorHandling.handle_grpc_error(e, request)
 
-      def get_and_touch(request, timeout: nil)
-        @kv_stub.get_and_touch(request, deadline: get_deadline(timeout))
-      end
+          raise request_behaviour.error unless request_behaviour.error.nil?
 
-      def get_and_lock(request, timeout: nil)
-        @kv_stub.get_and_lock(request, deadline: get_deadline(timeout))
-      end
+          unless request_behaviour.retry_duration.nil?
+            sleep(0.001 * request_behaviour.retry_duration)
+            next
+          end
 
-      def unlock(request, timeout: nil)
-        @kv_stub.unlock(request, deadline: get_deadline(timeout))
-      end
-
-      def get_replica(request, timeout: nil)
-        @kv_stub.get_replica(request, deadline: get_deadline(timeout))
-      end
-
-      def touch(request, timeout: nil)
-        @kv_stub.touch(request, deadline: get_deadline(timeout))
-      end
-
-      def exists(request, timeout: nil)
-        @kv_stub.exists(request, deadline: get_deadline(timeout))
-      end
-
-      def insert(request, timeout: nil)
-        @kv_stub.insert(request, deadline: get_deadline(timeout))
-      end
-
-      def upsert(request, timeout: nil)
-        @kv_stub.upsert(request, deadline: get_deadline(timeout))
-      end
-
-      def replace(request, timeout: nil)
-        @kv_stub.replace(request, deadline: get_deadline(timeout))
-      end
-
-      def remove(request, timeout: nil)
-        @kv_stub.remove(request, deadline: get_deadline(timeout))
-      end
-
-      def increment(request, timeout: nil)
-        @kv_stub.increment(request, deadline: get_deadline(timeout))
-      end
-
-      def decrement(request, timeout: nil)
-        @kv_stub.decrement(request, deadline: get_deadline(timeout))
-      end
-
-      def append(request, timeout: nil)
-        @kv_stub.append(request, deadline: get_deadline(timeout))
-      end
-
-      def prepend(request, timeout: nil)
-        @kv_stub.prepend(request, deadline: get_deadline(timeout))
-      end
-
-      def lookup_in(request, timeout: nil)
-        @kv_stub.lookup_in(request, deadline: get_deadline(timeout))
-      end
-
-      def mutate_in(request, timeout: nil)
-        @kv_stub.mutate_in(request, deadline: get_deadline(timeout))
-      end
-
-      def range_scan(request, timeout: nil)
-        @kv_stub.range_scan(request, deadline: get_deadline(timeout))
-      end
-
-      def query(request, timeout: nil)
-        @query_stub.query(request, deadline: get_deadline(timeout))
-      end
-
-      def get_deadline(timeout_millis)
-        if timeout_millis.nil?
-          nil
-        else
-          Time.now + (timeout_millis * 1000)
+          raise "Internal error - This should not be reachable. Either the error or the retry duration should have been set"
         end
       end
     end

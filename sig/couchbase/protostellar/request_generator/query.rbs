@@ -2,6 +2,23 @@ module Couchbase
   module Protostellar
     module RequestGenerator
       class Query
+        attr_reader bucket_name: String
+        attr_reader scope_name: String
+        attr_reader default_timeout: _CanInMilliseconds | Integer
+
+        def initialize: (
+            bucket_name: String?,
+            scope_name: String?,
+            default_timeout: (_CanInMilliseconds | Integer)?
+          ) -> void
+
+        def query_request: (String, untyped) -> untyped
+
+        private
+
+        def create_query_request: (untyped, Symbol, untyped) -> untyped
+        def create_tuning_options: (untyped) -> untyped
+        def get_timeout: (untyped) -> (_CanInMilliseconds | Integer)
       end
     end
   end

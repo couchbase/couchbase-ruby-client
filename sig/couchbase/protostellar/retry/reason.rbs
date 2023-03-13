@@ -1,0 +1,33 @@
+module Couchbase
+  module Protostellar
+    module Retry
+      class Reason
+        attr_reader allows_non_idempotent_retry: bool
+        attr_reader always_retry: bool
+
+        def initialize: (bool, bool) -> void
+
+        UNKNOWN: Reason
+        SOCKET_NOT_AVAILABLE: Reason
+        SERVICE_NOT_AVAILABLE: Reason
+        NODE_NOT_AVAILABLE: Reason
+        KV_NOT_MY_VBUCKET: Reason
+        KV_COLLECTION_OUTDATED: Reason
+        KV_ERROR_MAP_RETRY_INDICATED: Reason
+        KV_LOCKED: Reason
+        KV_TEMPORARY_FAILURE: Reason
+        KV_SYNC_WRITE_IN_PROGRESS: Reason
+        KV_SYNC_WRITE_RE_COMMIT_IN_PROGRESS: Reason
+        SERVICE_RESPONSE_CODE_INDICATED: Reason
+        SOCKET_CLOSED_WHILE_IN_FLIGHT: Reason
+        CIRCUIT_BREAKER_OPEN: Reason
+        QUERY_PREPARED_STATEMENT_FAILURE: Reason
+        QUERY_INDEX_NOT_FOUND: Reason
+        ANALYTICS_TEMPORARY_FAILURE: Reason
+        SEARCH_TOO_MANY_REQUESTS: Reason
+        VIEWS_TEMPORARY_FAILURE: Reason
+        VIEWS_NO_ACTIVE_PARTITION: Reason
+      end
+    end
+  end
+end
