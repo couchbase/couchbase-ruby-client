@@ -36,6 +36,8 @@ module Couchbase
           @bucket_name = bucket_name
           @scope_name = scope_name
           @collection_name = collection_name
+
+          # TODO: Use the KV timeout from the cluster's options
           @default_timeout = default_timeout.nil? ? TimeoutDefaults::KEY_VALUE : default_timeout
         end
 
