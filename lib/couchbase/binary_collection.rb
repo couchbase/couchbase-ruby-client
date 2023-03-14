@@ -38,7 +38,7 @@ module Couchbase
     #   collection.get("mydoc", Options::Get(transcoder: nil)).content #=> "foobar"
     #
     # @return [Collection::MutationResult]
-    def append(id, content, options = Options::Append.new)
+    def append(id, content, options = Options::Append::DEFAULT)
       resp = @backend.document_append(@collection.bucket_name, @collection.scope_name, @collection.name,
                                       id, content, options.to_backend)
       Collection::MutationResult.new do |res|
@@ -59,7 +59,7 @@ module Couchbase
     #   collection.get("mydoc", Options::Get(transcoder: nil)).content #=> "barfoo"
     #
     # @return [Collection::MutationResult]
-    def prepend(id, content, options = Options::Prepend.new)
+    def prepend(id, content, options = Options::Prepend::DEFAULT)
       resp = @backend.document_prepend(@collection.bucket_name, @collection.scope_name, @collection.name,
                                        id, content, options.to_backend)
       Collection::MutationResult.new do |res|
@@ -80,7 +80,7 @@ module Couchbase
     #   res.content #=> 10
     #
     # @return [CounterResult]
-    def increment(id, options = Options::Increment.new)
+    def increment(id, options = Options::Increment::DEFAULT)
       resp = @backend.document_increment(@collection.bucket_name, @collection.scope_name, @collection.name, id,
                                          options.to_backend)
       CounterResult.new do |res|
@@ -102,7 +102,7 @@ module Couchbase
     #   res.value #=> 98
     #
     # @return [CounterResult]
-    def decrement(id, options = Options::Decrement.new)
+    def decrement(id, options = Options::Decrement::DEFAULT)
       resp = @backend.document_decrement(@collection.bucket_name, @collection.scope_name, @collection.name, id,
                                          options.to_backend)
       CounterResult.new do |res|
