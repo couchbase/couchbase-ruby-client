@@ -51,9 +51,14 @@ desc "Encode git revision into 'ext/extconf.rb' template (dependency of 'build' 
 task :render_git_revision do
   library_revision = Dir.chdir(__dir__) { `git rev-parse HEAD`.strip }
   core_revision = Dir.chdir(File.join(__dir__, 'ext', 'couchbase')) { `git rev-parse HEAD`.strip }
+  core_describe = Dir.chdir(File.join(__dir__, 'ext', 'couchbase')) do
+    `git fetch --tags >/dev/null 2>&1`
+    `git describe --long --always HEAD`.strip
+  end
   File.write(File.join(__dir__, 'ext', 'revisions.rb'), <<~REVISIONS)
     cmake_flags << "-DEXT_GIT_REVISION=#{library_revision}"
     cmake_flags << "-DCOUCHBASE_CXX_CLIENT_GIT_REVISION=#{core_revision}"
+    cmake_flags << "-DCOUCHBASE_CXX_CLIENT_GIT_DESCRIBE=#{core_describe}"
   REVISIONS
 end
 

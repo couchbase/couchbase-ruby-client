@@ -2091,7 +2091,7 @@ module Couchbase
       attr_reader :scan_consistency
 
       # @api private
-      def to_backend(scope_name: nil)
+      def to_backend(*)
         {
           timeout: Utils::Time.extract_duration(@timeout),
           limit: @limit,
@@ -2099,8 +2099,7 @@ module Couchbase
           explain: @explain,
           disable_scoring: @disable_scoring,
           include_locations: @include_locations,
-          scope: scope_name,
-          collections: scope_name ? @collections : nil,
+          collections: @collections,
           highlight_style: @highlight_style,
           highlight_fields: @highlight_fields,
           fields: @fields,
