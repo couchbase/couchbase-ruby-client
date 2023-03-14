@@ -16,10 +16,12 @@ module Couchbase
   module Protostellar
     module Retry
       class Reason
+        attr_reader name: Symbol
         attr_reader allows_non_idempotent_retry: bool
         attr_reader always_retry: bool
 
-        def initialize: (bool, bool) -> void
+        def self.reason: (Symbol, allows_non_idempotent_retry: bool, always_retry: bool) -> void
+        def initialize: (name: Symbol, allows_non_idempotent_retry: bool, always_retry: bool) -> void
 
         UNKNOWN: Reason
         SOCKET_NOT_AVAILABLE: Reason
