@@ -37,9 +37,9 @@ then
 
   if  [ ! -x /usr/local/bin/ruby-install ]
   then
-      curl -L -o ruby-install-0.8.5.tar.gz https://github.com/postmodern/ruby-install/archive/v0.8.5.tar.gz
-      tar -xzvf ruby-install-0.8.5.tar.gz
-      cd ruby-install-0.8.5/
+      curl -L -o postmodern-ruby-install-f59dd9c.tar.gz https://github.com/postmodern/ruby-install/tarball/f59dd9c
+      tar -xzvf postmodern-ruby-install-f59dd9c.tar.gz
+      cd postmodern-ruby-install-f59dd9c/
       sudo make install
   fi
 
@@ -78,9 +78,27 @@ then
 	    clang clang-format clang-tidy clang-tools libc++-dev libc++abi-dev || true
   fi
   ruby-install --version
-  ruby-install --update || true
-  ruby-install --jobs=6 --no-reinstall ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS} || \
-      ruby-install --jobs=6 --no-reinstall --no-install-deps ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS}
+  until ruby-install --update --debug
+  do
+    if [ $? != 0 ]
+    then
+      sudo rm -rf $HOME/.cache/ruby-install/ruby/*.part
+      d=$(( RANDOM % 10 + 1 ))
+      echo "sleep for $d seconds"
+      sleep $d
+    fi
+  done
+  until ruby-install --debug --jobs=6 --no-reinstall ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS} || \
+      ruby-install --debug --jobs=6 --no-reinstall --no-install-deps ruby ${CB_RUBY_VERSION} -- ${CB_EXTRAS}
+  do
+    if [ $? != 0 ]
+    then
+      sudo rm -rf $HOME/.cache/ruby-install/ruby/*.part
+      d=$(( RANDOM % 10 + 1 ))
+      echo "sleep for $d seconds"
+      sleep $d
+    fi
+  done
 fi
 if [ "$(uname -s)" = "Darwin" ]
 then
