@@ -21,6 +21,11 @@ module Couchbase
       # @return [Hash] attributes associated with the error
       attr_reader :context
 
+      def initialize(msg = nil, context = nil)
+        @context = context unless context.nil?
+        super(msg)
+      end
+
       def to_s
         defined?(@context) ? "#{super}, context=#{JSON.generate(@context)}" : super
       end
@@ -29,6 +34,11 @@ module Couchbase
     class InvalidArgument < ArgumentError
       # @return [Hash] attributes associated with the error
       attr_reader :context
+
+      def initialize(msg = nil, context = nil)
+        @context = context unless context.nil?
+        super(msg)
+      end
 
       def to_s
         defined?(@context) ? "#{super}, context=#{JSON.generate(@context)}" : super
