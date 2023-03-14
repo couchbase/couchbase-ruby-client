@@ -1,0 +1,49 @@
+#  Copyright 2023. Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+module Couchbase
+  module Protostellar
+    module Retry
+      class Reason
+        attr_reader name: Symbol
+        attr_reader allows_non_idempotent_retry: bool
+        attr_reader always_retry: bool
+
+        def self.reason: (Symbol, allows_non_idempotent_retry: bool, always_retry: bool) -> void
+        def initialize: (name: Symbol, allows_non_idempotent_retry: bool, always_retry: bool) -> void
+
+        UNKNOWN: Reason
+        SOCKET_NOT_AVAILABLE: Reason
+        SERVICE_NOT_AVAILABLE: Reason
+        NODE_NOT_AVAILABLE: Reason
+        KV_NOT_MY_VBUCKET: Reason
+        KV_COLLECTION_OUTDATED: Reason
+        KV_ERROR_MAP_RETRY_INDICATED: Reason
+        KV_LOCKED: Reason
+        KV_TEMPORARY_FAILURE: Reason
+        KV_SYNC_WRITE_IN_PROGRESS: Reason
+        KV_SYNC_WRITE_RE_COMMIT_IN_PROGRESS: Reason
+        SERVICE_RESPONSE_CODE_INDICATED: Reason
+        SOCKET_CLOSED_WHILE_IN_FLIGHT: Reason
+        CIRCUIT_BREAKER_OPEN: Reason
+        QUERY_PREPARED_STATEMENT_FAILURE: Reason
+        QUERY_INDEX_NOT_FOUND: Reason
+        ANALYTICS_TEMPORARY_FAILURE: Reason
+        SEARCH_TOO_MANY_REQUESTS: Reason
+        VIEWS_TEMPORARY_FAILURE: Reason
+        VIEWS_NO_ACTIVE_PARTITION: Reason
+      end
+    end
+  end
+end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2023. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +16,13 @@
 
 module Couchbase
   module Protostellar
-    module RequestGenerator
+    module TimeoutDefaults
+      KEY_VALUE = 2_500
+      VIEW = 75_000
+      QUERY = 75_000
+      ANALYTICS = 75_000
+      SEARCH = 75_000
+      MANAGEMENT = 75_000
     end
   end
 end

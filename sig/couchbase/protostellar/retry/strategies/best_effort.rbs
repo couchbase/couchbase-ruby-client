@@ -14,7 +14,18 @@
 
 module Couchbase
   module Protostellar
-    module RequestGenerator
+    module Retry
+      module Strategies
+        class BestEffort
+          attr_reader backoff_calculator: ^(Integer) -> Integer
+
+          def initialize: ((^(Integer) -> Integer)?) -> void
+
+          def retry_after: (Request, Retry::Reason) -> Retry::Action
+
+          DEFAULT: BestEffort
+        end
+      end
     end
   end
 end

@@ -14,7 +14,16 @@
 
 module Couchbase
   module Protostellar
-    module RequestGenerator
+    class ErrorHandling
+      TYPE_URL_PRECONDITION_FAILURE: String
+      TYPE_URL_RESOURCE_INFO: String
+      TYPE_URL_ERROR_INFO: String
+      TYPE_URL_BAD_REQUEST: String
+
+      def self.handle_grpc_error: (untyped, Request) -> RequestBehaviour
+      def self.handle_generic_error: (untyped, Hash[Symbol, any], Request) -> RequestBehaviour
+      def self.handle_kv_error: (untyped, Hash[Symbol, any], Request) -> RequestBehaviour
+      def self.handle_query_error: (untyped, Hash[Symbol, any], Request) -> RequestBehaviour
     end
   end
 end

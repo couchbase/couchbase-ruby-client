@@ -1,0 +1,45 @@
+#  Copyright 2023-Present Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+module Couchbase
+  module Protostellar
+    class Request
+      type protostellar_service = :analytics | :kv | :query | :routing | :search | :transactions | :view
+
+      attr_reader service: protostellar_service
+      attr_reader rpc: Symbol
+      attr_reader timeout: (Integer | _CanInMilliseconds)?
+      attr_reader proto_request: untyped
+      attr_reader idempotent: bool
+      attr_reader retry_attempts: Integer
+      attr_reader retry_reasons: Set[untyped]
+      attr_reader retry_strategy: _RetryStrategy
+      attr_accessor context: Hash[Symbol, any]
+      @deadline: untyped
+
+      def initialize: (
+          service: protostellar_service,
+          rpc: Symbol,
+          timeout: Integer | _CanInMilliseconds,
+          proto_request: untyped,
+          retry_strategy: _RetryStrategy,
+          idempotent: bool
+        ) -> void
+
+      def deadline: () -> untyped
+
+      def add_retry_attempt: (Retry::Reason) -> void
+    end
+  end
+end

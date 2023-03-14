@@ -1,4 +1,6 @@
-#  Copyright 2023. Couchbase, Inc.
+# frozen_string_literal: true
+
+#  Copyright 2023-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,7 +16,22 @@
 
 module Couchbase
   module Protostellar
-    module RequestGenerator
+    module Retry
+      class Action
+        attr_reader :duration
+
+        def initialize(duration)
+          @duration = duration
+        end
+
+        def self.with_duration(duration)
+          Action.new(duration)
+        end
+
+        def self.no_retry
+          Action.new(nil)
+        end
+      end
     end
   end
 end

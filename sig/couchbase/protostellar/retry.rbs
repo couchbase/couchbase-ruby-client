@@ -14,7 +14,7 @@
 
 module Couchbase
   module Protostellar
-    module RequestGenerator
+    module Retry
     end
   end
 end

@@ -15,11 +15,14 @@
 module Couchbase
   module Protostellar
     class Cluster
-      @client: Client
+      attr_reader client: Client
+      @query_request_generator: RequestGenerator::Query
+
+      def self.connect: (String, untyped) -> untyped
 
       def initialize: (untyped connection_string, ?untyped options) -> void
 
-      def close: () -> void
+      def disconnect: () -> void
 
       def bucket: (String name) -> Bucket
 

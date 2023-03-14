@@ -12,19 +12,17 @@ module Couchbase
           module V1
             module Hooks
               class Service
+
                 include ::GRPC::GenericService
 
                 self.marshal_class_method = :encode
                 self.unmarshal_class_method = :decode
                 self.service_name = 'couchbase.internal.hooks.v1.Hooks'
 
-                rpc :CreateHooksContext, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::CreateHooksContextRequest,
-                    ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::CreateHooksContextResponse
-                rpc :DestroyHooksContext, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::DestroyHooksContextRequest,
-                    ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::DestroyHooksContextResponse
+                rpc :CreateHooksContext, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::CreateHooksContextRequest, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::CreateHooksContextResponse
+                rpc :DestroyHooksContext, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::DestroyHooksContextRequest, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::DestroyHooksContextResponse
                 rpc :AddHooks, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::AddHooksRequest, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::AddHooksResponse
-                rpc :WatchBarrier, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::WatchBarrierRequest,
-                    stream(::Couchbase::Protostellar::Generated::Internal::Hooks::V1::WatchBarrierResponse)
+                rpc :WatchBarrier, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::WatchBarrierRequest, stream(::Couchbase::Protostellar::Generated::Internal::Hooks::V1::WatchBarrierResponse)
                 rpc :SignalBarrier, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::SignalBarrierRequest, ::Couchbase::Protostellar::Generated::Internal::Hooks::V1::SignalBarrierResponse
               end
 

@@ -24,6 +24,9 @@ module Couchbase
       @view_stub: Object
 
       def initialize: (String host, untyped credentials, untyped channel_args) -> void
+      def stub: (Symbol) -> untyped
+      def send_request: (Request) -> untyped
+
 
       def kv: () -> untyped
 

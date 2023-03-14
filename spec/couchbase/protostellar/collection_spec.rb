@@ -290,9 +290,9 @@ RSpec.describe Couchbase::Protostellar::Collection do
     end
 
     context "when checking the existence of a non-existent path" do
-      subject(:lookup_in_result) {
+      subject(:lookup_in_result) do
         collection.lookup_in(doc_id, [Couchbase::LookupInSpec.exists("number")])
-      }
+      end
 
       let(:doc_id) { upsert_sample_document }
 

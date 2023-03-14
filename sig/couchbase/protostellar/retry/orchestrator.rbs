@@ -14,7 +14,11 @@
 
 module Couchbase
   module Protostellar
-    module RequestGenerator
+    module Retry
+      class Orchestrator
+        def self.maybe_retry: (Request, Reason) -> void
+        def self.get_controlled_backoff: (Request) -> Integer
+      end
     end
   end
 end

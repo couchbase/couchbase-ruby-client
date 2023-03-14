@@ -33,5 +33,9 @@ module Couchbase
     interface _CanToJson
       def to_json: () -> String
     end
+
+    interface _RetryStrategy
+      def retry_after: (Request, Retry::Reason) -> Retry::Action
+    end
   end
 end

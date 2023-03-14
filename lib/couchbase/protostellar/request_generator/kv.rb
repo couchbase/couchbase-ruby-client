@@ -18,6 +18,8 @@ require "couchbase/json_transcoder"
 require "couchbase/utils/time"
 
 require "couchbase/protostellar/generated/kv.v1_pb"
+require "couchbase/protostellar/request"
+require "couchbase/protostellar/timeout_defaults"
 
 require "google/protobuf/well_known_types"
 
@@ -28,11 +30,15 @@ module Couchbase
         attr_reader :bucket_name
         attr_reader :scope_name
         attr_reader :collection_name
+        attr_reader :default_timeout
 
-        def initialize(bucket_name, scope_name, collection_name)
+        def initialize(bucket_name, scope_name, collection_name, default_timeout = nil)
           @bucket_name = bucket_name
           @scope_name = scope_name
           @collection_name = collection_name
+
+          # TODO: Use the KV timeout from the cluster's options
+          @default_timeout = default_timeout.nil? ? TimeoutDefaults::KEY_VALUE : default_timeout
         end
 
         def location
@@ -43,27 +49,30 @@ module Couchbase
           }
         end
 
-        def get_request(id, _options)
+        def get_request(id, options)
           proto_opts = {}
 
-          Generated::KV::V1::GetRequest.new(
+          proto_req = Generated::KV::V1::GetRequest.new(
             key: id,
             **location,
             **proto_opts
           )
+
+          create_kv_request(proto_req, :get, options, true)
         end
 
         def get_and_touch_request(id, expiry, _options)
           proto_opts = {}
           expiry = get_expiry(expiry)
 
-          Generated::KV::V1::GetAndTouchRequest.new(
+          proto_req = Generated::KV::V1::GetAndTouchRequest.new(
             **location,
             key: id,
             expiry: expiry,
-            **options.to_request,
             **proto_opts
           )
+
+          create_kv_request(proto_req, :get_and_touch, options)
         end
 
         def upsert_request(id, content, options)
@@ -73,14 +82,16 @@ module Couchbase
             content_type: get_content_type(options),
           }
           proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
-          proto_opts[:expiry] = get_expiry(options) unless options.preserve_expiry
+          proto_opts[:expiry] = get_expiry(options) unless options.preserve_expiry  # TODO Figure out expiry
 
-          Generated::KV::V1::UpsertRequest.new(
+          proto_req = Generated::KV::V1::UpsertRequest.new(
             key: id,
             content: encoded,
             **location,
             **proto_opts
           )
+
+          create_kv_request(proto_req, :upsert, options)
         end
 
         def insert_request(id, content, options)
@@ -93,12 +104,14 @@ module Couchbase
           proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
           proto_opts[:expiry] = get_expiry(options) unless options.expiry.nil?
 
-          Generated::KV::V1::InsertRequest.new(
+          proto_req = Generated::KV::V1::InsertRequest.new(
             key: id,
             content: encoded,
             **location,
             **proto_opts
           )
+
+          create_kv_request(proto_req, :insert, options)
         end
 
         def replace_request(id, content, options)
@@ -112,12 +125,14 @@ module Couchbase
           proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
           proto_opts[:expiry] = get_expiry(options) unless options.preserve_expiry
 
-          Generated::KV::V1::ReplaceRequest.new(
+          proto_req = Generated::KV::V1::ReplaceRequest.new(
             key: id,
             content: encoded,
             **location,
             **proto_opts
           )
+
+          create_kv_request(proto_req, :replace, options)
         end
 
         def remove_request(id, options)
@@ -126,21 +141,25 @@ module Couchbase
           proto_opts[:cas] = options.cas unless options.cas.nil?
           proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
 
-          Generated::KV::V1::RemoveRequest.new(
+          proto_req = Generated::KV::V1::RemoveRequest.new(
             key: id,
             **location,
             **proto_opts
           )
+
+          create_kv_request(proto_req, :remove, options)
         end
 
-        def exists_request(id, _options)
+        def exists_request(id, options)
           proto_opts = {}
 
-          Generated::KV::V1::ExistsRequest.new(
+          proto_req = Generated::KV::V1::ExistsRequest.new(
             key: id,
             **proto_opts,
             **location
           )
+
+          create_kv_request(proto_req, :exists, options)
         end
 
         def mutate_in_request(id, specs, options)
@@ -151,12 +170,14 @@ module Couchbase
           }
           proto_opts[:cas] = options.cas unless options.cas.nil?
 
-          Generated::KV::V1::MutateInRequest.new(
+          proto_req = Generated::KV::V1::MutateInRequest.new(
             key: id,
             **location,
             specs: specs.map { |s| get_mutate_in_spec(s) },
             **proto_opts
           )
+
+          create_kv_request(proto_req, :mutate_in, options)
         end
 
         def lookup_in_request(id, specs, options)
@@ -164,15 +185,27 @@ module Couchbase
             flags: get_lookup_in_flags(options),
           }
 
-          Generated::KV::V1::LookupInRequest.new(
+          proto_req = Generated::KV::V1::LookupInRequest.new(
             key: id,
             **location,
             specs: specs.map { |s| get_lookup_in_spec(s) },
             **proto_opts
           )
+
+          create_kv_request(proto_req, :lookup_in, options, true)
         end
 
         private
+
+        def create_kv_request(proto_request, rpc, options, idempotent = false)
+          Request.new(
+            service: :kv,
+            rpc: rpc,
+            proto_request: proto_request,
+            timeout: get_timeout(options),
+            idempotent: idempotent
+          )
+        end
 
         def get_expiry(options_or_expiry)
           if options_or_expiry.respond_to? :expiry
@@ -279,6 +312,14 @@ module Couchbase
 
         def get_mutate_in_store_semantic(options)
           options.store_semantics.upcase
+        end
+
+        def get_timeout(options)
+          if options.timeout.nil?
+            @default_timeout
+          else
+            options.timeout
+          end
         end
       end
     end

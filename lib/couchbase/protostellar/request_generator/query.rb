@@ -15,6 +15,7 @@
 #  limitations under the License.
 
 require "couchbase/protostellar/generated/query.v1_pb"
+require "couchbase/protostellar/request"
 
 require "google/protobuf/well_known_types"
 
@@ -25,9 +26,10 @@ module Couchbase
         attr_reader :bucket_name
         attr_reader :scope_name
 
-        def initialize(bucket_name: nil, scope_name: nil)
+        def initialize(bucket_name: nil, scope_name: nil, default_timeout: nil)
           @bucket_name = bucket_name
           @scope_name = scope_name
+          @default_timeout = default_timeout.nil? ? TimeoutDefaults::QUERY : default_timeout
         end
 
         def query_request(statement, options)
@@ -60,9 +62,24 @@ module Couchbase
           proto_opts[:consistent_with] = options.mutation_state.to_proto unless options.mutation_state.nil?
           proto_opts[:profile_mode] = options.profile.upcase
 
-          Generated::Query::V1::QueryRequest.new(
+          proto_req = Generated::Query::V1::QueryRequest.new(
             statement: statement,
             **proto_opts
+          )
+
+          idempotent = options.readonly ? true : false
+          create_query_request(proto_req, :query, options, idempotent)
+        end
+
+        private
+
+        def create_query_request(proto_request, rpc, options, idempotent = false)
+          Request.new(
+            service: :query,
+            rpc: rpc,
+            proto_request: proto_request,
+            timeout: get_timeout(options),
+            idempotent: idempotent
           )
         end
 
@@ -82,6 +99,14 @@ module Couchbase
             nil
           else
             Generated::Query::V1::QueryRequest::TuningOptions.new(**tuning_opts)
+          end
+        end
+
+        def get_timeout(options)
+          if options.timeout.nil?
+            @default_timeout
+          else
+            options.timeout
           end
         end
       end

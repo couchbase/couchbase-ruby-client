@@ -39,7 +39,6 @@ module Couchbase
         channel_args = options.grpc_channel_args
 
         @client = Client.new(host, credentials, channel_args)
-
         @query_request_generator = RequestGenerator::Query.new
       end
 
@@ -53,11 +52,7 @@ module Couchbase
 
       def query(statement, options = Couchbase::Options::Query::DEFAULT)
         req = @query_request_generator.query_request(statement, options)
-        begin
-          resps = @client.query(req, timeout: options.timeout)
-        rescue GRPC::DeadlineExceeded
-          raise Couchbase::Error::Timeout
-        end
+        resps = @client.send_request(req)
         ResponseConverter::Query.from_query_responses(resps)
       end
     end
