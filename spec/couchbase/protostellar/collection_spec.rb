@@ -266,9 +266,9 @@ RSpec.describe Couchbase::Protostellar::Collection do
 
   describe "#lookup_in" do
     context "when retrieving a sub-document value" do
-      subject(:lookup_in_result) {
+      subject(:lookup_in_result) do
         collection.lookup_in(doc_id, [Couchbase::LookupInSpec.get("value")])
-      }
+      end
 
       let(:doc_id) { upsert_sample_document }
 
@@ -278,9 +278,9 @@ RSpec.describe Couchbase::Protostellar::Collection do
     end
 
     context "when checking if a path exists" do
-      subject(:lookup_in_result) {
+      subject(:lookup_in_result) do
         collection.lookup_in(doc_id, [Couchbase::LookupInSpec.exists("value")])
-      }
+      end
 
       let(:doc_id) { upsert_sample_document }
 
@@ -304,9 +304,9 @@ RSpec.describe Couchbase::Protostellar::Collection do
 
   describe "#mutate_in" do
     context "when upserting a sub-document" do
-      subject!(:mutate_in_result) {
+      subject!(:mutate_in_result) do
         collection.mutate_in(doc_id, [Couchbase::MutateInSpec.upsert("value", "30")])
-      }
+      end
 
       let(:doc_id) { upsert_sample_document }
 

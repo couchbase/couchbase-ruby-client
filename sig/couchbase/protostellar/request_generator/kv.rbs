@@ -20,6 +20,10 @@ module Couchbase
         def exists_request: (String, untyped) -> untyped
         def mutate_in_request: (String, Array[untyped], untyped) -> untyped
         def lookup_in_request: (String, Array[untyped], untyped) -> untyped
+        def increment_request: (String, untyped) -> untyped
+        def decrement_request: (String, untyped) -> untyped
+        def append_request: (String, String, untyped) -> untyped
+        def prepend_request: (String, String, untyped) -> untyped
 
         private
 
@@ -37,6 +41,7 @@ module Couchbase
         def get_mutate_in_spec_flags: (untyped) -> untyped
         def get_mutate_in_flags: (untyped) -> untyped
         def get_mutate_in_store_semantic: (untyped) -> Symbol
+        def get_encoded: (Object, untyped) -> String
         def get_timeout: (untyped) -> (_CanInMilliseconds | Integer)
       end
     end
