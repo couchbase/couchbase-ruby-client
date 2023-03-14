@@ -15,6 +15,7 @@
 #  limitations under the License.
 
 require_relative "error_handling"
+require_relative "error"
 
 require_relative "generated/routing.v1_services_pb"
 require_relative "generated/kv.v1_services_pb"
@@ -51,7 +52,7 @@ module Couchbase
         when :view
           @view_stub
         else
-          raise ArgumentError "service `#{service}' not recognised"
+          raise Protostellar::Error::UnexpectedServiceType "service `#{service}' not recognised"
         end
       end
 
@@ -65,6 +66,10 @@ module Couchbase
         rescue GRPC::BadStatus => e
           request_behaviour = ErrorHandling.handle_grpc_error(e, request)
 
+          unless request_behaviour.error.nil? || request_behaviour.retry_duration.nil?
+            raise Protostellar::Error::InvalidRetryBehaviour "The error and the retry duration cannot both be set"
+          end
+
           raise request_behaviour.error unless request_behaviour.error.nil?
 
           unless request_behaviour.retry_duration.nil?
@@ -72,7 +77,7 @@ module Couchbase
             next
           end
 
-          raise "Internal error - This should not be reachable. Either the error or the retry duration should have been set"
+          raise Protostellar::Error::InvalidRetryBehaviour "Either the error or the retry duration should have been set"
         end
       end
     end
