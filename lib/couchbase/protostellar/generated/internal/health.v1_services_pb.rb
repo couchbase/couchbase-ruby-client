@@ -12,7 +12,6 @@ module Couchbase
           module V1
             module Health
               class Service
-
                 include ::GRPC::GenericService
 
                 self.marshal_class_method = :encode

@@ -29,7 +29,10 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :scope_name, :string, 2
       optional :collection_name, :string, 3
       optional :key, :string, 4
-      optional :expiry, :message, 5, "google.protobuf.Timestamp"
+      oneof :expiry do
+        optional :expiry_time, :message, 5, "google.protobuf.Timestamp"
+        optional :expiry_secs, :uint32, 6
+      end
     end
     add_message "couchbase.kv.v1.GetAndLockRequest" do
       optional :bucket_name, :string, 1
@@ -50,7 +53,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :content_type, :enum, 2, "couchbase.kv.v1.DocumentContentType"
       optional :compression_type, :enum, 5, "couchbase.kv.v1.DocumentCompressionType"
       optional :cas, :uint64, 3
-      proto3_optional :expiry, :message, 4, "google.protobuf.Timestamp"
+      optional :expiry, :message, 4, "google.protobuf.Timestamp"
     end
     add_message "couchbase.kv.v1.UnlockRequest" do
       optional :bucket_name, :string, 1
@@ -66,7 +69,10 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :scope_name, :string, 2
       optional :collection_name, :string, 3
       optional :key, :string, 4
-      optional :expiry, :message, 5, "google.protobuf.Timestamp"
+      oneof :expiry do
+        optional :expiry_time, :message, 5, "google.protobuf.Timestamp"
+        optional :expiry_secs, :uint32, 6
+      end
     end
     add_message "couchbase.kv.v1.TouchResponse" do
       optional :cas, :uint64, 1
@@ -89,10 +95,10 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :key, :string, 4
       optional :content, :bytes, 5
       optional :content_type, :enum, 6, "couchbase.kv.v1.DocumentContentType"
-      proto3_optional :expiry, :message, 7, "google.protobuf.Timestamp"
-      oneof :durability_spec do
-        optional :legacy_durability_spec, :message, 8, "couchbase.kv.v1.LegacyDurabilitySpec"
-        optional :durability_level, :enum, 9, "couchbase.kv.v1.DurabilityLevel"
+      proto3_optional :durability_level, :enum, 9, "couchbase.kv.v1.DurabilityLevel"
+      oneof :expiry do
+        optional :expiry_time, :message, 7, "google.protobuf.Timestamp"
+        optional :expiry_secs, :uint32, 10
       end
     end
     add_message "couchbase.kv.v1.InsertResponse" do
@@ -106,10 +112,10 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :key, :string, 4
       optional :content, :bytes, 5
       optional :content_type, :enum, 6, "couchbase.kv.v1.DocumentContentType"
-      proto3_optional :expiry, :message, 7, "google.protobuf.Timestamp"
-      oneof :durability_spec do
-        optional :legacy_durability_spec, :message, 8, "couchbase.kv.v1.LegacyDurabilitySpec"
-        optional :durability_level, :enum, 9, "couchbase.kv.v1.DurabilityLevel"
+      proto3_optional :durability_level, :enum, 9, "couchbase.kv.v1.DurabilityLevel"
+      oneof :expiry do
+        optional :expiry_time, :message, 7, "google.protobuf.Timestamp"
+        optional :expiry_secs, :uint32, 10
       end
     end
     add_message "couchbase.kv.v1.UpsertResponse" do
@@ -124,10 +130,10 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :content, :bytes, 5
       optional :content_type, :enum, 6, "couchbase.kv.v1.DocumentContentType"
       proto3_optional :cas, :uint64, 7
-      proto3_optional :expiry, :message, 8, "google.protobuf.Timestamp"
-      oneof :durability_spec do
-        optional :legacy_durability_spec, :message, 9, "couchbase.kv.v1.LegacyDurabilitySpec"
-        optional :durability_level, :enum, 10, "couchbase.kv.v1.DurabilityLevel"
+      proto3_optional :durability_level, :enum, 10, "couchbase.kv.v1.DurabilityLevel"
+      oneof :expiry do
+        optional :expiry_time, :message, 8, "google.protobuf.Timestamp"
+        optional :expiry_secs, :uint32, 11
       end
     end
     add_message "couchbase.kv.v1.ReplaceResponse" do
@@ -140,10 +146,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :collection_name, :string, 3
       optional :key, :string, 4
       proto3_optional :cas, :uint64, 5
-      oneof :durability_spec do
-        optional :legacy_durability_spec, :message, 6, "couchbase.kv.v1.LegacyDurabilitySpec"
-        optional :durability_level, :enum, 7, "couchbase.kv.v1.DurabilityLevel"
-      end
+      proto3_optional :durability_level, :enum, 7, "couchbase.kv.v1.DurabilityLevel"
     end
     add_message "couchbase.kv.v1.RemoveResponse" do
       optional :cas, :uint64, 1
@@ -155,11 +158,11 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :collection_name, :string, 3
       optional :key, :string, 4
       optional :delta, :uint64, 5
-      proto3_optional :expiry, :message, 6, "google.protobuf.Timestamp"
       proto3_optional :initial, :int64, 7
-      oneof :durability_spec do
-        optional :legacy_durability_spec, :message, 8, "couchbase.kv.v1.LegacyDurabilitySpec"
-        optional :durability_level, :enum, 9, "couchbase.kv.v1.DurabilityLevel"
+      proto3_optional :durability_level, :enum, 9, "couchbase.kv.v1.DurabilityLevel"
+      oneof :expiry do
+        optional :expiry_time, :message, 6, "google.protobuf.Timestamp"
+        optional :expiry_secs, :uint32, 10
       end
     end
     add_message "couchbase.kv.v1.IncrementResponse" do
@@ -173,11 +176,11 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :collection_name, :string, 3
       optional :key, :string, 4
       optional :delta, :uint64, 5
-      proto3_optional :expiry, :message, 6, "google.protobuf.Timestamp"
       proto3_optional :initial, :int64, 7
-      oneof :durability_spec do
-        optional :legacy_durability_spec, :message, 8, "couchbase.kv.v1.LegacyDurabilitySpec"
-        optional :durability_level, :enum, 9, "couchbase.kv.v1.DurabilityLevel"
+      proto3_optional :durability_level, :enum, 9, "couchbase.kv.v1.DurabilityLevel"
+      oneof :expiry do
+        optional :expiry_time, :message, 6, "google.protobuf.Timestamp"
+        optional :expiry_secs, :uint32, 10
       end
     end
     add_message "couchbase.kv.v1.DecrementResponse" do
@@ -192,10 +195,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :key, :string, 4
       optional :content, :bytes, 5
       proto3_optional :cas, :uint64, 6
-      oneof :durability_spec do
-        optional :legacy_durability_spec, :message, 7, "couchbase.kv.v1.LegacyDurabilitySpec"
-        optional :durability_level, :enum, 8, "couchbase.kv.v1.DurabilityLevel"
-      end
+      proto3_optional :durability_level, :enum, 8, "couchbase.kv.v1.DurabilityLevel"
     end
     add_message "couchbase.kv.v1.AppendResponse" do
       optional :cas, :uint64, 1
@@ -208,10 +208,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :key, :string, 4
       optional :content, :bytes, 5
       proto3_optional :cas, :uint64, 6
-      oneof :durability_spec do
-        optional :legacy_durability_spec, :message, 7, "couchbase.kv.v1.LegacyDurabilitySpec"
-        optional :durability_level, :enum, 8, "couchbase.kv.v1.DurabilityLevel"
-      end
+      proto3_optional :durability_level, :enum, 8, "couchbase.kv.v1.DurabilityLevel"
     end
     add_message "couchbase.kv.v1.PrependResponse" do
       optional :cas, :uint64, 1
@@ -256,12 +253,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :key, :string, 4
       repeated :specs, :message, 5, "couchbase.kv.v1.MutateInRequest.Spec"
       proto3_optional :store_semantic, :enum, 6, "couchbase.kv.v1.MutateInRequest.StoreSemantic"
+      proto3_optional :durability_level, :enum, 8, "couchbase.kv.v1.DurabilityLevel"
       proto3_optional :cas, :uint64, 9
       proto3_optional :flags, :message, 10, "couchbase.kv.v1.MutateInRequest.Flags"
-      oneof :durability_spec do
-        optional :legacy_durability_spec, :message, 7, "couchbase.kv.v1.LegacyDurabilitySpec"
-        optional :durability_level, :enum, 8, "couchbase.kv.v1.DurabilityLevel"
-      end
     end
     add_message "couchbase.kv.v1.MutateInRequest.Spec" do
       optional :operation, :enum, 1, "couchbase.kv.v1.MutateInRequest.Spec.Operation"
