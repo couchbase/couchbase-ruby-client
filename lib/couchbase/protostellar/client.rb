@@ -23,6 +23,8 @@ require_relative "generated/query.v1_services_pb"
 require_relative "generated/search.v1_services_pb"
 require_relative "generated/analytics.v1_services_pb"
 require_relative "generated/view.v1_services_pb"
+require_relative "generated/admin/collection.v1_services_pb"
+require_relative "generated/admin/bucket.v1_services_pb"
 
 module Couchbase
   module Protostellar
@@ -35,6 +37,8 @@ module Couchbase
         @search_stub = Generated::Search::V1::Search::Stub.new(host, credentials, channel_override: @channel)
         @analytics_stub = Generated::Analytics::V1::Analytics::Stub.new(host, credentials, channel_override: @channel)
         @view_stub = Generated::View::V1::View::Stub.new(host, credentials, channel_override: @channel)
+        @bucket_admin_stub = Generated::Admin::Bucket::V1::BucketAdmin::Stub.new(host, credentials, channel_override: @channel)
+        @collection_admin_stub = Generated::Admin::Collection::V1::CollectionAdmin::Stub.new(host, credentials, channel_override: @channel)
       end
 
       def stub(service)
@@ -51,6 +55,10 @@ module Couchbase
           @search_stub
         when :view
           @view_stub
+        when :bucket_admin
+          @bucket_admin_stub
+        when :collection_admin
+          @collection_admin_stub
         else
           raise Protostellar::Error::UnexpectedServiceType "service `#{service}' not recognised"
         end

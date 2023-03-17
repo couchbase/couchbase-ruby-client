@@ -1,0 +1,48 @@
+#  Copyright 2023. Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+module Couchbase
+  module Protostellar
+    module RequestGenerator
+      module Admin
+        class Collection
+          attr_reader client: Client
+          attr_reader default_timeout: _CanInMilliseconds | Integer
+
+          def initialize: (
+              bucket_name: String,
+              default_timeout: (_CanInMilliseconds | Integer)?,
+            ) -> void
+
+          def list_collections_request: (untyped options) -> untyped
+          def create_scope_request: (String scope_name, untyped options) -> untyped
+          def delete_scope_request: (String scope_name, untyped options) -> untyped
+          def create_collection_request: (untyped collection_spec, untyped options) -> untyped
+          def delete_collection_request: (untyped collection_spec, untyped options) -> untyped
+
+          private
+
+          def create_request: (
+              untyped proto_request,
+              Symbol rpc,
+              untyped options,
+              idempotent: bool,
+            ) -> Request
+
+          def get_timeout: (untyped options) -> (_CanInMilliseconds | Integer)
+        end
+      end
+    end
+  end
+end

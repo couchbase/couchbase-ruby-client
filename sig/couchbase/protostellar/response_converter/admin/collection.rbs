@@ -1,4 +1,4 @@
-#  Copyright 2022-Present Couchbase, Inc.
+#  Copyright 2023. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,21 +14,16 @@
 
 module Couchbase
   module Protostellar
-    class Client
-      @channel: Object
-      @routing_stub: Object
-      @kv_stub: Object
-      @query_stub: Object
-      @search_stub: Object
-      @analytics_stub: Object
-      @view_stub: Object
-      @bucket_admin_stub: Object
-      @collection_admin_stub: Object
-
-      def initialize: (String host, untyped credentials, untyped channel_args) -> void
-      def stub: (Symbol) -> untyped
-      def send_request: (Request) -> untyped
-      def close: () -> void
+    module ResponseConverter
+      module Admin
+        class Collection
+          def self.from_list_collections_response: (untyped resp) -> Array[untyped]
+          def self.from_create_scope_response: (untyped resp) -> untyped
+          def self.from_delete_scope_response: (untyped resp) -> untyped
+          def self.from_create_collection_response: (untyped resp) -> untyped
+          def self.from_delete_collection_response: (untyped resp) -> untyped
+        end
+      end
     end
   end
 end

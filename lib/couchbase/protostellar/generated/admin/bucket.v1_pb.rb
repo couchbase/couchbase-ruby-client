@@ -3,7 +3,8 @@
 
 require 'google/protobuf'
 
-require_relative 'kv.v1_pb'
+# TODO: Had to add '..' to this import manually - figure out a way to do this automatically
+require_relative '../kv.v1_pb'
 
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_file("couchbase/admin/bucket.v1.proto", :syntax => :proto3) do

@@ -30,11 +30,15 @@ module Helpers
   def unique_id(name)
     parent = caller_locations&.first
     prefix = "#{File.basename(parent&.path, '.rb')}_#{parent&.lineno}"
-    "#{prefix}_#{name}_#{Time.now.to_f.to_s.reverse}"
+    "#{prefix}_#{name}_#{Time.now.to_f.to_s.reverse}".tr('.', '_')
   end
 
   def default_collection(cluster, bucket_name: DEFAULT_BUCKET)
     cluster.bucket(bucket_name).default_collection
+  end
+
+  def test_bucket(cluster, bucket_name: DEFAULT_BUCKET)
+    cluster.bucket(bucket_name)
   end
 
   def sample_content
