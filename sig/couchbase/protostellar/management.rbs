@@ -1,0 +1,6 @@
+module Couchbase
+  module Protostellar
+    module Management
+    end
+  end
+end

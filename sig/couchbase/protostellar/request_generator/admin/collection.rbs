@@ -1,0 +1,34 @@
+module Couchbase
+  module Protostellar
+    module RequestGenerator
+      module Admin
+        class Collection
+          attr_reader client: Client
+          attr_reader default_timeout: _CanInMilliseconds | Integer
+
+          def initialize: (
+              bucket_name: String,
+              default_timeout: (_CanInMilliseconds | Integer)?,
+            ) -> void
+
+          def list_collections_request: (untyped options) -> untyped
+          def create_scope_request: (String scope_name, untyped options) -> untyped
+          def delete_scope_request: (String scope_name, untyped options) -> untyped
+          def create_collection_request: (untyped collection_spec, untyped options) -> untyped
+          def delete_collection_request: (untyped collection_spec, untyped options) -> untyped
+
+          private
+
+          def create_request: (
+              untyped proto_request,
+              Symbol rpc,
+              untyped options,
+              idempotent: bool,
+            ) -> Request
+
+          def get_timeout: (untyped options) -> (_CanInMilliseconds | Integer)
+        end
+      end
+    end
+  end
+end

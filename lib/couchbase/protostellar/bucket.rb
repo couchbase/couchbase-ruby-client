@@ -15,6 +15,7 @@
 #  limitations under the License.
 
 require_relative "scope"
+require_relative "management"
 
 module Couchbase
   module Protostellar
@@ -36,6 +37,10 @@ module Couchbase
 
       def default_collection
         Scope.new(@client, @name, "_default").collection("_default")
+      end
+
+      def collections
+        Management::CollectionManager.new(client: @client, bucket_name: @name)
       end
     end
   end

@@ -1,0 +1,15 @@
+module Couchbase
+  module Protostellar
+    module ResponseConverter
+      module Admin
+        class Collection
+          def self.from_list_collections_response: (untyped resp) -> Array[untyped]
+          def self.from_create_scope_response: (untyped resp) -> untyped
+          def self.from_delete_scope_response: (untyped resp) -> untyped
+          def self.from_create_collection_response: (untyped resp) -> untyped
+          def self.from_delete_collection_response: (untyped resp) -> untyped
+        end
+      end
+    end
+  end
+end

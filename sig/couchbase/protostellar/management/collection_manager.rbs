@@ -1,0 +1,22 @@
+module Couchbase
+  module Protostellar
+    module Management
+      class CollectionManager
+        @client: Client
+        @bucket_name: String
+        @request_generator: RequestGenerator::Admin::Collection
+
+        def initialize: (
+            client: Client,
+            bucket_name: String,
+          ) -> void
+
+        def get_all_scopes: (untyped options) -> Array[untyped]
+        def create_scope: (String scope_name, untyped options) -> void
+        def drop_scope: (String scope_name, untyped options) -> void
+        def create_collection: (untyped collection_spec, untyped options) -> void
+        def drop_collection: (untyped collection_spec, untyped options) -> void
+      end
+    end
+  end
+end
