@@ -24,22 +24,16 @@ module Couchbase
 
       def initialize: (Client, String, String, String) -> void
 
+      def binary: () -> BinaryCollection
+
       def get: (String, Couchbase::Options::Get) -> Couchbase::Collection::GetResult
-
       def get_and_touch: (String, untyped, Couchbase::Options::GetAndTouch) -> Couchbase::Collection::GetResult
-
       def get_and_lock: (String, untyped, Couchbase::Options::GetAndLock) -> Couchbase::Collection::GetResult
-
       def unlock: (String, Integer, Couchbase::Options::Unlock) -> void
-
       def upsert: (String, untyped, Couchbase::Options::Upsert) -> Couchbase::Collection::MutationResult
-
       def remove: (String, Couchbase::Options::Remove) -> Couchbase::Collection::MutationResult
-
       def insert: (String, untyped, Couchbase::Options::Insert) -> Couchbase::Collection::MutationResult
-
       def replace: (String, untyped, Couchbase::Options::Replace) -> Couchbase::Collection::MutationResult
-
       def exists: (String, ExistsOptions) -> Couchbase::Collection::ExistsResult
     end
   end

@@ -13,6 +13,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "couchbase.admin.collection.v1.ListCollectionsResponse.Collection" do
       optional :name, :string, 1
+      proto3_optional :max_expiry_secs, :uint32, 2
     end
     add_message "couchbase.admin.collection.v1.ListCollectionsResponse.Scope" do
       optional :name, :string, 1
@@ -34,6 +35,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :bucket_name, :string, 1
       optional :scope_name, :string, 2
       optional :collection_name, :string, 3
+      proto3_optional :max_expiry_secs, :uint32, 4
     end
     add_message "couchbase.admin.collection.v1.CreateCollectionResponse" do
     end

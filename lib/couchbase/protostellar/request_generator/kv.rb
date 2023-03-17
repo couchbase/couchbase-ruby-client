@@ -68,7 +68,7 @@ module Couchbase
           proto_req = Generated::KV::V1::GetAndTouchRequest.new(
             **location,
             key: id,
-            expiry: expiry,
+            expiry_time: expiry,
             **proto_opts
           )
 
@@ -76,13 +76,13 @@ module Couchbase
         end
 
         def upsert_request(id, content, options)
-          encoded, = options.transcoder.encode(content)
+          encoded = get_encoded(content, options)
 
           proto_opts = {
             content_type: get_content_type(options),
           }
           proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
-          proto_opts[:expiry] = get_expiry(options) unless options.preserve_expiry  # TODO Figure out expiry
+          proto_opts[:expiry_time] = get_expiry(options) unless options.preserve_expiry  # TODO: Figure out expiry
 
           proto_req = Generated::KV::V1::UpsertRequest.new(
             key: id,
@@ -95,14 +95,14 @@ module Couchbase
         end
 
         def insert_request(id, content, options)
-          encoded, = options.transcoder.encode(content)
+          encoded = get_encoded(content, options)
 
           proto_opts = {
             content_type: get_content_type(options),
           }
 
           proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
-          proto_opts[:expiry] = get_expiry(options) unless options.expiry.nil?
+          proto_opts[:expiry_time] = get_expiry(options) unless options.expiry[1].nil?
 
           proto_req = Generated::KV::V1::InsertRequest.new(
             key: id,
@@ -115,7 +115,7 @@ module Couchbase
         end
 
         def replace_request(id, content, options)
-          encoded, = options.transcoder.encode(content)
+          encoded = get_encoded(content, options)
 
           proto_opts = {
             content_type: get_content_type(options),
@@ -123,7 +123,7 @@ module Couchbase
 
           proto_opts[:cas] = options.cas unless options.cas.nil?
           proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
-          proto_opts[:expiry] = get_expiry(options) unless options.preserve_expiry
+          proto_opts[:expiry_time] = get_expiry(options) unless options.preserve_expiry
 
           proto_req = Generated::KV::V1::ReplaceRequest.new(
             key: id,
@@ -195,6 +195,66 @@ module Couchbase
           create_kv_request(proto_req, :lookup_in, options, true)
         end
 
+        def increment_request(id, options)
+          proto_opts = {
+            delta: options.delta,
+          }
+          proto_opts[:expiry_time] = get_expiry(options) unless options.expiry[1].nil?
+          proto_opts[:initial] = options.initial unless options.initial.nil?
+
+          proto_req = Generated::KV::V1::IncrementRequest.new(
+            key: id,
+            **location,
+            **proto_opts
+          )
+
+          create_kv_request(proto_req, :increment, options)
+        end
+
+        def decrement_request(id, options)
+          proto_opts = {
+            delta: options.delta,
+          }
+          proto_opts[:expiry_time] = get_expiry(options) unless options.expiry[1].nil?
+          proto_opts[:initial] = options.initial unless options.initial.nil?
+
+          proto_req = Generated::KV::V1::DecrementRequest.new(
+            key: id,
+            **location,
+            **proto_opts
+          )
+
+          create_kv_request(proto_req, :decrement, options)
+        end
+
+        def append_request(id, content, options)
+          proto_opts = {}
+          proto_opts[:cas] = options.cas unless options.cas.nil?
+
+          proto_req = Generated::KV::V1::AppendRequest.new(
+            key: id,
+            content: content,
+            **location,
+            **proto_opts
+          )
+
+          create_kv_request(proto_req, :append, options)
+        end
+
+        def prepend_request(id, content, options)
+          proto_opts = {}
+          proto_opts[:cas] = options.cas unless options.cas.nil?
+
+          proto_req = Generated::KV::V1::PrependRequest.new(
+            key: id,
+            content: content,
+            **location,
+            **proto_opts
+          )
+
+          create_kv_request(proto_req, :prepend, options)
+        end
+
         private
 
         def create_kv_request(proto_request, rpc, options, idempotent = false)
@@ -227,6 +287,8 @@ module Couchbase
         def get_content_type(options)
           if options.transcoder.instance_of?(Couchbase::JsonTranscoder)
             :JSON
+          elsif options.transcoder.nil?
+            :BINARY
           else
             :UNKNOWN
           end
@@ -312,6 +374,15 @@ module Couchbase
 
         def get_mutate_in_store_semantic(options)
           options.store_semantics.upcase
+        end
+
+        def get_encoded(content, options)
+          if options.transcoder.nil?
+            encoded = content.to_s
+          else
+            encoded, = options.transcoder.encode(content)
+          end
+          encoded
         end
 
         def get_timeout(options)

@@ -1,0 +1,15 @@
+module Couchbase
+  module Protostellar
+    class BinaryCollection
+      @collection: Collection
+      @client: Client
+      @kv_request_generator: RequestGenerator::KV
+
+      def initialize: (Collection) -> void
+      def append: (String, String, untyped) -> untyped
+      def prepend: (String, String, untyped) -> untyped
+      def decrement: (String, untyped) -> untyped
+      def increment: (String, untyped) -> untyped
+    end
+  end
+end

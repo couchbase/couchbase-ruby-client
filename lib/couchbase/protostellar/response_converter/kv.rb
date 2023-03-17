@@ -15,6 +15,7 @@
 #  limitations under the License.
 
 require "couchbase/collection_options"
+require "couchbase/binary_collection_options"
 
 module Couchbase
   module Protostellar
@@ -90,6 +91,30 @@ module Couchbase
                 f.value = s.content
               end
             end
+          end
+        end
+
+        def self.from_increment_response(resp)
+          from_counter_response(resp)
+        end
+
+        def self.from_decrement_response(resp)
+          from_counter_response(resp)
+        end
+
+        def self.from_append_response(resp)
+          from_mutation_response(resp)
+        end
+
+        def self.from_prepend_response(resp)
+          from_mutation_response(resp)
+        end
+
+        def self.from_counter_response(resp)
+          Couchbase::BinaryCollection::CounterResult.new do |res|
+            res.cas = resp.cas
+            res.content = resp.content
+            res.mutation_token = extract_mutation_token(resp)
           end
         end
 

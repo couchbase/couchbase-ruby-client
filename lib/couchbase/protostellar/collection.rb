@@ -20,6 +20,7 @@ require "couchbase/collection_options"
 
 require_relative "request_generator/kv"
 require_relative "response_converter/kv"
+require_relative "binary_collection"
 
 require_relative "generated/kv.v1_pb"
 
@@ -36,6 +37,10 @@ module Couchbase
         @scope_name = scope_name
         @name = name
         @kv_request_generator = RequestGenerator::KV.new(@bucket_name, @scope_name, @name)
+      end
+
+      def binary
+        BinaryCollection.new(self)
       end
 
       def get(id, options = Couchbase::Options::Get::DEFAULT)

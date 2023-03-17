@@ -2,6 +2,23 @@ module Couchbase
   module Protostellar
     module ResponseConverter
       class KV
+        def self.from_get_response: (untyped, untyped) -> untyped
+        def self.from_upsert_response: (untyped) -> untyped
+        def self.from_remove_response: (untyped) -> untyped
+        def self.from_insert_response: (untyped) -> untyped
+        def self.from_replace_response: (untyped) -> untyped
+        def self.from_exists_response: (untyped) -> untyped
+        def self.from_lookup_in_response: (untyped, untyped, untyped) -> untyped
+        def self.from_mutate_in_response: (untyped, untyped, untyped) -> untyped
+        def self.from_increment_response: (untyped) -> untyped
+        def self.from_decrement_response: (untyped) -> untyped
+        def self.from_append_response: (untyped) -> untyped
+        def self.from_prepend_response: (untyped) -> untyped
+
+        def self.from_mutation_response: (untyped) -> untyped
+        def self.from_counter_response: (untyped) -> untyped
+
+        def self.extract_mutation_token: (untyped) -> untyped
       end
     end
   end
