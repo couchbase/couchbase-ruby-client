@@ -23,7 +23,7 @@ The library has been tested with MRI 3.0, 3.1 and 3.2. Supported platforms are L
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "couchbase", "3.4.0"
+gem "couchbase", "3.4.1"
 ```
 
 And then execute:
