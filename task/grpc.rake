@@ -54,7 +54,7 @@ task :generate_grpc_client do
        *proto_files)
     Dir["#{tmpdir}/**/*.rb"].each do |file|
       content = File.read(file)
-                    .gsub(/^require (['"])couchbase\/(\w+?\/)?/, 'require_relative \1')
+                    .gsub(/^require ['"]couchbase\/((\w+|\/)*)['"]/, 'require \'couchbase/protostellar/generated/\1\'')
       File.write(file, content)
     end
     rm_rf(output_dir)

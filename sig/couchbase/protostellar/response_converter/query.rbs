@@ -1,7 +1,11 @@
 module Couchbase
   module Protostellar
-    module RequestGenerator
+    module ResponseConverter
       class Query
+        def self.from_query_responses: (Enumerable[untyped] resps) -> untyped
+        def self.convert_query_metadata: (untyped proto_metadata) -> untyped
+        def self.convert_query_warning: (untyped proto_warning) -> untyped
+        def self.convert_query_metrics: (untyped proto_metrics) -> untyped
       end
     end
   end

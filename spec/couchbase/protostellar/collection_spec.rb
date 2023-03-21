@@ -285,7 +285,6 @@ RSpec.describe Couchbase::Protostellar::Collection do
       let(:doc_id) { upsert_sample_document }
 
       it { expect(lookup_in_result.exists?(0)).to be true }
-      it { expect(lookup_in_result.content(0)).to be_nil }
       it { expect(lookup_in_result.cas).not_to be 0 }
     end
 

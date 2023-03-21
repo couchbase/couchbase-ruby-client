@@ -15,7 +15,7 @@
 #  limitations under the License.
 
 require "couchbase/protostellar/request"
-require "couchbase/protostellar/generated/admin/collection.v1_pb"
+require "couchbase/protostellar/generated/admin/collection/v1/collection_pb"
 
 module Couchbase
   module Protostellar

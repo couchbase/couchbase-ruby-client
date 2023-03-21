@@ -84,7 +84,7 @@ RSpec.describe Couchbase::Protostellar::Management::CollectionManager do
         coll_name = unique_id(:coll)
         @collection_mgr.create_collection(get_collection_spec(scope_name: @scope_name, collection_name: coll_name))
         scope_spec = @collection_mgr.get_all_scopes.find { |s| s.name == @scope_name }
-        expect(scope_spec.collections.any? { |c| c.name == coll_name} ).to be true
+        expect(scope_spec.collections.any? { |c| c.name == coll_name }).to be true
       end
     end
 
@@ -113,7 +113,7 @@ RSpec.describe Couchbase::Protostellar::Management::CollectionManager do
       it "drops the collection" do
         @collection_mgr.drop_collection(@coll_spec)
         scope_spec = @collection_mgr.get_all_scopes.find { |s| s.name == @scope_name }
-        expect(scope_spec.collections.any? { |c| c.name == coll_name} ).to be false
+        expect(scope_spec.collections.any? { |c| c.name == coll_name }).to be false
       end
     end
 

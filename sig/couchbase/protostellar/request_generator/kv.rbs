@@ -2,6 +2,11 @@ module Couchbase
   module Protostellar
     module RequestGenerator
       class KV
+        DURABILITY_LEVEL_MAP: Hash[Symbol, Symbol]
+        LOOKUP_IN_OPERATION_TYPE_MAP: Hash[Symbol, Symbol]
+        MUTATE_IN_OPERATION_TYPE_MAP: Hash[Symbol, Symbol]
+        MUTATE_IN_STORE_SEMANTIC_MAP: Hash[Symbol, Symbol]
+
         attr_reader bucket_name: String
         attr_reader scope_name: String
         attr_reader collection_name: String

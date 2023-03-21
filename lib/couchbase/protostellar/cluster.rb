@@ -37,8 +37,9 @@ module Couchbase
         host = connection_string.include?(":") ? connection_string : "#{connection_string}:18098"
         credentials = options.grpc_credentials
         channel_args = options.grpc_channel_args
+        call_metadata = options.grpc_call_metadata
 
-        @client = Client.new(host, credentials, channel_args)
+        @client = Client.new(host, credentials, channel_args, call_metadata)
         @query_request_generator = RequestGenerator::Query.new
       end
 

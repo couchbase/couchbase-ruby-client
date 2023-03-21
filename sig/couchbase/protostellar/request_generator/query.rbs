@@ -2,6 +2,9 @@ module Couchbase
   module Protostellar
     module RequestGenerator
       class Query
+        SCAN_CONSISTENCY_MAP: Hash[Symbol, Symbol]
+        PROFILE_MODE_MAP: Hash[Symbol, Symbol]
+
         attr_reader bucket_name: String
         attr_reader scope_name: String
         attr_reader default_timeout: _CanInMilliseconds | Integer

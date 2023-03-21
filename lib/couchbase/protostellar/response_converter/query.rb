@@ -22,6 +22,19 @@ module Couchbase
   module Protostellar
     module ResponseConverter
       class Query
+        STATUS_MAP = {
+          :STATUS_RUNNING => :running,
+          :STATUS_SUCCESS => :success,
+          :STATUS_ERRORS => :errors,
+          :STATUS_COMPLETED => :completed,
+          :STATUS_STOPPED => :stopped,
+          :STATUS_TIMEOUT => :timeout,
+          :STATUS_CLOSED => :closed,
+          :STATUS_FATAL => :fatal,
+          :STATUS_ABORTED => :aborted,
+          :STATUS_UNKNOWN => :unknown,
+        }.freeze
+
         def self.from_query_responses(resps)
           Couchbase::Cluster::QueryResult.new do |res|
             rows = []
@@ -35,7 +48,7 @@ module Couchbase
 
         def self.convert_query_metadata(proto_metadata)
           Couchbase::Cluster::QueryMetaData.new do |meta|
-            meta.status = proto_metadata.status.downcase
+            meta.status = STATUS_MAP[proto_metadata.status]
             meta.request_id = proto_metadata.request_id
             meta.client_context_id = proto_metadata.client_context_id
             meta.signature = JSON.parse(proto_metadata.signature) unless proto_metadata.signature.nil? || proto_metadata.signature.empty?

@@ -22,8 +22,6 @@ require_relative "request_generator/kv"
 require_relative "response_converter/kv"
 require_relative "binary_collection"
 
-require_relative "generated/kv.v1_pb"
-
 require "google/protobuf/well_known_types"
 
 module Couchbase
