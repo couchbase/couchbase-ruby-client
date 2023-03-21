@@ -37,7 +37,7 @@ module Couchbase
 
       def grpc_call_metadata
         if @username && @password
-          {"authorization" => ["Basic #{Base64.encode64("#{@username}:#{@password}")}".chop]}
+          {"authorization" => ["Basic #{Base64.strict_encode64("#{@username}:#{@password}")}"]}
         else
           {}
         end
