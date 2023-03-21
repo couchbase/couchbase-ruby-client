@@ -117,17 +117,11 @@ module Couchbase
         behaviour =
           case grpc_error
           when GRPC::NotFound
-            if detail_block[:resource_info].resource_type == "document"
-              RequestBehaviour.fail(Couchbase::Error::DocumentNotFound.new("Document not found", request.context))
-            end
+            RequestBehaviour.fail(Couchbase::Error::DocumentNotFound.new("Document not found", request.context)) if detail_block[:resource_info].resource_type == "document"
           when GRPC::AlreadyExists
-            if detail_block[:resource_info].resource_type == "document"
-              RequestBehaviour.fail(Couchbase::Error::DocumentExists.new("Document already exists", request.context))
-            end
+            RequestBehaviour.fail(Couchbase::Error::DocumentExists.new("Document already exists", request.context)) if detail_block[:resource_info].resource_type == "document"
           when GRPC::FailedPrecondition
-            if detail_block[:precondition_failure].violations[0].type == "DOCUMENT_LOCKED"
-              Retry::Orchestrator.maybe_retry(request, Retry::Reason::KV_LOCKED)
-            end
+            Retry::Orchestrator.maybe_retry(request, Retry::Reason::KV_LOCKED) if detail_block[:precondition_failure].violations[0].type == "DOCUMENT_LOCKED"
           end
         if behaviour.nil?
           handle_generic_error(grpc_error, detail_block, request)

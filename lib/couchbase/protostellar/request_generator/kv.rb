@@ -16,8 +16,9 @@
 
 require "couchbase/json_transcoder"
 require "couchbase/utils/time"
+require "couchbase/errors"
 
-require "couchbase/protostellar/generated/kv.v1_pb"
+require "couchbase/protostellar/generated/kv/v1/kv_pb"
 require "couchbase/protostellar/request"
 require "couchbase/protostellar/timeout_defaults"
 
@@ -27,6 +28,39 @@ module Couchbase
   module Protostellar
     module RequestGenerator
       class KV
+        DURABILITY_LEVEL_MAP = {
+          :majority => :DURABILITY_LEVEL_MAJORITY,
+          :majority_and_persist_to_active => :DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE,
+          :persist_to_majority => :DURABILITY_LEVEL_PERSIST_TO_MAJORITY,
+        }.freeze
+
+        LOOKUP_IN_OPERATION_TYPE_MAP = {
+          :get => :OPERATION_GET,
+          :get_doc => :OPERATION_GET,
+          :exists => :OPERATION_EXISTS,
+          :count => :OPERATION_COUNT,
+        }.freeze
+
+        MUTATE_IN_OPERATION_TYPE_MAP = {
+          :set_doc => :OPERATION_REPLACE,
+          :replace => :OPERATION_REPLACE,
+          :dict_add => :OPERATION_INSERT,
+          :remove_doc => :OPERATION_REMOVE,
+          :remove => :OPERATION_REMOVE,
+          :dict_upsert => :OPERATION_UPSERT,
+          :array_push_last => :OPERATION_ARRAY_APPEND,
+          :array_push_first => :OPERATION_ARRAY_PREPEND,
+          :array_insert => :OPERATION_ARRAY_INSERT,
+          :array_add_unique => :OPERATION_ARRAY_ADD_UNIQUE,
+          :counter => :OPERATION_COUNTER,
+        }.freeze
+
+        MUTATE_IN_STORE_SEMANTIC_MAP = {
+          :replace => :STORE_SEMANTIC_REPLACE,
+          :upsert => :STORE_SEMANTIC_UPSERT,
+          :insert => :STORE_SEMANTIC_INSERT,
+        }.freeze
+
         attr_reader :bucket_name
         attr_reader :scope_name
         attr_reader :collection_name
@@ -286,11 +320,11 @@ module Couchbase
 
         def get_content_type(options)
           if options.transcoder.instance_of?(Couchbase::JsonTranscoder)
-            :JSON
+            :DOCUMENT_CONTENT_TYPE_JSON
           elsif options.transcoder.nil?
-            :BINARY
+            :DOCUMENT_CONTENT_TYPE_BINARY
           else
-            :UNKNOWN
+            :DOCUMENT_CONTENT_TYPE_UNKNOWN
           end
         end
 
@@ -298,7 +332,7 @@ module Couchbase
           if options.durability_level == :none
             nil
           else
-            options.durability_level.upcase
+            DURABILITY_LEVEL_MAP[options.durability_level]
           end
         end
 
@@ -311,12 +345,7 @@ module Couchbase
         end
 
         def get_lookup_in_operation(lookup_in_spec)
-          case lookup_in_spec.type
-          when :get_doc
-            :GET
-          else
-            lookup_in_spec.type.upcase
-          end
+          LOOKUP_IN_OPERATION_TYPE_MAP[lookup_in_spec.type]
         end
 
         def get_lookup_in_spec_flags(lookup_in_spec)
@@ -341,22 +370,7 @@ module Couchbase
         end
 
         def get_mutate_in_operation(mutate_in_spec)
-          case mutate_in_spec.type
-          when :set_doc
-            :REPLACE
-          when :dict_add
-            :INSERT
-          when :remove_doc
-            :REMOVE
-          when :dict_upsert
-            :UPSERT
-          when :array_push_last
-            :ARRAY_APPEND
-          when :array_push_first
-            :ARRAY_PREPEND
-          else
-            mutate_in_spec.type.upcase
-          end
+          MUTATE_IN_OPERATION_TYPE_MAP[mutate_in_spec.type]
         end
 
         def get_mutate_in_spec_flags(mutate_in_spec)
@@ -373,7 +387,7 @@ module Couchbase
         end
 
         def get_mutate_in_store_semantic(options)
-          options.store_semantics.upcase
+          MUTATE_IN_STORE_SEMANTIC_MAP[options.store_semantics]
         end
 
         def get_encoded(content, options)

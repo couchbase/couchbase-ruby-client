@@ -35,12 +35,16 @@ module Couchbase
         end
       end
 
-      def grpc_channel_args
+      def grpc_call_metadata
         if @username && @password
-          {"authorization" => "Basic #{Base64.encode64("#{@username}:#{@password}")}"}
+          {"authorization" => ["Basic #{Base64.strict_encode64("#{@username}:#{@password}")}"]}
         else
           {}
         end
+      end
+
+      def grpc_channel_args
+        {}
       end
     end
   end

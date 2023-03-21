@@ -26,6 +26,8 @@ module Couchbase
       def grpc_credentials: () -> untyped
 
       def grpc_channel_args: () -> untyped
+
+      def grpc_call_metadata: () -> Hash[untyped, untyped]
     end
   end
 end

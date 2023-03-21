@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/protostellar/generated/query.v1_pb"
+require "couchbase/protostellar/generated/query/v1/query_pb"
 require "couchbase/protostellar/request"
 
 require "google/protobuf/well_known_types"
@@ -23,6 +23,17 @@ module Couchbase
   module Protostellar
     module RequestGenerator
       class Query
+        SCAN_CONSISTENCY_MAP = {
+          :not_bounded => :SCAN_CONSISTENCY_NOT_BOUNDED,
+          :request_plus => :SCAN_CONSISTENCY_REQUEST_PLUS,
+        }.freeze
+
+        PROFILE_MODE_MAP = {
+          :off => :PROFILE_MODE_OFF,
+          :phases => :PROFILE_MODE_PHASES,
+          :timings => :PROFILE_MODE_TIMINGS,
+        }.freeze
+
         attr_reader :bucket_name
         attr_reader :scope_name
 
@@ -54,13 +65,13 @@ module Couchbase
           proto_opts[:tuning_options] = tuning_opts unless tuning_opts.nil?
 
           proto_opts[:client_context_id] = options.client_context_id unless options.client_context_id.nil?
-          proto_opts[:scan_consistency] = options.instance_variable_get(:@scan_consistency).upcase unless options.instance_variable_get(:@scan_consistency).nil?
+          proto_opts[:scan_consistency] = SCAN_CONSISTENCY_MAP[options.instance_variable_get(:@scan_consistency)] unless options.instance_variable_get(:@scan_consistency).nil?
           proto_opts[:positional_parameters] = options.export_positional_parameters unless options.export_positional_parameters.nil?
           proto_opts[:named_parameters] = options.export_named_parameters unless options.export_named_parameters.nil?
           proto_opts[:flex_index] = options.flex_index unless options.flex_index.nil?
           proto_opts[:preserve_expiry] = options.preserve_expiry unless options.preserve_expiry.nil?
           proto_opts[:consistent_with] = options.mutation_state.to_proto unless options.mutation_state.nil?
-          proto_opts[:profile_mode] = options.profile.upcase
+          proto_opts[:profile_mode] = PROFILE_MODE_MAP[options.profile]
 
           proto_req = Generated::Query::V1::QueryRequest.new(
             statement: statement,
