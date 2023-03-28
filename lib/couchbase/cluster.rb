@@ -62,12 +62,13 @@ module Couchbase
     # @see https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html
     #
     # @return [Cluster]
-    def self.connect(connection_string, *options)
+    def self.connect(connection_string_or_config, *options)
+      connection_string = connection_string_or_config.is_a?(Configuration) ? connection_string_or_config.connection_string : connection_string_or_config
       regexp = /^((couchbases?|http):\/\/.*)$/i
       if regexp.match?(connection_string) || !connection_string.include?("://")
-        Cluster.new(connection_string, *options)
+        Cluster.new(connection_string_or_config, *options)
       else
-        ClusterRegistry.instance.connect(connection_string, *options)
+        ClusterRegistry.instance.connect(connection_string_or_config, *options)
       end
     end
 
