@@ -32,13 +32,13 @@ module Couchbase
 
     # Connect to the Couchbase cluster
     #
-    # @overload connect(connection_string, options)
-    #   @param [String] connection_string connection string used to locate the Couchbase Cluster
+    # @overload connect(connection_string_or_config, options)
+    #   @param [String, Configuration] connection_string_or_config connection string used to locate the Couchbase Cluster
     #   @param [Options::Cluster] options custom options when creating the cluster connection
     #
-    # @overload connect(connection_string, username, password, options)
+    # @overload connect(connection_string_or_config, username, password, options)
     #   Shortcut for {PasswordAuthenticator}
-    #   @param [String] connection_string connection string used to locate the Couchbase Cluster
+    #   @param [String] connection_string_or_config connection string used to locate the Couchbase Cluster
     #   @param [String] username name of the user
     #   @param [String] password password of the user
     #   @param [Options::Cluster, nil] options custom options when creating the cluster connection
@@ -62,12 +62,16 @@ module Couchbase
     # @see https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html
     #
     # @return [Cluster]
-    def self.connect(connection_string, *options)
-      regexp = /^((couchbases?|http):\/\/.*)$/i
-      if regexp.match?(connection_string) || !connection_string.include?("://")
-        Cluster.new(connection_string, *options)
+    def self.connect(connection_string_or_config, *options)
+      connection_string = if connection_string_or_config.is_a?(Configuration)
+                            connection_string_or_config.connection_string
+                          else
+                            connection_string_or_config
+                          end
+      if connection_string =~ /\Acouchbases?:\/\/.*\z/i || !connection_string.include?("://")
+        Cluster.new(connection_string_or_config, *options)
       else
-        ClusterRegistry.instance.connect(connection_string, *options)
+        ClusterRegistry.instance.connect(connection_string_or_config, *options)
       end
     end
 

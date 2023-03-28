@@ -33,10 +33,9 @@ module Couchbase
     private
 
     def load_configuration(settings)
-      configuration = settings.with_indifferent_access
-      @connection_string = configuration[:connection_string]
-      @username = configuration[:username]
-      @password = configuration[:password]
+      @connection_string = settings[:connection_string] || settings["connection_string"]
+      @username = settings[:username] || settings["username"]
+      @password = settings[:password] || settings["password"]
     end
 
     def load_yaml(path, environment)

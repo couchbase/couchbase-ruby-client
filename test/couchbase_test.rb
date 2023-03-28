@@ -14,9 +14,37 @@
 
 require_relative "test_helper"
 
+require "tempfile"
+
 class CouchbaseTest < Minitest::Test
+  include Couchbase::TestUtilities
+
   def test_that_it_has_a_version_number
     refute_nil ::Couchbase::VERSION[:sdk]
     refute_nil ::Couchbase::BUILD_INFO[:cxx_client][:version]
+  end
+
+  def test_it_can_use_configuration_with_connect
+    Tempfile.open('couchbase.yaml') do |temp_file|
+      temp_file.write(YAML.dump(
+                        {
+                          'test' => {
+                            'connection_string' => env.connection_string,
+                            'username' => env.username,
+                            'password' => env.password,
+                          },
+                        }
+                      ))
+      temp_file.flush
+
+      ENV["COUCHBASE_ENV"] = "test"
+      config = Couchbase::Configuration.new
+      config.load!(temp_file.path)
+
+      cluster = Couchbase::Cluster.connect(config)
+
+      refute_nil cluster
+      cluster.disconnect
+    end
   end
 end

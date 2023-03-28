@@ -26,9 +26,14 @@ module Couchbase
       @handlers = {}
     end
 
-    def connect(connection_string, *options)
+    def connect(connection_string_or_config, *options)
+      connection_string = if connection_string_or_config.is_a?(Configuration)
+                            connection_string_or_config.connection_string
+                          else
+                            connection_string_or_config
+                          end
       @handlers.each do |regexp, cluster_class|
-        return cluster_class.connect(connection_string, *options) if regexp.match?(connection_string)
+        return cluster_class.connect(connection_string_or_config, *options) if regexp.match?(connection_string)
       end
       raise(Error::FeatureNotAvailable, "Connection string '#{connection_string}' not supported.")
     end
