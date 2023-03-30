@@ -3,6 +3,7 @@ module Couchbase
     module ResponseConverter
       class KV
         def self.from_get_response: (untyped, untyped) -> untyped
+        def self.from_touch_response: (untyped) -> untyped
         def self.from_upsert_response: (untyped) -> untyped
         def self.from_remove_response: (untyped) -> untyped
         def self.from_insert_response: (untyped) -> untyped

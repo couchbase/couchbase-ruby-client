@@ -84,29 +84,52 @@ module Couchbase
         end
 
         def get_request(id, options)
-          proto_opts = {}
-
           proto_req = Generated::KV::V1::GetRequest.new(
             key: id,
-            **location,
-            **proto_opts
+            **location
           )
 
           create_kv_request(proto_req, :get, options, true)
         end
 
         def get_and_touch_request(id, expiry, _options)
-          proto_opts = {}
-          expiry = get_expiry(expiry)
-
           proto_req = Generated::KV::V1::GetAndTouchRequest.new(
             **location,
             key: id,
-            expiry_time: expiry,
-            **proto_opts
+            expiry_time: get_expiry(expiry)
           )
 
           create_kv_request(proto_req, :get_and_touch, options)
+        end
+
+        def get_and_lock_request(id, lock_time, options)
+          proto_req = Generated::KV::V1::GetAndLockRequest.new(
+            **location,
+            key: id,
+            lock_time: lock_time.respond_to?(:in_seconds) ? lock_time.public_send(:in_seconds) : lock_time
+          )
+
+          create_kv_request(proto_req, :get_and_lock, options)
+        end
+
+        def unlock_request(id, cas, options)
+          proto_req = Generated::KV::V1::UnlockRequest.new(
+            **location,
+            key: id,
+            cas: cas
+          )
+
+          create_kv_request(proto_req, :unlock, options)
+        end
+
+        def touch_request(id, expiry, options)
+          proto_req = Generated::KV::V1::TouchRequest.new(
+            **location,
+            key: id,
+            expiry_time: get_expiry(expiry)
+          )
+
+          create_kv_request(proto_req, :touch, options)
         end
 
         def upsert_request(id, content, options)
