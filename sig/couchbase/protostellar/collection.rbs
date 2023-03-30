@@ -27,9 +27,10 @@ module Couchbase
       def binary: () -> BinaryCollection
 
       def get: (String, Couchbase::Options::Get) -> Couchbase::Collection::GetResult
-      def get_and_touch: (String, untyped, Couchbase::Options::GetAndTouch) -> Couchbase::Collection::GetResult
-      def get_and_lock: (String, untyped, Couchbase::Options::GetAndLock) -> Couchbase::Collection::GetResult
+      def get_and_touch: (String, (_CanInSeconds | Time | Integer), Couchbase::Options::GetAndTouch) -> Couchbase::Collection::GetResult
+      def get_and_lock: (String, (_CanInSeconds | Integer), Couchbase::Options::GetAndLock) -> Couchbase::Collection::GetResult
       def unlock: (String, Integer, Couchbase::Options::Unlock) -> void
+      def touch: (String, untyped, Couchbase::Options::Touch) -> Couchbase::Collection::MutationResult
       def upsert: (String, untyped, Couchbase::Options::Upsert) -> Couchbase::Collection::MutationResult
       def remove: (String, Couchbase::Options::Remove) -> Couchbase::Collection::MutationResult
       def insert: (String, untyped, Couchbase::Options::Insert) -> Couchbase::Collection::MutationResult

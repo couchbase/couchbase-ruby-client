@@ -53,6 +53,24 @@ module Couchbase
         ResponseConverter::KV.from_get_response(resp, options)
       end
 
+      def get_and_lock(id, lock_time, options = Couchbase::Options::GetAndLock::DEFAULT)
+        req = @kv_request_generator.get_and_lock_request(id, lock_time, options)
+        resp = @client.send_request(req)
+        ResponseConverter::KV.from_get_response(resp, options)
+
+      end
+
+      def unlock(id, cas, options = Couchbase::Options::Unlock::DEFAULT)
+        req = @kv_request_generator.unlock_request(id, cas, options)
+        @client.send_request(req)
+      end
+
+      def touch(id, expiry, options = Couchbase::Options::Touch::DEFAULT)
+        req = @kv_request_generator.touch_request(id, expiry, options)
+        resp = @client.send_request(req)
+        ResponseConverter::KV.from_touch_response(resp)
+      end
+
       def upsert(id, content, options = Couchbase::Options::Upsert::DEFAULT)
         req = @kv_request_generator.upsert_request(id, content, options)
         resp = @client.send_request(req)

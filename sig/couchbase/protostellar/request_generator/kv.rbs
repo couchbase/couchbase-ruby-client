@@ -18,6 +18,9 @@ module Couchbase
 
         def get_request: (String, untyped) -> untyped
         def get_and_touch_request: (String, (_CanInSeconds | Time | Integer), untyped) -> untyped
+        def get_and_lock_request: (String, (_CanInSeconds | Integer), untyped) -> untyped
+        def unlock_request: (String, Integer, untyped) -> untyped
+        def touch_request: (String, (_CanInSeconds | Time | Integer), untyped) -> untyped
         def upsert_request: (String, Object, untyped) -> untyped
         def remove_request: (String, untyped) -> untyped
         def insert_request: (String, Object, untyped) -> untyped

@@ -264,6 +264,84 @@ RSpec.describe Couchbase::Protostellar::Collection do
     end
   end
 
+  describe "#get_and_lock" do
+    context "when the document exists and is not locked" do
+      let(:doc_id) { upsert_sample_document }
+      let(:get_result) { collection.get_and_lock(doc_id, 10) }
+
+      it "fetches the document" do
+        expect(get_result.cas).not_to be 0
+      end
+
+      it "protects the document from mutations" do
+        expect { collection.remove(doc_id) }.to raise_error(Couchbase::Error::Timeout)
+      end
+    end
+
+    context "when the document is locked" do
+      let(:doc_id) { upsert_sample_document }
+
+      before do
+        collection.get_and_lock(doc_id, 10)
+      end
+
+      it "raises a Timeout error" do
+        expect { collection.get_and_lock(doc_id, 10) }.to raise_error(Couchbase::Error::Timeout)
+      end
+    end
+
+    context "when the document does not exist" do
+      it "raises a DocumentNotFound error" do
+        expect { collection.get_and_lock(unique_id(:foo), 10) }.to raise_error(Couchbase::Error::DocumentNotFound)
+      end
+    end
+  end
+
+  describe "#unlock" do
+    context "when the document exists and is not locked" do
+      let(:doc_id) { upsert_sample_document }
+      let(:cas) { collection.get(doc_id).cas }
+
+      it "raises a Timeout error" do
+        expect { collection.unlock(doc_id, cas) }.to raise_error(Couchbase::Error::Timeout)
+      end
+    end
+
+    context "when the document is locked" do
+      let(:doc_id) { upsert_sample_document }
+      let(:cas) { collection.get_and_lock(doc_id, 10).cas }
+
+      it "unlocks the document if the correct CAS is used" do
+        collection.unlock(doc_id, cas)
+        expect { collection.remove(doc_id) }.not_to raise_error
+      end
+    end
+
+    context "when the document does not exist" do
+      it "raises a DocumentNotFound error" do
+        expect { collection.unlock(unique_id(:foo), 42) }.to raise_error(Couchbase::Error::DocumentNotFound)
+      end
+    end
+  end
+
+  describe "#touch" do
+    context "when the document exists" do
+      let(:doc_id) { upsert_sample_document }
+
+      it "sets the expiration" do
+        collection.touch(doc_id, 1)
+        sleep(2)
+        expect { collection.get(doc_id) }.to raise_error(Couchbase::Error::DocumentNotFound)
+      end
+    end
+
+    context "when the document does not exist" do
+      it "raises a DocumentNotFound error" do
+        expect { collection.touch(unique_id(:foo), 2) }.to raise_error(Couchbase::Error::DocumentNotFound)
+      end
+    end
+  end
+
   describe "#lookup_in" do
     context "when retrieving a sub-document value" do
       subject(:lookup_in_result) do

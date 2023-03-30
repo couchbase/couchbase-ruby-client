@@ -40,6 +40,10 @@ module Couchbase
           end
         end
 
+        def self.from_touch_response(resp)
+          from_mutation_response(resp)
+        end
+
         def self.from_upsert_response(resp)
           from_mutation_response(resp)
         end
