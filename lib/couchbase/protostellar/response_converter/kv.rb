@@ -21,7 +21,7 @@ module Couchbase
   module Protostellar
     module ResponseConverter
       class KV
-        def self.from_get_response(resp, options)
+        def self.to_get_result(resp, options)
           Couchbase::Collection::GetResult.new do |res|
             res.transcoder = options.transcoder
             res.cas = resp.cas
@@ -29,45 +29,25 @@ module Couchbase
             res.encoded = resp.content
 
             # TODO: Handle conversion of content type & compression type to flag
-            res.flags = resp.content_type.downcase
+            res.flags = resp.content_flags
           end
         end
 
-        def self.from_mutation_response(resp)
+        def self.to_mutation_result(resp)
           Couchbase::Collection::MutationResult.new do |res|
             res.cas = resp.cas
             res.mutation_token = extract_mutation_token(resp)
           end
         end
 
-        def self.from_touch_response(resp)
-          from_mutation_response(resp)
-        end
-
-        def self.from_upsert_response(resp)
-          from_mutation_response(resp)
-        end
-
-        def self.from_remove_response(resp)
-          from_mutation_response(resp)
-        end
-
-        def self.from_insert_response(resp)
-          from_mutation_response(resp)
-        end
-
-        def self.from_replace_response(resp)
-          from_mutation_response(resp)
-        end
-
-        def self.from_exists_response(resp)
+        def self.to_exists_result(resp)
           Couchbase::Collection::ExistsResult.new do |res|
             res.cas = resp.cas
             res.exists = resp.result
           end
         end
 
-        def self.from_lookup_in_response(resp, specs, options)
+        def self.to_lookup_in_result(resp, specs, options)
           Couchbase::Collection::LookupInResult.new do |res|
             res.cas = resp.cas
             res.transcoder = options.transcoder
@@ -82,7 +62,7 @@ module Couchbase
           end
         end
 
-        def self.from_mutate_in_response(resp, specs, options)
+        def self.to_mutate_in_result(resp, specs, options)
           Couchbase::Collection::MutateInResult.new do |res|
             res.cas = resp.cas
             res.transcoder = options.transcoder
@@ -98,23 +78,7 @@ module Couchbase
           end
         end
 
-        def self.from_increment_response(resp)
-          from_counter_response(resp)
-        end
-
-        def self.from_decrement_response(resp)
-          from_counter_response(resp)
-        end
-
-        def self.from_append_response(resp)
-          from_mutation_response(resp)
-        end
-
-        def self.from_prepend_response(resp)
-          from_mutation_response(resp)
-        end
-
-        def self.from_counter_response(resp)
+        def self.to_counter_result(resp)
           Couchbase::BinaryCollection::CounterResult.new do |res|
             res.cas = resp.cas
             res.content = resp.content
@@ -124,6 +88,8 @@ module Couchbase
 
         def self.extract_mutation_token(resp)
           proto_token = resp.mutation_token
+          return nil if proto_token.nil?
+
           Couchbase::MutationToken.new do |token|
             token.bucket_name = proto_token.bucket_name
             token.partition_id = proto_token.vbucket_id

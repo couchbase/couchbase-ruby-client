@@ -89,14 +89,18 @@ module Couchbase
             **location
           )
 
-          create_kv_request(proto_req, :get, options, true)
+          create_kv_request(proto_req, :get, options, idempotent: true)
         end
 
         def get_and_touch_request(id, expiry, _options)
+          expiry_type, expiry_value = get_expiry(expiry)
+
+          raise ArgumentError, "Expiry cannot be nil" if expiry_value.nil?
+
           proto_req = Generated::KV::V1::GetAndTouchRequest.new(
+            **{expiry_type => expiry_value},
             **location,
-            key: id,
-            expiry_time: get_expiry(expiry)
+            key: id
           )
 
           create_kv_request(proto_req, :get_and_touch, options)
@@ -123,23 +127,30 @@ module Couchbase
         end
 
         def touch_request(id, expiry, options)
+          expiry_type, expiry_value = get_expiry(expiry)
+
+          raise ArgumentError, "Expiry cannot be nil" if expiry_value.nil?
+
           proto_req = Generated::KV::V1::TouchRequest.new(
+            **{expiry_type => expiry_value},
             **location,
-            key: id,
-            expiry_time: get_expiry(expiry)
+            key: id
           )
 
           create_kv_request(proto_req, :touch, options)
         end
 
         def upsert_request(id, content, options)
-          encoded = get_encoded(content, options)
+          encoded, flag = get_encoded(content, options)
 
           proto_opts = {
-            content_type: get_content_type(options),
+            content_flags: flag,
           }
           proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
-          proto_opts[:expiry_time] = get_expiry(options) unless options.preserve_expiry  # TODO: Figure out expiry
+          unless options.preserve_expiry
+            expiry_type, expiry_value = get_expiry(options)
+            proto_opts[expiry_type] = expiry_value unless expiry_value.nil?
+          end
 
           proto_req = Generated::KV::V1::UpsertRequest.new(
             key: id,
@@ -152,14 +163,15 @@ module Couchbase
         end
 
         def insert_request(id, content, options)
-          encoded = get_encoded(content, options)
+          encoded, flag = get_encoded(content, options)
 
           proto_opts = {
-            content_type: get_content_type(options),
+            content_flags: flag,
           }
 
           proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
-          proto_opts[:expiry_time] = get_expiry(options) unless options.expiry[1].nil?
+          expiry_type, expiry_value = get_expiry(options)
+          proto_opts[expiry_type] = expiry_value unless expiry_value.nil?
 
           proto_req = Generated::KV::V1::InsertRequest.new(
             key: id,
@@ -172,16 +184,18 @@ module Couchbase
         end
 
         def replace_request(id, content, options)
-          encoded = get_encoded(content, options)
+          encoded, flag = get_encoded(content, options)
 
           proto_opts = {
-            content_type: get_content_type(options),
+            content_flags: flag,
           }
 
           proto_opts[:cas] = options.cas unless options.cas.nil?
           proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
-          proto_opts[:expiry_time] = get_expiry(options) unless options.preserve_expiry
-
+          unless options.preserve_expiry
+            expiry_type, expiry_value = get_expiry(options)
+            proto_opts[expiry_type] = expiry_value unless expiry_value.nil?
+          end
           proto_req = Generated::KV::V1::ReplaceRequest.new(
             key: id,
             content: encoded,
@@ -249,14 +263,17 @@ module Couchbase
             **proto_opts
           )
 
-          create_kv_request(proto_req, :lookup_in, options, true)
+          puts proto_req
+
+          create_kv_request(proto_req, :lookup_in, options, idempotent: true)
         end
 
         def increment_request(id, options)
           proto_opts = {
             delta: options.delta,
           }
-          proto_opts[:expiry_time] = get_expiry(options) unless options.expiry[1].nil?
+          expiry_type, expiry_value = get_expiry(options)
+          proto_opts[expiry_type] = expiry_value unless expiry_value.nil?
           proto_opts[:initial] = options.initial unless options.initial.nil?
 
           proto_req = Generated::KV::V1::IncrementRequest.new(
@@ -272,7 +289,8 @@ module Couchbase
           proto_opts = {
             delta: options.delta,
           }
-          proto_opts[:expiry_time] = get_expiry(options) unless options.expiry[1].nil?
+          expiry_type, expiry_value = get_expiry(options)
+          proto_opts[expiry_type] = expiry_value unless expiry_value.nil?
           proto_opts[:initial] = options.initial unless options.initial.nil?
 
           proto_req = Generated::KV::V1::DecrementRequest.new(
@@ -314,7 +332,7 @@ module Couchbase
 
         private
 
-        def create_kv_request(proto_request, rpc, options, idempotent = false)
+        def create_kv_request(proto_request, rpc, options, idempotent: false)
           Request.new(
             service: :kv,
             rpc: rpc,
@@ -330,24 +348,20 @@ module Couchbase
           else
             type, time_or_duration = Couchbase::Utils::Time.extract_expiry_time(options_or_expiry)
           end
-          seconds =
-            if time_or_duration.nil?
-              0
-            elsif type == :duration
-              ::Time.now.tv_sec + time_or_duration
-            else
-              time_or_duration
-            end
-          Google::Protobuf::Timestamp.new({:seconds => seconds})
-        end
 
-        def get_content_type(options)
-          if options.transcoder.instance_of?(Couchbase::JsonTranscoder)
-            :DOCUMENT_CONTENT_TYPE_JSON
-          elsif options.transcoder.nil?
-            :DOCUMENT_CONTENT_TYPE_BINARY
+          return [nil, nil] if time_or_duration.nil?
+
+          case type
+          when :duration
+            [:expiry_secs, time_or_duration]
+          when :time_point
+            timestamp = Google::Protobuf::Timestamp.new(
+              seconds: time_or_duration.tv_sec,
+              nanos: time_or_duration.tv_nsec
+            )
+            [:expiry_time, timestamp]
           else
-            :DOCUMENT_CONTENT_TYPE_UNKNOWN
+            raise Protostellar::Error::InvalidExpiryType
           end
         end
 
@@ -416,10 +430,11 @@ module Couchbase
         def get_encoded(content, options)
           if options.transcoder.nil?
             encoded = content.to_s
+            flag = 0
           else
-            encoded, = options.transcoder.encode(content)
+            encoded, flag = options.transcoder.encode(content)
           end
-          encoded
+          [encoded, flag]
         end
 
         def get_timeout(options)

@@ -32,7 +32,7 @@ module Couchbase
         def get_all_scopes(options = Couchbase::Management::Options::Collection::GetAllScopes.new)
           req = @request_generator.list_collections_request(options)
           resp = @client.send_request(req)
-          ResponseConverter::Admin::Collection.from_list_collections_response(resp)
+          ResponseConverter::Admin::Collection.to_scope_spec_array(resp)
         end
 
         def create_scope(scope_name, options = Couchbase::Management::Options::Collection::CreateScope.new)

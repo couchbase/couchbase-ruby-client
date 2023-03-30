@@ -30,25 +30,25 @@ module Couchbase
       def append(id, content, options = Options::Append::DEFAULT)
         req = @kv_request_generator.append_request(id, content, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_append_response(resp)
+        ResponseConverter::KV.to_mutation_result(resp)
       end
 
       def prepend(id, content, options = Options::Prepend::DEFAULT)
         req = @kv_request_generator.prepend_request(id, content, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_prepend_response(resp)
+        ResponseConverter::KV.to_mutation_result(resp)
       end
 
       def increment(id, options = Options::Increment::DEFAULT)
         req = @kv_request_generator.increment_request(id, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_increment_response(resp)
+        ResponseConverter::KV.to_counter_result(resp)
       end
 
       def decrement(id, options = Options::Decrement::DEFAULT)
         req = @kv_request_generator.decrement_request(id, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_decrement_response(resp)
+        ResponseConverter::KV.to_counter_result(resp)
       end
     end
   end

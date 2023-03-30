@@ -267,7 +267,7 @@ RSpec.describe Couchbase::Protostellar::Collection do
   describe "#get_and_lock" do
     context "when the document exists and is not locked" do
       let(:doc_id) { upsert_sample_document }
-      let(:get_result) { collection.get_and_lock(doc_id, 10) }
+      let!(:get_result) { collection.get_and_lock(doc_id, 10) }
 
       it "fetches the document" do
         expect(get_result.cas).not_to be 0
@@ -330,7 +330,7 @@ RSpec.describe Couchbase::Protostellar::Collection do
 
       it "sets the expiration" do
         collection.touch(doc_id, 1)
-        sleep(2)
+        sleep(5)
         expect { collection.get(doc_id) }.to raise_error(Couchbase::Error::DocumentNotFound)
       end
     end

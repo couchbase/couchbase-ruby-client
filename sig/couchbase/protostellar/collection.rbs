@@ -35,7 +35,9 @@ module Couchbase
       def remove: (String, Couchbase::Options::Remove) -> Couchbase::Collection::MutationResult
       def insert: (String, untyped, Couchbase::Options::Insert) -> Couchbase::Collection::MutationResult
       def replace: (String, untyped, Couchbase::Options::Replace) -> Couchbase::Collection::MutationResult
-      def exists: (String, ExistsOptions) -> Couchbase::Collection::ExistsResult
+      def exists: (String, Couchbase::Options::Exists) -> Couchbase::Collection::ExistsResult
+      def lookup_in: (String, Array[Couchbase::LookupInSpec], Couchbase::Options::LookupIn) -> Couchbase::Collection::LookupInResult
+      def mutate_in: (String, Array[Couchbase::MutateInSpec], Couchbase::Options::MutateIn) -> Couchbase::Collection::MutateInResult
     end
   end
 end

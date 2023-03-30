@@ -44,20 +44,19 @@ module Couchbase
       def get(id, options = Couchbase::Options::Get::DEFAULT)
         req = @kv_request_generator.get_request(id, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_get_response(resp, options)
+        ResponseConverter::KV.to_get_result(resp, options)
       end
 
       def get_and_touch(id, expiry, options = Couchbase::Options::GetAndTouch::DEFAULT)
         req = @kv_request_generator.get_and_touch_request(id, expiry, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_get_response(resp, options)
+        ResponseConverter::KV.to_get_result(resp, options)
       end
 
       def get_and_lock(id, lock_time, options = Couchbase::Options::GetAndLock::DEFAULT)
         req = @kv_request_generator.get_and_lock_request(id, lock_time, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_get_response(resp, options)
-
+        ResponseConverter::KV.to_get_result(resp, options)
       end
 
       def unlock(id, cas, options = Couchbase::Options::Unlock::DEFAULT)
@@ -68,49 +67,49 @@ module Couchbase
       def touch(id, expiry, options = Couchbase::Options::Touch::DEFAULT)
         req = @kv_request_generator.touch_request(id, expiry, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_touch_response(resp)
+        ResponseConverter::KV.to_mutation_result(resp)
       end
 
       def upsert(id, content, options = Couchbase::Options::Upsert::DEFAULT)
         req = @kv_request_generator.upsert_request(id, content, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_upsert_response(resp)
+        ResponseConverter::KV.to_mutation_result(resp)
       end
 
       def remove(id, options = Couchbase::Options::Remove::DEFAULT)
         req = @kv_request_generator.remove_request(id, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_remove_response(resp)
+        ResponseConverter::KV.to_mutation_result(resp)
       end
 
       def insert(id, content, options = Couchbase::Options::Insert::DEFAULT)
         req = @kv_request_generator.insert_request(id, content, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_insert_response(resp)
+        ResponseConverter::KV.to_mutation_result(resp)
       end
 
       def replace(id, content, options = Couchbase::Options::Replace::DEFAULT)
         req = @kv_request_generator.replace_request(id, content, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_replace_response(resp)
+        ResponseConverter::KV.to_mutation_result(resp)
       end
 
       def exists(id, options = Couchbase::Options::Exists::DEFAULT)
         req = @kv_request_generator.exists_request(id, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_exists_response(resp)
+        ResponseConverter::KV.to_exists_result(resp)
       end
 
       def lookup_in(id, specs, options = Couchbase::Options::LookupIn::DEFAULT)
         req = @kv_request_generator.lookup_in_request(id, specs, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_lookup_in_response(resp, specs, options)
+        ResponseConverter::KV.to_lookup_in_result(resp, specs, options)
       end
 
       def mutate_in(id, specs, options = Couchbase::Options::MutateIn::DEFAULT)
         req = @kv_request_generator.mutate_in_request(id, specs, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.from_mutate_in_response(resp, specs, options)
+        ResponseConverter::KV.to_mutate_in_result(resp, specs, options)
       end
     end
   end

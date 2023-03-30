@@ -21,7 +21,7 @@ module Couchbase
     module ResponseConverter
       module Admin
         class Collection
-          def self.from_list_collections_response(resp)
+          def self.to_scope_spec_array(resp)
             resp.scopes.map do |s|
               Couchbase::Management::ScopeSpec.new do |scope_spec|
                 scope_spec.name = s.name

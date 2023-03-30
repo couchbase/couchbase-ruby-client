@@ -35,7 +35,7 @@ module Couchbase
           :STATUS_UNKNOWN => :unknown,
         }.freeze
 
-        def self.from_query_responses(resps)
+        def self.to_query_result(resps)
           Couchbase::Cluster::QueryResult.new do |res|
             rows = []
             resps.each do |resp|
