@@ -23,10 +23,10 @@ module Couchbase
 
           def initialize(backoff_calculator = nil)
             # The default backoff calculator starts with a 1 millisecond backoff and doubles it after each retry
-            # attempt, up to a maximum of 50 milliseconds
+            # attempt, up to a maximum of 500 milliseconds
             @backoff_calculator =
               if backoff_calculator.nil?
-                lambda { |retry_attempt_count| [2**retry_attempt_count, 50].min }
+                lambda { |retry_attempt_count| [2**retry_attempt_count, 500].min }
               else
                 backoff_calculator
               end

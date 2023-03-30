@@ -26,8 +26,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "couchbase.kv.v1.GetResponse" do
       optional :content, :bytes, 1
-      optional :content_type, :enum, 2, "couchbase.kv.v1.DocumentContentType"
-      optional :compression_type, :enum, 5, "couchbase.kv.v1.DocumentCompressionType"
+      optional :content_flags, :uint32, 6
       optional :cas, :uint64, 3
       optional :expiry, :message, 4, "google.protobuf.Timestamp"
     end
@@ -43,8 +42,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "couchbase.kv.v1.GetAndTouchResponse" do
       optional :content, :bytes, 1
-      optional :content_type, :enum, 2, "couchbase.kv.v1.DocumentContentType"
-      optional :compression_type, :enum, 5, "couchbase.kv.v1.DocumentCompressionType"
+      optional :content_flags, :uint32, 6
       optional :cas, :uint64, 3
       optional :expiry, :message, 4, "google.protobuf.Timestamp"
     end
@@ -57,8 +55,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "couchbase.kv.v1.GetAndLockResponse" do
       optional :content, :bytes, 1
-      optional :content_type, :enum, 2, "couchbase.kv.v1.DocumentContentType"
-      optional :compression_type, :enum, 5, "couchbase.kv.v1.DocumentCompressionType"
+      optional :content_flags, :uint32, 6
       optional :cas, :uint64, 3
       optional :expiry, :message, 4, "google.protobuf.Timestamp"
     end
@@ -71,8 +68,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "couchbase.kv.v1.GetReplicaResponse" do
       optional :content, :bytes, 1
-      optional :content_type, :enum, 2, "couchbase.kv.v1.DocumentContentType"
-      optional :compression_type, :enum, 5, "couchbase.kv.v1.DocumentCompressionType"
+      optional :content_flags, :uint32, 6
       optional :cas, :uint64, 3
       optional :expiry, :message, 4, "google.protobuf.Timestamp"
     end
@@ -115,7 +111,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :collection_name, :string, 3
       optional :key, :string, 4
       optional :content, :bytes, 5
-      optional :content_type, :enum, 6, "couchbase.kv.v1.DocumentContentType"
+      optional :content_flags, :uint32, 11
       proto3_optional :durability_level, :enum, 9, "couchbase.kv.v1.DurabilityLevel"
       oneof :expiry do
         optional :expiry_time, :message, 7, "google.protobuf.Timestamp"
@@ -132,7 +128,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :collection_name, :string, 3
       optional :key, :string, 4
       optional :content, :bytes, 5
-      optional :content_type, :enum, 6, "couchbase.kv.v1.DocumentContentType"
+      optional :content_flags, :uint32, 11
       proto3_optional :durability_level, :enum, 9, "couchbase.kv.v1.DurabilityLevel"
       oneof :expiry do
         optional :expiry_time, :message, 7, "google.protobuf.Timestamp"
@@ -149,7 +145,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :collection_name, :string, 3
       optional :key, :string, 4
       optional :content, :bytes, 5
-      optional :content_type, :enum, 6, "couchbase.kv.v1.DocumentContentType"
+      optional :content_flags, :uint32, 12
       proto3_optional :cas, :uint64, 7
       proto3_optional :durability_level, :enum, 10, "couchbase.kv.v1.DurabilityLevel"
       oneof :expiry do
@@ -277,6 +273,10 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       proto3_optional :durability_level, :enum, 8, "couchbase.kv.v1.DurabilityLevel"
       proto3_optional :cas, :uint64, 9
       proto3_optional :flags, :message, 10, "couchbase.kv.v1.MutateInRequest.Flags"
+      oneof :expiry do
+        optional :expiry_time, :message, 11, "google.protobuf.Timestamp"
+        optional :expiry_secs, :uint32, 12
+      end
     end
     add_message "couchbase.kv.v1.MutateInRequest.Spec" do
       optional :operation, :enum, 1, "couchbase.kv.v1.MutateInRequest.Spec.Operation"
@@ -348,26 +348,15 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       proto3_optional :meta_data, :message, 3, "couchbase.kv.v1.RangeScanResponse.Document.MetaData"
     end
     add_message "couchbase.kv.v1.RangeScanResponse.Document.MetaData" do
-      optional :flags, :uint32, 1
+      optional :content_flags, :uint32, 1
       proto3_optional :expiry, :message, 2, "google.protobuf.Timestamp"
       optional :seqno, :uint64, 3
       optional :cas, :uint64, 4
-      optional :content_type, :enum, 5, "couchbase.kv.v1.DocumentContentType"
-      optional :compression_type, :enum, 6, "couchbase.kv.v1.DocumentCompressionType"
     end
     add_enum "couchbase.kv.v1.DurabilityLevel" do
       value :DURABILITY_LEVEL_MAJORITY, 0
       value :DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE, 1
       value :DURABILITY_LEVEL_PERSIST_TO_MAJORITY, 2
-    end
-    add_enum "couchbase.kv.v1.DocumentContentType" do
-      value :DOCUMENT_CONTENT_TYPE_UNKNOWN, 0
-      value :DOCUMENT_CONTENT_TYPE_BINARY, 1
-      value :DOCUMENT_CONTENT_TYPE_JSON, 2
-    end
-    add_enum "couchbase.kv.v1.DocumentCompressionType" do
-      value :DOCUMENT_COMPRESSION_TYPE_NONE, 0
-      value :DOCUMENT_COMPRESSION_TYPE_SNAPPY, 1
     end
   end
 end
@@ -432,8 +421,6 @@ module Couchbase
           RangeScanResponse::Document = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.RangeScanResponse.Document").msgclass
           RangeScanResponse::Document::MetaData = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.RangeScanResponse.Document.MetaData").msgclass
           DurabilityLevel = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.DurabilityLevel").enummodule
-          DocumentContentType = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.DocumentContentType").enummodule
-          DocumentCompressionType = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.DocumentCompressionType").enummodule
         end
       end
     end

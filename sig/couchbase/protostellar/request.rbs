@@ -38,8 +38,8 @@ module Couchbase
         ) -> void
 
       def deadline: () -> untyped
-
       def add_retry_attempt: (Retry::Reason) -> void
+      def error_context: () -> Hash[Symbol, any]
     end
   end
 end

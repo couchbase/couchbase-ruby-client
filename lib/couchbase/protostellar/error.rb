@@ -12,6 +12,9 @@ module Couchbase
 
       class InvalidRetryBehaviour < ProtostellarError
       end
+
+      class InvalidExpiryType < ProtostellarError
+      end
     end
   end
 end

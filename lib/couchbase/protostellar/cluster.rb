@@ -54,7 +54,7 @@ module Couchbase
       def query(statement, options = Couchbase::Options::Query::DEFAULT)
         req = @query_request_generator.query_request(statement, options)
         resps = @client.send_request(req)
-        ResponseConverter::Query.from_query_responses(resps)
+        ResponseConverter::Query.to_query_result(resps)
       end
     end
   end

@@ -1,23 +1,27 @@
+#  Copyright 2023. Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 module Couchbase
   module Protostellar
     module ResponseConverter
       class KV
-        def self.from_get_response: (untyped, untyped) -> untyped
-        def self.from_touch_response: (untyped) -> untyped
-        def self.from_upsert_response: (untyped) -> untyped
-        def self.from_remove_response: (untyped) -> untyped
-        def self.from_insert_response: (untyped) -> untyped
-        def self.from_replace_response: (untyped) -> untyped
-        def self.from_exists_response: (untyped) -> untyped
-        def self.from_lookup_in_response: (untyped, untyped, untyped) -> untyped
-        def self.from_mutate_in_response: (untyped, untyped, untyped) -> untyped
-        def self.from_increment_response: (untyped) -> untyped
-        def self.from_decrement_response: (untyped) -> untyped
-        def self.from_append_response: (untyped) -> untyped
-        def self.from_prepend_response: (untyped) -> untyped
-
-        def self.from_mutation_response: (untyped) -> untyped
-        def self.from_counter_response: (untyped) -> untyped
+        def self.to_get_result: (untyped resp, untyped options) -> untyped
+        def self.to_mutation_result: (untyped resp) -> untyped
+        def self.to_exists_result: (untyped resp) -> untyped
+        def self.to_counter_result: (untyped resp) -> untyped
+        def self.to_lookup_in_result: (untyped resp, untyped specs, untyped options) -> untyped
+        def self.to_mutate_in_result: (untyped resp, untyped specs, untyped options) -> untyped
 
         def self.extract_mutation_token: (untyped) -> untyped
       end

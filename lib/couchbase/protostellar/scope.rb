@@ -40,12 +40,8 @@ module Couchbase
 
       def query(statement, options = Couchbase::Options::Query::DEFAULT)
         req = @query_request_generator.query_request(statement, options)
-        begin
-          resps = @client.query(req, timeout: options.timeout)
-        rescue GRPC::DeadlineExceeded
-          raise Couchbase::Error::Timeout
-        end
-        ResponseConverter::Query.from_query_responses(resps)
+        resps = @client.send_request(req)
+        ResponseConverter::Query.to_query_result(resps)
       end
     end
   end

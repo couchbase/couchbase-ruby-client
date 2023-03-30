@@ -78,13 +78,12 @@ module Couchbase
             **proto_opts
           )
 
-          idempotent = options.readonly ? true : false
-          create_query_request(proto_req, :query, options, idempotent)
+          create_query_request(proto_req, :query, options, idempotent: options.readonly && true)
         end
 
         private
 
-        def create_query_request(proto_request, rpc, options, idempotent = false)
+        def create_query_request(proto_request, rpc, options, idempotent: false)
           Request.new(
             service: :query,
             rpc: rpc,

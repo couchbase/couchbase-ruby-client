@@ -47,6 +47,7 @@ module Couchbase
         @retry_attempts = 0
         @retry_reasons = Set.new
         @retry_strategy = retry_strategy
+        @context = {}
       end
 
       def deadline
@@ -60,6 +61,10 @@ module Couchbase
       def add_retry_attempt(reason)
         @retry_reasons.add(reason)
         @retry_attempts += 1
+      end
+
+      def error_context
+        @context.merge({retry_reasons: @retry_reasons.to_a, retry_attempts: @retry_attempts})
       end
     end
   end

@@ -19,6 +19,7 @@ require "google/rpc/error_details_pb"
 
 require_relative "request_behaviour"
 require_relative "retry/orchestrator"
+require_relative "retry/reason"
 
 module Couchbase
   module Protostellar
@@ -43,7 +44,7 @@ module Couchbase
           if type_url == TYPE_URL_PRECONDITION_FAILURE
             precondition_failure = Google::Rpc::PreconditionFailure.decode(d.value)
             detail_block[:precondition_failure] = precondition_failure
-            context[:precondition_violations] = precondition_failure.violations.map do |v|
+            request.context[:precondition_violations] = precondition_failure.violations.map do |v|
               {
                 violation_type: v.type,
                 violation_subject: v.subject,
@@ -92,24 +93,28 @@ module Couchbase
       def self.handle_generic_error(grpc_error, detail_block, request)
         case grpc_error
         when GRPC::DeadlineExceeded
-          RequestBehaviour.fail(Couchbase::Error::Timeout.new(nil, request.context))
+          if request.idempotent
+            RequestBehaviour.fail(Couchbase::Error::UnambiguousTimeout.new(nil, request.error_context))
+          else
+            RequestBehaviour.fail(Couchbase::Error::AmbiguousTimeout.new(nil, request.error_context))
+          end
         when GRPC::Cancelled
-          RequestBehaviour.fail(Couchbase::Error::RequestCanceled.new(nil, request.context))
+          RequestBehaviour.fail(Couchbase::Error::RequestCanceled.new(nil, request.error_context))
         when GRPC::Aborted
           if detail_block[:error_info].reason == "CAS_MISMATCH" && detail_block[:resource_info].resource_type == "document"
-            RequestBehaviour.fail(Couchbase::Error::CasMismatch.new("CAS mismatch", request.context))
+            RequestBehaviour.fail(Couchbase::Error::CasMismatch.new("CAS mismatch", request.error_context))
           end
         when GRPC::NotFound
           case detail_block[:resource_info].resource_type
           when "collection"
-            RequestBehaviour.fail(Couchbase::Error::CollectionNotFound.new("Collection not found", request.context))
+            RequestBehaviour.fail(Couchbase::Error::CollectionNotFound.new("Collection not found", request.error_context))
           when "bucket"
-            RequestBehaviour.fail(Couchbase::Error::BucketNotFound.new("Bucket not found", request.context))
+            RequestBehaviour.fail(Couchbase::Error::BucketNotFound.new("Bucket not found", request.error_context))
           when "scope"
-            RequestBehaviour.fail(Couchbase::Error::ScopeNotFound.new("Scope not found", request.context))
+            RequestBehaviour.fail(Couchbase::Error::ScopeNotFound.new("Scope not found", request.error_context))
           end
         else
-          RequestBehaviour.fail(Couchbase::Error::CouchbaseError.new(nil, request.context))
+          RequestBehaviour.fail(Couchbase::Error::CouchbaseError.new(nil, request.error_context))
         end
       end
 
@@ -117,11 +122,12 @@ module Couchbase
         behaviour =
           case grpc_error
           when GRPC::NotFound
-            RequestBehaviour.fail(Couchbase::Error::DocumentNotFound.new("Document not found", request.context)) if detail_block[:resource_info].resource_type == "document"
+            RequestBehaviour.fail(Couchbase::Error::DocumentNotFound.new("Document not found", request.error_context)) if detail_block[:resource_info].resource_type == "document"
           when GRPC::AlreadyExists
-            RequestBehaviour.fail(Couchbase::Error::DocumentExists.new("Document already exists", request.context)) if detail_block[:resource_info].resource_type == "document"
+            RequestBehaviour.fail(Couchbase::Error::DocumentExists.new("Document already exists", request.error_context)) if detail_block[:resource_info].resource_type == "document"
           when GRPC::FailedPrecondition
-            Retry::Orchestrator.maybe_retry(request, Retry::Reason::KV_LOCKED) if detail_block[:precondition_failure].violations[0].type == "DOCUMENT_LOCKED"
+
+            Retry::Orchestrator.maybe_retry(request, Retry::Reason::KV_LOCKED) if detail_block[:precondition_failure].violations[0].type == "LOCKED"
           end
         if behaviour.nil?
           handle_generic_error(grpc_error, detail_block, request)
