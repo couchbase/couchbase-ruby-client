@@ -694,7 +694,7 @@ module Couchbase
     def test_append
       doc_id = uniq_id(:append)
 
-      res = @collection.upsert(doc_id, "foo")
+      res = @collection.upsert(doc_id, "foo", Options::Upsert(transcoder: nil))
 
       refute_equal 0, res.cas
 
@@ -704,13 +704,13 @@ module Couchbase
 
       res = @collection.get(doc_id, Options::Get(transcoder: nil))
 
-      refute_equal "foobar", res.content
+      assert_equal "foobar", res.content
     end
 
     def test_prepend
       doc_id = uniq_id(:append)
 
-      res = @collection.upsert(doc_id, "foo")
+      res = @collection.upsert(doc_id, "foo", Options::Upsert(transcoder: nil))
 
       refute_equal 0, res.cas
 
@@ -720,13 +720,15 @@ module Couchbase
 
       res = @collection.get(doc_id, Options::Get(transcoder: nil))
 
-      refute_equal "barfoo", res.content
+      puts res.content
+
+      assert_equal "barfoo", res.content
     end
 
     def test_append_with_durability
       doc_id = uniq_id(:append)
 
-      res = @collection.upsert(doc_id, "foo")
+      res = @collection.upsert(doc_id, "foo", Options::Upsert(transcoder: nil))
 
       refute_equal 0, res.cas
 
@@ -736,13 +738,13 @@ module Couchbase
 
       res = @collection.get(doc_id, Options::Get(transcoder: nil))
 
-      refute_equal "foobar", res.content
+      assert_equal "foobar", res.content
     end
 
     def test_prepend_with_durability
       doc_id = uniq_id(:append)
 
-      res = @collection.upsert(doc_id, "foo")
+      res = @collection.upsert(doc_id, "foo", Options::Upsert(transcoder: nil))
 
       refute_equal 0, res.cas
 
@@ -752,7 +754,7 @@ module Couchbase
 
       res = @collection.get(doc_id, Options::Get(transcoder: nil))
 
-      refute_equal "barfoo", res.content
+      assert_equal "barfoo", res.content
     end
 
     def test_multi_ops
