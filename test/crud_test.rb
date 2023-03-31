@@ -723,6 +723,38 @@ module Couchbase
       refute_equal "barfoo", res.content
     end
 
+    def test_append_with_durability
+      doc_id = uniq_id(:append)
+
+      res = @collection.upsert(doc_id, "foo")
+
+      refute_equal 0, res.cas
+
+      res = @collection.binary.append(doc_id, "bar", Options::Append(durability_level: :majority))
+
+      refute_equal 0, res.cas
+
+      res = @collection.get(doc_id, Options::Get(transcoder: nil))
+
+      refute_equal "foobar", res.content
+    end
+
+    def test_prepend_with_durability
+      doc_id = uniq_id(:append)
+
+      res = @collection.upsert(doc_id, "foo")
+
+      refute_equal 0, res.cas
+
+      res = @collection.binary.prepend(doc_id, "bar", Options::Prepend(durability_level: :majority))
+
+      refute_equal 0, res.cas
+
+      res = @collection.get(doc_id, Options::Get(transcoder: nil))
+
+      refute_equal "barfoo", res.content
+    end
+
     def test_multi_ops
       doc_id1 = uniq_id(:foo)
       doc_id2 = uniq_id(:bar)
