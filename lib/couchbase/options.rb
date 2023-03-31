@@ -1029,10 +1029,38 @@ module Couchbase
     # Options for {BinaryCollection#append}
     class Append < Base
       attr_accessor :cas # @return [Integer]
+      attr_accessor :durability_level # @return [Symbol]
+      attr_accessor :replicate_to # @return [Symbol]
+      attr_accessor :persist_to # @return [Symbol]
 
       # Creates an instance of options for {BinaryCollection#append}
       #
       # @param [Integer] cas The default CAS used (0 means no CAS in this context)
+      # @param [Symbol] durability_level level of durability
+      #  +:none+::
+      #     no enhanced durability required for the mutation
+      #  +:majority+::
+      #     the mutation must be replicated to a majority of the Data Service nodes
+      #     (that is, held in the memory allocated to the bucket)
+      #  +:majority_and_persist_to_active+::
+      #     The mutation must be replicated to a majority of the Data Service nodes.
+      #     Additionally, it must be persisted (that is, written and synchronised to disk) on the
+      #     node hosting the active partition (vBucket) for the data.
+      #  +:persist_to_majority+::
+      #     The mutation must be persisted to a majority of the Data Service nodes.
+      #     Accordingly, it will be written to disk on those nodes.
+      # @param [Symbol] replicate_to number of nodes to replicate
+      #  +:none+:: do not apply any replication requirements.
+      #  +:one+::  wait for replication to at least one node.
+      #  +:two+::  wait for replication to at least two nodes.
+      #  +:three+:: wait for replication to at least three nodes.
+      # @param [Symbol] persist_to number of nodes to persist
+      #  +:none+:: do not apply any persistence requirements.
+      #  +:active+::  wait for persistence to active node
+      #  +:one+::  wait for persistence to at least one node.
+      #  +:two+:: wait for persistence to at least two nodes.
+      #  +:three+:: wait for persistence to at least three nodes.
+      #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -1041,12 +1069,23 @@ module Couchbase
       #
       # @yieldparam [Append] self
       def initialize(cas: nil,
+                     durability_level: :none,
+                     replicate_to: :none,
+                     persist_to: :none,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @cas = cas
+
+        if durability_level != :none && (replicate_to != :none || persist_to != :none)
+          raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
+        end
+
+        @durability_level = durability_level
+        @replicate_to = replicate_to
+        @persist_to = persist_to
         yield self if block_given?
       end
 
@@ -1055,6 +1094,9 @@ module Couchbase
         {
           timeout: Utils::Time.extract_duration(@timeout),
           cas: @cas,
+          durability_level: @durability_level,
+          persist_to: @persist_to,
+          replicate_to: @replicate_to,
         }
       end
 
@@ -1064,12 +1106,39 @@ module Couchbase
 
     # Options for {BinaryCollection#prepend}
     class Prepend < Base
-      # @return [Integer] The default CAS used (0 means no CAS in this context)
-      attr_accessor :cas
+      attr_accessor :cas # @return [Integer]
+      attr_accessor :durability_level # @return [Symbol]
+      attr_accessor :replicate_to # @return [Symbol]
+      attr_accessor :persist_to # @return [Symbol]
 
       # Creates an instance of options for {BinaryCollection#prepend}
       #
       # @param [Integer] cas The default CAS used (0 means no CAS in this context)
+      # @param [Symbol] durability_level level of durability
+      #  +:none+::
+      #     no enhanced durability required for the mutation
+      #  +:majority+::
+      #     the mutation must be replicated to a majority of the Data Service nodes
+      #     (that is, held in the memory allocated to the bucket)
+      #  +:majority_and_persist_to_active+::
+      #     The mutation must be replicated to a majority of the Data Service nodes.
+      #     Additionally, it must be persisted (that is, written and synchronised to disk) on the
+      #     node hosting the active partition (vBucket) for the data.
+      #  +:persist_to_majority+::
+      #     The mutation must be persisted to a majority of the Data Service nodes.
+      #     Accordingly, it will be written to disk on those nodes.
+      # @param [Symbol] replicate_to number of nodes to replicate
+      #  +:none+:: do not apply any replication requirements.
+      #  +:one+::  wait for replication to at least one node.
+      #  +:two+::  wait for replication to at least two nodes.
+      #  +:three+:: wait for replication to at least three nodes.
+      # @param [Symbol] persist_to number of nodes to persist
+      #  +:none+:: do not apply any persistence requirements.
+      #  +:active+::  wait for persistence to active node
+      #  +:one+::  wait for persistence to at least one node.
+      #  +:two+:: wait for persistence to at least two nodes.
+      #  +:three+:: wait for persistence to at least three nodes.
+      #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -1078,12 +1147,23 @@ module Couchbase
       #
       # @yieldparam [Prepend] self
       def initialize(cas: nil,
+                     durability_level: :none,
+                     replicate_to: :none,
+                     persist_to: :none,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @cas = cas
+
+        if durability_level != :none && (replicate_to != :none || persist_to != :none)
+          raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
+        end
+
+        @durability_level = durability_level
+        @replicate_to = replicate_to
+        @persist_to = persist_to
         yield self if block_given?
       end
 
@@ -1092,6 +1172,9 @@ module Couchbase
         {
           timeout: Utils::Time.extract_duration(@timeout),
           cas: @cas,
+          durability_level: @durability_level,
+          persist_to: @persist_to,
+          replicate_to: @replicate_to,
         }
       end
 
