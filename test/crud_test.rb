@@ -720,8 +720,6 @@ module Couchbase
 
       res = @collection.get(doc_id, Options::Get(transcoder: nil))
 
-      puts res.content
-
       assert_equal "barfoo", res.content
     end
 
