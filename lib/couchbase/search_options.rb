@@ -25,6 +25,16 @@ module Couchbase
         MatchQuery.new(match, &block)
       end
 
+      # @return [Hash<Symbol, #to_json>]
+      def to_h
+        {}
+      end
+
+      # @return [String]
+      def to_json(*args)
+        to_h.to_json(*args)
+      end
+
       # A match query analyzes the input text and uses that analyzed text to query the index.
       class MatchQuery < SearchQuery
         # @return [Float]
@@ -53,17 +63,16 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"match" => @match}
-          data["boost"] = boost if boost
-          data["field"] = field if field
-          data["analyzer"] = analyzer if analyzer
-          if fuzziness
-            data["fuzziness"] = fuzziness
-            data["prefix_length"] = prefix_length if prefix_length
-          end
-          data.to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          data = {:match => @match}
+          data[:boost] = boost if boost
+          data[:field] = field if field
+          data[:analyzer] = analyzer if analyzer
+          data[:operator] = operator if operator
+          data[:fuzziness] = fuzziness if fuzziness
+          data[:prefix_length] = prefix_length if prefix_length
+          data
         end
       end
 
@@ -82,9 +91,6 @@ module Couchbase
         # @return [Float]
         attr_accessor :boost
 
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @return [String]
         attr_accessor :field
 
@@ -100,14 +106,14 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"match_phrase" => @match_phrase}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
-          data["analyzer"] = analyzer if analyzer
-          data.to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          data = {:match_phrase => @match_phrase}
+          data[:boost] = boost if boost
+          data[:operator] = operator.to_s if operator
+          data[:field] = field if field
+          data[:analyzer] = analyzer if analyzer
+          data
         end
       end
 
@@ -126,9 +132,6 @@ module Couchbase
         # @return [Float]
         attr_accessor :boost
 
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @return [String]
         attr_accessor :field
 
@@ -141,13 +144,12 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"regexp" => @regexp}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
-          data.to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          data = {:regexp => @regexp}
+          data[:boost] = boost if boost
+          data[:field] = field if field
+          data
         end
       end
 
@@ -166,9 +168,6 @@ module Couchbase
         # @return [Float]
         attr_accessor :boost
 
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @param [String] query_string
         #
         # @yieldparam [QueryStringQuery] self
@@ -178,12 +177,11 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"query" => @query_string}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data.to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          data = {:query => @query_string}
+          data[:boost] = boost if boost
+          data
         end
       end
 
@@ -202,9 +200,6 @@ module Couchbase
         # @return [Float]
         attr_accessor :boost
 
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @return [String]
         attr_accessor :field
 
@@ -217,13 +212,12 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"wildcard" => @wildcard}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
-          data.to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          data = {:wildcard => @wildcard}
+          data[:boost] = boost if boost
+          data[:field] = field if field
+          data
         end
       end
 
@@ -242,12 +236,6 @@ module Couchbase
         # @return [Float]
         attr_accessor :boost
 
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
-        # @return [String]
-        attr_accessor :field
-
         # @param [String...] doc_ids
         #
         # @yieldparam [DocIdQuery] self
@@ -257,13 +245,11 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"doc_ids" => @doc_ids.flatten.uniq}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
-          data.to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          data = {:ids => @doc_ids.flatten.uniq}
+          data[:boost] = boost if boost
+          data
         end
       end
 
@@ -282,9 +268,6 @@ module Couchbase
         # @return [Float]
         attr_accessor :boost
 
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @return [String]
         attr_accessor :field
 
@@ -297,13 +280,12 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"bool" => @value}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
-          data.to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          data = {:bool => @value}
+          data[:boost] = boost if boost
+          data[:field] = field if field
+          data
         end
       end
 
@@ -320,9 +302,6 @@ module Couchbase
       class DateRangeQuery < SearchQuery
         # @return [Float]
         attr_accessor :boost
-
-        # @return [nil, :or, :and]
-        attr_accessor :operator
 
         # @return [String]
         attr_accessor :field
@@ -365,32 +344,31 @@ module Couchbase
 
         DATE_FORMAT_RFC3339 = "%Y-%m-%dT%H:%M:%S%:z".freeze
 
-        # @return [String]
-        def to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
           raise ArgumentError, "either start_time or end_time must be set for DateRangeQuery" if @start_time.nil? && @end_time.nil?
 
           data = {}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
-          data["datetime_parser"] = date_time_parser if date_time_parser
+          data[:boost] = boost if boost
+          data[:field] = field if field
+          data[:datetime_parser] = date_time_parser if date_time_parser
           if @start_time
-            data["start"] = if @start_time.respond_to?(:strftime)
-                              @start_time.strftime(DATE_FORMAT_RFC3339)
-                            else
-                              @start_time
-                            end
-            data["inclusive_start"] = @start_inclusive unless @start_inclusive.nil?
+            data[:start] = if @start_time.respond_to?(:strftime)
+                             @start_time.strftime(DATE_FORMAT_RFC3339)
+                           else
+                             @start_time
+                           end
+            data[:inclusive_start] = @start_inclusive unless @start_inclusive.nil?
           end
           if @end_time
-            data["end"] = if @end_time.respond_to?(:strftime)
-                            @end_time.strftime(DATE_FORMAT_RFC3339)
-                          else
-                            @end_time
-                          end
-            data["inclusive_end"] = @end_inclusive unless @end_inclusive.nil?
+            data[:end] = if @end_time.respond_to?(:strftime)
+                           @end_time.strftime(DATE_FORMAT_RFC3339)
+                         else
+                           @end_time
+                         end
+            data[:inclusive_end] = @end_inclusive unless @end_inclusive.nil?
           end
-          data.to_json(*args)
+          data
         end
       end
 
@@ -407,9 +385,6 @@ module Couchbase
       class NumericRangeQuery < SearchQuery
         # @return [Float]
         attr_accessor :boost
-
-        # @return [nil, :or, :and]
-        attr_accessor :operator
 
         # @return [String]
         attr_accessor :field
@@ -446,23 +421,22 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
           raise ArgumentError, "either min or max must be set for NumericRangeQuery" if @min.nil? && @max.nil?
 
           data = {}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
+          data[:boost] = boost if boost
+          data[:field] = field if field
           if @min
-            data["min"] = @min
-            data["inclusive_min"] = @min_inclusive unless @min_inclusive.nil?
+            data[:min] = @min
+            data[:inclusive_min] = @min_inclusive unless @min_inclusive.nil?
           end
           if @max
-            data["max"] = @max
-            data["inclusive_max"] = @max_inclusive unless @max_inclusive.nil?
+            data[:max] = @max
+            data[:inclusive_max] = @max_inclusive unless @max_inclusive.nil?
           end
-          data.to_json(*args)
+          data
         end
       end
 
@@ -479,9 +453,6 @@ module Couchbase
       class TermRangeQuery < SearchQuery
         # @return [Float]
         attr_accessor :boost
-
-        # @return [nil, :or, :and]
-        attr_accessor :operator
 
         # @return [String]
         attr_accessor :field
@@ -518,23 +489,22 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
           raise ArgumentError, "either min or max must be set for TermRangeQuery" if @min.nil? && @max.nil?
 
           data = {}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
+          data[:boost] = boost if boost
+          data[:field] = field if field
           if @min
-            data["min"] = @min
-            data["inclusive_min"] = @min_inclusive unless @min_inclusive.nil?
+            data[:min] = @min
+            data[:inclusive_min] = @min_inclusive unless @min_inclusive.nil?
           end
           if @max
-            data["max"] = @max
-            data["inclusive_max"] = @max_inclusive unless @max_inclusive.nil?
+            data[:max] = @max
+            data[:inclusive_max] = @max_inclusive unless @max_inclusive.nil?
           end
-          data.to_json(*args)
+          data
         end
       end
 
@@ -556,9 +526,6 @@ module Couchbase
         # @return [Float]
         attr_accessor :boost
 
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @return [String]
         attr_accessor :field
 
@@ -574,16 +541,15 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
           data = {
-            "location" => [@longitude, @latitude],
-            "distance" => @distance,
+            :location => [@longitude, @latitude],
+            :distance => @distance,
           }
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
-          data.to_json(*args)
+          data[:boost] = boost if boost
+          data[:field] = field if field
+          data
         end
       end
 
@@ -606,9 +572,6 @@ module Couchbase
         # @return [Float]
         attr_accessor :boost
 
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @return [String]
         attr_accessor :field
 
@@ -627,16 +590,15 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
           data = {
-            "top_left" => [@top_left_longitude, @top_left_latitude],
-            "bottom_right" => [@bottom_right_longitude, @bottom_right_latitude],
+            :top_left => [@top_left_longitude, @top_left_latitude],
+            :bottom_right => [@bottom_right_longitude, @bottom_right_latitude],
           }
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
-          data.to_json(*args)
+          data[:boost] = boost if boost
+          data[:field] = field if field
+          data
         end
       end
 
@@ -675,9 +637,6 @@ module Couchbase
         # @return [Float]
         attr_accessor :boost
 
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @return [String]
         attr_accessor :field
 
@@ -690,15 +649,14 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
           data = {
-            "polygon_points" => @coordinates.map { |coord| [coord.longitude, coord.latitude] },
+            :polygon_points => @coordinates.map { |coord| [coord.longitude, coord.latitude] },
           }
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
-          data.to_json(*args)
+          data[:boost] = boost if boost
+          data[:field] = field if field
+          data
         end
       end
 
@@ -715,9 +673,6 @@ module Couchbase
       class ConjunctionQuery < SearchQuery
         # @return [Float]
         attr_accessor :boost
-
-        # @return [nil, :or, :and]
-        attr_accessor :operator
 
         # @yieldparam [ConjunctionQuery] self
         #
@@ -737,22 +692,21 @@ module Couchbase
           @queries.empty?
         end
 
-        # @return [String]
-        def to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
           raise ArgumentError, "compound conjunction query must have sub-queries" if @queries.nil? || @queries.empty?
 
-          data = {"conjuncts" => @queries.uniq}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data.to_json(*args)
+          data = {:conjuncts => @queries.uniq.map(&:to_h)}
+          data[:boost] = boost if boost
+          data
         end
       end
 
       # Prepare {ConjunctionQuery} body
       #
-      # @yieldparam [ConjunctionQuery] query
+      # @yieldparam [DisjunctionQuery] query
       #
-      # @return [ConjunctionQuery]
+      # @return [DisjunctionQuery]
       def self.disjuncts(...)
         DisjunctionQuery.new(...)
       end
@@ -761,9 +715,6 @@ module Couchbase
       class DisjunctionQuery < SearchQuery
         # @return [Float]
         attr_accessor :boost
-
-        # @return [nil, :or, :and]
-        attr_accessor :operator
 
         # @return [Integer]
         attr_accessor :min
@@ -786,19 +737,18 @@ module Couchbase
           @queries.empty?
         end
 
-        # @return [String]
-        def to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
           raise ArgumentError, "compound disjunction query must have sub-queries" if @queries.nil? || @queries.empty?
 
-          data = {"disjuncts" => @queries.uniq}
+          data = {:disjuncts => @queries.uniq.map(&:to_h)}
           if min
             raise ArgumentError, "disjunction query has fewer sub-queries than configured minimum" if @queries.size < min
 
-            data["min"] = min
+            data[:min] = min
           end
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data.to_json(*args)
+          data[:boost] = boost if boost
+          data
         end
       end
 
@@ -815,9 +765,6 @@ module Couchbase
       class BooleanQuery < SearchQuery
         # @return [Float]
         attr_accessor :boost
-
-        # @return [nil, :or, :and]
-        attr_accessor :operator
 
         # @yieldparam [BooleanQuery] self
         def initialize
@@ -852,19 +799,18 @@ module Couchbase
           self
         end
 
-        # @return [String]
-        def to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
           if @must.empty? && @must_not.empty? && @should.empty?
             raise ArgumentError, "BooleanQuery must have at least one non-empty sub-query"
           end
 
           data = {}
-          data["must"] = @must unless @must.empty?
-          data["must_not"] = @must_not unless @must_not.empty?
-          data["should"] = @should unless @should.empty?
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data.to_json(*args)
+          data[:must] = @must.to_h unless @must.empty?
+          data[:must_not] = @must_not.to_h unless @must_not.empty?
+          data[:should] = @should.to_h unless @should.empty?
+          data[:boost] = boost if boost
+          data
         end
       end
 
@@ -884,9 +830,6 @@ module Couchbase
         # @return [Float]
         attr_accessor :boost
 
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @return [String]
         attr_accessor :field
 
@@ -905,18 +848,16 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"term" => @term}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          data = {:term => @term}
+          data[:boost] = boost if boost
+          data[:field] = field if field
           if fuzziness
-            data["fuzziness"] = fuzziness
-            data["prefix_length"] = prefix_length if prefix_length
+            data[:fuzziness] = fuzziness
+            data[:prefix_length] = prefix_length if prefix_length
           end
-          data.to_json(*args)
+          data
         end
       end
 
@@ -950,13 +891,12 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"prefix" => @prefix}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
-          data.to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          data = {:prefix => @prefix}
+          data[:boost] = boost if boost
+          data[:field] = field if field
+          data
         end
       end
 
@@ -975,9 +915,6 @@ module Couchbase
         # @return [Float]
         attr_accessor :boost
 
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @return [String]
         attr_accessor :field
 
@@ -990,13 +927,12 @@ module Couchbase
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"terms" => @terms.flatten.uniq}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data["field"] = field if field
-          data.to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          data = {:terms => @terms.flatten.uniq}
+          data[:boost] = boost if boost
+          data[:field] = field if field
+          data
         end
       end
 
@@ -1011,24 +947,15 @@ module Couchbase
 
       # A query that matches all indexed documents.
       class MatchAllQuery < SearchQuery
-        # @return [Float]
-        attr_accessor :boost
-
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @yieldparam [MatchAllQuery] self
         def initialize
           super()
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"match_all" => nil}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data.to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          {:match_all => nil}
         end
       end
 
@@ -1043,24 +970,15 @@ module Couchbase
 
       # A query that matches nothing.
       class MatchNoneQuery < SearchQuery
-        # @return [Float]
-        attr_accessor :boost
-
-        # @return [nil, :or, :and]
-        attr_accessor :operator
-
         # @yieldparam [MatchNoneQuery] self
         def initialize
           super()
           yield self if block_given?
         end
 
-        # @return [String]
-        def to_json(*args)
-          data = {"match_none" => nil}
-          data["boost"] = boost if boost
-          data["operator"] = operator.to_s if operator
-          data.to_json(*args)
+        # @return [Hash<Symbol, #to_json>]
+        def to_h
+          {:match_none => nil}
         end
       end
     end
