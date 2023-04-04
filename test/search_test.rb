@@ -102,5 +102,41 @@ module Couchbase
 
       assert attempts < 20, "it is very suspicious that search with at_plus took more than 20 attempts (#{attempts})"
     end
+
+    def test_doc_id_search_query
+      doc_ids = [uniq_id(:foo), uniq_id(:bar)]
+      res1 = @collection.insert(doc_ids[0], {"type" => "character", "name" => "Arthur"})
+      res2 = @collection.insert(doc_ids[1], {"type" => "character", "name" => "Brodie"})
+      mutation_state = MutationState.new(res1.mutation_token, res2.mutation_token)
+      options = Cluster::SearchOptions.new
+      options.consistent_with(mutation_state)
+      options.limit = 100
+      attempts = 0
+      loop do
+        begin
+          break if attempts >= 30
+
+          attempts += 1
+          res = @cluster.search_query(@index_name, Cluster::SearchQuery.doc_id(*doc_ids), options)
+        rescue Error::ConsistencyMismatch
+          sleep(0.5)
+          retry
+        end
+        if res.rows.empty?
+          sleep(0.5)
+          next
+        end
+
+        assert_predicate res, :success?, "res=#{res.inspect}"
+        refute_empty res.rows, "expected non empty result"
+        doc_ids.each do |doc_id|
+          assert res.rows.find { |row| row.id == doc_id }, "result expected to include #{doc_id}"
+        end
+        break
+      end
+      warn "search took #{attempts} attempts, probably a server bug" if attempts > 1
+
+      assert attempts < 20, "it is very suspicious that search took more than 20 attempts (#{attempts})"
+    end
   end
 end
