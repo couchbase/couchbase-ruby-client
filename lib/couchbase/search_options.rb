@@ -354,18 +354,18 @@ module Couchbase
           data[:datetime_parser] = date_time_parser if date_time_parser
           if @start_time
             data[:start] = if @start_time.respond_to?(:strftime)
-                              @start_time.strftime(DATE_FORMAT_RFC3339)
-                            else
-                              @start_time
-                            end
+                             @start_time.strftime(DATE_FORMAT_RFC3339)
+                           else
+                             @start_time
+                           end
             data[:inclusive_start] = @start_inclusive unless @start_inclusive.nil?
           end
           if @end_time
             data[:end] = if @end_time.respond_to?(:strftime)
-                            @end_time.strftime(DATE_FORMAT_RFC3339)
-                          else
-                            @end_time
-                          end
+                           @end_time.strftime(DATE_FORMAT_RFC3339)
+                         else
+                           @end_time
+                         end
             data[:inclusive_end] = @end_inclusive unless @end_inclusive.nil?
           end
           data
