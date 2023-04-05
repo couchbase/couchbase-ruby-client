@@ -17,16 +17,25 @@ module Couchbase
     class Cluster
       attr_reader client: Client
       @query_request_generator: RequestGenerator::Query
+      @search_requst_generator: RequestGenerator::Search
 
       def self.connect: (String, untyped) -> untyped
 
       def initialize: (untyped connection_string, ?untyped options) -> void
 
       def disconnect: () -> void
-
       def bucket: (String name) -> Bucket
 
-      def query: (String, QueryOptions) -> QueryResult
+      def query: (
+          String statement,
+          Couchbase::Options::Query options
+        ) -> Couchbase::Cluster::QueryResult
+
+      def search_query: (
+          String index_name,
+          Couchbase::Cluster::SearchQuery query,
+          Couchbase::Options::Search options
+        ) -> Couchbase::Cluster::SearchResult
     end
   end
 end
