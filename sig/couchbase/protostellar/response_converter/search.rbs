@@ -1,0 +1,9 @@
+module Couchbase
+  module Protostellar
+    module ResponseConverter
+      class Search
+        def self.to_search_result: (untyped) -> untyped
+      end
+    end
+  end
+end

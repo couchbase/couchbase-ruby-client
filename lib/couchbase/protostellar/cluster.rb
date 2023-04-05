@@ -18,7 +18,9 @@ require_relative "connect_options"
 require_relative "bucket"
 require_relative "client"
 require_relative "request_generator/query"
+require_relative "request_generator/search"
 require_relative "response_converter/query"
+require_relative "response_converter/search"
 
 require "couchbase/options"
 
@@ -41,6 +43,7 @@ module Couchbase
 
         @client = Client.new(host, credentials, channel_args, call_metadata)
         @query_request_generator = RequestGenerator::Query.new
+        @search_request_generator = RequestGenerator::Search.new
       end
 
       def disconnect
@@ -55,6 +58,12 @@ module Couchbase
         req = @query_request_generator.query_request(statement, options)
         resps = @client.send_request(req)
         ResponseConverter::Query.to_query_result(resps)
+      end
+
+      def search_query(index_name, query, options = Couchbase::Options::Search::DEFAULT)
+        req = @search_request_generator.search_query_request(index_name, query, options)
+        resp = @client.send_request(req)
+        ResponseConverter::Search.to_search_result(resp)
       end
     end
   end

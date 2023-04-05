@@ -15,6 +15,9 @@ module Couchbase
 
       class InvalidExpiryType < ProtostellarError
       end
+
+      class UnexpectedSearchQueryType < ProtostellarError
+      end
     end
   end
 end
