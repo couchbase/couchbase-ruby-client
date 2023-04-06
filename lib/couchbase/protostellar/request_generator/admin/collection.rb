@@ -28,8 +28,8 @@ module Couchbase
           def initialize(bucket_name:, default_timeout: nil)
             @bucket_name = bucket_name
 
-            # TODO: Use the KV timeout from the cluster's options
-            @default_timeout = default_timeout.nil? ? TimeoutDefaults::KEY_VALUE : default_timeout
+            # TODO: Use the management timeout from the cluster's options
+            @default_timeout = default_timeout.nil? ? TimeoutDefaults::MANAGEMENT : default_timeout
           end
 
           def list_collections_request(options)

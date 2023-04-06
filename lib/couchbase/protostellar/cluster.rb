@@ -17,6 +17,7 @@
 require_relative "connect_options"
 require_relative "bucket"
 require_relative "client"
+require_relative "management/bucket_manager"
 require_relative "request_generator/query"
 require_relative "request_generator/search"
 require_relative "response_converter/query"
@@ -52,6 +53,10 @@ module Couchbase
 
       def bucket(name)
         Bucket.new(@client, name)
+      end
+
+      def buckets
+        Management::BucketManager.new(@client)
       end
 
       def query(statement, options = Couchbase::Options::Query::DEFAULT)
