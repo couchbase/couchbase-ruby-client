@@ -25,6 +25,7 @@ module Couchbase
 
       def disconnect: () -> void
       def bucket: (String name) -> Bucket
+      def buckets: () -> Management::BucketManager
 
       def query: (
           String statement,
