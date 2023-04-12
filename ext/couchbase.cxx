@@ -1820,8 +1820,9 @@ cb_extract_option_bool(bool& field, VALUE options, const char* name)
     }
 }
 
+template<typename Integer>
 static void
-cb_extract_option_number(std::size_t& field, VALUE options, const char* name)
+cb_extract_option_number(Integer& field, VALUE options, const char* name)
 {
     if (!NIL_P(options) && TYPE(options) == T_HASH) {
         VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
@@ -1830,10 +1831,10 @@ cb_extract_option_number(std::size_t& field, VALUE options, const char* name)
         }
         switch (TYPE(val)) {
             case T_FIXNUM:
-                field = FIX2ULONG(val);
+                field = static_cast<Integer>(FIX2ULONG(val));
                 break;
             case T_BIGNUM:
-                field = NUM2ULL(val);
+                field = static_cast<Integer>(NUM2ULL(val));
                 break;
             default:
                 throw ruby_exception(rb_eArgError, rb_sprintf("%s must be a Integer, but given %+" PRIsVALUE, name, val));
@@ -1883,6 +1884,25 @@ cb_extract_option_string(std::string& target, VALUE options, const char* name);
 
 static void
 cb_extract_option_symbol(VALUE& val, VALUE options, const char* name);
+
+static void
+cb_extract_dns_config(couchbase::core::io::dns::dns_config& config, VALUE options)
+{
+    if (!NIL_P(options) && TYPE(options) == T_HASH) {
+        return;
+    }
+
+    auto timeout{ couchbase::core::timeout_defaults::dns_srv_timeout };
+    cb_extract_option_milliseconds(timeout, options, "dns_srv_timeout");
+
+    std::string nameserver{ couchbase::core::io::dns::dns_config::default_nameserver };
+    cb_extract_option_string(nameserver, options, "dns_srv_nameserver");
+
+    std::uint16_t port{ couchbase::core::io::dns::dns_config::default_port };
+    cb_extract_option_number(port, options, "dns_srv_port");
+
+    config = couchbase::core::io::dns::dns_config(nameserver, port, timeout);
+}
 
 static VALUE
 cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE options)
@@ -1983,12 +2003,13 @@ cb_Backend_open(VALUE self, VALUE connection_string, VALUE credentials, VALUE op
         cb_extract_option_milliseconds(origin.options().analytics_timeout, options, "analytics_timeout");
         cb_extract_option_milliseconds(origin.options().search_timeout, options, "search_timeout");
         cb_extract_option_milliseconds(origin.options().management_timeout, options, "management_timeout");
-        cb_extract_option_milliseconds(origin.options().dns_srv_timeout, options, "dns_srv_timeout");
         cb_extract_option_milliseconds(origin.options().tcp_keep_alive_interval, options, "tcp_keep_alive_interval");
         cb_extract_option_milliseconds(origin.options().config_poll_interval, options, "config_poll_interval");
         cb_extract_option_milliseconds(origin.options().config_poll_floor, options, "config_poll_floor");
         cb_extract_option_milliseconds(origin.options().config_idle_redial_timeout, options, "config_idle_redial_timeout");
         cb_extract_option_milliseconds(origin.options().idle_http_connection_timeout, options, "idle_http_connection_timeout");
+
+        cb_extract_dns_config(origin.options().dns_config, options);
 
         cb_extract_option_number(origin.options().max_http_connections, options, "max_http_connections");
 
@@ -6819,12 +6840,12 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
         if (tls) {
             service_name = "_couchbases";
         }
-        auto barrier = std::make_shared<std::promise<couchbase::core::io::dns::dns_client::dns_srv_response>>();
+        auto barrier = std::make_shared<std::promise<couchbase::core::io::dns::dns_srv_response>>();
         auto f = barrier->get_future();
         client.query_srv(host_name,
                          service_name,
                          couchbase::core::io::dns::dns_config::system_config(),
-                         [barrier](couchbase::core::io::dns::dns_client::dns_srv_response&& resp) { barrier->set_value(std::move(resp)); });
+                         [barrier](couchbase::core::io::dns::dns_srv_response&& resp) { barrier->set_value(std::move(resp)); });
         ctx.run();
         auto resp = cb_wait_for_future(f);
         if (resp.ec) {
