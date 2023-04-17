@@ -1,4 +1,4 @@
-#  Copyright 2020-2021 Couchbase, Inc.
+#  Copyright 2023. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,28 +12,26 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "json"
-
 require "couchbase/transcoder_flags"
 
 module Couchbase
-  class JsonTranscoder
-    # @param [Object] document
+  class RawBinaryTranscoder
+    # @param [String] document
     # @return [Array<String, Integer>] pair of encoded document and flags
     def encode(document)
-      raise Error::EncodingFailure, "The JsonTranscoder does not support binary data" if document.is_a?(String) && !document.valid_encoding?
+      raise Error::EncodingFailure, "Only binary data supported by RawJsonTranscoder" unless document.is_a?(String)
 
-      [JSON.generate(document), TranscoderFlags.new(format: :json, lower_bits: 6).encode]
+      [document, TranscoderFlags.new(format: :binary).encode]
     end
 
     # @param [String] blob string of bytes, containing encoded representation of the document
-    # @param [Integer, :json] flags bit field, describing how the data encoded
-    # @return [Object] decoded document
+    # @param [Integer] flags bit field, describing how the data encoded
+    # @return [String] decoded document
     def decode(blob, flags)
       format = TranscoderFlags.decode(flags).format
-      raise Error::DecodingFailure, "Unable to decode #{format} with the JsonTranscoder" unless format == :json || format.nil?
+      raise Error::DecodingFailure, "Unable to decode #{format} with the RawBinaryTranscoder" unless format == :binary || format.nil?
 
-      JSON.parse(blob) unless blob&.empty?
+      blob
     end
   end
 end
