@@ -5502,8 +5502,7 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE optio
                                                 first_error.code,
                                                 first_error.message));
             } else {
-                cb_throw_error_code(resp.ctx,
-                                    fmt::format(R"(unable to build deferred indexes on the bucket "{}")", req.bucket_name));
+                cb_throw_error_code(resp.ctx, fmt::format(R"(unable to build deferred indexes on the bucket "{}")", req.bucket_name));
             }
         }
         VALUE res = rb_hash_new();
