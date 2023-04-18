@@ -5090,6 +5090,14 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE options)
         couchbase::core::operations::management::query_index_get_all_request req{};
         req.bucket_name = cb_string_new(bucket_name);
         cb_extract_timeout(req, options);
+        if (!NIL_P(options)) {
+            if (VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name"))); TYPE(scope_name) == T_STRING) {
+                req.scope_name = cb_string_new(scope_name);
+            }
+            if (VALUE collection_name = rb_hash_aref(options, rb_id2sym(rb_intern("collection_name"))); TYPE(collection_name) == T_STRING) {
+                req.collection_name = cb_string_new(collection_name);
+            }
+        }
         auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::query_index_get_all_response>>();
         auto f = barrier->get_future();
         cluster->execute(req, [barrier](couchbase::core::operations::management::query_index_get_all_response&& resp) {
@@ -5466,15 +5474,50 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE optio
     }
 
     try {
-        couchbase::build_query_index_options opts;
-        couchbase::ruby::set_timeout(opts, options);
-        auto bucket = cb_string_new(bucket_name);
+        couchbase::core::operations::management::query_index_build_deferred_request req{};
+        cb_extract_timeout(req, options);
+        req.bucket_name = cb_string_new(bucket_name);
 
-        auto f = couchbase::cluster(cluster).query_indexes().build_deferred_indexes(bucket, opts);
-        if (auto ctx = cb_wait_for_future(f); ctx.ec()) {
-            cb_throw_error_code(ctx, fmt::format("unable to trigger build for deferred indexes for the bucket \"{}\"", bucket));
+        if (!NIL_P(options)) {
+            if (VALUE scope_name = rb_hash_aref(options, rb_id2sym(rb_intern("scope_name"))); TYPE(scope_name) == T_STRING) {
+                req.scope_name = cb_string_new(scope_name);
+            }
+            if (VALUE collection_name = rb_hash_aref(options, rb_id2sym(rb_intern("collection_name"))); TYPE(collection_name) == T_STRING) {
+                req.collection_name = cb_string_new(collection_name);
+            }
         }
-        return Qtrue;
+
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::query_index_build_deferred_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(req, [barrier](couchbase::core::operations::management::query_index_build_deferred_response&& resp) {
+            barrier->set_value(std::move(resp));
+        });
+        auto resp = cb_wait_for_future(f);
+        if (resp.ctx.ec) {
+            if (!resp.errors.empty()) {
+                const auto& first_error = resp.errors.front();
+                cb_throw_error_code(resp.ctx,
+                                    fmt::format(R"(unable to build deferred indexes on the bucket "{}" ({}: {}))",
+                                                req.bucket_name,
+                                                first_error.code,
+                                                first_error.message));
+            } else {
+                cb_throw_error_code(resp.ctx, fmt::format(R"(unable to build deferred indexes on the bucket "{}")", req.bucket_name));
+            }
+        }
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
+        if (!resp.errors.empty()) {
+            VALUE errors = rb_ary_new_capa(static_cast<long>(resp.errors.size()));
+            for (const auto& err : resp.errors) {
+                VALUE error = rb_hash_new();
+                rb_hash_aset(error, rb_id2sym(rb_intern("code")), ULL2NUM(err.code));
+                rb_hash_aset(error, rb_id2sym(rb_intern("message")), cb_str_new(err.message));
+                rb_ary_push(errors, error);
+            }
+            rb_hash_aset(res, rb_id2sym(rb_intern("errors")), errors);
+        }
+        return res;
     } catch (const std::system_error& se) {
         rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
     } catch (const ruby_exception& e) {
