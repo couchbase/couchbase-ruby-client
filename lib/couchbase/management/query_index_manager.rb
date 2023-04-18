@@ -22,7 +22,13 @@ module Couchbase
       module Query
         # Options for {QueryIndexManager#get_all_indexes}
         class GetAllIndexes < ::Couchbase::Options::Base
+          attr_accessor :scope_name # @return [String, nil]
+          attr_accessor :collection_name # @return [String, nil]
+
           # Creates an instance of options for {QueryIndexManager#get_all_indexes}
+          #
+          # @param [String, nil] scope_name the name of the scope
+          # @param [String, nil] collection_name the name of the collection
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
           # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -30,12 +36,25 @@ module Couchbase
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetAllScopes] self
-          def initialize(timeout: nil,
+          def initialize(scope_name: nil,
+                         collection_name: nil,
+                         timeout: nil,
                          retry_strategy: nil,
                          client_context: nil,
                          parent_span: nil)
-            super
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            @scope_name = scope_name
+            @collection_name = collection_name
             yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: Utils::Time.extract_duration(@timeout),
+              scope_name: @scope_name,
+              collection_name: @collection_name,
+            }
           end
         end
 
@@ -102,6 +121,7 @@ module Couchbase
           attr_accessor :ignore_if_exists # @return [Boolean]
           attr_accessor :num_replicas # @return [Integer, nil]
           attr_accessor :deferred # @return [Boolean]
+          attr_accessor :index_name # @return [String. nil]
           attr_accessor :scope_name # @return [String, nil]
           attr_accessor :collection_name # @return [String, nil]
 
@@ -110,6 +130,7 @@ module Couchbase
           # @param [Boolean] ignore_if_exists do not raise error if the index already exist
           # @param [Integer] num_replicas the number of replicas that this index should have
           # @param [Boolean] deferred whether the index should be created as a deferred index.
+          # @param [String, nil] index_name the custom name of the primary index.
           # @param [String, nil] scope_name the name of the scope
           # @param [String, nil] collection_name the name of the collection
           #
@@ -122,6 +143,7 @@ module Couchbase
           def initialize(ignore_if_exists: false,
                          num_replicas: nil,
                          deferred: false,
+                         index_name: nil,
                          scope_name: nil,
                          collection_name: nil,
                          timeout: nil,
@@ -132,6 +154,7 @@ module Couchbase
             @ignore_if_exists = ignore_if_exists
             @num_replicas = num_replicas
             @deferred = deferred
+            @index_name = index_name
             @scope_name = scope_name
             @collection_name = collection_name
             yield self if block_given?
@@ -144,6 +167,7 @@ module Couchbase
               ignore_if_exists: @ignore_if_exists,
               deferred: @deferred,
               num_replicas: @num_replicas,
+              index_name: @index_name,
               scope_name: @scope_name,
               collection_name: @collection_name,
             }
@@ -238,7 +262,12 @@ module Couchbase
 
         # Options for {QueryIndexManager#build_deferred_indexes}
         class BuildDeferredIndexes < ::Couchbase::Options::Base
+          attr_accessor :scope_name # @return [String, nil]
+          attr_accessor :collection_name # @return [String, nil]
+
           # Creates an instance of options for {QueryIndexManager#build_deferred_indexes}
+          # @param [String, nil] scope_name the name of the scope
+          # @param [String, nil] collection_name the name of the collection
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
           # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -246,33 +275,55 @@ module Couchbase
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetAllScopes] self
-          def initialize(timeout: nil,
+          def initialize(scope_name: nil,
+                         collection_name: nil,
+                         timeout: nil,
                          retry_strategy: nil,
                          client_context: nil,
                          parent_span: nil)
-            super
+            super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+            @scope_name = scope_name
+            @collection_name = collection_name
             yield self if block_given?
+          end
+
+          # @api private
+          def to_backend
+            {
+              timeout: Utils::Time.extract_duration(@timeout),
+              scope_name: @scope_name,
+              collection_name: @collection_name,
+            }
           end
         end
 
         # Options for {QueryIndexManager#watch_indexes}
         class WatchIndexes < ::Couchbase::Options::Base
           attr_accessor :watch_primary # @return [Boolean]
+          attr_accessor :scope_name # @return [String, nil]
+          attr_accessor :collection_name # @return [String, nil]
 
           # Creates an instance of options for {QueryIndexManager#watch_indexes}
           #
           # @param [Boolean] watch_primary whether or not to watch the primary index
+          # @param [String, nil] scope_name the name of the scope
+          # @param [String, nil] collection_name the name of the collection
+          #
           # @param [Proc, nil] retry_strategy the custom retry strategy, if set
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetAllScopes] self
           def initialize(watch_primary: false,
+                         scope_name: nil,
+                         collection_name: nil,
                          retry_strategy: nil,
                          client_context: nil,
                          parent_span: nil)
             super(timeout: nil, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
             @watch_primary = watch_primary
+            @scope_name = scope_name
+            @collection_name = collection_name
             yield self if block_given?
           end
 
@@ -280,6 +331,8 @@ module Couchbase
           def to_backend
             {
               watch_primary: @watch_primary,
+              scope_name: @scope_name,
+              collection_name: @collection_name,
             }
           end
         end
@@ -343,6 +396,10 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def get_all_indexes(bucket_name, options = GetAllIndexOptions.new)
+        unless options.scope_name.nil? && options.collection_name.nil?
+          warn "The attributes 'scope_name' and 'collection_name' have been deprecated. Use 'collection.query_indexes' instead"
+        end
+
         res = @backend.query_index_get_all(bucket_name, options.to_backend)
         res[:indexes].map do |idx|
           QueryIndex.new do |index|
@@ -436,10 +493,14 @@ module Couchbase
       # @param [String] bucket_name name of the bucket
       # @param [Options::Query::BuildDeferredIndexes] options
       #
-      # @return void
+      # @return
       #
       # @raise [ArgumentError]
       def build_deferred_indexes(bucket_name, options = Options::Query::BuildDeferredIndexes.new)
+        unless options.scope_name.nil? && options.collection_name.nil?
+          warn "The attributes 'scope_name' and 'collection_name' have been deprecated. Use 'collection.query_indexes' instead"
+        end
+
         @backend.query_index_build_deferred(bucket_name, options.to_backend)
       end
 
@@ -453,6 +514,10 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def watch_indexes(bucket_name, index_names, timeout, options = Options::Query::WatchIndexes.new)
+        unless options.scope_name.nil? && options.collection_name.nil?
+          warn "The attributes 'scope_name' and 'collection_name' have been deprecated. Use 'collection.query_indexes' instead"
+        end
+
         index_names.append("#primary") if options.watch_primary
 
         interval_millis = 50
