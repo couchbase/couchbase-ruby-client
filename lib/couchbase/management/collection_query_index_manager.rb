@@ -41,11 +41,13 @@ module Couchbase
       # @raise [Error::InvalidArgument]
       def get_all_indexes(options = Options::Query::GetAllIndexes.new)
         unless options.scope_name.nil?
-          raise Error::InvalidArgument, "Scope name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Scope name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         unless options.collection_name.nil?
-          raise Error::InvalidArgument, "Collection name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         res = @backend.collection_query_index_get_all(@bucket_name, @scope_name, @collection_name, options.to_backend)
@@ -77,11 +79,13 @@ module Couchbase
       # @raise [Error::IndexExists]
       def create_index(index_name, fields, options = Options::Query::CreateIndex.new)
         unless options.scope_name.nil?
-          raise Error::InvalidArgument, "Scope name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Scope name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         unless options.collection_name.nil?
-          raise Error::InvalidArgument, "Collection name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         @backend.collection_query_index_create(@bucket_name, @scope_name, @collection_name, index_name, fields, options.to_backend)
@@ -97,11 +101,13 @@ module Couchbase
       # @raise [Error::IndexExists]
       def create_primary_index(options = Options::Query::CreatePrimaryIndex.new)
         unless options.scope_name.nil?
-          raise Error::InvalidArgument, "Scope name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Scope name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         unless options.collection_name.nil?
-          raise Error::InvalidArgument, "Collection name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         @backend.collection_query_index_create_primary(@bucket_name, @scope_name, @collection_name, options.to_backend)
@@ -118,11 +124,13 @@ module Couchbase
       # @raise [Error::IndexNotFound]
       def drop_index(index_name, options = Options::Query::DropIndex.new)
         unless options.scope_name.nil?
-          raise Error::InvalidArgument, "Scope name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Scope name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         unless options.collection_name.nil?
-          raise Error::InvalidArgument, "Collection name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         @backend.collection_query_index_drop(@bucket_name, @scope_name, @collection_name, index_name, options.to_backend)
@@ -138,11 +146,13 @@ module Couchbase
       # @raise [Error::IndexNotFound]
       def drop_primary_index(options = Options::Query::DropPrimaryIndex.new)
         unless options.scope_name.nil?
-          raise Error::InvalidArgument, "Scope name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Scope name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         unless options.collection_name.nil?
-          raise Error::InvalidArgument, "Collection name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         @backend.collection_query_index_drop_primary(@bucket_name, @scope_name, @collection_name, options.to_backend)
@@ -157,11 +167,13 @@ module Couchbase
       # @raise [Error::InvalidArgument]
       def build_deferred_indexes(options = Options::Query::BuildDeferredIndexes.new)
         unless options.scope_name.nil?
-          raise Error::InvalidArgument, "Scope name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Scope name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         unless options.collection_name.nil?
-          raise Error::InvalidArgument, "Collection name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         @backend.collection_query_index_build_deferred(@bucket_name, @scope_name, @collection_name, options.to_backend)
@@ -177,11 +189,13 @@ module Couchbase
       # @raise [Error::IndexNotFound]
       def watch_indexes(index_names, timeout, options = Options::Query::WatchIndexes.new)
         unless options.scope_name.nil?
-          raise Error::InvalidArgument, "Scope name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Scope name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         unless options.collection_name.nil?
-          raise Error::InvalidArgument, "Collection name cannot be set in the options when using the Query Index manager at the collection level"
+          raise Error::InvalidArgument,
+                "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
         index_names.append("#primary") if options.watch_primary
