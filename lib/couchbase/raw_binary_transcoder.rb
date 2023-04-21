@@ -19,7 +19,7 @@ module Couchbase
     # @param [String] document
     # @return [Array<String, Integer>] pair of encoded document and flags
     def encode(document)
-      raise Error::EncodingFailure, "Only binary data supported by RawJsonTranscoder" unless document.is_a?(String)
+      raise Error::EncodingFailure, "Only binary data supported by RawBinaryTranscoder" unless document.is_a?(String)
 
       [document, TranscoderFlags.new(format: :binary).encode]
     end
