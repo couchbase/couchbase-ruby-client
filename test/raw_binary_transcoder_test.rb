@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "test_helper"
+require_relative "test_helper"
 
 require "couchbase/raw_binary_transcoder"
 require "couchbase/transcoder_flags"
