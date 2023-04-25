@@ -1225,6 +1225,11 @@ module Couchbase
 
       # @return [Array<Integer>] the positions of the term within any elements.
       attr_accessor :array_positions
+
+      # @yieldparam [SearchRowLocation] self
+      def initialize
+        yield self if block_given?
+      end
     end
 
     class SearchRowLocations
