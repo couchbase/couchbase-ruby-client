@@ -14,6 +14,8 @@
 
 require_relative "test_helper"
 
+require "couchbase/raw_binary_transcoder"
+
 module Couchbase
   class CrudTest < Minitest::Test
     include TestUtilities
@@ -198,22 +200,12 @@ module Couchbase
       assert_equal 43, res.content["value"]
     end
 
-    class BinaryTranscoder
-      def encode(blob)
-        [blob, 0]
-      end
-
-      def decode(blob, _flags)
-        blob
-      end
-    end
-
     def test_increments_and_decrements_existing_binary_document
       doc_id = uniq_id(:foo)
       document = "42"
 
       options = Collection::UpsertOptions.new
-      options.transcoder = BinaryTranscoder.new
+      options.transcoder = Couchbase::RawBinaryTranscoder.new
       @collection.upsert(doc_id, document, options)
 
       res = @collection.binary.increment(doc_id)
@@ -221,7 +213,7 @@ module Couchbase
       assert_equal 43, res.content
 
       options = Collection::GetOptions.new
-      options.transcoder = BinaryTranscoder.new
+      options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
       assert_equal "43", res.content
@@ -231,7 +223,7 @@ module Couchbase
       assert_equal 42, res.content
 
       options = Collection::GetOptions.new
-      options.transcoder = BinaryTranscoder.new
+      options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
       assert_equal "42", res.content
@@ -262,7 +254,7 @@ module Couchbase
       assert_equal 43, res.content
 
       options = Collection::GetOptions.new
-      options.transcoder = BinaryTranscoder.new
+      options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
       assert_equal "43", res.content
@@ -278,7 +270,7 @@ module Couchbase
       assert_equal 141, res.content
 
       options = Collection::GetOptions.new
-      options.transcoder = BinaryTranscoder.new
+      options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
       assert_equal "141", res.content
@@ -298,7 +290,7 @@ module Couchbase
       assert_equal 92, res.content
 
       options = Collection::GetOptions.new
-      options.transcoder = BinaryTranscoder.new
+      options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
       assert_equal "92", res.content
@@ -315,7 +307,7 @@ module Couchbase
       assert_equal 122, res.content
 
       options = Collection::GetOptions.new
-      options.transcoder = BinaryTranscoder.new
+      options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
       assert_equal "122", res.content
