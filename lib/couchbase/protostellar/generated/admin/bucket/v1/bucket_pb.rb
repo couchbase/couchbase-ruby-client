@@ -37,7 +37,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       proto3_optional :max_expiry_secs, :uint32, 8
       proto3_optional :compression_mode, :enum, 9, "couchbase.admin.bucket.v1.CompressionMode"
       proto3_optional :minimum_durability_level, :enum, 10, "couchbase.kv.v1.DurabilityLevel"
-      proto3_optional :storage_backend, :enum, 11, "couchbase.admin.bucket.v1.StorageBackend"
+      proto3_optional :stresporage_backend, :enum, 11, "couchbase.admin.bucket.v1.StorageBackend"
       proto3_optional :conflict_resolution_type, :enum, 12, "couchbase.admin.bucket.v1.ConflictResolutionType"
     end
     add_message "couchbase.admin.bucket.v1.CreateBucketResponse" do

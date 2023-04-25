@@ -17,7 +17,7 @@ module Couchbase
     class Cluster
       attr_reader client: Client
       @query_request_generator: RequestGenerator::Query
-      @search_requst_generator: RequestGenerator::Search
+      @search_request_generator: RequestGenerator::Search
 
       def self.connect: (String, untyped) -> untyped
 

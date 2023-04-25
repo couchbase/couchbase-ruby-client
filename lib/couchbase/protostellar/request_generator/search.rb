@@ -69,53 +69,55 @@ module Couchbase
 
         def create_query(query)
           sq = Couchbase::Cluster::SearchQuery
+          res = Generated::Search::V1::Query.new
 
           case query
           when sq::BooleanFieldQuery
-            [create_boolean_field_query(query), :boolean_field_query]
+            res.boolean_field_query = create_boolean_field_query(query)
           when sq::BooleanQuery
-            [create_boolean_query(query), :boolean_query]
+            res.boolean_query = create_boolean_query(query)
           when sq::ConjunctionQuery
-            [create_conjunction_query(query), :conjunction_query]
+            res.conjunction_query = create_conjunction_query(query)
           when sq::DateRangeQuery
-            [create_date_range_query(query), :date_range_query]
+            res.date_range_query = create_date_range_query(query)
           when sq::DisjunctionQuery
-            [create_disjunction_query(query), :disjunction_query]
+            res.disjunction_query = create_disjunction_query(query)
           when sq::DocIdQuery
-            [create_doc_id_query(query), :doc_id_query]
+            res.doc_id_query = create_doc_id_query(query)
           when sq::GeoBoundingBoxQuery
-            [create_geo_bounding_box_query(query), :geo_bounding_box_query]
+            res.geo_bounding_box_query = create_geo_bounding_box_query(query)
           when sq::GeoDistanceQuery
-            [create_geo_distance_query(query), :geo_distance_query]
+            res.geo_distance_query = create_geo_distance_query(query)
           when sq::GeoPolygonQuery
-            [create_geo_polygon_query(query), :geo_polygon_query]
+            res.geo_polygon_query = create_geo_polygon_query(query)
           when sq::MatchAllQuery
-            [create_match_all_query(query), :match_all_query]
+            res.match_all_query = create_match_all_query(query)
           when sq::MatchNoneQuery
-            [create_match_none_query(query), :match_none_query]
+            res.match_none_query = create_match_none_query(query)
           when sq::MatchPhraseQuery
-            [create_match_phrase_query(query), :match_phrase_query]
+            res.match_phrase_query = create_match_phrase_query(query)
           when sq::MatchQuery
-            [create_match_query(query), :match_query]
+            res.match_query = create_match_query(query)
           when sq::NumericRangeQuery
-            [create_numeric_range_query(query), :numeric_range_query]
+            res.numeric_range_query = create_numeric_range_query(query)
           when sq::PhraseQuery
-            [create_phrase_query(query), :phrase_query]
+            res.phrase_query = create_phrase_query(query)
           when sq::PrefixQuery
-            [create_prefix_query(query), :prefix_query]
+            res.prefix_query = create_prefix_query(query)
           when sq::QueryStringQuery
-            [create_query_string_query(query), :query_string_query]
+            res.query_string_query = create_query_string_query(query)
           when sq::RegexpQuery
-            [create_regexp_query(query), :regexp_query]
+            res.regexp_query = create_regexp_query(query)
           when sq::TermQuery
-            [create_term_query(query), :term_query]
+            res.term_query = create_term_query(query)
           when sq::TermRangeQuery
-            [create_term_range_query(query), :term_range_query]
+            res.term_range_query = create_term_range_query(query)
           when sq::WildcardQuery
-            [create_wildcard_query(query), :wildcard_query]
+            res.wildcard_query = create_wildcard_query(query)
           else
             raise Protostellar::Error::UnexpectedSearchQueryType
           end
+          res
         end
 
         def create_boolean_field_query(query)

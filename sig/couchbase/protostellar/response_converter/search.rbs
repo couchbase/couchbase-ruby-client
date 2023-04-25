@@ -2,7 +2,13 @@ module Couchbase
   module Protostellar
     module ResponseConverter
       class Search
-        def self.to_search_result: (untyped) -> untyped
+        def self.to_search_result: (untyped resps, untyped options) -> untyped
+
+        def self.convert_search_row: (untyped proto_row, untyped options) -> untyped
+        def self.convert_fragments: (untyped proto_fragments) -> Hash[String, Array[String]]
+        def self.convert_search_row_location: (untyped proto_location) -> untyped
+        def self.convert_facet_result: (untyped proto_facet_res) -> untyped
+        def self.convert_meta_data: (untyped proto_meta_data) -> untyped
       end
     end
   end

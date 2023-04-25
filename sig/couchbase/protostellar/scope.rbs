@@ -17,6 +17,7 @@ module Couchbase
     class Scope
       @bucket_name: String
       @client: Client
+      @query_request_generator: RequestGenerator::Query
 
       attr_reader name: String
 
