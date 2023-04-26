@@ -34,12 +34,12 @@ module Couchbase
         search_timeout: nil,
         management_timeout: nil
       )
-        @key_value_timeout = key_value_timeout.nil? ? TimeoutDefaults::KEY_VALUE : key_value_timeout
-        @view_timeout = view_timeout.nil? ? TimeoutDefaults::VIEW : view_timeout
-        @query_timeout = query_timeout.nil? ? TimeoutDefaults::QUERY : query_timeout
-        @analytics_timeout = analytics_timeout.nil? ? TimeoutDefaults::ANALYTICS : analytics_timeout
-        @search_timeout = search_timeout.nil? ? TimeoutDefaults::SEARCH : search_timeout
-        @management_timeout = management_timeout.nil? ? TimeoutDefaults::MANAGEMENT : management_timeout
+        @key_value_timeout = key_value_timeout || TimeoutDefaults::KEY_VALUE
+        @view_timeout = view_timeout || TimeoutDefaults::VIEW
+        @query_timeout = query_timeout || TimeoutDefaults::QUERY
+        @analytics_timeout = analytics_timeout || TimeoutDefaults::ANALYTICS
+        @search_timeout = search_timeout || TimeoutDefaults::SEARCH
+        @management_timeout = management_timeout || TimeoutDefaults::MANAGEMENT
       end
 
       def timeout_for_service(service)
@@ -56,6 +56,8 @@ module Couchbase
           @view_timeout
         when :bucket_admin, :collection_admin
           @management_timeout
+        else
+          raise Protostellar::Error::UnexpectedServiceType, "Service #{service} not recognised"
         end
       end
 
