@@ -4,40 +4,39 @@
 require 'google/protobuf'
 
 require 'google/protobuf/duration_pb'
+require 'google/protobuf/timestamp_pb'
 
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_file("couchbase/search/v1/search.proto", :syntax => :proto3) do
     add_message "couchbase.search.v1.BooleanFieldQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
       optional :value, :bool, 6
     end
     add_message "couchbase.search.v1.BooleanQuery" do
-      optional :boost, :float, 1
-      optional :must, :message, 2, "couchbase.search.v1.Query"
-      optional :must_not, :message, 3, "couchbase.search.v1.Query"
-      optional :should, :message, 4, "couchbase.search.v1.Query"
-      optional :should_min, :uint32, 5
+      proto3_optional :boost, :float, 1
+      proto3_optional :must, :message, 2, "couchbase.search.v1.ConjunctionQuery"
+      proto3_optional :must_not, :message, 3, "couchbase.search.v1.DisjunctionQuery"
+      proto3_optional :should, :message, 4, "couchbase.search.v1.DisjunctionQuery"
     end
     add_message "couchbase.search.v1.ConjunctionQuery" do
-      optional :boost, :float, 1
+      proto3_optional :boost, :float, 1
       repeated :queries, :message, 2, "couchbase.search.v1.Query"
     end
     add_message "couchbase.search.v1.DateRangeQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
-      optional :date_time_parser, :string, 3
-      optional :start_date, :string, 4
-      optional :end_date, :string, 5
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
+      proto3_optional :date_time_parser, :string, 3
+      proto3_optional :start_date, :string, 4
+      proto3_optional :end_date, :string, 5
     end
     add_message "couchbase.search.v1.DisjunctionQuery" do
-      optional :boost, :float, 1
+      proto3_optional :boost, :float, 1
       repeated :queries, :message, 2, "couchbase.search.v1.Query"
-      optional :minimum, :uint32, 3
+      proto3_optional :minimum, :uint32, 3
     end
     add_message "couchbase.search.v1.DocIdQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
       repeated :ids, :string, 3
     end
     add_message "couchbase.search.v1.LatLng" do
@@ -45,20 +44,20 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :longitude, :double, 2
     end
     add_message "couchbase.search.v1.GeoBoundingBoxQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
       optional :top_left, :message, 3, "couchbase.search.v1.LatLng"
       optional :bottom_right, :message, 4, "couchbase.search.v1.LatLng"
     end
     add_message "couchbase.search.v1.GeoDistanceQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
       optional :center, :message, 3, "couchbase.search.v1.LatLng"
       optional :distance, :string, 4
     end
     add_message "couchbase.search.v1.GeoPolygonQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
       repeated :vertices, :message, 3, "couchbase.search.v1.LatLng"
     end
     add_message "couchbase.search.v1.MatchAllQuery" do
@@ -66,72 +65,69 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "couchbase.search.v1.MatchNoneQuery" do
     end
     add_message "couchbase.search.v1.MatchPhraseQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
       optional :phrase, :string, 3
-      optional :analyzer, :string, 4
+      proto3_optional :analyzer, :string, 4
     end
     add_message "couchbase.search.v1.MatchQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
       optional :value, :string, 3
-      optional :analyzer, :string, 4
-      optional :fuzziness, :uint64, 5
-      optional :operator, :enum, 6, "couchbase.search.v1.MatchQuery.Operator"
-      optional :prefix_length, :uint64, 7
+      proto3_optional :analyzer, :string, 4
+      proto3_optional :fuzziness, :uint64, 5
+      proto3_optional :operator, :enum, 6, "couchbase.search.v1.MatchQuery.Operator"
+      proto3_optional :prefix_length, :uint64, 7
     end
     add_enum "couchbase.search.v1.MatchQuery.Operator" do
       value :OPERATOR_OR, 0
       value :OPERATOR_AND, 1
     end
     add_message "couchbase.search.v1.NumericRangeQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
-      optional :min, :float, 3
-      optional :max, :float, 4
-      optional :inclusive_min, :bool, 5
-      optional :inclusive_max, :bool, 6
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
+      proto3_optional :min, :float, 3
+      proto3_optional :max, :float, 4
+      proto3_optional :inclusive_min, :bool, 5
+      proto3_optional :inclusive_max, :bool, 6
     end
     add_message "couchbase.search.v1.PhraseQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
       repeated :terms, :string, 3
     end
     add_message "couchbase.search.v1.PrefixQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
       optional :prefix, :string, 3
     end
     add_message "couchbase.search.v1.QueryStringQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
       optional :query_string, :string, 3
     end
     add_message "couchbase.search.v1.RegexpQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
       optional :regexp, :string, 3
     end
     add_message "couchbase.search.v1.TermQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
       optional :term, :string, 3
-      optional :fuzziness, :uint64, 4
-      optional :prefix_length, :uint64, 5
+      proto3_optional :fuzziness, :uint64, 4
+      proto3_optional :prefix_length, :uint64, 5
     end
     add_message "couchbase.search.v1.TermRangeQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
-      optional :term, :string, 3
-      optional :fuzziness, :uint64, 4
-      optional :min, :string, 5
-      optional :max, :string, 6
-      optional :inclusive_min, :bool, 7
-      optional :inclusive_max, :bool, 8
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
+      proto3_optional :min, :string, 5
+      proto3_optional :max, :string, 6
+      proto3_optional :inclusive_min, :bool, 7
+      proto3_optional :inclusive_max, :bool, 8
     end
     add_message "couchbase.search.v1.WildcardQuery" do
-      optional :boost, :float, 1
-      optional :field, :string, 2
+      proto3_optional :boost, :float, 1
+      proto3_optional :field, :string, 2
       optional :wildcard, :string, 3
     end
     add_message "couchbase.search.v1.Query" do
@@ -186,6 +182,37 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
         optional :score_sorting, :message, 4, "couchbase.search.v1.ScoreSorting"
       end
     end
+    add_message "couchbase.search.v1.DateRange" do
+      optional :name, :string, 1
+      proto3_optional :start, :string, 2
+      proto3_optional :end, :string, 3
+    end
+    add_message "couchbase.search.v1.DateRangeFacet" do
+      optional :field, :string, 1
+      optional :size, :uint32, 2
+      repeated :date_ranges, :message, 3, "couchbase.search.v1.DateRange"
+    end
+    add_message "couchbase.search.v1.NumericRange" do
+      optional :name, :string, 1
+      proto3_optional :min, :float, 2
+      proto3_optional :max, :float, 3
+    end
+    add_message "couchbase.search.v1.NumericRangeFacet" do
+      optional :field, :string, 1
+      optional :size, :uint32, 2
+      repeated :numeric_ranges, :message, 3, "couchbase.search.v1.NumericRange"
+    end
+    add_message "couchbase.search.v1.TermFacet" do
+      optional :field, :string, 1
+      optional :size, :uint32, 2
+    end
+    add_message "couchbase.search.v1.Facet" do
+      oneof :facet do
+        optional :date_range_facet, :message, 1, "couchbase.search.v1.DateRangeFacet"
+        optional :numeric_range_facet, :message, 2, "couchbase.search.v1.NumericRangeFacet"
+        optional :term_facet, :message, 3, "couchbase.search.v1.TermFacet"
+      end
+    end
     add_message "couchbase.search.v1.SearchQueryRequest" do
       optional :index_name, :string, 1
       optional :query, :message, 2, "couchbase.search.v1.Query"
@@ -200,6 +227,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :disable_scoring, :bool, 11
       repeated :collections, :string, 12
       optional :include_locations, :bool, 13
+      map :facets, :string, :message, 14, "couchbase.search.v1.Facet"
     end
     add_enum "couchbase.search.v1.SearchQueryRequest.ScanConsistency" do
       value :SCAN_CONSISTENCY_NOT_BOUNDED, 0
@@ -210,10 +238,83 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       value :HIGHLIGHT_STYLE_ANSI, 2
     end
     add_message "couchbase.search.v1.SearchQueryResponse" do
-      repeated :hits, :bytes, 1
-      proto3_optional :meta_data, :message, 2, "couchbase.search.v1.SearchQueryResponse.MetaData"
+      repeated :hits, :message, 1, "couchbase.search.v1.SearchQueryResponse.SearchQueryRow"
+      map :facets, :string, :message, 2, "couchbase.search.v1.SearchQueryResponse.FacetResult"
+      proto3_optional :meta_data, :message, 3, "couchbase.search.v1.SearchQueryResponse.MetaData"
+    end
+    add_message "couchbase.search.v1.SearchQueryResponse.SearchQueryRow" do
+      optional :id, :string, 1
+      optional :score, :double, 2
+      optional :index, :string, 3
+      optional :explanation, :bytes, 4
+      repeated :locations, :message, 5, "couchbase.search.v1.SearchQueryResponse.Location"
+      map :fragments, :string, :message, 6, "couchbase.search.v1.SearchQueryResponse.Fragment"
+      map :fields, :string, :bytes, 7
+    end
+    add_message "couchbase.search.v1.SearchQueryResponse.Location" do
+      optional :field, :string, 1
+      optional :term, :string, 2
+      optional :position, :uint32, 3
+      optional :start, :uint32, 4
+      optional :end, :uint32, 5
+      repeated :array_positions, :uint32, 6
+    end
+    add_message "couchbase.search.v1.SearchQueryResponse.Fragment" do
+      repeated :content, :string, 1
+    end
+    add_message "couchbase.search.v1.SearchQueryResponse.FacetResult" do
+      oneof :search_facet do
+        optional :term_facet, :message, 1, "couchbase.search.v1.SearchQueryResponse.TermFacetResult"
+        optional :date_range_facet, :message, 2, "couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult"
+        optional :numeric_range_facet, :message, 3, "couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult"
+      end
+    end
+    add_message "couchbase.search.v1.SearchQueryResponse.TermResult" do
+      optional :name, :string, 1
+      optional :field, :string, 2
+      optional :size, :uint64, 3
+    end
+    add_message "couchbase.search.v1.SearchQueryResponse.TermFacetResult" do
+      optional :name, :string, 1
+      optional :field, :string, 2
+      optional :total, :int64, 3
+      optional :missing, :int64, 4
+      optional :other, :int64, 5
+      repeated :terms, :message, 6, "couchbase.search.v1.SearchQueryResponse.TermResult"
+    end
+    add_message "couchbase.search.v1.SearchQueryResponse.DateRangeResult" do
+      optional :name, :string, 1
+      optional :size, :uint64, 2
+      optional :start, :message, 3, "google.protobuf.Timestamp"
+      optional :end, :message, 4, "google.protobuf.Timestamp"
+    end
+    add_message "couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult" do
+      optional :name, :string, 1
+      optional :field, :string, 2
+      optional :total, :int64, 3
+      optional :missing, :int64, 4
+      optional :other, :int64, 5
+      repeated :date_ranges, :message, 6, "couchbase.search.v1.SearchQueryResponse.DateRangeResult"
+    end
+    add_message "couchbase.search.v1.SearchQueryResponse.NumericRangeResult" do
+      optional :name, :string, 1
+      optional :size, :uint64, 2
+      optional :min, :uint64, 3
+      optional :max, :uint64, 4
+    end
+    add_message "couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult" do
+      optional :name, :string, 1
+      optional :field, :string, 2
+      optional :total, :int64, 3
+      optional :missing, :int64, 4
+      optional :other, :int64, 5
+      repeated :numeric_ranges, :message, 6, "couchbase.search.v1.SearchQueryResponse.NumericRangeResult"
     end
     add_message "couchbase.search.v1.SearchQueryResponse.MetaData" do
+      optional :metrics, :message, 1, "couchbase.search.v1.SearchQueryResponse.SearchMetrics"
+      map :errors, :string, :string, 2
+    end
+    add_message "couchbase.search.v1.SearchQueryResponse.SearchMetrics" do
       optional :execution_time, :message, 1, "google.protobuf.Duration"
       optional :total_rows, :uint64, 2
       optional :max_score, :double, 3
@@ -258,11 +359,28 @@ module Couchbase
           IdSorting = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.IdSorting").msgclass
           ScoreSorting = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.ScoreSorting").msgclass
           Sorting = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.Sorting").msgclass
+          DateRange = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.DateRange").msgclass
+          DateRangeFacet = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.DateRangeFacet").msgclass
+          NumericRange = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.NumericRange").msgclass
+          NumericRangeFacet = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.NumericRangeFacet").msgclass
+          TermFacet = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.TermFacet").msgclass
+          Facet = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.Facet").msgclass
           SearchQueryRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryRequest").msgclass
           SearchQueryRequest::ScanConsistency = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryRequest.ScanConsistency").enummodule
           SearchQueryRequest::HighlightStyle = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryRequest.HighlightStyle").enummodule
           SearchQueryResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse").msgclass
+          SearchQueryResponse::SearchQueryRow = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.SearchQueryRow").msgclass
+          SearchQueryResponse::Location = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.Location").msgclass
+          SearchQueryResponse::Fragment = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.Fragment").msgclass
+          SearchQueryResponse::FacetResult = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.FacetResult").msgclass
+          SearchQueryResponse::TermResult = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.TermResult").msgclass
+          SearchQueryResponse::TermFacetResult = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.TermFacetResult").msgclass
+          SearchQueryResponse::DateRangeResult = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.DateRangeResult").msgclass
+          SearchQueryResponse::DateRangeFacetResult = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult").msgclass
+          SearchQueryResponse::NumericRangeResult = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.NumericRangeResult").msgclass
+          SearchQueryResponse::NumericRangeFacetResult = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult").msgclass
           SearchQueryResponse::MetaData = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.MetaData").msgclass
+          SearchQueryResponse::SearchMetrics = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.search.v1.SearchQueryResponse.SearchMetrics").msgclass
         end
       end
     end

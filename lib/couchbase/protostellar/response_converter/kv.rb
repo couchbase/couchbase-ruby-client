@@ -48,12 +48,14 @@ module Couchbase
         end
 
         def self.to_lookup_in_result(resp, specs, options)
+          pp resp
           Couchbase::Collection::LookupInResult.new do |res|
             res.cas = resp.cas
             res.transcoder = options.transcoder
             res.encoded = resp.specs.each_with_index.map do |s, idx|
               Couchbase::Collection::SubDocumentField.new do |f|
                 f.exists = s.status.nil?
+                puts s.status
                 f.index = idx
                 f.path = specs[idx].path
                 f.value = s.content.empty? ? nil : s.content

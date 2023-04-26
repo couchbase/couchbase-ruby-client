@@ -68,7 +68,7 @@ module Couchbase
       def search_query(index_name, query, options = Couchbase::Options::Search::DEFAULT)
         req = @search_request_generator.search_query_request(index_name, query, options)
         resp = @client.send_request(req)
-        ResponseConverter::Search.to_search_result(resp)
+        ResponseConverter::Search.to_search_result(resp, options)
       end
     end
   end
