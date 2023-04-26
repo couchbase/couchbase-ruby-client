@@ -43,17 +43,18 @@ module Couchbase
       end
 
       def timeout_for_service(service)
-        if service == :analytics
+        case service
+        when :analytics
           @analytics_timeout
-        elsif service == :kv
+        when :kv
           @key_value_timeout
-        elsif service == :query
+        when :query
           @query_timeout
-        elsif service == :search
+        when :search
           @search_timeout
-        elsif service == :view
+        when :view
           @view_timeout
-        elsif [:bucket_admin, :collection_admin].include? service
+        when :bucket_admin, :collection_admin
           @management_timeout
         end
       end
