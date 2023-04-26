@@ -37,10 +37,9 @@ module Couchbase
         attr_reader :bucket_name
         attr_reader :scope_name
 
-        def initialize(bucket_name: nil, scope_name: nil, default_timeout: nil)
+        def initialize(bucket_name: nil, scope_name: nil)
           @bucket_name = bucket_name
           @scope_name = scope_name
-          @default_timeout = default_timeout.nil? ? TimeoutDefaults::QUERY : default_timeout
         end
 
         def query_request(statement, options)
@@ -88,7 +87,7 @@ module Couchbase
             service: :query,
             rpc: rpc,
             proto_request: proto_request,
-            timeout: get_timeout(options),
+            timeout: options.timeout,
             idempotent: idempotent
           )
         end
@@ -109,14 +108,6 @@ module Couchbase
             nil
           else
             Generated::Query::V1::QueryRequest::TuningOptions.new(**tuning_opts)
-          end
-        end
-
-        def get_timeout(options)
-          if options.timeout.nil?
-            @default_timeout
-          else
-            options.timeout
           end
         end
       end

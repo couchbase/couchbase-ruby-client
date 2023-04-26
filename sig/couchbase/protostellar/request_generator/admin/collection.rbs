@@ -18,11 +18,9 @@ module Couchbase
       module Admin
         class Collection
           attr_reader client: Client
-          attr_reader default_timeout: _CanInMilliseconds | Integer
 
           def initialize: (
               bucket_name: String,
-              default_timeout: (_CanInMilliseconds | Integer)?,
             ) -> void
 
           def list_collections_request: (untyped options) -> untyped
@@ -39,8 +37,6 @@ module Couchbase
               untyped options,
               idempotent: bool,
             ) -> Request
-
-          def get_timeout: (untyped options) -> (_CanInMilliseconds | Integer)
         end
       end
     end

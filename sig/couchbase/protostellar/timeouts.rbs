@@ -1,0 +1,25 @@
+module Couchbase
+  module Protostellar
+    class Timeouts
+      attr_reader key_value_timeout: _CanInMilliseconds | Integer
+      attr_reader view_timeout: _CanInMilliseconds | Integer
+      attr_reader query_timeout: _CanInMilliseconds | Integer
+      attr_reader analytics_timeout: _CanInMilliseconds | Integer
+      attr_reader search_timeout: _CanInMilliseconds | Integer
+      attr_reader management_timeout: _CanInMilliseconds | Integer
+
+      def initialize: (
+          key_value_timeout: (_CanInMilliseconds | Integer)?,
+          view_timeout: (_CanInMilliseconds | Integer)?,
+          query_timeout: (_CanInMilliseconds | Integer)?,
+          analytics_timeout: (_CanInMilliseconds | Integer)?,
+          search_timeout: (_CanInMilliseconds | Integer)?,
+          management_timeout: (_CanInMilliseconds | Integer)?
+        ) -> void
+
+      def timeout_for_service: (Symbol service) -> (_CanInMilliseconds | Integer)
+
+      def self.from_cluster_options: (Couchbase::Options::Cluster options) -> Timeouts
+    end
+  end
+end

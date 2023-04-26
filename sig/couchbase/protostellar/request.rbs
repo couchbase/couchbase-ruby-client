@@ -40,6 +40,7 @@ module Couchbase
       def deadline: () -> untyped
       def add_retry_attempt: (Retry::Reason) -> void
       def error_context: () -> Hash[Symbol, any]
+      def set_timeout_from_defaults: (Timeouts timeouts) -> void
     end
   end
 end

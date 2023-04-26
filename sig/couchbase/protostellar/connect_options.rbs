@@ -21,12 +21,10 @@ module Couchbase
       @root_certificates: String?
       @username: String?
 
-      def initialize: (?username: String? username, ?password: String? password, ?root_certificates: String? root_certificates, ?client_certificate: String? client_certificate, ?private_key: String? private_key) -> void
+      def initialize: (?timeouts: Timeouts, ?username: String? username, ?password: String? password, ?root_certificates: String? root_certificates, ?client_certificate: String? client_certificate, ?private_key: String? private_key) -> void
 
       def grpc_credentials: () -> untyped
-
       def grpc_channel_args: () -> untyped
-
       def grpc_call_metadata: () -> Hash[untyped, untyped]
     end
   end

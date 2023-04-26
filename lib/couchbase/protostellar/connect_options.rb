@@ -16,10 +16,15 @@
 
 require "base64"
 
+require_relative "timeouts"
+
 module Couchbase
   module Protostellar
     class ConnectOptions
-      def initialize(username: nil, password: nil, root_certificates: nil, client_certificate: nil, private_key: nil)
+      attr_reader :timeouts
+
+      def initialize(timeouts: Timeouts.new, username: nil, password: nil, root_certificates: nil, client_certificate: nil, private_key: nil)
+        @timeouts = timeouts
         @username = username
         @password = password
         @root_certificates = root_certificates

@@ -17,6 +17,7 @@
 require_relative "connect_options"
 require_relative "bucket"
 require_relative "client"
+require_relative "timeouts"
 require_relative "management/bucket_manager"
 require_relative "request_generator/query"
 require_relative "request_generator/search"
@@ -32,7 +33,8 @@ module Couchbase
 
       def self.connect(connection_string, options = Couchbase::Options::Cluster.new)
         connect_options = ConnectOptions.new(username: options.authenticator.username,
-                                             password: options.authenticator.password)
+                                             password: options.authenticator.password,
+                                             timeouts: Protostellar::Timeouts.from_cluster_options(options))
         Cluster.new(connection_string.split("://")[1], connect_options)
       end
 
@@ -41,8 +43,9 @@ module Couchbase
         credentials = options.grpc_credentials
         channel_args = options.grpc_channel_args
         call_metadata = options.grpc_call_metadata
+        timeouts = options.timeouts
 
-        @client = Client.new(host, credentials, channel_args, call_metadata)
+        @client = Client.new(host, credentials, channel_args, call_metadata, timeouts)
         @query_request_generator = RequestGenerator::Query.new
         @search_request_generator = RequestGenerator::Search.new
       end
