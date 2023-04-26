@@ -1,5 +1,19 @@
 # frozen_string_literal: true
 
+#  Copyright 2023. Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 require "google/protobuf/well_known_types"
 
 require "couchbase/search_options"
@@ -25,10 +39,6 @@ module Couchbase
         SCAN_CONSISTENCY_MAP = {
           :not_bounded => :SCAN_CONSISTENCY_NOT_BOUNDED,
         }.freeze
-
-        def initialize(default_timeout: nil)
-          @default_timeout = default_timeout.nil? ? TimeoutDefaults::SEARCH : default_timeout
-        end
 
         def search_query_request(index_name, query, options)
           proto_opts = {
@@ -62,7 +72,7 @@ module Couchbase
             service: :search,
             rpc: rpc,
             proto_request: proto_request,
-            timeout: get_timeout(options),
+            timeout: options.timeout,
             idempotent: idempotent
           )
         end
@@ -323,14 +333,6 @@ module Couchbase
             else
               raise Protostellar::Error::ProtostellarError, "Unrecognised search sort type"
             end
-          end
-        end
-
-        def get_timeout(options)
-          if options.timeout.nil?
-            @default_timeout
-          else
-            options.timeout
           end
         end
       end

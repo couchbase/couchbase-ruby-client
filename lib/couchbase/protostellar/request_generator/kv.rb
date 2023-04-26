@@ -20,7 +20,6 @@ require "couchbase/errors"
 
 require "couchbase/protostellar/generated/kv/v1/kv_pb"
 require "couchbase/protostellar/request"
-require "couchbase/protostellar/timeout_defaults"
 
 require "google/protobuf/well_known_types"
 
@@ -64,15 +63,11 @@ module Couchbase
         attr_reader :bucket_name
         attr_reader :scope_name
         attr_reader :collection_name
-        attr_reader :default_timeout
 
-        def initialize(bucket_name, scope_name, collection_name, default_timeout = nil)
+        def initialize(bucket_name, scope_name, collection_name)
           @bucket_name = bucket_name
           @scope_name = scope_name
           @collection_name = collection_name
-
-          # TODO: Use the KV timeout from the cluster's options
-          @default_timeout = default_timeout.nil? ? TimeoutDefaults::KEY_VALUE : default_timeout
         end
 
         def location
@@ -337,7 +332,7 @@ module Couchbase
             service: :kv,
             rpc: rpc,
             proto_request: proto_request,
-            timeout: get_timeout(options),
+            timeout: options.timeout,
             idempotent: idempotent
           )
         end
@@ -435,14 +430,6 @@ module Couchbase
             encoded, flag = options.transcoder.encode(content)
           end
           [encoded, flag]
-        end
-
-        def get_timeout(options)
-          if options.timeout.nil?
-            @default_timeout
-          else
-            options.timeout
-          end
         end
       end
     end

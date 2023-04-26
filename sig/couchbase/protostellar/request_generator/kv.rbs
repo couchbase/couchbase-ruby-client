@@ -24,9 +24,8 @@ module Couchbase
         attr_reader bucket_name: String
         attr_reader scope_name: String
         attr_reader collection_name: String
-        attr_reader default_timeout: _CanInMilliseconds | Integer
 
-        def initialize: (String, String, String, (_CanInMilliseconds | Integer)?) -> void
+        def initialize: (String, String, String) -> void
 
         def location: () -> Hash[Symbol, String]
 
@@ -63,7 +62,6 @@ module Couchbase
         def get_mutate_in_flags: (untyped) -> untyped
         def get_mutate_in_store_semantic: (untyped) -> Symbol
         def get_encoded: (Object, untyped) -> [String, Integer]
-        def get_timeout: (untyped) -> (_CanInMilliseconds | Integer)
       end
     end
   end

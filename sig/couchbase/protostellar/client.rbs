@@ -16,6 +16,9 @@ module Couchbase
   module Protostellar
     class Client
       @channel: Object
+      @call_metadata: Hash[untyped, untyped]
+      @timeouts: Timeouts
+
       @routing_stub: Object
       @kv_stub: Object
       @query_stub: Object
@@ -25,7 +28,7 @@ module Couchbase
       @bucket_admin_stub: Object
       @collection_admin_stub: Object
 
-      def initialize: (String host, untyped credentials, untyped channel_args) -> void
+      def initialize: (String host, untyped credentials, untyped channel_args, Hash[untyped, untyped] call_metadata, Timeouts timeouts) -> void
       def stub: (Symbol) -> untyped
       def send_request: (Request) -> untyped
       def close: () -> void

@@ -6,9 +6,6 @@ module Couchbase
         HIGHLIGHT_STYLE_MAP: Hash[Symbol?, Symbol]
         SCAN_CONSISTENCY_MAP: Hash[Symbol, Symbol]
 
-        @default_timeout: _CanInMilliseconds | Integer
-
-        def initialize: (default_timeout: (_CanInMilliseconds | Integer)?) -> void
         def search_query_request: (String index_name, untyped query, untyped options) -> untyped
 
         private
@@ -44,7 +41,6 @@ module Couchbase
         def create_wildcard_query: (untyped query) -> untyped
 
         def get_sort: (untyped options) -> untyped
-        def get_timeout: (untyped options) -> (_CanInMilliseconds | Integer)
       end
     end
   end

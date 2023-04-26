@@ -66,6 +66,12 @@ module Couchbase
       def error_context
         @context.merge({retry_reasons: @retry_reasons.to_a, retry_attempts: @retry_attempts})
       end
+
+      def set_timeout_from_defaults(timeouts)
+        return unless @timeout.nil?
+
+        @timeout = timeouts.timeout_for_service(@service)
+      end
     end
   end
 end

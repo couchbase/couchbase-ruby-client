@@ -15,7 +15,6 @@
 #  limitations under the License.
 
 require_relative "../../request"
-require_relative "../../timeout_defaults"
 require_relative "../../generated/admin/bucket/v1/bucket_pb"
 require_relative "../kv"
 
@@ -56,11 +55,6 @@ module Couchbase
 
           DURABILITY_LEVEL_MAP = RequestGenerator::KV::DURABILITY_LEVEL_MAP
 
-          attr_reader :default_timeout
-
-          def initialize(default_timeout: nil)
-            @default_timeout = default_timeout.nil? ? TimeoutDefaults::MANAGEMENT : default_timeout
-          end
 
           def list_buckets_request(options)
             proto_req = Generated::Admin::Bucket::V1::ListBucketsRequest.new
@@ -107,21 +101,13 @@ module Couchbase
           end
 
           def create_request(proto_request, rpc, options, idempotent: false)
-            req = Request.new(
+            Request.new(
               service: :bucket_admin,
               rpc: rpc,
               proto_request: proto_request,
               idempotent: idempotent,
-              timeout: get_timeout(options)
+              timeout: options.timeout
             )
-          end
-
-          def get_timeout(options)
-            if options.timeout.nil?
-              @default_timeout
-            else
-              options.timeout
-            end
           end
         end
       end

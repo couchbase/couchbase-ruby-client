@@ -29,9 +29,10 @@ require_relative "generated/admin/bucket/v1/bucket_services_pb"
 module Couchbase
   module Protostellar
     class Client
-      def initialize(host, credentials, channel_args, call_metadata)
+      def initialize(host, credentials, channel_args, call_metadata, timeouts)
         @channel = GRPC::Core::Channel.new(host, channel_args, credentials)
         @call_metadata = call_metadata
+        @timeouts = timeouts
 
         @routing_stub = Generated::Routing::V1::RoutingService::Stub.new(host, credentials, channel_override: @channel)
         @kv_stub = Generated::KV::V1::KvService::Stub.new(host, credentials, channel_override: @channel)
@@ -72,6 +73,7 @@ module Couchbase
 
       def send_request(request)
         loop do
+          request.set_timeout_from_defaults(@timeouts)
           return stub(request.service).public_send(request.rpc, request.proto_request, deadline: request.deadline, metadata: @call_metadata)
         rescue GRPC::BadStatus => e
           request_behaviour = ErrorHandling.handle_grpc_error(e, request)

@@ -23,13 +23,9 @@ module Couchbase
       module Admin
         class Collection
           attr_reader :client
-          attr_reader :default_timeout
 
-          def initialize(bucket_name:, default_timeout: nil)
+          def initialize(bucket_name:)
             @bucket_name = bucket_name
-
-            # TODO: Use the management timeout from the cluster's options
-            @default_timeout = default_timeout.nil? ? TimeoutDefaults::MANAGEMENT : default_timeout
           end
 
           def list_collections_request(options)
@@ -80,21 +76,13 @@ module Couchbase
           private
 
           def create_request(proto_request, rpc, options, idempotent: false)
-            req = Request.new(
+            Request.new(
               service: :collection_admin,
               rpc: rpc,
               proto_request: proto_request,
               idempotent: idempotent,
-              timeout: get_timeout(options)
+              timeout: options.timeout
             )
-          end
-
-          def get_timeout(options)
-            if options.timeout.nil?
-              @default_timeout
-            else
-              options.timeout
-            end
           end
         end
       end
