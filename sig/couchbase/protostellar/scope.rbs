@@ -15,15 +15,15 @@
 module Couchbase
   module Protostellar
     class Scope
-      @bucket_name: String
       @client: Client
       @query_request_generator: RequestGenerator::Query
 
+      attr_reader bucket_name: String
       attr_reader name: String
 
       def collection: -> Collection
 
-      def query: (String, QueryOptions) -> QueryResult
+      def query: (String, untyped) -> untyped
     end
   end
 end

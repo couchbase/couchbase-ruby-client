@@ -20,10 +20,9 @@ module Couchbase
       def initialize: (Client client, String name) -> void
 
       def scope: (String name) -> Scope
-
       def collection: (String name) -> Collection
-
       def default_collection: () -> Collection
+      def default_scope: () -> Scope
     end
   end
 end

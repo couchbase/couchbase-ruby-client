@@ -16,10 +16,10 @@ module Couchbase
   module Protostellar
     class Collection
       @client: Client
-      @bucket_name: String
-      @scope_name: String
       @kv_request_generator: RequestGenerator::KV
 
+      attr_reader bucket_name: String
+      attr_reader scope_name: String
       attr_reader name: String
 
       def initialize: (Client, String, String, String) -> void

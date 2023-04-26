@@ -24,6 +24,7 @@ require_relative "collection"
 module Couchbase
   module Protostellar
     class Scope
+      attr_reader :bucket_name
       attr_reader :name
 
       def initialize(client, bucket_name, name)

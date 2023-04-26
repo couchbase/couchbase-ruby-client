@@ -81,7 +81,7 @@ RSpec.describe Couchbase::Protostellar::Management::BucketManager do
 
       it "creates a bucket of type Couchbase" do
         expect(res.name).to be eq(bucket_name)
-        expect(res.bucket_type).to be :ephemeral
+        expect(res.bucket_type).to be :couchbase
       end
     end
   end
