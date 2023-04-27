@@ -55,7 +55,6 @@ module Couchbase
 
           DURABILITY_LEVEL_MAP = RequestGenerator::KV::DURABILITY_LEVEL_MAP
 
-
           def list_buckets_request(options)
             proto_req = Generated::Admin::Bucket::V1::ListBucketsRequest.new
             create_request(proto_req, :list_buckets, options, idempotent: true)
