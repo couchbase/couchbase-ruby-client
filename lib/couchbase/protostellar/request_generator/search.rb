@@ -40,6 +40,9 @@ module Couchbase
           :not_bounded => :SCAN_CONSISTENCY_NOT_BOUNDED,
         }.freeze
 
+        DEFAULT_LIMIT = 10
+        DEFAULT_SKIP = 0
+
         def search_query_request(index_name, query, options)
           proto_opts = {
             scan_consistency: SCAN_CONSISTENCY_MAP[options.scan_consistency],
@@ -52,8 +55,8 @@ module Couchbase
           proto_opts[:highlight_fields] = options.highlight_fields unless options.highlight_fields.nil?
           proto_opts[:fields] = options.fields unless options.fields.nil?
           proto_opts[:sort] = get_sort(options) unless options.sort.nil?
-          proto_opts[:limit] = options.limit unless options.limit.nil?
-          proto_opts[:skip] = options.skip unless options.skip.nil?
+          proto_opts[:limit] = options.limit || DEFAULT_LIMIT
+          proto_opts[:skip] = options.skip || DEFAULT_SKIP
           proto_opts[:collections] = options.collections unless options.collections.nil?
 
           proto_req = Generated::Search::V1::SearchQueryRequest.new(
@@ -61,6 +64,11 @@ module Couchbase
             index_name: index_name,
             **proto_opts
           )
+
+          # Set the search facets in the request
+          get_facets(options).each do |key, facet|
+            proto_req.facets[key] = facet
+          end
 
           create_search_request(proto_req, :search_query, options)
         end
@@ -332,6 +340,44 @@ module Couchbase
               end
             else
               raise Protostellar::Error::ProtostellarError, "Unrecognised search sort type"
+            end
+          end
+        end
+
+        def get_facets(options)
+          return {} if options.facets.nil?
+
+          options.facets.transform_values do |facet|
+            case facet
+            when Couchbase::Cluster::SearchFacet::SearchFacetTerm
+              Generated::Search::V1::Facet.new(
+                term_facet: Generated::Search::V1::TermFacet.new(
+                  field: facet.field,
+                  size: facet.size
+                )
+              )
+            when Couchbase::Cluster::SearchFacet::SearchFacetNumericRange
+              Generated::Search::V1::Facet.new(
+                numeric_range_facet: Generated::Search::V1::NumericRangeFacet.new(
+                  field: facet.field,
+                  size: facet.size,
+                  numeric_ranges: facet.instance_variable_get(:@ranges).map do |r|
+                    Generated::Search::V1::NumericRange(name: r[:name], min: r[:min], max: r[:max])
+                  end
+                )
+              )
+            when Couchbase::Cluster::SearchFacet::SearchFacetDateRange
+              Generated::Search::V1::Facet.new(
+                date_range_facet: Generated::Search::V1::DateRangeFacet.new(
+                  field: facet.field,
+                  size: facet.size,
+                  date_ranges: facet.instance_variable_get(:@ranges).map do |r|
+                    Generated::Search::V1::DateRange(name: r[:name], start: r[:start], end: r[:end])
+                  end
+                )
+              )
+            else
+              raise Protostellar::Error::ProtostellarError, "Unrecognised search facet type"
             end
           end
         end

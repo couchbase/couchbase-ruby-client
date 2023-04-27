@@ -5,6 +5,8 @@ module Couchbase
         MATCH_QUERY_OPERATOR_MAP: Hash[Symbol, Symbol]
         HIGHLIGHT_STYLE_MAP: Hash[Symbol?, Symbol]
         SCAN_CONSISTENCY_MAP: Hash[Symbol, Symbol]
+        DEFAULT_LIMIT: Integer
+        DEFAULT_SKIP: Integer
 
         def search_query_request: (String index_name, untyped query, untyped options) -> untyped
 
@@ -41,6 +43,7 @@ module Couchbase
         def create_wildcard_query: (untyped query) -> untyped
 
         def get_sort: (untyped options) -> untyped
+        def get_facets: (untyped options) -> Hash[String, untyped]
       end
     end
   end
