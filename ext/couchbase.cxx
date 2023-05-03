@@ -1592,7 +1592,7 @@ extract_durability_level(VALUE options)
     if (VALUE val = rb_hash_aref(options, property_name); !NIL_P(val)) {
         ID level = rb_sym2id(val);
         if (level == rb_intern("none")) {
-            return couchbase::durability_level::none;
+            return {};
         }
         if (level == rb_intern("majority")) {
             return couchbase::durability_level::majority;
@@ -1615,7 +1615,7 @@ extract_legacy_durability_persist_to(VALUE options)
     if (VALUE val = rb_hash_aref(options, property_name); !NIL_P(val)) {
         ID mode = rb_sym2id(val);
         if (mode == rb_intern("none")) {
-            return couchbase::persist_to::none;
+            return {};
         }
         if (mode == rb_intern("active")) {
             return couchbase::persist_to::active;
@@ -1644,7 +1644,7 @@ extract_legacy_durability_replicate_to(VALUE options)
     if (VALUE val = rb_hash_aref(options, property_name); !NIL_P(val)) {
         ID mode = rb_sym2id(val);
         if (mode == rb_intern("none")) {
-            return couchbase::replicate_to::none;
+            return {};
         }
         if (mode == rb_intern("one")) {
             return couchbase::replicate_to::one;
