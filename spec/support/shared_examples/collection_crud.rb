@@ -10,7 +10,7 @@ RSpec.shared_examples "collection crud operations" do
   end
 
   def upsert_sample_document(name: :foo, content: sample_content, doc_id: nil, options: nil)
-    doc_id = unique_id(name) if doc_id.nil?
+    doc_id = uniq_id(name) if doc_id.nil?
 
     if options.nil?
       collection.upsert(doc_id, content)
@@ -350,76 +350,54 @@ RSpec.shared_examples "collection crud operations" do
 
   describe "#insert" do
     context "when the document does not currently exist" do
-      subject(:mutation_result) { @mutation_result }
-
-      before do
-        @doc_id = unique_id(:foo)
-        @mutation_result = collection.insert(@doc_id, sample_content)
-      end
-
-      after do
-        collection.remove(@doc_id)
-      end
+      let(:doc_id) { uniq_id(:foo) }
+      let!(:result) { collection.insert(doc_id, sample_content) }
 
       it "the result has non-zero CAS" do
-        expect(@mutation_result.cas != 0).to be true
+        expect(result.cas).not_to be_zero
       end
 
       it "the result has success set to true" do
-        expect(@mutation_result.success?).to be true
+        expect(result.success?).to be true
       end
 
       it "the document has been inserted and has the correct content" do
-        expect(collection.get(@doc_id).content).to eq(sample_content)
+        expect(collection.get(doc_id).content).to eq(sample_content)
       end
     end
 
     context "when the document already exists" do
-      before do
-        @doc_id = upsert_sample_document
-      end
-
-      after do
-        collection.remove(@doc_id)
-      end
+      let!(:doc_id) { upsert_sample_document }
 
       it "raises DocumentExists error" do
-        expect { collection.insert(@doc_id, sample_content) }.to raise_error(Couchbase::Error::DocumentExists)
+        expect { collection.insert(doc_id, sample_content) }.to raise_error(Couchbase::Error::DocumentExists)
       end
     end
   end
 
   describe "#replace" do
     context "when the document exists" do
-      before do
-        @doc_id = upsert_sample_document
-        @mutation_result = collection.replace(@doc_id, updated_content)
-      end
-
-      after do
-        collection.remove(@doc_id)
-      end
+      let(:doc_id) { upsert_sample_document }
+      let!(:result) { collection.replace(doc_id, updated_content) }
 
       it "the result has non-zero CAS" do
-        expect(@mutation_result.cas != 0).to be true
+        expect(result.cas).not_to be_zero
       end
 
       it "the result has success set to true" do
-        expect(@mutation_result.success?).to be true
+        expect(result.success?).to be true
       end
 
       it "the document has been replaced and has the correct content" do
-        expect(collection.get(@doc_id).content).to eq(updated_content)
+        expect(collection.get(doc_id).content).to eq(updated_content)
       end
     end
 
     context "when the document does not exist" do
-      before do
-        @doc_id = unique_id(:foo)
-      end
+      let(:doc_id) { uniq_id(:foo) }
 
       it "raises DocumentNotFound error" do
-        expect { collection.replace(@doc_id, updated_content) }.to raise_error(Couchbase::Error::DocumentNotFound)
+        expect { collection.replace(doc_id, updated_content) }.to raise_error(Couchbase::Error::DocumentNotFound)
       end
     end
   end
@@ -449,36 +427,28 @@ RSpec.shared_examples "collection crud operations" do
 
   describe "#exists" do
     context "when the document exists" do
-      before do
-        @doc_id = upsert_sample_document
-        @exists_result = collection.exists(@doc_id)
-      end
-
-      after do
-        collection.remove(@doc_id)
-      end
+      let(:doc_id) { upsert_sample_document }
+      let(:result) { collection.exists(doc_id) }
 
       it "the result has non-zero CAS" do
-        expect(@exists_result.cas != 0).to be true
+        expect(result.cas).not_to be_zero
       end
 
       it "the `exists` field in the result is set to true" do
-        expect(@exists_result.exists?).to be true
+        expect(result.exists?).to be true
       end
     end
 
     context "when the document does not exist" do
-      before do
-        @doc_id = unique_id(:foo)
-        @exists_result = collection.exists(@doc_id)
-      end
+      let(:doc_id) { uniq_id(:foo) }
+      let!(:result) { collection.exists(doc_id) }
 
       it "the result has zero CAS" do
-        expect(@exists_result.cas).to be 0
+        expect(result.cas).to be_zero
       end
 
       it "the `exists` field in the result is set to false" do
-        expect(@exists_result.exists?).to be false
+        expect(result.exists?).to be false
       end
     end
   end

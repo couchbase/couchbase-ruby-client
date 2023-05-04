@@ -19,6 +19,7 @@ require "couchbase/protostellar"
 
 RSpec.describe Couchbase::Protostellar::Scope do
   subject(:scope) { @scope }
+  let(:cluster) { @cluster }
 
   # rubocop:disable RSpec/BeforeAfterAll
   before(:all) do

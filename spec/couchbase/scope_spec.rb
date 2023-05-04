@@ -19,6 +19,7 @@ require "couchbase"
 
 RSpec.describe Couchbase::Scope do
   subject(:scope) { @scope }
+  let(:cluster) { @cluster }
 
   # rubocop:disable RSpec/BeforeAfterAll
   before(:all) do
