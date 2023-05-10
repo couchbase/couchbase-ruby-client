@@ -258,8 +258,6 @@ module Couchbase
             **proto_opts
           )
 
-          puts proto_req
-
           create_kv_request(proto_req, :lookup_in, options, idempotent: true)
         end
 

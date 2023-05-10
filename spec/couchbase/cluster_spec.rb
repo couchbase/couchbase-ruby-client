@@ -22,7 +22,7 @@ RSpec.describe Couchbase::Cluster do
 
   # rubocop:disable RSpec/BeforeAfterAll
   before(:all) do
-    @cluster = connect("couchbase")
+    @cluster = connect_with_classic
   end
   # rubocop:enable RSpec/BeforeAfterAll
 

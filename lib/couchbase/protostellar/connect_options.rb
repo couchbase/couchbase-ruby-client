@@ -23,7 +23,12 @@ module Couchbase
     class ConnectOptions
       attr_reader :timeouts
 
-      def initialize(timeouts: Timeouts.new, username: nil, password: nil, root_certificates: nil, client_certificate: nil, private_key: nil)
+      def initialize(timeouts: Timeouts.new,
+                     username: nil,
+                     password: nil,
+                     root_certificates: nil,
+                     client_certificate: nil,
+                     private_key: nil)
         @timeouts = timeouts
         @username = username
         @password = password
@@ -33,10 +38,11 @@ module Couchbase
       end
 
       def grpc_credentials
-        if @client_certificate
+        if @root_certificates
           GRPC::Core::ChannelCredentials.new(@root_certificates, @client_certificate, @private_key)
         else
-          :this_channel_is_insecure
+          # Use default certificates
+          GRPC::Core::ChannelCredentials.new(nil, @client_certificate, @private_key)
         end
       end
 

@@ -19,11 +19,12 @@ require "couchbase"
 
 RSpec.describe Couchbase::Scope do
   subject(:scope) { @scope }
+
   let(:cluster) { @cluster }
 
   # rubocop:disable RSpec/BeforeAfterAll
   before(:all) do
-    @cluster = connect("couchbase")
+    @cluster = connect_with_classic
     @scope = default_scope(@cluster)
   end
   # rubocop:enable RSpec/BeforeAfterAll

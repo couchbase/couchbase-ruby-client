@@ -32,20 +32,26 @@ module Couchbase
       attr_reader :client
 
       def self.connect(connection_string, options = Couchbase::Options::Cluster.new)
-        connect_options = ConnectOptions.new(username: options.authenticator.username,
-                                             password: options.authenticator.password,
-                                             timeouts: Protostellar::Timeouts.from_cluster_options(options))
-        Cluster.new(connection_string.split("://")[1], connect_options)
+        params = connection_string.split("?")[1].split("&").to_h { |p| p.split("=") }
+
+        connect_options = ConnectOptions.new(
+          username: options.authenticator.username,
+          password: options.authenticator.password,
+          timeouts: Protostellar::Timeouts.from_cluster_options(options),
+          root_certificates: File.read(params["trust_certificate"])
+        )
+        Cluster.new(connection_string.split("://")[1].split("?")[0], connect_options)
       end
 
-      def initialize(connection_string, options = ConnectOptions.new)
-        host = connection_string.include?(":") ? connection_string : "#{connection_string}:18098"
-        credentials = options.grpc_credentials
-        channel_args = options.grpc_channel_args
-        call_metadata = options.grpc_call_metadata
-        timeouts = options.timeouts
+      def initialize(host, options = ConnectOptions.new)
+        @client = Client.new(
+          host: host.include?(":") ? host : "#{host}:18098",
+          credentials: options.grpc_credentials,
+          channel_args: options.grpc_channel_args,
+          call_metadata: options.grpc_call_metadata,
+          timeouts: options.timeouts
+        )
 
-        @client = Client.new(host, credentials, channel_args, call_metadata, timeouts)
         @query_request_generator = RequestGenerator::Query.new
         @search_request_generator = RequestGenerator::Search.new
       end

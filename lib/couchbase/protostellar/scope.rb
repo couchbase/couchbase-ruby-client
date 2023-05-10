@@ -32,7 +32,7 @@ module Couchbase
         @bucket_name = bucket_name
         @name = name
 
-        @query_request_generator = RequestGenerator::Query.new(bucket_name: @bucket_name)
+        @query_request_generator = RequestGenerator::Query.new(bucket_name: @bucket_name, scope_name: @name)
       end
 
       def collection(name)

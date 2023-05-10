@@ -23,7 +23,7 @@ RSpec.describe Couchbase::BinaryCollection do
 
   # rubocop:disable RSpec/BeforeAfterAll
   before(:all) do
-    @cluster = connect("couchbase")
+    @cluster = connect_with_classic
     @collection = default_collection(@cluster)
     @binary_collection = @collection.binary
   end

@@ -17,7 +17,7 @@
 require "rspec"
 
 RSpec.describe Couchbase::Protostellar::Management::BucketManager do
-  let(:cluster) { connect }
+  let(:cluster) { connect_with_protostellar }
   let(:bucket_name) { unique_id(:bucket) }
   let(:mgr) { cluster.buckets }
 

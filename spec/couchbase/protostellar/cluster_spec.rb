@@ -22,7 +22,7 @@ RSpec.describe Couchbase::Protostellar::Cluster do
 
   # rubocop:disable RSpec/BeforeAfterAll
   before(:all) do
-    @cluster = connect("protostellar")
+    @cluster = connect_with_protostellar
   end
   # rubocop:enable RSpec/BeforeAfterAll
 

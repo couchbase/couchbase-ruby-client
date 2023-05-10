@@ -24,7 +24,7 @@ RSpec.describe Couchbase::Protostellar::BinaryCollection do
 
   # rubocop:disable RSpec/BeforeAfterAll
   before(:all) do
-    @cluster = connect("protostellar")
+    @cluster = connect_with_protostellar
     @collection = default_collection(@cluster)
     @binary_collection = @collection.binary
   end

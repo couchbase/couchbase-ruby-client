@@ -29,7 +29,7 @@ require_relative "generated/admin/bucket/v1/bucket_services_pb"
 module Couchbase
   module Protostellar
     class Client
-      def initialize(host, credentials, channel_args, call_metadata, timeouts)
+      def initialize(host:, credentials:, channel_args:, call_metadata:, timeouts:)
         @channel = GRPC::Core::Channel.new(host, channel_args, credentials)
         @call_metadata = call_metadata
         @timeouts = timeouts
