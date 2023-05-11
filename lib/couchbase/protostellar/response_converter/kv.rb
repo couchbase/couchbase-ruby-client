@@ -52,11 +52,18 @@ module Couchbase
             res.transcoder = options.transcoder
             res.encoded = resp.specs.each_with_index.map do |s, idx|
               Couchbase::Collection::SubDocumentField.new do |f|
-                f.exists = s.status.nil?
-                puts s.status
+                # TODO: What to do with the status?
                 f.index = idx
                 f.path = specs[idx].path
-                f.value = s.content.empty? ? nil : s.content
+                if specs[idx].type == :exists
+                  f.exists = s.content == "true"
+                elsif s.content.empty?
+                  f.value = nil
+                  f.exists = false
+                else
+                  f.value = s.content
+                  f.exists = true
+                end
               end
             end
           end
