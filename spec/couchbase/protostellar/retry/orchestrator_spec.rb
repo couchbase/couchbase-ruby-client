@@ -22,6 +22,10 @@ require "couchbase/protostellar/retry/reason"
 require "couchbase/options"
 
 RSpec.describe Couchbase::Protostellar::Retry::Orchestrator do
+  let(:sample_content) do
+    {"value" => 42}
+  end
+
   describe "#maybe_retry" do
     let(:request_generator) do
       # The requests here do not get executed - just using some placeholder bucket/scope/collection names

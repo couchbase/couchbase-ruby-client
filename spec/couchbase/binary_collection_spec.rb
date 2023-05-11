@@ -19,6 +19,7 @@ require "couchbase"
 
 RSpec.describe Couchbase::BinaryCollection do
   subject(:binary_collection) { @binary_collection }
+
   let(:collection) { @collection }
 
   # rubocop:disable RSpec/BeforeAfterAll

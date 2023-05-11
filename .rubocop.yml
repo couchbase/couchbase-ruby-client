@@ -60,3 +60,9 @@ RSpec/MultipleMemoizedHelpers:
 
 RSpec/InstanceVariable:
   Enabled: false
+
+RSpec/LetSetup:
+  Enabled: false
+
+RSpec/MultipleExpectations:
+  Enabled: false

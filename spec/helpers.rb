@@ -91,10 +91,6 @@ module Helpers
     cluster.bucket(bucket_name)
   end
 
-  def sample_content
-    {:content => "sample"}
-  end
-
   def use_caves?
     # TODO: Temporary
     false
