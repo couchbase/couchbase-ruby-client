@@ -15,11 +15,15 @@
 module Couchbase
   module Protostellar
     class Cluster
+      VALID_CONNECTION_STRING_PARAMS: Array[String]
+
       attr_reader client: Client
+
       @query_request_generator: RequestGenerator::Query
       @search_request_generator: RequestGenerator::Search
 
-      def self.connect: (String, untyped) -> untyped
+      def self.connect: (String connection_string, untyped options) -> untyped
+      def self.parse_connection_string_params: (String connection_string) -> Hash[String, untyped]
 
       def initialize: (untyped connection_string, ?untyped options) -> void
 

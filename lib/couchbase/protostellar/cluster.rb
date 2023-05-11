@@ -29,18 +29,38 @@ require "couchbase/options"
 module Couchbase
   module Protostellar
     class Cluster
+      VALID_CONNECTION_STRING_PARAMS = [
+        "trust_certificate",
+      ].freeze
+
       attr_reader :client
 
       def self.connect(connection_string, options = Couchbase::Options::Cluster.new)
-        params = connection_string.split("?")[1].split("&").to_h { |p| p.split("=") }
+        params = parse_connection_string_params(connection_string)
 
         connect_options = ConnectOptions.new(
           username: options.authenticator.username,
           password: options.authenticator.password,
           timeouts: Protostellar::Timeouts.from_cluster_options(options),
-          root_certificates: File.read(params["trust_certificate"])
+          root_certificates: params.key?("trust_certificate") ? File.read(params["trust_certificate"]) : nil
         )
         Cluster.new(connection_string.split("://")[1].split("?")[0], connect_options)
+      end
+
+      def self.parse_connection_string_params(connection_string)
+        params =
+          if connection_string.include? "?"
+            connection_string.split("?")[1].split("&").to_h { |p| p.split("=") }
+          else
+            {}
+          end
+
+        # Show warnings for the connection string parameters that are not supported
+        params.each do |k, v|
+          warn "Unknown parameter '#{k}' in connection string (value '#{v}')" unless VALID_CONNECTION_STRING_PARAMS.include?(k)
+        end
+
+        params
       end
 
       def initialize(host, options = ConnectOptions.new)
