@@ -1289,7 +1289,7 @@ module Couchbase
                                   MutateInSpec.upsert("meta.field", "b").xattr.create_path,
                                 ], options)
         end
-        return
+        skip("#{name}: server does not support subdoc tombstones")
       end
       res = @collection.mutate_in(doc_id, [
                                     MutateInSpec.upsert("meta.field", "b").xattr.create_path,
