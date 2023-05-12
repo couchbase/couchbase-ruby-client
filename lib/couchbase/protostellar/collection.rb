@@ -27,6 +27,8 @@ require "google/protobuf/well_known_types"
 module Couchbase
   module Protostellar
     class Collection
+      attr_reader :bucket_name
+      attr_reader :scope_name
       attr_reader :name
 
       def initialize(client, bucket_name, scope_name, name)

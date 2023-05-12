@@ -24,6 +24,7 @@ require_relative "collection"
 module Couchbase
   module Protostellar
     class Scope
+      attr_reader :bucket_name
       attr_reader :name
 
       def initialize(client, bucket_name, name)
@@ -31,7 +32,7 @@ module Couchbase
         @bucket_name = bucket_name
         @name = name
 
-        @query_request_generator = RequestGenerator::Query.new(bucket_name: @bucket_name)
+        @query_request_generator = RequestGenerator::Query.new(bucket_name: @bucket_name, scope_name: @name)
       end
 
       def collection(name)

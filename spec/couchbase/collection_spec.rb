@@ -1,4 +1,6 @@
-#  Copyright 2022-Present Couchbase, Inc.
+# frozen_string_literal: true
+
+#  Copyright 2023. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,22 +14,18 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-module Couchbase
-  module Protostellar
-    class MutationToken
-      attr_accessor bucket_name: String
-      attr_accessor partition_id: Integer
-      attr_accessor partition_uuid: Integer
-      attr_accessor sequence_number: Integer
+require "rspec"
+require "couchbase"
 
-      def initialize: (
-          bucket_name: String?,
-          partition_id: Integer?,
-          partition_uuid: Integer?,
-          sequence_number: Integer?
-        ) -> void
+RSpec.describe Couchbase::Collection do
+  subject(:collection) { @collection }
 
-      def to_proto: () -> untyped
-    end
+  # rubocop:disable RSpec/BeforeAfterAll
+  before(:all) do
+    @cluster = connect_with_classic
+    @collection = default_collection(@cluster)
   end
+  # rubocop:enable RSpec/BeforeAfterAll
+
+  it_behaves_like "a collection"
 end

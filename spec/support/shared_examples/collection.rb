@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2022-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,14 +14,9 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-module Couchbase
-  module Protostellar
-    class JsonTranscoder
-      def document_content_type: () -> document_content_type
+require "rspec"
 
-      def encode: (Object) -> String
-
-      def decode: (String | nil) -> Hash[untyped, untyped]
-    end
-  end
+RSpec.shared_examples "a collection" do
+  include_examples "collection crud operations"
+  include_examples "collection sub-document operations"
 end

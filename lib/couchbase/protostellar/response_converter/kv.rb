@@ -25,10 +25,8 @@ module Couchbase
           Couchbase::Collection::GetResult.new do |res|
             res.transcoder = options.transcoder
             res.cas = resp.cas
-            res.expiry = resp.expiry if resp.has_expiry?
+            res.expiry = extract_expiry_time(resp) if options.respond_to?(:with_expiry) && options.with_expiry
             res.encoded = resp.content
-
-            # TODO: Handle conversion of content type & compression type to flag
             res.flags = resp.content_flags
           end
         end
@@ -54,11 +52,18 @@ module Couchbase
             res.transcoder = options.transcoder
             res.encoded = resp.specs.each_with_index.map do |s, idx|
               Couchbase::Collection::SubDocumentField.new do |f|
-                f.exists = s.status.nil?
-                puts s.status
+                # TODO: What to do with the status?
                 f.index = idx
                 f.path = specs[idx].path
-                f.value = s.content.empty? ? nil : s.content
+                if specs[idx].type == :exists
+                  f.exists = s.content == "true"
+                elsif s.content.empty?
+                  f.value = nil
+                  f.exists = false
+                else
+                  f.value = s.content
+                  f.exists = true
+                end
               end
             end
           end
@@ -98,6 +103,11 @@ module Couchbase
             token.partition_uuid = proto_token.vbucket_uuid
             token.sequence_number = proto_token.seq_no
           end
+        end
+
+        def self.extract_expiry_time(resp)
+          timestamp = resp.expiry
+          Time.at(timestamp.seconds, timestamp.nanos, :nsec)
         end
       end
     end

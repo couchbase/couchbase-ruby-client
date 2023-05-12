@@ -35,8 +35,12 @@ module Couchbase
         Scope.new(@client, @name, "_default").collection(name)
       end
 
+      def default_scope
+        Scope.new(@client, @name, "_default")
+      end
+
       def default_collection
-        Scope.new(@client, @name, "_default").collection("_default")
+        default_scope.collection("_default")
       end
 
       def collections

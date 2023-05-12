@@ -1,4 +1,6 @@
-#  Copyright 2022-Present. Couchbase, Inc.
+# frozen_string_literal: true
+
+#  Copyright 2023. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,19 +14,20 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-module Couchbase
-  module Protostellar
-    class QueryMetrics
-      attr_accessor elapsed_time: Integer
-      attr_accessor execution_time: Integer
-      attr_accessor sort_count: Integer
-      attr_accessor result_count: Integer
-      attr_accessor result_size: Integer
-      attr_accessor mutation_count: Integer
-      attr_accessor error_count: Integer
-      attr_accessor warning_count: Integer
+require "rspec"
+require "couchbase"
 
-      def initialize: (untyped) -> void
-    end
+RSpec.describe Couchbase::Scope do
+  subject(:scope) { @scope }
+
+  let(:cluster) { @cluster }
+
+  # rubocop:disable RSpec/BeforeAfterAll
+  before(:all) do
+    @cluster = connect_with_classic
+    @scope = default_scope(@cluster)
   end
+  # rubocop:enable RSpec/BeforeAfterAll
+
+  it_behaves_like "a scope"
 end

@@ -1,4 +1,6 @@
-#  Copyright 2022-Present. Couchbase, Inc.
+# frozen_string_literal: true
+
+#  Copyright 2023. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,13 +14,18 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-module Couchbase
-  module Protostellar
-    class QueryWarning
-      attr_accessor code: Integer
-      attr_accessor message: String
+require "rspec"
+require "couchbase/protostellar"
 
-      def initialize: (Integer, String) -> void
-    end
+RSpec.describe Couchbase::Protostellar::Bucket do
+  subject(:bucket) { @bucket }
+
+  # rubocop:disable RSpec/BeforeAfterAll
+  before(:all) do
+    @cluster = connect_with_protostellar
+    @bucket = test_bucket(@cluster)
   end
+  # rubocop:enable RSpec/BeforeAfterAll
+
+  it_behaves_like "a bucket"
 end

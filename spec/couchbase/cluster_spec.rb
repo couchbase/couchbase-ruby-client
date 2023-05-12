@@ -1,4 +1,6 @@
-#  Copyright 2022-Present Couchbase, Inc.
+# frozen_string_literal: true
+
+#  Copyright 2023. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,14 +14,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-module Couchbase
-  module Protostellar
-    class ExistsResult
-      attr_accessor cas: Integer
-      attr_accessor exists: bool
-      alias exists? exists
+require "rspec"
+require "couchbase"
 
-      def initialize: (resp: untyped) -> void
-    end
+RSpec.describe Couchbase::Cluster do
+  subject(:cluster) { @cluster }
+
+  # rubocop:disable RSpec/BeforeAfterAll
+  before(:all) do
+    @cluster = connect_with_classic
   end
+  # rubocop:enable RSpec/BeforeAfterAll
+
+  it_behaves_like "a cluster"
 end

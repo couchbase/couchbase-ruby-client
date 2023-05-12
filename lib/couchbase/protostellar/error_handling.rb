@@ -31,11 +31,15 @@ module Couchbase
 
       def self.handle_grpc_error(grpc_error, request)
         request.context = {} if request.context.nil?
-        detail_block = {}
+
+        request.context[:grpc_error] = {
+          type: grpc_error.class,
+          code: grpc_error.code,
+          message: grpc_error.message.partition(":").last.split("..").first,
+        }
 
         rpc_status = grpc_error.to_rpc_status
-        request.context[:grpc_error] = {type: grpc_error.class}
-        request.context[:grpc_error][:code] = rpc_status.code unless rpc_status.nil?
+        detail_block = {}
 
         # Decode the detail block
         rpc_status&.details&.each do |d|
@@ -126,7 +130,6 @@ module Couchbase
           when GRPC::AlreadyExists
             RequestBehaviour.fail(Couchbase::Error::DocumentExists.new("Document already exists", request.error_context)) if detail_block[:resource_info].resource_type == "document"
           when GRPC::FailedPrecondition
-
             Retry::Orchestrator.maybe_retry(request, Retry::Reason::KV_LOCKED) if detail_block[:precondition_failure].violations[0].type == "LOCKED"
           end
         if behaviour.nil?

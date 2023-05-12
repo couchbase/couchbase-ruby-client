@@ -22,3 +22,6 @@
 Gemfile.lock
 Makefile
 mkmf.log
+
+# TLS keys/certificates
+*.pem

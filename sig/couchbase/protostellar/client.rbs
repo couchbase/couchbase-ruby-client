@@ -28,7 +28,14 @@ module Couchbase
       @bucket_admin_stub: Object
       @collection_admin_stub: Object
 
-      def initialize: (String host, untyped credentials, untyped channel_args, Hash[untyped, untyped] call_metadata, Timeouts timeouts) -> void
+      def initialize: (
+          host: String,
+          credentials: untyped,
+          channel_args: untyped,
+          call_metadata: Hash[untyped, untyped],
+          timeouts: Timeouts
+        ) -> void
+
       def stub: (Symbol) -> untyped
       def send_request: (Request) -> untyped
       def close: () -> void

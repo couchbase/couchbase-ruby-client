@@ -1,4 +1,6 @@
-#  Copyright 2022-Present. Couchbase, Inc.
+# frozen_string_literal: true
+
+#  Copyright 2023. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,22 +14,18 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-module Couchbase
-  module Protostellar
-    class RemoveOptions
-      DEFAULT: RemoveOptions
+require "rspec"
+require "couchbase"
 
-      attr_accessor cas: Integer?
-      attr_accessor durability_level: durability_level
-      attr_reader timeout: Integer | _CanInMilliseconds | nil
+RSpec.describe Couchbase::Bucket do
+  subject(:bucket) { @bucket }
 
-      def initialize: (
-          cas: Integer?,
-          durability_level: durability_level,
-          timeout: Integer | _CanInMilliseconds | nil,
-        ) -> void
-
-      def to_request: () -> Hash[Symbol, untyped]
-    end
+  # rubocop:disable RSpec/BeforeAfterAll
+  before(:all) do
+    @cluster = connect_with_classic
+    @bucket = test_bucket(@cluster)
   end
+  # rubocop:enable RSpec/BeforeAfterAll
+
+  it_behaves_like "a bucket"
 end

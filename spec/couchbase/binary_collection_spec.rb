@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2022-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,16 +14,21 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-module Couchbase
-  module Protostellar
-    class ExistsOptions
-      DEFAULT: ExistsOptions
+require "rspec"
+require "couchbase"
 
-      attr_reader timeout: Integer | _CanInMilliseconds | nil
+RSpec.describe Couchbase::BinaryCollection do
+  subject(:binary_collection) { @binary_collection }
 
-      def initialize: (timeout: Integer | _CanInMilliseconds | nil) -> void
+  let(:collection) { @collection }
 
-      def to_request: () -> Hash[Symbol, untyped]
-    end
+  # rubocop:disable RSpec/BeforeAfterAll
+  before(:all) do
+    @cluster = connect_with_classic
+    @collection = default_collection(@cluster)
+    @binary_collection = @collection.binary
   end
+  # rubocop:enable RSpec/BeforeAfterAll
+
+  it_behaves_like "a binary collection"
 end

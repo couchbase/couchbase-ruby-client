@@ -18,7 +18,7 @@ require "rspec"
 
 RSpec.describe Couchbase::Protostellar::Management::CollectionManager do
   before(:all) do
-    cluster = connect
+    cluster = connect_with_protostellar
     @collection_mgr = test_bucket(cluster).collections
   end
 

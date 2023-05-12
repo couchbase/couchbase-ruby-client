@@ -258,8 +258,6 @@ module Couchbase
             **proto_opts
           )
 
-          puts proto_req
-
           create_kv_request(proto_req, :lookup_in, options, idempotent: true)
         end
 
@@ -300,6 +298,7 @@ module Couchbase
         def append_request(id, content, options)
           proto_opts = {}
           proto_opts[:cas] = options.cas unless options.cas.nil?
+          proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
 
           proto_req = Generated::KV::V1::AppendRequest.new(
             key: id,
@@ -314,6 +313,7 @@ module Couchbase
         def prepend_request(id, content, options)
           proto_opts = {}
           proto_opts[:cas] = options.cas unless options.cas.nil?
+          proto_opts[:durability_level] = get_durability_level(options) unless options.durability_level == :none
 
           proto_req = Generated::KV::V1::PrependRequest.new(
             key: id,
