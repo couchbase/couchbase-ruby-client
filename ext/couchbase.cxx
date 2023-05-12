@@ -270,9 +270,9 @@ init_versions(VALUE mCouchbase)
     VALUE cb_CoreInfo = rb_hash_new();
     for (const auto& [name, value] : couchbase::core::meta::sdk_build_info()) {
         if (name == "version_major" || name == "version_minor" || name == "version_patch" || name == "version_build" ||
-            name == "__cplusplus" || name == "_MSC_VER") {
+            name == "__cplusplus" || name == "_MSC_VER" || name == "mozilla_ca_bundle_size") {
             rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), INT2FIX(std::stoi(value)));
-        } else if (name == "snapshot" || name == "static_stdlib" || name == "static_openssl") {
+        } else if (name == "snapshot" || name == "static_stdlib" || name == "static_openssl" || name == "mozilla_ca_bundle_embedded") {
             rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), value == "true" ? Qtrue : Qfalse);
         } else {
             rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), rb_str_freeze(rb_str_new_cstr(value.c_str())));
