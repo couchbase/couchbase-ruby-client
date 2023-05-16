@@ -15,7 +15,7 @@
 module Couchbase
   module ConfigProfiles
     class Profiles
-      attr :profiles
+      attr_reader :profiles
 
       def initialize
         @profiles = {}
