@@ -386,8 +386,6 @@ module Couchbase
         raise ArgumentError, "missing connection_string" unless connection_string
         raise ArgumentError, "missing username" unless credentials[:username]
         raise ArgumentError, "missing password" unless credentials[:password]
-
-        open_options[:allowed_sasl_mechanisms] = PasswordAuthenticator::DEFAULT_SASL_MECHANISMS
       else
         options = args.shift
         case options
@@ -396,8 +394,6 @@ module Couchbase
           credentials[:password] = args.shift
           raise ArgumentError, "missing username" unless credentials[:username]
           raise ArgumentError, "missing password" unless credentials[:password]
-
-          open_options[:allowed_sasl_mechanisms] = PasswordAuthenticator::DEFAULT_SASL_MECHANISMS
         when Options::Cluster
           open_options = options&.to_backend || {}
           authenticator = options&.authenticator

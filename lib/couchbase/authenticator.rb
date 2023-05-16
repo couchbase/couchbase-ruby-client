@@ -28,7 +28,6 @@ module Couchbase
     def initialize(username, password)
       @username = username
       @password = password
-      @allowed_sasl_mechanisms = DEFAULT_SASL_MECHANISMS
     end
 
     # Creates a LDAP compatible password authenticator which is INSECURE if not used with TLS.
