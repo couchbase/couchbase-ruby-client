@@ -1253,9 +1253,7 @@ cb_map_error_code(const couchbase::core::error_context::search& ctx, const std::
     rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), cb_str_new(error));
     rb_hash_aset(error_context, rb_id2sym(rb_intern("client_context_id")), cb_str_new(ctx.client_context_id));
     rb_hash_aset(error_context, rb_id2sym(rb_intern("index_name")), cb_str_new(ctx.index_name));
-    if (ctx.query) {
-        rb_hash_aset(error_context, rb_id2sym(rb_intern("query")), cb_str_new(ctx.query.value()));
-    }
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("query")), cb_str_new(ctx.query));
     if (ctx.parameters) {
         rb_hash_aset(error_context, rb_id2sym(rb_intern("parameters")), cb_str_new(ctx.parameters.value()));
     }
@@ -1799,8 +1797,9 @@ cb_extract_cas(couchbase::cas& field, VALUE cas)
     }
 }
 
+template<typename Boolean>
 static void
-cb_extract_option_bool(bool& field, VALUE options, const char* name)
+cb_extract_option_bool(Boolean& field, VALUE options, const char* name)
 {
     if (!NIL_P(options) && TYPE(options) == T_HASH) {
         VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
