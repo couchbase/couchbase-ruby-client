@@ -1253,9 +1253,7 @@ cb_map_error_code(const couchbase::core::error_context::search& ctx, const std::
     rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), cb_str_new(error));
     rb_hash_aset(error_context, rb_id2sym(rb_intern("client_context_id")), cb_str_new(ctx.client_context_id));
     rb_hash_aset(error_context, rb_id2sym(rb_intern("index_name")), cb_str_new(ctx.index_name));
-    if (ctx.query) {
-        rb_hash_aset(error_context, rb_id2sym(rb_intern("query")), cb_str_new(ctx.query.value()));
-    }
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("query")), cb_str_new(ctx.query));
     if (ctx.parameters) {
         rb_hash_aset(error_context, rb_id2sym(rb_intern("parameters")), cb_str_new(ctx.parameters.value()));
     }
@@ -6586,7 +6584,19 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         req.index_name = cb_string_new(index_name);
         req.query = cb_string_new(query);
 
-        cb_extract_option_bool(req.explain, options, "explain");
+        if (VALUE explain = rb_hash_aref(options, rb_id2sym(rb_intern("explain"))); !NIL_P(explain)) {
+            switch (TYPE(explain)) {
+                case T_TRUE:
+                    explain = true;
+                    break;
+                case T_FALSE:
+                    explain = false;
+                    break;
+                default:
+                    throw ruby_exception(rb_eArgError, rb_sprintf("explain must be a Boolean, but given %+" PRIsVALUE, explain));
+            }
+            req.explain = explain;
+        }
         cb_extract_option_bool(req.disable_scoring, options, "disable_scoring");
         cb_extract_option_bool(req.include_locations, options, "include_locations");
 
