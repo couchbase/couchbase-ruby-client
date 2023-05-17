@@ -1797,8 +1797,9 @@ cb_extract_cas(couchbase::cas& field, VALUE cas)
     }
 }
 
+template<typename Boolean>
 static void
-cb_extract_option_bool(bool& field, VALUE options, const char* name)
+cb_extract_option_bool(Boolean& field, VALUE options, const char* name)
 {
     if (!NIL_P(options) && TYPE(options) == T_HASH) {
         VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
@@ -6584,19 +6585,7 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         req.index_name = cb_string_new(index_name);
         req.query = cb_string_new(query);
 
-        if (VALUE explain = rb_hash_aref(options, rb_id2sym(rb_intern("explain"))); !NIL_P(explain)) {
-            switch (TYPE(explain)) {
-                case T_TRUE:
-                    explain = true;
-                    break;
-                case T_FALSE:
-                    explain = false;
-                    break;
-                default:
-                    throw ruby_exception(rb_eArgError, rb_sprintf("explain must be a Boolean, but given %+" PRIsVALUE, explain));
-            }
-            req.explain = explain;
-        }
+        cb_extract_option_bool(req.explain, options, "explain");
         cb_extract_option_bool(req.disable_scoring, options, "disable_scoring");
         cb_extract_option_bool(req.include_locations, options, "include_locations");
 
