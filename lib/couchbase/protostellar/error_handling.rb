@@ -35,11 +35,11 @@ module Couchbase
         request.context[:grpc_error] = {
           type: grpc_error.class,
           code: grpc_error.code,
-          message: grpc_error.message.partition(":").last.split("..").first,
         }
 
         rpc_status = grpc_error.to_rpc_status
         detail_block = {}
+        message = grpc_error.message.partition(":").last.split("..").first
 
         # Decode the detail block
         rpc_status&.details&.each do |d|
@@ -86,61 +86,104 @@ module Couchbase
 
         case request.service
         when :kv
-          handle_kv_error(grpc_error, detail_block, request)
+          handle_kv_error(grpc_error, detail_block, message, request)
         when :query
-          handle_query_error(grpc_error, detail_block, request)
+          handle_query_error(grpc_error, detail_block, message, request)
         else
-          handle_generic_error(grpc_error, detail_block, request)
+          handle_generic_error(grpc_error, detail_block, message, request)
         end
       end
 
-      def self.handle_generic_error(grpc_error, detail_block, request)
+      def self.handle_generic_error(grpc_error, detail_block, message, request)
         case grpc_error
         when GRPC::DeadlineExceeded
           if request.idempotent
-            RequestBehaviour.fail(Couchbase::Error::UnambiguousTimeout.new(nil, request.error_context))
+            RequestBehaviour.fail(Couchbase::Error::UnambiguousTimeout.new(message, request.error_context))
           else
-            RequestBehaviour.fail(Couchbase::Error::AmbiguousTimeout.new(nil, request.error_context))
+            RequestBehaviour.fail(Couchbase::Error::AmbiguousTimeout.new(message, request.error_context))
           end
+
         when GRPC::Cancelled
-          RequestBehaviour.fail(Couchbase::Error::RequestCanceled.new(nil, request.error_context))
-        when GRPC::Aborted
-          if detail_block[:error_info].reason == "CAS_MISMATCH" && detail_block[:resource_info].resource_type == "document"
-            RequestBehaviour.fail(Couchbase::Error::CasMismatch.new("CAS mismatch", request.error_context))
+          RequestBehaviour.fail(Couchbase::Error::RequestCanceled.new(message, request.error_context))
+
+        when GRPC::FailedPrecondition
+          case detail_block[:precondition_failure].violations[0].type
+          when "CAS"
+            RequestBehaviour.fail(Couchbase::Error::CasMismatch.new(message, request.context))
           end
+
         when GRPC::NotFound
           case detail_block[:resource_info].resource_type
           when "collection"
-            RequestBehaviour.fail(Couchbase::Error::CollectionNotFound.new("Collection not found", request.error_context))
+            RequestBehaviour.fail(Couchbase::Error::CollectionNotFound.new(message, request.error_context))
           when "bucket"
-            RequestBehaviour.fail(Couchbase::Error::BucketNotFound.new("Bucket not found", request.error_context))
+            RequestBehaviour.fail(Couchbase::Error::BucketNotFound.new(message, request.error_context))
           when "scope"
-            RequestBehaviour.fail(Couchbase::Error::ScopeNotFound.new("Scope not found", request.error_context))
+            RequestBehaviour.fail(Couchbase::Error::ScopeNotFound.new(message, request.error_context))
           end
+
+        when GRPC::PermissionDenied, GRPC::Unauthenticated
+          RequestBehaviour.fail(Couchbase::Error::AuthenticationFailure.new(message, request.error_context))
+
+        when GRPC::InvalidArgument
+          RequestBehaviour.fail(Couchbase::Error::InvalidArgument.new(message, request.error_context))
+
         else
-          RequestBehaviour.fail(Couchbase::Error::CouchbaseError.new(nil, request.error_context))
+          RequestBehaviour.fail(Couchbase::Error::CouchbaseError.new(message, request.error_context))
         end
       end
 
-      def self.handle_kv_error(grpc_error, detail_block, request)
+      def self.handle_kv_error(grpc_error, detail_block, message, request)
         behaviour =
           case grpc_error
           when GRPC::NotFound
-            RequestBehaviour.fail(Couchbase::Error::DocumentNotFound.new("Document not found", request.error_context)) if detail_block[:resource_info].resource_type == "document"
+            case detail_block[:resource_info].resource_type
+            when "document"
+              RequestBehaviour.fail(Couchbase::Error::DocumentNotFound.new(message, request.error_context))
+            when "path"
+              RequestBehaviour.fail(Couchbase::Error::PathNotFound.new(message, request.error_context))
+            end
+
           when GRPC::AlreadyExists
-            RequestBehaviour.fail(Couchbase::Error::DocumentExists.new("Document already exists", request.error_context)) if detail_block[:resource_info].resource_type == "document"
+            case detail_block[:resource_info].resource_type
+            when "document"
+              RequestBehaviour.fail(Couchbase::Error::DocumentExists.new(message, request.error_context))
+            when "path"
+              RequestBehaviour.fail(Couchbase::Error::PathExists.new(message, request.error_context))
+            end
+
           when GRPC::FailedPrecondition
-            Retry::Orchestrator.maybe_retry(request, Retry::Reason::KV_LOCKED) if detail_block[:precondition_failure].violations[0].type == "LOCKED"
+            case detail_block[:precondition_failure].violations[0].type
+            when "LOCKED"
+              Retry::Orchestrator.maybe_retry(request, Retry::Reason::KV_LOCKED)
+            when "VALUE_TOO_LARGE"
+              RequestBehaviour.fail(Couchbase::Error::ValueTooLarge.new(message, request.error_context))
+            when "DURABILITY_IMPOSSIBLE"
+              RequestBehaviour.fail(Couchbase::Error::DurabilityImpossible.new(message, request.error_context))
+            when "PATH_MISMATCH"
+              RequestBehaviour.fail(Couchbase::Error::PathMismatch.new(message, request.error_context))
+            when "VALUE_TOO_DEEP"
+              RequestBehaviour.fail(Couchbase::Error::ValueTooDeep.new(message, request.error_context))
+            when "DOC_TOO_DEEP"
+              RequestBehaviour.fail(Couchbase::Error::PathTooDeep.new(message, request.error_context))
+            when "WOULD_INVALIDATE_JSON"
+              RequestBehaviour.fail(Couchbase::Error::ValueInvalid.new(message, request.error_context))
+            when "DOC_NOT_JSON"
+              RequestBehaviour.fail(Couchbase::Error::DocumentNotJson.new(message, request.error_context))
+            when "PATH_VALUE_OUT_OF_RANGE"
+              RequestBehaviour.fail(Couchbase::Error::NumberTooBig.new(message, request.error_context))
+            end
           end
+
         if behaviour.nil?
-          handle_generic_error(grpc_error, detail_block, request)
+          handle_generic_error(grpc_error, detail_block, message, request)
         else
           behaviour
         end
       end
 
-      def self.handle_query_error(grpc_error, detail_block, request)
-        handle_generic_error(grpc_error, detail_block, request)
+      def self.handle_query_error(grpc_error, detail_block, message, request)
+        handle_generic_error(grpc_error, detail_block, message, request)
       end
     end
   end
