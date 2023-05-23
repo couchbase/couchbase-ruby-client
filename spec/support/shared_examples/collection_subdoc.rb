@@ -376,7 +376,7 @@ RSpec.shared_examples "collection sub-document operations" do
       end
     end
 
-    context "withg multiple operations including a counter increment" do
+    context "with multiple operations including a counter increment" do
       let(:doc_id) do
         upsert_sample_document(content: {
           "mutated" => 0,
