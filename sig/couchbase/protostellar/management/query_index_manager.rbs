@@ -1,0 +1,27 @@
+module Couchbase
+  module Protostellar
+    module Management
+      class QueryIndexManager
+        @client: Client
+        @request_generator: RequestGenerator::Admin::Query
+
+        def initialize: (client: Client) -> void
+
+        def get_all_indexes: (String bucket_name, untyped options) -> Array[untyped]
+        def create_index: (String bucket_name, String index_name, Array[String] fields, untyped options) -> void
+        def create_primary_index: (String bucket_name, untyped options) -> void
+        def drop_index: (String bucket_name, String index_name, untyped options) -> void
+        def drop_primary_index: (String bucket_name, untyped options) -> void
+        def build_deferred_indexes: (String bucket_name, untyped options) -> void
+        def watch_indexes: (
+            String bucket_name, Array[String] index_names,
+            (Integer | _CanInMilliseconds) timeout, untyped options
+          ) -> void
+
+        private
+
+        def validate_options: (untyped options) -> void
+      end
+    end
+  end
+end

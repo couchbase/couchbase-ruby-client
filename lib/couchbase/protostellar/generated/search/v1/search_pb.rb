@@ -228,6 +228,8 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       repeated :collections, :string, 12
       optional :include_locations, :bool, 13
       map :facets, :string, :message, 14, "couchbase.search.v1.Facet"
+      proto3_optional :bucket_name, :string, 15
+      proto3_optional :scope_name, :string, 16
     end
     add_enum "couchbase.search.v1.SearchQueryRequest.ScanConsistency" do
       value :SCAN_CONSISTENCY_NOT_BOUNDED, 0

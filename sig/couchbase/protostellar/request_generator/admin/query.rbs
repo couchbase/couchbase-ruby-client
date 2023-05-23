@@ -1,0 +1,47 @@
+module Couchbase
+  module Protostellar
+    module RequestGenerator
+      module Admin
+        class Query
+          @client: Client
+          @bucket_name: String?
+          @scope_name: String?
+          @collection_name: String?
+
+          def initialize: (
+              client: Client,
+              bucket_name: String?,
+              scope_name: String?,
+              collection_name: String?
+            ) -> void
+
+          def get_all_indexes_request: (untyped options, String? bucket_name) -> Request
+
+          def create_primary_index_request: (untyped options, String? bucket_name) -> Request
+
+          def create_index_request: (
+              String index_name, Array[String] fields, untyped options, String? bucket_name
+            ) -> Request
+
+          def drop_primary_index_request: (untyped options, String? bucket_name) -> Request
+
+          def drop_index_request: (String index_name, untyped options, String? bucket_name) -> Request
+
+          def build_deferred_indexes_request: (untyped options, String? bucket_name) -> Request
+
+          private
+
+          def location: (String? bucket_name) -> Hash[Symbol, String]
+
+          def create_request: (
+              untyped proto_request,
+              Symbol rpc,
+              untyped options,
+              idempotent: bool,
+            ) -> Request
+          end
+        end
+      end
+    end
+  end
+end

@@ -88,6 +88,10 @@ module Couchbase
         Management::BucketManager.new(@client)
       end
 
+      def query_indexes
+        Management::QueryIndexManager.new(client: @client)
+      end
+
       def query(statement, options = Couchbase::Options::Query::DEFAULT)
         req = @query_request_generator.query_request(statement, options)
         resps = @client.send_request(req)

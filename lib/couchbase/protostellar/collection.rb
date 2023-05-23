@@ -21,6 +21,7 @@ require "couchbase/collection_options"
 require_relative "request_generator/kv"
 require_relative "response_converter/kv"
 require_relative "binary_collection"
+require_relative "management/collection_query_index_manager"
 
 require "google/protobuf/well_known_types"
 
@@ -41,6 +42,15 @@ module Couchbase
 
       def binary
         BinaryCollection.new(self)
+      end
+
+      def query_indexes
+        Management::CollectionQueryIndexManager.new(
+          client: @client,
+          bucket_name: @bucket_name,
+          scope_name: @scope_name,
+          collection_name: @name
+        )
       end
 
       def get(id, options = Couchbase::Options::Get::DEFAULT)

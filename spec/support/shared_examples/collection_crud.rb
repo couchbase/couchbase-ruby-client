@@ -163,7 +163,6 @@ RSpec.shared_examples "collection crud operations" do
               .to eq(test_case[:expected]), "unexpected content for case #{test_case[:name]} with projections #{test_case[:project].inspect}"
           end
         end
-
       end
 
       context "with few paths" do
@@ -233,7 +232,7 @@ RSpec.shared_examples "collection crud operations" do
         end
 
         it "returns the correct content" do
-          expect(result.content).to eq((1..17).each_with_object({}) {|n, obj| obj["field#{n}"] = n })
+          expect(result.content).to eq((1..17).each_with_object({}) { |n, obj| obj["field#{n}"] = n })
         end
       end
 
@@ -250,12 +249,12 @@ RSpec.shared_examples "collection crud operations" do
         end
 
         let(:result) do
-          opts = Couchbase::Options::Get.new { |o| o.with_expiry = true}
+          opts = Couchbase::Options::Get.new { |o| o.with_expiry = true }
           projected_get(doc_id, (1..16).map { |n| "field#{n}" }, opts)
         end
 
         it "returns the correct content" do
-          expect(result.content).to eq((1..16).each_with_object({}) {|n, obj| obj["field#{n}"] = n })
+          expect(result.content).to eq((1..16).each_with_object({}) { |n, obj| obj["field#{n}"] = n })
         end
 
         it "returns the expiry time" do

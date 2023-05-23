@@ -1,0 +1,14 @@
+module Couchbase
+  module Protostellar
+    module ResponseConverter
+      module Admin
+        class Query
+          INDEX_TYPE_MAP: Hash[Symbol, Symbol]
+          INDEX_STATE_MAP: Hash[Symbol, Symbol]
+
+          def self.to_query_index_array: (untyped resp) -> Array[untyped]
+        end
+      end
+    end
+  end
+end

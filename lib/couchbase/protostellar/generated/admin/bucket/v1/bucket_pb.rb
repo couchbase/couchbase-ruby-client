@@ -22,7 +22,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :eviction_mode, :enum, 7, "couchbase.admin.bucket.v1.EvictionMode"
       optional :max_expiry_secs, :uint32, 8
       optional :compression_mode, :enum, 9, "couchbase.admin.bucket.v1.CompressionMode"
-      optional :minimum_durability_level, :enum, 10, "couchbase.kv.v1.DurabilityLevel"
+      proto3_optional :minimum_durability_level, :enum, 10, "couchbase.kv.v1.DurabilityLevel"
       optional :storage_backend, :enum, 11, "couchbase.admin.bucket.v1.StorageBackend"
       optional :conflict_resolution_type, :enum, 12, "couchbase.admin.bucket.v1.ConflictResolutionType"
     end

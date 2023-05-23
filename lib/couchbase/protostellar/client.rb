@@ -25,6 +25,8 @@ require_relative "generated/analytics/v1/analytics_services_pb"
 require_relative "generated/view/v1/view_services_pb"
 require_relative "generated/admin/collection/v1/collection_services_pb"
 require_relative "generated/admin/bucket/v1/bucket_services_pb"
+require_relative "generated/admin/query/v1/query_services_pb"
+require_relative "generated/admin/search/v1/search_services_pb"
 
 module Couchbase
   module Protostellar
@@ -43,6 +45,8 @@ module Couchbase
           view: Generated::View::V1::ViewService::Stub.new(host, credentials, channel_override: @channel),
           bucket_admin: Generated::Admin::Bucket::V1::BucketAdminService::Stub.new(host, credentials, channel_override: @channel),
           collection_admin: Generated::Admin::Collection::V1::CollectionAdminService::Stub.new(host, credentials, channel_override: @channel),
+          query_admin: Generated::Admin::Query::V1::QueryAdminService::Stub.new(host, credentials, channel_override: @channel),
+          search_admin: Generated::Admin::Search::V1::SearchAdminService::Stub.new(host, credentials, channel_override: @channel),
         }
       end
 

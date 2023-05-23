@@ -20,10 +20,21 @@ module Couchbase
       TYPE_URL_ERROR_INFO: String
       TYPE_URL_BAD_REQUEST: String
 
-      def self.handle_grpc_error: (untyped, Request) -> RequestBehaviour
-      def self.handle_generic_error: (untyped, Hash[Symbol, any], Request) -> RequestBehaviour
-      def self.handle_kv_error: (untyped, Hash[Symbol, any], Request) -> RequestBehaviour
-      def self.handle_query_error: (untyped, Hash[Symbol, any], Request) -> RequestBehaviour
+      def self.handle_grpc_error: (untyped grpc_error, Request request) -> RequestBehaviour
+
+      def self.handle_generic_error: (
+          untyped grpc_error, Hash[Symbol, untyped] detail_block, String message, Request request
+        ) -> RequestBehaviour
+
+      def self.handle_kv_error: (
+          untyped grpc_error, Hash[Symbol, untyped] detail_block, String message, Request request
+        ) -> RequestBehaviour
+
+      def self.handle_query_error: (
+          untyped grpc_error, Hash[Symbol, untyped] detail_block, String message, Request request
+        ) -> RequestBehaviour
+
+      def self.handle_
     end
   end
 end

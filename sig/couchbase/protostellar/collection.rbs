@@ -25,6 +25,7 @@ module Couchbase
       def initialize: (Client, String, String, String) -> void
 
       def binary: () -> BinaryCollection
+      def query_indexes: () -> Management::CollectionQueryIndexManager
 
       def get: (String, Couchbase::Options::Get) -> Couchbase::Collection::GetResult
       def get_and_touch: (String, (_CanInSeconds | Time | Integer), Couchbase::Options::GetAndTouch) -> Couchbase::Collection::GetResult
