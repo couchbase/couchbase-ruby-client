@@ -28,7 +28,7 @@ module Couchbase
           @request_generator = RequestGenerator::Admin::Query.new
         end
 
-        def get_all_indexes(bucket_name, options)
+        def get_all_indexes(bucket_name, options = Couchbase::Management::Options::Query::GetAllIndexes.new)
           validate_options(options)
 
           req = @request_generator.get_all_indexes_request(options, bucket_name)
@@ -36,35 +36,35 @@ module Couchbase
           ResponseConverter::Admin::Query.to_query_index_array(resp)
         end
 
-        def create_index(bucket_name, index_name, fields, options)
+        def create_index(bucket_name, index_name, fields, options = Couchbase::Management::Options::Query::CreateIndex.new)
           validate_options(options)
 
           req = @request_generator.create_index_request(index_name, fields, options, bucket_name)
           @client.send_request(req)
         end
 
-        def create_primary_index(bucket_name, options)
+        def create_primary_index(bucket_name, options = Couchbase::Management::Options::Query::CreatePrimaryIndex.new)
           validate_options(options)
 
           req = @request_generator.create_primary_index_request(options, bucket_name)
           @client.send_request(req)
         end
 
-        def drop_index(bucket_name, index_name, options)
+        def drop_index(bucket_name, index_name, options = Couchbase::Management::Options::Query::DropIndex.new)
           validate_options(options)
 
           req = @request_generator.drop_index_request(index_name, options, bucket_name)
           @client.send_request(req)
         end
 
-        def build_deferred_indexes(bucket_name, options)
+        def build_deferred_indexes(bucket_name, options = Couchbase::Management::Options::Query::BuildDeferredIndexes.new)
           validate_options(options)
 
           req = @request_generator.build_deferred_indexes_request(options, bucket_name)
           @client.send_request(req)
         end
 
-        def watch_indexes(bucket_name, index_names, timeout, options)
+        def watch_indexes(bucket_name, index_names, timeout, options = Couchbase::Management::Options::Query::WatchIndexes.new)
           validate_options(options)
 
           # TODO: Will this be implemented in the gateway instead?
@@ -74,7 +74,7 @@ module Couchbase
           interval_millis = 50
           deadline = Time.now + (Utils::Time.extract_duration(timeout) * 0.001)
           while Time.now <= deadline
-            get_all_opts = Options::Query::GetAllIndexes.new(timeout: ((deadline - Time.now) * 1000).round)
+            get_all_opts = Couchbase::Management::Options::Query::GetAllIndexes.new(timeout: ((deadline - Time.now) * 1000).round)
             indexes = get_all_indexes(bucket_name, get_all_opts).select { |idx| index_names.include? idx.name }
             indexes_not_found = index_names - indexes.map(&:name)
             raise Couchbase::Error::IndexNotFound, "Failed to find the indexes: #{indexes_not_found.join(', ')}" unless indexes_not_found.empty?

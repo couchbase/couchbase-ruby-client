@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require 'rspec'
+require "rspec"
 
 RSpec.describe Couchbase::Protostellar::Management::CollectionQueryIndexManager do
   subject(:manager) { collection.query_indexes }
@@ -41,7 +41,7 @@ RSpec.describe Couchbase::Protostellar::Management::CollectionQueryIndexManager 
     @collection = bucket.scope(scope_name).collection(coll_name)
 
     # Upsert something in the collection to make sure it's been created
-    sleep(1) # TODO: Need a delay because if the first attempt fails all of them fail indefinitely (Remove when fixed)
+    sleep(2) # TODO: Need a delay because if the first attempt fails all of them fail indefinitely (Remove when fixed)
     success = retry_operation(duration: 5) { @collection.upsert("foo", {"test" => 10}) }
     raise "Failed to create collection" unless success
   end
