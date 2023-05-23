@@ -23,6 +23,7 @@ require_relative "request_generator/query"
 require_relative "request_generator/search"
 require_relative "response_converter/query"
 require_relative "response_converter/search"
+require_relative "management/query_index_manager"
 
 require "couchbase/options"
 
@@ -86,6 +87,10 @@ module Couchbase
 
       def buckets
         Management::BucketManager.new(@client)
+      end
+
+      def query_indexes
+        Management::QueryIndexManager.new(client: @client)
       end
 
       def query(statement, options = Couchbase::Options::Query::DEFAULT)

@@ -103,4 +103,19 @@ module Helpers
   def load_json_test_dataset(dataset)
     JSON.parse(load_raw_test_dataset(dataset))
   end
+
+  def retry_operation(duration:, error: Couchbase::Error::CouchbaseError)
+    deadline = Time.now + duration
+    success = false
+    while Time.now <= deadline
+      begin
+        yield
+        success = true
+        break
+      rescue error
+        sleep(1)
+      end
+    end
+    success
+  end
 end

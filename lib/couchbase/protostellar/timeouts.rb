@@ -54,7 +54,7 @@ module Couchbase
           @search_timeout
         when :view
           @view_timeout
-        when :bucket_admin, :collection_admin
+        when :bucket_admin, :collection_admin, :query_admin, :search_admin
           @management_timeout
         else
           raise Protostellar::Error::UnexpectedServiceType, "Service #{service} not recognised"

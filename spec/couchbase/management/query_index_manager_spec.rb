@@ -1,4 +1,6 @@
-#  Copyright 2022-Present Couchbase, Inc.
+# frozen_string_literal: true
+
+#  Copyright 2023. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,24 +14,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-module Couchbase
-  module Protostellar
-    class Client
-      @channel: Object
-      @call_metadata: Hash[untyped, untyped]
-      @timeouts: Timeouts
-      @stubs: Hash[Symbol, Object]
+require "rspec"
 
-      def initialize: (
-          host: String,
-          credentials: untyped,
-          channel_args: untyped,
-          call_metadata: Hash[untyped, untyped],
-          timeouts: Timeouts
-        ) -> void
+RSpec.describe Couchbase::Management::QueryIndexManager do
+  subject(:manager) { @cluster.query_indexes }
 
-      def send_request: (Request) -> untyped
-      def close: () -> void
-    end
+  # rubocop:disable RSpec/BeforeAfterAll
+  before(:all) do
+    @cluster = connect_with_classic
   end
+  # rubocop:enable RSpec/BeforeAfterAll
+
+  it_behaves_like "a query index manager"
 end

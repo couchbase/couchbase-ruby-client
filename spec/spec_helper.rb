@@ -29,5 +29,5 @@ RSpec.configure do |config|
   end
 
   config.include Helpers
-  Dir['./spec/support/shared_examples/*.rb'].sort.each { |f| require f }
+  Dir['./spec/support/shared_examples/**/*.rb'].sort.each { |f| require f }
 end
