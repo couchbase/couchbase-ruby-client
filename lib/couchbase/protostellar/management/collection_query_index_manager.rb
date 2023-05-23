@@ -62,6 +62,13 @@ module Couchbase
           @client.send_request(req)
         end
 
+        def drop_primary_index(options = Couchbase::Management::Options::Query::DropPrimaryIndex.new)
+          validate_options(options)
+
+          req = @request_generator.drop_primary_index_request(options)
+          @client.send_request(req)
+        end
+
         def build_deferred_indexes(options = Couchbase::Management::Options::Query::BuildDeferredIndexes.new)
           validate_options(options)
 

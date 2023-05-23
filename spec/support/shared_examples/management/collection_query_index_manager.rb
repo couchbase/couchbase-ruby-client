@@ -70,14 +70,23 @@ RSpec.shared_examples "a collection query index manager" do
   describe "#drop_index" do
     let(:index_name) { uniq_id(:test_drop_index) }
 
-    let(:result) do
-      manager.create_index(index_name, ["something"])
-      manager.drop_index(index_name)
-      manager.get_all_indexes
+    context "when the index exists" do
+      let(:result) do
+        manager.create_index(index_name, ["something"])
+        manager.drop_index(index_name)
+        manager.get_all_indexes
+      end
+
+      it "the index no longer exists" do
+        expect(result.find { |idx| idx.name == index_name }).to be_nil
+      end
     end
 
-    it "the index no longer exists" do
-      expect(result.find { |idx| idx.name == index_name }).to be_nil
+    context "when the index does not exist" do
+      it "raises an IndexNotFound error" do
+        blk = proc { manager.drop_index(uniq_id(:non_existent_index)) }
+        expect(&blk).to raise_error(Couchbase::Error::IndexNotFound)
+      end
     end
   end
 
