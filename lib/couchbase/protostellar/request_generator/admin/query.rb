@@ -30,7 +30,9 @@ module Couchbase
 
           def get_all_indexes_request(options, bucket_name = nil)
             proto_req = Generated::Admin::Query::V1::GetAllIndexesRequest.new(
-              **location(bucket_name: bucket_name)
+              **location(
+                bucket_name: bucket_name, scope_name: options.scope_name, collection_name: options.collection_name
+              )
             )
 
             create_request(proto_req, :get_all_indexes, options, idempotent: true)
@@ -40,10 +42,13 @@ module Couchbase
             proto_opts = {
               deferred: options.deferred,
             }
+            proto_opts[:name] = options.index_name unless options.index_name.nil?
             proto_opts[:num_replicas] = options.num_replicas unless options.num_replicas.nil?
 
             proto_req = Generated::Admin::Query::V1::CreatePrimaryIndexRequest.new(
-              **location(bucket_name: bucket_name),
+              **location(
+                bucket_name: bucket_name, scope_name: options.scope_name, collection_name: options.collection_name
+              ),
               **proto_opts
             )
 
@@ -57,7 +62,9 @@ module Couchbase
             proto_opts[:num_replicas] = options.num_replicas unless options.num_replicas.nil?
 
             proto_req = Generated::Admin::Query::V1::CreateIndexRequest.new(
-              **location(bucket_name: bucket_name),
+              **location(
+                bucket_name: bucket_name, scope_name: options.scope_name, collection_name: options.collection_name
+              ),
               name: index_name,
               fields: fields,
               **proto_opts
@@ -68,7 +75,9 @@ module Couchbase
 
           def drop_primary_index_request(options, bucket_name = nil)
             proto_req = Generated::Admin::Query::V1::DropPrimaryIndexRequest.new(
-              **location(bucket_name: bucket_name)
+              **location(
+                bucket_name: bucket_name, scope_name: options.scope_name, collection_name: options.collection_name
+              )
             )
 
             create_request(proto_req, :drop_primary_index, options)
@@ -76,7 +85,9 @@ module Couchbase
 
           def drop_index_request(index_name, options, bucket_name = nil)
             proto_req = Generated::Admin::Query::V1::DropIndexRequest.new(
-              **location(bucket_name: bucket_name),
+              **location(
+                bucket_name: bucket_name, scope_name: options.scope_name, collection_name: options.collection_name
+              ),
               name: index_name
             )
 
@@ -85,7 +96,9 @@ module Couchbase
 
           def build_deferred_indexes_request(options, bucket_name = nil)
             proto_req = Generated::Admin::Query::V1::BuildDeferredIndexesRequest.new(
-              **location(bucket_name: bucket_name)
+              **location(
+                bucket_name: bucket_name, scope_name: options.scope_name, collection_name: options.collection_name
+              )
             )
 
             create_request(proto_req, :build_deferred_indexes, options)
@@ -93,11 +106,11 @@ module Couchbase
 
           private
 
-          def location(bucket_name: nil)
+          def location(bucket_name: nil, scope_name: nil, collection_name: nil)
             {
-              bucket_name: bucket_name || @bucket_name,
-              scope_name: @scope_name,
-              collection_name: @collection_name,
+              bucket_name: @bucket_name || bucket_name,
+              scope_name: @scope_name || scope_name,
+              collection_name: @collection_name || collection_name,
             }.compact
           end
 

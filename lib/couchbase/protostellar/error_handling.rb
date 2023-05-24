@@ -114,12 +114,22 @@ module Couchbase
 
         when GRPC::NotFound
           case detail_block[:resource_info].resource_type
-          when "collection"
-            RequestBehaviour.fail(Couchbase::Error::CollectionNotFound.new(message, request.error_context))
           when "bucket"
             RequestBehaviour.fail(Couchbase::Error::BucketNotFound.new(message, request.error_context))
           when "scope"
             RequestBehaviour.fail(Couchbase::Error::ScopeNotFound.new(message, request.error_context))
+          when "collection"
+            RequestBehaviour.fail(Couchbase::Error::CollectionNotFound.new(message, request.error_context))
+          end
+
+        when GRPC::AlreadyExists
+          case detail_block[:resource_info].resource_type
+          when "bucket"
+            RequestBehaviour.fail(Couchbase::Error::BucketExists.new(message, request.error_context))
+          when "scope"
+            RequestBehaviour.fail(Couchbase::Error::ScopeExists.new(message, request.error_context))
+          when "collection"
+            RequestBehaviour.fail(Couchbase::Error::CollectionExists.new(message, request.error_context))
           end
 
         when GRPC::PermissionDenied, GRPC::Unauthenticated
