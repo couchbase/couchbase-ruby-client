@@ -39,6 +39,9 @@ module Couchbase
           def self.to_query_index_array(resp)
             resp.indexes.map do |proto_idx|
               Couchbase::Management::QueryIndex.new do |idx|
+                idx.bucket = proto_idx.bucket_name
+                idx.scope = proto_idx.scope_name
+                idx.collection = proto_idx.collection_name
                 idx.name = proto_idx.name
                 idx.is_primary = proto_idx.is_primary
                 idx.type = INDEX_TYPE_MAP[proto_idx.type]
