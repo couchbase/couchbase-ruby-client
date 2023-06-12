@@ -49,7 +49,7 @@ module Couchbase
       end
 
       def extract_duration(number_or_duration)
-        number_or_duration.respond_to?(:in_milliseconds) ? number_or_duration.public_send(:in_milliseconds) : number_or_duration
+        number_or_duration
       end
     end
   end
