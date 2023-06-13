@@ -48,8 +48,20 @@ module Couchbase
         end
       end
 
+      # This method converts its argument to milliseconds
+      #
+      # 1. Integer values are interpreted as a number of milliseconds
+      # 2. If the argument is a Duration-like object and responds to #in_milliseconds,
+      #    then use it and convert result to Integer
+      # 3. Otherwise invoke #to_i on the argument and interpret it as a number of milliseconds
       def extract_duration(number_or_duration)
-        number_or_duration.respond_to?(:in_milliseconds) ? number_or_duration.public_send(:in_milliseconds) : number_or_duration
+        return number_or_duration if number_or_duration.is_a? Integer
+
+        if number_or_duration.respond_to?(:in_milliseconds)
+          number_or_duration.public_send(:in_milliseconds)
+        else
+          number_or_duration
+        end.to_i
       end
     end
   end
