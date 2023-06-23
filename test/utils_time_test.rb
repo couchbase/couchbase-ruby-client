@@ -51,4 +51,8 @@ class UtilsTimeTest < Minitest::Test
   def test_interpret_integer_as_a_milliseconds_literal
     assert_equal 42, Couchbase::Utils::Time.extract_duration(42)
   end
+
+  def test_ignores_nil_argument
+    assert_nil Couchbase::Utils::Time.extract_duration(nil)
+  end
 end

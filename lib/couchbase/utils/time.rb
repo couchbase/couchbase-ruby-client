@@ -55,7 +55,8 @@ module Couchbase
       #    then use it and convert result to Integer
       # 3. Otherwise invoke #to_i on the argument and interpret it as a number of milliseconds
       def extract_duration(number_or_duration)
-        return number_or_duration if number_or_duration.is_a? Integer
+        return unless number_or_duration
+        return number_or_duration if number_or_duration.class == Integer # rubocop:disable Style/ClassEqualityComparison avoid overrides of #is_a?, #kind_of?
 
         if number_or_duration.respond_to?(:in_milliseconds)
           number_or_duration.public_send(:in_milliseconds)
