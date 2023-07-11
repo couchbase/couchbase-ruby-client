@@ -1849,6 +1849,7 @@ module Couchbase
       attr_accessor :profile # @return [Symbol]
       attr_accessor :flex_index # @return [Boolean]
       attr_accessor :preserve_expiry # @return [Boolean]
+      attr_accessor :use_replica # @return [Boolean, nil]
       attr_accessor :scope_qualifier # @return [String]
       attr_accessor :transcoder # @return [JsonTranscoder, #decode(String)]
 
@@ -1894,6 +1895,8 @@ module Couchbase
       # @param [Boolean, nil] flex_index Tells the query engine to use a flex index (utilizing the search service)
       # @param [Boolean, nil] preserve_expiry Tells the query engine to preserve expiration values set on any documents
       #   modified by this query.
+      # @param [Boolean, nil] use_replica Specifies that the query engine should use replica nodes for KV fetches if
+      #   the active node is down. If not provided, the server default will be used
       # @param [String, nil] scope_qualifier Associate scope qualifier (also known as +query_context+) with the query.
       #   The qualifier must be in form +{bucket_name}.{scope_name}+ or +default:{bucket_name}.{scope_name}+.
       # @param [JsonTranscoder] transcoder to decode rows
@@ -1925,6 +1928,7 @@ module Couchbase
                      profile: :off,
                      flex_index: nil,
                      preserve_expiry: nil,
+                     use_replica: nil,
                      scope_qualifier: nil,
                      scan_consistency: :not_bounded,
                      mutation_state: nil,
@@ -1950,6 +1954,7 @@ module Couchbase
         @profile = profile
         @flex_index = flex_index
         @preserve_expiry = preserve_expiry
+        @use_replica = use_replica
         @scope_qualifier = scope_qualifier
         @scan_consistency = scan_consistency
         @mutation_state = mutation_state
@@ -2043,6 +2048,7 @@ module Couchbase
           readonly: @readonly,
           flex_index: @flex_index,
           preserve_expiry: @preserve_expiry,
+          use_replica: @use_replica,
           scan_wait: Utils::Time.extract_duration(@scan_wait),
           scan_cap: @scan_cap,
           pipeline_batch: @pipeline_batch,
