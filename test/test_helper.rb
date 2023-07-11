@@ -82,6 +82,10 @@ class ServerVersion
   def is_rcbc_408_applicable?
     @version < Gem::Version.create("7.0.0")
   end
+
+  def supports_range_scan?
+    @version >= Gem::Version.create("7.5.0")
+  end
 end
 
 require "couchbase"
@@ -178,7 +182,7 @@ module Couchbase
     def uniq_id(name)
       parent = caller_locations&.first
       prefix = "#{File.basename(parent&.path, '.rb')}_#{parent&.lineno}"
-      "#{prefix}_#{name}_#{Time.now.to_f.to_s.reverse}"
+      "#{prefix}_#{name}_#{Time.now.to_f.to_s.reverse}".sub(".", "-")
     end
 
     def load_raw_test_dataset(dataset)

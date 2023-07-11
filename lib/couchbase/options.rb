@@ -1026,6 +1026,77 @@ module Couchbase
       DEFAULT = LookupIn.new.freeze
     end
 
+    # Options for {Collection#scan}
+    class Scan < Base
+      attr_accessor :ids_only # @return [Boolean]
+      attr_accessor :transcoder # @return [JsonTranscoder, #decode(String)]
+      attr_accessor :mutation_state # @return [MutationState, nil]
+      attr_accessor :batch_byte_limit # @return [Integer, nil]
+      attr_accessor :batch_item_limit # @return [Integer, nil]
+      attr_accessor :concurrency # @return [Integer, nil]
+
+      # Creates an instance of options for {Collection#scan}
+      #
+      # @param [Boolean] ids_only if set to true, the content of the documents is not included in the results
+      # @param [JsonTranscoder, #decode(String)] transcoder used for decoding
+      # @param [MutationState, nil] mutation_state sets the mutation tokens this scan should be consistent with
+      # @param [Integer, nil] batch_byte_limit allows to limit the maximum amount of bytes that are sent from the server
+      #   to the client on each partition batch, defaults to 15,000
+      # @param [Integer, nil] batch_item_limit allows to limit the maximum amount of items that are sent from the server
+      #   to the client on each partition batch, defaults to 50
+      # @param [Integer, nil] concurrency specifies the maximum number of partitions that can be scanned concurrently,
+      #   defaults to 1
+      #
+      # @param [Integer, #in_milliseconds, nil] timeout
+      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Hash, nil] client_context the client context data, if set
+      # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+      #
+      # @yieldparam [LookupIn] self
+      def initialize(ids_only: false,
+                     transcoder: JsonTranscoder.new,
+                     mutation_state: nil,
+                     batch_byte_limit: nil,
+                     batch_item_limit: nil,
+                     concurrency: nil,
+                     timeout: nil,
+                     retry_strategy: nil,
+                     client_context: nil,
+                     parent_span: nil)
+        super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+        @ids_only = ids_only
+        @transcoder = transcoder
+        @mutation_state = mutation_state
+        @batch_byte_limit = batch_byte_limit
+        @batch_item_limit = batch_item_limit
+        @concurrency = concurrency
+        yield self if block_given?
+      end
+
+      # Sets the mutation tokens this query should be consistent with
+      #
+      # @note overrides consistency level set by {#scan_consistency=}
+      #
+      # @param [MutationState] mutation_state the mutation state containing the mutation tokens
+      def consistent_with(mutation_state)
+        @mutation_state = mutation_state
+      end
+
+      # @api private
+      def to_backend
+        {
+          timeout: Utils::Time.extract_duration(@timeout),
+          ids_only: @ids_only,
+          mutation_state: @mutation_state.to_a,
+          batch_byte_limit: @batch_byte_limit,
+          batch_item_limit: @batch_item_limit,
+          concurrency: @concurrency,
+        }
+      end
+
+      DEFAULT = Scan.new.freeze
+    end
+
     # Options for {BinaryCollection#append}
     class Append < Base
       attr_accessor :cas # @return [Integer]

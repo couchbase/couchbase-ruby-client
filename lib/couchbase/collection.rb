@@ -15,6 +15,7 @@
 require "couchbase/errors"
 require "couchbase/collection_options"
 require "couchbase/binary_collection"
+require "couchbase/key_value_scan"
 
 module Couchbase
   # Provides access to all collection APIs
@@ -533,6 +534,19 @@ module Couchbase
           end
         end
       end
+    end
+
+    # Performs a key-value scan
+    #
+    # @param [RangeScan, PrefixScan, SamplingScan] scan_type
+    # @param [Options::Scan] options
+    def scan(scan_type, options = Options::Scan::DEFAULT)
+      ScanResults.new(
+        core_scan_result: @backend.document_scan_create(
+          @bucket_name, @scope_name, @name, scan_type.to_backend, options.to_backend
+        ),
+        transcoder: options.transcoder
+      )
     end
 
     private
