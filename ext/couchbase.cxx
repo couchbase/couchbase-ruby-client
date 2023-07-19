@@ -3744,7 +3744,6 @@ cb_CoreScanResult_next_item(VALUE self)
         cb_core_scan_result_data* data = nullptr;
         TypedData_Get_Struct(self, cb_core_scan_result_data, &cb_core_scan_result_type, data);
         auto barrier = std::make_shared<std::promise<tl::expected<couchbase::core::range_scan_item, std::error_code>>>();
-        // auto resp = data->scan_result->next();
         auto f = barrier->get_future();
         data->scan_result->next([barrier](couchbase::core::range_scan_item item, std::error_code ec) {
             if (ec) {
