@@ -847,6 +847,10 @@ cb_map_error_code(std::error_code ec, const std::string& message, bool include_e
 
             case couchbase::errc::key_value::cannot_revive_living_document:
                 return rb_exc_new_cstr(eCannotReviveLivingDocument, what.c_str());
+
+            case couchbase::errc::key_value::range_scan_completed:
+                // Should not be exposed to the Ruby SDK, map it to a BackendError
+                return rb_exc_new_cstr(eBackendError, what.c_str());
         }
     } else if (ec.category() == couchbase::core::impl::query_category()) {
         switch (static_cast<couchbase::errc::query>(ec.value())) {
