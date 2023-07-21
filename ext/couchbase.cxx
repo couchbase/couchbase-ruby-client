@@ -3865,22 +3865,21 @@ cb_Backend_document_scan_create(VALUE self, VALUE bucket, VALUE scope, VALUE col
         }
 
         // Getting the vbucket map
-        auto barrier =
-          std::make_shared<std::promise<tl::expected<couchbase::core::topology::configuration, std::error_code>>>();
+        auto barrier = std::make_shared<std::promise<tl::expected<couchbase::core::topology::configuration, std::error_code>>>();
         auto f = barrier->get_future();
-        cluster->with_bucket_configuration(
-          bucket_name, [barrier](std::error_code ec, const couchbase::core::topology::configuration& config) mutable {
-              if (ec) {
-                  return barrier->set_value(tl::unexpected(ec));
-              }
-              barrier->set_value(config);
-          });
+        cluster->with_bucket_configuration(bucket_name,
+                                           [barrier](std::error_code ec, const couchbase::core::topology::configuration& config) mutable {
+                                               if (ec) {
+                                                   return barrier->set_value(tl::unexpected(ec));
+                                               }
+                                               barrier->set_value(config);
+                                           });
         auto config = cb_wait_for_future(f);
         if (!config.has_value()) {
             rb_raise(eCouchbaseError, "Cannot perform scan operation. Unable to get bucket configuration");
             return Qnil;
         }
-        if (!config->supports_range_scan())  {
+        if (!config->supports_range_scan()) {
             rb_raise(eFeatureNotAvailable, "Server does not support key-value scan operations");
             return Qnil;
         }
