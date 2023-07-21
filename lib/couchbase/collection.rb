@@ -15,6 +15,7 @@
 require "couchbase/errors"
 require "couchbase/collection_options"
 require "couchbase/binary_collection"
+require "couchbase/key_value_scan"
 
 module Couchbase
   # Provides access to all collection APIs
@@ -533,6 +534,38 @@ module Couchbase
           end
         end
       end
+    end
+
+    # Performs a key-value scan operation on the collection
+    #
+    # @api uncommitted
+    #
+    # @param [RangeScan, PrefixScan, SamplingScan] scan_type the type of the scan
+    # @param [Options::Scan] options request customization
+    #
+    # @example Get a sample of up to 5 documents from the collection and store their IDs in an array
+    #   result = collection.scan(SamplingScan.new(5), Options::Scan.new(ids_only: true))
+    #   ids = result.map { |item| item.id }
+    #
+    # @example Get all documents whose ID starts with 'customer_1' and output their content
+    #   result = collection.scan(PrefixScan.new("customer_1"))
+    #   result.each { |item| puts item.content }
+    #
+    # @example Get all documents with ID between 'customer_1' and 'customer_2', excluding 'customer_2' and output their content
+    #   result = collection.scan(RangeScan.new(
+    #     from: ScanTerm.new("customer_1"),
+    #     to: ScanTerm.new("customer_2", exclusive: true)
+    #   ))
+    #   result.each { |item| puts item.content }
+    #
+    # @return [ScanResults]
+    def scan(scan_type, options = Options::Scan::DEFAULT)
+      ScanResults.new(
+        core_scan_result: @backend.document_scan_create(
+          @bucket_name, @scope_name, @name, scan_type.to_backend, options.to_backend
+        ),
+        transcoder: options.transcoder
+      )
     end
 
     private

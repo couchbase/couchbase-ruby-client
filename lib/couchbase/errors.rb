@@ -183,6 +183,11 @@ module Couchbase
     class DurableWriteReCommitInProgress < CouchbaseError
     end
 
+    # Happens when consistency requirements are specified but the partition uuid of the requirements do not align
+    # with the server
+    class MutationTokenOutdated < CouchbaseError
+    end
+
     # Subdocument exception thrown when a path does not exist in the document. The exact meaning of path existence
     # depends on the operation and inputs.
     class PathNotFound < CouchbaseError

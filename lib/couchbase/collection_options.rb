@@ -15,6 +15,9 @@
 require "rubygems/deprecate"
 
 require "couchbase/json_transcoder"
+require "couchbase/raw_string_transcoder"
+require "couchbase/raw_json_transcoder"
+require "couchbase/raw_binary_transcoder"
 require "couchbase/subdoc"
 require "couchbase/mutation_state"
 
@@ -294,6 +297,84 @@ module Couchbase
       # @yieldparam [SubDocumentField] self
       def initialize
         yield self if block_given?
+      end
+    end
+
+    class ScanResult
+      # @return [String] identifier of the document
+      attr_accessor :id
+
+      # @return [Boolean] whether only ids are returned from this scan
+      attr_accessor :id_only
+
+      # @return [Integer, nil] holds the CAS value of the fetched document
+      attr_accessor :cas
+
+      # @return [Integer, nil] the expiration if fetched and present
+      attr_accessor :expiry
+
+      # @return [JsonTranscoder, RawBinaryTranscoder, RawJsonTranscoder, RawStringTranscoder, #decode] The default
+      #   transcoder which should be used
+      attr_accessor :transcoder
+
+      def initialize(id:, id_only:, cas: nil, expiry: nil, encoded: nil, flags: nil, transcoder: JsonTranscoder.new)
+        @id = id
+        @id_only = id_only
+        @cas = cas
+        @expiry = expiry
+        @encoded = encoded
+        @flags = flags
+        @transcoder = transcoder
+
+        yield self if block_given?
+      end
+
+      # Decodes the content of the document using given (or default transcoder)
+      #
+      # @param [JsonTranscoder, RawJsonTranscoder, RawBinaryTranscoder, RawStringTranscoder] transcoder custom transcoder
+      #
+      # @return [Object, nil]
+      def content(transcoder = self.transcoder)
+        return nil if @encoded.nil?
+
+        transcoder ? transcoder.decode(@encoded, @flags) : @encoded
+      end
+    end
+
+    class ScanResults
+      include Enumerable
+
+      def initialize(core_scan_result:, transcoder:)
+        @core_scan_result = core_scan_result
+        @transcoder = transcoder
+      end
+
+      def each
+        return enum_for(:each) unless block_given?
+
+        loop do
+          resp = @core_scan_result.next_item
+
+          break if resp.nil?
+
+          if resp[:id_only]
+            yield ScanResult.new(
+              id: resp[:id],
+              id_only: resp[:id_only],
+              transcoder: @transcoder
+            )
+          else
+            yield ScanResult.new(
+              id: resp[:id],
+              id_only: resp[:id_only],
+              cas: resp[:cas],
+              expiry: resp[:expiry],
+              encoded: resp[:encoded],
+              flags: resp[:flags],
+              transcoder: @transcoder
+            )
+          end
+        end
       end
     end
   end
