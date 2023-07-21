@@ -20,6 +20,8 @@ module Couchbase
 
     # Creates an instance of a ScanTerm
     #
+    # @api uncommitted
+    #
     # @param [String] term the key pattern of this term
     # @param [Boolean] exclusive specifies if this term is excluded while scanning, the bounds are included by default
     def initialize(term, exclusive: false)
@@ -42,6 +44,8 @@ module Couchbase
     attr_accessor :to # @return [ScanTerm, nil]
 
     # Creates an instance of a RangeScan scan type
+    #
+    # @api uncommitted
     #
     # @param [ScanTerm, String, nil] from the lower bound of the range, if set
     # @param [ScanTerm, String, nil] to the upper bound of the range, if set
@@ -76,6 +80,8 @@ module Couchbase
 
     # Creates an instance of a PrefixScan scan type
     #
+    # @api uncommitted
+    #
     # @param [String, nil] prefix the prefix all document keys should start with
     def initialize(prefix)
       @prefix = prefix
@@ -96,6 +102,8 @@ module Couchbase
     attr_accessor :seed # @return [Integer, nil]
 
     # Creates an instance of a SamplingScan scan type
+    #
+    # @api uncommitted
     #
     # @param [Integer] limit the maximum number of documents the sampling scan can return
     # @param [Integer, nil] seed the seed used for the random number generator that selects the documents. If not set,
