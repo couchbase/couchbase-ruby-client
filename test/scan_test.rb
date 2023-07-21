@@ -24,7 +24,7 @@ module Couchbase
 
     def setup
       skip("#{name}: CAVES does not support range scan") if use_caves?
-      skip("#{name}: Server does not support range scan ") unless env.server_version.supports_range_scan?
+      skip("#{name}: Server does not support range scan (#{env.server_version})") unless env.server_version.supports_range_scan?
 
       connect
       @bucket = @cluster.bucket(env.bucket)
@@ -371,6 +371,24 @@ module Couchbase
       collection = @bucket.scope("_default").collection(uniq_id(:nonexistent))
       assert_raises(Error::InvalidArgument) do
         collection.scan(RangeScan.new, Options::Scan.new(concurrency: 0))
+      end
+    end
+  end
+
+  class ScanNotSupportedTest < MiniTest::Test
+    include TestUtilities
+
+    def setup
+      skip("#{name}: Server supports range scan (#{env.server_version})") if env.server_version.supports_range_scan?
+
+      connect
+      @bucket = @cluster.bucket(env.bucket)
+      @collection = @bucket.default_collection
+    end
+
+    def test_range_scan_feature_not_available
+      assert_raises(Error::FeatureNotAvailable) do
+        @collection.scan(RangeScan.new)
       end
     end
   end

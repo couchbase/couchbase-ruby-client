@@ -3866,20 +3866,26 @@ cb_Backend_document_scan_create(VALUE self, VALUE bucket, VALUE scope, VALUE col
 
         // Getting the vbucket map
         auto barrier =
-          std::make_shared<std::promise<tl::expected<couchbase::core::topology::configuration::vbucket_map, std::error_code>>>();
+          std::make_shared<std::promise<tl::expected<couchbase::core::topology::configuration, std::error_code>>>();
         auto f = barrier->get_future();
         cluster->with_bucket_configuration(
           bucket_name, [barrier](std::error_code ec, const couchbase::core::topology::configuration& config) mutable {
               if (ec) {
                   return barrier->set_value(tl::unexpected(ec));
               }
-              if (!config.vbmap || config.vbmap->empty()) {
-                  return barrier->set_value(tl::unexpected(couchbase::errc::common::feature_not_available));
-              }
-              barrier->set_value(config.vbmap.value());
+              barrier->set_value(config);
           });
-        auto vbucket_map = cb_wait_for_future(f);
-        if (!vbucket_map.has_value()) {
+        auto config = cb_wait_for_future(f);
+        if (!config.has_value()) {
+            rb_raise(eCouchbaseError, "Cannot perform scan operation. Unable to get bucket configuration");
+            return Qnil;
+        }
+        if (!config->supports_range_scan())  {
+            rb_raise(eFeatureNotAvailable, "Server does not support key-value scan operations");
+            return Qnil;
+        }
+        auto vbucket_map = config->vbmap;
+        if (!vbucket_map || vbucket_map->empty()) {
             rb_raise(eCouchbaseError, "Cannot perform scan operation. Unable to get vbucket map");
             return Qnil;
         }
