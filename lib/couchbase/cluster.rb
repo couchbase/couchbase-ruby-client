@@ -124,7 +124,7 @@ module Couchbase
               metrics.warning_count = resp[:meta][:metrics][:warning_count]
             end
           end
-          res[:warnings] = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
+          meta.warnings = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
         end
         res.instance_variable_set(:@rows, resp[:rows])
       end
