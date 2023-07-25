@@ -230,6 +230,18 @@ module Couchbase
       end
     end
 
+    class LookupInReplicaResult < LookupInResult
+      # @return [Boolean] true if the document was read from a replica node
+      attr_accessor :is_replica
+      alias replica? is_replica
+
+      # @yieldparam [LookupInReplicaResult] self
+      def initialize
+        super
+        yield self if block_given?
+      end
+    end
+
     class MutateInResult < MutationResult
       # Decodes the content at the given index
       #

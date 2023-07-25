@@ -487,6 +487,62 @@ module Couchbase
       end
     end
 
+    # Performs lookups to document fragments. Reads from the active node and all available replicas and returns the
+    # first result found
+    #
+    # @param [String] id the document id which is used to uniquely identify it.
+    # @param [Array<LookupInSpec>] specs the list of specifications which describe the types of the lookups to perform
+    # @param [Options::LookupInAnyReplica] options request customization
+    #
+    # @return [LookupInReplicaResult]
+    #
+    # @raise [Error::DocumentIrretrievable]
+    # @raise [Error::Timeout]
+    # @raise [Error::CouchbaseError]
+    # @raise [Error::FeatureNotAvailable]
+    def lookup_in_any_replica(id, specs, options = Options::LookupInAnyReplica::DEFAULT)
+      resp = @backend.document_lookup_in_any_replica(
+        bucket_name, @scope_name, @name, id,
+        specs.map do |s|
+          {
+            opcode: s.type,
+            xattr: s.xattr?,
+            path: s.path,
+          }
+        end, options.to_backend
+      )
+      extract_lookup_in_replica_result(resp, options)
+    end
+
+    # Performs lookups to document fragments. Reads from the active node and all available replicas and returns all of
+    # the results
+    #
+    # @param [String] id the document id which is used to uniquely identify it.
+    # @param [Array<LookupInSpec>] specs the list of specifications which describe the types of the lookups to perform
+    # @param [Options::LookupInAllReplicas] options request customization
+    #
+    # @return [Array<LookupInReplicaResult>]
+    #
+    # @raise [Error::DocumentIrretrievable]
+    # @raise [Error::Timeout]
+    # @raise [Error::CouchbaseError]
+    # @raise [Error::FeatureNotAvailable]
+    def lookup_in_all_replicas(id, specs, options = Options::LookupInAllReplicas::DEFAULT)
+      resp = @backend.document_lookup_in_all_replicas(
+        bucket_name, @scope_name, @name, id,
+        specs.map do |s|
+          {
+            opcode: s.type,
+            xattr: s.xattr?,
+            path: s.path,
+          }
+        end, options.to_backend
+      )
+      resp.map do |entry|
+        extract_lookup_in_replica_result(entry, options)
+      end
+    end
+
     # Performs mutations to document fragments
     #
     # @param [String] id the document id which is used to uniquely identify it.
@@ -578,6 +634,23 @@ module Couchbase
         token.partition_uuid = resp[:mutation_token][:partition_uuid]
         token.sequence_number = resp[:mutation_token][:sequence_number]
         token.bucket_name = resp[:mutation_token][:bucket_name]
+      end
+    end
+
+    def extract_lookup_in_replica_result(resp, options)
+      LookupInReplicaResult.new do |res|
+        res.transcoder = options.transcoder
+        res.cas = resp[:cas]
+        res.deleted = resp[:deleted]
+        res.is_replica = resp[:is_replica]
+        res.encoded = resp[:fields].map do |field|
+          SubDocumentField.new do |f|
+            f.exists = field[:exists]
+            f.index = field[:index]
+            f.path = field[:path]
+            f.value = field[:value]
+          end
+        end
       end
     end
 

@@ -38,6 +38,7 @@
 #include <core/design_document_namespace_fmt.hxx>
 #include <core/logger/configuration.hxx>
 #include <core/operations.hxx>
+
 #include <core/operations/management/analytics.hxx>
 #include <core/operations/management/bucket.hxx>
 #include <core/operations/management/cluster_developer_preview_enable.hxx>
@@ -46,6 +47,8 @@
 #include <core/operations/management/search.hxx>
 #include <core/operations/management/user.hxx>
 #include <core/operations/management/view.hxx>
+
+#include <core/impl/subdoc/path_flags.hxx>
 
 #include <core/range_scan_options.hxx>
 #include <core/range_scan_orchestrator.hxx>
@@ -3426,7 +3429,7 @@ cb_Backend_document_decrement(VALUE self, VALUE bucket, VALUE scope, VALUE colle
 static VALUE
 cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE specs, VALUE options)
 {
-    const auto& core = cb_backend_to_cluster(self);
+    const auto& cluster = cb_backend_to_cluster(self);
 
     Check_Type(bucket, T_STRING);
     Check_Type(scope, T_STRING);
@@ -3442,10 +3445,6 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
     }
 
     try {
-        couchbase::lookup_in_options opts;
-        couchbase::ruby::set_timeout(opts, options);
-        couchbase::ruby::set_access_deleted(opts, options);
-
         couchbase::core::document_id doc_id{
             cb_string_new(bucket),
             cb_string_new(scope),
@@ -3453,12 +3452,15 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
             cb_string_new(id),
         };
 
+        couchbase::core::operations::lookup_in_request req{ doc_id };
+        cb_extract_timeout(req, options);
+        cb_extract_option_bool(req.access_deleted, options, "access_deleted");
+
         static VALUE xattr_property = rb_id2sym(rb_intern("xattr"));
         static VALUE path_property = rb_id2sym(rb_intern("path"));
         static VALUE opcode_property = rb_id2sym(rb_intern("opcode"));
 
         auto entries_size = static_cast<std::size_t>(RARRAY_LEN(specs));
-        couchbase::lookup_in_specs cxx_specs;
         for (std::size_t i = 0; i < entries_size; ++i) {
             VALUE entry = rb_ary_entry(specs, static_cast<long>(i));
             cb_check_type(entry, T_HASH);
@@ -3467,29 +3469,30 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
             bool xattr = RTEST(rb_hash_aref(entry, xattr_property));
             VALUE path = rb_hash_aref(entry, path_property);
             cb_check_type(path, T_STRING);
+            auto opcode = couchbase::core::impl::subdoc::opcode{};
             if (ID operation_id = rb_sym2id(operation); operation_id == rb_intern("get_doc")) {
-                cxx_specs.push_back(couchbase::lookup_in_specs::get("").xattr(xattr));
+                opcode = couchbase::core::impl::subdoc::opcode::get_doc;
             } else if (operation_id == rb_intern("get")) {
-                cxx_specs.push_back(couchbase::lookup_in_specs::get(cb_string_new(path)).xattr(xattr));
+                opcode = couchbase::core::impl::subdoc::opcode::get;
             } else if (operation_id == rb_intern("exists")) {
-                cxx_specs.push_back(couchbase::lookup_in_specs::exists(cb_string_new(path)).xattr(xattr));
+                opcode = couchbase::core::impl::subdoc::opcode::exists;
             } else if (operation_id == rb_intern("count")) {
-                cxx_specs.push_back(couchbase::lookup_in_specs::count(cb_string_new(path)).xattr(xattr));
+                opcode = couchbase::core::impl::subdoc::opcode::get_count;
             } else {
                 throw ruby_exception(eInvalidArgument, rb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
             }
             cb_check_type(path, T_STRING);
+
+            req.specs.emplace_back(couchbase::core::impl::subdoc::command{
+              opcode, cb_string_new(path), {}, couchbase::core::impl::subdoc::build_lookup_in_path_flags(xattr) });
         }
 
-        auto f = couchbase::cluster(core)
-                   .bucket(cb_string_new(bucket))
-                   .scope(cb_string_new(scope))
-                   .collection(cb_string_new(collection))
-                   .lookup_in(cb_string_new(id), cxx_specs, opts);
-
-        auto [ctx, resp] = cb_wait_for_future(f);
-        if (ctx.ec()) {
-            cb_throw_error_code(ctx, "unable to lookup_in");
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::lookup_in_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(req, [barrier](couchbase::core::operations::lookup_in_response&& resp) { barrier->set_value(std::move(resp)); });
+        auto resp = cb_wait_for_future(f);
+        if (resp.ctx.ec()) {
+            cb_throw_error_code(resp.ctx, "unable to perform lookup_in operation");
         }
 
         static VALUE deleted_property = rb_id2sym(rb_intern("deleted"));
@@ -3500,21 +3503,237 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
         static VALUE value_property = rb_id2sym(rb_intern("value"));
 
         VALUE res = rb_hash_new();
-        rb_hash_aset(res, cas_property, cb_cas_to_num(resp.cas()));
+        rb_hash_aset(res, cas_property, cb_cas_to_num(resp.cas));
         VALUE fields = rb_ary_new_capa(static_cast<long>(entries_size));
         rb_hash_aset(res, fields_property, fields);
-        rb_hash_aset(res, deleted_property, resp.is_deleted() ? Qtrue : Qfalse);
+        rb_hash_aset(res, deleted_property, resp.deleted ? Qtrue : Qfalse);
         for (std::size_t i = 0; i < entries_size; ++i) {
+            auto resp_entry = resp.fields.at(i);
             VALUE entry = rb_hash_new();
-            rb_hash_aset(entry, index_property, ULL2NUM(i));
-            rb_hash_aset(entry, exists_property, resp.exists(i) ? Qtrue : Qfalse);
-            rb_hash_aset(entry, path_property, rb_hash_aref(rb_ary_entry(specs, static_cast<long>(i)), path_property));
-            if (resp.has_value(i)) {
-                auto value = resp.content_as<tao::json::value>(i);
-                rb_hash_aset(entry, value_property, cb_str_new(couchbase::core::utils::json::generate(value)));
+            rb_hash_aset(entry, index_property, ULL2NUM(resp_entry.original_index));
+            rb_hash_aset(entry, exists_property, resp_entry.exists ? Qtrue : Qfalse);
+            rb_hash_aset(entry, path_property, cb_str_new(resp_entry.path));
+            if (!resp_entry.value.empty()) {
+                rb_hash_aset(entry, value_property, cb_str_new(resp_entry.value));
             }
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
+        return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_document_lookup_in_any_replica(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE specs, VALUE options)
+{
+    const auto& cluster = cb_backend_to_cluster(self);
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(scope, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+    Check_Type(specs, T_ARRAY);
+    if (RARRAY_LEN(specs) <= 0) {
+        rb_raise(rb_eArgError, "Array with specs cannot be empty");
+        return Qnil;
+    }
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    try {
+        couchbase::core::document_id doc_id{
+            cb_string_new(bucket),
+            cb_string_new(scope),
+            cb_string_new(collection),
+            cb_string_new(id),
+        };
+
+        couchbase::core::operations::lookup_in_any_replica_request req{ doc_id };
+        cb_extract_timeout(req, options);
+
+        static VALUE xattr_property = rb_id2sym(rb_intern("xattr"));
+        static VALUE path_property = rb_id2sym(rb_intern("path"));
+        static VALUE opcode_property = rb_id2sym(rb_intern("opcode"));
+
+        auto entries_size = static_cast<std::size_t>(RARRAY_LEN(specs));
+        for (std::size_t i = 0; i < entries_size; ++i) {
+            VALUE entry = rb_ary_entry(specs, static_cast<long>(i));
+            cb_check_type(entry, T_HASH);
+            VALUE operation = rb_hash_aref(entry, opcode_property);
+            cb_check_type(operation, T_SYMBOL);
+            bool xattr = RTEST(rb_hash_aref(entry, xattr_property));
+            VALUE path = rb_hash_aref(entry, path_property);
+            cb_check_type(path, T_STRING);
+            auto opcode = couchbase::core::impl::subdoc::opcode{};
+            if (ID operation_id = rb_sym2id(operation); operation_id == rb_intern("get_doc")) {
+                opcode = couchbase::core::impl::subdoc::opcode::get_doc;
+            } else if (operation_id == rb_intern("get")) {
+                opcode = couchbase::core::impl::subdoc::opcode::get;
+            } else if (operation_id == rb_intern("exists")) {
+                opcode = couchbase::core::impl::subdoc::opcode::exists;
+            } else if (operation_id == rb_intern("count")) {
+                opcode = couchbase::core::impl::subdoc::opcode::get_count;
+            } else {
+                throw ruby_exception(eInvalidArgument, rb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
+            }
+            cb_check_type(path, T_STRING);
+
+            req.specs.emplace_back(couchbase::core::impl::subdoc::command{
+              opcode, cb_string_new(path), {}, couchbase::core::impl::subdoc::build_lookup_in_path_flags(xattr) });
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::lookup_in_any_replica_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(
+          req, [barrier](couchbase::core::operations::lookup_in_any_replica_response&& resp) { barrier->set_value(std::move(resp)); });
+        auto resp = cb_wait_for_future(f);
+        if (resp.ctx.ec()) {
+            cb_throw_error_code(resp.ctx, "unable to perform lookup_in_any_replica operation");
+        }
+
+        static VALUE deleted_property = rb_id2sym(rb_intern("deleted"));
+        static VALUE fields_property = rb_id2sym(rb_intern("fields"));
+        static VALUE index_property = rb_id2sym(rb_intern("index"));
+        static VALUE exists_property = rb_id2sym(rb_intern("exists"));
+        static VALUE cas_property = rb_id2sym(rb_intern("cas"));
+        static VALUE value_property = rb_id2sym(rb_intern("value"));
+        static VALUE is_replica_property = rb_id2sym(rb_intern("is_replica"));
+
+        VALUE res = rb_hash_new();
+        rb_hash_aset(res, cas_property, cb_cas_to_num(resp.cas));
+        VALUE fields = rb_ary_new_capa(static_cast<long>(entries_size));
+        rb_hash_aset(res, fields_property, fields);
+        rb_hash_aset(res, deleted_property, resp.deleted ? Qtrue : Qfalse);
+        rb_hash_aset(res, is_replica_property, resp.is_replica ? Qtrue : Qfalse);
+
+        for (std::size_t i = 0; i < entries_size; ++i) {
+            auto resp_entry = resp.fields.at(i);
+            VALUE entry = rb_hash_new();
+            rb_hash_aset(entry, index_property, ULL2NUM(resp_entry.original_index));
+            rb_hash_aset(entry, exists_property, resp_entry.exists ? Qtrue : Qfalse);
+            rb_hash_aset(entry, path_property, cb_str_new(resp_entry.path));
+            if (!resp_entry.value.empty()) {
+                rb_hash_aset(entry, value_property, cb_str_new(resp_entry.value));
+            }
+            rb_ary_store(fields, static_cast<long>(i), entry);
+        }
+
+        return res;
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_document_lookup_in_all_replicas(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE id, VALUE specs, VALUE options)
+{
+    const auto& cluster = cb_backend_to_cluster(self);
+
+    Check_Type(bucket, T_STRING);
+    Check_Type(scope, T_STRING);
+    Check_Type(collection, T_STRING);
+    Check_Type(id, T_STRING);
+    Check_Type(specs, T_ARRAY);
+    if (RARRAY_LEN(specs) <= 0) {
+        rb_raise(rb_eArgError, "Array with specs cannot be empty");
+        return Qnil;
+    }
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    try {
+        couchbase::core::document_id doc_id{
+            cb_string_new(bucket),
+            cb_string_new(scope),
+            cb_string_new(collection),
+            cb_string_new(id),
+        };
+
+        couchbase::core::operations::lookup_in_all_replicas_request req{ doc_id };
+        cb_extract_timeout(req, options);
+
+        static VALUE xattr_property = rb_id2sym(rb_intern("xattr"));
+        static VALUE path_property = rb_id2sym(rb_intern("path"));
+        static VALUE opcode_property = rb_id2sym(rb_intern("opcode"));
+
+        auto entries_size = static_cast<std::size_t>(RARRAY_LEN(specs));
+        for (std::size_t i = 0; i < entries_size; ++i) {
+            VALUE entry = rb_ary_entry(specs, static_cast<long>(i));
+            cb_check_type(entry, T_HASH);
+            VALUE operation = rb_hash_aref(entry, opcode_property);
+            cb_check_type(operation, T_SYMBOL);
+            bool xattr = RTEST(rb_hash_aref(entry, xattr_property));
+            VALUE path = rb_hash_aref(entry, path_property);
+            cb_check_type(path, T_STRING);
+            auto opcode = couchbase::core::impl::subdoc::opcode{};
+            if (ID operation_id = rb_sym2id(operation); operation_id == rb_intern("get_doc")) {
+                opcode = couchbase::core::impl::subdoc::opcode::get_doc;
+            } else if (operation_id == rb_intern("get")) {
+                opcode = couchbase::core::impl::subdoc::opcode::get;
+            } else if (operation_id == rb_intern("exists")) {
+                opcode = couchbase::core::impl::subdoc::opcode::exists;
+            } else if (operation_id == rb_intern("count")) {
+                opcode = couchbase::core::impl::subdoc::opcode::get_count;
+            } else {
+                throw ruby_exception(eInvalidArgument, rb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
+            }
+            cb_check_type(path, T_STRING);
+
+            req.specs.emplace_back(couchbase::core::impl::subdoc::command{
+              opcode, cb_string_new(path), {}, couchbase::core::impl::subdoc::build_lookup_in_path_flags(xattr) });
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::lookup_in_all_replicas_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(
+          req, [barrier](couchbase::core::operations::lookup_in_all_replicas_response&& resp) { barrier->set_value(std::move(resp)); });
+        auto resp = cb_wait_for_future(f);
+        if (resp.ctx.ec()) {
+            cb_throw_error_code(resp.ctx, "unable to perform lookup_in_all_replicas operation");
+        }
+
+        static VALUE deleted_property = rb_id2sym(rb_intern("deleted"));
+        static VALUE fields_property = rb_id2sym(rb_intern("fields"));
+        static VALUE index_property = rb_id2sym(rb_intern("index"));
+        static VALUE exists_property = rb_id2sym(rb_intern("exists"));
+        static VALUE cas_property = rb_id2sym(rb_intern("cas"));
+        static VALUE value_property = rb_id2sym(rb_intern("value"));
+        static VALUE is_replica_property = rb_id2sym(rb_intern("is_replica"));
+
+        auto lookup_in_entries_size = resp.entries.size();
+        VALUE res = rb_ary_new_capa(static_cast<long>(lookup_in_entries_size));
+        for (std::size_t j = 0; j < lookup_in_entries_size; ++j) {
+            auto lookup_in_entry = resp.entries.at(j);
+            VALUE lookup_in_entry_res = rb_hash_new();
+            rb_hash_aset(lookup_in_entry_res, cas_property, cb_cas_to_num(lookup_in_entry.cas));
+            VALUE fields = rb_ary_new_capa(static_cast<long>(entries_size));
+            rb_hash_aset(lookup_in_entry_res, fields_property, fields);
+            rb_hash_aset(lookup_in_entry_res, deleted_property, lookup_in_entry.deleted ? Qtrue : Qfalse);
+            rb_hash_aset(lookup_in_entry_res, is_replica_property, lookup_in_entry.is_replica ? Qtrue : Qfalse);
+
+            for (std::size_t i = 0; i < entries_size; ++i) {
+                auto field_entry = lookup_in_entry.fields.at(i);
+                VALUE entry = rb_hash_new();
+                rb_hash_aset(entry, index_property, ULL2NUM(field_entry.original_index));
+                rb_hash_aset(entry, exists_property, field_entry.exists ? Qtrue : Qfalse);
+                rb_hash_aset(entry, path_property, cb_str_new(field_entry.path));
+                if (!field_entry.value.empty()) {
+                    rb_hash_aset(entry, value_property, cb_str_new(field_entry.value));
+                }
+                rb_ary_store(fields, static_cast<long>(i), entry);
+            }
+            rb_ary_store(res, static_cast<long>(j), lookup_in_entry_res);
+        }
+
         return res;
     } catch (const std::system_error& se) {
         rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
@@ -8910,6 +9129,8 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_remove", VALUE_FUNC(cb_Backend_document_remove), 5);
     rb_define_method(cBackend, "document_remove_multi", VALUE_FUNC(cb_Backend_document_remove_multi), 5);
     rb_define_method(cBackend, "document_lookup_in", VALUE_FUNC(cb_Backend_document_lookup_in), 6);
+    rb_define_method(cBackend, "document_lookup_in_any_replica", VALUE_FUNC(cb_Backend_document_lookup_in_any_replica), 6);
+    rb_define_method(cBackend, "document_lookup_in_all_replicas", VALUE_FUNC(cb_Backend_document_lookup_in_all_replicas), 6);
     rb_define_method(cBackend, "document_mutate_in", VALUE_FUNC(cb_Backend_document_mutate_in), 6);
     rb_define_method(cBackend, "document_scan_create", VALUE_FUNC(cb_Backend_document_scan_create), 5);
     rb_define_method(cBackend, "document_query", VALUE_FUNC(cb_Backend_document_query), 2);

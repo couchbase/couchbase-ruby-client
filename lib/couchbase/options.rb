@@ -1026,6 +1026,80 @@ module Couchbase
       DEFAULT = LookupIn.new.freeze
     end
 
+    # Options for {Collection#lookup_in_any_replica}
+    class LookupInAnyReplica < Base
+      attr_accessor :transcoder # @return [JsonTranscoder, #decode(String)]
+
+      # Creates an instance of options for {Collection#lookup_in_any_replica}
+      #
+      # @param [JsonTranscoder, #decode(String)] transcoder used for encoding
+      #
+      # @param [Integer, #in_milliseconds, nil] timeout
+      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Hash, nil] client_context the client context data, if set
+      # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+      #
+      # @yieldparam [LookupIn] self
+      def initialize(transcoder: JsonTranscoder.new,
+                     timeout: nil,
+                     retry_strategy: nil,
+                     client_context: nil,
+                     parent_span: nil)
+        super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+        @transcoder = transcoder
+        yield self if block_given?
+      end
+
+      # @api private
+      def to_backend
+        {
+          timeout: Utils::Time.extract_duration(@timeout),
+        }
+      end
+
+      # @api private
+      # @return [Boolean]
+      attr_accessor :access_deleted
+
+      # @api private
+      DEFAULT = LookupInAnyReplica.new.freeze
+    end
+
+    # Options for {Collection#lookup_in_all_replicas}
+    class LookupInAllReplicas < Base
+      attr_accessor :transcoder # @return [JsonTranscoder, #decode(String)]
+
+      # Creates an instance of options for {Collection#lookup_in_all_replicas}
+      #
+      # @param [JsonTranscoder, #decode(String)] transcoder used for encoding
+      #
+      # @param [Integer, #in_milliseconds, nil] timeout
+      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Hash, nil] client_context the client context data, if set
+      # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+      #
+      # @yieldparam [LookupInAllReplicas] self
+      def initialize(transcoder: JsonTranscoder.new,
+                     timeout: nil,
+                     retry_strategy: nil,
+                     client_context: nil,
+                     parent_span: nil)
+        super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+        @transcoder = transcoder
+        yield self if block_given?
+      end
+
+      # @api private
+      def to_backend
+        {
+          timeout: Utils::Time.extract_duration(@timeout),
+        }
+      end
+
+      # @api private
+      DEFAULT = LookupInAllReplicas.new.freeze
+    end
+
     # Options for {Collection#scan}
     class Scan < Base
       attr_accessor :ids_only # @return [Boolean]
