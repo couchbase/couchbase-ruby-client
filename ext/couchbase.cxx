@@ -8873,6 +8873,16 @@ cb_Backend_form_encode(VALUE self, VALUE data)
     return cb_str_new(encoded);
 }
 
+static VALUE
+cb_Backend_enable_protocol_logger_to_save_network_traffic_to_file(VALUE /* self */, VALUE path)
+{
+    Check_Type(path, T_STRING);
+    couchbase::core::logger::configuration configuration{};
+    configuration.filename = cb_string_new(path);
+    couchbase::core::logger::create_protocol_logger(configuration);
+    return Qnil;
+}
+
 static void
 init_backend(VALUE mCouchbase)
 {
@@ -9003,6 +9013,10 @@ init_backend(VALUE mCouchbase)
     rb_define_singleton_method(cBackend, "query_escape", VALUE_FUNC(cb_Backend_query_escape), 1);
     rb_define_singleton_method(cBackend, "path_escape", VALUE_FUNC(cb_Backend_path_escape), 1);
     rb_define_singleton_method(cBackend, "form_encode", VALUE_FUNC(cb_Backend_form_encode), 1);
+    rb_define_singleton_method(cBackend,
+                               "enable_protocol_logger_to_save_network_traffic_to_file",
+                               VALUE_FUNC(cb_Backend_enable_protocol_logger_to_save_network_traffic_to_file),
+                               1);
 }
 
 void
