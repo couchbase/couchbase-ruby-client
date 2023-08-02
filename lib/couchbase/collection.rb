@@ -523,7 +523,7 @@ module Couchbase
     #
     # @return [Array<LookupInReplicaResult>]
     #
-    # @raise [Error::DocumentIrretrievable]
+    # @raise [Error::DocumentNotFound]
     # @raise [Error::Timeout]
     # @raise [Error::CouchbaseError]
     # @raise [Error::FeatureNotAvailable]
