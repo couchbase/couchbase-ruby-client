@@ -321,9 +321,8 @@ module Couchbase
 
     def test_range_scan_collection_does_not_exist
       collection = @bucket.scope("_default").collection(uniq_id(:nonexistent))
-      scan_result = collection.scan(RangeScan.new)
       assert_raises(Error::CollectionNotFound) do
-        validate_scan(scan_result, [])
+        collection.scan(RangeScan.new)
       end
     end
 
