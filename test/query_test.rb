@@ -224,8 +224,8 @@ module Couchbase
     def test_scoped_query
       skip("The server does not support scoped queries (#{env.server_version})") unless env.server_version.supports_scoped_queries?
 
-      scope_name = uniq_id(:scope).delete(".")[0, 30]
-      collection_name = uniq_id(:collection).delete(".")[0, 30]
+      scope_name = uniq_id(:scope).delete("-")[0, 30]
+      collection_name = uniq_id(:collection).delete("-")[0, 30]
 
       manager = @bucket.collections
       ns_uid = manager.create_scope(scope_name)
