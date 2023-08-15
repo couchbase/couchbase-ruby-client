@@ -55,6 +55,14 @@ class ServerVersion
     @version >= Gem::Version.create("7.0.0")
   end
 
+  def elixir?
+    @version >= Gem::Version.create("7.5.0")
+  end
+
+  def trinity?
+    @version >= Gem::Version.create("7.6.0")
+  end
+
   def supports_collections?
     cheshire_cat?
   end
@@ -84,7 +92,11 @@ class ServerVersion
   end
 
   def supports_range_scan?
-    @version >= Gem::Version.create("7.5.0")
+    elixir?
+  end
+
+  def supports_subdoc_read_from_replica?
+    elixir?
   end
 end
 

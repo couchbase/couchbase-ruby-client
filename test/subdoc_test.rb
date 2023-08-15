@@ -1310,5 +1310,143 @@ module Couchbase
       assert_equal({"field" => "b"}, res.content(0))
       assert_predicate res, :deleted?, "the document should be marked as 'deleted'"
     end
+
+    def test_lookup_in_any_replica_get
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+
+      res = @collection.lookup_in_any_replica(doc_id, [
+                                                LookupInSpec.get("value"),
+                                              ])
+
+      assert_equal 42, res.content(0)
+      assert_respond_to res, :replica?
+    end
+
+    def test_lookup_in_all_replicas_get
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+
+      res = @collection.lookup_in_all_replicas(doc_id, [
+                                                 LookupInSpec.get("value"),
+                                               ])
+
+      refute_empty res
+
+      res.each do |entry|
+        assert_equal 42, entry.content(0)
+        assert_respond_to entry, :replica?
+      end
+    end
+
+    def test_lookup_in_any_replica_get_doc
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+
+      res = @collection.lookup_in_any_replica(doc_id, [
+                                                LookupInSpec.get(""),
+                                              ])
+
+      assert_equal document, res.content(0)
+      assert_respond_to res, :replica?
+    end
+
+    def test_lookup_in_all_replicas_get_doc
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+
+      res = @collection.lookup_in_all_replicas(doc_id, [
+                                                 LookupInSpec.get(""),
+                                               ])
+
+      refute_empty res
+
+      res.each do |entry|
+        assert_equal document, entry.content(0)
+        assert_respond_to entry, :replica?
+      end
+    end
+
+    def test_lookup_in_any_replica_exists
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+
+      options = Options::LookupInAnyReplica.new
+      res = @collection.lookup_in_any_replica(doc_id, [
+                                                LookupInSpec.exists("value"),
+                                                LookupInSpec.exists("foo"),
+                                              ], options)
+
+      assert res.exists?(0)
+      refute res.exists?(1)
+      assert_respond_to res, :replica?
+    end
+
+    def test_lookup_in_all_replicas_exist
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+
+      options = Options::LookupInAllReplicas.new
+      res = @collection.lookup_in_all_replicas(doc_id, [
+                                                 LookupInSpec.exists("value"),
+                                                 LookupInSpec.exists("foo"),
+                                               ], options)
+
+      refute_empty res
+
+      res.each do |entry|
+        assert entry.exists?(0)
+        refute entry.exists?(1)
+        assert_respond_to entry, :replica?
+      end
+    end
+
+    def test_lookup_in_any_replica_bad_key
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      assert_raises(Error::DocumentIrretrievable) do
+        @collection.lookup_in_any_replica(doc_id, [
+                                            LookupInSpec.get("value"),
+                                          ])
+      end
+    end
+
+    def test_lookup_in_all_replicas_bad_key
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      assert_raises(Error::DocumentNotFound) do
+        @collection.lookup_in_all_replicas(doc_id, [
+                                             LookupInSpec.get("value"),
+                                           ])
+      end
+    end
   end
 end
