@@ -482,6 +482,7 @@ module Couchbase
             f.index = field[:index]
             f.path = field[:path]
             f.value = field[:value]
+            f.error = field[:error]
           end
         end
       end
@@ -649,6 +650,7 @@ module Couchbase
             f.index = field[:index]
             f.path = field[:path]
             f.value = field[:value]
+            f.error = field[:error]
           end
         end
       end

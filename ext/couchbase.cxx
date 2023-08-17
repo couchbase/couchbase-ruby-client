@@ -3501,6 +3501,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
         static VALUE exists_property = rb_id2sym(rb_intern("exists"));
         static VALUE cas_property = rb_id2sym(rb_intern("cas"));
         static VALUE value_property = rb_id2sym(rb_intern("value"));
+        static VALUE error_property = rb_id2sym(rb_intern("error"));
 
         VALUE res = rb_hash_new();
         rb_hash_aset(res, cas_property, cb_cas_to_num(resp.cas));
@@ -3515,6 +3516,10 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
             rb_hash_aset(entry, path_property, cb_str_new(resp_entry.path));
             if (!resp_entry.value.empty()) {
                 rb_hash_aset(entry, value_property, cb_str_new(resp_entry.value));
+            }
+            if (resp_entry.ec && resp_entry.ec != couchbase::errc::key_value::path_not_found) {
+                rb_hash_aset(
+                  entry, error_property, cb_map_error_code(resp_entry.ec, fmt::format("error getting result for spec at index {}", i)));
             }
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
@@ -3602,6 +3607,7 @@ cb_Backend_document_lookup_in_any_replica(VALUE self, VALUE bucket, VALUE scope,
         static VALUE exists_property = rb_id2sym(rb_intern("exists"));
         static VALUE cas_property = rb_id2sym(rb_intern("cas"));
         static VALUE value_property = rb_id2sym(rb_intern("value"));
+        static VALUE error_property = rb_id2sym(rb_intern("error"));
         static VALUE is_replica_property = rb_id2sym(rb_intern("is_replica"));
 
         VALUE res = rb_hash_new();
@@ -3619,6 +3625,10 @@ cb_Backend_document_lookup_in_any_replica(VALUE self, VALUE bucket, VALUE scope,
             rb_hash_aset(entry, path_property, cb_str_new(resp_entry.path));
             if (!resp_entry.value.empty()) {
                 rb_hash_aset(entry, value_property, cb_str_new(resp_entry.value));
+            }
+            if (resp_entry.ec && resp_entry.ec != couchbase::errc::key_value::path_not_found) {
+                rb_hash_aset(
+                  entry, error_property, cb_map_error_code(resp_entry.ec, fmt::format("error getting result for spec at index {}", i)));
             }
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
@@ -3707,6 +3717,7 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self, VALUE bucket, VALUE scope
         static VALUE exists_property = rb_id2sym(rb_intern("exists"));
         static VALUE cas_property = rb_id2sym(rb_intern("cas"));
         static VALUE value_property = rb_id2sym(rb_intern("value"));
+        static VALUE error_property = rb_id2sym(rb_intern("error"));
         static VALUE is_replica_property = rb_id2sym(rb_intern("is_replica"));
 
         auto lookup_in_entries_size = resp.entries.size();
@@ -3728,6 +3739,11 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self, VALUE bucket, VALUE scope
                 rb_hash_aset(entry, path_property, cb_str_new(field_entry.path));
                 if (!field_entry.value.empty()) {
                     rb_hash_aset(entry, value_property, cb_str_new(field_entry.value));
+                }
+                if (field_entry.ec && field_entry.ec != couchbase::errc::key_value::path_not_found) {
+                    rb_hash_aset(entry,
+                                 error_property,
+                                 cb_map_error_code(field_entry.ec, fmt::format("error getting result for spec at index {}", i)));
                 }
                 rb_ary_store(fields, static_cast<long>(i), entry);
             }
