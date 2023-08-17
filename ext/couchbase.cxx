@@ -3519,7 +3519,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
             }
             if (resp_entry.ec && resp_entry.ec != couchbase::errc::key_value::path_not_found) {
                 rb_hash_aset(
-                  entry, error_property, cb_map_error_code(resp_entry.ec, fmt::format("error getting result for spec at index {}", i)));
+                  entry, error_property, cb_map_error_code(resp_entry.ec, fmt::format("error getting result for spec at index {}, path \"{}\"", i, field_entry.path)));
             }
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
@@ -3628,7 +3628,7 @@ cb_Backend_document_lookup_in_any_replica(VALUE self, VALUE bucket, VALUE scope,
             }
             if (resp_entry.ec && resp_entry.ec != couchbase::errc::key_value::path_not_found) {
                 rb_hash_aset(
-                  entry, error_property, cb_map_error_code(resp_entry.ec, fmt::format("error getting result for spec at index {}", i)));
+                  entry, error_property, cb_map_error_code(resp_entry.ec, fmt::format("error getting result for spec at index {}, path \"{}\"", i, field_entry.path)));
             }
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
@@ -3743,7 +3743,7 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self, VALUE bucket, VALUE scope
                 if (field_entry.ec && field_entry.ec != couchbase::errc::key_value::path_not_found) {
                     rb_hash_aset(entry,
                                  error_property,
-                                 cb_map_error_code(field_entry.ec, fmt::format("error getting result for spec at index {}", i)));
+                                 cb_map_error_code(field_entry.ec, fmt::format("error getting result for spec at index {}, path \"{}\"", i, field_entry.path)));
                 }
                 rb_ary_store(fields, static_cast<long>(i), entry);
             }

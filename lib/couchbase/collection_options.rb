@@ -310,7 +310,7 @@ module Couchbase
       # @return [String] path
       attr_accessor :path
 
-      # @return [CouchbaseError] path
+      # @return [CouchbaseError] error
       attr_accessor :error
 
       # @yieldparam [SubDocumentField] self
