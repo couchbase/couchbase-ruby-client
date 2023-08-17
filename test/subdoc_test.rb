@@ -1448,5 +1448,123 @@ module Couchbase
                                            ])
       end
     end
+
+    def test_lookup_in_path_invalid
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document)
+
+      res = @collection.lookup_in(doc_id, [
+                                    LookupInSpec.get("value.."),
+                                  ])
+
+      assert_raises(Error::PathInvalid) do
+        res.exists?(0)
+      end
+      assert_raises(Error::PathInvalid) do
+        res.content(0)
+      end
+    end
+
+    def test_lookup_in_path_mismatch
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document)
+
+      res = @collection.lookup_in(doc_id, [
+                                    LookupInSpec.count("value"),
+                                  ])
+
+      assert_raises(Error::PathMismatch) do
+        res.exists?(0)
+      end
+      assert_raises(Error::PathMismatch) do
+        res.content(0)
+      end
+    end
+
+    def test_lookup_in_any_replica_path_invalid
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+
+      res = @collection.lookup_in_any_replica(doc_id, [
+                                                LookupInSpec.count("value.."),
+                                              ])
+
+      assert_raises(Error::PathInvalid) do
+        res.exists?(0)
+      end
+      assert_raises(Error::PathInvalid) do
+        res.content(0)
+      end
+    end
+
+    def test_lookup_in_any_replica_path_mismatch
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+
+      res = @collection.lookup_in_any_replica(doc_id, [
+                                                LookupInSpec.count("value"),
+                                              ])
+
+      assert_raises(Error::PathMismatch) do
+        res.exists?(0)
+      end
+      assert_raises(Error::PathMismatch) do
+        res.content(0)
+      end
+    end
+
+    def test_lookup_in_all_replicas_path_invalid
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+
+      res = @collection.lookup_in_all_replicas(doc_id, [
+                                                 LookupInSpec.count("value.."),
+                                               ])
+
+      res.each do |entry|
+        assert_raises(Error::PathInvalid) do
+          entry.exists?(0)
+        end
+        assert_raises(Error::PathInvalid) do
+          entry.content(0)
+        end
+      end
+    end
+
+    def test_lookup_in_all_replicas_path_mismatch
+      skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
+      skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+
+      res = @collection.lookup_in_all_replicas(doc_id, [
+                                                 LookupInSpec.count("value"),
+                                               ])
+
+      res.each do |entry|
+        assert_raises(Error::PathMismatch) do
+          entry.exists?(0)
+        end
+        assert_raises(Error::PathMismatch) do
+          entry.content(0)
+        end
+      end
+    end
   end
 end

@@ -167,6 +167,8 @@ module Couchbase
       # @return [Object] the decoded
       def content(path_or_index, transcoder = self.transcoder)
         field = get_field_at_index(path_or_index)
+
+        raise field.error unless field.error.nil?
         raise Error::PathNotFound, "Path is not found: #{path_or_index}" unless field.exists
 
         transcoder.decode(field.value, :json)
@@ -188,6 +190,8 @@ module Couchbase
             encoded[path_or_index]
           end
         return false unless field
+
+        raise field.error unless field.error.nil?
 
         field.exists
       end
@@ -305,6 +309,9 @@ module Couchbase
 
       # @return [String] path
       attr_accessor :path
+
+      # @return [CouchbaseError] error
+      attr_accessor :error
 
       # @yieldparam [SubDocumentField] self
       def initialize
