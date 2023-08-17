@@ -3518,8 +3518,10 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
                 rb_hash_aset(entry, value_property, cb_str_new(resp_entry.value));
             }
             if (resp_entry.ec && resp_entry.ec != couchbase::errc::key_value::path_not_found) {
-                rb_hash_aset(
-                  entry, error_property, cb_map_error_code(resp_entry.ec, fmt::format("error getting result for spec at index {}, path \"{}\"", i, field_entry.path)));
+                rb_hash_aset(entry,
+                             error_property,
+                             cb_map_error_code(resp_entry.ec,
+                                               fmt::format("error getting result for spec at index {}, path \"{}\"", i, resp_entry.path)));
             }
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
@@ -3627,8 +3629,10 @@ cb_Backend_document_lookup_in_any_replica(VALUE self, VALUE bucket, VALUE scope,
                 rb_hash_aset(entry, value_property, cb_str_new(resp_entry.value));
             }
             if (resp_entry.ec && resp_entry.ec != couchbase::errc::key_value::path_not_found) {
-                rb_hash_aset(
-                  entry, error_property, cb_map_error_code(resp_entry.ec, fmt::format("error getting result for spec at index {}, path \"{}\"", i, field_entry.path)));
+                rb_hash_aset(entry,
+                             error_property,
+                             cb_map_error_code(resp_entry.ec,
+                                               fmt::format("error getting result for spec at index {}, path \"{}\"", i, resp_entry.path)));
             }
             rb_ary_store(fields, static_cast<long>(i), entry);
         }
@@ -3741,9 +3745,11 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self, VALUE bucket, VALUE scope
                     rb_hash_aset(entry, value_property, cb_str_new(field_entry.value));
                 }
                 if (field_entry.ec && field_entry.ec != couchbase::errc::key_value::path_not_found) {
-                    rb_hash_aset(entry,
-                                 error_property,
-                                 cb_map_error_code(field_entry.ec, fmt::format("error getting result for spec at index {}, path \"{}\"", i, field_entry.path)));
+                    rb_hash_aset(
+                      entry,
+                      error_property,
+                      cb_map_error_code(field_entry.ec,
+                                        fmt::format("error getting result for spec at index {}, path \"{}\"", i, field_entry.path)));
                 }
                 rb_ary_store(fields, static_cast<long>(i), entry);
             }
