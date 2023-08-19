@@ -374,7 +374,7 @@ module Couchbase
     end
   end
 
-  class ScanNotSupportedTest < MiniTest::Test
+  class ScanNotSupportedTest < Minitest::Test
     include TestUtilities
 
     def setup
