@@ -7,7 +7,7 @@ require:
   - rubocop-thread_safety
 
 AllCops:
-  TargetRubyVersion: 2.7
+  TargetRubyVersion: 3.0
   NewCops: enable
   SuggestExtensions: false
   Exclude:
