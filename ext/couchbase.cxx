@@ -4490,6 +4490,31 @@ cb_generate_bucket_settings(VALUE bucket, couchbase::core::management::cluster::
         }
     }
 
+    if (VALUE history_retention_collection_default = rb_hash_aref(bucket, rb_id2sym(rb_intern("history_retention_collection_default")));
+        !NIL_P(history_retention_collection_default)) {
+        entry.history_retention_collection_default = RTEST(history_retention_collection_default);
+    }
+
+    if (VALUE history_retention_bytes = rb_hash_aref(bucket, rb_id2sym(rb_intern("history_retention_bytes")));
+        !NIL_P(history_retention_bytes)) {
+        if (TYPE(history_retention_bytes) == T_FIXNUM) {
+            entry.history_retention_bytes = FIX2UINT(history_retention_bytes);
+        } else {
+            throw ruby_exception(rb_eArgError,
+                                 rb_sprintf("history retention bytes must be an Integer, given %+" PRIsVALUE, history_retention_bytes));
+        }
+    }
+
+    if (VALUE history_retention_duration = rb_hash_aref(bucket, rb_id2sym(rb_intern("history_retention_duration")));
+        !NIL_P(history_retention_duration)) {
+        if (TYPE(history_retention_duration) == T_FIXNUM) {
+            entry.history_retention_duration = FIX2UINT(history_retention_duration);
+        } else {
+            throw ruby_exception(
+              rb_eArgError, rb_sprintf("history retention duration must be an Integer, given %+" PRIsVALUE, history_retention_duration));
+        }
+    }
+
     if (is_create) {
         if (VALUE conflict_resolution_type = rb_hash_aref(bucket, rb_id2sym(rb_intern("conflict_resolution_type")));
             !NIL_P(conflict_resolution_type)) {
@@ -4720,6 +4745,14 @@ cb_extract_bucket_settings(const couchbase::core::management::cluster::bucket_se
                 break;
         }
     }
+    if (entry.history_retention_collection_default.has_value()) {
+        rb_hash_aset(bucket,
+                     rb_id2sym(rb_intern("history_retention_collection_default")),
+                     entry.history_retention_collection_default.value() ? Qtrue : Qfalse);
+    }
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("history_retention_bytes")), ULONG2NUM(entry.history_retention_bytes));
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("history_retention_duration")), ULONG2NUM(entry.history_retention_duration));
+
     VALUE capabilities = rb_ary_new_capa(static_cast<long>(entry.capabilities.size()));
     for (const auto& capa : entry.capabilities) {
         rb_ary_push(capabilities, cb_str_new(capa));
@@ -5401,6 +5434,10 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options)
                 VALUE collection = rb_hash_new();
                 rb_hash_aset(collection, rb_id2sym(rb_intern("uid")), ULL2NUM(c.uid));
                 rb_hash_aset(collection, rb_id2sym(rb_intern("name")), cb_str_new(c.name));
+                rb_hash_aset(collection, rb_id2sym(rb_intern("max_expiry")), ULONG2NUM(c.max_expiry));
+                if (c.history.has_value()) {
+                    rb_hash_aset(collection, rb_id2sym(rb_intern("history")), c.history.value() ? Qtrue : Qfalse);
+                }
                 rb_ary_push(collections, collection);
             }
             rb_hash_aset(scope, rb_id2sym(rb_intern("collections")), collections);
@@ -5531,13 +5568,16 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE opt
 }
 
 static VALUE
-cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE max_expiry, VALUE options)
+cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE settings, VALUE options)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
     Check_Type(bucket_name, T_STRING);
     Check_Type(scope_name, T_STRING);
     Check_Type(collection_name, T_STRING);
+    if (!NIL_P(settings)) {
+        Check_Type(settings, T_HASH);
+    }
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
     }
@@ -5548,10 +5588,20 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
                                                                                 cb_string_new(collection_name) };
         cb_extract_timeout(req, options);
 
-        if (!NIL_P(max_expiry)) {
-            Check_Type(max_expiry, T_FIXNUM);
-            req.max_expiry = FIX2UINT(max_expiry);
+        if (!NIL_P(settings)) {
+            if (VALUE max_expiry = rb_hash_aref(settings, rb_id2sym(rb_intern("max_expiry"))); !NIL_P(max_expiry)) {
+                if (TYPE(max_expiry) == T_FIXNUM) {
+                    req.max_expiry = FIX2UINT(max_expiry);
+                } else {
+                    throw ruby_exception(rb_eArgError,
+                                         rb_sprintf("collection max expiry must be an Integer, given %+" PRIsVALUE, max_expiry));
+                }
+            }
+            if (VALUE history = rb_hash_aref(settings, rb_id2sym(rb_intern("history"))); !NIL_P(history)) {
+                req.history = RTEST(history);
+            }
         }
+
         auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::collection_create_response>>();
         auto f = barrier->get_future();
         cluster->execute(req, [barrier](couchbase::core::operations::management::collection_create_response&& resp) {
@@ -5563,6 +5613,62 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
               resp.ctx,
               fmt::format(
                 R"(unable create the collection "{}.{}" on the bucket "{}")", req.scope_name, req.collection_name, req.bucket_name));
+        }
+        return ULL2NUM(resp.uid);
+    } catch (const std::system_error& se) {
+        rb_exc_raise(cb_map_error_code(se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+    } catch (const ruby_exception& e) {
+        rb_exc_raise(e.exception_object());
+    }
+    return Qnil;
+}
+
+static VALUE
+cb_Backend_collection_update(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE collection_name, VALUE settings, VALUE options)
+{
+    const auto& cluster = cb_backend_to_cluster(self);
+
+    Check_Type(bucket_name, T_STRING);
+    Check_Type(scope_name, T_STRING);
+    Check_Type(collection_name, T_STRING);
+    if (!NIL_P(settings)) {
+        Check_Type(settings, T_HASH);
+    }
+    if (!NIL_P(options)) {
+        Check_Type(options, T_HASH);
+    }
+
+    try {
+        couchbase::core::operations::management::collection_update_request req{ cb_string_new(bucket_name),
+                                                                                cb_string_new(scope_name),
+                                                                                cb_string_new(collection_name) };
+        cb_extract_timeout(req, options);
+
+        if (!NIL_P(settings)) {
+            if (VALUE max_expiry = rb_hash_aref(settings, rb_id2sym(rb_intern("max_expiry"))); !NIL_P(max_expiry)) {
+                if (TYPE(max_expiry) == T_FIXNUM) {
+                    req.max_expiry = FIX2UINT(max_expiry);
+                } else {
+                    throw ruby_exception(rb_eArgError,
+                                         rb_sprintf("collection max expiry must be an Integer, given %+" PRIsVALUE, max_expiry));
+                }
+            }
+            if (VALUE history = rb_hash_aref(settings, rb_id2sym(rb_intern("history"))); !NIL_P(history)) {
+                req.history = RTEST(history);
+            }
+        }
+
+        auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::collection_update_response>>();
+        auto f = barrier->get_future();
+        cluster->execute(req, [barrier](couchbase::core::operations::management::collection_update_response&& resp) {
+            barrier->set_value(std::move(resp));
+        });
+        auto resp = cb_wait_for_future(f);
+        if (resp.ctx.ec) {
+            cb_throw_error_code(
+              resp.ctx,
+              fmt::format(
+                R"(unable update the collection "{}.{}" on the bucket "{}")", req.scope_name, req.collection_name, req.bucket_name));
         }
         return ULL2NUM(resp.uid);
     } catch (const std::system_error& se) {
@@ -9190,6 +9296,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "scope_create", VALUE_FUNC(cb_Backend_scope_create), 3);
     rb_define_method(cBackend, "scope_drop", VALUE_FUNC(cb_Backend_scope_drop), 3);
     rb_define_method(cBackend, "collection_create", VALUE_FUNC(cb_Backend_collection_create), 5);
+    rb_define_method(cBackend, "collection_update", VALUE_FUNC(cb_Backend_collection_update), 5);
     rb_define_method(cBackend, "collection_drop", VALUE_FUNC(cb_Backend_collection_drop), 4);
 
     rb_define_method(cBackend, "query_index_get_all", VALUE_FUNC(cb_Backend_query_index_get_all), 2);

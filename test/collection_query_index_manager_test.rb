@@ -32,41 +32,17 @@ module Couchbase
       collection_mgr = @bucket.collections
       collection_mgr.create_scope(@scope_name)
 
-      collection_spec = Management::CollectionSpec.new do |s|
-        s.name = collection_name
-        s.scope_name = @scope_name
-        s.max_expiry = nil
-      end
-
       # Retry a few times in case the scope needs time to be created
-      deadline = Time.now + 5
-      success = false
-      while Time.now <= deadline
-        begin
-          collection_mgr.create_collection(collection_spec)
-          success = true
-          break
-        rescue Error::CouchbaseError
-          sleep(1)
-        end
+      retry_for_duration(expected_errors: [Error::CouchbaseError]) do
+        collection_mgr.create_collection(@scope_name, collection_name)
       end
-      raise "Failed to create scope/collection" unless success
 
       @collection = @bucket.scope(@scope_name).collection(collection_name)
 
       # Upsert something in the collection to make sure it's been created
-      deadline = Time.now + 5
-      success = false
-      while Time.now <= deadline
-        begin
-          @collection.upsert("foo", {"test" => 10})
-          success = true
-          break
-        rescue Error::CouchbaseError
-          sleep(1)
-        end
+      retry_for_duration(expected_errors: [Error::CouchbaseError]) do
+        @collection.upsert("foo", {"test" => 10})
       end
-      raise "Failed to create collection" unless success
 
       @idx_mgr = @collection.query_indexes
     end

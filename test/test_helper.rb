@@ -98,6 +98,18 @@ class ServerVersion
   def supports_subdoc_read_from_replica?
     elixir?
   end
+
+  def supports_history_retention?
+    @version >= Gem::Version.create("7.2.0")
+  end
+
+  def supports_update_collection?
+    @version >= Gem::Version.create("7.2.0")
+  end
+
+  def supports_update_collection_max_expiry?
+    @version >= Gem::Version.create("7.5.0")
+  end
 end
 
 require "couchbase"
@@ -203,6 +215,32 @@ module Couchbase
 
     def load_json_test_dataset(dataset)
       JSON.parse(load_raw_test_dataset(dataset))
+    end
+
+    def retry_for_duration(expected_errors:, duration: 10, backoff: 1)
+      deadline = Time.now + duration
+      begin
+        yield
+      rescue StandardError => e
+        raise e unless expected_errors.include?(e.class) && Time.now < deadline
+
+        sleep(backoff)
+        retry
+      end
+    end
+
+    def retry_until_error(error:, duration: 10, backoff: 1)
+      deadline = Time.now + duration
+      begin
+        yield
+      rescue StandardError => e
+        return if e.is_a?(error)
+
+        raise "Did not get error #{error} within #{duration} seconds" unless Time.now < deadline
+
+        sleep(backoff)
+        retry
+      end
     end
   end
 end

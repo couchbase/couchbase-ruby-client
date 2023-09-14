@@ -211,12 +211,15 @@ module Couchbase
             num_replicas: settings.num_replicas,
             replica_indexes: settings.replica_indexes,
             bucket_type: settings.bucket_type,
-            ejection_policy: settings.ejection_policy,
+            eviction_policy: settings.eviction_policy,
             max_expiry: settings.max_expiry,
             compression_mode: settings.compression_mode,
             minimum_durability_level: settings.minimum_durability_level,
             conflict_resolution_type: settings.conflict_resolution_type,
             storage_backend: settings.storage_backend,
+            history_retention_collection_default: settings.history_retention_collection_default,
+            history_retention_duration: settings.history_retention_duration,
+            history_retention_bytes: settings.history_retention_bytes,
           }, options.to_backend
         )
       end
@@ -239,11 +242,14 @@ module Couchbase
             num_replicas: settings.num_replicas,
             replica_indexes: settings.replica_indexes,
             bucket_type: settings.bucket_type,
-            ejection_policy: settings.ejection_policy,
+            eviction_policy: settings.eviction_policy,
             max_expiry: settings.max_expiry,
             compression_mode: settings.compression_mode,
             minimum_durability_level: settings.minimum_durability_level,
             storage_backend: settings.storage_backend,
+            history_retention_collection_default: settings.history_retention_collection_default,
+            history_retention_bytes: settings.history_retention_bytes,
+            history_retention_duration: settings.history_retention_duration,
           }, options.to_backend
         )
       end
@@ -334,6 +340,9 @@ module Couchbase
           bucket.minimum_durability_level = entry[:minimum_durability_level]
           bucket.compression_mode = entry[:compression_mode]
           bucket.instance_variable_set(:@healthy, entry[:nodes].all? { |node| node[:status] == "healthy" })
+          bucket.history_retention_collection_default = entry[:history_retention_collection_default]
+          bucket.history_retention_bytes = entry[:history_retention_bytes]
+          bucket.history_retention_duration = entry[:history_retention_duration]
         end
       end
     end
@@ -394,6 +403,17 @@ module Couchbase
       # @return [nil, :none, :majority, :majority_and_persist_to_active, :persist_to_majority] the minimum durability level
       attr_accessor :minimum_durability_level
 
+      # @return [Boolean, nil] whether to enable history retention on collections  by default
+      attr_accessor :history_retention_collection_default
+
+      # @return [Integer, nil] the maximum size, in bytes, of the change history that is written to disk for all
+      # collections in this bucket
+      attr_accessor :history_retention_bytes
+
+      # @return [Integer, nil] the maximum duration, in seconds, to be covered by the change history that is written to disk for all
+      # collections in this bucket
+      attr_accessor :history_retention_duration
+
       # @api private
       # @return [Boolean] false if status of the bucket is not healthy
       def healthy?
@@ -429,6 +449,9 @@ module Couchbase
         @conflict_resolution_type = :sequence_number
         @eviction_policy = :value_only
         @storage_backend = nil
+        @history_retention_collection_default = nil
+        @history_retention_bytes = nil
+        @history_retention_duration = nil
         yield self if block_given?
       end
     end
