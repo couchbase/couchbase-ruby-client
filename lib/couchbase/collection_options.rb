@@ -169,7 +169,6 @@ module Couchbase
         field = get_field_at_index(path_or_index)
 
         raise field.error unless field.error.nil?
-        raise Error::PathNotFound, "Path is not found: #{path_or_index}" unless field.exists
 
         transcoder.decode(field.value, :json)
       end
@@ -191,7 +190,7 @@ module Couchbase
           end
         return false unless field
 
-        raise field.error unless field.error.nil?
+        raise field.error unless field.error.nil? || field.error.is_a?(Error::PathNotFound)
 
         field.exists
       end

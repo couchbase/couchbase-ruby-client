@@ -146,13 +146,24 @@ module Couchbase
       @collection.upsert(doc_id, {"foo" => "bar"})
 
       res = @collection.lookup_in(doc_id, [
+                                    LookupInSpec.exists("foo"),
+                                  ])
+
+      assert res.exists?(0)
+      assert res.content(0)
+    end
+
+    def test_exists_single_does_not_exist
+      doc_id = uniq_id(:foo)
+
+      @collection.upsert(doc_id, {"foo" => "bar"})
+
+      res = @collection.lookup_in(doc_id, [
                                     LookupInSpec.exists("does_not_exist"),
                                   ])
 
       refute res.exists?(0)
-      assert_raises Error::PathNotFound do
-        res.content(0)
-      end
+      refute res.content(0)
     end
 
     def test_exists_multi
@@ -166,9 +177,7 @@ module Couchbase
                                   ])
 
       refute res.exists?(0)
-      assert_raises Error::PathNotFound do
-        res.content(0)
-      end
+      refute res.content(0)
 
       assert res.exists?(1)
       assert_equal "bar", res.content(1)
@@ -1399,6 +1408,8 @@ module Couchbase
 
       assert res.exists?(0)
       refute res.exists?(1)
+      assert res.content(0)
+      refute res.content(1)
       assert_respond_to res, :replica?
     end
 
@@ -1421,6 +1432,8 @@ module Couchbase
       res.each do |entry|
         assert entry.exists?(0)
         refute entry.exists?(1)
+        assert entry.content(0)
+        refute entry.content(1)
         assert_respond_to entry, :replica?
       end
     end

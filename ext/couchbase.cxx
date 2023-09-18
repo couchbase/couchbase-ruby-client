@@ -3517,7 +3517,7 @@ cb_Backend_document_lookup_in(VALUE self, VALUE bucket, VALUE scope, VALUE colle
             if (!resp_entry.value.empty()) {
                 rb_hash_aset(entry, value_property, cb_str_new(resp_entry.value));
             }
-            if (resp_entry.ec && resp_entry.ec != couchbase::errc::key_value::path_not_found) {
+            if (resp_entry.ec) {
                 rb_hash_aset(entry,
                              error_property,
                              cb_map_error_code(resp_entry.ec,
@@ -3628,7 +3628,7 @@ cb_Backend_document_lookup_in_any_replica(VALUE self, VALUE bucket, VALUE scope,
             if (!resp_entry.value.empty()) {
                 rb_hash_aset(entry, value_property, cb_str_new(resp_entry.value));
             }
-            if (resp_entry.ec && resp_entry.ec != couchbase::errc::key_value::path_not_found) {
+            if (resp_entry.ec) {
                 rb_hash_aset(entry,
                              error_property,
                              cb_map_error_code(resp_entry.ec,
@@ -3744,7 +3744,7 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self, VALUE bucket, VALUE scope
                 if (!field_entry.value.empty()) {
                     rb_hash_aset(entry, value_property, cb_str_new(field_entry.value));
                 }
-                if (field_entry.ec && field_entry.ec != couchbase::errc::key_value::path_not_found) {
+                if (field_entry.ec) {
                     rb_hash_aset(
                       entry,
                       error_property,
