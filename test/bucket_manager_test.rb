@@ -124,8 +124,8 @@ module Couchbase
       res = @bucket_manager.get_bucket(bucket_name)
 
       assert_nil res.history_retention_collection_default
-      assert_equal 0, res.history_retention_bytes
-      assert_equal 0, res.history_retention_duration
+      assert_nil res.history_retention_bytes
+      assert_nil res.history_retention_duration
 
       assert_raises(Error::InvalidArgument) do
         @bucket_manager.update_bucket(
