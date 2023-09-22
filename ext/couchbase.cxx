@@ -4679,7 +4679,9 @@ cb_extract_bucket_settings(const couchbase::core::management::cluster::bucket_se
     rb_hash_aset(bucket, rb_id2sym(rb_intern("name")), cb_str_new(entry.name));
     rb_hash_aset(bucket, rb_id2sym(rb_intern("uuid")), cb_str_new(entry.uuid));
     rb_hash_aset(bucket, rb_id2sym(rb_intern("ram_quota_mb")), ULL2NUM(entry.ram_quota_mb));
-    rb_hash_aset(bucket, rb_id2sym(rb_intern("max_expiry")), ULONG2NUM(entry.max_expiry));
+    if (const auto &val = entry.max_expiry; val.has_value()) {
+        rb_hash_aset(bucket, rb_id2sym(rb_intern("max_expiry")), ULONG2NUM(val.value()));
+    }
     switch (entry.compression_mode) {
         case couchbase::core::management::cluster::bucket_compression::off:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), rb_id2sym(rb_intern("off")));
@@ -4694,7 +4696,9 @@ cb_extract_bucket_settings(const couchbase::core::management::cluster::bucket_se
             rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), Qnil);
             break;
     }
-    rb_hash_aset(bucket, rb_id2sym(rb_intern("num_replicas")), ULONG2NUM(entry.num_replicas));
+    if (const auto &val = entry.num_replicas; val.has_value()) {
+        rb_hash_aset(bucket, rb_id2sym(rb_intern("num_replicas")), ULONG2NUM(val.value()));
+    }
     rb_hash_aset(bucket, rb_id2sym(rb_intern("replica_indexes")), entry.replica_indexes ? Qtrue : Qfalse);
     rb_hash_aset(bucket, rb_id2sym(rb_intern("flush_enabled")), entry.flush_enabled ? Qtrue : Qfalse);
     switch (entry.eviction_policy) {
@@ -4750,8 +4754,12 @@ cb_extract_bucket_settings(const couchbase::core::management::cluster::bucket_se
                      rb_id2sym(rb_intern("history_retention_collection_default")),
                      entry.history_retention_collection_default.value() ? Qtrue : Qfalse);
     }
-    rb_hash_aset(bucket, rb_id2sym(rb_intern("history_retention_bytes")), ULONG2NUM(entry.history_retention_bytes));
-    rb_hash_aset(bucket, rb_id2sym(rb_intern("history_retention_duration")), ULONG2NUM(entry.history_retention_duration));
+    if (const auto &val = entry.history_retention_bytes; val.has_value()) {
+        rb_hash_aset(bucket, rb_id2sym(rb_intern("history_retention_bytes")), ULONG2NUM(val.value()));
+    }
+    if (const auto &val = entry.history_retention_duration; val.has_value()) {
+        rb_hash_aset(bucket, rb_id2sym(rb_intern("history_retention_duration")), ULONG2NUM(val.value()));
+    }
 
     VALUE capabilities = rb_ary_new_capa(static_cast<long>(entry.capabilities.size()));
     for (const auto& capa : entry.capabilities) {
