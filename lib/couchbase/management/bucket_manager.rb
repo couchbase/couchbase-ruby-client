@@ -436,22 +436,6 @@ module Couchbase
 
       # @yieldparam [BucketSettings] self
       def initialize
-        @bucket_type = :couchbase
-        @name = nil
-        @minimum_durability_level = nil
-        @healthy = true
-        @flush_enabled = false
-        @ram_quota_mb = 100
-        @num_replicas = 1
-        @replica_indexes = false
-        @max_expiry = 0
-        @compression_mode = :passive
-        @conflict_resolution_type = :sequence_number
-        @eviction_policy = :value_only
-        @storage_backend = nil
-        @history_retention_collection_default = nil
-        @history_retention_bytes = nil
-        @history_retention_duration = nil
         yield self if block_given?
       end
     end

@@ -4370,18 +4370,20 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
 static void
 cb_generate_bucket_settings(VALUE bucket, couchbase::core::management::cluster::bucket_settings& entry, bool is_create)
 {
-    if (VALUE bucket_type = rb_hash_aref(bucket, rb_id2sym(rb_intern("bucket_type"))); TYPE(bucket_type) == T_SYMBOL) {
-        if (bucket_type == rb_id2sym(rb_intern("couchbase")) || bucket_type == rb_id2sym(rb_intern("membase"))) {
-            entry.bucket_type = couchbase::core::management::cluster::bucket_type::couchbase;
-        } else if (bucket_type == rb_id2sym(rb_intern("memcached"))) {
-            entry.bucket_type = couchbase::core::management::cluster::bucket_type::memcached;
-        } else if (bucket_type == rb_id2sym(rb_intern("ephemeral"))) {
-            entry.bucket_type = couchbase::core::management::cluster::bucket_type::ephemeral;
+    if (VALUE bucket_type = rb_hash_aref(bucket, rb_id2sym(rb_intern("bucket_type"))); !NIL_P(bucket_type)) {
+        if (TYPE(bucket_type) == T_SYMBOL) {
+            if (bucket_type == rb_id2sym(rb_intern("couchbase")) || bucket_type == rb_id2sym(rb_intern("membase"))) {
+                entry.bucket_type = couchbase::core::management::cluster::bucket_type::couchbase;
+            } else if (bucket_type == rb_id2sym(rb_intern("memcached"))) {
+                entry.bucket_type = couchbase::core::management::cluster::bucket_type::memcached;
+            } else if (bucket_type == rb_id2sym(rb_intern("ephemeral"))) {
+                entry.bucket_type = couchbase::core::management::cluster::bucket_type::ephemeral;
+            } else {
+                throw ruby_exception(rb_eArgError, rb_sprintf("unknown bucket type, given %+" PRIsVALUE, bucket_type));
+            }
         } else {
-            throw ruby_exception(rb_eArgError, rb_sprintf("unknown bucket type, given %+" PRIsVALUE, bucket_type));
+            throw ruby_exception(rb_eArgError, rb_sprintf("bucket type must be a Symbol, given %+" PRIsVALUE, bucket_type));
         }
-    } else {
-        throw ruby_exception(rb_eArgError, rb_sprintf("bucket type must be a Symbol, given %+" PRIsVALUE, bucket_type));
     }
 
     if (VALUE name = rb_hash_aref(bucket, rb_id2sym(rb_intern("name"))); TYPE(name) == T_STRING) {
@@ -4390,10 +4392,12 @@ cb_generate_bucket_settings(VALUE bucket, couchbase::core::management::cluster::
         throw ruby_exception(rb_eArgError, rb_sprintf("bucket name must be a String, given %+" PRIsVALUE, name));
     }
 
-    if (VALUE quota = rb_hash_aref(bucket, rb_id2sym(rb_intern("ram_quota_mb"))); TYPE(quota) == T_FIXNUM) {
-        entry.ram_quota_mb = FIX2ULONG(quota);
-    } else {
-        throw ruby_exception(rb_eArgError, rb_sprintf("bucket RAM quota must be an Integer, given %+" PRIsVALUE, quota));
+    if (VALUE quota = rb_hash_aref(bucket, rb_id2sym(rb_intern("ram_quota_mb"))); !NIL_P(quota)) {
+        if (TYPE(quota) == T_FIXNUM) {
+            entry.ram_quota_mb = FIX2ULONG(quota);
+        } else {
+            throw ruby_exception(rb_eArgError, rb_sprintf("bucket RAM quota must be an Integer, given %+" PRIsVALUE, quota));
+        }
     }
 
     if (VALUE expiry = rb_hash_aref(bucket, rb_id2sym(rb_intern("max_expiry"))); !NIL_P(expiry)) {
@@ -4679,7 +4683,7 @@ cb_extract_bucket_settings(const couchbase::core::management::cluster::bucket_se
     rb_hash_aset(bucket, rb_id2sym(rb_intern("name")), cb_str_new(entry.name));
     rb_hash_aset(bucket, rb_id2sym(rb_intern("uuid")), cb_str_new(entry.uuid));
     rb_hash_aset(bucket, rb_id2sym(rb_intern("ram_quota_mb")), ULL2NUM(entry.ram_quota_mb));
-    if (const auto &val = entry.max_expiry; val.has_value()) {
+    if (const auto& val = entry.max_expiry; val.has_value()) {
         rb_hash_aset(bucket, rb_id2sym(rb_intern("max_expiry")), ULONG2NUM(val.value()));
     }
     switch (entry.compression_mode) {
@@ -4696,11 +4700,15 @@ cb_extract_bucket_settings(const couchbase::core::management::cluster::bucket_se
             rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), Qnil);
             break;
     }
-    if (const auto &val = entry.num_replicas; val.has_value()) {
+    if (const auto& val = entry.num_replicas; val.has_value()) {
         rb_hash_aset(bucket, rb_id2sym(rb_intern("num_replicas")), ULONG2NUM(val.value()));
     }
-    rb_hash_aset(bucket, rb_id2sym(rb_intern("replica_indexes")), entry.replica_indexes ? Qtrue : Qfalse);
-    rb_hash_aset(bucket, rb_id2sym(rb_intern("flush_enabled")), entry.flush_enabled ? Qtrue : Qfalse);
+    if (const auto& val = entry.replica_indexes; val.has_value()) {
+        rb_hash_aset(bucket, rb_id2sym(rb_intern("replica_indexes")), val.value() ? Qtrue : Qfalse);
+    }
+    if (const auto& val = entry.flush_enabled; val.has_value()) {
+        rb_hash_aset(bucket, rb_id2sym(rb_intern("flush_enabled")), val.value() ? Qtrue : Qfalse);
+    }
     switch (entry.eviction_policy) {
         case couchbase::core::management::cluster::bucket_eviction_policy::full:
             rb_hash_aset(bucket, rb_id2sym(rb_intern("eviction_policy")), rb_id2sym(rb_intern("full")));
@@ -4754,10 +4762,10 @@ cb_extract_bucket_settings(const couchbase::core::management::cluster::bucket_se
                      rb_id2sym(rb_intern("history_retention_collection_default")),
                      entry.history_retention_collection_default.value() ? Qtrue : Qfalse);
     }
-    if (const auto &val = entry.history_retention_bytes; val.has_value()) {
+    if (const auto& val = entry.history_retention_bytes; val.has_value()) {
         rb_hash_aset(bucket, rb_id2sym(rb_intern("history_retention_bytes")), ULONG2NUM(val.value()));
     }
-    if (const auto &val = entry.history_retention_duration; val.has_value()) {
+    if (const auto& val = entry.history_retention_duration; val.has_value()) {
         rb_hash_aset(bucket, rb_id2sym(rb_intern("history_retention_duration")), ULONG2NUM(val.value()));
     }
 
