@@ -1197,7 +1197,7 @@ module Couchbase
       res = @collection.get(doc_id, options)
 
       assert_kind_of Time, res.expiry_time
-      assert res.expiry_time > Time.now
+      assert_operator res.expiry_time, :>, Time.now
     end
 
     def test_more_than_16_entries

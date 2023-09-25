@@ -4683,7 +4683,7 @@ cb_extract_bucket_settings(const couchbase::core::management::cluster::bucket_se
     rb_hash_aset(bucket, rb_id2sym(rb_intern("name")), cb_str_new(entry.name));
     rb_hash_aset(bucket, rb_id2sym(rb_intern("uuid")), cb_str_new(entry.uuid));
     rb_hash_aset(bucket, rb_id2sym(rb_intern("ram_quota_mb")), ULL2NUM(entry.ram_quota_mb));
-    if (const auto &val = entry.max_expiry; val.has_value()) {
+    if (const auto& val = entry.max_expiry; val.has_value()) {
         rb_hash_aset(bucket, rb_id2sym(rb_intern("max_expiry")), ULONG2NUM(val.value()));
     }
     switch (entry.compression_mode) {
@@ -4700,13 +4700,13 @@ cb_extract_bucket_settings(const couchbase::core::management::cluster::bucket_se
             rb_hash_aset(bucket, rb_id2sym(rb_intern("compression_mode")), Qnil);
             break;
     }
-    if (const auto &val = entry.num_replicas; val.has_value()) {
+    if (const auto& val = entry.num_replicas; val.has_value()) {
         rb_hash_aset(bucket, rb_id2sym(rb_intern("num_replicas")), ULONG2NUM(val.value()));
     }
-    if (const auto &val = entry.replica_indexes; val.has_value()) {
+    if (const auto& val = entry.replica_indexes; val.has_value()) {
         rb_hash_aset(bucket, rb_id2sym(rb_intern("replica_indexes")), val.value() ? Qtrue : Qfalse);
     }
-    if (const auto &val = entry.flush_enabled; val.has_value()) {
+    if (const auto& val = entry.flush_enabled; val.has_value()) {
         rb_hash_aset(bucket, rb_id2sym(rb_intern("flush_enabled")), val.value() ? Qtrue : Qfalse);
     }
     switch (entry.eviction_policy) {
@@ -4762,10 +4762,10 @@ cb_extract_bucket_settings(const couchbase::core::management::cluster::bucket_se
                      rb_id2sym(rb_intern("history_retention_collection_default")),
                      entry.history_retention_collection_default.value() ? Qtrue : Qfalse);
     }
-    if (const auto &val = entry.history_retention_bytes; val.has_value()) {
+    if (const auto& val = entry.history_retention_bytes; val.has_value()) {
         rb_hash_aset(bucket, rb_id2sym(rb_intern("history_retention_bytes")), ULONG2NUM(val.value()));
     }
-    if (const auto &val = entry.history_retention_duration; val.has_value()) {
+    if (const auto& val = entry.history_retention_duration; val.has_value()) {
         rb_hash_aset(bucket, rb_id2sym(rb_intern("history_retention_duration")), ULONG2NUM(val.value()));
     }
 

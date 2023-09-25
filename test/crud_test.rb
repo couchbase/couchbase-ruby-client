@@ -365,7 +365,7 @@ module Couchbase
       assert_kind_of Time, res.expiry_time
       now = Time.now
 
-      assert res.expiry_time >= now, "now: #{now} (#{now.to_i}), expiry_time: #{res.expiry_time} (#{res.expiry_time.to_i})"
+      assert_operator res.expiry_time, :>=, now, "now: #{now} (#{now.to_i}), expiry_time: #{res.expiry_time} (#{res.expiry_time.to_i})"
     end
 
     def test_expiry_option_as_time_instance
@@ -601,7 +601,7 @@ module Couchbase
 
       assert_equal(expected, res.content, "expected result do not include field17, field18")
       assert_kind_of(Time, res.expiry_time)
-      assert(res.expiry_time > Time.now)
+      assert_operator(res.expiry_time, :>, Time.now)
     end
 
     def test_upsert_get_projection_missing_path

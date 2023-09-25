@@ -75,7 +75,7 @@ module Couchbase
 
         assert_equal(ids_only, item.id_only)
       end
-      assert(items.size <= limit)
+      assert_operator(items.size, :<=, limit)
 
       return if ids_only
 
