@@ -1013,16 +1013,14 @@ cb_map_error_code(const couchbase::key_value_error_context& ctx, const std::stri
         rb_hash_aset(enhanced_error_info, rb_id2sym(rb_intern("context")), cb_str_new(ctx.extended_error_info()->context()));
         rb_hash_aset(error_context, rb_id2sym(rb_intern("extended_error_info")), enhanced_error_info);
     }
-    if (ctx.retry_attempts() > 0) {
-        rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_attempts")), INT2FIX(ctx.retry_attempts()));
-        if (!ctx.retry_reasons().empty()) {
-            VALUE retry_reasons = rb_ary_new_capa(static_cast<long>(ctx.retry_reasons().size()));
-            for (const auto& reason : ctx.retry_reasons()) {
-                auto reason_str = fmt::format("{}", reason);
-                rb_ary_push(retry_reasons, rb_id2sym(rb_intern(reason_str.c_str())));
-            }
-            rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_reasons")), retry_reasons);
+    rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_attempts")), INT2FIX(ctx.retry_attempts()));
+    if (!ctx.retry_reasons().empty()) {
+        VALUE retry_reasons = rb_ary_new_capa(static_cast<long>(ctx.retry_reasons().size()));
+        for (const auto& reason : ctx.retry_reasons()) {
+            auto reason_str = fmt::format("{}", reason);
+            rb_ary_push(retry_reasons, rb_id2sym(rb_intern(reason_str.c_str())));
         }
+        rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_reasons")), retry_reasons);
     }
     if (ctx.last_dispatched_to()) {
         rb_hash_aset(error_context, rb_id2sym(rb_intern("last_dispatched_to")), cb_str_new(ctx.last_dispatched_to().value()));
