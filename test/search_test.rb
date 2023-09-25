@@ -100,7 +100,7 @@ module Couchbase
       end
       warn "search with at_plus took #{attempts} attempts, probably server bug" if attempts > 1
 
-      assert attempts < 20, "it is very suspicious that search with at_plus took more than 20 attempts (#{attempts})"
+      assert_operator attempts, :<, 20, "it is very suspicious that search with at_plus took more than 20 attempts (#{attempts})"
     end
 
     def test_doc_id_search_query
@@ -136,7 +136,7 @@ module Couchbase
       end
       warn "search took #{attempts} attempts, probably a server bug" if attempts > 1
 
-      assert attempts < 20, "it is very suspicious that search took more than 20 attempts (#{attempts})"
+      assert_operator attempts, :<, 20, "it is very suspicious that search took more than 20 attempts (#{attempts})"
     end
   end
 end
