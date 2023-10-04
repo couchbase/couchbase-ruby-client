@@ -178,6 +178,7 @@ module Couchbase
     end
 
     def use_caves?
+      env
       defined? @caves
     end
 

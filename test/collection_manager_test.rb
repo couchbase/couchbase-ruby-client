@@ -151,8 +151,17 @@ module Couchbase
       coll_name = 'coll-1'
       scope_name = 'does-not-exist'
 
-      assert_raises(Error::ScopeNotFound) do
-        @collection_manager.create_collection(scope_name, coll_name)
+      if use_caves?
+        # FIXME: caves should conform to the spec
+        exc =
+          assert_raises(Error::BucketNotFound) do
+            @collection_manager.create_collection(scope_name, coll_name)
+          end
+        assert_match /scope_not_found/, exc.message
+      else
+        assert_raises(Error::ScopeNotFound) do
+          @collection_manager.create_collection(scope_name, coll_name)
+        end
       end
     end
 
