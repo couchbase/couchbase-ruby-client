@@ -157,6 +157,7 @@ module Couchbase
           assert_raises(Error::BucketNotFound) do
             @collection_manager.create_collection(scope_name, coll_name)
           end
+
         assert_match(/scope_not_found/, exc.message)
       else
         assert_raises(Error::ScopeNotFound) do

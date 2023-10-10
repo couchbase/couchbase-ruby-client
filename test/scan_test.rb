@@ -41,9 +41,11 @@ module Couchbase
     end
 
     def teardown
+      return unless defined? @test_ids
+
       @test_ids.each do |id|
         @collection.remove(id)
-      end if defined? @test_ids
+      end
     end
 
     def validate_scan(scan_result, expected_ids, ids_only: false)
