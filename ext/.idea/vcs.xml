@@ -3,18 +3,8 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
     <mapping directory="$PROJECT_DIR$/couchbase" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/asio" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/catch2" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/couchbase/third_party/docopt" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/fmt" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/gsl" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/hdr_histogram_c" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/http_parser" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/couchbase/third_party/json" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/couchbase/third_party/json/external/PEGTL" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/snappy" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/snappy/third_party/benchmark" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/snappy/third_party/googletest" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/spdlog" vcs="Git" />
   </component>
 </project>

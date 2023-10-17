@@ -11,8 +11,10 @@
 /.yardoc
 /_yardoc/
 /cmake-build-*/
+/build-*/
 /coverage/
 /doc/
+/ext/cache/
 /pkg/
 /test/reports/
 /tmp/

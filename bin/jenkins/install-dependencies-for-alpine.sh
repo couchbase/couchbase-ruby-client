@@ -1,6 +1,5 @@
-#!/usr/bin/env bash
-
-#  Copyright 2020-2021 Couchbase, Inc.
+#!/usr/bin/env sh
+#  Copyright 2020-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -16,19 +15,36 @@
 
 PROJECT_ROOT="$( cd "$(dirname "$0")/../.." >/dev/null 2>&1 ; pwd -P )"
 
-echo "HOSTNAME=${HOSTNAME}"
-echo "NODE_NAME=${NODE_NAME}"
-echo "CONTAINER_TAG=${CONTAINER_TAG}"
-echo "JENKINS_SLAVE_LABELS=${JENKINS_SLAVE_LABELS}"
-echo "NODE_LABELS=${NODE_LABELS}"
-
-os=$(lsb_release -r | sed 's/Release:[\t ]*20.04/ubuntu20/g')
-if [ "x${os}" = "xubuntu20" ]
-then
-  sudo apt install -y clang-format
-fi
+[ "$(id -u)" -ne 0 ] && SUDO="sudo " || SUDO=""
 
 set -x
 set -e
 
-exec bin/check-clang-format
+if ! command -v ruby &> /dev/null
+then
+    ${SUDO} /sbin/apk add ruby
+fi
+
+${SUDO} /sbin/apk add \
+    bash \
+    clang \
+    clang-extra-tools \
+    cmake \
+    curl \
+    g++ \
+    gcc \
+    git \
+    linux-headers \
+    make \
+    openssl \
+    openssl-dev \
+    readline-dev \
+    xz \
+    yaml-dev\
+    zlib-dev \
+
+# NOTE: we don't want to build 3.0 on Alpine, as it will require
+#       switching OpenSSL to 1.1
+export SUPPORTED_RUBY_VERSIONS="3.1 3.2 3.3"
+
+exec bash ${PROJECT_ROOT}/bin/jenkins/install-rubies.sh

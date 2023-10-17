@@ -1,14 +1,10 @@
 cmake_minimum_required(VERSION 3.20)
 project(ruby_client LANGUAGES CXX)
 
-if(WIN32)
-  add_definitions(-D_WIN32_WINNT=0x0601)
-endif()
-
 if(RUBY_HDR_DIR)
   set(RUBY_INCLUDE_DIR ${RUBY_HDR_DIR} ${RUBY_ARCH_HDR_DIR})
 else()
-  find_package(Ruby 2.6.0 REQUIRED)
+  find_package(Ruby 3.0.0 REQUIRED)
   message(STATUS "RUBY_VERSION: ${RUBY_VERSION}")
   message(STATUS "RUBY_EXECUTABLE: ${RUBY_EXECUTABLE}")
 endif()

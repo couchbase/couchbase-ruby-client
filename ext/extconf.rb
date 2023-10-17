@@ -21,8 +21,30 @@ require "couchbase/version"
 
 SDK_VERSION = Couchbase::VERSION[:sdk]
 
-def check_version(name)
-  executable = find_executable(name)
+case RbConfig::CONFIG["target_os"]
+when /mingw/
+  require "ruby_installer/runtime"
+  # ridk install 1
+  # ridk install 3
+  # ridk exec pacman --sync --noconfirm mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-go mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-ccache
+  ENV["CB_STATIC_BORINGSSL"] = "true"
+  ENV["CB_STATIC_STDLIB"] = "true"
+  ENV["GOROOT"] = File.join(RubyInstaller::Runtime.msys2_installation.msys_path, "ucrt64/lib/go")
+else
+end
+
+def which(name, extra_locations = [])
+  ENV.fetch("PATH", "")
+     .split(File::PATH_SEPARATOR)
+     .prepend(*extra_locations)
+     .select { |path| File.directory?(path) }
+     .map { |path| [path, name].join(File::SEPARATOR) + RbConfig::CONFIG["EXEEXT"] }
+     .find { |file| File.executable?(file) }
+end
+
+def check_version(name, extra_locations = [])
+  executable = which(name, extra_locations)
+  puts "-- check #{name} (#{executable})"
   version = nil
   IO.popen([executable, "--version"]) do |io|
     version = io.read.split("\n").first
@@ -30,7 +52,19 @@ def check_version(name)
   [executable, version]
 end
 
-cmake, version = check_version("cmake")
+cmake_extra_locations = []
+if RUBY_PLATFORM =~ /mswin|mingw/
+  cmake_extra_locations = [
+    'C:\Program Files\CMake\bin',
+    'C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin',
+    'C:\Program Files\Microsoft Visual Studio\2019\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin',
+  ]
+  local_app_data = ENV.fetch("LOCALAPPDATA", "#{ENV.fetch("HOME")}\\AppData\\Local")
+  if File.directory?(local_app_data)
+    cmake_extra_locations.unshift("#{local_app_data}\\CMake\\bin")
+  end
+end
+cmake, version = check_version("cmake", cmake_extra_locations)
 if version[/cmake version (\d+\.\d+)/, 1].to_f < 3.15
   cmake, version = check_version("cmake3")
 end
@@ -40,7 +74,7 @@ puts "-- #{version}, #{cmake}"
 def sys(*cmd)
   puts "-- #{Dir.pwd}"
   puts "-- #{cmd.join(' ')}"
-  system(*cmd)
+  system(*cmd) || abort("failed to execute command: #{$?.inspect}\n#{cmd.join(' ')}")
 end
 
 build_type = ENV["DEBUG"] ? "Debug" : "Release"
@@ -56,11 +90,32 @@ cmake_flags = [
   "-DCOUCHBASE_CXX_CLIENT_BUILD_EXAMPLES=OFF",
 ]
 
-revisions_path = File.join(__dir__, "revisions.rb")
-eval(File.read(revisions_path)) if File.exist?(revisions_path) # rubocop:disable Security/Eval
+extconf_include = File.expand_path("cache/extconf_include.rb", __dir__)
+if File.exist?(extconf_include)
+  puts "-- include extra cmake options from #{extconf_include}"
+  eval(File.read(extconf_include)) # rubocop:disable Security/Eval
+end
+
+if ENV["CB_STATIC"] || ENV["CB_STATIC_BORINGSSL"]
+  cmake_flags << "-DCOUCHBASE_CXX_CLIENT_STATIC_BORINGSSL=ON"
+elsif ENV["CB_STATIC_OPENSSL"]
+  cmake_flags << "-DCOUCHBASE_CXX_CLIENT_STATIC_OPENSSL=ON"
+end
+
+unless cmake_flags.grep(/BORINGSSL/)
+  case RbConfig::CONFIG["target_os"]
+  when /darwin/
+    openssl_root = `brew --prefix openssl@1.1 2> /dev/null`.strip
+    openssl_root = `brew --prefix openssl@3 2> /dev/null`.strip if openssl_root.empty?
+    openssl_root = `brew --prefix openssl 2> /dev/null`.strip if openssl_root.empty?
+    cmake_flags << "-DOPENSSL_ROOT_DIR=#{openssl_root}" unless openssl_root.empty?
+  when /linux/
+    openssl_root = ["/usr/lib64/openssl11", "/usr/include/openssl11"]
+    cmake_flags << "-DOPENSSL_ROOT_DIR=#{openssl_root.join(';')}" if openssl_root.all? { |path| File.directory?(path) }
+  end
+end
 
 cmake_flags << "-DCOUCHBASE_CXX_CLIENT_STATIC_STDLIB=ON" if ENV["CB_STATIC"] || ENV["CB_STATIC_STDLIB"]
-cmake_flags << "-DCOUCHBASE_CXX_CLIENT_STATIC_OPENSSL=ON" if ENV["CB_STATIC"] || ENV["CB_STATIC_OPENSSL"]
 cmake_flags << "-DENABLE_SANITIZER_ADDRESS=ON" if ENV["CB_ASAN"]
 cmake_flags << "-DENABLE_SANITIZER_LEAK=ON" if ENV["CB_LSAN"]
 cmake_flags << "-DENABLE_SANITIZER_MEMORY=ON" if ENV["CB_MSAN"]
@@ -69,31 +124,21 @@ cmake_flags << "-DENABLE_SANITIZER_UNDEFINED_BEHAVIOUR=ON" if ENV["CB_UBSAN"]
 
 cc = ENV["CB_CC"]
 cxx = ENV["CB_CXX"]
+ar = ENV["CB_AR"]
 
-case RbConfig::CONFIG["target_os"]
-when /darwin/
-  openssl_root = `brew --prefix openssl@1.1 2> /dev/null`.strip
-  openssl_root = `brew --prefix openssl@3 2> /dev/null`.strip if openssl_root.empty?
-  openssl_root = `brew --prefix openssl 2> /dev/null`.strip if openssl_root.empty?
-  cmake_flags << "-DOPENSSL_ROOT_DIR=#{openssl_root}" unless openssl_root.empty?
-when /linux/
-  openssl_root = ["/usr/lib64/openssl11", "/usr/include/openssl11"]
-  cmake_flags << "-DOPENSSL_ROOT_DIR=#{openssl_root.join(';')}" if openssl_root.all? { |path| File.directory?(path) }
-when /mingw/
+if RbConfig::CONFIG["target_os"] =~ /mingw/
   require "ruby_installer/runtime"
   RubyInstaller::Runtime.enable_dll_search_paths
   RubyInstaller::Runtime.enable_msys_apps
   cc = RbConfig::CONFIG["CC"]
   cxx = RbConfig::CONFIG["CXX"]
-  cmake_flags << "-G MSYS Makefiles"
+  cmake_flags << "-G Ninja"
   cmake_flags << "-DRUBY_LIBRUBY=#{File.basename(RbConfig::CONFIG["LIBRUBY_SO"], ".#{RbConfig::CONFIG["SOEXT"]}")}"
-  # ridk install 1
-  # ridk install 3
-  # ridk exec pacman -S --noconfirm mingw-w64-ucrt-x86_64-openssl
 end
 
 cmake_flags << "-DCMAKE_C_COMPILER=#{cc}" if cc
 cmake_flags << "-DCMAKE_CXX_COMPILER=#{cxx}" if cxx
+cmake_flags << "-DCMAKE_AR=#{ar}" if ar
 
 project_path = File.expand_path(File.join(__dir__))
 build_dir = ENV['CB_EXT_BUILD_DIR'] ||

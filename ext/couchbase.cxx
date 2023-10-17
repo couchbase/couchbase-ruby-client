@@ -275,6 +275,13 @@ init_versions(VALUE mCouchbase)
 
     VALUE cb_BuildInfo = rb_hash_new();
     rb_const_set(mCouchbase, rb_intern("BUILD_INFO"), cb_BuildInfo);
+#if defined(HAVE_RUBY_VERSION_H)
+    rb_hash_aset(
+      cb_BuildInfo,
+      rb_id2sym(rb_intern("ruby_abi")),
+      rb_str_freeze(cb_str_new(fmt::format("{}.{}.{}", RUBY_API_VERSION_MAJOR, RUBY_API_VERSION_MINOR, RUBY_API_VERSION_TEENY))));
+#endif
+    rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("revision")), rb_str_freeze(rb_str_new_cstr(EXT_GIT_REVISION)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_librubyarg")), rb_str_freeze(rb_str_new_cstr(RUBY_LIBRUBYARG)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_include_dir")), rb_str_freeze(rb_str_new_cstr(RUBY_INCLUDE_DIR)));
     rb_hash_aset(cb_BuildInfo, rb_id2sym(rb_intern("ruby_library_dir")), rb_str_freeze(rb_str_new_cstr(RUBY_LIBRARY_DIR)));
@@ -283,7 +290,8 @@ init_versions(VALUE mCouchbase)
         if (name == "version_major" || name == "version_minor" || name == "version_patch" || name == "version_build" ||
             name == "__cplusplus" || name == "_MSC_VER" || name == "mozilla_ca_bundle_size") {
             rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), INT2FIX(std::stoi(value)));
-        } else if (name == "snapshot" || name == "static_stdlib" || name == "static_openssl" || name == "mozilla_ca_bundle_embedded") {
+        } else if (name == "snapshot" || name == "static_stdlib" || name == "static_openssl" || name == "static_boringssl" ||
+                   name == "mozilla_ca_bundle_embedded") {
             rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), value == "true" ? Qtrue : Qfalse);
         } else {
             rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), rb_str_freeze(rb_str_new_cstr(value.c_str())));
