@@ -32,6 +32,8 @@ module Couchbase
 
     # Connect to the Couchbase cluster
     #
+    #
+    #
     # @overload connect(connection_string_or_config, options)
     #   @param [String, Configuration] connection_string_or_config connection string used to locate the Couchbase Cluster
     #   @param [Options::Cluster] options custom options when creating the cluster connection
@@ -100,6 +102,8 @@ module Couchbase
     #   })
     #   cluster.query("SELECT name, email FROM `mybucket`",
     #                 Options::Query(consistent_with: MutationState.new(res.mutation_token)))
+    #
+    #
     #
     # @return [QueryResult]
     def query(statement, options = Options::Query::DEFAULT)
