@@ -18,6 +18,7 @@ module Couchbase
   module Protostellar
     module TimeoutDefaults
       KEY_VALUE = 2_500
+      KEY_VALUE_DURABLE = 10_000
       VIEW = 75_000
       QUERY = 75_000
       ANALYTICS = 75_000

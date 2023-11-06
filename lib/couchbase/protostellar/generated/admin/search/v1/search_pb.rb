@@ -5,7 +5,18 @@ require 'google/protobuf'
 
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_file("couchbase/admin/search/v1/search.proto", :syntax => :proto3) do
-    add_message "couchbase.admin.search.v1.UpsertIndexRequest" do
+    add_message "couchbase.admin.search.v1.Index" do
+      optional :name, :string, 1
+      map :params, :string, :bytes, 2
+      map :plan_params, :string, :bytes, 3
+      proto3_optional :source_name, :string, 4
+      map :source_params, :string, :bytes, 5
+      proto3_optional :source_type, :string, 6
+      proto3_optional :source_uuid, :string, 7
+      optional :type, :string, 8
+      optional :uuid, :string, 9
+    end
+    add_message "couchbase.admin.search.v1.CreateIndexRequest" do
       optional :name, :string, 1
       map :params, :string, :bytes, 2
       map :plan_params, :string, :bytes, 3
@@ -15,11 +26,17 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       proto3_optional :source_type, :string, 7
       proto3_optional :source_uuid, :string, 8
       optional :type, :string, 9
-      proto3_optional :uuid, :string, 10
-      proto3_optional :bucket_name, :string, 11
-      proto3_optional :scope_name, :string, 12
+      proto3_optional :bucket_name, :string, 10
+      proto3_optional :scope_name, :string, 11
     end
-    add_message "couchbase.admin.search.v1.UpsertIndexResponse" do
+    add_message "couchbase.admin.search.v1.CreateIndexResponse" do
+    end
+    add_message "couchbase.admin.search.v1.UpdateIndexRequest" do
+      optional :index, :message, 1, "couchbase.admin.search.v1.Index"
+      proto3_optional :bucket_name, :string, 2
+      proto3_optional :scope_name, :string, 3
+    end
+    add_message "couchbase.admin.search.v1.UpdateIndexResponse" do
     end
     add_message "couchbase.admin.search.v1.GetIndexRequest" do
       optional :name, :string, 1
@@ -27,33 +44,14 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       proto3_optional :scope_name, :string, 3
     end
     add_message "couchbase.admin.search.v1.GetIndexResponse" do
-      optional :name, :string, 1
-      map :params, :string, :bytes, 2
-      map :plan_params, :string, :bytes, 3
-      proto3_optional :source_name, :string, 4
-      map :source_params, :string, :bytes, 5
-      proto3_optional :source_type, :string, 6
-      proto3_optional :source_uuid, :string, 7
-      optional :type, :string, 8
-      proto3_optional :uuid, :string, 9
+      optional :index, :message, 1, "couchbase.admin.search.v1.Index"
     end
     add_message "couchbase.admin.search.v1.ListIndexesRequest" do
       proto3_optional :bucket_name, :string, 1
       proto3_optional :scope_name, :string, 2
     end
     add_message "couchbase.admin.search.v1.ListIndexesResponse" do
-      repeated :indexes, :message, 1, "couchbase.admin.search.v1.ListIndexesResponse.Index"
-    end
-    add_message "couchbase.admin.search.v1.ListIndexesResponse.Index" do
-      optional :name, :string, 1
-      map :params, :string, :bytes, 2
-      map :plan_params, :string, :bytes, 3
-      proto3_optional :source_name, :string, 4
-      map :source_params, :string, :bytes, 5
-      proto3_optional :source_type, :string, 6
-      proto3_optional :source_uuid, :string, 7
-      optional :type, :string, 8
-      proto3_optional :uuid, :string, 9
+      repeated :indexes, :message, 1, "couchbase.admin.search.v1.Index"
     end
     add_message "couchbase.admin.search.v1.DeleteIndexRequest" do
       optional :name, :string, 1
@@ -61,6 +59,66 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       proto3_optional :scope_name, :string, 3
     end
     add_message "couchbase.admin.search.v1.DeleteIndexResponse" do
+    end
+    add_message "couchbase.admin.search.v1.AnalyzeDocumentRequest" do
+      optional :name, :string, 1
+      optional :doc, :bytes, 2
+      proto3_optional :bucket_name, :string, 3
+      proto3_optional :scope_name, :string, 4
+    end
+    add_message "couchbase.admin.search.v1.AnalyzeDocumentResponse" do
+      optional :status, :string, 1
+      optional :analyzed, :bytes, 2
+    end
+    add_message "couchbase.admin.search.v1.GetIndexedDocumentsCountRequest" do
+      optional :name, :string, 1
+      proto3_optional :bucket_name, :string, 3
+      proto3_optional :scope_name, :string, 4
+    end
+    add_message "couchbase.admin.search.v1.GetIndexedDocumentsCountResponse" do
+      optional :count, :uint64, 1
+    end
+    add_message "couchbase.admin.search.v1.PauseIndexIngestRequest" do
+      optional :name, :string, 1
+      proto3_optional :bucket_name, :string, 2
+      proto3_optional :scope_name, :string, 3
+    end
+    add_message "couchbase.admin.search.v1.PauseIndexIngestResponse" do
+    end
+    add_message "couchbase.admin.search.v1.ResumeIndexIngestRequest" do
+      optional :name, :string, 1
+      proto3_optional :bucket_name, :string, 2
+      proto3_optional :scope_name, :string, 3
+    end
+    add_message "couchbase.admin.search.v1.ResumeIndexIngestResponse" do
+    end
+    add_message "couchbase.admin.search.v1.AllowIndexQueryingRequest" do
+      optional :name, :string, 1
+      proto3_optional :bucket_name, :string, 2
+      proto3_optional :scope_name, :string, 3
+    end
+    add_message "couchbase.admin.search.v1.AllowIndexQueryingResponse" do
+    end
+    add_message "couchbase.admin.search.v1.DisallowIndexQueryingRequest" do
+      optional :name, :string, 1
+      proto3_optional :bucket_name, :string, 2
+      proto3_optional :scope_name, :string, 3
+    end
+    add_message "couchbase.admin.search.v1.DisallowIndexQueryingResponse" do
+    end
+    add_message "couchbase.admin.search.v1.FreezeIndexPlanRequest" do
+      optional :name, :string, 1
+      proto3_optional :bucket_name, :string, 2
+      proto3_optional :scope_name, :string, 3
+    end
+    add_message "couchbase.admin.search.v1.FreezeIndexPlanResponse" do
+    end
+    add_message "couchbase.admin.search.v1.UnfreezeIndexPlanRequest" do
+      optional :name, :string, 1
+      proto3_optional :bucket_name, :string, 2
+      proto3_optional :scope_name, :string, 3
+    end
+    add_message "couchbase.admin.search.v1.UnfreezeIndexPlanResponse" do
     end
   end
 end
@@ -71,15 +129,33 @@ module Couchbase
       module Admin
         module Search
           module V1
-            UpsertIndexRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.UpsertIndexRequest").msgclass
-            UpsertIndexResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.UpsertIndexResponse").msgclass
+            Index = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.Index").msgclass
+            CreateIndexRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.CreateIndexRequest").msgclass
+            CreateIndexResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.CreateIndexResponse").msgclass
+            UpdateIndexRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.UpdateIndexRequest").msgclass
+            UpdateIndexResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.UpdateIndexResponse").msgclass
             GetIndexRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.GetIndexRequest").msgclass
             GetIndexResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.GetIndexResponse").msgclass
             ListIndexesRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.ListIndexesRequest").msgclass
             ListIndexesResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.ListIndexesResponse").msgclass
-            ListIndexesResponse::Index = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.ListIndexesResponse.Index").msgclass
             DeleteIndexRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.DeleteIndexRequest").msgclass
             DeleteIndexResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.DeleteIndexResponse").msgclass
+            AnalyzeDocumentRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.AnalyzeDocumentRequest").msgclass
+            AnalyzeDocumentResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.AnalyzeDocumentResponse").msgclass
+            GetIndexedDocumentsCountRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.GetIndexedDocumentsCountRequest").msgclass
+            GetIndexedDocumentsCountResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.GetIndexedDocumentsCountResponse").msgclass
+            PauseIndexIngestRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.PauseIndexIngestRequest").msgclass
+            PauseIndexIngestResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.PauseIndexIngestResponse").msgclass
+            ResumeIndexIngestRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.ResumeIndexIngestRequest").msgclass
+            ResumeIndexIngestResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.ResumeIndexIngestResponse").msgclass
+            AllowIndexQueryingRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.AllowIndexQueryingRequest").msgclass
+            AllowIndexQueryingResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.AllowIndexQueryingResponse").msgclass
+            DisallowIndexQueryingRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.DisallowIndexQueryingRequest").msgclass
+            DisallowIndexQueryingResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.DisallowIndexQueryingResponse").msgclass
+            FreezeIndexPlanRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.FreezeIndexPlanRequest").msgclass
+            FreezeIndexPlanResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.FreezeIndexPlanResponse").msgclass
+            UnfreezeIndexPlanRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.UnfreezeIndexPlanRequest").msgclass
+            UnfreezeIndexPlanResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.search.v1.UnfreezeIndexPlanResponse").msgclass
           end
         end
       end

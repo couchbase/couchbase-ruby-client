@@ -11,6 +11,7 @@ module Couchbase
         module V1
           module ViewService
             class Service
+
               include ::GRPC::GenericService
 
               self.marshal_class_method = :encode

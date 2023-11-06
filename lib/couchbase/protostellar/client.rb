@@ -55,22 +55,37 @@ module Couchbase
       end
 
       def send_request(request)
+        request.set_timeout_from_defaults(@timeouts)
         loop do
-          request.set_timeout_from_defaults(@timeouts)
-          return @stubs[request.service].public_send(request.rpc, request.proto_request, deadline: request.deadline, metadata: @call_metadata)
+          resp = @stubs[request.service].public_send(request.rpc, request.proto_request, deadline: request.deadline, metadata: @call_metadata)
+          if resp.respond_to?(:next)
+            # Streaming RPC - wrap it in an enumerator that handles any mid-stream errors
+            return Enumerator.new do |y|
+              loop do
+                begin
+                  y << resp.next
+                rescue GRPC::BadStatus => e
+                  request_behaviour = ErrorHandling.handle_grpc_error(e, request)
+                  raise request_behaviour.error unless request_behaviour.error.nil?
+                  raise Couchbase::Error::RequestCanceled.new("Error encountered mid-stream", request.error_context) unless request_behaviour.retry_duration.nil?
+                  next
+                end
+              end
+            end
+          else
+            # Simple RPC - just return it
+            return resp
+          end
         rescue GRPC::BadStatus => e
           request_behaviour = ErrorHandling.handle_grpc_error(e, request)
 
-          raise Protostellar::Error::InvalidRetryBehaviour "The error and the retry duration cannot both be set" unless request_behaviour.error.nil? || request_behaviour.retry_duration.nil?
-
+          raise Protostellar::Error::InvalidRetryBehaviour "Either the error or the retry duration can be set" unless request_behaviour.error.nil? ^ request_behaviour.retry_duration.nil?
           raise request_behaviour.error unless request_behaviour.error.nil?
 
           unless request_behaviour.retry_duration.nil?
             sleep(0.001 * request_behaviour.retry_duration)
             next
           end
-
-          raise Protostellar::Error::InvalidRetryBehaviour "Either the error or the retry duration should have been set"
         end
       end
     end

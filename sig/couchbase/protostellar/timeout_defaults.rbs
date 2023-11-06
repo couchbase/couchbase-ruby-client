@@ -16,6 +16,7 @@ module Couchbase
   module Protostellar
     module TimeoutDefaults
       KEY_VALUE: Integer
+      KEY_VALUE_DURABLE: Integer
       VIEW: Integer
       QUERY: Integer
       ANALYTICS: Integer

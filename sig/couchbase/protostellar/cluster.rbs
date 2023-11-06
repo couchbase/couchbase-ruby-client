@@ -15,6 +15,7 @@
 module Couchbase
   module Protostellar
     class Cluster
+      include _Cluster
       VALID_CONNECTION_STRING_PARAMS: Array[String]
 
       attr_reader client: Client

@@ -15,6 +15,7 @@
 #  limitations under the License.
 
 require "couchbase/protostellar/generated/query/v1/query_pb"
+require 'couchbase/protostellar/generated/kv/v1/kv_pb'
 require "couchbase/protostellar/request"
 
 require "google/protobuf/well_known_types"
@@ -69,7 +70,7 @@ module Couchbase
           proto_opts[:named_parameters] = options.export_named_parameters unless options.export_named_parameters.nil?
           proto_opts[:flex_index] = options.flex_index unless options.flex_index.nil?
           proto_opts[:preserve_expiry] = options.preserve_expiry unless options.preserve_expiry.nil?
-          proto_opts[:consistent_with] = options.mutation_state.to_proto unless options.mutation_state.nil?
+          proto_opts[:consistent_with] = get_consistent_with(options) unless options.mutation_state.nil?
           proto_opts[:profile_mode] = PROFILE_MODE_MAP[options.profile]
 
           proto_req = Generated::Query::V1::QueryRequest.new(
@@ -98,9 +99,12 @@ module Couchbase
           tuning_opts[:pipeline_batch] = options.pipeline_batch unless options.pipeline_batch.nil?
           tuning_opts[:pipeline_cap] = options.pipeline_cap unless options.pipeline_cap.nil?
           unless options.scan_wait.nil?
+            duration_millis = Utils::Time.extract_duration(options.scan_wait)
             tuning_opts[:scan_wait] = Google::Protobuf::Duration.new(
-              {:nanos => (10**6) * Utils::Time.extract_duration(expiry)}
+              seconds: duration_millis / 1000,
+              nanos: (duration_millis % 1000) * (10**6)
             )
+            puts tuning_opts[:scan_wait]
           end
           tuning_opts[:scan_cap] = options.scan_cap unless options.scan_cap.nil?
           tuning_opts[:disable_metrics] = !options.metrics unless options.metrics.nil?
@@ -108,6 +112,17 @@ module Couchbase
             nil
           else
             Generated::Query::V1::QueryRequest::TuningOptions.new(**tuning_opts)
+          end
+        end
+
+        def get_consistent_with(options)
+          options.mutation_state.tokens.map do |t|
+            Generated::KV::V1::MutationToken.new(
+              bucket_name: t.bucket_name,
+              vbucket_id: t.partition_id,
+              vbucket_uuid: t.partition_uuid,
+              seq_no: t.sequence_number
+            )
           end
         end
       end

@@ -22,11 +22,16 @@ module Couchbase
     module ResponseConverter
       class KV
         def self.to_get_result(resp, options)
+          puts resp
           Couchbase::Collection::GetResult.new do |res|
             res.transcoder = options.transcoder
             res.cas = resp.cas
             res.expiry = extract_expiry_time(resp) if options.respond_to?(:with_expiry) && options.with_expiry
-            res.encoded = resp.content
+            if resp.content == "null" && !options.projections.empty?
+              res.encoded = "{}"
+            else
+              res.encoded = resp.content
+            end
             res.flags = resp.content_flags
           end
         end
@@ -45,18 +50,20 @@ module Couchbase
           end
         end
 
-        def self.to_lookup_in_result(resp, specs, options)
-          pp resp
+        def self.to_lookup_in_result(resp, specs, options, request)
           Couchbase::Collection::LookupInResult.new do |res|
             res.cas = resp.cas
             res.transcoder = options.transcoder
             res.encoded = resp.specs.each_with_index.map do |s, idx|
               Couchbase::Collection::SubDocumentField.new do |f|
                 # TODO: What to do with the status?
+                error = s.status.nil? ? nil : ErrorHandling.convert_rpc_status(s.status, request)
+                f.error = error unless error.nil?
                 f.index = idx
                 f.path = specs[idx].path
                 if specs[idx].type == :exists
                   f.exists = s.content == "true"
+                  f.value = s.content
                 elsif s.content.empty?
                   f.value = nil
                   f.exists = false
@@ -73,7 +80,7 @@ module Couchbase
           Couchbase::Collection::MutateInResult.new do |res|
             res.cas = resp.cas
             res.transcoder = options.transcoder
-            res.deleted = false  # TODO: GRPC response has no deleted field for now
+            res.deleted = nil  # TODO: gRPC response has no deleted field
             res.mutation_token = extract_mutation_token(resp)
             res.encoded = resp.specs.each_with_index.map do |s, idx|
               Couchbase::Collection::SubDocumentField.new do |f|
@@ -107,6 +114,9 @@ module Couchbase
 
         def self.extract_expiry_time(resp)
           timestamp = resp.expiry
+
+          return nil if timestamp.nil?
+
           Time.at(timestamp.seconds, timestamp.nanos, :nsec)
         end
       end

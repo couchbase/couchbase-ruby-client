@@ -45,14 +45,48 @@ module Couchbase
           @client.send_request(req)
         end
 
-        def create_collection(collection_spec, options = Couchbase::Management::Options::Collection::CreateCollection.new)
-          req = @request_generator.create_collection_request(collection_spec, options)
+        def create_collection(*args)
+          req =
+            if args[0].is_a?(Couchbase::Management::CollectionSpec)
+              collection = args[0]
+              options = args[1] || Couchbase::Management::Options::Collection::CreateCollection::DEFAULT
+              settings = Couchbase::Management::CreateCollectionSettings.new(max_expiry: collection.max_expiry, history: collection.history)
+
+              warn "Calling create_collection with a CollectionSpec object has been deprecated, supply scope name, " \
+                 "collection name and optionally a CreateCollectionSettings instance"
+
+              @request_generator.create_collection_request(collection.scope_name, collection.name, settings, options)
+            else
+              scope_name = args[0]
+              collection_name = args[1]
+              settings = args[2] || Couchbase::Management::CreateCollectionSettings::DEFAULT
+              options = args[3] || Couchbase::Management::Options::Collection::CreateCollection::DEFAULT
+              @request_generator.create_collection_request(scope_name, collection_name, settings, options)
+            end
           @client.send_request(req)
         end
 
-        def drop_collection(collection_spec, options = Couchbase::Management::Options::Collection::DropCollection.new)
-          req = @request_generator.delete_collection_request(collection_spec, options)
+        def drop_collection(*args)
+          req =
+            if args[0].is_a?(Couchbase::Management::CollectionSpec)
+              collection = args[0]
+              options = args[1] || Couchbase::Management::Options::Collection::CreateCollection::DEFAULT
+
+              warn "Calling drop_collection with a CollectionSpec object has been deprecated, supply scope name and collection name"
+
+              @request_generator.delete_collection_request(collection.scope_name, collection.name, options)
+            else
+              scope_name = args[0]
+              collection_name = args[1]
+              options = args[2] || Couchbase::Management::Options::Collection::CreateCollection::DEFAULT
+              @request_generator.delete_collection_request(scope_name, collection_name, options)
+            end
           @client.send_request(req)
+        end
+
+        def update_collection(_scope_name, _collection_name, _settings = UpdateCollectionSettings::DEFAULT,
+                              _options = Options::Collection::UpdateCollection::DEFAULT)
+          raise Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support update_collection"
         end
       end
     end

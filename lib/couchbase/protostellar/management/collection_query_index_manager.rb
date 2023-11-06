@@ -110,10 +110,10 @@ module Couchbase
                   "Scope name cannot be set in the options when using the Query Index manager at the collection level"
           end
 
-          unless options.collection_name.nil?
-            raise Couchbase::Error::InvalidArgument,
-                  "Collection name cannot be set in the options when using the Query Index manager at the collection level"
-          end
+          return if options.collection_name.nil?
+
+          raise Couchbase::Error::InvalidArgument,
+                "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
       end
     end

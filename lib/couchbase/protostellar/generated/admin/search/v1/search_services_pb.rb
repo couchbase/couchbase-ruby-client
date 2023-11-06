@@ -12,6 +12,7 @@ module Couchbase
           module V1
             module SearchAdminService
               class Service
+
                 include ::GRPC::GenericService
 
                 self.marshal_class_method = :encode
@@ -20,8 +21,17 @@ module Couchbase
 
                 rpc :GetIndex, ::Couchbase::Protostellar::Generated::Admin::Search::V1::GetIndexRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::GetIndexResponse
                 rpc :ListIndexes, ::Couchbase::Protostellar::Generated::Admin::Search::V1::ListIndexesRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::ListIndexesResponse
-                rpc :UpsertIndex, ::Couchbase::Protostellar::Generated::Admin::Search::V1::UpsertIndexRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::UpsertIndexResponse
+                rpc :CreateIndex, ::Couchbase::Protostellar::Generated::Admin::Search::V1::CreateIndexRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::CreateIndexResponse
+                rpc :UpdateIndex, ::Couchbase::Protostellar::Generated::Admin::Search::V1::UpdateIndexRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::UpdateIndexResponse
                 rpc :DeleteIndex, ::Couchbase::Protostellar::Generated::Admin::Search::V1::DeleteIndexRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::DeleteIndexResponse
+                rpc :AnalyzeDocument, ::Couchbase::Protostellar::Generated::Admin::Search::V1::AnalyzeDocumentRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::AnalyzeDocumentResponse
+                rpc :GetIndexedDocumentsCount, ::Couchbase::Protostellar::Generated::Admin::Search::V1::GetIndexedDocumentsCountRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::GetIndexedDocumentsCountResponse
+                rpc :PauseIndexIngest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::PauseIndexIngestRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::PauseIndexIngestResponse
+                rpc :ResumeIndexIngest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::ResumeIndexIngestRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::ResumeIndexIngestResponse
+                rpc :AllowIndexQuerying, ::Couchbase::Protostellar::Generated::Admin::Search::V1::AllowIndexQueryingRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::AllowIndexQueryingResponse
+                rpc :DisallowIndexQuerying, ::Couchbase::Protostellar::Generated::Admin::Search::V1::DisallowIndexQueryingRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::DisallowIndexQueryingResponse
+                rpc :FreezeIndexPlan, ::Couchbase::Protostellar::Generated::Admin::Search::V1::FreezeIndexPlanRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::FreezeIndexPlanResponse
+                rpc :UnfreezeIndexPlan, ::Couchbase::Protostellar::Generated::Admin::Search::V1::UnfreezeIndexPlanRequest, ::Couchbase::Protostellar::Generated::Admin::Search::V1::UnfreezeIndexPlanResponse
               end
 
               Stub = Service.rpc_stub_class

@@ -12,6 +12,7 @@ module Couchbase
           module V1
             module BucketAdminService
               class Service
+
                 include ::GRPC::GenericService
 
                 self.marshal_class_method = :encode

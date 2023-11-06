@@ -20,9 +20,19 @@ require "couchbase"
 RSpec.describe Couchbase::Cluster do
   subject(:cluster) { @cluster }
 
+  let(:bucket) { test_bucket(cluster) }
+  let(:collection) { bucket.default_collection }
+
   # rubocop:disable RSpec/BeforeAfterAll
   before(:all) do
     @cluster = connect_with_classic
+    @bucket = test_bucket(@cluster)
+
+    options = Couchbase::Management::Options::Query::CreatePrimaryIndex.new(
+      ignore_if_exists: true,
+      timeout: 300_000
+    )
+    @cluster.query_indexes.create_primary_index(@bucket.name, options)
   end
   # rubocop:enable RSpec/BeforeAfterAll
 

@@ -28,12 +28,14 @@ module Couchbase
 
       def initialize(
         key_value_timeout: nil,
+        key_value_durable_timeout: nil,
         view_timeout: nil,
         query_timeout: nil,
         analytics_timeout: nil,
         search_timeout: nil,
         management_timeout: nil
       )
+        @key_value_durable_timeout = key_value_durable_timeout || TimeoutDefaults::KEY_VALUE_DURABLE
         @key_value_timeout = key_value_timeout || TimeoutDefaults::KEY_VALUE
         @view_timeout = view_timeout || TimeoutDefaults::VIEW
         @query_timeout = query_timeout || TimeoutDefaults::QUERY
@@ -42,12 +44,16 @@ module Couchbase
         @management_timeout = management_timeout || TimeoutDefaults::MANAGEMENT
       end
 
-      def timeout_for_service(service)
-        case service
+      def timeout_for_request(request)
+        case request.service
         when :analytics
           @analytics_timeout
         when :kv
-          @key_value_timeout
+          if request.proto_request.respond_to?(:durability_level) && request.proto_request.has_durability_level?
+            @key_value_durable_timeout
+          else
+            @key_value_timeout
+          end
         when :query
           @query_timeout
         when :search

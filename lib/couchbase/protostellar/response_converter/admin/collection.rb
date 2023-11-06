@@ -29,6 +29,7 @@ module Couchbase
                   Couchbase::Management::CollectionSpec.new do |coll_spec|
                     coll_spec.name = c.name
                     coll_spec.scope_name = s.name
+                    coll_spec.max_expiry = c.max_expiry_secs if c.has_max_expiry_secs?
                   end
                 end
               end

@@ -115,13 +115,17 @@ module Couchbase
       def lookup_in(id, specs, options = Couchbase::Options::LookupIn::DEFAULT)
         req = @kv_request_generator.lookup_in_request(id, specs, options)
         resp = @client.send_request(req)
-        ResponseConverter::KV.to_lookup_in_result(resp, specs, options)
+        ResponseConverter::KV.to_lookup_in_result(resp, specs, options, req)
       end
 
       def mutate_in(id, specs, options = Couchbase::Options::MutateIn::DEFAULT)
         req = @kv_request_generator.mutate_in_request(id, specs, options)
         resp = @client.send_request(req)
         ResponseConverter::KV.to_mutate_in_result(resp, specs, options)
+      end
+
+      def scan(_scan_type, _options = Options::Scan::DEFAULT)
+        raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support KV scans"
       end
     end
   end

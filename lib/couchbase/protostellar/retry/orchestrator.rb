@@ -34,7 +34,7 @@ module Couchbase
             duration = retry_action.duration
             if duration.nil?
               # TODO: Log not retried
-              RequestBehaviour.fail(Couchbase::Error::RequestCanceled.new)
+              RequestBehaviour.fail(Couchbase::Error::RequestCanceled.new('Cannot retry request', request.error_context))
             else
               request.add_retry_attempt(reason)
               # TODO: Log retry

@@ -21,6 +21,11 @@ require_relative "protostellar/cluster"
 
 module Couchbase
   module Protostellar
-    Couchbase::ClusterRegistry.instance.register_connection_handler(/^protostellar:\/\/.*$/i, Protostellar::Cluster)
+    NAME = "couchbase2"
+    SCHEMES = %w[couchbase2 protostellar]
+
+    SCHEMES.each do |s|
+      Couchbase::ClusterRegistry.instance.register_connection_handler(/^#{s}:\/\/.*$/i, Protostellar::Cluster)
+    end
   end
 end

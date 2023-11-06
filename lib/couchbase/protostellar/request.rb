@@ -70,7 +70,7 @@ module Couchbase
       def set_timeout_from_defaults(timeouts)
         return unless @timeout.nil?
 
-        @timeout = timeouts.timeout_for_service(@service)
+        @timeout = timeouts.timeout_for_request(self)
       end
     end
   end

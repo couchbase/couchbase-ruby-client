@@ -20,9 +20,24 @@ require "couchbase/protostellar"
 RSpec.describe Couchbase::Protostellar::Cluster do
   subject(:cluster) { @cluster }
 
+  let(:bucket) { test_bucket(cluster) }
+  let(:collection) { bucket.default_collection }
+
   # rubocop:disable RSpec/BeforeAfterAll
   before(:all) do
     @cluster = connect_with_protostellar
+    @bucket = test_bucket(@cluster)
+
+    options = Couchbase::Management::Options::Query::CreatePrimaryIndex.new(
+      ignore_if_exists: true,
+      timeout: 300_000
+    )
+    begin
+      @cluster.query_indexes.create_primary_index(@bucket.name, options)
+    rescue Couchbase::Error::CouchbaseError
+      # ignore_if_exists does not exist in protostellar at the moment
+      puts "Assuming that the primary index already exists"
+    end
   end
   # rubocop:enable RSpec/BeforeAfterAll
 

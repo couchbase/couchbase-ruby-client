@@ -32,6 +32,10 @@ module Couchbase
       def self.retry(retry_duration)
         RequestBehaviour.new(retry_duration: retry_duration)
       end
+
+      def self.success()
+        RequestBehaviour.new(retry_duration: nil, error: nil)
+      end
     end
   end
 end

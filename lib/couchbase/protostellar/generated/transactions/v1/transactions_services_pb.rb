@@ -11,25 +11,20 @@ module Couchbase
         module V1
           module TransactionsService
             class Service
+
               include ::GRPC::GenericService
 
               self.marshal_class_method = :encode
               self.unmarshal_class_method = :decode
               self.service_name = 'couchbase.transactions.v1.TransactionsService'
 
-              rpc :TransactionBeginAttempt, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionBeginAttemptRequest,
-                  ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionBeginAttemptResponse
-              rpc :TransactionCommit, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionCommitRequest,
-                  ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionCommitResponse
-              rpc :TransactionRollback, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionRollbackRequest,
-                  ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionRollbackResponse
+              rpc :TransactionBeginAttempt, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionBeginAttemptRequest, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionBeginAttemptResponse
+              rpc :TransactionCommit, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionCommitRequest, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionCommitResponse
+              rpc :TransactionRollback, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionRollbackRequest, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionRollbackResponse
               rpc :TransactionGet, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionGetRequest, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionGetResponse
-              rpc :TransactionInsert, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionInsertRequest,
-                  ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionInsertResponse
-              rpc :TransactionReplace, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionReplaceRequest,
-                  ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionReplaceResponse
-              rpc :TransactionRemove, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionRemoveRequest,
-                  ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionRemoveResponse
+              rpc :TransactionInsert, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionInsertRequest, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionInsertResponse
+              rpc :TransactionReplace, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionReplaceRequest, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionReplaceResponse
+              rpc :TransactionRemove, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionRemoveRequest, ::Couchbase::Protostellar::Generated::Transactions::V1::TransactionRemoveResponse
             end
 
             Stub = Service.rpc_stub_class

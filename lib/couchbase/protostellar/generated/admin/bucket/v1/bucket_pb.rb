@@ -15,7 +15,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "couchbase.admin.bucket.v1.ListBucketsResponse.Bucket" do
       optional :bucket_name, :string, 1
       optional :flush_enabled, :bool, 2
-      optional :ram_quota_bytes, :uint64, 3
+      optional :ram_quota_mb, :uint64, 3
       optional :num_replicas, :uint32, 4
       optional :replica_indexes, :bool, 5
       optional :bucket_type, :enum, 6, "couchbase.admin.bucket.v1.BucketType"
@@ -23,14 +23,14 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :max_expiry_secs, :uint32, 8
       optional :compression_mode, :enum, 9, "couchbase.admin.bucket.v1.CompressionMode"
       proto3_optional :minimum_durability_level, :enum, 10, "couchbase.kv.v1.DurabilityLevel"
-      optional :storage_backend, :enum, 11, "couchbase.admin.bucket.v1.StorageBackend"
+      proto3_optional :storage_backend, :enum, 11, "couchbase.admin.bucket.v1.StorageBackend"
       optional :conflict_resolution_type, :enum, 12, "couchbase.admin.bucket.v1.ConflictResolutionType"
     end
     add_message "couchbase.admin.bucket.v1.CreateBucketRequest" do
       optional :bucket_name, :string, 1
       optional :bucket_type, :enum, 2, "couchbase.admin.bucket.v1.BucketType"
-      optional :ram_quota_bytes, :uint64, 3
-      optional :num_replicas, :uint32, 4
+      proto3_optional :ram_quota_mb, :uint64, 3
+      proto3_optional :num_replicas, :uint32, 4
       proto3_optional :flush_enabled, :bool, 5
       proto3_optional :replica_indexes, :bool, 6
       proto3_optional :eviction_mode, :enum, 7, "couchbase.admin.bucket.v1.EvictionMode"
@@ -45,15 +45,13 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_message "couchbase.admin.bucket.v1.UpdateBucketRequest" do
       optional :bucket_name, :string, 1
-      proto3_optional :ram_quota_bytes, :uint64, 3
-      proto3_optional :num_replicas, :uint32, 4
-      proto3_optional :flush_enabled, :bool, 5
-      proto3_optional :replica_indexes, :bool, 6
-      proto3_optional :eviction_mode, :enum, 7, "couchbase.admin.bucket.v1.EvictionMode"
-      proto3_optional :max_expiry_secs, :uint32, 8
-      proto3_optional :compression_mode, :enum, 9, "couchbase.admin.bucket.v1.CompressionMode"
-      proto3_optional :minimum_durability_level, :enum, 10, "couchbase.kv.v1.DurabilityLevel"
-      proto3_optional :conflict_resolution_type, :enum, 12, "couchbase.admin.bucket.v1.ConflictResolutionType"
+      proto3_optional :ram_quota_mb, :uint64, 2
+      proto3_optional :num_replicas, :uint32, 3
+      proto3_optional :flush_enabled, :bool, 4
+      proto3_optional :eviction_mode, :enum, 5, "couchbase.admin.bucket.v1.EvictionMode"
+      proto3_optional :max_expiry_secs, :uint32, 6
+      proto3_optional :compression_mode, :enum, 7, "couchbase.admin.bucket.v1.CompressionMode"
+      proto3_optional :minimum_durability_level, :enum, 8, "couchbase.kv.v1.DurabilityLevel"
     end
     add_message "couchbase.admin.bucket.v1.UpdateBucketResponse" do
     end
@@ -64,8 +62,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     end
     add_enum "couchbase.admin.bucket.v1.BucketType" do
       value :BUCKET_TYPE_COUCHBASE, 0
-      value :BUCKET_TYPE_MEMCACHED, 1
-      value :BUCKET_TYPE_EPHEMERAL, 2
+      value :BUCKET_TYPE_EPHEMERAL, 1
     end
     add_enum "couchbase.admin.bucket.v1.EvictionMode" do
       value :EVICTION_MODE_FULL, 0

@@ -32,6 +32,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       proto3_optional :name, :string, 4
       proto3_optional :num_replicas, :int32, 5
       proto3_optional :deferred, :bool, 6
+      proto3_optional :ignore_if_exists, :bool, 7
     end
     add_message "couchbase.admin.query.v1.CreatePrimaryIndexResponse" do
     end
@@ -43,6 +44,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       proto3_optional :num_replicas, :int32, 5
       repeated :fields, :string, 6
       proto3_optional :deferred, :bool, 7
+      proto3_optional :ignore_if_exists, :bool, 8
     end
     add_message "couchbase.admin.query.v1.CreateIndexResponse" do
     end
@@ -51,6 +53,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       proto3_optional :scope_name, :string, 2
       proto3_optional :collection_name, :string, 3
       proto3_optional :name, :string, 4
+      proto3_optional :ignore_if_missing, :bool, 5
     end
     add_message "couchbase.admin.query.v1.DropPrimaryIndexResponse" do
     end
@@ -59,6 +62,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       proto3_optional :scope_name, :string, 2
       proto3_optional :collection_name, :string, 3
       optional :name, :string, 4
+      proto3_optional :ignore_if_missing, :bool, 5
     end
     add_message "couchbase.admin.query.v1.DropIndexResponse" do
     end
@@ -68,6 +72,13 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       proto3_optional :collection_name, :string, 3
     end
     add_message "couchbase.admin.query.v1.BuildDeferredIndexesResponse" do
+      repeated :indexes, :message, 1, "couchbase.admin.query.v1.BuildDeferredIndexesResponse.IndexNameContext"
+    end
+    add_message "couchbase.admin.query.v1.BuildDeferredIndexesResponse.IndexNameContext" do
+      optional :bucket_name, :string, 1
+      proto3_optional :scope_name, :string, 2
+      proto3_optional :collection_name, :string, 3
+      optional :name, :string, 4
     end
     add_enum "couchbase.admin.query.v1.IndexType" do
       value :INDEX_TYPE_VIEW, 0
@@ -104,6 +115,7 @@ module Couchbase
             DropIndexResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.query.v1.DropIndexResponse").msgclass
             BuildDeferredIndexesRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.query.v1.BuildDeferredIndexesRequest").msgclass
             BuildDeferredIndexesResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.query.v1.BuildDeferredIndexesResponse").msgclass
+            BuildDeferredIndexesResponse::IndexNameContext = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.query.v1.BuildDeferredIndexesResponse.IndexNameContext").msgclass
             IndexType = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.query.v1.IndexType").enummodule
             IndexState = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.admin.query.v1.IndexState").enummodule
           end

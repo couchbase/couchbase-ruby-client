@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "couchbase/stellar_nebula"
+require "couchbase/protostellar"
 
-include Couchbase::StellarNebula
+include Couchbase::Protostellar
 
 cluster = Cluster.new("localhost",
                       ConnectOptions.new(username: "Administrator", password: "password"))

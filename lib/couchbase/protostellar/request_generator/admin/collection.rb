@@ -51,24 +51,27 @@ module Couchbase
             create_request(proto_req, :delete_scope, options)
           end
 
-          def create_collection_request(collection_spec, options)
+          def create_collection_request(scope_name, collection_name, settings, options)
             proto_opts = {}
-            proto_opts[:max_expiry_secs] = collection_spec.max_expiry unless collection_spec.max_expiry.nil?
+            proto_opts[:max_expiry_secs] = settings.max_expiry unless settings.max_expiry.nil?
+            unless settings.history.nil?
+              raise Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support the history setting"
+            end
 
             proto_req = Generated::Admin::Collection::V1::CreateCollectionRequest.new(
               bucket_name: @bucket_name,
-              scope_name: collection_spec.scope_name,
-              collection_name: collection_spec.name,
+              scope_name: scope_name,
+              collection_name: collection_name,
               **proto_opts
             )
             create_request(proto_req, :create_collection, options)
           end
 
-          def delete_collection_request(collection_spec, options)
+          def delete_collection_request(scope_name, collection_name, options)
             proto_req = Generated::Admin::Collection::V1::DeleteCollectionRequest.new(
               bucket_name: @bucket_name,
-              scope_name: collection_spec.scope_name,
-              collection_name: collection_spec.name
+              scope_name: scope_name,
+              collection_name: collection_name
             )
             create_request(proto_req, :delete_collection, options)
           end

@@ -1,0 +1,6 @@
+module Couchbase
+  interface _Cluster
+    def disconnect: () -> void
+    def bucket: (String name) -> Protostellar::Bucket
+  end
+end

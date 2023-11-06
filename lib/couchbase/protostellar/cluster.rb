@@ -36,21 +36,73 @@ module Couchbase
 
       attr_reader :client
 
-      def self.connect(connection_string, options = Couchbase::Options::Cluster.new)
-        params = parse_connection_string_params(connection_string)
 
+      # Connect to the Couchbase cluster
+      #
+      # @overload connect(connection_string, options)
+      #   @param [String] connection_string connection string used to locate the Couchbase Cluster
+      #   @param [Options::Cluster] options custom options when creating the cluster connection
+      #
+      # @overload connect(connection_string, username, password, options)
+      #   Shortcut for {PasswordAuthenticator}
+      #   @param [String] connection_string connection string used to locate the Couchbase Cluster
+      #   @param [String] username name of the user
+      #   @param [String] password password of the user
+      #   @param [Options::Cluster, nil] options custom options when creating the cluster connection
+      #
+      # @overload connect(configuration, options)
+      #   @param [Configuration] configuration configuration object
+      #   @param [Options::Cluster, nil] options custom options when creating the cluster connection
+      def self.connect(connection_string_or_config, *args)
+        connection_string = nil
+        username = nil
+        password = nil
+        options = nil
+
+        if connection_string_or_config.is_a?(Couchbase::Configuration)
+          connection_string = connection_string_or_config.connection_string
+          username = connection_string_or_config.username
+          password = connection_string_or_config.password
+          options = args[0] || Couchbase::Options::Cluster.new
+        else
+          connection_string = connection_string_or_config
+          case args[0]
+          when String
+            username = args[0]
+            password = args[1]
+            options = args[2] || Couchbase::Options::Cluster.new
+          when Couchbase::Options::Cluster
+            options = args[0]
+            case options.authenticator
+            when Couchbase::PasswordAuthenticator
+              username = options.authenticator.username
+              password = options.authenticator.password
+            when Couchbase::CertificateAuthenticator
+              raise Couchbase::Error::FeatureNotAvailable, "The #{Couchbase::Protostellar::NAME} protocol does not support the CertificateAuthenticator"
+            else
+              raise ArgumentError, "options must have authenticator configured"
+            end
+          else
+            raise ArgumentError, "unexpected second argument, have to be String or Couchbase::Options::Cluster"
+          end
+        end
+
+        raise ArgumentError, "missing username" unless username
+        raise ArgumentError, "missing password" unless password
+
+        params = parse_connection_string_params(connection_string)
         connect_options = ConnectOptions.new(
-          username: options.authenticator.username,
-          password: options.authenticator.password,
+          username: username,
+          password: password,
           timeouts: Protostellar::Timeouts.from_cluster_options(options),
           root_certificates: params.key?("trust_certificate") ? File.read(params["trust_certificate"]) : nil
         )
-        Cluster.new(connection_string.split("://")[1].split("?")[0], connect_options)
+        new(connection_string.split("://")[1].split("?")[0], connect_options)
       end
 
       def self.parse_connection_string_params(connection_string)
         params =
-          if connection_string.include? "?"
+          if connection_string.include?("?")
             connection_string.split("?")[1].split("&").to_h { |p| p.split("=") }
           else
             {}
@@ -58,23 +110,10 @@ module Couchbase
 
         # Show warnings for the connection string parameters that are not supported
         params.each do |k, v|
-          warn "Unknown parameter '#{k}' in connection string (value '#{v}')" unless VALID_CONNECTION_STRING_PARAMS.include?(k)
+          warn "Unsupported parameter '#{k}' in connection string (value '#{v}')" unless VALID_CONNECTION_STRING_PARAMS.include?(k)
         end
 
         params
-      end
-
-      def initialize(host, options = ConnectOptions.new)
-        @client = Client.new(
-          host: host.include?(":") ? host : "#{host}:18098",
-          credentials: options.grpc_credentials,
-          channel_args: options.grpc_channel_args,
-          call_metadata: options.grpc_call_metadata,
-          timeouts: options.timeouts
-        )
-
-        @query_request_generator = RequestGenerator::Query.new
-        @search_request_generator = RequestGenerator::Search.new
       end
 
       def disconnect
@@ -103,6 +142,21 @@ module Couchbase
         req = @search_request_generator.search_query_request(index_name, query, options)
         resp = @client.send_request(req)
         ResponseConverter::Search.to_search_result(resp, options)
+      end
+
+      private
+
+      def initialize(host, options = ConnectOptions.new)
+        @client = Client.new(
+          host: host.include?(":") ? host : "#{host}:18098",
+          credentials: options.grpc_credentials,
+          channel_args: options.grpc_channel_args,
+          call_metadata: options.grpc_call_metadata,
+          timeouts: options.timeouts
+        )
+
+        @query_request_generator = RequestGenerator::Query.new
+        @search_request_generator = RequestGenerator::Search.new
       end
     end
   end

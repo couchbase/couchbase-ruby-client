@@ -277,7 +277,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :size, :uint64, 3
     end
     add_message "couchbase.search.v1.SearchQueryResponse.TermFacetResult" do
-      optional :name, :string, 1
       optional :field, :string, 2
       optional :total, :int64, 3
       optional :missing, :int64, 4
@@ -291,7 +290,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :end, :message, 4, "google.protobuf.Timestamp"
     end
     add_message "couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult" do
-      optional :name, :string, 1
       optional :field, :string, 2
       optional :total, :int64, 3
       optional :missing, :int64, 4
@@ -305,7 +303,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :max, :uint64, 4
     end
     add_message "couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult" do
-      optional :name, :string, 1
       optional :field, :string, 2
       optional :total, :int64, 3
       optional :missing, :int64, 4

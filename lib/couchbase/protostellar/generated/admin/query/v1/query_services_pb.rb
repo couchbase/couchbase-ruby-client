@@ -12,6 +12,7 @@ module Couchbase
           module V1
             module QueryAdminService
               class Service
+
                 include ::GRPC::GenericService
 
                 self.marshal_class_method = :encode
@@ -19,13 +20,11 @@ module Couchbase
                 self.service_name = 'couchbase.admin.query.v1.QueryAdminService'
 
                 rpc :GetAllIndexes, ::Couchbase::Protostellar::Generated::Admin::Query::V1::GetAllIndexesRequest, ::Couchbase::Protostellar::Generated::Admin::Query::V1::GetAllIndexesResponse
-                rpc :CreatePrimaryIndex, ::Couchbase::Protostellar::Generated::Admin::Query::V1::CreatePrimaryIndexRequest,
-                    ::Couchbase::Protostellar::Generated::Admin::Query::V1::CreatePrimaryIndexResponse
+                rpc :CreatePrimaryIndex, ::Couchbase::Protostellar::Generated::Admin::Query::V1::CreatePrimaryIndexRequest, ::Couchbase::Protostellar::Generated::Admin::Query::V1::CreatePrimaryIndexResponse
                 rpc :CreateIndex, ::Couchbase::Protostellar::Generated::Admin::Query::V1::CreateIndexRequest, ::Couchbase::Protostellar::Generated::Admin::Query::V1::CreateIndexResponse
                 rpc :DropPrimaryIndex, ::Couchbase::Protostellar::Generated::Admin::Query::V1::DropPrimaryIndexRequest, ::Couchbase::Protostellar::Generated::Admin::Query::V1::DropPrimaryIndexResponse
                 rpc :DropIndex, ::Couchbase::Protostellar::Generated::Admin::Query::V1::DropIndexRequest, ::Couchbase::Protostellar::Generated::Admin::Query::V1::DropIndexResponse
-                rpc :BuildDeferredIndexes, ::Couchbase::Protostellar::Generated::Admin::Query::V1::BuildDeferredIndexesRequest,
-                    ::Couchbase::Protostellar::Generated::Admin::Query::V1::BuildDeferredIndexesResponse
+                rpc :BuildDeferredIndexes, ::Couchbase::Protostellar::Generated::Admin::Query::V1::BuildDeferredIndexesRequest, ::Couchbase::Protostellar::Generated::Admin::Query::V1::BuildDeferredIndexesResponse
               end
 
               Stub = Service.rpc_stub_class

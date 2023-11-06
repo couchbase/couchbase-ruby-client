@@ -23,6 +23,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :scope_name, :string, 2
       optional :collection_name, :string, 3
       optional :key, :string, 4
+      repeated :project, :string, 5
     end
     add_message "couchbase.kv.v1.GetResponse" do
       optional :content, :bytes, 1
@@ -54,19 +55,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
       optional :lock_time, :uint32, 5
     end
     add_message "couchbase.kv.v1.GetAndLockResponse" do
-      optional :content, :bytes, 1
-      optional :content_flags, :uint32, 6
-      optional :cas, :uint64, 3
-      optional :expiry, :message, 4, "google.protobuf.Timestamp"
-    end
-    add_message "couchbase.kv.v1.GetReplicaRequest" do
-      optional :bucket_name, :string, 1
-      optional :scope_name, :string, 2
-      optional :collection_name, :string, 3
-      optional :key, :string, 4
-      optional :replica_index, :uint32, 5
-    end
-    add_message "couchbase.kv.v1.GetReplicaResponse" do
       optional :content, :bytes, 1
       optional :content_flags, :uint32, 6
       optional :cas, :uint64, 3
@@ -315,6 +303,18 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     add_message "couchbase.kv.v1.MutateInResponse.Spec" do
       proto3_optional :content, :bytes, 1
     end
+    add_message "couchbase.kv.v1.GetAllReplicasRequest" do
+      optional :bucket_name, :string, 1
+      optional :scope_name, :string, 2
+      optional :collection_name, :string, 3
+      optional :key, :string, 4
+    end
+    add_message "couchbase.kv.v1.GetAllReplicasResponse" do
+      optional :is_replica, :bool, 1
+      optional :content, :bytes, 2
+      optional :content_flags, :uint32, 3
+      optional :cas, :uint64, 4
+    end
     add_message "couchbase.kv.v1.RangeScanRequest" do
       optional :bucket_name, :string, 1
       optional :scope_name, :string, 2
@@ -374,8 +374,6 @@ module Couchbase
           GetAndTouchResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.GetAndTouchResponse").msgclass
           GetAndLockRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.GetAndLockRequest").msgclass
           GetAndLockResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.GetAndLockResponse").msgclass
-          GetReplicaRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.GetReplicaRequest").msgclass
-          GetReplicaResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.GetReplicaResponse").msgclass
           UnlockRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.UnlockRequest").msgclass
           UnlockResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.UnlockResponse").msgclass
           TouchRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.TouchRequest").msgclass
@@ -413,6 +411,8 @@ module Couchbase
           MutateInRequest::StoreSemantic = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.MutateInRequest.StoreSemantic").enummodule
           MutateInResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.MutateInResponse").msgclass
           MutateInResponse::Spec = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.MutateInResponse.Spec").msgclass
+          GetAllReplicasRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.GetAllReplicasRequest").msgclass
+          GetAllReplicasResponse = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.GetAllReplicasResponse").msgclass
           RangeScanRequest = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.RangeScanRequest").msgclass
           RangeScanRequest::Range = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.RangeScanRequest.Range").msgclass
           RangeScanRequest::Sampling = ::Google::Protobuf::DescriptorPool.generated_pool.lookup("couchbase.kv.v1.RangeScanRequest.Sampling").msgclass

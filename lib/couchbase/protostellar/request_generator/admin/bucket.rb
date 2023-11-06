@@ -86,7 +86,7 @@ module Couchbase
           def extract_bucket_settings(settings, create: false)
             s = {bucket_name: settings.name}
             s[:bucket_type] = BUCKET_TYPE_MAP[settings.bucket_type] if create
-            s[:ram_quota_bytes] = settings.ram_quota_mb * (10**6) if create || !settings.ram_quota_mb.nil?
+            s[:ram_quota_mb] = settings.ram_quota_mb if create || !settings.ram_quota_mb.nil?
             s[:num_replicas] = settings.num_replicas if create || !settings.num_replicas.nil?
             s[:flush_enabled] = settings.flush_enabled unless settings.flush_enabled.nil?
             s[:replica_indexes] = settings.replica_indexes unless settings.replica_indexes.nil?

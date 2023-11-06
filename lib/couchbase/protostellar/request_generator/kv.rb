@@ -79,15 +79,20 @@ module Couchbase
         end
 
         def get_request(id, options)
+          proto_opts = {
+            project: options.projections
+          }
+
           proto_req = Generated::KV::V1::GetRequest.new(
             key: id,
-            **location
+            **location,
+            **proto_opts
           )
 
           create_kv_request(proto_req, :get, options, idempotent: true)
         end
 
-        def get_and_touch_request(id, expiry, _options)
+        def get_and_touch_request(id, expiry, options)
           expiry_type, expiry_value = get_expiry(expiry)
 
           raise ArgumentError, "Expiry cannot be nil" if expiry_value.nil?
@@ -229,12 +234,19 @@ module Couchbase
         end
 
         def mutate_in_request(id, specs, options)
+          if options.create_as_deleted
+            raise Error::FeatureNotAvailable, "The #{Couchbase::Protostellar::NAME} protocol does not support create_as_deleted"
+          end
+
           proto_opts = {
             flags: get_mutate_in_flags(options),
             store_semantic: get_mutate_in_store_semantic(options),
             durability_level: get_durability_level(options),
           }
           proto_opts[:cas] = options.cas unless options.cas.nil?
+
+          expiry_type, expiry_value = get_expiry(options)
+          proto_opts[expiry_type] = expiry_value unless expiry_value.nil?
 
           proto_req = Generated::KV::V1::MutateInRequest.new(
             key: id,
@@ -339,6 +351,7 @@ module Couchbase
 
         def get_expiry(options_or_expiry)
           if options_or_expiry.respond_to? :expiry
+            return [:expiry_secs, options_or_expiry.expiry] unless options_or_expiry.expiry.is_a?(Array)
             type, time_or_duration = options_or_expiry.expiry
           else
             type, time_or_duration = Couchbase::Utils::Time.extract_expiry_time(options_or_expiry)
@@ -351,8 +364,7 @@ module Couchbase
             [:expiry_secs, time_or_duration]
           when :time_point
             timestamp = Google::Protobuf::Timestamp.new(
-              seconds: time_or_duration.tv_sec,
-              nanos: time_or_duration.tv_nsec
+              seconds: time_or_duration
             )
             [:expiry_time, timestamp]
           else
@@ -393,6 +405,10 @@ module Couchbase
         end
 
         def get_mutate_in_spec(mutate_in_spec)
+          if mutate_in_spec.expand_macros?
+            raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support expanding macros"
+          end
+
           Generated::KV::V1::MutateInRequest::Spec.new(
             operation: get_mutate_in_operation(mutate_in_spec),
             path: mutate_in_spec.path,

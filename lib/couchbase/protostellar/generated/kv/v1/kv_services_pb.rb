@@ -11,6 +11,7 @@ module Couchbase
         module V1
           module KvService
             class Service
+
               include ::GRPC::GenericService
 
               self.marshal_class_method = :encode
@@ -21,7 +22,6 @@ module Couchbase
               rpc :GetAndTouch, ::Couchbase::Protostellar::Generated::KV::V1::GetAndTouchRequest, ::Couchbase::Protostellar::Generated::KV::V1::GetAndTouchResponse
               rpc :GetAndLock, ::Couchbase::Protostellar::Generated::KV::V1::GetAndLockRequest, ::Couchbase::Protostellar::Generated::KV::V1::GetAndLockResponse
               rpc :Unlock, ::Couchbase::Protostellar::Generated::KV::V1::UnlockRequest, ::Couchbase::Protostellar::Generated::KV::V1::UnlockResponse
-              rpc :GetReplica, ::Couchbase::Protostellar::Generated::KV::V1::GetReplicaRequest, ::Couchbase::Protostellar::Generated::KV::V1::GetReplicaResponse
               rpc :Touch, ::Couchbase::Protostellar::Generated::KV::V1::TouchRequest, ::Couchbase::Protostellar::Generated::KV::V1::TouchResponse
               rpc :Exists, ::Couchbase::Protostellar::Generated::KV::V1::ExistsRequest, ::Couchbase::Protostellar::Generated::KV::V1::ExistsResponse
               rpc :Insert, ::Couchbase::Protostellar::Generated::KV::V1::InsertRequest, ::Couchbase::Protostellar::Generated::KV::V1::InsertResponse
@@ -34,6 +34,7 @@ module Couchbase
               rpc :Prepend, ::Couchbase::Protostellar::Generated::KV::V1::PrependRequest, ::Couchbase::Protostellar::Generated::KV::V1::PrependResponse
               rpc :LookupIn, ::Couchbase::Protostellar::Generated::KV::V1::LookupInRequest, ::Couchbase::Protostellar::Generated::KV::V1::LookupInResponse
               rpc :MutateIn, ::Couchbase::Protostellar::Generated::KV::V1::MutateInRequest, ::Couchbase::Protostellar::Generated::KV::V1::MutateInResponse
+              rpc :GetAllReplicas, ::Couchbase::Protostellar::Generated::KV::V1::GetAllReplicasRequest, stream(::Couchbase::Protostellar::Generated::KV::V1::GetAllReplicasResponse)
               rpc :RangeScan, ::Couchbase::Protostellar::Generated::KV::V1::RangeScanRequest, ::Couchbase::Protostellar::Generated::KV::V1::RangeScanResponse
             end
 
