@@ -106,4 +106,6 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
   spec.extensions = ["ext/extconf.rb"]
   spec.rdoc_options << "--exclude" << "ext/"
+
+  spec.add_dependency "grpc", "~> 1.59"
 end

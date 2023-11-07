@@ -52,6 +52,8 @@ module Couchbase
     end
 
     def test_reads_from_replica
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support replica reads yet") if env.protostellar?
+
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       options =
@@ -509,10 +511,16 @@ module Couchbase
       test_cases = [
         {name: "simple", project: %w[name age animals],
          expected: {"name" => person["name"], "age" => person["age"], "animals" => person["animals"]}},
-
-        {name: "array entries", project: %w[animals[1] animals[0]],
-         expected: {"animals" => [person["animals"][1], person["animals"][0]]}},
       ]
+
+      test_cases << if env.protostellar?
+                      {name: "array entries", project: %w[animals[1] animals[0]],
+                       expected: {"animals" => [person["animals"][0], person["animals"][1]]}}
+                    else
+                      # In protostellar the order in the original document is preserved by design
+                      {name: "array entries", project: %w[animals[1] animals[0]],
+                       expected: {"animals" => [person["animals"][1], person["animals"][0]]}}
+                    end
 
       test_cases.each do |test_case|
         options = Collection::GetOptions.new
@@ -525,6 +533,8 @@ module Couchbase
     end
 
     def test_projection_preserve_array_indexes
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support the preserve_array_indexes option") if env.protostellar?
+
       doc_id = uniq_id(:project_doc)
       person = load_json_test_dataset("projection_doc")
 
@@ -636,12 +646,15 @@ module Couchbase
         end
         hits -= 1
       end
+      Couchbase::JsonTranscoder.new
     end
 
     # Following test tests that if a collection is deleted and recreated midway through a set of operations then the
     # operations will still succeed due to the cid being refreshed under the hood.
     def test_collection_retry
-      skip("The server does not support collections (#{env.server_version})") unless env.server_version.supports_collections?
+      skip("#{name}: __wait_for_collections_manifest cannot be used with #{Couchbase::Protostellar::NAME}") if env.protostellar?
+      skip("#{name}: The server does not support collections (#{env.server_version})") unless env.server_version.supports_collections?
+
       doc_id = uniq_id(:test_collection_retry)
       doc = load_json_test_dataset("beer_sample_single")
 
@@ -748,6 +761,8 @@ module Couchbase
     end
 
     def test_multi_ops
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
       doc_id1 = uniq_id(:foo)
       doc_id2 = uniq_id(:bar)
 
@@ -799,6 +814,8 @@ module Couchbase
     end
 
     def test_massive_multi_ops
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
       # github often chokes on such a big batches (and raises Error::Timeout)
       num_keys = ENV.fetch("TEST_MASSIVE_MULTI_OPS_NUM_KEYS", nil) || 1_000
       keys = (0..num_keys).map { |idx| uniq_id("key_#{idx}") }
@@ -823,7 +840,9 @@ module Couchbase
 
     def test_preserve_expiry
       skip("#{name}: CAVES does not support preserve expiry") if use_caves?
-      skip("The server does not support preserve expiry (#{env.server_version})") unless env.server_version.supports_preserve_expiry?
+      unless env.server_version.supports_preserve_expiry?
+        skip("#{name}: The server does not support preserve expiry (#{env.server_version})")
+      end
 
       doc_id = uniq_id(:foo)
       res = @collection.upsert(doc_id, {answer: 42}, Options::Upsert(expiry: 1))

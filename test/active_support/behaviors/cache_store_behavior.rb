@@ -112,6 +112,8 @@ module CacheStoreBehavior
   end
 
   def test_read_multi
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key = SecureRandom.uuid
     @cache.write(key, "bar")
     other_key = SecureRandom.uuid
@@ -121,6 +123,8 @@ module CacheStoreBehavior
   end
 
   def test_read_multi_with_expires
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     time = Time.now
     key = SecureRandom.uuid
     other_key = SecureRandom.uuid
@@ -133,12 +137,16 @@ module CacheStoreBehavior
   end
 
   def test_read_multi_with_empty_keys_and_a_logger_and_no_namespace
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     @cache.options[:namespace] = nil
     @cache.logger = ActiveSupport::Logger.new(nil)
     assert_equal({}, @cache.read_multi)
   end
 
   def test_fetch_multi
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key = SecureRandom.uuid
     other_key = SecureRandom.uuid
     third_key = SecureRandom.alphanumeric
@@ -152,6 +160,8 @@ module CacheStoreBehavior
   end
 
   def test_fetch_multi_without_expires_in
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key = SecureRandom.uuid
     other_key = SecureRandom.uuid
     third_key = SecureRandom.alphanumeric
@@ -165,6 +175,8 @@ module CacheStoreBehavior
   end
 
   def test_fetch_multi_with_objects
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key = SecureRandom.uuid
     other_key = SecureRandom.uuid
     cache_struct = Struct.new(:cache_key, :title)
@@ -179,6 +191,8 @@ module CacheStoreBehavior
   end
 
   def test_fetch_multi_returns_ordered_names
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key = SecureRandom.alphanumeric.downcase
     other_key = SecureRandom.alphanumeric.downcase
     third_key = SecureRandom.alphanumeric.downcase
@@ -191,6 +205,8 @@ module CacheStoreBehavior
   end
 
   def test_fetch_multi_without_block
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     assert_raises(ArgumentError) do
       @cache.fetch_multi(SecureRandom.alphanumeric)
     end
@@ -437,6 +453,8 @@ module CacheStoreBehavior
   end
 
   def test_delete_multi
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key = SecureRandom.alphanumeric
     @cache.write(key, "bar")
     assert @cache.exist?(key)
@@ -456,6 +474,8 @@ module CacheStoreBehavior
   end
 
   def test_expires_in
+    skip("#{name}: The time mocking interferes with the deadline calculation in  #{Couchbase::Protostellar::NAME}") if env.protostellar?
+
     time = Time.local(2008, 4, 24)
 
     key = SecureRandom.alphanumeric
@@ -485,6 +505,8 @@ module CacheStoreBehavior
   end
 
   def test_expires_at
+    skip("#{name}: The time mocking interferes with the deadline calculation in  #{Couchbase::Protostellar::NAME}") if env.protostellar?
+
     time = Time.local(2008, 4, 24)
 
     key = SecureRandom.alphanumeric
@@ -503,6 +525,8 @@ module CacheStoreBehavior
   end
 
   def test_expire_in_is_alias_for_expires_in
+    skip("#{name}: The time mocking interferes with the deadline calculation in  #{Couchbase::Protostellar::NAME}") if env.protostellar?
+
     time = Time.local(2008, 4, 24)
 
     key = SecureRandom.alphanumeric
@@ -521,6 +545,8 @@ module CacheStoreBehavior
   end
 
   def test_expired_in_is_alias_for_expires_in
+    skip("#{name}: The time mocking interferes with the deadline calculation in  #{Couchbase::Protostellar::NAME}") if env.protostellar?
+
     time = Time.local(2008, 4, 24)
 
     key = SecureRandom.alphanumeric
@@ -609,6 +635,8 @@ module CacheStoreBehavior
   end
 
   def test_really_long_keys
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key = SecureRandom.alphanumeric * 2048
     assert @cache.write(key, "bar")
     assert_equal "bar", @cache.read(key)

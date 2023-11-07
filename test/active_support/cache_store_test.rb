@@ -30,6 +30,7 @@ module Couchbase
     end
 
     def test_clear
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support consistent_with yet") if env.protostellar?
       skip("#{name}: CAVES does not support query service yet for clear in cache adapter") if use_caves?
 
       foo = uniq_id(:foo)
@@ -85,6 +86,7 @@ module Couchbase
     end
 
     def test_delete_matched
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support consistent_with yet") if env.protostellar?
       skip("#{name}: CAVES does not support query service yet for delete_matched in cache adapter") if use_caves?
       skip("#{name}: delete_matched is not stable on 6.x servers, version=#{env.server_version}") if env.server_version.mad_hatter?
 
@@ -109,6 +111,8 @@ module Couchbase
     end
 
     def test_delete_multi
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
       foo = uniq_id(:foo)
       @cache.write(foo, "value_foo")
       bar = uniq_id(:bar)
@@ -120,6 +124,8 @@ module Couchbase
     end
 
     def test_read_multi
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
       foo = uniq_id(:foo)
       @cache.write(foo, "value_foo")
       bar = uniq_id(:bar)
@@ -132,6 +138,8 @@ module Couchbase
     end
 
     def test_write_multi
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
       foo = uniq_id(:foo)
       bar = uniq_id(:bar)
       success_count = @cache.write_multi(foo => "value_foo", bar => "value_bar")

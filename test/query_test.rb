@@ -29,7 +29,11 @@ module Couchbase
       options = Management::QueryIndexManager::CreatePrimaryIndexOptions.new
       options.ignore_if_exists = true
       options.timeout = 300_000 # give it up to 5 minutes
-      @cluster.query_indexes.create_primary_index(@bucket.name, options)
+      begin
+        @cluster.query_indexes.create_primary_index(@bucket.name, options)
+      rescue Error::IndexExists
+        # Ignored
+      end
     end
 
     def teardown
@@ -96,6 +100,9 @@ module Couchbase
     end
 
     def test_readonly_violation
+      # TODO: Remove skip for protostellar once the gateway handles this error
+      skip("#{name}: Failing for #{Couchbase::Protostellar::NAME} because the gateway returns unknown error currently") if env.protostellar?
+
       options = Cluster::QueryOptions.new
       options.readonly = true
 
@@ -147,7 +154,7 @@ module Couchbase
     end
 
     def test_parsing_error_on_bad_query
-      assert_raises(Error::ParsingFailure) do
+      assert_raises(env.protostellar? ? Error::InvalidArgument : Error::ParsingFailure) do
         @cluster.query('BAD QUERY')
       end
     end
@@ -183,6 +190,8 @@ module Couchbase
     end
 
     def test_consistent_with
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support consistent_with yet") if env.protostellar?
+
       doc_id = uniq_id(:foo)
       res = @collection.insert(doc_id, {"foo" => "bar"})
 
@@ -229,12 +238,12 @@ module Couchbase
 
       manager = @bucket.collections
       ns_uid = manager.create_scope(scope_name)
-      __wait_for_collections_manifest(ns_uid)
+      __wait_for_collections_manifest(ns_uid) unless env.protostellar?
       spec = Management::CollectionSpec.new
       spec.scope_name = scope_name
       spec.name = collection_name
       ns_uid = manager.create_collection(spec)
-      __wait_for_collections_manifest(ns_uid)
+      __wait_for_collections_manifest(ns_uid) unless env.protostellar?
       time_travel(3)
 
       manager = @cluster.query_indexes

@@ -113,6 +113,7 @@ class ServerVersion
 end
 
 require "couchbase"
+require "couchbase/protostellar"
 require "json"
 require "securerandom"
 
@@ -158,6 +159,10 @@ module Couchbase
 
     def server_version
       @server_version ||= ServerVersion.new(ENV.fetch("TEST_SERVER_VERSION", nil) || "6.6.0", developer_preview: developer_preview?)
+    end
+
+    def protostellar?
+      Couchbase::Protostellar::SCHEMES.any? { |s| !@connection_string[s].nil? }
     end
   end
 

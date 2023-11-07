@@ -2,6 +2,8 @@
 
 module CacheInstrumentationBehavior
   def test_fetch_multi_uses_write_multi_entries_store_provider_interface
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     assert_called(@cache, :write_multi_entries) do
       @cache.fetch_multi "a", "b", "c" do |key|
         key * 2
@@ -10,6 +12,8 @@ module CacheInstrumentationBehavior
   end
 
   def test_write_multi_instrumentation
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key_1 = SecureRandom.uuid
     key_2 = SecureRandom.uuid
     value_1 = SecureRandom.alphanumeric
@@ -26,6 +30,8 @@ module CacheInstrumentationBehavior
   end
 
   def test_instrumentation_with_fetch_multi_as_super_operation
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key_1 = SecureRandom.uuid
     @cache.write(key_1, SecureRandom.alphanumeric)
 
@@ -43,6 +49,8 @@ module CacheInstrumentationBehavior
   end
 
   def test_instrumentation_empty_fetch_multi
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     events = with_instrumentation "read_multi" do
       @cache.fetch_multi() { |key| key * 2 }
     end
@@ -55,6 +63,8 @@ module CacheInstrumentationBehavior
   end
 
   def test_read_multi_instrumentation
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key_1 = SecureRandom.uuid
     @cache.write(key_1, SecureRandom.alphanumeric)
 
@@ -71,6 +81,8 @@ module CacheInstrumentationBehavior
   end
 
   def test_empty_read_multi_instrumentation
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     events = with_instrumentation "read_multi" do
       @cache.read_multi()
     end

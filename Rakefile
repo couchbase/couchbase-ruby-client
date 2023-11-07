@@ -14,6 +14,7 @@
 
 require "bundler/gem_tasks"
 require "rake/testtask"
+require "rubocop/rake_task"
 
 Rake::TestTask.new(:test) do |t|
   t.libs << "test"
@@ -64,3 +65,7 @@ end
 
 desc "Build the package"
 task :build => :render_git_revision
+
+RuboCop::RakeTask.new
+
+load "task/grpc.rake"

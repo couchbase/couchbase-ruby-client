@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "securerandom"
 require_relative "test_helper"
 
 module Couchbase
@@ -26,8 +27,8 @@ module Couchbase
       connect
       @bucket = @cluster.bucket(env.bucket)
 
-      @scope_name = uniq_id(:scope).tr(".", "")
-      collection_name = uniq_id(:collection).tr(".", "")
+      @scope_name = Random.uuid
+      collection_name = Random.uuid
 
       collection_mgr = @bucket.collections
       collection_mgr.create_scope(@scope_name)
@@ -38,6 +39,8 @@ module Couchbase
       end
 
       @collection = @bucket.scope(@scope_name).collection(collection_name)
+
+      sleep(1)
 
       # Upsert something in the collection to make sure it's been created
       retry_for_duration(expected_errors: [Error::CouchbaseError]) do
@@ -50,6 +53,18 @@ module Couchbase
     def teardown
       @bucket.collections.drop_scope(@scope_name) if defined? @bucket
       disconnect
+    end
+
+    def test_get_all_indexes
+      index_names = [uniq_id(:foo), uniq_id(:bar)]
+      index_names.each { |idx_name| @idx_mgr.create_index(idx_name, ["foo"]) }
+
+      res = @idx_mgr.get_all_indexes
+
+      assert_predicate res.length, :positive?
+      index_names.each do |idx_name|
+        assert_includes(res.map(&:name), idx_name)
+      end
     end
 
     def test_collection_query_indexes

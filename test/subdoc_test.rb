@@ -933,6 +933,8 @@ module Couchbase
     end
 
     def test_insert_expand_macro_xattr
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support expanding macros") if env.protostellar?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -950,6 +952,8 @@ module Couchbase
     end
 
     def test_upsert_expand_macro_xattr
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support expanding macros") if env.protostellar?
+
       doc_id = uniq_id(:foo)
 
       @collection.upsert(doc_id, {})
@@ -1258,13 +1262,15 @@ module Couchbase
     end
 
     def test_multiple_xattr_keys_should_fail
+      # TODO: Remove skip for protostellar once it is handled in the gateway
+      skip("#{name}: Failing for #{Couchbase::Protostellar::NAME} because the gateway is not handling it currently") if env.protostellar?
       skip("#{name}: CAVES does not support subdoc create path yet") if use_caves?
 
       doc_id = uniq_id(:foo)
 
       options = Collection::MutateInOptions.new
       options.store_semantics = :upsert
-      assert_raises Error::XattrInvalidKeyCombo do
+      assert_raises env.protostellar? ? Error::InvalidArgument : Error::XattrInvalidKeyCombo do
         @collection.mutate_in(doc_id, [
                                 MutateInSpec.increment("count", 1).xattr.create_path,
                                 MutateInSpec.insert("logs", "bar1").xattr.create_path,
@@ -1286,6 +1292,7 @@ module Couchbase
 
     def test_create_tombstones
       skip("#{name}: CAVES does not support subdoc tombstones yet") if use_caves?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support create_as_deleted") if env.protostellar?
 
       doc_id = uniq_id(:foo)
 
@@ -1323,6 +1330,7 @@ module Couchbase
     def test_lookup_in_any_replica_get
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
@@ -1339,6 +1347,7 @@ module Couchbase
     def test_lookup_in_all_replicas_get
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
@@ -1359,6 +1368,7 @@ module Couchbase
     def test_lookup_in_any_replica_get_doc
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
@@ -1375,6 +1385,7 @@ module Couchbase
     def test_lookup_in_all_replicas_get_doc
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
@@ -1395,6 +1406,7 @@ module Couchbase
     def test_lookup_in_any_replica_exists
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
@@ -1416,6 +1428,7 @@ module Couchbase
     def test_lookup_in_all_replicas_exist
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
@@ -1441,6 +1454,7 @@ module Couchbase
     def test_lookup_in_any_replica_bad_key
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       assert_raises(Error::DocumentIrretrievable) do
@@ -1453,6 +1467,7 @@ module Couchbase
     def test_lookup_in_all_replicas_bad_key
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       assert_raises(Error::DocumentNotFound) do
@@ -1471,10 +1486,11 @@ module Couchbase
                                     LookupInSpec.get("value.."),
                                   ])
 
-      assert_raises(Error::PathInvalid) do
+      # In Protostellar InvalidArgument is raised since this is an error that is unambiguously an application fault
+      assert_raises(env.protostellar? ? Error::InvalidArgument : Error::PathInvalid) do
         res.exists?(0)
       end
-      assert_raises(Error::PathInvalid) do
+      assert_raises(env.protostellar? ? Error::InvalidArgument : Error::PathInvalid) do
         res.content(0)
       end
     end
@@ -1499,6 +1515,7 @@ module Couchbase
     def test_lookup_in_any_replica_path_invalid
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
@@ -1508,10 +1525,11 @@ module Couchbase
                                                 LookupInSpec.count("value.."),
                                               ])
 
-      assert_raises(Error::PathInvalid) do
+      # In Protostellar InvalidArgument is raised since this is an error that is unambiguously an application fault
+      assert_raises(env.protostellar? ? Error::InvalidArgument : Error::PathInvalid) do
         res.exists?(0)
       end
-      assert_raises(Error::PathInvalid) do
+      assert_raises(env.protostellar? ? Error::InvalidArgument : Error::PathInvalid) do
         res.content(0)
       end
     end
@@ -1519,6 +1537,7 @@ module Couchbase
     def test_lookup_in_any_replica_path_mismatch
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
@@ -1539,6 +1558,7 @@ module Couchbase
     def test_lookup_in_all_replicas_path_invalid
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
@@ -1549,10 +1569,11 @@ module Couchbase
                                                ])
 
       res.each do |entry|
-        assert_raises(Error::PathInvalid) do
+        # In Protostellar InvalidArgument is raised since this is an error that is unambiguously an application fault
+        assert_raises(env.protostellar? ? Error::InvalidArgument : Error::PathInvalid) do
           entry.exists?(0)
         end
-        assert_raises(Error::PathInvalid) do
+        assert_raises(env.protostellar? ? Error::InvalidArgument : Error::PathInvalid) do
           entry.content(0)
         end
       end
@@ -1561,6 +1582,7 @@ module Couchbase
     def test_lookup_in_all_replicas_path_mismatch
       skip("#{name}: CAVES does not support subdoc read from replica yet") if use_caves?
       skip("#{name}: Server does not support subdoc read from replica") unless env.server_version.supports_subdoc_read_from_replica?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
 
       doc_id = uniq_id(:foo)
       document = {"value" => 42}

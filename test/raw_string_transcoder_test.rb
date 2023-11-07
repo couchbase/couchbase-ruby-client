@@ -18,46 +18,48 @@ require "couchbase/raw_string_transcoder"
 require "couchbase/transcoder_flags"
 require "couchbase/errors"
 
-class RawStringTranscoderTest < Minitest::Test
-  include Couchbase::TestUtilities
+module Couchbase
+  class RawStringTranscoderTest < Minitest::Test
+    include Couchbase::TestUtilities
 
-  def setup
-    @transcoder = Couchbase::RawStringTranscoder.new
-  end
+    def setup
+      @transcoder = Couchbase::RawStringTranscoder.new
+    end
 
-  def test_encode_string
-    document = "foo"
-    encoded, flag = @transcoder.encode(document)
+    def test_encode_string
+      document = "foo"
+      encoded, flag = @transcoder.encode(document)
 
-    assert_equal 4, flag >> 24
-    assert_equal "foo", encoded
-  end
+      assert_equal 4, flag >> 24
+      assert_equal "foo", encoded
+    end
 
-  def test_encode_binary
-    document = "\x00\xff"
+    def test_encode_binary
+      document = "\x00\xff"
 
-    assert_raises(Couchbase::Error::EncodingFailure) { @transcoder.encode(document) }
-  end
+      assert_raises(Couchbase::Error::EncodingFailure) { @transcoder.encode(document) }
+    end
 
-  def test_encode_number
-    document = 42
+    def test_encode_number
+      document = 42
 
-    assert_raises(Couchbase::Error::EncodingFailure) { @transcoder.encode(document) }
-  end
+      assert_raises(Couchbase::Error::EncodingFailure) { @transcoder.encode(document) }
+    end
 
-  def test_decode
-    blob = "foo"
-    flag = Couchbase::TranscoderFlags.new(format: :string).encode
+    def test_decode
+      blob = "foo"
+      flag = Couchbase::TranscoderFlags.new(format: :string).encode
 
-    decoded = @transcoder.decode(blob, flag)
+      decoded = @transcoder.decode(blob, flag)
 
-    assert_equal "foo", decoded
-  end
+      assert_equal "foo", decoded
+    end
 
-  def test_decode_invalid_flag
-    blob = "\xff\x00"
-    flag = Couchbase::TranscoderFlags.new(format: :binary).encode
+    def test_decode_invalid_flag
+      blob = "\xff\x00"
+      flag = Couchbase::TranscoderFlags.new(format: :binary).encode
 
-    assert_raises(Couchbase::Error::DecodingFailure) { @transcoder.decode(blob, flag) }
+      assert_raises(Couchbase::Error::DecodingFailure) { @transcoder.decode(blob, flag) }
+    end
   end
 end

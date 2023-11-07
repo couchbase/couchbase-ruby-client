@@ -19,6 +19,8 @@ module Couchbase
     include TestUtilities
 
     def setup
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+
       connect
       skip("#{name}: CAVES does not support query service yet") if use_caves?
       @bucket = @cluster.bucket(env.bucket)

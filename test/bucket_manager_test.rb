@@ -41,6 +41,7 @@ module Couchbase
 
     def test_create_bucket_history_retention
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support history retention") if env.protostellar?
 
       bucket_name = get_bucket_name
       @bucket_manager.create_bucket(
@@ -62,6 +63,7 @@ module Couchbase
 
     def test_create_bucket_history_retention_unsupported
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support history retention") if env.protostellar?
 
       bucket_name = get_bucket_name
       assert_raises(Error::InvalidArgument) do
@@ -79,6 +81,7 @@ module Couchbase
 
     def test_update_bucket_history_retention
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support history retention") if env.protostellar?
 
       bucket_name = get_bucket_name
       @bucket_manager.create_bucket(
@@ -113,6 +116,7 @@ module Couchbase
 
     def test_update_bucket_history_retention_unsupported
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support history retention") if env.protostellar?
 
       bucket_name = get_bucket_name
       @bucket_manager.create_bucket(

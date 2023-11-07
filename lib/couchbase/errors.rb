@@ -1,4 +1,4 @@
-#  Copyright 2020-2021 Couchbase, Inc.
+#  Copyright 2020-2023 Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -59,6 +59,12 @@ module Couchbase
 
     # Every exception that has to do with authentication problems should either instantiate or subclass from this type.
     class AuthenticationFailure < CouchbaseError
+    end
+
+    # Indicates that the user has insufficient permissions to perform the operation
+    #
+    # @api uncommitted
+    class PermissionDenied < CouchbaseError
     end
 
     class TemporaryFailure < CouchbaseError

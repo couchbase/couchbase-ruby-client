@@ -25,6 +25,7 @@ module Couchbase
     def setup
       skip("#{name}: CAVES does not support range scan") if use_caves?
       skip("#{name}: Server does not support range scan (#{env.server_version})") unless env.server_version.supports_range_scan?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support history retention") if env.protostellar?
 
       connect
       @bucket = @cluster.bucket(env.bucket)
@@ -380,7 +381,7 @@ module Couchbase
     include TestUtilities
 
     def setup
-      skip("#{name}: Server supports range scan (#{env.server_version})") if env.server_version.supports_range_scan?
+      skip("#{name}: Server supports range scan (#{env.server_version})") if !env.protostellar? && env.server_version.supports_range_scan?
 
       connect
       @bucket = @cluster.bucket(env.bucket)

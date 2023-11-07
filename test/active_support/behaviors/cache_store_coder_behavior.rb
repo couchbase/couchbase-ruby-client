@@ -43,6 +43,8 @@ module CacheStoreCoderBehavior
   end
 
   def test_coder_receive_the_entry_on_read_multi
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     coder = SpyCoder.new
     @store = lookup_store(coder: coder)
     @store.write_multi({ "foo" => "bar", "egg" => "spam" })
@@ -58,6 +60,8 @@ module CacheStoreCoderBehavior
   end
 
   def test_coder_receive_the_entry_on_write_multi
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     coder = SpyCoder.new
     @store = lookup_store(coder: coder)
     @store.write_multi({ "foo" => "bar", "egg" => "spam" })

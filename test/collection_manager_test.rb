@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "securerandom"
 require "test_helper"
 
 module Couchbase
@@ -37,7 +38,7 @@ module Couchbase
     end
 
     def get_scope_name
-      name = uniq_id(:coll_mgr_test)
+      name = Random.uuid
       @used_scopes << name
       name
     end
@@ -208,6 +209,7 @@ module Couchbase
 
     def test_create_collection_history_retention
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support history retention") if env.protostellar?
 
       create_magma_bucket
       scope_name = get_scope_name
@@ -227,6 +229,7 @@ module Couchbase
     end
 
     def test_update_collection_history_retention
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
       skip("#{name}: Server does not support update_collection") unless env.server_version.supports_update_collection?
 
@@ -256,6 +259,7 @@ module Couchbase
     end
 
     def test_create_collection_history_retention_unsupported
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support history retention") if env.protostellar?
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
 
       scope_name = get_scope_name
@@ -272,6 +276,7 @@ module Couchbase
     end
 
     def test_update_collection_history_retention_unsupported
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
       skip("#{name}: Server does not support update_collection") unless env.server_version.supports_update_collection?
 
@@ -298,21 +303,22 @@ module Couchbase
 
     def test_create_collection_max_expiry
       scope_name = get_scope_name
-      collection_name = 'test-coll'
+      collection_name = 'testcoll'
       @collection_manager.create_scope(scope_name)
       scope = get_scope(scope_name)
 
       assert scope
 
-      settings = Management::CreateCollectionSettings.new(max_expiry: 1)
+      settings = Management::CreateCollectionSettings.new(max_expiry: 5)
       @collection_manager.create_collection(scope_name, collection_name, settings)
 
       coll_spec = get_collection(scope_name, collection_name)
 
       assert coll_spec
-      assert_equal 1, coll_spec.max_expiry
+      assert_equal 5, coll_spec.max_expiry
 
-      # Upsert a document and verify that it cannot be found after 1 second
+      # Upsert a document and verify that it cannot be found after 5 seconds
+      sleep(1)
       key = 'test-doc'
       content = {'foo' => 'bar'}
       coll = @bucket.scope(scope_name).collection(collection_name)
@@ -322,7 +328,7 @@ module Couchbase
 
       assert_equal content, coll.get(key).content
 
-      sleep(1)
+      sleep(4)
 
       retry_until_error(error: Error::DocumentNotFound) do
         coll.get(key)
@@ -330,6 +336,7 @@ module Couchbase
     end
 
     def test_update_collection_max_expiry
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
       unless env.server_version.supports_update_collection_max_expiry?
         skip("#{name}: Server does not support update_collection with max_expiry")
       end
@@ -375,6 +382,7 @@ module Couchbase
     end
 
     def test_update_collection_does_not_exist
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
       unless env.server_version.supports_update_collection_max_expiry?
         skip("#{name}: Server does not support update_collection with max_expiry")
       end
@@ -393,6 +401,7 @@ module Couchbase
     end
 
     def test_update_collection_scope_does_not_exist
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
       unless env.server_version.supports_update_collection_max_expiry?
         skip("#{name}: Server does not support update_collection with max_expiry")
       end

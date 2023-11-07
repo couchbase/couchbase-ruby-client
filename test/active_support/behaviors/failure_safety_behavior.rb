@@ -37,6 +37,8 @@ module FailureSafetyBehavior
   end
 
   def test_read_multi_failure_returns_empty_hash
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key = SecureRandom.uuid
     other_key = SecureRandom.uuid
     @cache.write_multi(
@@ -68,6 +70,8 @@ module FailureSafetyBehavior
   end
 
   def test_fetch_multi_failure_returns_fallback_results
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key = SecureRandom.uuid
     other_key = SecureRandom.uuid
     @cache.write_multi(

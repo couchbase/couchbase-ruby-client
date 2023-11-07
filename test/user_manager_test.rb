@@ -19,6 +19,8 @@ module Couchbase
     include TestUtilities
 
     def setup
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support user management") if env.protostellar?
+
       connect
       @test_username = "test_user"
       @test_password = "a_password"
@@ -70,6 +72,8 @@ module Couchbase
     end
 
     def teardown
+      return if @test_username.nil?
+
       connect
       @cluster.users.drop_user(@test_username)
       disconnect

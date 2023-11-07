@@ -18,41 +18,43 @@ require "couchbase/raw_binary_transcoder"
 require "couchbase/transcoder_flags"
 require "couchbase/errors"
 
-class RawBinaryTranscoderTest < Minitest::Test
-  include Couchbase::TestUtilities
+module Couchbase
+  class RawBinaryTranscoderTest < Minitest::Test
+    include Couchbase::TestUtilities
 
-  def setup
-    @transcoder = Couchbase::RawBinaryTranscoder.new
-  end
+    def setup
+      @transcoder = Couchbase::RawBinaryTranscoder.new
+    end
 
-  def test_encode_binary
-    document = "\x00\xff"
+    def test_encode_binary
+      document = "\x00\xff"
 
-    encoded, flag = @transcoder.encode(document)
+      encoded, flag = @transcoder.encode(document)
 
-    assert_equal 3, flag >> 24
-    assert_equal "\x00\xff", encoded
-  end
+      assert_equal 3, flag >> 24
+      assert_equal "\x00\xff", encoded
+    end
 
-  def test_encode_number
-    document = 42
+    def test_encode_number
+      document = 42
 
-    assert_raises(Couchbase::Error::EncodingFailure) { @transcoder.encode(document) }
-  end
+      assert_raises(Couchbase::Error::EncodingFailure) { @transcoder.encode(document) }
+    end
 
-  def test_decode
-    blob = "\x00\xff"
-    flag = Couchbase::TranscoderFlags.new(format: :binary).encode
+    def test_decode
+      blob = "\x00\xff"
+      flag = Couchbase::TranscoderFlags.new(format: :binary).encode
 
-    decoded = @transcoder.decode(blob, flag)
+      decoded = @transcoder.decode(blob, flag)
 
-    assert_equal "\x00\xff", decoded
-  end
+      assert_equal "\x00\xff", decoded
+    end
 
-  def test_decode_invalid_flag
-    blob = "foo"
-    flag = Couchbase::TranscoderFlags.new(format: :string).encode
+    def test_decode_invalid_flag
+      blob = "foo"
+      flag = Couchbase::TranscoderFlags.new(format: :string).encode
 
-    assert_raises(Couchbase::Error::DecodingFailure) { @transcoder.decode(blob, flag) }
+      assert_raises(Couchbase::Error::DecodingFailure) { @transcoder.decode(blob, flag) }
+    end
   end
 end
