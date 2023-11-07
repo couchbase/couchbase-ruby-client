@@ -585,7 +585,7 @@ module Couchbase
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
-        @expiry = Utils::Time.extract_expiry_time(expiry)
+        @expiry = expiry
         @transcoder = transcoder
         if durability_level != :none && (replicate_to != :none || persist_to != :none)
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
@@ -601,7 +601,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
-          expiry: @expiry,
+          expiry: Utils::Time.extract_expiry_time(@expiry),
           durability_level: @durability_level,
           persist_to: @persist_to,
           replicate_to: @replicate_to,
@@ -668,7 +668,7 @@ module Couchbase
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
-        @expiry = Utils::Time.extract_expiry_time(expiry)
+        @expiry = expiry
         @preserve_expiry = preserve_expiry
         @transcoder = transcoder
         if durability_level != :none && (replicate_to != :none || persist_to != :none)
@@ -684,7 +684,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
-          expiry: @expiry,
+          expiry: Utils::Time.extract_expiry_time(@expiry),
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
           persist_to: @persist_to,
@@ -752,7 +752,7 @@ module Couchbase
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
-        @expiry = Utils::Time.extract_expiry_time(expiry)
+        @expiry = expiry
         @preserve_expiry = preserve_expiry
         @transcoder = transcoder
         if durability_level != :none && (replicate_to != :none || persist_to != :none)
@@ -768,7 +768,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
-          expiry: @expiry,
+          expiry: Utils::Time.extract_expiry_time(@expiry),
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
           persist_to: @persist_to,
@@ -839,7 +839,7 @@ module Couchbase
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
-        @expiry = Utils::Time.extract_expiry_time(expiry)
+        @expiry = expiry
         @preserve_expiry = preserve_expiry
         @transcoder = transcoder
         @cas = cas
@@ -856,7 +856,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
-          expiry: @expiry,
+          expiry: Utils::Time.extract_expiry_time(@expiry),
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
           persist_to: @persist_to,
@@ -938,7 +938,7 @@ module Couchbase
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
-        @expiry = Utils::Time.extract_expiry_time(expiry)
+        @expiry = expiry
         @preserve_expiry = preserve_expiry
         @store_semantics = store_semantics
         @cas = cas
@@ -959,7 +959,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
-          expiry: @expiry,
+          expiry: Utils::Time.extract_expiry_time(@expiry),
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
           persist_to: @persist_to,
@@ -1386,7 +1386,7 @@ module Couchbase
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @delta = delta
         @initial = initial
-        @expiry = Utils::Time.extract_expiry_time(expiry)
+        @expiry = expiry
         if durability_level != :none && (replicate_to != :none || persist_to != :none)
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
         end
@@ -1410,7 +1410,7 @@ module Couchbase
           timeout: Utils::Time.extract_duration(@timeout),
           delta: @delta,
           initial_value: @initial,
-          expiry: @expiry,
+          expiry: Utils::Time.extract_expiry_time(@expiry),
           durability_level: @durability_level,
           persist_to: @persist_to,
           replicate_to: @replicate_to,
@@ -1480,7 +1480,7 @@ module Couchbase
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @delta = delta
         @initial = initial
-        @expiry = Utils::Time.extract_expiry_time(expiry)
+        @expiry = expiry
         if durability_level != :none && (replicate_to != :none || persist_to != :none)
           raise ArgumentError, "durability_level conflicts with replicate_to and persist_to options"
         end
@@ -1504,7 +1504,7 @@ module Couchbase
           timeout: Utils::Time.extract_duration(@timeout),
           delta: @delta,
           initial_value: @initial,
-          expiry: @expiry,
+          expiry: Utils::Time.extract_expiry_time(@expiry),
           durability_level: @durability_level,
           persist_to: @persist_to,
           replicate_to: @replicate_to,
