@@ -33,4 +33,20 @@ module EncodedKeyCacheBehavior
     assert @cache.write(key, "1", raw: true)
     assert_equal Encoding::UTF_8, key.encoding
   end
+
+  def test_very_long_utf8_key
+    key = ("a"*249 + "\xC3\xBC").force_encoding(Encoding::UTF_8)
+    assert @cache.write(key, "1", raw: true)
+    assert_equal Encoding::UTF_8, key.encoding
+    assert key.valid_encoding?
+    assert key.bytesize > 250
+  end
+
+  def test_normalize_key
+    key = ("a"*249 + "\xC3\xBC").force_encoding(Encoding::UTF_8)
+    normalized_key = @cache.send(:normalize_key, key, nil)
+    assert_equal Encoding::UTF_8, normalized_key.encoding
+    assert normalized_key.valid_encoding?
+    assert normalized_key.bytesize <= 250
+  end
 end
