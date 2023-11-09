@@ -294,14 +294,14 @@ module ActiveSupport
 
       # Truncate keys that exceed 250 characters
       def normalize_key(key, options)
-        truncate_key super&.b
+        truncate_key super
       end
 
       def truncate_key(key)
         if key && key.bytesize > MAX_KEY_BYTESIZE
           suffix = ":sha2:#{::Digest::SHA2.hexdigest(key)}"
           truncate_at = MAX_KEY_BYTESIZE - suffix.bytesize
-          "#{key.byteslice(0, truncate_at)}#{suffix}"
+          "#{key.mb_chars.limit(truncate_at)}#{suffix}"
         else
           key
         end
