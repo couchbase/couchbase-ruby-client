@@ -25,6 +25,8 @@ require "couchbase/query_options"
 require "couchbase/analytics_options"
 require "couchbase/diagnostics"
 
+require "couchbase/protostellar"
+
 module Couchbase
   # The main entry point when connecting to a Couchbase cluster.
   class Cluster

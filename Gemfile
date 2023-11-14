@@ -25,6 +25,7 @@ group :development do
   gem "flay"
   gem "flog"
   gem "gem-compiler"
+  gem "grpc-tools", "~> 1.59"
   gem "heckle"
   gem "minitest"
   gem "minitest-reporters"

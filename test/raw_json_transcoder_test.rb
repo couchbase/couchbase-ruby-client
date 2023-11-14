@@ -18,40 +18,42 @@ require "couchbase/raw_json_transcoder"
 require "couchbase/transcoder_flags"
 require "couchbase/errors"
 
-class RawJsonTranscoderTest < Minitest::Test
-  include Couchbase::TestUtilities
+module Couchbase
+  class RawJsonTranscoderTest < Minitest::Test
+    include Couchbase::TestUtilities
 
-  def setup
-    @transcoder = Couchbase::RawJsonTranscoder.new
-  end
+    def setup
+      @transcoder = Couchbase::RawJsonTranscoder.new
+    end
 
-  def test_encode_string
-    document = "{\"foo\":10,\"bar\":\"baz\"}"
-    encoded, flag = @transcoder.encode(document)
+    def test_encode_string
+      document = "{\"foo\":10,\"bar\":\"baz\"}"
+      encoded, flag = @transcoder.encode(document)
 
-    assert_equal 2, flag >> 24
-    assert_equal "{\"foo\":10,\"bar\":\"baz\"}", encoded
-  end
+      assert_equal 2, flag >> 24
+      assert_equal "{\"foo\":10,\"bar\":\"baz\"}", encoded
+    end
 
-  def test_encode_number
-    document = 42
+    def test_encode_number
+      document = 42
 
-    assert_raises(Couchbase::Error::EncodingFailure) { @transcoder.encode(document) }
-  end
+      assert_raises(Couchbase::Error::EncodingFailure) { @transcoder.encode(document) }
+    end
 
-  def test_decode
-    blob = "{\"foo\":10,\"bar\":\"baz\"}"
-    flag = Couchbase::TranscoderFlags.new(format: :json).encode
+    def test_decode
+      blob = "{\"foo\":10,\"bar\":\"baz\"}"
+      flag = Couchbase::TranscoderFlags.new(format: :json).encode
 
-    decoded = @transcoder.decode(blob, flag)
+      decoded = @transcoder.decode(blob, flag)
 
-    assert_equal "{\"foo\":10,\"bar\":\"baz\"}", decoded
-  end
+      assert_equal "{\"foo\":10,\"bar\":\"baz\"}", decoded
+    end
 
-  def test_decode_invalid_flag
-    blob = "foo"
-    flag = Couchbase::TranscoderFlags.new(format: :string).encode
+    def test_decode_invalid_flag
+      blob = "foo"
+      flag = Couchbase::TranscoderFlags.new(format: :string).encode
 
-    assert_raises(Couchbase::Error::DecodingFailure) { @transcoder.decode(blob, flag) }
+      assert_raises(Couchbase::Error::DecodingFailure) { @transcoder.decode(blob, flag) }
+    end
   end
 end

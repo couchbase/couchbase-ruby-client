@@ -102,6 +102,8 @@ module CacheStoreVersionBehavior
   end
 
   def test_fetch_multi_with_model_supporting_cache_version
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     model_name = SecureRandom.alphanumeric
 
     m1v1 = ModelWithKeyAndVersion.new("#{model_name}/1", 1)

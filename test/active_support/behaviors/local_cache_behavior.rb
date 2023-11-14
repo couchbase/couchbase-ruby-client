@@ -30,6 +30,7 @@ module LocalCacheBehavior
   end
 
   def test_clear_also_clears_local_cache
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support consistent_with yet") if env.protostellar?
     skip("#{name}: CAVES does not support query service yet for clear in cache adapter") if use_caves?
 
     key = SecureRandom.uuid
@@ -145,6 +146,8 @@ module LocalCacheBehavior
   end
 
   def test_local_cache_of_delete_matched
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support consistent_with yet") if env.protostellar?
+
     skip("#{name}: delete_matched is not stable on 6.x servers, version=#{env.server_version}") if use_caves? || env.server_version.mad_hatter?
     begin
       @cache.delete_matched("*")
@@ -212,6 +215,8 @@ module LocalCacheBehavior
   end
 
   def test_local_cache_of_fetch_multi
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key = SecureRandom.uuid
     other_key = SecureRandom.uuid
     @cache.with_local_cache do
@@ -224,6 +229,8 @@ module LocalCacheBehavior
   end
 
   def test_local_cache_of_read_multi
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     key = SecureRandom.uuid
     value = SecureRandom.alphanumeric
     other_key = SecureRandom.uuid
@@ -299,6 +306,8 @@ module LocalCacheBehavior
   end
 
   def test_local_cache_should_deserialize_entries_on_multi_get
+    skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
+
     keys = Array.new(5) { SecureRandom.uuid }
     values = keys.index_with(true)
     @cache.with_local_cache do

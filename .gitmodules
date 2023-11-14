@@ -4,3 +4,6 @@
 [submodule "ext/couchbase"]
 	path = ext/couchbase
 	url = https://github.com/couchbaselabs/couchbase-cxx-client.git
+[submodule "deps/protostellar"]
+	path = deps/protostellar
+	url = https://github.com/couchbase/protostellar.git
