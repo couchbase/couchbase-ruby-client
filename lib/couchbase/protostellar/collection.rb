@@ -132,12 +132,16 @@ module Couchbase
         ResponseConverter::KV.to_mutate_in_result(resp, specs, options)
       end
 
-      def get_any_replica(_id, _options = Couchbase::Options::GetAnyReplica::DEFAULT)
-        raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support get any replica"
+      def get_any_replica(id, options = Couchbase::Options::GetAnyReplica::DEFAULT)
+        req = @kv_request_generator.get_any_replica_request(id, options)
+        resp = @client.send_request(req)
+        ResponseConverter::KV.to_get_any_replica_result(resp, options)
       end
 
-      def get_all_replicas(_id, _options = Couchbase::Options::GetAllReplicas::DEFAULT)
-        raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support get all replicas"
+      def get_all_replicas(id, options = Couchbase::Options::GetAllReplicas::DEFAULT)
+        req = @kv_request_generator.get_all_replicas_request(id, options)
+        resp = @client.send_request(req)
+        ResponseConverter::KV.to_get_all_replicas_result(resp, options)
       end
 
       def scan(_scan_type, _options = Options::Scan::DEFAULT)
