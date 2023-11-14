@@ -52,8 +52,6 @@ module Couchbase
     end
 
     def test_reads_from_replica
-      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support replica reads yet") if env.protostellar?
-
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       options =
@@ -75,6 +73,22 @@ module Couchbase
       res.each do |entry|
         assert_equal document, entry.content
         assert_respond_to entry, :replica?
+      end
+    end
+
+    def test_reads_from_replica_does_not_exist
+      doc_id = uniq_id(:foo)
+
+      assert_raises(Couchbase::Error::DocumentIrretrievable) do
+        @collection.get_any_replica(doc_id)
+      end
+
+      if env.protostellar?
+        assert_empty @collection.get_all_replicas(doc_id)
+      else
+        assert_raises(Couchbase::Error::DocumentNotFound) do
+          @collection.get_all_replicas(doc_id)
+        end
       end
     end
 

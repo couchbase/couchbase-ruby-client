@@ -341,6 +341,20 @@ module Couchbase
           create_kv_request(proto_req, :prepend, options)
         end
 
+        def get_all_replicas_request(id, options)
+          proto_req = Generated::KV::V1::GetAllReplicasRequest.new(
+            key: id,
+            **location
+          )
+
+          create_kv_request(proto_req, :get_all_replicas, options, idempotent: true)
+        end
+
+        def get_any_replica_request(id, options)
+          # Uses the GetAllReplicas request and returns the first item from the result
+          get_all_replicas_request(id, options)
+        end
+
         private
 
         def create_kv_request(proto_request, rpc, options, idempotent: false)

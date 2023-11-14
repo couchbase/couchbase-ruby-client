@@ -75,6 +75,33 @@ module Couchbase
           end
         end
 
+        def self.to_get_any_replica_result(resps, options)
+          begin
+            entry = resps.next
+          rescue StopIteration
+            raise Couchbase::Error::DocumentIrretrievable, "unable to get replica of the document"
+          end
+          Couchbase::Collection::GetReplicaResult.new do |res|
+            res.transcoder = options.transcoder
+            res.cas = entry.cas
+            res.flags = entry.content_flags
+            res.encoded = entry.content
+            res.is_replica = entry.is_replica
+          end
+        end
+
+        def self.to_get_all_replicas_result(resps, options)
+          resps.map do |entry|
+            Couchbase::Collection::GetReplicaResult.new do |res|
+              res.transcoder = options.transcoder
+              res.cas = entry.cas
+              res.flags = entry.content_flags
+              res.encoded = entry.content
+              res.is_replica = entry.is_replica
+            end
+          end
+        end
+
         def self.to_mutate_in_result(resp, specs, options)
           Couchbase::Collection::MutateInResult.new do |res|
             res.cas = resp.cas
