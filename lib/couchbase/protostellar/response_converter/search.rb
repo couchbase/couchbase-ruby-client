@@ -121,7 +121,7 @@ module Couchbase
           Couchbase::Cluster::SearchMetaData.new do |meta|
             proto_metrics = proto_meta_data.metrics
             dur = proto_metrics.execution_time
-            meta.metrics.took = (dur.seconds * 1000) + (dur.nanos / 1000.0).round  # `took` is in milliseconds
+            meta.metrics.took = (dur.seconds * 1000) + (dur.nanos / 1000.0).round # `took` is in milliseconds
             meta.metrics.total_rows = proto_metrics.total_rows
             meta.metrics.max_score = proto_metrics.max_score
             meta.metrics.success_partition_count = proto_metrics.success_partition_count

@@ -159,6 +159,10 @@ module Couchbase
     class DocumentLocked < CouchbaseError
     end
 
+    # Thrown when the server reports that the document is not locked when an unlocking operation is being performed.
+    class DocumentNotLocked < CouchbaseError
+    end
+
     # Thrown when the request is too big for some reason.
     class ValueTooLarge < CouchbaseError
     end
