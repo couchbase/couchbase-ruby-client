@@ -106,7 +106,7 @@ module Couchbase
           Couchbase::Collection::MutateInResult.new do |res|
             res.cas = resp.cas
             res.transcoder = options.transcoder
-            res.deleted = nil  # TODO: gRPC response has no deleted field
+            res.deleted = nil # TODO: gRPC response has no deleted field
             res.mutation_token = extract_mutation_token(resp)
             res.encoded = resp.specs.each_with_index.map do |s, idx|
               Couchbase::Collection::SubDocumentField.new do |f|

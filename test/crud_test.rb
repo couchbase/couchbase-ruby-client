@@ -165,6 +165,26 @@ module Couchbase
       @collection.upsert(doc_id, document)
     end
 
+    def test_unlock_document_not_locked
+      skip("#{name}: Server does not support the not_locked KV status") unless env.server_version.trinity?
+      skip("#{name}: The mock server does not support the not_locked KV status") if use_caves?
+
+      # TODO: Remove protostellar skip once it's added
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support DocumentNotLocked yet") if env.protostellar?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document)
+
+      res = @collection.get_and_lock(doc_id, 20)
+      cas = res.cas
+      @collection.unlock(doc_id, cas)
+
+      assert_raises(Couchbase::Error::DocumentNotLocked) do
+        @collection.unlock(doc_id, cas)
+      end
+    end
+
     def test_insert_fails_when_document_exists_already
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
