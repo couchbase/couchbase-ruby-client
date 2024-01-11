@@ -110,6 +110,10 @@ class ServerVersion
   def supports_update_collection_max_expiry?
     @version >= Gem::Version.create("7.5.0")
   end
+
+  def supports_collection_max_expiry_set_to_no_expiry?
+    @version >= Gem::Version.create("7.6.0")
+  end
 end
 
 require "couchbase"

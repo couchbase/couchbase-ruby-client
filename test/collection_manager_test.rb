@@ -208,6 +208,7 @@ module Couchbase
     end
 
     def test_create_collection_history_retention
+      skip("#{name}: CAVES does not support history retention") if use_caves?
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support history retention") if env.protostellar?
 
@@ -229,6 +230,7 @@ module Couchbase
     end
 
     def test_update_collection_history_retention
+      skip("#{name}: CAVES does not support update_collection & history retention") if use_caves?
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
       skip("#{name}: Server does not support update_collection") unless env.server_version.supports_update_collection?
@@ -259,6 +261,7 @@ module Couchbase
     end
 
     def test_create_collection_history_retention_unsupported
+      skip("#{name}: CAVES does not support history retention") if use_caves?
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support history retention") if env.protostellar?
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
 
@@ -276,6 +279,7 @@ module Couchbase
     end
 
     def test_update_collection_history_retention_unsupported
+      skip("#{name}: CAVES does not support update_collection & history retention") if use_caves?
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
       skip("#{name}: Server does not support history retention") unless env.server_version.supports_history_retention?
       skip("#{name}: Server does not support update_collection") unless env.server_version.supports_update_collection?
@@ -335,7 +339,63 @@ module Couchbase
       end
     end
 
+    def test_create_collection_max_expiry_no_expiry
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support setting max_expiry to -1 yet") if env.protostellar?
+      unless env.server_version.supports_collection_max_expiry_set_to_no_expiry?
+        skip("#{name}: The server does not support setting max_expiry to -1")
+      end
+
+      scope_name = get_scope_name
+      collection_name = 'testcoll'
+      @collection_manager.create_scope(scope_name)
+      scope = get_scope(scope_name)
+
+      assert scope
+
+      settings = Management::CreateCollectionSettings.new(max_expiry: -1)
+
+      @collection_manager.create_collection(scope_name, collection_name, settings)
+
+      coll_spec = get_collection(scope_name, collection_name)
+
+      assert coll_spec
+      assert_equal(-1, coll_spec.max_expiry)
+    end
+
+    def test_create_collection_max_expiry_no_expiry_not_supported
+      skip("#{name}: The server supports setting max_expiry to -1") if env.server_version.supports_collection_max_expiry_set_to_no_expiry?
+      skip("#{name}: CAVES allows to -1") if use_caves?
+
+      scope_name = get_scope_name
+      collection_name = 'testcoll'
+      @collection_manager.create_scope(scope_name)
+      scope = get_scope(scope_name)
+
+      assert scope
+
+      settings = Management::CreateCollectionSettings.new(max_expiry: -1)
+
+      assert_raises(Error::InvalidArgument) do
+        @collection_manager.create_collection(scope_name, collection_name, settings)
+      end
+    end
+
+    def test_create_collection_max_expiry_invalid
+      scope_name = get_scope_name
+      collection_name = 'testcoll'
+      @collection_manager.create_scope(scope_name)
+      scope = get_scope(scope_name)
+
+      assert scope
+
+      settings = Management::CreateCollectionSettings.new(max_expiry: -10)
+      assert_raises(Error::InvalidArgument) do
+        @collection_manager.create_collection(scope_name, collection_name, settings)
+      end
+    end
+
     def test_update_collection_max_expiry
+      skip("#{name}: CAVES does not support update_collection") if use_caves?
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
       unless env.server_version.supports_update_collection_max_expiry?
         skip("#{name}: Server does not support update_collection with max_expiry")
@@ -381,7 +441,92 @@ module Couchbase
       end
     end
 
+    def test_update_collection_max_expiry_no_expiry
+      skip("#{name}: CAVES does not support update_collection") if use_caves?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
+      unless env.server_version.supports_collection_max_expiry_set_to_no_expiry?
+        skip("#{name}: The server does not support setting max_expiry to -1")
+      end
+
+      scope_name = get_scope_name
+      collection_name = 'testcoll'
+      @collection_manager.create_scope(scope_name)
+      scope = get_scope(scope_name)
+
+      assert scope
+
+      settings = Management::CreateCollectionSettings.new(max_expiry: 600)
+      @collection_manager.create_collection(scope_name, collection_name, settings)
+
+      coll_spec = get_collection(scope_name, collection_name)
+
+      assert coll_spec
+      assert_equal 600, coll_spec.max_expiry
+
+      settings = Management::UpdateCollectionSettings.new(max_expiry: -1)
+
+      @collection_manager.update_collection(scope_name, collection_name, settings)
+
+      coll_spec = get_collection(scope_name, collection_name)
+
+      assert coll_spec
+      assert_equal(-1, coll_spec.max_expiry)
+    end
+
+    def test_update_collection_max_expiry_no_expiry_not_supported
+      skip("#{name}: CAVES does not support update_collection") if use_caves?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
+      skip("#{name}: The server supports setting max_expiry to -1") if env.server_version.supports_collection_max_expiry_set_to_no_expiry?
+
+      scope_name = get_scope_name
+      collection_name = 'testcoll'
+      @collection_manager.create_scope(scope_name)
+      scope = get_scope(scope_name)
+
+      assert scope
+
+      settings = Management::CreateCollectionSettings.new(max_expiry: 600)
+      @collection_manager.create_collection(scope_name, collection_name, settings)
+
+      coll_spec = get_collection(scope_name, collection_name)
+
+      assert coll_spec
+      assert_equal 600, coll_spec.max_expiry
+
+      settings = Management::UpdateCollectionSettings.new(max_expiry: -1)
+
+      assert_raises(Error::InvalidArgument) do
+        @collection_manager.update_collection(scope_name, collection_name, settings)
+      end
+    end
+
+    def test_update_collection_max_expiry_invalid
+      skip("#{name}: CAVES does not support update_collection") if use_caves?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
+
+      scope_name = get_scope_name
+      collection_name = 'testcoll'
+      @collection_manager.create_scope(scope_name)
+      scope = get_scope(scope_name)
+
+      assert scope
+
+      settings = Management::CreateCollectionSettings.new(max_expiry: 600)
+      @collection_manager.create_collection(scope_name, collection_name, settings)
+
+      coll_spec = get_collection(scope_name, collection_name)
+
+      assert coll_spec
+      assert_equal 600, coll_spec.max_expiry
+
+      settings = Management::UpdateCollectionSettings.new(max_expiry: -10)
+      assert_raises(Error::InvalidArgument) do
+        @collection_manager.update_collection(scope_name, collection_name, settings)
+      end
+    end
+
     def test_update_collection_does_not_exist
+      skip("#{name}: CAVES does not support update_collection") if use_caves?
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
       unless env.server_version.supports_update_collection_max_expiry?
         skip("#{name}: Server does not support update_collection with max_expiry")
@@ -401,6 +546,7 @@ module Couchbase
     end
 
     def test_update_collection_scope_does_not_exist
+      skip("#{name}: CAVES does not support update_collection") if use_caves?
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
       unless env.server_version.supports_update_collection_max_expiry?
         skip("#{name}: Server does not support update_collection with max_expiry")

@@ -5461,7 +5461,7 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options)
                 VALUE collection = rb_hash_new();
                 rb_hash_aset(collection, rb_id2sym(rb_intern("uid")), ULL2NUM(c.uid));
                 rb_hash_aset(collection, rb_id2sym(rb_intern("name")), cb_str_new(c.name));
-                rb_hash_aset(collection, rb_id2sym(rb_intern("max_expiry")), ULONG2NUM(c.max_expiry));
+                rb_hash_aset(collection, rb_id2sym(rb_intern("max_expiry")), LONG2NUM(c.max_expiry));
                 if (c.history.has_value()) {
                     rb_hash_aset(collection, rb_id2sym(rb_intern("history")), c.history.value() ? Qtrue : Qfalse);
                 }
@@ -5618,7 +5618,12 @@ cb_Backend_collection_create(VALUE self, VALUE bucket_name, VALUE scope_name, VA
         if (!NIL_P(settings)) {
             if (VALUE max_expiry = rb_hash_aref(settings, rb_id2sym(rb_intern("max_expiry"))); !NIL_P(max_expiry)) {
                 if (TYPE(max_expiry) == T_FIXNUM) {
-                    req.max_expiry = FIX2UINT(max_expiry);
+                    req.max_expiry = FIX2INT(max_expiry);
+                    if (req.max_expiry < -1) {
+                        throw ruby_exception(
+                          eInvalidArgument,
+                          rb_sprintf("collection max expiry must be greater than or equal to -1, given %+" PRIsVALUE, max_expiry));
+                    }
                 } else {
                     throw ruby_exception(rb_eArgError,
                                          rb_sprintf("collection max expiry must be an Integer, given %+" PRIsVALUE, max_expiry));
@@ -5674,7 +5679,12 @@ cb_Backend_collection_update(VALUE self, VALUE bucket_name, VALUE scope_name, VA
         if (!NIL_P(settings)) {
             if (VALUE max_expiry = rb_hash_aref(settings, rb_id2sym(rb_intern("max_expiry"))); !NIL_P(max_expiry)) {
                 if (TYPE(max_expiry) == T_FIXNUM) {
-                    req.max_expiry = FIX2UINT(max_expiry);
+                    req.max_expiry = FIX2INT(max_expiry);
+                    if (req.max_expiry < -1) {
+                        throw ruby_exception(
+                          eInvalidArgument,
+                          rb_sprintf("collection max expiry must be greater than or equal to -1, given %+" PRIsVALUE, max_expiry));
+                    }
                 } else {
                     throw ruby_exception(rb_eArgError,
                                          rb_sprintf("collection max expiry must be an Integer, given %+" PRIsVALUE, max_expiry));
