@@ -383,7 +383,7 @@ module Couchbase
 
     class CreateCollectionSettings
       # @return [Integer, nil] time in seconds of the maximum expiration time for new documents in the collection
-      # (set to +nil+ to disable it)
+      # (set to +nil+ to use the bucket-level setting, and to +-1+ set it to no-expiry)
       attr_accessor :max_expiry
 
       # @return [Boolean, nil] whether history retention override should be enabled in the collection (set to +nil+ to
@@ -410,11 +410,11 @@ module Couchbase
 
     class UpdateCollectionSettings
       # @return [Integer, nil] time in seconds of the maximum expiration time for new documents in the collection
-      # (set to +nil+ to disable it)
+      # (set to +nil+ to not update it, and to +-1+ set it to no-expiry)
       attr_accessor :max_expiry
 
       # @return [Boolean, nil] whether history retention override should be enabled in the collection (set to +nil+ to
-      # default to the bucket-level setting)
+      # not update it)
       attr_accessor :history
 
       def initialize(max_expiry: nil, history: nil)
