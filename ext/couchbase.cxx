@@ -7245,7 +7245,7 @@ cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE enc
 }
 
 static VALUE
-cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE options)
+cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE search_request, VALUE options)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -7268,6 +7268,25 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
         cb_extract_option_bool(req.explain, options, "explain");
         cb_extract_option_bool(req.disable_scoring, options, "disable_scoring");
         cb_extract_option_bool(req.include_locations, options, "include_locations");
+        cb_extract_option_bool(req.show_request, options, "show_request");
+
+        if (VALUE vector_options = rb_hash_aref(search_request, rb_id2sym(rb_intern("vector_search"))); !NIL_P(vector_options)) {
+            cb_check_type(vector_options, T_HASH);
+            if (VALUE vector_queries = rb_hash_aref(vector_options, rb_id2sym(rb_intern("vector_queries"))); !NIL_P(vector_queries)) {
+                cb_check_type(vector_queries, T_STRING);
+                req.vector_search = cb_string_new(vector_queries);
+            }
+            if (VALUE vector_query_combination = rb_hash_aref(vector_options, rb_id2sym(rb_intern("vector_query_combination")));
+                !NIL_P(vector_query_combination)) {
+                cb_check_type(vector_query_combination, T_SYMBOL);
+                ID type = rb_sym2id(vector_query_combination);
+                if (type == rb_intern("and")) {
+                    req.vector_query_combination = couchbase::core::vector_query_combination::combination_and;
+                } else if (type == rb_intern("or")) {
+                    req.vector_query_combination = couchbase::core::vector_query_combination::combination_or;
+                }
+            }
+        }
 
         if (VALUE skip = rb_hash_aref(options, rb_id2sym(rb_intern("skip"))); !NIL_P(skip)) {
             cb_check_type(skip, T_FIXNUM);
@@ -7431,17 +7450,17 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE opti
             VALUE locations = rb_ary_new_capa(static_cast<long>(entry.locations.size()));
             for (const auto& loc : entry.locations) {
                 VALUE location = rb_hash_new();
-                rb_hash_aset(row, rb_id2sym(rb_intern("field")), cb_str_new(loc.field));
-                rb_hash_aset(row, rb_id2sym(rb_intern("term")), cb_str_new(loc.term));
-                rb_hash_aset(row, rb_id2sym(rb_intern("pos")), ULL2NUM(loc.position));
-                rb_hash_aset(row, rb_id2sym(rb_intern("start_offset")), ULL2NUM(loc.start_offset));
-                rb_hash_aset(row, rb_id2sym(rb_intern("end_offset")), ULL2NUM(loc.end_offset));
+                rb_hash_aset(location, rb_id2sym(rb_intern("field")), cb_str_new(loc.field));
+                rb_hash_aset(location, rb_id2sym(rb_intern("term")), cb_str_new(loc.term));
+                rb_hash_aset(location, rb_id2sym(rb_intern("pos")), ULL2NUM(loc.position));
+                rb_hash_aset(location, rb_id2sym(rb_intern("start_offset")), ULL2NUM(loc.start_offset));
+                rb_hash_aset(location, rb_id2sym(rb_intern("end_offset")), ULL2NUM(loc.end_offset));
                 if (loc.array_positions) {
                     VALUE ap = rb_ary_new_capa(static_cast<long>(loc.array_positions->size()));
                     for (const auto& pos : *loc.array_positions) {
                         rb_ary_push(ap, ULL2NUM(pos));
                     }
-                    rb_hash_aset(row, rb_id2sym(rb_intern("array_positions")), ap);
+                    rb_hash_aset(location, rb_id2sym(rb_intern("array_positions")), ap);
                 }
                 rb_ary_push(locations, location);
             }
@@ -9304,7 +9323,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_unlock", VALUE_FUNC(cb_Backend_document_unlock), 6);
     rb_define_method(cBackend, "document_increment", VALUE_FUNC(cb_Backend_document_increment), 5);
     rb_define_method(cBackend, "document_decrement", VALUE_FUNC(cb_Backend_document_decrement), 5);
-    rb_define_method(cBackend, "document_search", VALUE_FUNC(cb_Backend_document_search), 3);
+    rb_define_method(cBackend, "document_search", VALUE_FUNC(cb_Backend_document_search), 4);
     rb_define_method(cBackend, "document_analytics", VALUE_FUNC(cb_Backend_document_analytics), 2);
     rb_define_method(cBackend, "document_view", VALUE_FUNC(cb_Backend_document_view), 5);
 
