@@ -2213,7 +2213,7 @@ module Couchbase
       DEFAULT = Query.new.freeze
     end
 
-    # Options for {Couchbase::Cluster#search_query}
+    # Options for {Couchbase::Cluster#search_query} and {Couchbase::Cluster#search}
     class Search < Base
       attr_accessor :limit # @return [Integer]
       attr_accessor :skip # @return [Integer]
@@ -2321,11 +2321,11 @@ module Couchbase
       attr_reader :mutation_state
 
       # @api private
-      # @return [Symbol
+      # @return [Symbol]
       attr_reader :scan_consistency
 
       # @api private
-      def to_backend(*)
+      def to_backend(show_request: nil)
         {
           timeout: Utils::Time.extract_duration(@timeout),
           limit: @limit,
@@ -2341,11 +2341,34 @@ module Couchbase
           facets: @facets&.map { |(k, v)| [k, JSON.generate(v)] },
           scan_consistency: @scan_consistency,
           mutation_state: @mutation_state&.to_a,
+          show_request: show_request,
         }
       end
 
       # @api private
       DEFAULT = Search.new.freeze
+    end
+
+    class VectorSearch
+      # @return [:and, :or, nil]
+      attr_accessor :vector_query_combination
+
+      # @param [:and, :or, nil] vector_query_combination
+      #
+      # @yieldparam [VectorSearchOptions] self
+      def initialize(vector_query_combination: nil)
+        @vector_query_combination = vector_query_combination
+
+        yield self if block_given?
+      end
+
+      def to_backend
+        {
+          vector_query_combination: @vector_query_combination,
+        }
+      end
+
+      DEFAULT = VectorSearch.new.freeze
     end
 
     # Options for {Couchbase::Cluster#view_query}

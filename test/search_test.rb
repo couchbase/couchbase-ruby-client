@@ -140,5 +140,100 @@ module Couchbase
 
       assert_operator attempts, :<, 20, "it is very suspicious that search took more than 20 attempts (#{attempts})"
     end
+
+    def test_search_request_backend_encoding
+      vec1 = [-0.00810323283, 0.0727998167, 0.0211895034, -0.0254271757]
+      vec2 = [-0.005610323283, 0.023427998167, 0.0132511895034, 0.03466271757]
+
+      expected_query = {
+        prefix: "S",
+        field: "cityName",
+        boost: 1.0,
+      }
+      expected_vector_queries = [
+        {
+          field: "cityVector",
+          vector: vec1,
+          k: 3,
+          boost: 0.7,
+        },
+        {
+          field: "cityVector",
+          vector: vec2,
+          k: 2,
+          boost: 0.3,
+        },
+      ]
+
+      query = Cluster::SearchQuery.prefix("S") do |q|
+        q.field = "cityName"
+        q.boost = 1.0
+      end
+
+      vector_queries = [
+        Cluster::VectorQuery.new("cityVector", vec1) do |q|
+          q.num_candidates = 3
+          q.boost = 0.7
+        end,
+        Cluster::VectorQuery.new("cityVector", vec2) do |q|
+          q.num_candidates = 2
+          q.boost = 0.3
+        end,
+      ]
+      vector_search = Cluster::VectorSearch.new(vector_queries, Options::VectorSearch.new(vector_query_combination: :or))
+
+      # Both requests should be equivalent
+      requests = [
+        Cluster::SearchRequest.new(vector_search).search_query(query),
+        Cluster::SearchRequest.new(query).vector_search(vector_search),
+      ]
+      requests.each do |request|
+        enc_query, enc_request = request.to_backend
+
+        assert_equal expected_query, JSON.parse(enc_query, symbolize_names: true)
+        assert_equal expected_vector_queries, JSON.parse(enc_request[:vector_search][:vector_queries], symbolize_names: true)
+        assert_equal :or, enc_request[:vector_search][:vector_query_combination]
+      end
+    end
+
+    def test_search_request_invalid_argument
+      vec1 = [-0.00810323283, 0.0727998167, 0.0211895034, -0.0254271757]
+      vec2 = [-0.005610323283, 0.023427998167, 0.0132511895034, 0.03466271757]
+
+      query = Cluster::SearchQuery.prefix("S")
+      vector_queries = [
+        Cluster::VectorQuery.new("cityVector", vec1),
+        Cluster::VectorQuery.new("cityVector", vec2),
+      ]
+      vector_search = Cluster::VectorSearch.new(vector_queries, Options::VectorSearch.new(vector_query_combination: :or))
+
+      invalid_initializations = [
+        proc { Cluster::SearchRequest.new(vector_search).vector_search(vector_search) },
+        proc { Cluster::SearchRequest.new(query).vector_search(vector_search).vector_search(vector_search) },
+        proc { Cluster::SearchRequest.new(query).search_query(query) },
+        proc { Cluster::SearchRequest.new(vector_search).search_query(query).search_query(query) },
+      ]
+
+      invalid_initializations.each do |it|
+        assert_raises(Error::InvalidArgument) { it.call }
+      end
+    end
+
+    def test_vector_query_invalid_candidate_number
+      vector_query = Cluster::VectorQuery.new("foo", [-1.1, 1.2]) do |q|
+        q.num_candidates = 0
+      end
+
+      assert_raises(Error::InvalidArgument) do
+        vector_query.to_json
+      end
+    end
+
+    def test_vector_search_query_defaults_to_match_none
+      vector_search = Cluster::VectorSearch.new(Cluster::VectorQuery.new("foo", [-1.1, 1.2]))
+      enc_query, = Cluster::SearchRequest.new(vector_search).to_backend
+
+      assert_equal Cluster::SearchQuery.match_none.to_json, enc_query
+    end
   end
 end

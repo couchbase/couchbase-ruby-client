@@ -174,7 +174,7 @@ module Couchbase
     #
     # @param [String] index_name the name of the search index
     # @param [SearchQuery] query the query tree
-    # @param [Options::Search] options the query tree
+    # @param [Options::Search] options the custom options for this search query
     #
     # @example Return first 10 results of "hop beer" query and request highlighting
     #   cluster.search_query("beer_index", Cluster::SearchQuery.match_phrase("hop beer"),
@@ -187,90 +187,23 @@ module Couchbase
     #
     # @return [SearchResult]
     def search_query(index_name, query, options = Options::Search::DEFAULT)
-      resp = @backend.document_search(index_name, JSON.generate(query), options.to_backend)
+      resp = @backend.document_search(index_name, JSON.generate(query), {}, options.to_backend)
+      convert_search_result(resp, options)
+    end
 
-      SearchResult.new do |res|
-        res.meta_data = SearchMetaData.new do |meta|
-          meta.metrics.max_score = resp[:meta_data][:metrics][:max_score]
-          meta.metrics.error_partition_count = resp[:meta_data][:metrics][:error_partition_count]
-          meta.metrics.success_partition_count = resp[:meta_data][:metrics][:success_partition_count]
-          meta.metrics.took = resp[:meta_data][:metrics][:took]
-          meta.metrics.total_rows = resp[:meta_data][:metrics][:total_rows]
-          meta.errors = resp[:meta_data][:errors]
-        end
-        res.rows = resp[:rows].map do |r|
-          SearchRow.new do |row|
-            row.transcoder = options.transcoder
-            row.index = r[:index]
-            row.id = r[:id]
-            row.score = r[:score]
-            row.fragments = r[:fragments]
-            unless r[:locations].empty?
-              row.locations = SearchRowLocations.new(
-                r[:locations].map do |loc|
-                  SearchRowLocation.new do |location|
-                    location.field = loc[:field]
-                    location.term = loc[:term]
-                    location.position = loc[:position]
-                    location.start_offset = loc[:start_offset]
-                    location.end_offset = loc[:end_offset]
-                    location.array_positions = loc[:array_positions]
-                  end
-                end
-              )
-            end
-            row.instance_variable_set(:@fields, r[:fields])
-            row.explanation = JSON.parse(r[:explanation]) if r[:explanation]
-          end
-        end
-        if resp[:facets]
-          res.facets = resp[:facets].each_with_object({}) do |(k, v), o|
-            facet = case options.facets[k]
-                    when SearchFacet::SearchFacetTerm
-                      SearchFacetResult::TermFacetResult.new do |f|
-                        f.terms =
-                          if v[:terms]
-                            v[:terms].map do |t|
-                              SearchFacetResult::TermFacetResult::TermFacet.new(t[:term], t[:count])
-                            end
-                          else
-                            []
-                          end
-                      end
-                    when SearchFacet::SearchFacetDateRange
-                      SearchFacetResult::DateRangeFacetResult.new do |f|
-                        f.date_ranges =
-                          if v[:date_ranges]
-                            v[:date_ranges].map do |r|
-                              SearchFacetResult::DateRangeFacetResult::DateRangeFacet.new(r[:name], r[:count], r[:start_time], r[:end_time])
-                            end
-                          else
-                            []
-                          end
-                      end
-                    when SearchFacet::SearchFacetNumericRange
-                      SearchFacetResult::NumericRangeFacetResult.new do |f|
-                        f.numeric_ranges =
-                          if v[:numeric_ranges]
-                            v[:numeric_ranges].map do |r|
-                              SearchFacetResult::NumericRangeFacetResult::NumericRangeFacet.new(r[:name], r[:count], r[:min], r[:max])
-                            end
-                          else
-                            []
-                          end
-                      end
-                    else
-                      next # ignore unknown facet result
-                    end
-            facet.name = v[:name]
-            facet.field = v[:field]
-            facet.total = v[:total]
-            facet.missing = v[:missing]
-            facet.other = v[:other]
-            o[k] = facet
-          end
-        end
-      end
+    # Performs a request against the Full Text Search (FTS) service.
+    #
+    # @api volatile
+    #
+    # @param [String] index_name the name of the search index
+    # @param [SearchRequest] search_request the request
+    # @param [Options::Search] options the custom options for this search request
+    #
+    # @return [SearchResult]
+    def search(index_name, search_request, options = Options::Search::DEFAULT)
+      encoded_query, encoded_req = search_request.to_backend
+      resp = @backend.document_search(index_name, encoded_query, encoded_req, options.to_backend(show_request: false))
+      convert_search_result(resp, options)
     end
 
     # @return [Management::UserManager]
@@ -425,6 +358,92 @@ module Couchbase
 
       @backend = Backend.new
       @backend.open(connection_string, credentials, open_options)
+    end
+
+    # @api private
+    def convert_search_result(resp, options)
+      SearchResult.new do |res|
+        res.meta_data = SearchMetaData.new do |meta|
+          meta.metrics.max_score = resp[:meta_data][:metrics][:max_score]
+          meta.metrics.error_partition_count = resp[:meta_data][:metrics][:error_partition_count]
+          meta.metrics.success_partition_count = resp[:meta_data][:metrics][:success_partition_count]
+          meta.metrics.took = resp[:meta_data][:metrics][:took]
+          meta.metrics.total_rows = resp[:meta_data][:metrics][:total_rows]
+          meta.errors = resp[:meta_data][:errors]
+        end
+        res.rows = resp[:rows].map do |r|
+          SearchRow.new do |row|
+            row.transcoder = options.transcoder
+            row.index = r[:index]
+            row.id = r[:id]
+            row.score = r[:score]
+            row.fragments = r[:fragments]
+            unless r[:locations].empty?
+              row.locations = SearchRowLocations.new(
+                r[:locations].map do |loc|
+                  SearchRowLocation.new do |location|
+                    location.field = loc[:field]
+                    location.term = loc[:term]
+                    location.position = loc[:position]
+                    location.start_offset = loc[:start_offset]
+                    location.end_offset = loc[:end_offset]
+                    location.array_positions = loc[:array_positions]
+                  end
+                end
+              )
+            end
+            row.instance_variable_set(:@fields, r[:fields])
+            row.explanation = JSON.parse(r[:explanation]) if r[:explanation]
+          end
+        end
+        if resp[:facets]
+          res.facets = resp[:facets].each_with_object({}) do |(k, v), o|
+            facet = case options.facets[k]
+                    when SearchFacet::SearchFacetTerm
+                      SearchFacetResult::TermFacetResult.new do |f|
+                        f.terms =
+                          if v[:terms]
+                            v[:terms].map do |t|
+                              SearchFacetResult::TermFacetResult::TermFacet.new(t[:term], t[:count])
+                            end
+                          else
+                            []
+                          end
+                      end
+                    when SearchFacet::SearchFacetDateRange
+                      SearchFacetResult::DateRangeFacetResult.new do |f|
+                        f.date_ranges =
+                          if v[:date_ranges]
+                            v[:date_ranges].map do |r|
+                              SearchFacetResult::DateRangeFacetResult::DateRangeFacet.new(r[:name], r[:count], r[:start_time], r[:end_time])
+                            end
+                          else
+                            []
+                          end
+                      end
+                    when SearchFacet::SearchFacetNumericRange
+                      SearchFacetResult::NumericRangeFacetResult.new do |f|
+                        f.numeric_ranges =
+                          if v[:numeric_ranges]
+                            v[:numeric_ranges].map do |r|
+                              SearchFacetResult::NumericRangeFacetResult::NumericRangeFacet.new(r[:name], r[:count], r[:min], r[:max])
+                            end
+                          else
+                            []
+                          end
+                      end
+                    else
+                      next # ignore unknown facet result
+                    end
+            facet.name = v[:name]
+            facet.field = v[:field]
+            facet.total = v[:total]
+            facet.missing = v[:missing]
+            facet.other = v[:other]
+            o[k] = facet
+          end
+        end
+      end
     end
 
     # @api private

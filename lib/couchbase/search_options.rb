@@ -14,17 +14,66 @@
 
 module Couchbase
   class Cluster
-    class SearchQuery
-      # Prepare {MatchQuery} body
+    # @api volatile
+    class SearchRequest
+      # Creates a search request, used to perform operations against the Full Text Search (FTS) Couchbase service.
       #
-      # @param [String] match
-      # @yieldparam [MatchQuery] query
+      # @overload new(search_query)
+      #   Will run an FTS +SearchQuery+
+      #   @param [SearchQuery] search_query
       #
-      # @return [MatchQuery]
-      def self.match(match, &block)
-        MatchQuery.new(match, &block)
+      # @overload new(vector_search)
+      #   Will run a +VectorSearch+
+      #   @param [VectorSearch] vector_search
+      def initialize(search)
+        case search
+        when SearchQuery
+          @search_query = search
+        when VectorSearch
+          @vector_search = search
+        else
+          raise Error::InvalidArgument, "Search type must be either SearchQuery or VectorSearch, #{search.class} given"
+        end
       end
 
+      # Can be used to run a +SearchQuery+ together with an existing +VectorSearch+
+      # Note that a maximum of one +SearchQuery+ can be provided.
+      #
+      # @param [SearchQuery] query
+      #
+      # @return [SearchRequest] for chaining purposes
+      def search_query(query)
+        raise Error::InvalidArgument, "A SearchQuery has already been specified" unless @search_query.nil?
+
+        @search_query = query
+        self
+      end
+
+      # Can be used to run a +VectorSearch+ together with an existing +SearchQuery+
+      # Note that a maximum of one +VectorSearch+ can be provided.
+      #
+      # @param [VectorSearch] query
+      #
+      # @return [SearchRequest] for chaining purposes
+      def vector_search(query)
+        raise Error::InvalidArgument, "A VectorSearch has already been specified" unless @vector_search.nil?
+
+        @vector_search = query
+        self
+      end
+
+      # @api private
+      def to_backend
+        [
+          (@search_query || SearchQuery.match_none).to_json,
+          {
+            vector_search: @vector_search.to_backend,
+          },
+        ]
+      end
+    end
+
+    class SearchQuery
       # @return [Hash<Symbol, #to_json>]
       def to_h
         {}
@@ -33,6 +82,16 @@ module Couchbase
       # @return [String]
       def to_json(*args)
         to_h.to_json(*args)
+      end
+
+      # Prepare {MatchQuery} body
+      #
+      # @param [String] match
+      # @yieldparam [MatchQuery] query
+      #
+      # @return [MatchQuery]
+      def self.match(match, &block)
+        MatchQuery.new(match, &block)
       end
 
       # A match query analyzes the input text and uses that analyzed text to query the index.
@@ -110,7 +169,6 @@ module Couchbase
         def to_h
           data = {:match_phrase => @match_phrase}
           data[:boost] = boost if boost
-          data[:operator] = operator.to_s if operator
           data[:field] = field if field
           data[:analyzer] = analyzer if analyzer
           data
@@ -980,6 +1038,65 @@ module Couchbase
         def to_h
           {:match_none => nil}
         end
+      end
+    end
+
+    # @api volatile
+    class VectorSearch
+      # Constructs a +VectorSearch+ instance, which allows one or more individual vector queries to be executed.
+      # #
+      # @param [VectorQuery, Array<VectorQuery>] vector_queries vector queries/query to execute
+      # @param [Options::VectorSearch] options
+      def initialize(vector_queries, options = Options::VectorSearch::DEFAULT)
+        @vector_queries = vector_queries.respond_to?(:each) ? vector_queries : [vector_queries]
+        @options = options
+      end
+
+      # @api private
+      def to_backend
+        {vector_queries: @vector_queries.map(&:to_h).to_json}.merge(@options.to_backend)
+      end
+    end
+
+    # @api volatile
+    class VectorQuery
+      # @return [Integer, nil]
+      attr_accessor :num_candidates
+
+      # @return [Float, nil]
+      attr_accessor :boost
+
+      # Constructs a +VectorQuery+ instance
+      #
+      # @param [String] vector_field_name the document field that contains the vector.
+      # @param [Array<Float>] vector_query the vector query to run.
+      #
+      # @yieldparam [MatchPhraseQuery] self
+      def initialize(vector_field_name, vector_query)
+        @vector_field_name = vector_field_name
+        @vector_query = vector_query
+
+        yield self if block_given?
+      end
+
+      # @api private
+      def to_h
+        if !num_candidates.nil? && num_candidates < 1
+          raise Error::InvalidArgument,
+                "Number of candidates must be at least 1, #{num_candidates} given"
+        end
+
+        {
+          field: @vector_field_name,
+          vector: @vector_query,
+          k: num_candidates || 3,
+          boost: boost,
+        }.compact
+      end
+
+      # @api private
+      def to_json(*args)
+        to_h.to_json(*args)
       end
     end
 
