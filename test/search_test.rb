@@ -171,21 +171,21 @@ module Couchbase
       end
 
       vector_queries = [
-        Cluster::VectorQuery.new("cityVector", vec1) do |q|
+        VectorQuery.new("cityVector", vec1) do |q|
           q.num_candidates = 3
           q.boost = 0.7
         end,
-        Cluster::VectorQuery.new("cityVector", vec2) do |q|
+        VectorQuery.new("cityVector", vec2) do |q|
           q.num_candidates = 2
           q.boost = 0.3
         end,
       ]
-      vector_search = Cluster::VectorSearch.new(vector_queries, Options::VectorSearch.new(vector_query_combination: :or))
+      vector_search = VectorSearch.new(vector_queries, Options::VectorSearch.new(vector_query_combination: :or))
 
       # Both requests should be equivalent
       requests = [
-        Cluster::SearchRequest.new(vector_search).search_query(query),
-        Cluster::SearchRequest.new(query).vector_search(vector_search),
+        SearchRequest.new(vector_search).search_query(query),
+        SearchRequest.new(query).vector_search(vector_search),
       ]
       requests.each do |request|
         enc_query, enc_request = request.to_backend
@@ -200,18 +200,18 @@ module Couchbase
       vec1 = [-0.00810323283, 0.0727998167, 0.0211895034, -0.0254271757]
       vec2 = [-0.005610323283, 0.023427998167, 0.0132511895034, 0.03466271757]
 
-      query = Cluster::SearchQuery.prefix("S")
+      query = SearchQuery.prefix("S")
       vector_queries = [
-        Cluster::VectorQuery.new("cityVector", vec1),
-        Cluster::VectorQuery.new("cityVector", vec2),
+        VectorQuery.new("cityVector", vec1),
+        VectorQuery.new("cityVector", vec2),
       ]
-      vector_search = Cluster::VectorSearch.new(vector_queries, Options::VectorSearch.new(vector_query_combination: :or))
+      vector_search = VectorSearch.new(vector_queries, Options::VectorSearch.new(vector_query_combination: :or))
 
       invalid_initializations = [
-        proc { Cluster::SearchRequest.new(vector_search).vector_search(vector_search) },
-        proc { Cluster::SearchRequest.new(query).vector_search(vector_search).vector_search(vector_search) },
-        proc { Cluster::SearchRequest.new(query).search_query(query) },
-        proc { Cluster::SearchRequest.new(vector_search).search_query(query).search_query(query) },
+        proc { SearchRequest.new(vector_search).vector_search(vector_search) },
+        proc { SearchRequest.new(query).vector_search(vector_search).vector_search(vector_search) },
+        proc { SearchRequest.new(query).search_query(query) },
+        proc { SearchRequest.new(vector_search).search_query(query).search_query(query) },
       ]
 
       invalid_initializations.each do |it|
@@ -220,7 +220,7 @@ module Couchbase
     end
 
     def test_vector_query_invalid_candidate_number
-      vector_query = Cluster::VectorQuery.new("foo", [-1.1, 1.2]) do |q|
+      vector_query = VectorQuery.new("foo", [-1.1, 1.2]) do |q|
         q.num_candidates = 0
       end
 
@@ -230,10 +230,10 @@ module Couchbase
     end
 
     def test_vector_search_query_defaults_to_match_none
-      vector_search = Cluster::VectorSearch.new(Cluster::VectorQuery.new("foo", [-1.1, 1.2]))
-      enc_query, = Cluster::SearchRequest.new(vector_search).to_backend
+      vector_search = VectorSearch.new(VectorQuery.new("foo", [-1.1, 1.2]))
+      enc_query, = SearchRequest.new(vector_search).to_backend
 
-      assert_equal Cluster::SearchQuery.match_none.to_json, enc_query
+      assert_equal SearchQuery.match_none.to_json, enc_query
     end
   end
 end

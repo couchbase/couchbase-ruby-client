@@ -187,7 +187,7 @@ module Couchbase
     #
     # @return [SearchResult]
     def search_query(index_name, query, options = Options::Search::DEFAULT)
-      resp = @backend.document_search(index_name, JSON.generate(query), {}, options.to_backend)
+      resp = @backend.document_search(nil, nil, index_name, JSON.generate(query), {}, options.to_backend)
       convert_search_result(resp, options)
     end
 
@@ -202,7 +202,7 @@ module Couchbase
     # @return [SearchResult]
     def search(index_name, search_request, options = Options::Search::DEFAULT)
       encoded_query, encoded_req = search_request.to_backend
-      resp = @backend.document_search(index_name, encoded_query, encoded_req, options.to_backend(show_request: false))
+      resp = @backend.document_search(nil, nil, index_name, encoded_query, encoded_req, options.to_backend(show_request: false))
       convert_search_result(resp, options)
     end
 
