@@ -6701,12 +6701,21 @@ cb_extract_search_index(VALUE index, const couchbase::core::management::search::
 }
 
 static VALUE
-cb_Backend_search_index_get_all(VALUE self, VALUE options)
+cb_Backend_search_index_get_all(VALUE self, VALUE bucket, VALUE scope, VALUE options)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
     try {
         couchbase::core::operations::management::search_index_get_all_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
+
         cb_extract_timeout(req, options);
         auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::search_index_get_all_response>>();
         auto f = barrier->get_future();
@@ -6737,7 +6746,7 @@ cb_Backend_search_index_get_all(VALUE self, VALUE options)
 }
 
 static VALUE
-cb_Backend_search_index_get(VALUE self, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_get(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -6745,6 +6754,14 @@ cb_Backend_search_index_get(VALUE self, VALUE index_name, VALUE timeout)
 
     try {
         couchbase::core::operations::management::search_index_get_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         cb_extract_timeout(req, timeout);
         req.index_name = cb_string_new(index_name);
         auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::search_index_get_response>>();
@@ -6772,7 +6789,7 @@ cb_Backend_search_index_get(VALUE self, VALUE index_name, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_search_index_upsert(VALUE self, VALUE index_definition, VALUE timeout)
+cb_Backend_search_index_upsert(VALUE self, VALUE bucket, VALUE scope, VALUE index_definition, VALUE timeout)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -6780,6 +6797,14 @@ cb_Backend_search_index_upsert(VALUE self, VALUE index_definition, VALUE timeout
 
     try {
         couchbase::core::operations::management::search_index_upsert_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         cb_extract_timeout(req, timeout);
 
         VALUE index_name = rb_hash_aref(index_definition, rb_id2sym(rb_intern("name")));
@@ -6849,7 +6874,7 @@ cb_Backend_search_index_upsert(VALUE self, VALUE index_definition, VALUE timeout
 }
 
 static VALUE
-cb_Backend_search_index_drop(VALUE self, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_drop(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -6857,6 +6882,14 @@ cb_Backend_search_index_drop(VALUE self, VALUE index_name, VALUE timeout)
 
     try {
         couchbase::core::operations::management::search_index_drop_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         cb_extract_timeout(req, timeout);
         req.index_name = cb_string_new(index_name);
         auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::search_index_drop_response>>();
@@ -6884,7 +6917,7 @@ cb_Backend_search_index_drop(VALUE self, VALUE index_name, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_search_index_get_documents_count(VALUE self, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_get_documents_count(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -6892,6 +6925,14 @@ cb_Backend_search_index_get_documents_count(VALUE self, VALUE index_name, VALUE 
 
     try {
         couchbase::core::operations::management::search_index_get_documents_count_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         cb_extract_timeout(req, timeout);
         req.index_name = cb_string_new(index_name);
         auto barrier = std::make_shared<std::promise<couchbase::core::operations::management::search_index_get_documents_count_response>>();
@@ -6983,7 +7024,7 @@ cb_Backend_search_get_stats(VALUE self, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_search_index_pause_ingest(VALUE self, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_pause_ingest(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -6991,6 +7032,14 @@ cb_Backend_search_index_pause_ingest(VALUE self, VALUE index_name, VALUE timeout
 
     try {
         couchbase::core::operations::management::search_index_control_ingest_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         cb_extract_timeout(req, timeout);
         req.index_name = cb_string_new(index_name);
         req.pause = true;
@@ -7020,7 +7069,7 @@ cb_Backend_search_index_pause_ingest(VALUE self, VALUE index_name, VALUE timeout
 }
 
 static VALUE
-cb_Backend_search_index_resume_ingest(VALUE self, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_resume_ingest(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -7028,6 +7077,14 @@ cb_Backend_search_index_resume_ingest(VALUE self, VALUE index_name, VALUE timeou
 
     try {
         couchbase::core::operations::management::search_index_control_ingest_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         cb_extract_timeout(req, timeout);
         req.index_name = cb_string_new(index_name);
         req.pause = false;
@@ -7057,7 +7114,7 @@ cb_Backend_search_index_resume_ingest(VALUE self, VALUE index_name, VALUE timeou
 }
 
 static VALUE
-cb_Backend_search_index_allow_querying(VALUE self, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_allow_querying(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -7065,6 +7122,14 @@ cb_Backend_search_index_allow_querying(VALUE self, VALUE index_name, VALUE timeo
 
     try {
         couchbase::core::operations::management::search_index_control_query_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         cb_extract_timeout(req, timeout);
         req.index_name = cb_string_new(index_name);
         req.allow = true;
@@ -7094,7 +7159,7 @@ cb_Backend_search_index_allow_querying(VALUE self, VALUE index_name, VALUE timeo
 }
 
 static VALUE
-cb_Backend_search_index_disallow_querying(VALUE self, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_disallow_querying(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -7102,6 +7167,14 @@ cb_Backend_search_index_disallow_querying(VALUE self, VALUE index_name, VALUE ti
 
     try {
         couchbase::core::operations::management::search_index_control_query_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         cb_extract_timeout(req, timeout);
         req.index_name = cb_string_new(index_name);
         req.allow = false;
@@ -7131,7 +7204,7 @@ cb_Backend_search_index_disallow_querying(VALUE self, VALUE index_name, VALUE ti
 }
 
 static VALUE
-cb_Backend_search_index_freeze_plan(VALUE self, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_freeze_plan(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -7139,6 +7212,14 @@ cb_Backend_search_index_freeze_plan(VALUE self, VALUE index_name, VALUE timeout)
 
     try {
         couchbase::core::operations::management::search_index_control_plan_freeze_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         cb_extract_timeout(req, timeout);
         req.index_name = cb_string_new(index_name);
         req.freeze = true;
@@ -7167,7 +7248,7 @@ cb_Backend_search_index_freeze_plan(VALUE self, VALUE index_name, VALUE timeout)
 }
 
 static VALUE
-cb_Backend_search_index_unfreeze_plan(VALUE self, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_unfreeze_plan(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -7175,6 +7256,14 @@ cb_Backend_search_index_unfreeze_plan(VALUE self, VALUE index_name, VALUE timeou
 
     try {
         couchbase::core::operations::management::search_index_control_plan_freeze_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         cb_extract_timeout(req, timeout);
         req.index_name = cb_string_new(index_name);
         req.freeze = false;
@@ -7204,7 +7293,7 @@ cb_Backend_search_index_unfreeze_plan(VALUE self, VALUE index_name, VALUE timeou
 }
 
 static VALUE
-cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE encoded_document, VALUE timeout)
+cb_Backend_search_index_analyze_document(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE encoded_document, VALUE timeout)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -7213,6 +7302,14 @@ cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE enc
 
     try {
         couchbase::core::operations::management::search_index_analyze_document_request req{};
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         cb_extract_timeout(req, timeout);
 
         req.index_name = cb_string_new(index_name);
@@ -7245,7 +7342,7 @@ cb_Backend_search_index_analyze_document(VALUE self, VALUE index_name, VALUE enc
 }
 
 static VALUE
-cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE search_request, VALUE options)
+cb_Backend_document_search(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE query, VALUE search_request, VALUE options)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
@@ -7257,6 +7354,14 @@ cb_Backend_document_search(VALUE self, VALUE index_name, VALUE query, VALUE sear
 
     try {
         couchbase::core::operations::search_request req;
+        if (!NIL_P(bucket)) {
+            cb_check_type(bucket, T_STRING);
+            req.bucket_name = cb_string_new(bucket);
+        }
+        if (!NIL_P(scope)) {
+            cb_check_type(scope, T_STRING);
+            req.scope_name = cb_string_new(scope);
+        }
         if (VALUE client_context_id = rb_hash_aref(options, rb_id2sym(rb_intern("client_context_id"))); !NIL_P(client_context_id)) {
             cb_check_type(client_context_id, T_STRING);
             req.client_context_id = cb_string_new(client_context_id);
@@ -9323,7 +9428,7 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "document_unlock", VALUE_FUNC(cb_Backend_document_unlock), 6);
     rb_define_method(cBackend, "document_increment", VALUE_FUNC(cb_Backend_document_increment), 5);
     rb_define_method(cBackend, "document_decrement", VALUE_FUNC(cb_Backend_document_decrement), 5);
-    rb_define_method(cBackend, "document_search", VALUE_FUNC(cb_Backend_document_search), 4);
+    rb_define_method(cBackend, "document_search", VALUE_FUNC(cb_Backend_document_search), 6);
     rb_define_method(cBackend, "document_analytics", VALUE_FUNC(cb_Backend_document_analytics), 2);
     rb_define_method(cBackend, "document_view", VALUE_FUNC(cb_Backend_document_view), 5);
 
@@ -9370,19 +9475,19 @@ init_backend(VALUE mCouchbase)
     rb_define_method(cBackend, "collection_query_index_build_deferred", VALUE_FUNC(cb_Backend_collection_query_index_build_deferred), 4);
 
     rb_define_method(cBackend, "search_get_stats", VALUE_FUNC(cb_Backend_search_get_stats), 1);
-    rb_define_method(cBackend, "search_index_get_all", VALUE_FUNC(cb_Backend_search_index_get_all), 1);
-    rb_define_method(cBackend, "search_index_get", VALUE_FUNC(cb_Backend_search_index_get), 2);
-    rb_define_method(cBackend, "search_index_upsert", VALUE_FUNC(cb_Backend_search_index_upsert), 2);
-    rb_define_method(cBackend, "search_index_drop", VALUE_FUNC(cb_Backend_search_index_drop), 2);
+    rb_define_method(cBackend, "search_index_get_all", VALUE_FUNC(cb_Backend_search_index_get_all), 3);
+    rb_define_method(cBackend, "search_index_get", VALUE_FUNC(cb_Backend_search_index_get), 4);
+    rb_define_method(cBackend, "search_index_upsert", VALUE_FUNC(cb_Backend_search_index_upsert), 4);
+    rb_define_method(cBackend, "search_index_drop", VALUE_FUNC(cb_Backend_search_index_drop), 4);
     rb_define_method(cBackend, "search_index_get_stats", VALUE_FUNC(cb_Backend_search_index_get_stats), 2);
-    rb_define_method(cBackend, "search_index_get_documents_count", VALUE_FUNC(cb_Backend_search_index_get_documents_count), 2);
-    rb_define_method(cBackend, "search_index_pause_ingest", VALUE_FUNC(cb_Backend_search_index_pause_ingest), 2);
-    rb_define_method(cBackend, "search_index_resume_ingest", VALUE_FUNC(cb_Backend_search_index_resume_ingest), 2);
-    rb_define_method(cBackend, "search_index_allow_querying", VALUE_FUNC(cb_Backend_search_index_allow_querying), 2);
-    rb_define_method(cBackend, "search_index_disallow_querying", VALUE_FUNC(cb_Backend_search_index_disallow_querying), 2);
-    rb_define_method(cBackend, "search_index_freeze_plan", VALUE_FUNC(cb_Backend_search_index_freeze_plan), 2);
-    rb_define_method(cBackend, "search_index_unfreeze_plan", VALUE_FUNC(cb_Backend_search_index_unfreeze_plan), 2);
-    rb_define_method(cBackend, "search_index_analyze_document", VALUE_FUNC(cb_Backend_search_index_analyze_document), 3);
+    rb_define_method(cBackend, "search_index_get_documents_count", VALUE_FUNC(cb_Backend_search_index_get_documents_count), 4);
+    rb_define_method(cBackend, "search_index_pause_ingest", VALUE_FUNC(cb_Backend_search_index_pause_ingest), 4);
+    rb_define_method(cBackend, "search_index_resume_ingest", VALUE_FUNC(cb_Backend_search_index_resume_ingest), 4);
+    rb_define_method(cBackend, "search_index_allow_querying", VALUE_FUNC(cb_Backend_search_index_allow_querying), 4);
+    rb_define_method(cBackend, "search_index_disallow_querying", VALUE_FUNC(cb_Backend_search_index_disallow_querying), 4);
+    rb_define_method(cBackend, "search_index_freeze_plan", VALUE_FUNC(cb_Backend_search_index_freeze_plan), 4);
+    rb_define_method(cBackend, "search_index_unfreeze_plan", VALUE_FUNC(cb_Backend_search_index_unfreeze_plan), 4);
+    rb_define_method(cBackend, "search_index_analyze_document", VALUE_FUNC(cb_Backend_search_index_analyze_document), 5);
 
     rb_define_method(cBackend, "analytics_get_pending_mutations", VALUE_FUNC(cb_Backend_analytics_get_pending_mutations), 1);
     rb_define_method(cBackend, "analytics_dataverse_drop", VALUE_FUNC(cb_Backend_analytics_dataverse_drop), 2);

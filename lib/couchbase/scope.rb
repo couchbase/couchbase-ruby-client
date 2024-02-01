@@ -143,8 +143,36 @@ module Couchbase
     #
     # @return [SearchResult]
     def search_query(index_name, query, options = Options::Search::DEFAULT)
-      resp = @backend.document_search(index_name, JSON.generate(query), options.to_backend(scope_name: @name))
+      resp = @backend.document_search(@bucket_name, @name, index_name, JSON.generate(query), {}, options.to_backend)
+      convert_search_result(resp, options)
+    end
 
+    # Performs a request against the Full Text Search (FTS) service.
+    #
+    # @api volatile
+    #
+    # @param [String] index_name the name of the search index
+    # @param [SearchRequest] search_request the request
+    # @param [Options::Search] options the custom options for this search request
+    #
+    # @return [SearchResult]
+    def search(index_name, search_request, options = Options::Search::DEFAULT)
+      encoded_query, encoded_req = search_request.to_backend
+      resp = @backend.document_search(@bucket_name, @name, index_name, encoded_query, encoded_req, options.to_backend(show_request: false))
+      convert_search_result(resp, options)
+    end
+
+    # @api volatile
+    #
+    # @return [Management::ScopeSearchIndexManager]
+    def search_indexes
+      Management::ScopeSearchIndexManager.new(@backend, @bucket_name, @name)
+    end
+
+    private
+
+    # @api private
+    def convert_search_result(resp, options)
       SearchResult.new do |res|
         res.meta_data = SearchMetaData.new do |meta|
           meta.metrics.max_score = resp[:meta_data][:metrics][:max_score]

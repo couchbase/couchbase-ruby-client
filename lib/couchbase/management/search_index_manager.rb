@@ -34,8 +34,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def get_index(index_name, options = GetIndexOptions.new)
-        res = @backend.search_index_get(index_name, options.timeout)
-        extract_search_index(res)
+        res = @backend.search_index_get(nil, nil, index_name, options.timeout)
+        self.class.extract_search_index(res)
       end
 
       # Fetches all indexes from the server
@@ -44,8 +44,8 @@ module Couchbase
       #
       # @return [Array<SearchIndex>]
       def get_all_indexes(options = GetAllIndexesOptions.new)
-        res = @backend.search_index_get_all(options.timeout)
-        res[:indexes].map { |idx| extract_search_index(idx) }
+        res = @backend.search_index_get_all(nil, nil, options.timeout)
+        res[:indexes].map { |idx| self.class.extract_search_index(idx) }
       end
 
       # Creates or updates the index
@@ -58,6 +58,8 @@ module Couchbase
       # @raise [ArgumentError] if name, type or source_type is empty
       def upsert_index(index_definition, options = UpsertIndexOptions.new)
         @backend.search_index_upsert(
+          nil,
+          nil,
           {
             name: index_definition.name,
             type: index_definition.type,
@@ -82,7 +84,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def drop_index(index_name, options = DropIndexOptions.new)
-        @backend.search_index_drop(index_name, options.timeout)
+        @backend.search_index_drop(nil, nil, index_name, options.timeout)
       end
 
       # Retrieves the number of documents that have been indexed for an index
@@ -95,7 +97,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def get_indexed_documents_count(index_name, options = GetIndexedDocumentsCountOptions.new)
-        res = @backend.search_index_get_documents_count(index_name, options.timeout)
+        res = @backend.search_index_get_documents_count(nil, nil, index_name, options.timeout)
         res[:count]
       end
 
@@ -140,7 +142,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def pause_ingest(index_name, options = PauseIngestOptions.new)
-        @backend.search_index_pause_ingest(index_name, options.timeout)
+        @backend.search_index_pause_ingest(nil, nil, index_name, options.timeout)
       end
 
       # Resumes updates and maintenance for an index
@@ -153,7 +155,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def resume_ingest(index_name, options = ResumeIngestOptions.new)
-        @backend.search_index_resume_ingest(index_name, options.timeout)
+        @backend.search_index_resume_ingest(nil, nil, index_name, options.timeout)
       end
 
       # Allows querying against the index
@@ -166,7 +168,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def allow_querying(index_name, options = AllowQueryingOptions.new)
-        @backend.search_index_allow_querying(index_name, options.timeout)
+        @backend.search_index_allow_querying(nil, nil, index_name, options.timeout)
       end
 
       # Disallows querying against the index
@@ -179,7 +181,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def disallow_querying(index_name, options = DisallowQueryingOptions.new)
-        @backend.search_index_disallow_querying(index_name, options.timeout)
+        @backend.search_index_disallow_querying(nil, nil, index_name, options.timeout)
       end
 
       # Freeze the assignment of index partitions to nodes
@@ -192,7 +194,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def freeze_plan(index_name, options = FreezePlanOptions.new)
-        @backend.search_index_freeze_plan(index_name, options.timeout)
+        @backend.search_index_freeze_plan(nil, nil, index_name, options.timeout)
       end
 
       # Unfreeze the assignment of index partitions to nodes
@@ -205,7 +207,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def unfreeze_plan(index_name, options = UnfreezePlanOptions.new)
-        @backend.search_index_unfreeze_plan(index_name, options.timeout)
+        @backend.search_index_unfreeze_plan(nil, nil, index_name, options.timeout)
       end
 
       # Allows to see how a document is analyzed against a specific index
@@ -218,7 +220,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def analyze_document(index_name, document, options = AnalyzeDocumentOptions.new)
-        res = @backend.search_index_analyze_document(index_name, JSON.generate(document), options.timeout)
+        res = @backend.search_index_analyze_document(nil, nil, index_name, JSON.generate(document), options.timeout)
         JSON.parse(res[:analysis])
       end
 
@@ -352,9 +354,8 @@ module Couchbase
         end
       end
 
-      private
-
-      def extract_search_index(resp)
+      # @api private
+      def self.extract_search_index(resp)
         SearchIndex.new do |index|
           index.name = resp[:name]
           index.type = resp[:type]
@@ -402,6 +403,21 @@ module Couchbase
         @type = "fulltext-index"
         @source_type = "couchbase"
         yield self if block_given?
+      end
+
+      # @api private
+      def to_backend
+        {
+          name: name,
+          type: type,
+          uuid: uuid,
+          params: (JSON.generate(params) if params),
+          source_name: source_name,
+          source_type: source_type,
+          source_uuid: source_uuid,
+          source_params: (JSON.generate(source_params) if source_params),
+          plan_params: (JSON.generate(plan_params) if plan_params),
+        }
       end
     end
   end
