@@ -29,6 +29,8 @@ end
 
 require "rubygems/version"
 
+require_relative 'utils/consistency_helper'
+
 class ServerVersion
   def initialize(version_string, developer_preview: false)
     @version = Gem::Version.create(version_string.sub(/-\w+$/, ""))
@@ -157,6 +159,10 @@ module Couchbase
       @bucket ||= ENV.fetch("TEST_BUCKET", nil) || "default"
     end
 
+    def management_endpoint
+      @management_endpoint = ENV.fetch("TEST_MANAGEMENT_ENDPOINT", nil)
+    end
+
     def jenkins?
       ENV.key?("JENKINS_HOME")
     end
@@ -175,6 +181,10 @@ module Couchbase
 
     def protostellar?
       Couchbase::Protostellar::SCHEMES.any? { |s| !@connection_string[s].nil? }
+    end
+
+    def consistency
+      @consistency ||= TestUtilities::ConsistencyHelper.new(management_endpoint, username, password)
     end
   end
 

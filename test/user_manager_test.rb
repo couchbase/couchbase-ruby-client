@@ -121,7 +121,13 @@ module Couchbase
       raise "Could not connect to the cluster using the new password" unless success
 
       # Verify that the connection fails with the old password
-      assert_raises(Error::AuthenticationFailure) { Cluster.connect(@env.connection_string, orig_options) }
+      deadline = Time.now + 10
+      assert_raises(Error::AuthenticationFailure) do
+        while Time.now < deadline
+          Cluster.connect(@env.connection_string, orig_options)
+          sleep(0.1)
+        end
+      end
     end
   end
 end

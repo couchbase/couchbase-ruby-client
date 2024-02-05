@@ -33,10 +33,14 @@ module Couchbase
       collection_mgr = @bucket.collections
       collection_mgr.create_scope(@scope_name)
 
+      env.consistency.wait_until_scope_present(env.bucket, @scope_name)
+
       # Retry a few times in case the scope needs time to be created
       retry_for_duration(expected_errors: [Error::CouchbaseError]) do
         collection_mgr.create_collection(@scope_name, collection_name)
       end
+
+      env.consistency.wait_until_collection_present(env.bucket, @scope_name, collection_name)
 
       @collection = @bucket.scope(@scope_name).collection(collection_name)
 
