@@ -202,7 +202,7 @@ task :cache_cxx_dependencies do
   rm_rf(cpm_cache_dir, verbose: true)
 
   untar = ["tar", "-x"]
-  untar << "--force-local" unless RUBY_PLATFORM.match?(/darwin/)
+  untar << "--force-local" unless RUBY_PLATFORM.include?('darwin')
 
   puts("-----> verify that tarball works as a cache for CPM")
   cxx_core_build_dir = Dir.mktmpdir("cxx_build_")

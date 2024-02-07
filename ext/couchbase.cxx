@@ -2472,6 +2472,10 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
                     selected_services.insert(couchbase::core::service_type::search);
                 } else if (entry == rb_id2sym(rb_intern("views"))) {
                     selected_services.insert(couchbase::core::service_type::view);
+                } else if (entry == rb_id2sym(rb_intern("management"))) {
+                    selected_services.insert(couchbase::core::service_type::management);
+                } else if (entry == rb_id2sym(rb_intern("eventing"))) {
+                    selected_services.insert(couchbase::core::service_type::eventing);
                 }
             }
         }
@@ -2510,7 +2514,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
                     type = rb_id2sym(rb_intern("views"));
                     break;
                 case couchbase::core::service_type::management:
-                    type = rb_id2sym(rb_intern("mgmt"));
+                    type = rb_id2sym(rb_intern("management"));
                     break;
                 case couchbase::core::service_type::eventing:
                     type = rb_id2sym(rb_intern("eventing"));
