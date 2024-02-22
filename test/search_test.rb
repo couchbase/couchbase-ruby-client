@@ -24,6 +24,7 @@ module Couchbase
       connect
       skip("#{name}: CAVES does not support query service yet") if use_caves?
       @bucket = @cluster.bucket(env.bucket)
+      @scope = @bucket.default_scope
       @collection = @bucket.default_collection
       @index_name = "idx-#{@bucket.name}-#{rand(0..100_000)}"
 
@@ -234,6 +235,24 @@ module Couchbase
       enc_query, = SearchRequest.new(vector_search).to_backend
 
       assert_equal SearchQuery.match_none.to_json, enc_query
+    end
+
+    def test_vector_search_not_supported
+      skip("#{name}: Server supports vector search") if !env.protostellar? && env.server_version.supports_vector_search?
+
+      req = SearchRequest.new(VectorSearch.new(VectorQuery.new("foo", [-1.1, 1.2])))
+      assert_raises(Couchbase::Error::FeatureNotAvailable) do
+        @cluster.search("index", req)
+      end
+    end
+
+    def test_scope_search_not_supported
+      skip("#{name}: Server supports scope search") if !env.protostellar? && env.server_version.supports_scoped_search_indexes?
+
+      req = SearchRequest.new(SearchQuery.match_all)
+      assert_raises(Couchbase::Error::FeatureNotAvailable) do
+        @scope.search("index", req)
+      end
     end
   end
 end
