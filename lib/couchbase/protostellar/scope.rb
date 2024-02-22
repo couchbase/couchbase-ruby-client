@@ -44,6 +44,14 @@ module Couchbase
         resps = @client.send_request(req)
         ResponseConverter::Query.to_query_result(resps)
       end
+
+      def search_query(...)
+        raise Error::FeatureNotAvailable, "scope search not supported in #{Protostellar::NAME} mode"
+      end
+
+      def search(...)
+        raise Error::FeatureNotAvailable, "scope search not supported in #{Protostellar::NAME} mode"
+      end
     end
   end
 end

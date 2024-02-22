@@ -4143,7 +4143,7 @@ cb_Backend_document_scan_create(VALUE self, VALUE bucket, VALUE scope, VALUE col
             rb_raise(eCouchbaseError, "Cannot perform scan operation. Unable to get bucket configuration");
             return Qnil;
         }
-        if (!config->supports_range_scan()) {
+        if (!config->capabilities.supports_range_scan()) {
             rb_raise(eFeatureNotAvailable, "Server does not support key-value scan operations");
             return Qnil;
         }
@@ -5841,13 +5841,13 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE options)
 }
 
 static VALUE
-cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, VALUE fields, VALUE options)
+cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, VALUE keys, VALUE options)
 {
     const auto& cluster = cb_backend_to_cluster(self);
 
     Check_Type(bucket_name, T_STRING);
     Check_Type(index_name, T_STRING);
-    Check_Type(fields, T_ARRAY);
+    Check_Type(keys, T_ARRAY);
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
     }
@@ -5857,12 +5857,12 @@ cb_Backend_query_index_create(VALUE self, VALUE bucket_name, VALUE index_name, V
         cb_extract_timeout(req, options);
         req.bucket_name = cb_string_new(bucket_name);
         req.index_name = cb_string_new(index_name);
-        auto fields_num = static_cast<std::size_t>(RARRAY_LEN(fields));
-        req.fields.reserve(fields_num);
-        for (std::size_t i = 0; i < fields_num; ++i) {
-            VALUE entry = rb_ary_entry(fields, static_cast<long>(i));
+        auto keys_num = static_cast<std::size_t>(RARRAY_LEN(keys));
+        req.keys.reserve(keys_num);
+        for (std::size_t i = 0; i < keys_num; ++i) {
+            VALUE entry = rb_ary_entry(keys, static_cast<long>(i));
             cb_check_type(entry, T_STRING);
-            req.fields.emplace_back(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry)));
+            req.keys.emplace_back(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry)));
         }
         if (!NIL_P(options)) {
             if (VALUE ignore_if_exists = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_exists"))); ignore_if_exists == Qtrue) {
@@ -6292,7 +6292,7 @@ cb_Backend_collection_query_index_create(VALUE self,
                                          VALUE scope_name,
                                          VALUE collection_name,
                                          VALUE index_name,
-                                         VALUE fields,
+                                         VALUE keys,
                                          VALUE options)
 {
     const auto& cluster = cb_backend_to_cluster(self);
@@ -6301,7 +6301,7 @@ cb_Backend_collection_query_index_create(VALUE self,
     Check_Type(scope_name, T_STRING);
     Check_Type(collection_name, T_STRING);
     Check_Type(index_name, T_STRING);
-    Check_Type(fields, T_ARRAY);
+    Check_Type(keys, T_ARRAY);
     if (!NIL_P(options)) {
         Check_Type(options, T_HASH);
     }
@@ -6313,12 +6313,12 @@ cb_Backend_collection_query_index_create(VALUE self,
         req.scope_name = cb_string_new(scope_name);
         req.collection_name = cb_string_new(collection_name);
         req.index_name = cb_string_new(index_name);
-        auto fields_num = static_cast<std::size_t>(RARRAY_LEN(fields));
-        req.fields.reserve(fields_num);
-        for (std::size_t i = 0; i < fields_num; ++i) {
-            VALUE entry = rb_ary_entry(fields, static_cast<long>(i));
+        auto keys_num = static_cast<std::size_t>(RARRAY_LEN(keys));
+        req.keys.reserve(keys_num);
+        for (std::size_t i = 0; i < keys_num; ++i) {
+            VALUE entry = rb_ary_entry(keys, static_cast<long>(i));
             cb_check_type(entry, T_STRING);
-            req.fields.emplace_back(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry)));
+            req.keys.emplace_back(RSTRING_PTR(entry), static_cast<std::size_t>(RSTRING_LEN(entry)));
         }
         if (!NIL_P(options)) {
             if (VALUE ignore_if_exists = rb_hash_aref(options, rb_id2sym(rb_intern("ignore_if_exists"))); ignore_if_exists == Qtrue) {
