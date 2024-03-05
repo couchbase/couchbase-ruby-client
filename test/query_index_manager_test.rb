@@ -28,6 +28,7 @@ module Couchbase
           s.ram_quota_mb = 256
         end
       )
+      env.consistency.wait_until_bucket_present(@bucket_name)
       retry_for_duration(expected_errors: [Error::BucketNotFound]) do
         @bucket = @cluster.bucket('query-idx-test-bucket')
       end

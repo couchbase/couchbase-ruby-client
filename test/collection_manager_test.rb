@@ -29,8 +29,9 @@ module Couchbase
           s.ram_quota_mb = 1024
         end
       )
-      begin
-      end
+
+      env.consistency.wait_until_bucket_present(TEST_MAGMA_BUCKET_NAME)
+
       retry_for_duration(expected_errors: [Error::BucketNotFound]) do
         @magma_bucket = @cluster.bucket(TEST_MAGMA_BUCKET_NAME)
       end
@@ -57,6 +58,8 @@ module Couchbase
     end
 
     def setup
+      skip("#{name}: The server does not support collections") unless env.server_version.supports_collections?
+
       connect
       @used_scopes = []
       @bucket = @cluster.bucket(env.bucket)
@@ -86,6 +89,7 @@ module Couchbase
     def test_create_scope
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
       refute_nil scope
@@ -94,11 +98,13 @@ module Couchbase
     def test_drop_scope
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
       refute_nil scope
 
       @collection_manager.drop_scope(scope_name)
+      env.consistency.wait_until_scope_dropped(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
       assert_nil scope
@@ -108,8 +114,11 @@ module Couchbase
       coll_names = %w[coll-1 coll-2 coll-3]
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
+
       coll_names.each do |coll_name|
         @collection_manager.create_collection(scope_name, coll_name)
+        env.consistency.wait_until_collection_present(env.bucket, scope_name, coll_name)
       end
       scope = get_scope(scope_name)
 
@@ -121,8 +130,11 @@ module Couchbase
       coll_names = %w[coll-1 coll-2 coll-3]
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
+
       coll_names.each do |coll_name|
         @collection_manager.create_collection(scope_name, coll_name)
+        env.consistency.wait_until_collection_present(env.bucket, scope_name, coll_name)
       end
       scope = get_scope(scope_name)
 
@@ -130,6 +142,8 @@ module Couchbase
       assert_equal coll_names.sort, scope.collections.map(&:name).sort
 
       @collection_manager.drop_collection(scope_name, 'coll-1')
+      env.consistency.wait_until_collection_dropped(env.bucket, scope_name, 'coll-1')
+
       scope = get_scope(scope_name)
 
       refute_includes scope.collections.map(&:name), 'coll-1'
@@ -139,7 +153,10 @@ module Couchbase
       coll_name = 'coll-1'
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
+
       @collection_manager.create_collection(scope_name, coll_name)
+      env.consistency.wait_until_collection_present(env.bucket, scope_name, coll_name)
 
       refute_nil get_collection(scope_name, coll_name)
 
@@ -170,6 +187,7 @@ module Couchbase
     def test_create_scope_already_exists
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
 
       refute_nil get_scope(scope_name)
 
@@ -190,6 +208,7 @@ module Couchbase
       scope_name = get_scope_name
       coll_name = 'does-not-exist'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
 
       refute_nil get_scope(scope_name)
 
@@ -216,12 +235,14 @@ module Couchbase
       scope_name = get_scope_name
       collection_name = 'test-coll'
       @magma_collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(TEST_MAGMA_BUCKET_NAME, scope_name)
       scope = get_scope(scope_name, @magma_collection_manager)
 
       assert scope
 
       settings = Management::CreateCollectionSettings.new(history: true)
       @magma_collection_manager.create_collection(scope_name, collection_name, settings)
+      env.consistency.wait_until_collection_present(TEST_MAGMA_BUCKET_NAME, scope_name, collection_name)
 
       coll = get_collection(scope_name, collection_name, @magma_collection_manager)
 
@@ -239,12 +260,15 @@ module Couchbase
       scope_name = get_scope_name
       collection_name = 'test-coll'
       @magma_collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(TEST_MAGMA_BUCKET_NAME, scope_name)
+
       scope = get_scope(scope_name, @magma_collection_manager)
 
       assert scope
 
       settings = Management::CreateCollectionSettings.new(history: false)
       @magma_collection_manager.create_collection(scope_name, collection_name, settings)
+      env.consistency.wait_until_collection_present(TEST_MAGMA_BUCKET_NAME, scope_name, collection_name)
 
       coll = get_collection(scope_name, collection_name, @magma_collection_manager)
 
@@ -268,6 +292,8 @@ module Couchbase
       scope_name = get_scope_name
       collection_name = 'test-coll'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
+
       scope = get_scope(scope_name)
 
       assert scope
@@ -287,6 +313,8 @@ module Couchbase
       scope_name = get_scope_name
       collection_name = 'test-coll'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
+
       scope = get_scope(scope_name)
 
       assert scope
@@ -309,12 +337,14 @@ module Couchbase
       scope_name = get_scope_name
       collection_name = 'testcoll'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
       assert scope
 
       settings = Management::CreateCollectionSettings.new(max_expiry: 5)
       @collection_manager.create_collection(scope_name, collection_name, settings)
+      env.consistency.wait_until_collection_present(env.bucket, scope_name, collection_name)
 
       coll_spec = get_collection(scope_name, collection_name)
 
@@ -348,6 +378,7 @@ module Couchbase
       scope_name = get_scope_name
       collection_name = 'testcoll'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
       assert scope
@@ -355,6 +386,7 @@ module Couchbase
       settings = Management::CreateCollectionSettings.new(max_expiry: -1)
 
       @collection_manager.create_collection(scope_name, collection_name, settings)
+      env.consistency.wait_until_collection_present(env.bucket, scope_name, collection_name)
 
       coll_spec = get_collection(scope_name, collection_name)
 
@@ -369,6 +401,7 @@ module Couchbase
       scope_name = get_scope_name
       collection_name = 'testcoll'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
       assert scope
@@ -384,6 +417,7 @@ module Couchbase
       scope_name = get_scope_name
       collection_name = 'testcoll'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
       assert scope
@@ -404,12 +438,14 @@ module Couchbase
       scope_name = get_scope_name
       collection_name = 'test-coll'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
       assert scope
 
       settings = Management::CreateCollectionSettings.new(max_expiry: 600)
       @collection_manager.create_collection(scope_name, collection_name, settings)
+      env.consistency.wait_until_collection_present(env.bucket, scope_name, collection_name)
 
       coll_spec = get_collection(scope_name, collection_name)
 
@@ -451,12 +487,14 @@ module Couchbase
       scope_name = get_scope_name
       collection_name = 'testcoll'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
       assert scope
 
       settings = Management::CreateCollectionSettings.new(max_expiry: 600)
       @collection_manager.create_collection(scope_name, collection_name, settings)
+      env.consistency.wait_until_collection_present(env.bucket, scope_name, collection_name)
 
       coll_spec = get_collection(scope_name, collection_name)
 
@@ -475,18 +513,23 @@ module Couchbase
 
     def test_update_collection_max_expiry_no_expiry_not_supported
       skip("#{name}: CAVES does not support update_collection") if use_caves?
+      unless env.server_version.supports_update_collection_max_expiry?
+        skip("#{name}: The server does not support update_collection with max_expiry")
+      end
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
       skip("#{name}: The server supports setting max_expiry to -1") if env.server_version.supports_collection_max_expiry_set_to_no_expiry?
 
       scope_name = get_scope_name
       collection_name = 'testcoll'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
       assert scope
 
       settings = Management::CreateCollectionSettings.new(max_expiry: 600)
       @collection_manager.create_collection(scope_name, collection_name, settings)
+      env.consistency.wait_until_collection_present(env.bucket, scope_name, collection_name)
 
       coll_spec = get_collection(scope_name, collection_name)
 
@@ -507,12 +550,14 @@ module Couchbase
       scope_name = get_scope_name
       collection_name = 'testcoll'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
       assert scope
 
       settings = Management::CreateCollectionSettings.new(max_expiry: 600)
       @collection_manager.create_collection(scope_name, collection_name, settings)
+      env.consistency.wait_until_collection_present(env.bucket, scope_name, collection_name)
 
       coll_spec = get_collection(scope_name, collection_name)
 
@@ -535,6 +580,7 @@ module Couchbase
       scope_name = get_scope_name
       coll_name = 'does-not-exist'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
 
       refute_nil get_scope(scope_name)
 
@@ -565,6 +611,8 @@ module Couchbase
       scope_name = get_scope_name
       coll_name = 'coll-1'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
+
       @collection_manager.create_collection(
         Management::CollectionSpec.new do |spec|
           spec.name = coll_name
@@ -572,6 +620,7 @@ module Couchbase
         end,
         Management::Options::Collection::CreateCollection.new(timeout: 80_000)
       )
+      env.consistency.wait_until_collection_present(env.bucket, scope_name, coll_name)
 
       refute_nil get_collection(scope_name, coll_name)
     end
@@ -580,12 +629,15 @@ module Couchbase
       scope_name = get_scope_name
       coll_name = 'coll-1'
       @collection_manager.create_scope(scope_name)
+      env.consistency.wait_until_scope_present(env.bucket, scope_name)
+
       @collection_manager.create_collection(
         Management::CollectionSpec.new do |spec|
           spec.name = coll_name
           spec.scope_name = scope_name
         end
       )
+      env.consistency.wait_until_collection_present(env.bucket, scope_name, coll_name)
 
       refute_nil get_collection(scope_name, coll_name)
 
@@ -596,6 +648,7 @@ module Couchbase
         end,
         Management::Options::Collection::DropCollection.new(timeout: 80_000)
       )
+      env.consistency.wait_until_collection_dropped(env.bucket, scope_name, coll_name)
 
       assert_nil get_collection(scope_name, coll_name)
     end

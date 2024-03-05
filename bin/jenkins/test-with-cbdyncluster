@@ -53,12 +53,13 @@ fi
 CLUSTER_ID=$(cbdyncluster allocate --num-nodes=3 --server-version=${CB_VERSION})
 SERVICES="kv,index,n1ql,fts"
 CB_BUCKET=default
-cbdyncluster setup ${CLUSTER_ID} \
+CLUSTER_ENTRY_POINT=$(cbdyncluster setup ${CLUSTER_ID} \
+    --ram-quota=2048 \
     --storage-mode=plasma \
     ${extra_options} \
     --node=${SERVICES} \
     --node=${SERVICES} \
-    --node=${SERVICES}
+    --node=${SERVICES})
 cbdyncluster add-bucket ${CLUSTER_ID} \
     --name default \
     --ram-quota 256 \
@@ -121,6 +122,7 @@ then
 fi
 export TEST_SERVER_VERSION=${CB_VERSION}
 export TEST_CONNECTION_STRING=$(cbdyncluster connstr ${CLUSTER_ID})
+export TEST_MANAGEMENT_ENDPOINT=${CLUSTER_ENTRY_POINT}
 set +e
 
 cat /proc/sys/kernel/core_pattern

@@ -54,6 +54,9 @@ module Couchbase
           s.history_retention_duration = 600
         end
       )
+
+      env.consistency.wait_until_bucket_present(bucket_name)
+
       res = @bucket_manager.get_bucket(bucket_name)
 
       refute res.history_retention_collection_default
@@ -91,6 +94,9 @@ module Couchbase
           s.ram_quota_mb = 1024
         end
       )
+
+      env.consistency.wait_until_bucket_present(bucket_name)
+
       res = @bucket_manager.get_bucket(bucket_name)
 
       assert res.history_retention_collection_default
@@ -125,6 +131,9 @@ module Couchbase
           s.storage_backend = :couchstore
         end
       )
+
+      env.consistency.wait_until_bucket_present(bucket_name)
+
       res = @bucket_manager.get_bucket(bucket_name)
 
       assert_nil res.history_retention_collection_default

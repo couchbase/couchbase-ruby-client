@@ -91,13 +91,12 @@ module Couchbase
           sleep(0.5)
           retry
         end
-        if res.rows.empty?
+        if !res.success? || res.rows.empty?
           sleep(0.5)
           next
         end
 
-        assert_predicate res, :success?, "res=#{res.inspect}"
-        refute_empty res.rows, "expected non empty result"
+        refute_empty res.rows, "expected non empty result res=#{res.inspect}"
         assert res.rows.find { |row| row.id == doc_id }, "result expected to include #{doc_id}"
         break
       end
@@ -115,23 +114,24 @@ module Couchbase
       options.consistent_with(mutation_state)
       options.limit = 100
       attempts = 0
+      retry_delay = 0.5
       loop do
         begin
-          break if attempts >= 30
+          break if attempts >= 20
 
           attempts += 1
           res = @cluster.search_query(@index_name, Cluster::SearchQuery.doc_id(*doc_ids), options)
         rescue Error::ConsistencyMismatch
-          sleep(0.5)
+          sleep(retry_delay)
           retry
         end
-        if res.rows.empty?
-          sleep(0.5)
+        # If any of the documents are missing attempt the search again (assuming FTS instability)
+        if !res.success? || res.rows.size < doc_ids.size
+          sleep(retry_delay)
           next
         end
 
-        assert_predicate res, :success?, "res=#{res.inspect}"
-        refute_empty res.rows, "expected non empty result"
+        refute_empty res.rows, "expected non empty result res=#{res.inspect}"
         doc_ids.each do |doc_id|
           assert res.rows.find { |row| row.id == doc_id }, "result expected to include #{doc_id}"
         end
