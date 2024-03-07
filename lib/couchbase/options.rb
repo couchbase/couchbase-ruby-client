@@ -14,6 +14,7 @@
 
 require "couchbase/utils/time"
 require "couchbase/config_profiles"
+require "couchbase/json_transcoder"
 
 module Couchbase
   # Definition of the Option classes for data APIs

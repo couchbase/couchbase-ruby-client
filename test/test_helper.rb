@@ -31,6 +31,8 @@ require "rubygems/version"
 
 require_relative 'utils/consistency_helper'
 
+require "couchbase/management"
+
 class ServerVersion
   def initialize(version_string, developer_preview: false)
     @version = Gem::Version.create(version_string.sub(/-\w+$/, ""))
@@ -218,8 +220,18 @@ module Couchbase
       @cluster = Cluster.connect(env.connection_string, options)
     end
 
+    def ensure_primary_index!
+      @cluster ||= connect
+      index_manager = @cluster.query_indexes
+      index_manager.create_primary_index(env.bucket, Management::Options::Query::CreatePrimaryIndex.new(ignore_if_exists: true))
+      sleep 0.1 while index_manager.get_all_indexes(env.bucket).none? { |idx| idx.name == "#primary" && idx.state == :online }
+    end
+
     def disconnect
-      @cluster.disconnect if defined? @cluster
+      return unless defined?(@cluster) && @cluster
+
+      @cluster.disconnect
+      @cluster = nil
     end
 
     # @param [Float] duration in seconds with fractions
@@ -277,8 +289,8 @@ unless ENV['RM_INFO']
   require "minitest/reporters"
   Minitest::Reporters.use!(
     [
-      Minitest::Reporters::SpecReporter.new,
-      Minitest::Reporters::JUnitReporter.new,
+      Minitest::Reporters::SpecReporter.new(print_failure_summary: true),
+      Minitest::Reporters::JUnitReporter.new(Minitest::Reporters::JUnitReporter::DEFAULT_REPORTS_DIR, true, include_timestamp: true),
     ]
   )
 end

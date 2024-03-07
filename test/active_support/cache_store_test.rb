@@ -33,6 +33,9 @@ module Couchbase
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support consistent_with yet") if env.protostellar?
       skip("#{name}: CAVES does not support query service yet for clear in cache adapter") if use_caves?
 
+      # clear uses N1QL and primary index by default
+      ensure_primary_index!
+
       foo = uniq_id(:foo)
       @cache.write(foo, "value_foo")
       @cache.clear
@@ -91,6 +94,9 @@ module Couchbase
       skip("#{name}: delete_matched is not stable on 6.x servers, version=#{env.server_version}") if env.server_version.mad_hatter?
 
       skip("The server #{env.server_version} does not support delete_matched") unless env.server_version.supports_regexp_matches?
+
+      ensure_primary_index!
+
       foo = uniq_id(:foo)
       @cache.write(foo, "value_foo")
       bar = uniq_id(:bar)

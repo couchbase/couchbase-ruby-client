@@ -4,6 +4,9 @@ module CacheDeleteMatchedBehavior
   def test_delete_matched
     skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support consistent_with yet") if env.protostellar?
     skip("#{name}: delete_matched is not stable on 6.x servers, version=#{env.server_version}") if use_caves? || env.server_version.mad_hatter?
+
+    ensure_primary_index!
+
     begin
       @cache.delete_matched("*")
     rescue NotImplementedError

@@ -19,10 +19,6 @@ module Couchbase
     include TestUtilities
 
     def setup
-      unless env.server_version.supports_scoped_search_indexes?
-        skip("skipped for (#{env.server_version}) as the ScopeSearchIndexManagerTest requires scoped search index support")
-      end
-
       @index_names = []
 
       connect
@@ -47,6 +43,11 @@ module Couchbase
     end
 
     def test_index_not_found
+      skip("#{name}: CAVES does not support query service yet") if use_caves?
+      unless env.server_version.supports_scoped_search_indexes?
+        skip("skipped for (#{env.server_version}) as the ScopeSearchIndexManagerTest requires scoped search index support")
+      end
+
       [
         [:drop_index, ["test-index"]],
         [:get_indexed_documents_count, ["test-index"]],
@@ -64,6 +65,11 @@ module Couchbase
     end
 
     def test_index_crud
+      skip("#{name}: CAVES does not support query service yet") if use_caves?
+      unless env.server_version.supports_scoped_search_indexes?
+        skip("skipped for (#{env.server_version}) as the ScopeSearchIndexManagerTest requires scoped search index support")
+      end
+
       index_name = uniq_id(:scope_idx)
 
       @mgr.upsert_index(
@@ -109,6 +115,7 @@ module Couchbase
       skip("Test requires not having scoped search index support") if env.server_version.supports_scoped_search_indexes?
 
       connect
+      skip("#{name}: CAVES does not support query service yet") if use_caves?
       @bucket = @cluster.bucket(env.bucket)
       @scope = @bucket.default_scope
       @mgr = @scope.search_indexes

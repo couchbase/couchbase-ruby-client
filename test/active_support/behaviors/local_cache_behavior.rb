@@ -33,6 +33,8 @@ module LocalCacheBehavior
     skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support consistent_with yet") if env.protostellar?
     skip("#{name}: CAVES does not support query service yet for clear in cache adapter") if use_caves?
 
+    ensure_primary_index!
+
     key = SecureRandom.uuid
     @cache.with_local_cache do
       @cache.write(key, SecureRandom.alphanumeric)
