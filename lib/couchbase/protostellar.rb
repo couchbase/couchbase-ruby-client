@@ -17,6 +17,7 @@
 require_relative "protostellar/cluster"
 
 module Couchbase
+  # @api private
   module Protostellar
     NAME = "couchbase2"
     SCHEMES = %w[couchbase2 protostellar].freeze

@@ -63,6 +63,8 @@ module Couchbase
     #
     # @see https://docs.couchbase.com/server/current/manage/manage-security/configure-client-certificates.html
     #
+    # @note The +couchbase2://+ scheme is currently at stability _uncommitted_
+    #
     # @return [Cluster]
     def self.connect(connection_string_or_config, *options)
       connection_string = if connection_string_or_config.is_a?(Configuration)
