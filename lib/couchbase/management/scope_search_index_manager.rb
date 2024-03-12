@@ -14,7 +14,6 @@
 
 module Couchbase
   module Management
-    # @api volatile
     class ScopeSearchIndexManager
       alias inspect to_s
 

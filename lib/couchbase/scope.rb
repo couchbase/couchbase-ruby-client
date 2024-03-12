@@ -149,8 +149,6 @@ module Couchbase
 
     # Performs a request against the Full Text Search (FTS) service.
     #
-    # @api volatile
-    #
     # @param [String] index_name the name of the search index
     # @param [SearchRequest] search_request the request
     # @param [Options::Search] options the custom options for this search request
@@ -162,8 +160,6 @@ module Couchbase
       convert_search_result(resp, options)
     end
 
-    # @api volatile
-    #
     # @return [Management::ScopeSearchIndexManager]
     def search_indexes
       Management::ScopeSearchIndexManager.new(@backend, @bucket_name, @name)

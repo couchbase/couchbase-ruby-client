@@ -103,7 +103,7 @@ module Couchbase
 
       # Retrieves metrics, timings and counters for a given index
       #
-      # @api uncommitted
+      # @!macro uncommitted
       #
       # @param [String] index_name name of the index
       # @param [GetIndexStatsOptions] options
@@ -120,7 +120,7 @@ module Couchbase
       # Retrieves statistics on search service. Information is provided on documents, partition indexes, mutations,
       # compactions, queries, and more.
       #
-      # @api uncommitted
+      # @!macro uncommitted
       #
       # @param [GetIndexStatsOptions] options
       #

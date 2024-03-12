@@ -595,8 +595,6 @@ module Couchbase
 
     # Performs a key-value scan operation on the collection
     #
-    # @api uncommitted
-    #
     # @param [RangeScan, PrefixScan, SamplingScan] scan_type the type of the scan
     # @param [Options::Scan] options request customization
     #

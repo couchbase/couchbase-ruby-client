@@ -13,7 +13,6 @@
 #  limitations under the License.
 
 module Couchbase
-  # @api volatile
   class SearchRequest
     # Creates a search request, used to perform operations against the Full Text Search (FTS) Couchbase service.
     #
@@ -24,6 +23,8 @@ module Couchbase
     # @overload new(vector_search)
     #   Will run a +VectorSearch+
     #   @param [VectorSearch] vector_search
+    #
+    #   @!macro uncommitted
     def initialize(search)
       case search
       when SearchQuery
@@ -54,6 +55,8 @@ module Couchbase
     # @param [VectorSearch] query
     #
     # @return [SearchRequest] for chaining purposes
+    #
+    # @!macro uncommitted
     def vector_search(query)
       raise Error::InvalidArgument, "A VectorSearch has already been specified" unless @vector_search.nil?
 
@@ -684,7 +687,7 @@ module Couchbase
     #
     # @return [GeoPolygonQuery]
     #
-    # @api uncommitted
+    # @!macro uncommitted
     def self.geo_polygon(coordinates, &block)
       GeoPolygonQuery.new(coordinates, &block)
     end
@@ -1038,10 +1041,10 @@ module Couchbase
     end
   end
 
-  # @api volatile
+  # @!macro uncommitted
   class VectorSearch
     # Constructs a +VectorSearch+ instance, which allows one or more individual vector queries to be executed.
-    # #
+    #
     # @param [VectorQuery, Array<VectorQuery>] vector_queries vector queries/query to execute
     # @param [Options::VectorSearch] options
     def initialize(vector_queries, options = Options::VectorSearch::DEFAULT)
@@ -1055,7 +1058,7 @@ module Couchbase
     end
   end
 
-  # @api volatile
+  # @!macro uncommitted
   class VectorQuery
     # @return [Integer, nil]
     attr_accessor :num_candidates
