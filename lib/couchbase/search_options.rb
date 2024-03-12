@@ -13,7 +13,6 @@
 #  limitations under the License.
 
 module Couchbase
-  # @api volatile
   class SearchRequest
     # Creates a search request, used to perform operations against the Full Text Search (FTS) Couchbase service.
     #
@@ -24,6 +23,8 @@ module Couchbase
     # @overload new(vector_search)
     #   Will run a +VectorSearch+
     #   @param [VectorSearch] vector_search
+    #
+    #   @api uncommitted
     def initialize(search)
       case search
       when SearchQuery
@@ -54,6 +55,8 @@ module Couchbase
     # @param [VectorSearch] query
     #
     # @return [SearchRequest] for chaining purposes
+    #
+    # @api uncommitted
     def vector_search(query)
       raise Error::InvalidArgument, "A VectorSearch has already been specified" unless @vector_search.nil?
 
@@ -1038,7 +1041,7 @@ module Couchbase
     end
   end
 
-  # @api volatile
+  # @api uncommitted
   class VectorSearch
     # Constructs a +VectorSearch+ instance, which allows one or more individual vector queries to be executed.
     # #
@@ -1055,7 +1058,7 @@ module Couchbase
     end
   end
 
-  # @api volatile
+  # @api uncommitted
   class VectorQuery
     # @return [Integer, nil]
     attr_accessor :num_candidates

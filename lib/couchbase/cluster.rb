@@ -195,8 +195,6 @@ module Couchbase
 
     # Performs a request against the Full Text Search (FTS) service.
     #
-    # @api volatile
-    #
     # @param [String] index_name the name of the search index
     # @param [SearchRequest] search_request the request
     # @param [Options::Search] options the custom options for this search request
