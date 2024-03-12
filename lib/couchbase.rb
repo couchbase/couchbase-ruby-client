@@ -18,3 +18,11 @@ require "couchbase/logger"
 require "couchbase/cluster"
 
 require "couchbase/railtie" if defined?(Rails)
+
+# @!macro uncommitted
+#   @couchbase.stability
+#     Uncommitted: This API may change in the future.
+#
+# @!macro volatile
+#   @couchbase.stability
+#     Volatile: This API is subject to change at any time.

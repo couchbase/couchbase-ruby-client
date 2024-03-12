@@ -63,7 +63,7 @@ module Couchbase
 
     # Indicates that the user has insufficient permissions to perform the operation
     #
-    # @api uncommitted
+    # @!macro uncommitted
     class PermissionDenied < CouchbaseError
     end
 
