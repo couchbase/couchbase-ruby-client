@@ -598,6 +598,8 @@ module Couchbase
     # @param [RangeScan, PrefixScan, SamplingScan] scan_type the type of the scan
     # @param [Options::Scan] options request customization
     #
+    # @return [ScanResults]
+    #
     # @example Get a sample of up to 5 documents from the collection and store their IDs in an array
     #   result = collection.scan(SamplingScan.new(5), Options::Scan.new(ids_only: true))
     #   ids = result.map { |item| item.id }
@@ -613,7 +615,10 @@ module Couchbase
     #   ))
     #   result.each { |item| puts item.content }
     #
-    # @return [ScanResults]
+    # @note
+    #   Use this API for low concurrency batch queries where latency is not a critical as the system may have to scan
+    #   a lot of documents to find the matching documents. For low latency range queries, it is recommended that you use
+    #   SQL++ with the necessary indexes.
     def scan(scan_type, options = Options::Scan::DEFAULT)
       ScanResults.new(
         core_scan_result: @backend.document_scan_create(
