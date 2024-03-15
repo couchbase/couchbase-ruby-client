@@ -16,6 +16,7 @@
 
 require "bundler/setup"
 require "irb"
+require "open3"
 require "couchbase"
 
 include Couchbase # rubocop:disable Style/MixinUsage for brevity
@@ -44,9 +45,38 @@ customer123 = {
   },
 }
 
+def which(name, extra_locations = [])
+  ENV.fetch("PATH", "")
+     .split(File::PATH_SEPARATOR)
+     .prepend(*extra_locations)
+     .select { |path| File.directory?(path) }
+     .map { |path| [path, name].join(File::SEPARATOR) + RbConfig::CONFIG["EXEEXT"] }
+     .find { |file| File.executable?(file) }
+end
+
+def capture_output(*cmd)
+  output, _, status = Open3.capture3(*cmd)
+  return unless status.success?
+
+  output.strip!
+  return if output.empty?
+
+  output
+end
+
+def cbdinocluster_connection_string
+  cbdinocluster = which("cbdinocluster")
+  return unless cbdinocluster
+
+  first_cluster = capture_output(cbdinocluster, "ps")[/([-0-9a-f]+) \[State: ready/i, 1]
+  return unless first_cluster
+
+  capture_output(cbdinocluster, "connstr", first_cluster)
+end
+
 def cluster
   @cluster ||= begin
-    connection_string = ARGV[0] || ENV.fetch("TEST_CONNECTION_STRING", nil) || "couchbase://localhost"
+    connection_string = ARGV[0] || ENV.fetch("TEST_CONNECTION_STRING", cbdinocluster_connection_string) || "couchbase://localhost"
     username = ARGV[1] || ENV.fetch("TEST_USERNAME", nil) || "Administrator"
     password = ARGV[2] || ENV.fetch("TEST_PASSWORD", nil) || "password"
     Cluster.connect(connection_string, username, password)

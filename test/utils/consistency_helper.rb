@@ -55,7 +55,9 @@ module Couchbase
 
       def wait_until_bucket_present(name, timeout: DEFAULT_TIMEOUT_SECS)
         wait_until(timeout, "Bucket `#{name}` is not present in all nodes") do
-          resource_is_present("pools/default/buckets/#{name}")
+          resource_satisfies_predicate("pools/default/buckets/#{name}") do |resp|
+            resp["nodes"].all? { |node| node["status"] == "healthy" && node["clusterMembership"] == "active" }
+          end
         end
       end
 

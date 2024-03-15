@@ -30,12 +30,14 @@ module Couchbase
       )
       env.consistency.wait_until_bucket_present(@bucket_name)
       retry_for_duration(expected_errors: [Error::BucketNotFound]) do
-        @bucket = @cluster.bucket('query-idx-test-bucket')
+        @bucket = @cluster.bucket(@bucket_name)
       end
 
       # Add a scope in the bucket to verify it has been created
-      retry_for_duration(expected_errors: [Error::BucketNotFound]) do
-        @bucket.collections.create_scope("test-scope")
+      if env.server_version.supports_collections?
+        retry_for_duration(expected_errors: [Error::BucketNotFound]) do
+          @bucket.collections.create_scope("test-scope")
+        end
       end
 
       @idx_mgr = @cluster.query_indexes
@@ -48,6 +50,8 @@ module Couchbase
     end
 
     def test_get_all_indexes
+      skip("#{name}: CAVES does not support query service yet") if use_caves?
+
       index_names = [uniq_id(:foo), uniq_id(:bar)]
       index_names.each { |idx_name| @idx_mgr.create_index(@bucket_name, idx_name, ["foo"]) }
 
@@ -60,6 +64,8 @@ module Couchbase
     end
 
     def test_query_indexes
+      skip("#{name}: CAVES does not support query service yet") if use_caves?
+
       @idx_mgr.create_primary_index(@bucket_name)
       @idx_mgr.create_index(@bucket_name, "test_index", ["test"])
       res1 = @idx_mgr.get_all_indexes(@bucket_name)

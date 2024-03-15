@@ -58,8 +58,6 @@ module Couchbase
     end
 
     def setup
-      skip("#{name}: The server does not support collections") unless env.server_version.supports_collections?
-
       connect
       @used_scopes = []
       @bucket = @cluster.bucket(env.bucket)
@@ -87,15 +85,19 @@ module Couchbase
     end
 
     def test_create_scope
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
       env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
-      refute_nil scope
+      refute_nil scope, "scope #{scope_name} should be available by now"
     end
 
     def test_drop_scope
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
       env.consistency.wait_until_scope_present(env.bucket, scope_name)
@@ -111,6 +113,8 @@ module Couchbase
     end
 
     def test_create_collection
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       coll_names = %w[coll-1 coll-2 coll-3]
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
@@ -127,6 +131,8 @@ module Couchbase
     end
 
     def test_drop_collection
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       coll_names = %w[coll-1 coll-2 coll-3]
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
@@ -150,6 +156,8 @@ module Couchbase
     end
 
     def test_create_collection_already_exists
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       coll_name = 'coll-1'
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
@@ -166,6 +174,8 @@ module Couchbase
     end
 
     def test_create_collection_scope_does_not_exist
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       coll_name = 'coll-1'
       scope_name = 'does-not-exist'
 
@@ -185,6 +195,8 @@ module Couchbase
     end
 
     def test_create_scope_already_exists
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       scope_name = get_scope_name
       @collection_manager.create_scope(scope_name)
       env.consistency.wait_until_scope_present(env.bucket, scope_name)
@@ -197,6 +209,8 @@ module Couchbase
     end
 
     def test_drop_scope_does_not_exist
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       scope_name = 'does-not-exist'
 
       assert_raises(Error::ScopeNotFound) do
@@ -205,6 +219,8 @@ module Couchbase
     end
 
     def test_drop_collection_does_not_exist
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       scope_name = get_scope_name
       coll_name = 'does-not-exist'
       @collection_manager.create_scope(scope_name)
@@ -218,6 +234,8 @@ module Couchbase
     end
 
     def test_drop_collection_scope_does_not_exist
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       scope_name = 'does-not-exist'
       coll_name = 'does-not-exist'
 
@@ -334,6 +352,8 @@ module Couchbase
     end
 
     def test_create_collection_max_expiry
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       scope_name = get_scope_name
       collection_name = 'testcoll'
       @collection_manager.create_scope(scope_name)
@@ -370,6 +390,7 @@ module Couchbase
     end
 
     def test_create_collection_max_expiry_no_expiry
+      skip("#{name}: The server does not support collections") if use_caves?
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support setting max_expiry to -1 yet") if env.protostellar?
       unless env.server_version.supports_collection_max_expiry_set_to_no_expiry?
         skip("#{name}: The server does not support setting max_expiry to -1")
@@ -404,7 +425,7 @@ module Couchbase
       env.consistency.wait_until_scope_present(env.bucket, scope_name)
       scope = get_scope(scope_name)
 
-      assert scope
+      assert scope, "the scope \"#{scope_name}\" must exist"
 
       settings = Management::CreateCollectionSettings.new(max_expiry: -1)
 
@@ -414,6 +435,8 @@ module Couchbase
     end
 
     def test_create_collection_max_expiry_invalid
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       scope_name = get_scope_name
       collection_name = 'testcoll'
       @collection_manager.create_scope(scope_name)
@@ -545,6 +568,7 @@ module Couchbase
 
     def test_update_collection_max_expiry_invalid
       skip("#{name}: CAVES does not support update_collection") if use_caves?
+      skip("#{name}: The server does not support collections") unless env.server_version.supports_collections?
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support update_collection") if env.protostellar?
 
       scope_name = get_scope_name
@@ -608,6 +632,8 @@ module Couchbase
     end
 
     def test_create_collection_deprecated
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       scope_name = get_scope_name
       coll_name = 'coll-1'
       @collection_manager.create_scope(scope_name)
@@ -626,6 +652,8 @@ module Couchbase
     end
 
     def test_drop_collection_deprecated
+      skip("#{name}: The server does not support collections") unless use_caves? || env.server_version.supports_collections?
+
       scope_name = get_scope_name
       coll_name = 'coll-1'
       @collection_manager.create_scope(scope_name)

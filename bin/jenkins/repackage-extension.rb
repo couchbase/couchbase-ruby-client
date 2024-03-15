@@ -8,6 +8,11 @@ require "tmpdir"
 require "rubygems/installer"
 require "rubygems/package"
 
+def run(*args)
+  _, status = Open3.capture2e(*args)
+  status.success?
+end
+
 module Gem
   class Collector
     def initialize(gemfiles)
@@ -38,7 +43,7 @@ module Gem
           new_path = File.join(new_dirname, basename).gsub(installer.spec.full_gem_path, first_gemspec.full_gem_path)
           FileUtils.mkdir_p(File.dirname(new_path))
           FileUtils.mv(path, new_path)
-          system("strip", "--strip-all", new_path) || system("strip", new_path)
+          run("strip", "--strip-all", new_path) || run("strip", new_path)
           file = new_path.sub("#{first_gemspec.full_gem_path}/", "")
           puts "Adding '#{file}' to gemspec"
           first_gemspec.files.push file

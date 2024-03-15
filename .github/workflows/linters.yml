@@ -52,6 +52,10 @@ jobs:
           sudo bash -c "echo 'deb https://apt.llvm.org/focal/ llvm-toolchain-focal-11 main' >> /etc/apt/sources.list"
           sudo apt-get update -y
           sudo apt-get install -y clang-11 clang-tools-11
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 2G
+          key: ${{ github.job }}
       - name: Run scan build
         run: ./bin/check-clang-static-analyzer
         env:

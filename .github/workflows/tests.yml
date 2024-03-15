@@ -1,0 +1,734 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  source:
+    runs-on: ubuntu-22.04
+    outputs:
+      gem_version: ${{ steps.build_gem.outputs.gem_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
+          bundler-cache: true
+      - name: Build
+        id: build_gem
+        run: |
+          COMMITS_SINCE_LAST_TAG=$(git describe --tags --always --long | awk -F '-' '{print $2}')
+          ruby bin/jenkins/patch-version.rb ${COMMITS_SINCE_LAST_TAG}
+          GEM_VERSION=$(ruby -r ./lib/couchbase/version.rb -e "puts Couchbase::VERSION[:sdk]")
+          echo "gem_version=${GEM_VERSION}" >> "$GITHUB_OUTPUT"
+          bundle exec rake build
+      - name: RDoc
+        run: |
+          cat > patch-readme.rb <<EOF
+          require_relative "./lib/couchbase/version.rb"
+          gemfile = <<EOS.strip
+            gem "couchbase", "#{Couchbase::VERSION[:sdk]}"
+          EOS
+          old_content = File.read("README.md")
+          new_content = old_content.gsub(/(gem "couchbase", ").*?"/, gemfile)
+          File.write("README.md", new_content)
+          EOF
+          ruby patch-readme.rb
+          bundle exec yard doc --hide-api private --output-dir docs/couchbase-ruby-client-${{ steps.build_gem.outputs.gem_version }} lib --main README.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: couchbase-${{ steps.build_gem.outputs.gem_version }}
+          path: |
+            pkg/*.gem
+      - uses: actions/upload-artifact@v4
+        with:
+          retention-days: 1
+          name: scripts-${{ steps.build_gem.outputs.gem_version }}
+          path: |
+            Gemfile
+            Rakefile
+            bin/**/*
+            couchbase.gemspec
+            lib/couchbase/version.rb
+            task/**/*
+      - uses: actions/upload-artifact@v4
+        with:
+          retention-days: 1
+          name: tests-${{ steps.build_gem.outputs.gem_version }}
+          path: |
+            test/**/*
+            test_data/**/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docs-${{ steps.build_gem.outputs.gem_version }}
+          path: |
+            docs/**/*
+
+  build_alpine:
+    needs: source
+    name: alpine
+    runs-on: ubuntu-22.04
+    container:
+      image: alpine:3.18
+    steps:
+      - name: Install build environment
+        run: |
+          apk update
+          apk add --no-cache \
+            bash \
+            build-base \
+            ccache \
+            cmake \
+            curl \
+            g++ \
+            gcc \
+            git \
+            linux-headers \
+            make \
+            openssl \
+            openssl-dev \
+            readline-dev \
+            ruby \
+            xz \
+            yaml-dev \
+            zlib-dev
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 2G
+          key: ${{ github.job }}-${{ matrix.ruby }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.source.outputs.gem_version }}
+      - name: Install build environment
+        env:
+          SUPPORTED_RUBY_VERSIONS: "3.1 3.2 3.3"
+        run: |
+          bash bin/jenkins/install-rubies.sh
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg
+          name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Build gem
+        env:
+          SUPPORTED_RUBY_VERSIONS: "3.1 3.2 3.3"
+          BUNDLE_ALLOW_ROOT: true
+        run: |
+          bash bin/jenkins/build-gem.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-musl
+          path: |
+            pkg/fat/*.gem
+
+  build_linux_x86_64:
+    needs: source
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.0'
+          - '3.1'
+          - '3.2'
+          - '3.3'
+    steps:
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 2G
+          key: ${{ github.job }}-${{ matrix.ruby }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Precompile
+        env:
+          CB_STATIC_BORINGSSL: 1
+          CB_STATIC_STDLIB: 1
+          CB_REMOVE_EXT_DIRECTORY: 1
+        run: |
+          gem install gem-compiler
+          gem compile --strip --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
+      - uses: actions/upload-artifact@v4
+        with:
+          retention-days: 1
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-${{ matrix.ruby }}
+          path: |
+            *-x86_64-linux.gem
+
+  repackage_linux_x86_64:
+    needs:
+      - source
+      - build_linux_x86_64
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.0
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.0
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.1
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.1
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.2
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.2
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.3
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.3
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
+      - name: Repackage
+        run: |
+          ruby bin/jenkins/repackage-extension.rb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
+          path: |
+            pkg/fat/*.gem
+
+  build_macos_arm64:
+    needs: source
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.0'
+          - '3.1'
+          - '3.2'
+          - '3.3'
+    steps:
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 2G
+          key: ${{ github.job }}-${{ matrix.ruby }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Precompile
+        env:
+          CB_STATIC_BORINGSSL: 1
+          CB_STATIC_STDLIB: 1
+          CB_REMOVE_EXT_DIRECTORY: 1
+        run: |
+          gem install gem-compiler
+          gem compile --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
+      - uses: actions/upload-artifact@v4
+        with:
+          retention-days: 1
+          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-${{ matrix.ruby }}
+          path: |
+            *-arm64-darwin*.gem
+
+  repackage_macos_arm64:
+    needs:
+      - source
+      - build_macos_arm64
+    runs-on: macos-14
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.0
+          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.0
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.1
+          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.1
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.2
+          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.2
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.3
+          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.3
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
+      - name: Repackage
+        run: |
+          ruby bin/jenkins/repackage-extension.rb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin
+          path: |
+            pkg/fat/*.gem
+
+  build_macos_x86_64:
+    needs: source
+    runs-on: macos-13
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.0'
+          - '3.1'
+          - '3.2'
+          - '3.3'
+    steps:
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 2G
+          key: ${{ github.job }}-${{ matrix.ruby }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Precompile
+        env:
+          CB_STATIC_BORINGSSL: 1
+          CB_STATIC_STDLIB: 1
+          CB_REMOVE_EXT_DIRECTORY: 1
+        run: |
+          gem install gem-compiler
+          gem compile --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
+      - uses: actions/upload-artifact@v4
+        with:
+          retention-days: 1
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-${{ matrix.ruby }}
+          path: |
+            *-x86_64-darwin*.gem
+
+  repackage_macos_x86_64:
+    needs:
+      - source
+      - build_macos_x86_64
+    runs-on: macos-13
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.0
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.0
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.1
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.1
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.2
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.2
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.3
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.3
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
+      - name: Repackage
+        run: |
+          ruby bin/jenkins/repackage-extension.rb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin
+          path: |
+            pkg/fat/*.gem
+
+  mock_linux_x86_64:
+    timeout-minutes: 15
+    needs:
+      - source
+      - repackage_linux_x86_64
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.0'
+          - '3.1'
+          - '3.2'
+          - '3.3'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tests-${{ needs.source.outputs.gem_version }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - name: Install
+        run: |
+          COUCHBASE_GEM_PATH=$(realpath couchbase-*.gem)
+          UNPACKED_GEM_PATH=$(gem unpack ${COUCHBASE_GEM_PATH} | grep "Unpacked gem" | cut -d "'" -f 2)
+          gem unpack --spec --target ${UNPACKED_GEM_PATH} ${COUCHBASE_GEM_PATH}
+          ruby -i.bak -pe "gsub(/gemspec/, 'gem \"couchbase\", path: \"${UNPACKED_GEM_PATH}\"')" Gemfile
+          bundle install
+          bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
+      - name: Test
+        env:
+          CB_CAVES_LOGS_DIR: caves-logs
+        run: |
+          bundle exec rake test
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
+          path: |
+            caves-logs/*
+            test/**/*.{log,xml}
+          retention-days: 5
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v4.1.0
+        if: always()
+        with:
+          check_name: 🐧caves, ruby-${{ matrix.ruby }}
+          report_paths: test/reports/*.xml
+          require_tests: true
+          annotate_only: true
+
+  mock_macos_arm64:
+    timeout-minutes: 15
+    needs:
+      - source
+      - repackage_macos_arm64
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.0'
+          - '3.1'
+          - '3.2'
+          - '3.3'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tests-${{ needs.source.outputs.gem_version }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - name: Install
+        run: |
+          set -xe
+          COUCHBASE_GEM_PATH=$(realpath couchbase-*.gem)
+          UNPACKED_GEM_PATH=$(gem unpack ${COUCHBASE_GEM_PATH} | grep "Unpacked gem" | cut -d "'" -f 2)
+          gem unpack --spec --target ${UNPACKED_GEM_PATH} ${COUCHBASE_GEM_PATH}
+          ruby -i.bak -pe "gsub(/gemspec/, 'gem \"couchbase\", path: \"${UNPACKED_GEM_PATH}\"')" Gemfile
+          find .
+          ls -ld ${UNPACKED_GEM_PATH}
+          bundle install
+          bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
+      - name: Test
+        env:
+          CB_CAVES_LOGS_DIR: caves-logs
+        run: |
+          bundle exec rake test
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
+          path: |
+            caves-logs/*
+            test/**/*.{log,xml}
+          retention-days: 5
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v4.1.0
+        if: always()
+        with:
+          check_name: 🍎caves, ruby-${{ matrix.ruby }}
+          report_paths: test/reports/*.xml
+          require_tests: true
+          annotate_only: true
+
+  mock_macos_x86_64:
+    timeout-minutes: 15
+    needs:
+      - source
+      - repackage_macos_x86_64
+    runs-on: macos-13
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.0'
+          - '3.1'
+          - '3.2'
+          - '3.3'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tests-${{ needs.source.outputs.gem_version }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - name: Install
+        run: |
+          COUCHBASE_GEM_PATH=$(realpath couchbase-*.gem)
+          UNPACKED_GEM_PATH=$(gem unpack ${COUCHBASE_GEM_PATH} | grep "Unpacked gem" | cut -d "'" -f 2)
+          gem unpack --spec --target ${UNPACKED_GEM_PATH} ${COUCHBASE_GEM_PATH}
+          ruby -i.bak -pe "gsub(/gemspec/, 'gem \"couchbase\", path: \"${UNPACKED_GEM_PATH}\"')" Gemfile
+          bundle install
+          bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
+      - name: Test
+        env:
+          CB_CAVES_LOGS_DIR: caves-logs
+        run: |
+          bundle exec rake test
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
+          path: |
+            caves-logs/*
+            test/**/*.{log,xml}
+          retention-days: 5
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v4.1.0
+        if: always()
+        with:
+          check_name: 🍏caves, ruby-${{ matrix.ruby }}
+          report_paths: test/reports/*.xml
+          require_tests: true
+          annotate_only: true
+
+  test_linux_x86_64:
+    timeout-minutes: 30
+    needs:
+      - source
+      - repackage_linux_x86_64
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        server:
+          - 7.2.4
+          - 7.1.6
+          - 7.0.5
+    steps:
+      - name: Install cbdinocluster
+        run: |
+          mkdir -p "$HOME/bin"
+          curl -L -o "$HOME/bin/cbdinocluster" https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.26/cbdinocluster-linux
+          chmod a+x "$HOME/bin/cbdinocluster"
+          echo "$HOME/bin" >> $GITHUB_PATH
+      - name: Initialize cbdinocluster
+        run: |
+          cbdinocluster -v init --auto
+      - name: Start couchbase cluster
+        env:
+          CLUSTERCONFIG: |
+            nodes:
+              - count: 3
+                version: ${{ matrix.server }}
+                services:
+                  - kv
+                  - n1ql
+                  - index
+                  - fts
+                  - cbas
+            docker:
+              kv-memory: 1500
+        run: |
+          CLUSTER_ID=$(cbdinocluster -v allocate --def="${CLUSTERCONFIG}")
+          CONNECTION_STRING=$(cbdinocluster -v connstr "${CLUSTER_ID}")
+          cbdinocluster -v buckets add ${CLUSTER_ID} default --ram-quota-mb=100 --flush-enabled=true
+          cbdinocluster -v buckets load-sample ${CLUSTER_ID} travel-sample
+          echo "CLUSTER_ID=${CLUSTER_ID}" >> "$GITHUB_ENV"
+          echo "TEST_CONNECTION_STRING=${CONNECTION_STRING}?dump_configuration=true" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tests-${{ needs.source.outputs.gem_version }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
+      - name: Install
+        run: |
+          COUCHBASE_GEM_PATH=$(realpath couchbase-*.gem)
+          UNPACKED_GEM_PATH=$(gem unpack ${COUCHBASE_GEM_PATH} | grep "Unpacked gem" | cut -d "'" -f 2)
+          gem unpack --spec --target ${UNPACKED_GEM_PATH} ${COUCHBASE_GEM_PATH}
+          ruby -i.bak -pe "gsub(/gemspec/, 'gem \"couchbase\", path: \"${UNPACKED_GEM_PATH}\"')" Gemfile
+          bundle install
+          bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
+      - name: Test
+        env:
+          TEST_SERVER_VERSION: ${{ matrix.server }}
+        run: |
+          bundle exec rake test
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v4.1.0
+        if: always()
+        with:
+          check_name: 🐧server, ee-${{ matrix.server }}
+          report_paths: test/reports/*.xml
+          require_tests: true
+          annotate_only: true
+      - name: Collect server logs
+        timeout-minutes: 15
+        if: failure()
+        run: |
+          mkdir -p logs
+          cbdinocluster -v collect-logs $CLUSTER_ID ./logs
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.server }}-logs
+          path: |
+            logs/*
+            test/**/*.{log,xml}
+          retention-days: 5
+
+  windows_x64:
+    needs: source
+    runs-on: windows-2019
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.1'
+          - '3.2'
+          - '3.3'
+    steps:
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - name: Install dependencies
+        run: |
+          ridk exec pacman --sync --noconfirm --needed mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-go mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-toolchain
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Precompile
+        env:
+          CB_STATIC_BORINGSSL: 1
+          CB_STATIC_STDLIB: 1
+          CB_REMOVE_EXT_DIRECTORY: 1
+        run: |
+          gem install gem-compiler
+          gem compile --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
+      - uses: actions/upload-artifact@v4
+        with:
+          retention-days: 1
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-${{ matrix.ruby }}
+          path: |
+            *-x64-mingw*.gem
+
+  repackage_windows_x64:
+    needs:
+      - source
+      - windows_x64
+    runs-on: windows-2019
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.1
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-3.1
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.2
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-3.2
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.3
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-3.3
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
+      - name: Repackage
+        run: |
+          ruby bin/jenkins/repackage-extension.rb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw
+          path: |
+            pkg/fat/*.gem
+
+  ######
+  ###### TODO: Windows builds have issues with ASIO mix with Ruby interpreter around socket API
+  ######       ASIO creates sockets using 'WSASocket', but connect using with 'connect' (sync)
+  ######       or 'WSAIoctl' with ConnectEx GUID. Typically it works, unless these APIs invoked
+  ######       inside Ruby process compiled with MinGW/ucrt.
+  ######
+  ######       The issue tracked here: https://issues.couchbase.com/browse/RCBC-480
+  ######
+
+  # mock_windows_x64:
+  #   timeout-minutes: 15
+  #   needs:
+  #     - source
+  #     - repackage_windows_x64
+  #   runs-on: windows-2019
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       ruby:
+  #         - '3.1'
+  #         - '3.2'
+  #         - '3.3'
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: scripts-${{ needs.source.outputs.gem_version }}
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: tests-${{ needs.source.outputs.gem_version }}
+  #     - uses: ruby/setup-ruby@v1
+  #       with:
+  #         ruby-version: ${{ matrix.ruby }}
+  #     - name: Install
+  #       shell: pwsh
+  #       run: |
+  #         $COUCHBASE_GEM_PATH = Get-ChildItem -Filter 'couchbase-*.gem' | Select-Object -ExpandProperty FullName -First 1
+  #         $UNPACKED_GEM_PATH = (gem unpack $COUCHBASE_GEM_PATH | Select-String "Unpacked gem: '(.*)'").Matches.Groups[1].Value
+  #         gem unpack --spec --target $UNPACKED_GEM_PATH $COUCHBASE_GEM_PATH
+  #         ruby -ibak -pe "gsub(/gemspec/, 'gem `"couchbase`", path: `"${UNPACKED_GEM_PATH}`"')" Gemfile
+  #         bundle install
+  #         bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
+  #         bundle exec rake test

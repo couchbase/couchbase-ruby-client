@@ -3,8 +3,12 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
     <mapping directory="$PROJECT_DIR$/couchbase" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/docopt" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/json" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/couchbase/third_party/json/external/PEGTL" vcs="Git" />
+    <mapping directory="$USER_HOME$/.cache/CPM/fmt/513ade7b9791ea53008d5320013a52e682a91501/fmt" vcs="Git" />
+    <mapping directory="$USER_HOME$/.cache/CPM/gsl/c5694f1b5eff4b83dc9ba3f63a1696cdb2beaee3/gsl" vcs="Git" />
+    <mapping directory="$USER_HOME$/.cache/CPM/hdr_histogram/8aac176f50c5d02f8248eb1608d208220a4bc076/hdr_histogram" vcs="Git" />
+    <mapping directory="$USER_HOME$/.cache/CPM/json/4c7c23ac69aa1d72b3a9295ac9aceac10d32d9a1/json" vcs="Git" />
+    <mapping directory="$USER_HOME$/.cache/CPM/llhttp/6862303abe6dfd515c1eb7f7cec05f29c92426e9/llhttp" vcs="Git" />
+    <mapping directory="$USER_HOME$/.cache/CPM/snappy/76d5cfe9eb57e13784ae53647f505edbe9341bdf/snappy" vcs="Git" />
+    <mapping directory="$USER_HOME$/.cache/CPM/spdlog/66ab2619a0014319471759c03e2de1af6bda14de/spdlog" vcs="Git" />
   </component>
 </project>

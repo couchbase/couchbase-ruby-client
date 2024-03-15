@@ -37,8 +37,8 @@ class Caves
       raise "Unexpected content type: #{resp['content-type']}" if resp["content-type"] != "application/octet-stream"
 
       FileUtils.mkdir_p(caves_dir, verbose: verbose?)
-      File.write(mock_path, resp.body)
-      FileUtils.chmod("a+x", mock_path, verbose: verbose?)
+      File.write(mock_path, resp.body, binmode: true)
+      FileUtils.chmod("a+x", mock_path, verbose: verbose?) unless windows?
     when Net::HTTPRedirection
       download_mock(resp["location"])
     else
@@ -214,6 +214,11 @@ class Caves
     @control_sock = TCPServer.new("127.0.0.1", 0)
     @control_sock.listen(10)
     _, @control_port, = @control_sock.addr
+  rescue Socket::ResolutionError => e
+    backoff_delay = 0.1
+    puts "--- #{e.message}, retrying after #{backoff_delay} seconds"
+    sleep backoff_delay
+    retry
   end
 
   def control_port
