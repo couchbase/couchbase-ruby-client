@@ -96,13 +96,14 @@ jobs:
             openssl-dev \
             readline-dev \
             ruby \
+            tar \
             xz \
             yaml-dev \
             zlib-dev
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
           max-size: 2G
-          key: ${{ github.job }}-${{ matrix.ruby }}
+          key: ${{ github.job }}
       - uses: actions/download-artifact@v4
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
