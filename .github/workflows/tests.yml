@@ -544,7 +544,7 @@ jobs:
       - name: Install cbdinocluster
         run: |
           mkdir -p "$HOME/bin"
-          curl -L -o "$HOME/bin/cbdinocluster" https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.26/cbdinocluster-linux
+          curl -L -o "$HOME/bin/cbdinocluster" https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.35/cbdinocluster-linux
           chmod a+x "$HOME/bin/cbdinocluster"
           echo "$HOME/bin" >> $GITHUB_PATH
       - name: Initialize cbdinocluster
@@ -554,12 +554,16 @@ jobs:
         env:
           CLUSTERCONFIG: |
             nodes:
-              - count: 3
+              - count: 2
                 version: ${{ matrix.server }}
                 services:
                   - kv
                   - n1ql
                   - index
+              - count: 1
+                version: ${{ matrix.server }}
+                services:
+                  - kv
                   - fts
                   - cbas
             docker:
