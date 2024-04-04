@@ -46,6 +46,10 @@ module Couchbase
       def collections
         Management::CollectionManager.new(client: @client, bucket_name: @name)
       end
+
+      def ping(_options = Options::Ping::DEFAULT)
+        raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support ping"
+      end
     end
   end
 end
