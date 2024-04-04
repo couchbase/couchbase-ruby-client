@@ -144,6 +144,14 @@ module Couchbase
         ResponseConverter::Search.to_search_result(resp, options)
       end
 
+      def diagnostics(_options = Options::Diagnostics::DEFAULT)
+        raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support diagnostics"
+      end
+
+      def ping(_options = Options::Ping::DEFAULT)
+        raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support ping"
+      end
+
       private
 
       def initialize(host, options = ConnectOptions.new)
