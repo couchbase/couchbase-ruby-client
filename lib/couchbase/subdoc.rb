@@ -272,7 +272,8 @@ module Couchbase
         else
           param
         end
-      @expand_macros = [CAS, SEQ_NO, VALUE_CRC32C].include?(@param)
+      # Only set expand_macros when a the value is a symbol that matches one of the macros
+      @expand_macros = [:cas, :seq_no, :sequence_number, :value_crc, :value_crc32c].include?(param)
       @xattr = true if @expand_macros
       return if @param.nil?
 
