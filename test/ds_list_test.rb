@@ -42,9 +42,8 @@ module Couchbase
       def test_new_list_yields_no_elements
         doc_id = uniq_id(:foo)
         list = CouchbaseList.new(doc_id, @collection)
-        actual = []
-        list.each do |element|
-          actual << element
+        actual = list.map do |element|
+          element
         end
 
         assert_empty actual
