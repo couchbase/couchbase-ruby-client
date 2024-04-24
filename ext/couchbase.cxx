@@ -4055,6 +4055,8 @@ cb_CoreScanResult_next_item(VALUE self)
     return Qnil;
 }
 
+static VALUE cCoreScanResult;
+
 static VALUE
 cb_Backend_document_scan_create(VALUE self, VALUE bucket, VALUE scope, VALUE collection, VALUE scan_type, VALUE options)
 {
@@ -4202,11 +4204,6 @@ cb_Backend_document_scan_create(VALUE self, VALUE bucket, VALUE scope, VALUE col
 
         // Wrap core scan_result inside Ruby ScanResult
         // Creating a Ruby CoreScanResult object *after* checking that no error occurred during orchestrator.scan()
-        VALUE cCoreScanResult = rb_define_class_under(rb_define_module("Couchbase"), "CoreScanResult", rb_cObject);
-        rb_define_alloc_func(cCoreScanResult, cb_CoreScanResult_allocate);
-        rb_define_method(cCoreScanResult, "next_item", VALUE_FUNC(cb_CoreScanResult_next_item), 0);
-        rb_define_method(cCoreScanResult, "cancelled?", VALUE_FUNC(cb_CoreScanResult_is_cancelled), 0);
-        rb_define_method(cCoreScanResult, "cancel", VALUE_FUNC(cb_CoreScanResult_cancel), 0);
         VALUE core_scan_result_obj = rb_class_new_instance(0, NULL, cCoreScanResult);
         rb_ivar_set(core_scan_result_obj, rb_intern("@backend"), self);
         cb_core_scan_result_data* data = nullptr;
@@ -9544,7 +9541,17 @@ init_backend(VALUE mCouchbase)
                                1);
 }
 
-void
+static void
+init_core_scan_result(VALUE mCouchbase)
+{
+    cCoreScanResult = rb_define_class_under(mCouchbase, "CoreScanResult", rb_cObject);
+    rb_define_alloc_func(cCoreScanResult, cb_CoreScanResult_allocate);
+    rb_define_method(cCoreScanResult, "next_item", VALUE_FUNC(cb_CoreScanResult_next_item), 0);
+    rb_define_method(cCoreScanResult, "cancelled?", VALUE_FUNC(cb_CoreScanResult_is_cancelled), 0);
+    rb_define_method(cCoreScanResult, "cancel", VALUE_FUNC(cb_CoreScanResult_cancel), 0);
+}
+
+static void
 init_logger()
 {
     if (auto env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_DONT_INSTALL_TERMINATE_HANDLER"); env_val.empty()) {
@@ -9580,5 +9587,6 @@ __declspec(dllexport)
     init_versions(mCouchbase);
     init_backend(mCouchbase);
     init_exceptions(mCouchbase);
+    init_core_scan_result(mCouchbase);
 }
 }
