@@ -33,10 +33,13 @@ module Couchbase
       @shared_prefix = "scan-test"
       @test_ids = Set.new
 
+      @mutation_state = MutationState.new
+
       100.times do |i|
         s = i.to_s.rjust(2, "0")
         id = "#{@shared_prefix}-#{s}"
-        @collection.upsert(id, {num: i})
+        res = @collection.upsert(id, {num: i})
+        @mutation_state.add(res.mutation_token)
         @test_ids << id
       end
     end
@@ -93,7 +96,7 @@ module Couchbase
 
     def test_simple_prefix_scan
       expected_ids = (0..9).map { |i| "#{@shared_prefix}-1#{i}" }
-      scan_result = @collection.scan(PrefixScan.new("#{@shared_prefix}-1"))
+      scan_result = @collection.scan(PrefixScan.new("#{@shared_prefix}-1"), Options::Scan(mutation_state: @mutation_state))
       validate_scan(scan_result, expected_ids)
     end
 
@@ -103,14 +106,14 @@ module Couchbase
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10"),
           to: ScanTerm.new("#{@shared_prefix}-29")
-        )
+        ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
     end
 
     def test_simple_sampling_scan
       limit = 20
-      scan_result = @collection.scan(SamplingScan.new(limit))
+      scan_result = @collection.scan(SamplingScan.new(limit), Options::Scan(mutation_state: @mutation_state))
       validate_sampling_scan(scan_result, limit)
     end
 
@@ -120,7 +123,7 @@ module Couchbase
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10", exclusive: true),
           to: ScanTerm.new("#{@shared_prefix}-29")
-        )
+        ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -131,7 +134,7 @@ module Couchbase
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10", exclusive: false),
           to: ScanTerm.new("#{@shared_prefix}-29", exclusive: true)
-        )
+        ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -142,7 +145,7 @@ module Couchbase
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10", exclusive: true),
           to: ScanTerm.new("#{@shared_prefix}-29", exclusive: true)
-        )
+        ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -152,7 +155,7 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           to: ScanTerm.new("#{@shared_prefix}-09")
-        )
+        ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -162,13 +165,13 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-90")
-        )
+        ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
     end
 
     def test_range_scan_both_default
-      scan_result = @collection.scan(RangeScan.new)
+      scan_result = @collection.scan(RangeScan.new, Options::Scan(mutation_state: @mutation_state))
       validate_scan(scan_result, @test_ids)
     end
 
@@ -179,7 +182,7 @@ module Couchbase
           from: ScanTerm.new("#{@shared_prefix}-10"),
           to: ScanTerm.new("#{@shared_prefix}-29")
         ),
-        Options::Scan.new(ids_only: true)
+        Options::Scan.new(ids_only: true, mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids, ids_only: true)
     end
@@ -191,26 +194,27 @@ module Couchbase
           from: ScanTerm.new("#{@shared_prefix}-10"),
           to: ScanTerm.new("#{@shared_prefix}-29")
         ),
-        Options::Scan.new(ids_only: false)
+        Options::Scan.new(ids_only: false, mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
     end
 
     def test_prefix_scan_ids_only
       expected_ids = (0..9).map { |i| "#{@shared_prefix}-1#{i}" }
-      scan_result = @collection.scan(PrefixScan.new("#{@shared_prefix}-1"), Options::Scan.new(ids_only: true))
+      scan_result = @collection.scan(PrefixScan.new("#{@shared_prefix}-1"),
+                                     Options::Scan.new(ids_only: true, mutation_state: @mutation_state))
       validate_scan(scan_result, expected_ids, ids_only: true)
     end
 
     def test_sampling_scan_ids_only
       limit = 20
-      scan_result = @collection.scan(SamplingScan.new(limit), Options::Scan.new(ids_only: true))
+      scan_result = @collection.scan(SamplingScan.new(limit), Options::Scan.new(ids_only: true, mutation_state: @mutation_state))
       validate_sampling_scan(scan_result, limit, ids_only: true)
     end
 
     def test_sampling_scan_with_seed
       limit = 20
-      scan_result = @collection.scan(SamplingScan.new(limit, 42), Options::Scan.new(ids_only: true))
+      scan_result = @collection.scan(SamplingScan.new(limit, 42), Options::Scan.new(ids_only: true, mutation_state: @mutation_state))
       validate_sampling_scan(scan_result, limit, ids_only: true)
     end
 
@@ -222,7 +226,7 @@ module Couchbase
             from: ScanTerm.new("#{@shared_prefix}-10"),
             to: ScanTerm.new("#{@shared_prefix}-29")
           ),
-          Options::Scan.new(batch_byte_limit: b)
+          Options::Scan.new(batch_byte_limit: b, mutation_state: @mutation_state)
         )
         validate_scan(scan_result, expected_ids)
       end
@@ -231,7 +235,8 @@ module Couchbase
     def test_prefix_scan_batch_byte_limit
       BATCH_BYTE_LIMIT_VALUES.each do |b|
         expected_ids = (0..9).map { |i| "#{@shared_prefix}-1#{i}" }
-        scan_result = @collection.scan(PrefixScan.new("#{@shared_prefix}-1"), Options::Scan.new(batch_byte_limit: b))
+        scan_result = @collection.scan(PrefixScan.new("#{@shared_prefix}-1"),
+                                       Options::Scan.new(batch_byte_limit: b, mutation_state: @mutation_state))
         validate_scan(scan_result, expected_ids)
       end
     end
@@ -239,7 +244,7 @@ module Couchbase
     def test_sampling_scan_batch_byte_limit
       BATCH_BYTE_LIMIT_VALUES.each do |b|
         limit = 20
-        scan_result = @collection.scan(SamplingScan.new(limit), Options::Scan.new(batch_byte_limit: b))
+        scan_result = @collection.scan(SamplingScan.new(limit), Options::Scan.new(batch_byte_limit: b, mutation_state: @mutation_state))
         validate_sampling_scan(scan_result, limit)
       end
     end
@@ -254,7 +259,7 @@ module Couchbase
             from: ScanTerm.new("#{@shared_prefix}-10"),
             to: ScanTerm.new("#{@shared_prefix}-29")
           ),
-          Options::Scan.new(concurrency: c)
+          Options::Scan.new(concurrency: c, mutation_state: @mutation_state)
         )
         validate_scan(scan_result, expected_ids)
       end
@@ -265,7 +270,8 @@ module Couchbase
 
       CONCURRENCY_VALUES.each do |c|
         expected_ids = (0..9).map { |i| "#{@shared_prefix}-1#{i}" }
-        scan_result = @collection.scan(PrefixScan.new("#{@shared_prefix}-1"), Options::Scan.new(concurrency: c))
+        scan_result = @collection.scan(PrefixScan.new("#{@shared_prefix}-1"),
+                                       Options::Scan.new(concurrency: c, mutation_state: @mutation_state))
         validate_scan(scan_result, expected_ids)
       end
     end
@@ -275,7 +281,7 @@ module Couchbase
 
       CONCURRENCY_VALUES.each do |c|
         limit = 20
-        scan_result = @collection.scan(SamplingScan.new(limit), Options::Scan.new(concurrency: c))
+        scan_result = @collection.scan(SamplingScan.new(limit), Options::Scan.new(concurrency: c, mutation_state: @mutation_state))
         validate_sampling_scan(scan_result, limit)
       end
     end
@@ -288,7 +294,7 @@ module Couchbase
             from: ScanTerm.new("#{@shared_prefix}-10"),
             to: ScanTerm.new("#{@shared_prefix}-29")
           ),
-          Options::Scan.new(batch_item_limit: b)
+          Options::Scan.new(batch_item_limit: b, mutation_state: @mutation_state)
         )
         validate_scan(scan_result, expected_ids)
       end
@@ -297,7 +303,8 @@ module Couchbase
     def test_prefix_scan_batch_item_limit
       BATCH_ITEM_LIMIT_VALUES.each do |b|
         expected_ids = (0..9).map { |i| "#{@shared_prefix}-1#{i}" }
-        scan_result = @collection.scan(PrefixScan.new("#{@shared_prefix}-1"), Options::Scan.new(batch_item_limit: b))
+        scan_result = @collection.scan(PrefixScan.new("#{@shared_prefix}-1"),
+                                       Options::Scan.new(batch_item_limit: b, mutation_state: @mutation_state))
         validate_scan(scan_result, expected_ids)
       end
     end
@@ -305,7 +312,7 @@ module Couchbase
     def test_sampling_scan_batch_item_limit
       limit = 11
       BATCH_ITEM_LIMIT_VALUES.each do |b|
-        scan_result = @collection.scan(SamplingScan.new(limit), Options::Scan.new(batch_item_limit: b))
+        scan_result = @collection.scan(SamplingScan.new(limit), Options::Scan.new(batch_item_limit: b, mutation_state: @mutation_state))
         validate_sampling_scan(scan_result, limit)
       end
     end
@@ -317,7 +324,7 @@ module Couchbase
           from: ScanTerm.new("#{@shared_prefix}-10"),
           to: ScanTerm.new("#{@shared_prefix}-29")
         ),
-        Options::Scan.new(batch_byte_limit: 100, batch_item_limit: 20, ids_only: false)
+        Options::Scan.new(batch_byte_limit: 100, batch_item_limit: 20, ids_only: false, mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -325,7 +332,8 @@ module Couchbase
     def test_range_scan_collection_does_not_exist
       collection = @bucket.scope("_default").collection(uniq_id(:nonexistent))
       assert_raises(Error::CollectionNotFound) do
-        collection.scan(RangeScan.new)
+        collection.scan(RangeScan.new,
+                        Options::Scan.new(mutation_state: @mutation_state))
       end
     end
 
@@ -335,7 +343,8 @@ module Couchbase
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10"),
           to: ScanTerm.new("#{@shared_prefix}-10")
-        )
+        ),
+        Options::Scan.new(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -346,7 +355,8 @@ module Couchbase
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10", exclusive: true),
           to: ScanTerm.new("#{@shared_prefix}-10", exclusive: true)
-        )
+        ),
+        Options::Scan.new(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -357,7 +367,8 @@ module Couchbase
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-20", exclusive: true),
           to: ScanTerm.new("#{@shared_prefix}-10", exclusive: true)
-        )
+        ),
+        Options::Scan.new(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -365,14 +376,15 @@ module Couchbase
     def test_sampling_scan_non_positive_limit
       collection = @bucket.scope("_default").collection(uniq_id(:nonexistent))
       assert_raises(Error::InvalidArgument) do
-        collection.scan(SamplingScan.new(0))
+        collection.scan(SamplingScan.new(0),
+                        Options::Scan.new(mutation_state: @mutation_state))
       end
     end
 
     def test_range_scan_zero_concurrency
       collection = @bucket.scope("_default").collection(uniq_id(:nonexistent))
       assert_raises(Error::InvalidArgument) do
-        collection.scan(RangeScan.new, Options::Scan.new(concurrency: 0))
+        collection.scan(RangeScan.new, Options::Scan.new(concurrency: 0, mutation_state: @mutation_state))
       end
     end
   end
@@ -390,7 +402,8 @@ module Couchbase
 
     def test_range_scan_feature_not_available
       assert_raises(Error::FeatureNotAvailable) do
-        @collection.scan(RangeScan.new)
+        @collection.scan(RangeScan.new,
+                         Options::Scan.new(mutation_state: @mutation_state))
       end
     end
   end

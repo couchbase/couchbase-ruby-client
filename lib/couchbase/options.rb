@@ -2832,6 +2832,13 @@ module Couchbase
       View.new(**args)
     end
 
+    # Construct {Scan} options for {Collection#scan}
+    #
+    # @return [Scan]
+    def Scan(**args)
+      Scan.new(**args)
+    end
+
     # rubocop:enable Naming/MethodName
   end
 end
