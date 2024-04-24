@@ -30,8 +30,15 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y clang-format
+          sudo apt-get install -y wget gnupg2 git
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo bash -c "echo 'deb https://apt.llvm.org/focal/ llvm-toolchain-focal-18 main' >> /etc/apt/sources.list"
+          sudo apt-get update -y
+          sudo apt-get install -y clang-format-18
       - name: Run clang-format
+        env:
+          CB_GIT_CLANG_FORMAT: /usr/bin/git-clang-format-18
+          CB_CLANG_FORMAT: /usr/bin/clang-format-18
         run: ./bin/check-clang-format
 
   clang_static_analyzer:
@@ -49,9 +56,9 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y libssl-dev cmake curl wget gnupg2
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo bash -c "echo 'deb https://apt.llvm.org/focal/ llvm-toolchain-focal-11 main' >> /etc/apt/sources.list"
+          sudo bash -c "echo 'deb https://apt.llvm.org/focal/ llvm-toolchain-focal-18 main' >> /etc/apt/sources.list"
           sudo apt-get update -y
-          sudo apt-get install -y clang-11 clang-tools-11
+          sudo apt-get install -y clang-18 clang-tools-18
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
           max-size: 2G
@@ -59,9 +66,9 @@ jobs:
       - name: Run scan build
         run: ./bin/check-clang-static-analyzer
         env:
-          CB_CC: /usr/bin/clang-11
-          CB_CXX: /usr/bin/clang++-11
-          CB_SCAN_BUILD: /usr/bin/scan-build-11
+          CB_CC: /usr/bin/clang-18
+          CB_CXX: /usr/bin/clang++-18
+          CB_SCAN_BUILD: /usr/bin/scan-build-18
       - name: Upload scan-build report
         if: ${{ failure() }}
         uses: actions/upload-artifact@v2
