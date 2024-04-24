@@ -2114,6 +2114,8 @@ cb_Backend_close(VALUE self)
     cb_backend_close(backend);
     if (cb_global_sink) {
         cb_global_sink->flush_deferred_messages();
+    } else {
+        couchbase::core::logger::flush();
     }
     return Qnil;
 }
@@ -9549,10 +9551,20 @@ init_logger()
         couchbase::core::platform::install_backtrace_terminate_handler();
     }
     if (auto env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_DONT_USE_BUILTIN_LOGGER"); env_val.empty()) {
-        couchbase::core::logger::create_console_logger();
+        auto default_log_level = couchbase::core::logger::level::info;
         if (env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_LOG_LEVEL"); !env_val.empty()) {
-            couchbase::core::logger::set_log_levels(couchbase::core::logger::level_from_str(env_val));
+            default_log_level = couchbase::core::logger::level_from_str(env_val);
         }
+
+        couchbase::core::logger::configuration configuration{};
+        if (env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_LOG_PATH"); !env_val.empty()) {
+            configuration.filename = env_val;
+            configuration.filename += fmt::format(".{}", spdlog::details::os::pid());
+        }
+        configuration.console = spdlog::details::os::getenv("COUCHBASE_BACKEND_DONT_WRITE_TO_STDERR").empty();
+        configuration.log_level = default_log_level;
+        couchbase::core::logger::create_file_logger(configuration);
+        couchbase::core::logger::set_log_levels(default_log_level);
     }
 }
 

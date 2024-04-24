@@ -388,6 +388,8 @@ jobs:
       - name: Test
         env:
           CB_CAVES_LOGS_DIR: caves-logs
+          COUCHBASE_BACKEND_DONT_WRITE_TO_STDERR: true
+          COUCHBASE_BACKEND_LOG_PATH: logs/couchbase.log
         run: |
           bundle exec rake test
       - name: Upload logs
@@ -397,6 +399,7 @@ jobs:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
           path: |
             caves-logs/*
+            logs/*
             test/**/*.{log,xml}
           retention-days: 5
       - name: Publish Test Report
@@ -449,6 +452,8 @@ jobs:
       - name: Test
         env:
           CB_CAVES_LOGS_DIR: caves-logs
+          COUCHBASE_BACKEND_DONT_WRITE_TO_STDERR: true
+          COUCHBASE_BACKEND_LOG_PATH: logs/couchbase.log
         run: |
           bundle exec rake test
       - name: Upload logs
@@ -458,6 +463,7 @@ jobs:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
           path: |
             caves-logs/*
+            logs/*
             test/**/*.{log,xml}
           retention-days: 5
       - name: Publish Test Report
@@ -507,6 +513,8 @@ jobs:
       - name: Test
         env:
           CB_CAVES_LOGS_DIR: caves-logs
+          COUCHBASE_BACKEND_DONT_WRITE_TO_STDERR: true
+          COUCHBASE_BACKEND_LOG_PATH: logs/couchbase.log
         run: |
           bundle exec rake test
       - name: Upload logs
@@ -516,6 +524,7 @@ jobs:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
           path: |
             caves-logs/*
+            logs/*
             test/**/*.{log,xml}
           retention-days: 5
       - name: Publish Test Report
