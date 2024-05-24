@@ -59,7 +59,7 @@ module Couchbase
         return number_or_duration if number_or_duration.class == Integer # rubocop:disable Style/ClassEqualityComparison avoid overrides of #is_a?, #kind_of?
 
         if number_or_duration.respond_to?(:in_milliseconds)
-          number_or_duration.public_send(:in_milliseconds)
+          number_or_duration.in_milliseconds
         else
           number_or_duration
         end.to_i

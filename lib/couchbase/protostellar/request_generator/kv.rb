@@ -110,7 +110,7 @@ module Couchbase
           proto_req = Generated::KV::V1::GetAndLockRequest.new(
             **location,
             key: id,
-            lock_time: lock_time.respond_to?(:in_seconds) ? lock_time.public_send(:in_seconds) : lock_time
+            lock_time: lock_time.respond_to?(:in_seconds) ? lock_time.in_seconds : lock_time
           )
 
           create_kv_request(proto_req, :get_and_lock, options)

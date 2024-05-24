@@ -136,7 +136,7 @@ module Couchbase
     # @return [GetResult]
     def get_and_lock(id, lock_time, options = Options::GetAndLock::DEFAULT)
       resp = @backend.document_get_and_lock(bucket_name, @scope_name, @name, id,
-                                            lock_time.respond_to?(:in_seconds) ? lock_time.public_send(:in_seconds) : lock_time,
+                                            lock_time.respond_to?(:in_seconds) ? lock_time.in_seconds : lock_time,
                                             options.to_backend)
       GetResult.new do |res|
         res.transcoder = options.transcoder

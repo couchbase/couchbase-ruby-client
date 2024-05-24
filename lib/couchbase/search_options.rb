@@ -828,7 +828,7 @@ module Couchbase
 
       # @yieldparam [BooleanQuery] self
       def initialize
-        super()
+        super
         @must = ConjunctionQuery.new
         @must_not = DisjunctionQuery.new
         @should = DisjunctionQuery.new
@@ -861,7 +861,10 @@ module Couchbase
 
       # @return [Hash<Symbol, #to_json>]
       def to_h
-        raise Error::InvalidArgument, "BooleanQuery must have at least one non-empty sub-query" if @must.empty? && @must_not.empty? && @should.empty?
+        if @must.empty? && @must_not.empty? && @should.empty?
+          raise Error::InvalidArgument,
+                "BooleanQuery must have at least one non-empty sub-query"
+        end
 
         data = {}
         data[:must] = @must.to_h unless @must.empty?
@@ -1007,7 +1010,7 @@ module Couchbase
     class MatchAllQuery < SearchQuery
       # @yieldparam [MatchAllQuery] self
       def initialize
-        super()
+        super
         yield self if block_given?
       end
 
@@ -1030,7 +1033,7 @@ module Couchbase
     class MatchNoneQuery < SearchQuery
       # @yieldparam [MatchNoneQuery] self
       def initialize
-        super()
+        super
         yield self if block_given?
       end
 

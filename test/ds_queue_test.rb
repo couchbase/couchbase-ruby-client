@@ -42,9 +42,8 @@ module Couchbase
       def test_new_queue_yields_no_elements
         doc_id = uniq_id(:foo)
         queue = CouchbaseQueue.new(doc_id, @collection)
-        actual = []
-        queue.each do |element|
-          actual << element
+        actual = queue.map do |element|
+          element
         end
 
         assert_empty actual

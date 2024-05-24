@@ -42,9 +42,8 @@ module Couchbase
       def test_new_map_yields_no_elements
         doc_id = uniq_id(:foo)
         map = CouchbaseMap.new(doc_id, @collection)
-        actual = []
-        map.each do |key, value|
-          actual << [key, value]
+        actual = map.map do |key, value|
+          [key, value]
         end
 
         assert_empty actual
@@ -128,9 +127,8 @@ module Couchbase
         refute_empty map
         map["baz"] = "bar"
 
-        pairs = []
-        map.each do |*pair|
-          pairs << pair
+        pairs = map.map do |*pair|
+          pair
         end
 
         assert_equal [%w[baz bar], ["foo", 100]], pairs.sort

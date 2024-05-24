@@ -42,9 +42,8 @@ module Couchbase
       def test_new_set_yields_no_elements
         doc_id = uniq_id(:foo)
         set = CouchbaseSet.new(doc_id, @collection)
-        actual = []
-        set.each do |element|
-          actual << element
+        actual = set.map do |element|
+          element
         end
 
         assert_empty actual
@@ -57,9 +56,8 @@ module Couchbase
         set.add("foo")
         set.add("foo")
 
-        actual = []
-        set.each do |element|
-          actual << element
+        actual = set.map do |element|
+          element
         end
 
         assert_equal %w[foo], actual
