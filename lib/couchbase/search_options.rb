@@ -406,7 +406,7 @@ module Couchbase
 
       # @return [Hash<Symbol, #to_json>]
       def to_h
-        raise ArgumentError, "either start_time or end_time must be set for DateRangeQuery" if @start_time.nil? && @end_time.nil?
+        raise Error::InvalidArgument, "either start_time or end_time must be set for DateRangeQuery" if @start_time.nil? && @end_time.nil?
 
         data = {}
         data[:boost] = boost if boost
@@ -483,7 +483,7 @@ module Couchbase
 
       # @return [Hash<Symbol, #to_json>]
       def to_h
-        raise ArgumentError, "either min or max must be set for NumericRangeQuery" if @min.nil? && @max.nil?
+        raise Error::InvalidArgument, "either min or max must be set for NumericRangeQuery" if @min.nil? && @max.nil?
 
         data = {}
         data[:boost] = boost if boost
@@ -551,7 +551,7 @@ module Couchbase
 
       # @return [Hash<Symbol, #to_json>]
       def to_h
-        raise ArgumentError, "either min or max must be set for TermRangeQuery" if @min.nil? && @max.nil?
+        raise Error::InvalidArgument, "either min or max must be set for TermRangeQuery" if @min.nil? && @max.nil?
 
         data = {}
         data[:boost] = boost if boost
@@ -754,7 +754,7 @@ module Couchbase
 
       # @return [Hash<Symbol, #to_json>]
       def to_h
-        raise ArgumentError, "compound conjunction query must have sub-queries" if @queries.nil? || @queries.empty?
+        raise Error::InvalidArgument, "compound conjunction query must have sub-queries" if @queries.nil? || @queries.empty?
 
         data = {:conjuncts => @queries.uniq.map(&:to_h)}
         data[:boost] = boost if boost
@@ -799,11 +799,11 @@ module Couchbase
 
       # @return [Hash<Symbol, #to_json>]
       def to_h
-        raise ArgumentError, "compound disjunction query must have sub-queries" if @queries.nil? || @queries.empty?
+        raise Error::InvalidArgument, "compound disjunction query must have sub-queries" if @queries.nil? || @queries.empty?
 
         data = {:disjuncts => @queries.uniq.map(&:to_h)}
         if min
-          raise ArgumentError, "disjunction query has fewer sub-queries than configured minimum" if @queries.size < min
+          raise Error::InvalidArgument, "disjunction query has fewer sub-queries than configured minimum" if @queries.size < min
 
           data[:min] = min
         end
@@ -861,7 +861,7 @@ module Couchbase
 
       # @return [Hash<Symbol, #to_json>]
       def to_h
-        raise ArgumentError, "BooleanQuery must have at least one non-empty sub-query" if @must.empty? && @must_not.empty? && @should.empty?
+        raise Error::InvalidArgument, "BooleanQuery must have at least one non-empty sub-query" if @must.empty? && @must_not.empty? && @should.empty?
 
         data = {}
         data[:must] = @must.to_h unless @must.empty?
