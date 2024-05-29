@@ -237,6 +237,15 @@ module Couchbase
       assert_equal SearchQuery.match_none.to_json, enc_query
     end
 
+    def test_vector_search_query_base64
+      base64_query = "aOeYBEXJ4kI="
+      enc_vector_query = VectorQuery.new("foo", base64_query).to_h
+
+      refute enc_vector_query.key?(:vector)
+      assert enc_vector_query.key?(:vector_base64)
+      assert_equal enc_vector_query[:vector_base64], base64_query
+    end
+
     def test_vector_search_not_supported
       skip("#{name}: Server supports vector search") if !env.protostellar? && env.server_version.supports_vector_search?
 

@@ -1071,13 +1071,23 @@ module Couchbase
 
     # Constructs a +VectorQuery+ instance
     #
-    # @param [String] vector_field_name the document field that contains the vector.
-    # @param [Array<Float>] vector_query the vector query to run.
+    # @overload initialize(vector_field_name, vector_query)
+    #   @param [String] vector_field_name the document field that contains the vector.
+    #   @param [Array<Float>] vector_query the vector query.
     #
-    # @yieldparam [MatchPhraseQuery] self
+    # @overload initialize(vector_field_name, base64_vector_query)
+    #   @param [String] vector_field_name the document field that contains the vector.
+    #   @param [String] base64_vector_query the vector query represented as a base64-encoded sequence of little-endian IEEE 754 floats.
+    #
+    # @yieldparam [VectorQuery] self
     def initialize(vector_field_name, vector_query)
       @vector_field_name = vector_field_name
-      @vector_query = vector_query
+
+      if vector_query.respond_to?(:to_str)
+        @base64_vector_query = vector_query.to_str
+      else
+        @vector_query = vector_query
+      end
 
       yield self if block_given?
     end
@@ -1092,6 +1102,7 @@ module Couchbase
       {
         field: @vector_field_name,
         vector: @vector_query,
+        vector_base64: @base64_vector_query,
         k: num_candidates || 3,
         boost: boost,
       }.compact
