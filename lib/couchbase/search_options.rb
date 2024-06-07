@@ -1099,13 +1099,23 @@ module Couchbase
               "Number of candidates must be at least 1, #{num_candidates} given"
       end
 
-      {
+      h = {
         field: @vector_field_name,
         vector: @vector_query,
         vector_base64: @base64_vector_query,
         k: num_candidates || 3,
         boost: boost,
       }.compact
+
+      raise Error::InvalidArgument, "The vector cannot be nil" if !h.include?(:vector) && !h.include?(:vector_base64)
+      raise Error::InvalidArgument, "The vector query cannot be an empty array" if h.include?(:vector) && h[:vector].empty?
+
+      if h.include?(:vector_base64) && h[:vector_base64].empty?
+        raise Error::InvalidArgument,
+              "The base64-encoded vector query cannot be empty"
+      end
+
+      h
     end
 
     # @api private
