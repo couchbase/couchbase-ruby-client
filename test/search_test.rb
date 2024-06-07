@@ -220,6 +220,24 @@ module Couchbase
       end
     end
 
+    def test_vector_query_empty
+      vector_query = VectorQuery.new("foo", [])
+
+      assert_raises(Error::InvalidArgument) { vector_query.to_json }
+    end
+
+    def test_base64_vector_query_empty
+      vector_query = VectorQuery.new("foo", "")
+
+      assert_raises(Error::InvalidArgument) { vector_query.to_json }
+    end
+
+    def test_vector_query_nil
+      vector_query = VectorQuery.new("foo", nil)
+
+      assert_raises(Error::InvalidArgument) { vector_query.to_json }
+    end
+
     def test_vector_query_invalid_candidate_number
       vector_query = VectorQuery.new("foo", [-1.1, 1.2]) do |q|
         q.num_candidates = 0
