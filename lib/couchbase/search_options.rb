@@ -1057,6 +1057,8 @@ module Couchbase
 
     # @api private
     def to_backend
+      raise Error::InvalidArgument, "Vector search requires at least one vector query" if @vector_queries.empty?
+
       {vector_queries: @vector_queries.map(&:to_h).to_json}.merge(@options.to_backend)
     end
   end
