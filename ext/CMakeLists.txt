@@ -40,8 +40,28 @@ message(STATUS "RUBY_LIBRUBYARG: ${RUBY_LIBRUBYARG}")
 message(STATUS "RUBY_INCLUDE_DIR: ${RUBY_INCLUDE_DIR}")
 message(STATUS "RUBY_LIBRARY_DIR: ${RUBY_LIBRARY_DIR}")
 
-add_library(couchbase SHARED couchbase.cxx)
-target_include_directories(couchbase PRIVATE ${PROJECT_BINARY_DIR}/generated ${RUBY_INCLUDE_DIR})
+add_library(
+  couchbase SHARED
+  couchbase.cxx
+  rcb_analytics.cxx
+  rcb_backend.cxx
+  rcb_buckets.cxx
+  rcb_collections.cxx
+  rcb_crud.cxx
+  rcb_diagnostics.cxx
+  rcb_exceptions.cxx
+  rcb_extras.cxx
+  rcb_logger.cxx
+  rcb_multi.cxx
+  rcb_query.cxx
+  rcb_range_scan.cxx
+  rcb_search.cxx
+  rcb_users.cxx
+  rcb_utils.cxx
+  rcb_version.cxx
+  rcb_views.cxx)
+target_include_directories(couchbase PRIVATE ${PROJECT_BINARY_DIR}/generated)
+target_include_directories(couchbase PRIVATE SYSTEM ${RUBY_INCLUDE_DIR})
 target_link_libraries(
   couchbase
   PRIVATE project_options

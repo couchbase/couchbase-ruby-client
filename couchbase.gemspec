@@ -42,6 +42,7 @@ Gem::Specification.new do |spec|
                           "LICENSE.txt",
                           "README.md",
                           "ext/*.cxx",
+                          "ext/*.hxx",
                           "ext/*.hxx.in",
                           "ext/*.rb",
                           "ext/CMakeLists.txt",
