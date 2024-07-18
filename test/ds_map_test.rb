@@ -129,11 +129,7 @@ module Couchbase
         refute_empty map
         map["baz"] = "bar"
 
-        pairs = map.map do |*pair|
-          pair
-        end
-
-        assert_equal [%w[baz bar], ["foo", 100]], pairs.sort
+        assert_equal [%w[baz bar], ["foo", 100]], map.entries.sort
       end
 
       def test_removes_key

@@ -135,7 +135,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.0'
           - '3.1'
           - '3.2'
           - '3.3'
@@ -176,10 +175,6 @@ jobs:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v4
         with:
-          path: pkg/binary/3.0
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.0
-      - uses: actions/download-artifact@v4
-        with:
           path: pkg/binary/3.1
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.1
       - uses: actions/download-artifact@v4
@@ -209,7 +204,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.0'
           - '3.1'
           - '3.2'
           - '3.3'
@@ -250,10 +244,6 @@ jobs:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v4
         with:
-          path: pkg/binary/3.0
-          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.0
-      - uses: actions/download-artifact@v4
-        with:
           path: pkg/binary/3.1
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.1
       - uses: actions/download-artifact@v4
@@ -283,7 +273,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.0'
           - '3.1'
           - '3.2'
           - '3.3'
@@ -324,10 +313,6 @@ jobs:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v4
         with:
-          path: pkg/binary/3.0
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.0
-      - uses: actions/download-artifact@v4
-        with:
           path: pkg/binary/3.1
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.1
       - uses: actions/download-artifact@v4
@@ -360,7 +345,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.0'
           - '3.1'
           - '3.2'
           - '3.3'
@@ -421,7 +405,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.0'
           - '3.1'
           - '3.2'
           - '3.3'
@@ -485,7 +468,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.0'
           - '3.1'
           - '3.2'
           - '3.3'

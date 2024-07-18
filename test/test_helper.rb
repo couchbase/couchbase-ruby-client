@@ -93,6 +93,10 @@ class ServerVersion
     cheshire_cat?
   end
 
+  def supports_mad_hatter_subdoc_macros?
+    mad_hatter? || cheshire_cat?
+  end
+
   def is_rcbc_408_applicable?
     @version < Gem::Version.create("7.0.0")
   end
@@ -126,6 +130,10 @@ class ServerVersion
   end
 
   def supports_vector_search?
+    trinity?
+  end
+
+  def supports_multiple_xattr_keys_mutation?
     trinity?
   end
 end
@@ -164,7 +172,15 @@ module Couchbase
     end
 
     def management_endpoint
-      @management_endpoint = ENV.fetch("TEST_MANAGEMENT_ENDPOINT", nil)
+      @management_endpoint = ENV.fetch("TEST_MANAGEMENT_ENDPOINT") do
+        if connection_string
+          parsed = Couchbase::Backend.parse_connection_string(connection_string)
+          first_node_address = parsed[:nodes].first[:address]
+          scheme = parsed[:tls] ? "https" : "http"
+          port = parsed[:tls] ? 18091 : 8091
+          "#{scheme}://#{first_node_address}:#{port}"
+        end
+      end
     end
 
     def jenkins?
@@ -188,7 +204,12 @@ module Couchbase
     end
 
     def consistency
-      @consistency ||= TestUtilities::ConsistencyHelper.new(management_endpoint, username, password)
+      @consistency ||=
+        if ENV.fetch("TEST_CONNECTION_STRING", nil)
+          TestUtilities::ConsistencyHelper.new(management_endpoint, username, password)
+        else
+          TestUtilities::MockConsistencyHelper.new
+        end
     end
   end
 
