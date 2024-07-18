@@ -22,6 +22,8 @@ module Couchbase
     include TestUtilities
 
     def setup
+      return if use_caves?
+
       connect
       @bucket_name = 'query-idx-test-bucket'
       @cluster.buckets.create_bucket(
@@ -47,6 +49,8 @@ module Couchbase
     end
 
     def teardown
+      return if use_caves?
+
       @cluster.buckets.drop_bucket(@bucket_name)
       disconnect
     end

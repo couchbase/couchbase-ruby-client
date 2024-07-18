@@ -19,6 +19,15 @@ require 'json'
 
 module Couchbase
   module TestUtilities
+    # CAVES does not support management API, but fast enough to be consistent
+    class MockConsistencyHelper < BasicObject
+      def method_missing(*); end
+
+      def respond_to_missing?(*)
+        true
+      end
+    end
+
     class ConsistencyHelper
       attr_reader :management_hosts
 

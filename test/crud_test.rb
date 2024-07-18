@@ -57,7 +57,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       options =
-        if env.jenkins?
+        if env.jenkins? || use_caves?
           Options::Upsert(persist_to: :active, replicate_to: :one)
         else
           Options::Upsert(persist_to: :active)

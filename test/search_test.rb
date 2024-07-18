@@ -21,10 +21,9 @@ module Couchbase
     include TestUtilities
 
     def setup
-      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      return if use_caves?
 
       connect
-      skip("#{name}: CAVES does not support query service yet") if use_caves?
       @bucket = @cluster.bucket(env.bucket)
       @scope = @bucket.default_scope
       @collection = @bucket.default_collection
@@ -72,10 +71,16 @@ module Couchbase
     end
 
     def teardown
+      return if use_caves?
+
+      @cluster.search_indexes.drop_index(@index_name)
       disconnect
     end
 
     def test_simple_search
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       doc_id = uniq_id(:foo)
       res = @collection.insert(doc_id, {"type" => "character", "name" => "Arthur"})
       mutation_state = MutationState.new(res.mutation_token)
@@ -108,6 +113,9 @@ module Couchbase
     end
 
     def test_doc_id_search_query
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       doc_ids = [uniq_id(:foo), uniq_id(:bar)]
       res1 = @collection.insert(doc_ids[0], {"type" => "character", "name" => "Arthur"})
       res2 = @collection.insert(doc_ids[1], {"type" => "character", "name" => "Brodie"})
@@ -145,6 +153,9 @@ module Couchbase
     end
 
     def test_search_request_backend_encoding
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       vec1 = [-0.00810323283, 0.0727998167, 0.0211895034, -0.0254271757]
       vec2 = [-0.005610323283, 0.023427998167, 0.0132511895034, 0.03466271757]
 
@@ -200,6 +211,9 @@ module Couchbase
     end
 
     def test_search_request_invalid_argument
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       vec1 = [-0.00810323283, 0.0727998167, 0.0211895034, -0.0254271757]
       vec2 = [-0.005610323283, 0.023427998167, 0.0132511895034, 0.03466271757]
 
@@ -223,24 +237,36 @@ module Couchbase
     end
 
     def test_vector_query_empty
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       vector_query = VectorQuery.new("foo", [])
 
       assert_raises(Error::InvalidArgument) { vector_query.to_json }
     end
 
     def test_base64_vector_query_empty
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       vector_query = VectorQuery.new("foo", "")
 
       assert_raises(Error::InvalidArgument) { vector_query.to_json }
     end
 
     def test_vector_query_nil
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       vector_query = VectorQuery.new("foo", nil)
 
       assert_raises(Error::InvalidArgument) { vector_query.to_json }
     end
 
     def test_vector_query_invalid_candidate_number
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       vector_query = VectorQuery.new("foo", [-1.1, 1.2]) do |q|
         q.num_candidates = 0
       end
@@ -251,6 +277,9 @@ module Couchbase
     end
 
     def test_vector_search_empty_vector_query_array
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       vector_search = VectorSearch.new([])
 
       assert_raises(Error::InvalidArgument) do
@@ -259,6 +288,9 @@ module Couchbase
     end
 
     def test_vector_search_query_defaults_to_match_none
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       vector_search = VectorSearch.new(VectorQuery.new("foo", [-1.1, 1.2]))
       enc_query, = SearchRequest.new(vector_search).to_backend
 
@@ -266,6 +298,9 @@ module Couchbase
     end
 
     def test_vector_search_query_base64
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       base64_query = "aOeYBEXJ4kI="
       enc_vector_query = VectorQuery.new("foo", base64_query).to_h
 
@@ -275,6 +310,9 @@ module Couchbase
     end
 
     def test_vector_search_not_supported
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       skip("#{name}: Server supports vector search") if !env.protostellar? && env.server_version.supports_vector_search?
 
       req = SearchRequest.new(VectorSearch.new(VectorQuery.new("foo", [-1.1, 1.2])))
@@ -284,6 +322,9 @@ module Couchbase
     end
 
     def test_scope_search_not_supported
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support search index management yet") if env.protostellar?
+      skip("#{name}: CAVES does not support search service yet") if use_caves?
+
       skip("#{name}: Server supports scope search") if !env.protostellar? && env.server_version.supports_scoped_search_indexes?
 
       req = SearchRequest.new(SearchQuery.match_all)

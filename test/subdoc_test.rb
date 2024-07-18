@@ -359,7 +359,9 @@ module Couchbase
     end
 
     def test_mad_hatter_macros
-      skip("The server does not support MadHatter macros (#{env.server_version})") unless env.server_version.mad_hatter?
+      unless env.server_version.supports_mad_hatter_subdoc_macros?
+        skip("The server does not support MadHatter macros (#{env.server_version})")
+      end
 
       doc_id = uniq_id(:foo)
 
@@ -1272,7 +1274,17 @@ module Couchbase
 
       options = Collection::MutateInOptions.new
       options.store_semantics = :upsert
-      assert_raises env.protostellar? ? Error::InvalidArgument : Error::XattrInvalidKeyCombo do
+      exception_check =
+        if env.server_version.supports_multiple_xattr_keys_mutation?
+          lambda { |&block| block.call }
+        elsif env.protostellar?
+          # FIXME: most likely Protostellar/7.6.0+ will not not fail too
+          lambda { |&block| assert_raises(Error::InvalidArgument) { block.call } }
+        else
+          lambda { |&block| assert_raises(Error::XattrInvalidKeyCombo) { block.call } }
+        end
+
+      exception_check.call do
         @collection.mutate_in(doc_id, [
                                 MutateInSpec.increment("count", 1).xattr.create_path,
                                 MutateInSpec.insert("logs", "bar1").xattr.create_path,
