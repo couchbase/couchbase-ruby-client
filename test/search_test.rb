@@ -248,6 +248,14 @@ module Couchbase
       end
     end
 
+    def test_vector_search_empty_vector_query_array
+      vector_search = VectorSearch.new([])
+
+      assert_raises(Error::InvalidArgument) do
+        vector_search.to_backend
+      end
+    end
+
     def test_vector_search_query_defaults_to_match_none
       vector_search = VectorSearch.new(VectorQuery.new("foo", [-1.1, 1.2]))
       enc_query, = SearchRequest.new(vector_search).to_backend
