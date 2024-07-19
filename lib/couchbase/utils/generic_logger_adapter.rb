@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #   Copyright 2021 Couchbase, Inc.
 #  Copyright 2020-Present Couchbase, Inc.
 #
@@ -18,7 +20,7 @@ require "time"
 module Couchbase
   module Utils
     class GenericLoggerAdapter
-      DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%6N".freeze
+      DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%6N"
 
       def initialize(logger, verbose: false)
         @logger = logger

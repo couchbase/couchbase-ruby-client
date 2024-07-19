@@ -1,9 +1,6 @@
 Style/Documentation:
   Enabled: false
 
-Style/FrozenStringLiteralComment:
-  Enabled: false
-
 Style/NumericLiterals:
   Enabled: false
 
@@ -38,9 +35,6 @@ Naming/PredicateName:
   Enabled: false
 
 Style/AccessorGrouping:
-  Enabled: false
-
-Style/ExplicitBlockArgument:
   Enabled: false
 
 Minitest/MultipleAssertions:

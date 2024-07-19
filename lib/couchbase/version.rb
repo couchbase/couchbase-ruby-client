@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2020-2021 Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,5 +21,5 @@ module Couchbase
   #   $ ruby -rcouchbase -e 'pp Couchbase::VERSION'
   #   {:sdk=>"3.4.0", :ruby_abi=>"3.1.0", :revision=>"416fe68e6029ec8a4c40611cf6e6b30d3b90d20f"}
   VERSION = {} unless defined?(VERSION) # rubocop:disable Style/MutableConstant
-  VERSION.update(:sdk => "3.5.2.snapshot".freeze)
+  VERSION.update(:sdk => "3.5.2.snapshot")
 end
