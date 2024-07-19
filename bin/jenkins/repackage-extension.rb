@@ -92,13 +92,17 @@ module Gem
 
       # adjust platform
       gemspec.platform = Gem::Platform::CURRENT
-      gemspec.required_ruby_version = "> 3.0"
+      if RUBY_PLATFORM.include?('darwin')
+        gemspec.platform.version = nil
+        gemspec.original_platform = gemspec.platform
+      end
+      gemspec.required_ruby_version = "> 3.1"
 
       # build new gem
       output_gem = nil
 
       Dir.chdir gemspec.full_gem_path do
-        output_gem = Gem::Package.build(gemspec)
+        output_gem = Gem::Package.build(gemspec, true)
       end
 
       abort "There was a problem building the gem." unless output_gem
