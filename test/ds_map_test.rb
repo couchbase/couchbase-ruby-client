@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2020-2021 Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,7 +76,7 @@ module Couchbase
 
         assert_empty map
         assert_equal("baz", map.fetch("foo", "baz"))
-        assert_equal("bar", map.fetch("foo") { "bar" })
+        assert_equal("bar", map.fetch("foo", "bar"))
       end
 
       def test_fetch_raises_key_error_when_default_not_specified

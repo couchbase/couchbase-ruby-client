@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 #  Copyright 2020-2021 Couchbase, Inc.
 #
@@ -23,8 +24,8 @@ require "socket"
 class Caves
   attr_accessor :verbose
 
-  VERSION = "v0.0.1-78".freeze
-  FORK = "couchbaselabs".freeze
+  VERSION = "v0.0.1-78"
+  FORK = "couchbaselabs"
 
   def download_mock(url = caves_url)
     return if binary_ready?

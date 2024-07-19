@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2020-2021 Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -245,9 +247,9 @@ module Couchbase
       @expand_macros
     end
 
-    CAS = "${Mutation.CAS}".freeze
-    SEQ_NO = "${Mutation.seqno}".freeze
-    VALUE_CRC32C = "${Mutation.value_crc32c}".freeze
+    CAS = "${Mutation.CAS}"
+    SEQ_NO = "${Mutation.seqno}"
+    VALUE_CRC32C = "${Mutation.value_crc32c}"
 
     attr_reader :type
     attr_reader :path

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #   Copyright 2021 Couchbase, Inc.
 #  Copyright 2020-Present Couchbase, Inc.
 #

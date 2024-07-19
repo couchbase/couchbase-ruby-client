@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2020-2021 Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -92,8 +94,8 @@ module Couchbase
     # @yieldparam [MatchQuery] query
     #
     # @return [MatchQuery]
-    def self.match(match, &block)
-      MatchQuery.new(match, &block)
+    def self.match(match, &)
+      MatchQuery.new(match, &)
     end
 
     # A match query analyzes the input text and uses that analyzed text to query the index.
@@ -143,8 +145,8 @@ module Couchbase
     # @yieldparam [MatchPhraseQuery] query
     #
     # @return [MatchPhraseQuery]
-    def self.match_phrase(match_phrase, &block)
-      MatchPhraseQuery.new(match_phrase, &block)
+    def self.match_phrase(match_phrase, &)
+      MatchPhraseQuery.new(match_phrase, &)
     end
 
     # The input text is analyzed and a phrase query is built with the terms resulting from the analysis.
@@ -183,8 +185,8 @@ module Couchbase
     # @yieldparam [RegexpQuery] query
     #
     # @return [RegexpQuery]
-    def self.regexp(regexp, &block)
-      RegexpQuery.new(regexp, &block)
+    def self.regexp(regexp, &)
+      RegexpQuery.new(regexp, &)
     end
 
     # Finds documents containing terms that match the specified regular expression.
@@ -219,8 +221,8 @@ module Couchbase
     # @yieldparam [QueryStringQuery] query
     #
     # @return [QueryStringQuery]
-    def self.query_string(query_string, &block)
-      QueryStringQuery.new(query_string, &block)
+    def self.query_string(query_string, &)
+      QueryStringQuery.new(query_string, &)
     end
 
     # The query string query allows humans to describe complex queries using a simple syntax.
@@ -251,8 +253,8 @@ module Couchbase
     # @yieldparam [WildcardQuery] query
     #
     # @return [WildcardQuery]
-    def self.wildcard(wildcard, &block)
-      WildcardQuery.new(wildcard, &block)
+    def self.wildcard(wildcard, &)
+      WildcardQuery.new(wildcard, &)
     end
 
     # Interprets * and ? wildcards as found in a lot of applications, for an easy implementation of such a search feature.
@@ -354,8 +356,8 @@ module Couchbase
     # @yieldparam [DateRangeQuery] query
     #
     # @return [DateRangeQuery]
-    def self.date_range(&block)
-      DateRangeQuery.new(&block)
+    def self.date_range(&)
+      DateRangeQuery.new(&)
     end
 
     # The date range query finds documents containing a date value in the specified field within the specified range.
@@ -402,7 +404,7 @@ module Couchbase
         yield self if block_given?
       end
 
-      DATE_FORMAT_RFC3339 = "%Y-%m-%dT%H:%M:%S%:z".freeze
+      DATE_FORMAT_RFC3339 = "%Y-%m-%dT%H:%M:%S%:z"
 
       # @return [Hash<Symbol, #to_json>]
       def to_h
@@ -437,8 +439,8 @@ module Couchbase
     # @yieldparam [NumericRangeQuery] query
     #
     # @return [NumericRangeQuery]
-    def self.numeric_range(&block)
-      NumericRangeQuery.new(&block)
+    def self.numeric_range(&)
+      NumericRangeQuery.new(&)
     end
 
     # The numeric range query finds documents containing a numeric value in the specified field within the specified range.
@@ -505,8 +507,8 @@ module Couchbase
     # @yieldparam [TermRangeQuery] query
     #
     # @return [TermRangeQuery]
-    def self.term_range(&block)
-      TermRangeQuery.new(&block)
+    def self.term_range(&)
+      TermRangeQuery.new(&)
     end
 
     # The term range query finds documents containing a string value in the specified field within the specified range.
@@ -577,8 +579,8 @@ module Couchbase
     # @param [String] distance how big is area (number with units)
     #
     # @return [GeoDistanceQuery]
-    def self.geo_distance(longitude, latitude, distance, &block)
-      GeoDistanceQuery.new(longitude, latitude, distance, &block)
+    def self.geo_distance(longitude, latitude, distance, &)
+      GeoDistanceQuery.new(longitude, latitude, distance, &)
     end
 
     # Finds `geopoint` indexed matches around a point with the given distance.
@@ -623,8 +625,8 @@ module Couchbase
     # @param [Float] bottom_right_latitude
     #
     # @return [GeoBoundingBoxQuery]
-    def self.geo_bounding_box(top_left_longitude, top_left_latitude, bottom_right_longitude, bottom_right_latitude, &block)
-      GeoBoundingBoxQuery.new(top_left_longitude, top_left_latitude, bottom_right_longitude, bottom_right_latitude, &block)
+    def self.geo_bounding_box(top_left_longitude, top_left_latitude, bottom_right_longitude, bottom_right_latitude, &)
+      GeoBoundingBoxQuery.new(top_left_longitude, top_left_latitude, bottom_right_longitude, bottom_right_latitude, &)
     end
 
     # Finds `geopoint` indexed matches in a given bounding box.
@@ -688,8 +690,8 @@ module Couchbase
     # @return [GeoPolygonQuery]
     #
     # @!macro uncommitted
-    def self.geo_polygon(coordinates, &block)
-      GeoPolygonQuery.new(coordinates, &block)
+    def self.geo_polygon(coordinates, &)
+      GeoPolygonQuery.new(coordinates, &)
     end
 
     # A search query which allows to match inside a geo polygon.
@@ -817,8 +819,8 @@ module Couchbase
     # @yieldparam [BooleanQuery] query
     #
     # @return [BooleanQuery]
-    def self.booleans(&block)
-      BooleanQuery.new(&block)
+    def self.booleans(&)
+      BooleanQuery.new(&)
     end
 
     # The boolean query is a useful combination of conjunction and disjunction queries.
@@ -881,8 +883,8 @@ module Couchbase
     # @param [String] term
     #
     # @return [TermQuery]
-    def self.term(term, &block)
-      TermQuery.new(term, &block)
+    def self.term(term, &)
+      TermQuery.new(term, &)
     end
 
     # A query that looks for **exact** matches of the term in the index (no analyzer, no stemming). Useful to check what the actual
@@ -928,8 +930,8 @@ module Couchbase
     # @param [String] prefix
     #
     # @return [PrefixQuery]
-    def self.prefix(prefix, &block)
-      PrefixQuery.new(prefix, &block)
+    def self.prefix(prefix, &)
+      PrefixQuery.new(prefix, &)
     end
 
     # The prefix query finds documents containing terms that start with the provided prefix. Usual better alternative is `MatchQuery`.
@@ -1002,8 +1004,8 @@ module Couchbase
     # @yieldparam [MatchAllQuery] query
     #
     # @return [MatchAllQuery]
-    def self.match_all(&block)
-      MatchAllQuery.new(&block)
+    def self.match_all(&)
+      MatchAllQuery.new(&)
     end
 
     # A query that matches all indexed documents.
@@ -1025,8 +1027,8 @@ module Couchbase
     # @yieldparam [MatchNoneQuery] query
     #
     # @return [MatchNoneQuery]
-    def self.match_none(&block)
-      MatchNoneQuery.new(&block)
+    def self.match_none(&)
+      MatchNoneQuery.new(&)
     end
 
     # A query that matches nothing.
@@ -1129,21 +1131,21 @@ module Couchbase
   class SearchSort
     # @yieldparam [SearchSortScore]
     # @return [SearchSortScore]
-    def self.score(&block)
-      SearchSortScore.new(&block)
+    def self.score(&)
+      SearchSortScore.new(&)
     end
 
     # @yieldparam [SearchSortId]
     # @return [SearchSortScore]
-    def self.id(&block)
-      SearchSortId.new(&block)
+    def self.id(&)
+      SearchSortId.new(&)
     end
 
     # @param [String] name field name
     # @yieldparam [SearchSortField]
     # @return [SearchSortField]
-    def self.field(name, &block)
-      SearchSortField.new(name, &block)
+    def self.field(name, &)
+      SearchSortField.new(name, &)
     end
 
     # @param [String] name field name
@@ -1151,8 +1153,8 @@ module Couchbase
     # @param [Float] latitude
     # @yieldparam [SearchSortField]
     # @return [SearchSortGeoDistance]
-    def self.geo_distance(name, longitude, latitude, &block)
-      SearchSortGeoDistance.new(name, longitude, latitude, &block)
+    def self.geo_distance(name, longitude, latitude, &)
+      SearchSortGeoDistance.new(name, longitude, latitude, &)
     end
 
     class SearchSortScore < SearchSort
@@ -1255,20 +1257,20 @@ module Couchbase
   class SearchFacet
     # @param [String] field_name
     # @return [SearchFacetTerm]
-    def self.term(field_name, &block)
-      SearchFacetTerm.new(field_name, &block)
+    def self.term(field_name, &)
+      SearchFacetTerm.new(field_name, &)
     end
 
     # @param [String] field_name
     # @return [SearchFacetNumericRange]
-    def self.numeric_range(field_name, &block)
-      SearchFacetNumericRange.new(field_name, &block)
+    def self.numeric_range(field_name, &)
+      SearchFacetNumericRange.new(field_name, &)
     end
 
     # @param [String] field_name
     # @return [SearchFacetDateRange]
-    def self.date_range(field_name, &block)
-      SearchFacetDateRange.new(field_name, &block)
+    def self.date_range(field_name, &)
+      SearchFacetDateRange.new(field_name, &)
     end
 
     class SearchFacetTerm
@@ -1332,7 +1334,7 @@ module Couchbase
         yield self if block_given?
       end
 
-      DATE_FORMAT_RFC3339 = "%Y-%m-%dT%H:%M:%S%:z".freeze
+      DATE_FORMAT_RFC3339 = "%Y-%m-%dT%H:%M:%S%:z"
 
       # @param [String] name the name of the range
       # @param [Time, String, nil] start_time lower bound of the range (pass +nil+ if there is no lower bound)

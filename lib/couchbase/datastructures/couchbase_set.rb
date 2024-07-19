@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2020-2021 Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,7 +44,7 @@ module Couchbase
       # @yieldparam [Object] item
       #
       # @return [CouchbaseSet, Enumerable]
-      def each
+      def each(&)
         if block_given?
           begin
             result = @collection.get(@id, @options.get_options)
@@ -52,9 +54,7 @@ module Couchbase
             current = []
             @cas = 0
           end
-          current.each do |entry|
-            yield entry
-          end
+          current.each(&)
           self
         else
           enum_for(:each)

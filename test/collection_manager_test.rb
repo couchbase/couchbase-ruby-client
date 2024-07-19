@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2023. Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +21,7 @@ module Couchbase
   class CollectionManagerTest < Minitest::Test
     include TestUtilities
 
-    TEST_MAGMA_BUCKET_NAME = 'test-magma-bucket'.freeze
+    TEST_MAGMA_BUCKET_NAME = 'test-magma-bucket'
 
     def create_magma_bucket
       @cluster.buckets.create_bucket(

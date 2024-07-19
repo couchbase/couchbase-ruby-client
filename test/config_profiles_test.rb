@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2020-2022 Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
