@@ -546,7 +546,8 @@ jobs:
       fail-fast: false
       matrix:
         server:
-          - 7.2.4
+          - 7.6.1
+          - 7.2.5
           - 7.1.6
           - 7.0.5
     steps:

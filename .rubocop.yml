@@ -7,7 +7,7 @@ require:
   - rubocop-thread_safety
 
 AllCops:
-  TargetRubyVersion: 3.0
+  TargetRubyVersion: 3.1
   NewCops: enable
   SuggestExtensions: false
   Exclude:
@@ -49,4 +49,3 @@ Style/TrailingCommaInHashLiteral:
 
 Layout/FirstHashElementIndentation:
   EnforcedStyle: consistent
-
