@@ -43,15 +43,15 @@ namespace couchbase::ruby
 {
 class ruby_exception : public std::runtime_error
 {
-  public:
-    explicit ruby_exception(VALUE exc);
-    ruby_exception(VALUE exc_type, VALUE exc_message);
-    ruby_exception(VALUE exc_type, const std::string& exc_message);
+public:
+  explicit ruby_exception(VALUE exc);
+  ruby_exception(VALUE exc_type, VALUE exc_message);
+  ruby_exception(VALUE exc_type, const std::string& exc_message);
 
-    [[nodiscard]] auto exception_object() const -> VALUE;
+  [[nodiscard]] auto exception_object() const -> VALUE;
 
-  private:
-    VALUE exc_;
+private:
+  VALUE exc_;
 };
 
 auto
@@ -67,7 +67,9 @@ auto
 exc_invalid_argument() -> VALUE;
 
 [[nodiscard]] auto
-cb_map_error_code(std::error_code ec, const std::string& message, bool include_error_code = true) -> VALUE;
+cb_map_error_code(std::error_code ec,
+                  const std::string& message,
+                  bool include_error_code = true) -> VALUE;
 
 [[nodiscard]] VALUE
 cb_map_error(const key_value_error_context& ctx, const std::string& message);

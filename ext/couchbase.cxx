@@ -41,27 +41,27 @@ __declspec(dllexport)
 void
 Init_libcouchbase(void)
 {
-    couchbase::ruby::init_logger();
+  couchbase::ruby::init_logger();
 
-    VALUE mCouchbase = rb_define_module("Couchbase");
+  VALUE mCouchbase = rb_define_module("Couchbase");
 
-    couchbase::ruby::init_version(mCouchbase);
-    couchbase::ruby::init_exceptions(mCouchbase);
+  couchbase::ruby::init_version(mCouchbase);
+  couchbase::ruby::init_exceptions(mCouchbase);
 
-    VALUE cBackend = couchbase::ruby::init_backend(mCouchbase);
+  VALUE cBackend = couchbase::ruby::init_backend(mCouchbase);
 
-    couchbase::ruby::init_crud(cBackend);
-    couchbase::ruby::init_multi(cBackend);
-    couchbase::ruby::init_analytics(cBackend);
-    couchbase::ruby::init_views(cBackend);
-    couchbase::ruby::init_search(cBackend);
-    couchbase::ruby::init_query(cBackend);
-    couchbase::ruby::init_buckets(cBackend);
-    couchbase::ruby::init_collections(cBackend);
-    couchbase::ruby::init_users(cBackend);
-    couchbase::ruby::init_range_scan(mCouchbase, cBackend);
-    couchbase::ruby::init_diagnostics(cBackend);
-    couchbase::ruby::init_extras(cBackend);
-    couchbase::ruby::init_logger_methods(cBackend);
+  couchbase::ruby::init_crud(cBackend);
+  couchbase::ruby::init_multi(cBackend);
+  couchbase::ruby::init_analytics(cBackend);
+  couchbase::ruby::init_views(cBackend);
+  couchbase::ruby::init_search(cBackend);
+  couchbase::ruby::init_query(cBackend);
+  couchbase::ruby::init_buckets(cBackend);
+  couchbase::ruby::init_collections(cBackend);
+  couchbase::ruby::init_users(cBackend);
+  couchbase::ruby::init_range_scan(mCouchbase, cBackend);
+  couchbase::ruby::init_diagnostics(cBackend);
+  couchbase::ruby::init_extras(cBackend);
+  couchbase::ruby::init_logger_methods(cBackend);
 }
 }
