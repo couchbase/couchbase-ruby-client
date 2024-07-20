@@ -33,15 +33,13 @@ group :development do
   gem "minitest-reporters"
   gem "rack"
   gem "reek"
-  gem "rubocop"
-  gem "rubocop-minitest"
-  gem "rubocop-packaging"
-  gem "rubocop-performance"
-  gem "rubocop-rake"
-  gem "rubocop-thread_safety"
+  gem "rubocop", require: false
+  gem "rubocop-minitest", require: false
+  gem "rubocop-packaging", require: false
+  gem "rubocop-performance", require: false
+  gem "rubocop-rake", require: false
+  gem "rubocop-thread_safety", require: false
+  gem "ruby-lsp", require: false
   gem "simplecov-cobertura"
   gem "yard"
-  platforms :mri do
-    gem "byebug"
-  end
 end
