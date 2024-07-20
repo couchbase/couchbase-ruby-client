@@ -73,7 +73,7 @@ cb_extract_search_index(VALUE index, const core::management::search::index& idx)
 VALUE
 cb_Backend_search_index_get_all(VALUE self, VALUE bucket, VALUE scope, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::search_index_get_all_request req{};
@@ -87,11 +87,10 @@ cb_Backend_search_index_get_all(VALUE self, VALUE bucket, VALUE scope, VALUE opt
     }
 
     cb_extract_timeout(req, options);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::search_index_get_all_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_get_all_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -120,7 +119,7 @@ cb_Backend_search_index_get_all(VALUE self, VALUE bucket, VALUE scope, VALUE opt
 VALUE
 cb_Backend_search_index_get(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
 
@@ -136,11 +135,10 @@ cb_Backend_search_index_get(VALUE self, VALUE bucket, VALUE scope, VALUE index_n
     }
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::search_index_get_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_get_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -171,7 +169,7 @@ cb_Backend_search_index_upsert(VALUE self,
                                VALUE index_definition,
                                VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_definition, T_HASH);
 
@@ -235,11 +233,10 @@ cb_Backend_search_index_upsert(VALUE self,
       req.index.plan_params_json = cb_string_new(plan_params);
     }
 
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::search_index_upsert_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_upsert_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -267,7 +264,7 @@ cb_Backend_search_index_upsert(VALUE self,
 VALUE
 cb_Backend_search_index_drop(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
 
@@ -283,11 +280,10 @@ cb_Backend_search_index_drop(VALUE self, VALUE bucket, VALUE scope, VALUE index_
     }
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::search_index_drop_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_drop_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -319,7 +315,7 @@ cb_Backend_search_index_get_documents_count(VALUE self,
                                             VALUE index_name,
                                             VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
 
@@ -335,11 +331,10 @@ cb_Backend_search_index_get_documents_count(VALUE self,
     }
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::search_index_get_documents_count_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_get_documents_count_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -373,7 +368,7 @@ cb_Backend_search_index_get_documents_count(VALUE self,
 VALUE
 cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
 
@@ -381,11 +376,10 @@ cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
     core::operations::management::search_index_get_stats_request req{};
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::search_index_get_stats_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_get_stats_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -412,16 +406,15 @@ cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
 VALUE
 cb_Backend_search_get_stats(VALUE self, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::search_get_stats_request req{};
     cb_extract_timeout(req, timeout);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::search_get_stats_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_get_stats_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -444,7 +437,7 @@ cb_Backend_search_index_pause_ingest(VALUE self,
                                      VALUE index_name,
                                      VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
 
@@ -461,11 +454,10 @@ cb_Backend_search_index_pause_ingest(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.pause = true;
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::search_index_control_ingest_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_control_ingest_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -499,7 +491,7 @@ cb_Backend_search_index_resume_ingest(VALUE self,
                                       VALUE index_name,
                                       VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
 
@@ -516,11 +508,10 @@ cb_Backend_search_index_resume_ingest(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.pause = false;
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::search_index_control_ingest_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_control_ingest_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -554,7 +545,7 @@ cb_Backend_search_index_allow_querying(VALUE self,
                                        VALUE index_name,
                                        VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
 
@@ -571,11 +562,10 @@ cb_Backend_search_index_allow_querying(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.allow = true;
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::search_index_control_query_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_control_query_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -609,7 +599,7 @@ cb_Backend_search_index_disallow_querying(VALUE self,
                                           VALUE index_name,
                                           VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
 
@@ -626,11 +616,10 @@ cb_Backend_search_index_disallow_querying(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.allow = false;
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::search_index_control_query_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_control_query_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -664,7 +653,7 @@ cb_Backend_search_index_freeze_plan(VALUE self,
                                     VALUE index_name,
                                     VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
 
@@ -681,11 +670,10 @@ cb_Backend_search_index_freeze_plan(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.freeze = true;
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::search_index_control_plan_freeze_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_control_plan_freeze_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -718,7 +706,7 @@ cb_Backend_search_index_unfreeze_plan(VALUE self,
                                       VALUE index_name,
                                       VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
 
@@ -735,11 +723,10 @@ cb_Backend_search_index_unfreeze_plan(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.freeze = false;
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::search_index_control_plan_freeze_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_control_plan_freeze_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -774,7 +761,7 @@ cb_Backend_search_index_analyze_document(VALUE self,
                                          VALUE encoded_document,
                                          VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
   Check_Type(encoded_document, T_STRING);
@@ -794,11 +781,10 @@ cb_Backend_search_index_analyze_document(VALUE self,
     req.index_name = cb_string_new(index_name);
     req.encoded_document = cb_string_new(encoded_document);
 
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::search_index_analyze_document_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::search_index_analyze_document_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -850,7 +836,7 @@ cb_Backend_document_search(VALUE self,
                            VALUE search_request,
                            VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
   Check_Type(query, T_STRING);
@@ -1031,10 +1017,10 @@ cb_Backend_document_search(VALUE self,
       rb_hash_foreach(raw_params, cb_for_each_raw_param, reinterpret_cast<VALUE>(&req));
     }
 
-    auto promise = std::make_shared<std::promise<core::operations::search_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::search_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {

@@ -33,7 +33,7 @@ namespace
 VALUE
 cb_Backend_diagnostics(VALUE self, VALUE report_id)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(report_id)) {
     Check_Type(report_id, T_STRING);
@@ -44,10 +44,10 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
     if (!NIL_P(report_id)) {
       id.emplace(cb_string_new(report_id));
     }
-    auto promise = std::make_shared<std::promise<core::diag::diagnostics_result>>();
-    auto f = promise->get_future();
-    cluster->diagnostics(id, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::diag::diagnostics_result> promise;
+    auto f = promise.get_future();
+    cluster.diagnostics(id, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
 
@@ -128,7 +128,7 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
 VALUE
 cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(bucket)) {
     Check_Type(bucket, T_STRING);
@@ -175,11 +175,15 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
     std::optional<std::chrono::milliseconds> timeout{};
     cb_extract_timeout(timeout, options);
 
-    auto promise = std::make_shared<std::promise<core::diag::ping_result>>();
-    auto f = promise->get_future();
-    cluster->ping(report_id, bucket_name, selected_services, timeout, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
-    });
+    std::promise<core::diag::ping_result> promise;
+    auto f = promise.get_future();
+    cluster.ping(report_id,
+                 bucket_name,
+                 selected_services,
+                 timeout,
+                 [promise = std::move(promise)](auto&& resp) mutable {
+                   promise.set_value(std::forward<decltype(resp)>(resp));
+                 });
     auto resp = cb_wait_for_future(f);
 
     VALUE res = rb_hash_new();

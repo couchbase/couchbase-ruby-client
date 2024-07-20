@@ -264,7 +264,7 @@ cb_generate_bucket_settings(VALUE bucket,
 VALUE
 cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_settings, T_HASH);
   if (!NIL_P(options)) {
@@ -275,11 +275,10 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE options)
     core::operations::management::bucket_create_request req{};
     cb_extract_timeout(req, options);
     cb_generate_bucket_settings(bucket_settings, req.bucket, true);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::bucket_create_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](core::operations::management::bucket_create_response&& resp) {
-      promise->set_value(std::move(resp));
+    std::promise<core::operations::management::bucket_create_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       cb_throw_error(resp.ctx,
@@ -301,7 +300,7 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE options)
 VALUE
 cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_settings, T_HASH);
   if (!NIL_P(options)) {
@@ -311,11 +310,10 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE options)
     core::operations::management::bucket_update_request req{};
     cb_extract_timeout(req, options);
     cb_generate_bucket_settings(bucket_settings, req.bucket, false);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::bucket_update_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](core::operations::management::bucket_update_response&& resp) {
-      promise->set_value(std::move(resp));
+    std::promise<core::operations::management::bucket_update_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       cb_throw_error(resp.ctx,
@@ -336,7 +334,7 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE options)
 VALUE
 cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
@@ -346,11 +344,10 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE options)
   try {
     core::operations::management::bucket_drop_request req{ cb_string_new(bucket_name) };
     cb_extract_timeout(req, options);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::bucket_drop_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](core::operations::management::bucket_drop_response&& resp) {
-      promise->set_value(std::move(resp));
+    std::promise<core::operations::management::bucket_drop_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       cb_throw_error(resp.ctx,
@@ -369,7 +366,7 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE options)
 VALUE
 cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
@@ -379,11 +376,10 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE options)
   try {
     core::operations::management::bucket_flush_request req{ cb_string_new(bucket_name) };
     cb_extract_timeout(req, options);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::bucket_flush_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](core::operations::management::bucket_flush_response&& resp) {
-      promise->set_value(std::move(resp));
+    std::promise<core::operations::management::bucket_flush_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       cb_throw_error(resp.ctx,
@@ -542,7 +538,7 @@ cb_extract_bucket_settings(const core::management::cluster::bucket_settings& ent
 VALUE
 cb_Backend_bucket_get_all(VALUE self, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(options)) {
     Check_Type(options, T_HASH);
@@ -551,11 +547,10 @@ cb_Backend_bucket_get_all(VALUE self, VALUE options)
   try {
     core::operations::management::bucket_get_all_request req{};
     cb_extract_timeout(req, options);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::bucket_get_all_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](core::operations::management::bucket_get_all_response&& resp) {
-      promise->set_value(std::move(resp));
+    std::promise<core::operations::management::bucket_get_all_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -582,7 +577,7 @@ cb_Backend_bucket_get_all(VALUE self, VALUE options)
 VALUE
 cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
@@ -592,11 +587,10 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options)
   try {
     core::operations::management::bucket_get_request req{ cb_string_new(bucket_name) };
     cb_extract_timeout(req, options);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::bucket_get_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](core::operations::management::bucket_get_response&& resp) {
-      promise->set_value(std::move(resp));
+    std::promise<core::operations::management::bucket_get_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {

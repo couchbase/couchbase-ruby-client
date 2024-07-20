@@ -49,7 +49,7 @@ namespace
 VALUE
 cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
 
@@ -57,11 +57,10 @@ cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout
     core::operations::management::collections_manifest_get_request req{ core::document_id{
       cb_string_new(bucket_name), "_default", "_default", "" } };
     cb_extract_timeout(req, timeout);
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::collections_manifest_get_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::collections_manifest_get_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec()) {
@@ -126,12 +125,14 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
     if (tls) {
       service_name = "_couchbases";
     }
-    auto promise = std::make_shared<std::promise<core::io::dns::dns_srv_response>>();
-    auto f = promise->get_future();
-    client.query_srv(
-      host_name, service_name, core::io::dns::dns_config::system_config(), [promise](auto&& resp) {
-        promise->set_value(std::forward<decltype(resp)>(resp));
-      });
+    std::promise<core::io::dns::dns_srv_response> promise;
+    auto f = promise.get_future();
+    client.query_srv(host_name,
+                     service_name,
+                     core::io::dns::dns_config::system_config(),
+                     [promise = std::move(promise)](auto&& resp) mutable {
+                       promise.set_value(std::forward<decltype(resp)>(resp));
+                     });
     ctx.run();
     auto resp = cb_wait_for_future(f);
     if (resp.ec) {
@@ -343,29 +344,27 @@ cb_Backend_form_encode(VALUE self, VALUE data)
 VALUE
 cb_Backend_cluster_enable_developer_preview(VALUE self)
 {
-  const auto& cluster = couchbase::ruby::cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
-    couchbase::core::operations::management::cluster_developer_preview_enable_request req{};
-    auto promise = std::make_shared<std::promise<
-      couchbase::core::operations::management::cluster_developer_preview_enable_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    core::operations::management::cluster_developer_preview_enable_request req{};
+    std::promise<core::operations::management::cluster_developer_preview_enable_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
-    if (auto resp = couchbase::ruby::cb_wait_for_future(f); resp.ctx.ec) {
-      couchbase::ruby::cb_throw_error(resp.ctx,
-                                      "unable to enable developer preview for this cluster");
+    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+      cb_throw_error(resp.ctx, "unable to enable developer preview for this cluster");
     }
     CB_LOG_CRITICAL_RAW("Developer preview cannot be disabled once it is enabled. If you enter "
                         "developer preview mode you will not be able to "
                         "upgrade. DO NOT USE IN PRODUCTION.");
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(couchbase::ruby::cb_map_error_code(
+    rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const couchbase::ruby::ruby_exception& e) {
+  } catch (const ruby_exception& e) {
     rb_exc_raise(e.exception_object());
   }
   return Qnil;

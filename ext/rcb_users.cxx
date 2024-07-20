@@ -63,16 +63,15 @@ cb_extract_role(const core::management::rbac::role_and_description& entry, VALUE
 VALUE
 cb_Backend_role_get_all(VALUE self, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::role_get_all_request req{};
     cb_extract_timeout(req, timeout);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::role_get_all_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::role_get_all_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -175,7 +174,7 @@ cb_extract_user(const core::management::rbac::user_and_metadata& entry, VALUE us
 VALUE
 cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(domain, T_SYMBOL);
 
@@ -190,11 +189,10 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
       throw ruby_exception(exc_invalid_argument(),
                            rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
     }
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::user_get_all_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::user_get_all_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -220,7 +218,7 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
 VALUE
 cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(domain, T_SYMBOL);
   Check_Type(username, T_STRING);
@@ -237,11 +235,10 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
                            rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
     }
     req.username = cb_string_new(username);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::user_get_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::user_get_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -263,7 +260,7 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
 VALUE
 cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(domain, T_SYMBOL);
   Check_Type(username, T_STRING);
@@ -280,11 +277,10 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
                            rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
     }
     req.username = cb_string_new(username);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::user_drop_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::user_drop_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       cb_throw_error(resp.ctx, fmt::format(R"(unable to fetch user "{}")", req.username));
@@ -303,7 +299,7 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
 VALUE
 cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(domain, T_SYMBOL);
   Check_Type(user, T_HASH);
@@ -369,11 +365,10 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
       }
     }
 
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::user_upsert_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::user_upsert_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -396,7 +391,7 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
 VALUE
 cb_Backend_change_password(VALUE self, VALUE new_password, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(new_password, T_STRING);
 
@@ -404,11 +399,10 @@ cb_Backend_change_password(VALUE self, VALUE new_password, VALUE timeout)
     core::operations::management::change_password_request req{};
     cb_extract_timeout(req, timeout);
     req.newPassword = cb_string_new(new_password);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::change_password_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::change_password_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       cb_throw_error(resp.ctx, "unable to change password");
@@ -457,16 +451,15 @@ cb_extract_group(const core::management::rbac::group& entry, VALUE group)
 VALUE
 cb_Backend_group_get_all(VALUE self, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::group_get_all_request req{};
     cb_extract_timeout(req, timeout);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::group_get_all_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::group_get_all_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -492,7 +485,7 @@ cb_Backend_group_get_all(VALUE self, VALUE timeout)
 VALUE
 cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(name, T_STRING);
 
@@ -500,11 +493,10 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
     core::operations::management::group_get_request req{};
     cb_extract_timeout(req, timeout);
     req.name = cb_string_new(name);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::group_get_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::group_get_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -526,7 +518,7 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
 VALUE
 cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(name, T_STRING);
 
@@ -534,11 +526,10 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
     core::operations::management::group_drop_request req{};
     cb_extract_timeout(req, timeout);
     req.name = cb_string_new(name);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::group_drop_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::group_drop_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -557,7 +548,7 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
 VALUE
 cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(group, T_HASH);
 
@@ -605,11 +596,10 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
       }
     }
 
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::group_upsert_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::group_upsert_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       cb_throw_error(resp.ctx,

@@ -108,14 +108,14 @@ cb_CoreScanResult_next_item(VALUE self)
   try {
     cb_core_scan_result_data* data = nullptr;
     TypedData_Get_Struct(self, cb_core_scan_result_data, &cb_core_scan_result_type, data);
-    auto barrier = std::make_shared<
-      std::promise<tl::expected<couchbase::core::range_scan_item, std::error_code>>>();
-    auto f = barrier->get_future();
-    data->scan_result->next([barrier](couchbase::core::range_scan_item item, std::error_code ec) {
+    std::promise<tl::expected<couchbase::core::range_scan_item, std::error_code>> promise;
+    auto f = promise.get_future();
+    data->scan_result->next([promise = std::move(promise)](couchbase::core::range_scan_item item,
+                                                           std::error_code ec) mutable {
       if (ec) {
-        return barrier->set_value(tl::unexpected(ec));
+        return promise.set_value(tl::unexpected(ec));
       }
-      return barrier->set_value(item);
+      return promise.set_value(item);
     });
     auto resp = cb_wait_for_future(f);
     if (!resp.has_value()) {
@@ -161,7 +161,7 @@ cb_Backend_document_scan_create(VALUE self,
                                 VALUE scan_type,
                                 VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -228,7 +228,7 @@ cb_Backend_document_scan_create(VALUE self,
 
     // Getting the operation agent
     auto agent_group = couchbase::core::agent_group(
-      cluster->io_context(), couchbase::core::agent_group_config{ { *cluster } });
+      cluster.io_context(), couchbase::core::agent_group_config{ { cluster } });
     auto err = agent_group.open_bucket(bucket_name);
     if (err) {
       cb_throw_error_code(err, "unable to open bucket for range scan");
@@ -242,17 +242,16 @@ cb_Backend_document_scan_create(VALUE self,
     }
 
     // Getting the vbucket map
-    auto barrier = std::make_shared<
-      std::promise<tl::expected<couchbase::core::topology::configuration, std::error_code>>>();
-    auto f = barrier->get_future();
-    cluster->with_bucket_configuration(
+    std::promise<tl::expected<couchbase::core::topology::configuration, std::error_code>> promise;
+    auto f = promise.get_future();
+    cluster.with_bucket_configuration(
       bucket_name,
-      [barrier](std::error_code ec,
-                const couchbase::core::topology::configuration& config) mutable {
+      [promise = std::move(promise)](
+        std::error_code ec, const couchbase::core::topology::configuration& config) mutable {
         if (ec) {
-          return barrier->set_value(tl::unexpected(ec));
+          return promise.set_value(tl::unexpected(ec));
         }
-        barrier->set_value(config);
+        promise.set_value(config);
       });
     auto config = cb_wait_for_future(f);
     if (!config.has_value()) {
@@ -309,7 +308,7 @@ cb_Backend_document_scan_create(VALUE self,
       rb_raise(exc_invalid_argument(), "Invalid scan operation type");
     }
 
-    auto orchestrator = couchbase::core::range_scan_orchestrator(cluster->io_context(),
+    auto orchestrator = couchbase::core::range_scan_orchestrator(cluster.io_context(),
                                                                  agent.value(),
                                                                  vbucket_map.value(),
                                                                  scope_name,

@@ -25,6 +25,7 @@
 #include <couchbase/store_semantics.hxx>
 
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -86,6 +87,27 @@ cb_str_new(const char* data);
 
 VALUE
 cb_str_new(const std::optional<std::string>& str);
+
+namespace options
+{
+std::optional<bool>
+get_bool(VALUE options, VALUE name);
+
+std::optional<std::chrono::milliseconds>
+get_milliseconds(VALUE options, VALUE name);
+
+std::optional<std::size_t>
+get_size_t(VALUE options, VALUE name);
+
+std::optional<std::uint16_t>
+get_uint16_t(VALUE options, VALUE name);
+
+std::optional<VALUE>
+get_symbol(VALUE options, VALUE name);
+
+std::optional<std::string>
+get_string(VALUE options, VALUE name);
+} // namespace options
 
 template<typename Request>
 inline void
@@ -177,6 +199,29 @@ cb_extract_option_uint64(T& field, VALUE options, const char* name)
   cb_extract_option_bignum(val, options, name);
   if (!NIL_P(val)) {
     field = NUM2ULL(val);
+  }
+}
+
+template<typename Integer>
+inline void
+cb_extract_option_number(Integer& field, VALUE options, const char* name)
+{
+  if (!NIL_P(options) && TYPE(options) == T_HASH) {
+    VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
+    if (NIL_P(val)) {
+      return;
+    }
+    switch (TYPE(val)) {
+      case T_FIXNUM:
+        field = static_cast<Integer>(FIX2ULONG(val));
+        break;
+      case T_BIGNUM:
+        field = static_cast<Integer>(NUM2ULL(val));
+        break;
+      default:
+        throw ruby_exception(rb_eArgError,
+                             rb_sprintf("%s must be a Integer, but given %+" PRIsVALUE, name, val));
+    }
   }
 }
 
@@ -510,29 +555,6 @@ set_store_semantics(CommandOptions& opts, VALUE options)
     } else {
       throw ruby_exception(rb_eArgError,
                            rb_sprintf("unexpected store_semantics, given %+" PRIsVALUE, val));
-    }
-  }
-}
-
-template<typename Integer>
-inline void
-cb_extract_option_number(Integer& field, VALUE options, const char* name)
-{
-  if (!NIL_P(options) && TYPE(options) == T_HASH) {
-    VALUE val = rb_hash_aref(options, rb_id2sym(rb_intern(name)));
-    if (NIL_P(val)) {
-      return;
-    }
-    switch (TYPE(val)) {
-      case T_FIXNUM:
-        field = static_cast<Integer>(FIX2ULONG(val));
-        break;
-      case T_BIGNUM:
-        field = static_cast<Integer>(NUM2ULL(val));
-        break;
-      default:
-        throw ruby_exception(rb_eArgError,
-                             rb_sprintf("%s must be a Integer, but given %+" PRIsVALUE, name, val));
     }
   }
 }

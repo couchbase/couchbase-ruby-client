@@ -20,30 +20,66 @@ module Couchbase
   # This namespace contains all error types that the library might raise.
   module Error
     class CouchbaseError < StandardError
-      # @return [Hash] attributes associated with the error
+      # @return [Hash, nil] attributes associated with the error
       attr_reader :context
 
-      def initialize(msg = nil, context = nil)
-        @context = context unless context.nil?
+      # @return [CouchbaseError, nil] original error that caused this one
+      attr_reader :cause
+
+      def initialize(msg = nil, context = nil, cause = nil)
+        @context = context
+        @cause = cause
         super(msg)
       end
 
+      def context=(context)
+        return unless context.is_a?(String)
+
+        @context =
+          begin
+            JSON.parse(context)
+          rescue StandardError
+            context
+          end
+      end
+
       def to_s
-        defined?(@context) ? "#{super}, context=#{JSON.generate(@context)}" : super
+        result = super
+        result << ", context=#{JSON.generate(@context)}" if @context
+        result << ", cause=#{@cause}" if @cause
+        result
       end
     end
 
     class InvalidArgument < ArgumentError
-      # @return [Hash] attributes associated with the error
+      # @return [Hash, nil] attributes associated with the error
       attr_reader :context
 
-      def initialize(msg = nil, context = nil)
-        @context = context unless context.nil?
+      # @return [CouchbaseError, nil] original error that caused this one
+      attr_reader :cause
+
+      def initialize(msg = nil, context = nil, cause = nil)
+        @context = context
+        @cause = cause
         super(msg)
       end
 
+      def context=(context)
+        return unless context.is_a?(String)
+
+        @context =
+          begin
+            JSON.parse(context)
+          rescue StandardError
+            context
+          end
+      end
+
       def to_s
-        defined?(@context) ? "#{super}, context=#{JSON.generate(@context)}" : super
+        result = super
+        result << ", context=#{JSON.generate(@context)}" if @context
+        result << ", cause=#{@cause}" if @cause
+        result
       end
     end
 

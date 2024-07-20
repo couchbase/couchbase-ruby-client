@@ -22,15 +22,22 @@
 
 #include <ruby/internal/value.h>
 
+namespace couchbase
+{
+class cluster;
 namespace core
 {
 class cluster;
 } // namespace core
+} // namespace couchbase
 
 namespace couchbase::ruby
 {
 auto
-cb_backend_to_cluster(VALUE self) -> const std::shared_ptr<core::cluster>&;
+cb_backend_to_public_api_cluster(VALUE self) -> couchbase::cluster;
+
+auto
+cb_backend_to_core_api_cluster(VALUE self) -> core::cluster;
 
 VALUE
 init_backend(VALUE mCouchbase);

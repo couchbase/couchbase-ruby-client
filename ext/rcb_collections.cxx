@@ -40,7 +40,7 @@ namespace
 VALUE
 cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
@@ -50,11 +50,10 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options)
   try {
     core::operations::management::scope_get_all_request req{ cb_string_new(bucket_name) };
     cb_extract_timeout(req, options);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::scope_get_all_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::scope_get_all_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -100,7 +99,7 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options)
 VALUE
 cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   Check_Type(scope_name, T_STRING);
@@ -112,11 +111,10 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE o
     core::operations::management::scope_create_request req{ cb_string_new(bucket_name),
                                                             cb_string_new(scope_name) };
     cb_extract_timeout(req, options);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::scope_create_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::scope_create_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
 
@@ -139,7 +137,7 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE o
 VALUE
 cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   Check_Type(scope_name, T_STRING);
@@ -151,11 +149,10 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE opt
     core::operations::management::scope_drop_request req{ cb_string_new(bucket_name),
                                                           cb_string_new(scope_name) };
     cb_extract_timeout(req, options);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::scope_drop_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::scope_drop_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -182,7 +179,7 @@ cb_Backend_collection_create(VALUE self,
                              VALUE settings,
                              VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   Check_Type(scope_name, T_STRING);
@@ -224,11 +221,10 @@ cb_Backend_collection_create(VALUE self,
       }
     }
 
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::collection_create_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::collection_create_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -256,7 +252,7 @@ cb_Backend_collection_update(VALUE self,
                              VALUE settings,
                              VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   Check_Type(scope_name, T_STRING);
@@ -298,11 +294,10 @@ cb_Backend_collection_update(VALUE self,
       }
     }
 
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::collection_update_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::collection_update_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -329,7 +324,7 @@ cb_Backend_collection_drop(VALUE self,
                            VALUE collection_name,
                            VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   Check_Type(scope_name, T_STRING);
@@ -344,11 +339,10 @@ cb_Backend_collection_drop(VALUE self,
                                                                cb_string_new(collection_name) };
     cb_extract_timeout(req, options);
 
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::collection_drop_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::collection_drop_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
