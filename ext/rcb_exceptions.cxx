@@ -15,17 +15,17 @@
  *   limitations under the License.
  */
 
+#include <couchbase/error.hxx>
+#include <couchbase/error_codes.hxx>
+#include <couchbase/fmt/retry_reason.hxx>
+
 #include <core/error_context/analytics.hxx>
 #include <core/error_context/http.hxx>
+#include <core/error_context/key_value_error_context.hxx>
 #include <core/error_context/query.hxx>
 #include <core/error_context/search.hxx>
 #include <core/error_context/view.hxx>
-#include <couchbase/error_codes.hxx>
-#include <couchbase/fmt/key_value_status_code.hxx>
-#include <couchbase/fmt/retry_reason.hxx>
-#include <couchbase/key_value_error_context.hxx>
-#include <couchbase/manager_error_context.hxx>
-#include <couchbase/subdocument_error_context.hxx>
+#include <core/fmt/key_value_status_code.hxx>
 
 #include <fmt/core.h>
 
@@ -631,7 +631,7 @@ exc_invalid_argument() -> VALUE
 }
 
 [[nodiscard]] VALUE
-cb_map_error(const key_value_error_context& ctx, const std::string& message)
+cb_map_error(const core::key_value_error_context& ctx, const std::string& message)
 {
   VALUE exc = cb_map_error_code(ctx.ec(), message);
   VALUE error_context = rb_hash_new();
@@ -691,25 +691,6 @@ cb_map_error(const key_value_error_context& ctx, const std::string& message)
 
 namespace
 {
-[[nodiscard]] VALUE
-cb_map_error(const subdocument_error_context& ctx, const std::string& message)
-{
-  VALUE exc = ruby::cb_map_error(static_cast<const key_value_error_context&>(ctx), message);
-  VALUE error_context = rb_iv_get(exc, "@context");
-  rb_hash_aset(error_context, rb_id2sym(rb_intern("deleted")), ctx.deleted() ? Qtrue : Qfalse);
-  if (ctx.first_error_index()) {
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("first_error_index")),
-                 ULL2NUM(ctx.first_error_index().value()));
-  }
-  if (ctx.first_error_path()) {
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("first_error_path")),
-                 cb_str_new(ctx.first_error_path().value()));
-  }
-  return exc;
-}
-
 [[nodiscard]] VALUE
 cb_map_error(const core::error_context::query& ctx, const std::string& message)
 {
@@ -882,43 +863,6 @@ cb_map_error(const core::error_context::http& ctx, const std::string& message)
 }
 
 [[nodiscard]] VALUE
-cb_map_error(const manager_error_context& ctx, const std::string& message)
-{
-  VALUE exc = cb_map_error_code(ctx.ec(), message);
-  VALUE error_context = rb_hash_new();
-  rb_hash_aset(error_context, rb_id2sym(rb_intern("error")), cb_str_new(ctx.ec().message()));
-  rb_hash_aset(
-    error_context, rb_id2sym(rb_intern("client_context_id")), cb_str_new(ctx.client_context_id()));
-  rb_hash_aset(error_context, rb_id2sym(rb_intern("path")), cb_str_new(ctx.path()));
-  rb_hash_aset(error_context, rb_id2sym(rb_intern("http_status")), INT2FIX(ctx.http_status()));
-  rb_hash_aset(error_context, rb_id2sym(rb_intern("http_body")), cb_str_new(ctx.content()));
-  if (ctx.retry_attempts() > 0) {
-    rb_hash_aset(
-      error_context, rb_id2sym(rb_intern("retry_attempts")), ULONG2NUM(ctx.retry_attempts()));
-    if (!ctx.retry_reasons().empty()) {
-      VALUE retry_reasons = rb_ary_new_capa(static_cast<long>(ctx.retry_reasons().size()));
-      for (const auto& reason : ctx.retry_reasons()) {
-        auto reason_str = fmt::format("{}", reason);
-        rb_ary_push(retry_reasons, rb_id2sym(rb_intern(reason_str.c_str())));
-      }
-      rb_hash_aset(error_context, rb_id2sym(rb_intern("retry_reasons")), retry_reasons);
-    }
-  }
-  if (ctx.last_dispatched_to()) {
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("last_dispatched_to")),
-                 cb_str_new(ctx.last_dispatched_to().value()));
-  }
-  if (ctx.last_dispatched_from()) {
-    rb_hash_aset(error_context,
-                 rb_id2sym(rb_intern("last_dispatched_from")),
-                 cb_str_new(ctx.last_dispatched_from().value()));
-  }
-  rb_iv_set(exc, "@context", error_context);
-  return exc;
-}
-
-[[nodiscard]] VALUE
 cb_map_error(const core::error_context::search& ctx, const std::string& message)
 {
   VALUE exc = cb_map_error_code(ctx.ec, message);
@@ -960,16 +904,23 @@ cb_map_error(const core::error_context::search& ctx, const std::string& message)
   rb_iv_set(exc, "@context", error_context);
   return exc;
 }
+
 } // namespace
 
-void
-cb_throw_error(const core::error_context::search& ctx, const std::string& message)
+[[nodiscard]] VALUE
+cb_map_error(const error& err, const std::string& message)
 {
-  throw ruby_exception(cb_map_error(ctx, message));
+  VALUE exc = cb_map_error_code(err.ec(), fmt::format("{}: {}", message, err.message()), true);
+  static const auto id_context_eq = rb_intern("context=");
+  rb_funcall(exc, id_context_eq, 1, cb_str_new(err.ctx().to_json()));
+  if (auto cause = err.cause(); cause) {
+    rb_iv_set(exc, "@cause", cb_map_error(cause.value(), "Caused by"));
+  }
+  return exc;
 }
 
 void
-cb_throw_error(const manager_error_context& ctx, const std::string& message)
+cb_throw_error(const core::error_context::search& ctx, const std::string& message)
 {
   throw ruby_exception(cb_map_error(ctx, message));
 }
@@ -999,13 +950,13 @@ cb_throw_error(const core::error_context::query& ctx, const std::string& message
 }
 
 void
-cb_throw_error(const subdocument_error_context& ctx, const std::string& message)
+cb_throw_error(const core::key_value_error_context& ctx, const std::string& message)
 {
   throw ruby_exception(cb_map_error(ctx, message));
 }
 
 void
-cb_throw_error(const key_value_error_context& ctx, const std::string& message)
+cb_throw_error(const error& ctx, const std::string& message)
 {
   throw ruby_exception(cb_map_error(ctx, message));
 }

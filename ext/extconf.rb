@@ -141,6 +141,11 @@ cmake_flags << "-DCMAKE_CXX_COMPILER=#{cxx}" if cxx
 cmake_flags << "-DCMAKE_AR=#{ar}" if ar
 
 project_path = File.expand_path(File.join(__dir__))
+
+Dir.glob(File.join(project_path, "*.patch")).each do |path|
+  FileUtils.cp(path, File.join(project_path, "couchbase", "cmake"), verbose: true)
+end
+
 build_dir = ENV['CB_EXT_BUILD_DIR'] ||
             File.join(Dir.tmpdir, "cb-#{build_type}-#{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}-#{SDK_VERSION}")
 FileUtils.rm_rf(build_dir, verbose: true) unless ENV['CB_PRESERVE_BUILD_DIR']

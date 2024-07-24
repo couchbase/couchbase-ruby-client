@@ -37,7 +37,7 @@ namespace
 VALUE
 cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   Check_Type(name_space, T_SYMBOL);
@@ -57,11 +57,10 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
     req.bucket_name = cb_string_new(bucket_name);
     req.ns = ns;
     cb_extract_timeout(req, timeout);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::view_index_get_all_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::view_index_get_all_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -113,7 +112,7 @@ cb_Backend_view_index_get(VALUE self,
                           VALUE name_space,
                           VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   Check_Type(document_name, T_STRING);
@@ -135,11 +134,10 @@ cb_Backend_view_index_get(VALUE self,
     req.document_name = cb_string_new(document_name);
     req.ns = ns;
     cb_extract_timeout(req, timeout);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::view_index_get_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::view_index_get_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -191,7 +189,7 @@ cb_Backend_view_index_drop(VALUE self,
                            VALUE name_space,
                            VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   Check_Type(document_name, T_STRING);
@@ -213,11 +211,10 @@ cb_Backend_view_index_drop(VALUE self,
     req.document_name = cb_string_new(document_name);
     req.ns = ns;
     cb_extract_timeout(req, timeout);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::view_index_drop_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::view_index_drop_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -244,7 +241,7 @@ cb_Backend_view_index_upsert(VALUE self,
                              VALUE name_space,
                              VALUE timeout)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   Check_Type(document, T_HASH);
@@ -290,11 +287,10 @@ cb_Backend_view_index_upsert(VALUE self,
     }
 
     cb_extract_timeout(req, timeout);
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::view_index_upsert_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::view_index_upsert_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -322,7 +318,7 @@ cb_Backend_document_view(VALUE self,
                          VALUE name_space,
                          VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket_name, T_STRING);
   Check_Type(design_document_name, T_STRING);
@@ -424,10 +420,10 @@ cb_Backend_document_view(VALUE self,
       }
     }
 
-    auto promise = std::make_shared<std::promise<core::operations::document_view_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::document_view_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {

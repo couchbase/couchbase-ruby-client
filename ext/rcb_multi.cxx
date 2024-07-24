@@ -22,7 +22,6 @@
 #include <couchbase/upsert_options.hxx>
 
 #include <future>
-#include <memory>
 
 #include <ruby.h>
 
@@ -164,7 +163,7 @@ cb_extract_array_of_id_cas(std::vector<std::pair<std::string, couchbase::cas>>& 
 VALUE
 cb_Backend_document_get_multi(VALUE self, VALUE keys, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     std::chrono::milliseconds timeout{ 0 };
@@ -174,24 +173,24 @@ cb_Backend_document_get_multi(VALUE self, VALUE keys, VALUE options)
     cb_extract_array_of_ids(ids, keys);
 
     auto num_of_ids = ids.size();
-    std::vector<std::shared_ptr<std::promise<core::operations::get_response>>> promises;
-    promises.reserve(num_of_ids);
+    std::vector<std::future<core::operations::get_response>> futures;
+    futures.reserve(num_of_ids);
 
     for (auto& id : ids) {
       core::operations::get_request req{ std::move(id) };
       if (timeout.count() > 0) {
         req.timeout = timeout;
       }
-      auto promise = std::make_shared<std::promise<core::operations::get_response>>();
-      cluster->execute(req, [promise](auto&& resp) {
-        promise->set_value(std::forward<decltype(resp)>(resp));
+      std::promise<core::operations::get_response> promise;
+      futures.emplace_back(promise.get_future());
+      cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
       });
-      promises.emplace_back(promise);
     }
 
     VALUE res = rb_ary_new_capa(static_cast<long>(num_of_ids));
-    for (const auto& promise : promises) {
-      auto resp = promise->get_future().get();
+    for (auto& future : futures) {
+      auto resp = future.get();
       VALUE entry = rb_hash_new();
       if (resp.ctx.ec()) {
         rb_hash_aset(entry,
@@ -223,7 +222,7 @@ cb_Backend_document_upsert_multi(VALUE self,
                                  VALUE id_content,
                                  VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   try {
     couchbase::upsert_options opts;
@@ -232,8 +231,7 @@ cb_Backend_document_upsert_multi(VALUE self,
     set_durability(opts, options);
     set_preserve_expiry(opts, options);
 
-    auto c = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto c = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection));
 
@@ -242,23 +240,24 @@ cb_Backend_document_upsert_multi(VALUE self,
 
     auto num_of_tuples = tuples.size();
     std::vector<
-      std::future<std::pair<couchbase::key_value_error_context, couchbase::mutation_result>>>
+      std::pair<std::string, std::future<std::pair<couchbase::error, couchbase::mutation_result>>>>
       futures;
     futures.reserve(num_of_tuples);
 
     for (auto& [id, content] : tuples) {
-      futures.emplace_back(c.upsert(std::move(id), content, opts));
+      futures.emplace_back(id, c.upsert(id, std::move(content), opts));
     }
 
     VALUE res = rb_ary_new_capa(static_cast<long>(num_of_tuples));
-    for (auto& f : futures) {
-      auto [ctx, resp] = f.get();
+    for (auto& [id, f] : futures) {
+      auto [err, resp] = f.get();
       VALUE entry = to_mutation_result_value(resp);
-      if (ctx.ec()) {
-        rb_hash_aset(
-          entry, rb_id2sym(rb_intern("error")), cb_map_error(ctx, "unable (multi)upsert"));
+      if (err.ec()) {
+        static const auto sym_error = rb_id2sym(rb_intern("error"));
+        rb_hash_aset(entry, sym_error, cb_map_error(err, "unable (multi)upsert"));
       }
-      rb_hash_aset(entry, rb_id2sym(rb_intern("id")), cb_str_new(ctx.id()));
+      static const auto sym_id = rb_id2sym(rb_intern("id"));
+      rb_hash_aset(entry, sym_id, cb_str_new(id));
       rb_ary_push(res, entry);
     }
     return res;
@@ -279,7 +278,7 @@ cb_Backend_document_remove_multi(VALUE self,
                                  VALUE id_cas,
                                  VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   if (!NIL_P(options)) {
     Check_Type(options, T_HASH);
@@ -293,31 +292,32 @@ cb_Backend_document_remove_multi(VALUE self,
     std::vector<std::pair<std::string, couchbase::cas>> tuples{};
     cb_extract_array_of_id_cas(tuples, id_cas);
 
-    auto c = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto c = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection));
 
     auto num_of_tuples = tuples.size();
     std::vector<
-      std::future<std::pair<couchbase::key_value_error_context, couchbase::mutation_result>>>
+      std::pair<std::string, std::future<std::pair<couchbase::error, couchbase::mutation_result>>>>
       futures;
     futures.reserve(num_of_tuples);
 
-    for (auto& [id, cas] : tuples) {
+    for (const auto& [id, cas] : tuples) {
       opts.cas(cas);
-      futures.emplace_back(c.remove(std::move(id), opts));
+      futures.emplace_back(id, c.remove(id, opts));
     }
 
     VALUE res = rb_ary_new_capa(static_cast<long>(num_of_tuples));
-    for (auto& f : futures) {
+    for (auto& [id, f] : futures) {
       auto [ctx, resp] = f.get();
       VALUE entry = to_mutation_result_value(resp);
       if (ctx.ec()) {
-        rb_hash_aset(
-          entry, rb_id2sym(rb_intern("error")), cb_map_error(ctx, "unable (multi)remove"));
+        static const auto sym_error = rb_id2sym(rb_intern("error"));
+        rb_hash_aset(entry, sym_error, cb_map_error(ctx, "unable (multi)remove"));
       }
-      rb_hash_aset(entry, rb_id2sym(rb_intern("id")), cb_str_new(ctx.id()));
+      static const auto sym_id = rb_id2sym(rb_intern("id"));
+      rb_hash_aset(entry, sym_id, cb_str_new(id));
+
       rb_ary_push(res, entry);
     }
 

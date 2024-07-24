@@ -53,16 +53,15 @@ namespace
 VALUE
 cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::analytics_get_pending_mutations_request req{};
     cb_extract_timeout(req, options);
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::analytics_get_pending_mutations_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_get_pending_mutations_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -94,16 +93,15 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE options)
 VALUE
 cb_Backend_analytics_dataset_get_all(VALUE self, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::analytics_dataset_get_all_request req{};
     cb_extract_timeout(req, options);
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::analytics_dataset_get_all_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_dataset_get_all_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -139,7 +137,7 @@ cb_Backend_analytics_dataset_get_all(VALUE self, VALUE options)
 VALUE
 cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(dataset_name, T_STRING);
 
@@ -153,11 +151,10 @@ cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE options)
       req.dataverse_name = cb_string_new(dataverse_name);
     }
     cb_extract_option_bool(req.ignore_if_does_not_exist, options, "ignore_if_does_not_exist");
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::analytics_dataset_drop_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_dataset_drop_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -191,7 +188,7 @@ cb_Backend_analytics_dataset_create(VALUE self,
                                     VALUE bucket_name,
                                     VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(dataset_name, T_STRING);
   Check_Type(bucket_name, T_STRING);
@@ -204,11 +201,10 @@ cb_Backend_analytics_dataset_create(VALUE self,
     cb_extract_option_string(req.condition, options, "condition");
     cb_extract_option_string(req.dataverse_name, options, "dataverse_name");
     cb_extract_option_bool(req.ignore_if_exists, options, "ignore_if_exists");
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::analytics_dataset_create_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_dataset_create_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -239,7 +235,7 @@ cb_Backend_analytics_dataset_create(VALUE self,
 VALUE
 cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(dataverse_name, T_STRING);
 
@@ -248,11 +244,10 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE opti
     cb_extract_timeout(req, options);
     req.dataverse_name = cb_string_new(dataverse_name);
     cb_extract_option_bool(req.ignore_if_does_not_exist, options, "ignore_if_does_not_exist");
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::analytics_dataverse_drop_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_dataverse_drop_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       if (resp.errors.empty()) {
@@ -279,7 +274,7 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE opti
 VALUE
 cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(dataverse_name, T_STRING);
   if (!NIL_P(dataverse_name)) {
@@ -291,11 +286,10 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE op
     cb_extract_timeout(req, options);
     req.dataverse_name = cb_string_new(dataverse_name);
     cb_extract_option_bool(req.ignore_if_exists, options, "ignore_if_exists");
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::analytics_dataverse_create_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_dataverse_create_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       if (resp.errors.empty()) {
@@ -323,16 +317,15 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE op
 VALUE
 cb_Backend_analytics_index_get_all(VALUE self, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::analytics_index_get_all_request req{};
     cb_extract_timeout(req, options);
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::analytics_index_get_all_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_index_get_all_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {
@@ -372,7 +365,7 @@ cb_Backend_analytics_index_create(VALUE self,
                                   VALUE fields,
                                   VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
   Check_Type(dataset_name, T_STRING);
@@ -396,11 +389,10 @@ cb_Backend_analytics_index_create(VALUE self,
 
     cb_extract_option_string(req.dataverse_name, options, "dataverse_name");
     cb_extract_option_bool(req.ignore_if_exists, options, "ignore_if_exists");
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::analytics_index_create_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_index_create_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       if (resp.errors.empty()) {
@@ -433,7 +425,7 @@ cb_Backend_analytics_index_create(VALUE self,
 VALUE
 cb_Backend_analytics_index_drop(VALUE self, VALUE index_name, VALUE dataset_name, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(index_name, T_STRING);
   Check_Type(dataset_name, T_STRING);
@@ -445,11 +437,10 @@ cb_Backend_analytics_index_drop(VALUE self, VALUE index_name, VALUE dataset_name
     req.dataset_name = cb_string_new(dataset_name);
     cb_extract_option_string(req.dataverse_name, options, "dataverse_name");
     cb_extract_option_bool(req.ignore_if_does_not_exist, options, "ignore_if_does_not_exist");
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::analytics_index_drop_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_index_drop_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       if (resp.errors.empty()) {
@@ -482,7 +473,7 @@ cb_Backend_analytics_index_drop(VALUE self, VALUE index_name, VALUE dataset_name
 VALUE
 cb_Backend_analytics_link_connect(VALUE self, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::analytics_link_connect_request req{};
@@ -490,11 +481,10 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE options)
     cb_extract_option_string(req.link_name, options, "link_name");
     cb_extract_option_string(req.dataverse_name, options, "dataverse_name");
     cb_extract_option_bool(req.force, options, "force");
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::analytics_link_connect_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_link_connect_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -525,18 +515,17 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE options)
 VALUE
 cb_Backend_analytics_link_disconnect(VALUE self, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::analytics_link_disconnect_request req{};
     cb_extract_timeout(req, options);
     cb_extract_option_string(req.link_name, options, "link_name");
     cb_extract_option_string(req.dataverse_name, options, "dataverse_name");
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::analytics_link_disconnect_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_link_disconnect_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
       if (resp.errors.empty()) {
@@ -616,7 +605,7 @@ cb_fill_link(core::management::analytics::s3_external_link& dst, VALUE src)
 VALUE
 cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(options)) {
     Check_Type(options, T_HASH);
@@ -632,11 +621,10 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
-      auto promise = std::make_shared<
-        std::promise<core::operations::management::analytics_link_create_response>>();
-      auto f = promise->get_future();
-      cluster->execute(req, [promise](auto&& resp) {
-        promise->set_value(std::forward<decltype(resp)>(resp));
+      std::promise<core::operations::management::analytics_link_create_response> promise;
+      auto f = promise.get_future();
+      cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
       if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -663,11 +651,10 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
-      auto promise = std::make_shared<
-        std::promise<core::operations::management::analytics_link_create_response>>();
-      auto f = promise->get_future();
-      cluster->execute(req, [promise](auto&& resp) {
-        promise->set_value(std::forward<decltype(resp)>(resp));
+      std::promise<core::operations::management::analytics_link_create_response> promise;
+      auto f = promise.get_future();
+      cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
       if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -695,11 +682,10 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
-      auto promise = std::make_shared<
-        std::promise<core::operations::management::analytics_link_create_response>>();
-      auto f = promise->get_future();
-      cluster->execute(req, [promise](auto&& resp) {
-        promise->set_value(std::forward<decltype(resp)>(resp));
+      std::promise<core::operations::management::analytics_link_create_response> promise;
+      auto f = promise.get_future();
+      cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
       if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -733,7 +719,7 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
 VALUE
 cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(options)) {
     Check_Type(options, T_HASH);
@@ -750,11 +736,10 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
-      auto promise = std::make_shared<
-        std::promise<core::operations::management::analytics_link_replace_response>>();
-      auto f = promise->get_future();
-      cluster->execute(req, [promise](auto&& resp) {
-        promise->set_value(std::forward<decltype(resp)>(resp));
+      std::promise<core::operations::management::analytics_link_replace_response> promise;
+      auto f = promise.get_future();
+      cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
       if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -782,11 +767,10 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
-      auto promise = std::make_shared<
-        std::promise<core::operations::management::analytics_link_replace_response>>();
-      auto f = promise->get_future();
-      cluster->execute(req, [promise](auto&& resp) {
-        promise->set_value(std::forward<decltype(resp)>(resp));
+      std::promise<core::operations::management::analytics_link_replace_response> promise;
+      auto f = promise.get_future();
+      cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
       if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -814,11 +798,10 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
-      auto promise = std::make_shared<
-        std::promise<core::operations::management::analytics_link_replace_response>>();
-      auto f = promise->get_future();
-      cluster->execute(req, [promise](auto&& resp) {
-        promise->set_value(std::forward<decltype(resp)>(resp));
+      std::promise<core::operations::management::analytics_link_replace_response> promise;
+      auto f = promise.get_future();
+      cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
       if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -852,7 +835,7 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
 VALUE
 cb_Backend_analytics_link_drop(VALUE self, VALUE link, VALUE dataverse, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(link, T_STRING);
   Check_Type(dataverse, T_STRING);
@@ -867,11 +850,10 @@ cb_Backend_analytics_link_drop(VALUE self, VALUE link, VALUE dataverse, VALUE op
     req.link_name = cb_string_new(link);
     req.dataverse_name = cb_string_new(dataverse);
 
-    auto promise =
-      std::make_shared<std::promise<core::operations::management::analytics_link_drop_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_link_drop_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
     if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
@@ -903,7 +885,7 @@ cb_Backend_analytics_link_drop(VALUE self, VALUE link, VALUE dataverse, VALUE op
 VALUE
 cb_Backend_analytics_link_get_all(VALUE self, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(options)) {
     Check_Type(options, T_HASH);
@@ -917,11 +899,10 @@ cb_Backend_analytics_link_get_all(VALUE self, VALUE options)
     cb_extract_option_string(req.link_name, options, "link_name");
     cb_extract_option_string(req.dataverse_name, options, "dataverse");
 
-    auto promise = std::make_shared<
-      std::promise<core::operations::management::analytics_link_get_all_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::management::analytics_link_get_all_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
 
@@ -1050,7 +1031,7 @@ cb_for_each_named_param_analytics(VALUE key, VALUE value, VALUE arg)
 VALUE
 cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(statement, T_STRING);
   if (!NIL_P(options)) {
@@ -1122,10 +1103,10 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
       rb_hash_foreach(raw_params, cb_for_each_named_param_analytics, reinterpret_cast<VALUE>(&req));
     }
 
-    auto promise = std::make_shared<std::promise<core::operations::analytics_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::analytics_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec) {

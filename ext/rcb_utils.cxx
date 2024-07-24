@@ -20,6 +20,7 @@
 #include "rcb_exceptions.hxx"
 #include "rcb_utils.hxx"
 
+#include <cstdint>
 #include <ruby.h>
 
 namespace couchbase::ruby
@@ -434,4 +435,156 @@ extract_legacy_durability_constraints(VALUE options)
     replicate_to.value_or(couchbase::replicate_to::none),
   } };
 }
+
+namespace options
+{
+std::optional<bool>
+get_bool(VALUE options, VALUE name)
+{
+  if (!NIL_P(options) && TYPE(options) == T_HASH) {
+    cb_check_type(name, T_SYMBOL);
+    VALUE val = rb_hash_aref(options, name);
+    if (NIL_P(val)) {
+      return {};
+    }
+    switch (TYPE(val)) {
+      case T_TRUE:
+        return true;
+      case T_FALSE:
+        return false;
+      default:
+        throw ruby_exception(
+          rb_eArgError,
+          rb_sprintf("%+" PRIsVALUE " must be a Boolean, but given %+" PRIsVALUE, name, val));
+    }
+  }
+  return {};
+}
+
+std::optional<std::chrono::milliseconds>
+get_milliseconds(VALUE options, VALUE name)
+{
+  if (!NIL_P(options) && TYPE(options) == T_HASH) {
+    cb_check_type(name, T_SYMBOL);
+    VALUE val = rb_hash_aref(options, name);
+    if (NIL_P(val)) {
+      return {};
+    }
+    switch (TYPE(val)) {
+      case T_FIXNUM:
+        return std::chrono::milliseconds(FIX2ULONG(val));
+      case T_BIGNUM:
+        return std::chrono::milliseconds(NUM2ULL(val));
+      default:
+        throw ruby_exception(
+          rb_eArgError,
+          rb_sprintf("%+" PRIsVALUE
+                     " must be a Integer representing milliseconds, but given %+" PRIsVALUE,
+                     name,
+                     val));
+    }
+  }
+  return {};
+}
+
+std::optional<std::size_t>
+get_size_t(VALUE options, VALUE name)
+{
+  if (!NIL_P(options) && TYPE(options) == T_HASH) {
+    cb_check_type(name, T_SYMBOL);
+    VALUE val = rb_hash_aref(options, name);
+    if (NIL_P(val)) {
+      return {};
+    }
+    switch (TYPE(val)) {
+      case T_FIXNUM:
+        return static_cast<std::size_t>(FIX2ULONG(val));
+      case T_BIGNUM:
+        return static_cast<std::size_t>(NUM2ULL(val));
+      default:
+        throw ruby_exception(
+          rb_eArgError,
+          rb_sprintf("%+" PRIsVALUE " must be a Integer, but given %+" PRIsVALUE, name, val));
+    }
+  }
+  return {};
+}
+
+std::optional<std::uint16_t>
+get_uint16_t(VALUE options, VALUE name)
+{
+  if (!NIL_P(options) && TYPE(options) == T_HASH) {
+    cb_check_type(name, T_SYMBOL);
+    VALUE val = rb_hash_aref(options, name);
+    if (NIL_P(val)) {
+      return {};
+    }
+    switch (TYPE(val)) {
+      case T_FIXNUM:
+        if (FIX2ULONG(val) > std::numeric_limits<std::uint16_t>::max()) {
+          throw ruby_exception(
+            rb_eArgError,
+            rb_sprintf("%+" PRIsVALUE " must not be larger than %d , but given %+" PRIsVALUE,
+                       name,
+                       static_cast<int>(std::numeric_limits<std::uint16_t>::max()),
+                       val));
+        }
+        return static_cast<std::uint16_t>(FIX2ULONG(val));
+      case T_BIGNUM:
+        if (NUM2ULL(val) > std::numeric_limits<std::uint16_t>::max()) {
+          throw ruby_exception(
+            rb_eArgError,
+            rb_sprintf("%+" PRIsVALUE " must not be larger than %d , but given %+" PRIsVALUE,
+                       name,
+                       static_cast<int>(std::numeric_limits<std::uint16_t>::max()),
+                       val));
+        }
+        return static_cast<std::uint16_t>(NUM2ULL(val));
+      default:
+        throw ruby_exception(
+          rb_eArgError,
+          rb_sprintf("%+" PRIsVALUE " must be a Integer, but given %+" PRIsVALUE, name, val));
+    }
+  }
+  return {};
+}
+
+std::optional<VALUE>
+get_symbol(VALUE options, VALUE name)
+{
+  if (!NIL_P(options) && TYPE(options) == T_HASH) {
+    cb_check_type(name, T_SYMBOL);
+    VALUE val = rb_hash_aref(options, name);
+    if (NIL_P(val)) {
+      return {};
+    }
+    if (TYPE(val) == T_SYMBOL) {
+      return val;
+    }
+    throw couchbase::ruby::ruby_exception(
+      rb_eArgError,
+      rb_sprintf("%+" PRIsVALUE " must be an Symbol, but given %+" PRIsVALUE, name, val));
+  }
+  return {};
+}
+
+std::optional<std::string>
+get_string(VALUE options, VALUE name)
+{
+  if (!NIL_P(options) && TYPE(options) == T_HASH) {
+    cb_check_type(name, T_SYMBOL);
+    VALUE val = rb_hash_aref(options, name);
+    if (NIL_P(val)) {
+      return {};
+    }
+    if (TYPE(val) == T_STRING) {
+      return cb_string_new(val);
+    }
+    throw couchbase::ruby::ruby_exception(
+      rb_eArgError,
+      rb_sprintf("%+" PRIsVALUE " must be an String, but given %+" PRIsVALUE, name, val));
+  }
+  return {};
+}
+} // namespace options
 } // namespace couchbase::ruby

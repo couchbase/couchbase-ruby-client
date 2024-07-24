@@ -35,7 +35,6 @@
 #include <couchbase/codec/transcoder_traits.hxx>
 
 #include <future>
-#include <memory>
 
 #include <ruby.h>
 
@@ -78,7 +77,7 @@ cb_Backend_document_get(VALUE self,
                         VALUE id,
                         VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -95,10 +94,10 @@ cb_Backend_document_get(VALUE self,
 
     core::operations::get_request req{ doc_id };
     cb_extract_timeout(req, options);
-    auto promise = std::make_shared<std::promise<core::operations::get_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::get_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec()) {
@@ -127,7 +126,7 @@ cb_Backend_document_get_any_replica(VALUE self,
                                     VALUE id,
                                     VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -138,8 +137,7 @@ cb_Backend_document_get_any_replica(VALUE self,
     couchbase::get_any_replica_options opts;
     set_timeout(opts, options);
 
-    auto f = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection))
                .get_any_replica(cb_string_new(id), opts);
@@ -171,7 +169,7 @@ cb_Backend_document_get_all_replicas(VALUE self,
                                      VALUE id,
                                      VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -182,8 +180,7 @@ cb_Backend_document_get_all_replicas(VALUE self,
     couchbase::get_all_replicas_options opts;
     set_timeout(opts, options);
 
-    auto f = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection))
                .get_all_replicas(cb_string_new(id), opts);
@@ -219,7 +216,7 @@ cb_Backend_document_get_projected(VALUE self,
                                   VALUE id,
                                   VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -256,10 +253,10 @@ cb_Backend_document_get_projected(VALUE self,
       }
     }
 
-    auto promise = std::make_shared<std::promise<core::operations::get_projected_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::get_projected_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec()) {
@@ -292,7 +289,7 @@ cb_Backend_document_get_and_lock(VALUE self,
                                  VALUE lock_time,
                                  VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -315,10 +312,10 @@ cb_Backend_document_get_and_lock(VALUE self,
     cb_extract_timeout(req, options);
     req.lock_time = NUM2UINT(lock_time);
 
-    auto promise = std::make_shared<std::promise<core::operations::get_and_lock_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::get_and_lock_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec()) {
@@ -348,7 +345,7 @@ cb_Backend_document_get_and_touch(VALUE self,
                                   VALUE expiry,
                                   VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -371,10 +368,10 @@ cb_Backend_document_get_and_touch(VALUE self,
     auto [type, duration] = unpack_expiry(expiry, false);
     req.expiry = static_cast<std::uint32_t>(duration.count());
 
-    auto promise = std::make_shared<std::promise<core::operations::get_and_touch_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::get_and_touch_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec()) {
@@ -404,7 +401,7 @@ cb_Backend_document_touch(VALUE self,
                           VALUE expiry,
                           VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -427,10 +424,10 @@ cb_Backend_document_touch(VALUE self,
     auto [type, duration] = unpack_expiry(expiry, false);
     req.expiry = static_cast<std::uint32_t>(duration.count());
 
-    auto promise = std::make_shared<std::promise<core::operations::touch_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::touch_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec()) {
@@ -457,7 +454,7 @@ cb_Backend_document_exists(VALUE self,
                            VALUE id,
                            VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -478,10 +475,10 @@ cb_Backend_document_exists(VALUE self,
     core::operations::exists_request req{ doc_id };
     cb_extract_timeout(req, options);
 
-    auto promise = std::make_shared<std::promise<core::operations::exists_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::exists_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec() && resp.ctx.ec() != couchbase::errc::key_value::document_not_found) {
@@ -515,7 +512,7 @@ cb_Backend_document_unlock(VALUE self,
                            VALUE cas,
                            VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(collection, T_STRING);
@@ -537,10 +534,10 @@ cb_Backend_document_unlock(VALUE self,
     cb_extract_timeout(req, options);
     cb_extract_cas(req.cas, cas);
 
-    auto promise = std::make_shared<std::promise<core::operations::unlock_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::unlock_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec()) {
@@ -569,7 +566,7 @@ cb_Backend_document_upsert(VALUE self,
                            VALUE flags,
                            VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -588,8 +585,7 @@ cb_Backend_document_upsert(VALUE self,
     set_durability(opts, options);
     set_preserve_expiry(opts, options);
 
-    auto f = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection))
                .upsert(cb_string_new(id),
@@ -620,7 +616,7 @@ cb_Backend_document_append(VALUE self,
                            VALUE content,
                            VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -636,8 +632,7 @@ cb_Backend_document_append(VALUE self,
     set_timeout(opts, options);
     set_durability(opts, options);
 
-    auto f = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection))
                .binary()
@@ -667,7 +662,7 @@ cb_Backend_document_prepend(VALUE self,
                             VALUE content,
                             VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -683,8 +678,7 @@ cb_Backend_document_prepend(VALUE self,
     set_timeout(opts, options);
     set_durability(opts, options);
 
-    auto f = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection))
                .binary()
@@ -715,7 +709,7 @@ cb_Backend_document_replace(VALUE self,
                             VALUE flags,
                             VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -735,8 +729,7 @@ cb_Backend_document_replace(VALUE self,
     set_preserve_expiry(opts, options);
     set_cas(opts, options);
 
-    auto f = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection))
                .replace(cb_string_new(id),
@@ -768,7 +761,7 @@ cb_Backend_document_insert(VALUE self,
                            VALUE flags,
                            VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -786,8 +779,7 @@ cb_Backend_document_insert(VALUE self,
     set_expiry(opts, options);
     set_durability(opts, options);
 
-    auto f = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection))
                .insert(cb_string_new(id),
@@ -817,7 +809,7 @@ cb_Backend_document_remove(VALUE self,
                            VALUE id,
                            VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -833,8 +825,7 @@ cb_Backend_document_remove(VALUE self,
     set_durability(opts, options);
     set_cas(opts, options);
 
-    auto f = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection))
                .remove(cb_string_new(id), opts);
@@ -862,7 +853,7 @@ cb_Backend_document_increment(VALUE self,
                               VALUE id,
                               VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -880,8 +871,7 @@ cb_Backend_document_increment(VALUE self,
     set_delta(opts, options);
     set_initial_value(opts, options);
 
-    auto f = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection))
                .binary()
@@ -912,7 +902,7 @@ cb_Backend_document_decrement(VALUE self,
                               VALUE id,
                               VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -930,10 +920,8 @@ cb_Backend_document_decrement(VALUE self,
     set_delta(opts, options);
     set_initial_value(opts, options);
 
-    auto f = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
-
                .collection(cb_string_new(collection))
                .binary()
                .decrement(cb_string_new(id), opts);
@@ -965,7 +953,7 @@ cb_Backend_document_lookup_in(VALUE self,
                               VALUE specs,
                               VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -1022,13 +1010,16 @@ cb_Backend_document_lookup_in(VALUE self,
       cb_check_type(path, T_STRING);
 
       req.specs.emplace_back(core::impl::subdoc::command{
-        opcode, cb_string_new(path), {}, core::impl::subdoc::build_lookup_in_path_flags(xattr) });
+        opcode,
+        cb_string_new(path),
+        {},
+        core::impl::subdoc::build_lookup_in_path_flags(xattr, false) });
     }
 
-    auto promise = std::make_shared<std::promise<core::operations::lookup_in_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::lookup_in_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec()) {
@@ -1089,7 +1080,7 @@ cb_Backend_document_lookup_in_any_replica(VALUE self,
                                           VALUE options)
 {
 
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -1144,14 +1135,16 @@ cb_Backend_document_lookup_in_any_replica(VALUE self,
       }
       cb_check_type(path, T_STRING);
       req.specs.emplace_back(core::impl::subdoc::command{
-        opcode, cb_string_new(path), {}, core::impl::subdoc::build_lookup_in_path_flags(xattr) });
+        opcode,
+        cb_string_new(path),
+        {},
+        core::impl::subdoc::build_lookup_in_path_flags(xattr, false) });
     }
 
-    auto promise =
-      std::make_shared<std::promise<core::operations::lookup_in_any_replica_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::lookup_in_any_replica_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec()) {
@@ -1214,7 +1207,7 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self,
                                            VALUE specs,
                                            VALUE options)
 {
-  const auto& cluster = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -1271,13 +1264,15 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self,
       cb_check_type(path, T_STRING);
 
       req.specs.emplace_back(core::impl::subdoc::command{
-        opcode, cb_string_new(path), {}, core::impl::subdoc::build_lookup_in_path_flags(xattr) });
+        opcode,
+        cb_string_new(path),
+        {},
+        core::impl::subdoc::build_lookup_in_path_flags(xattr, false) });
     }
-    auto promise =
-      std::make_shared<std::promise<core::operations::lookup_in_all_replicas_response>>();
-    auto f = promise->get_future();
-    cluster->execute(req, [promise](auto&& resp) {
-      promise->set_value(std::forward<decltype(resp)>(resp));
+    std::promise<core::operations::lookup_in_all_replicas_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
     if (resp.ctx.ec()) {
@@ -1349,7 +1344,7 @@ cb_Backend_document_mutate_in(VALUE self,
                               VALUE specs,
                               VALUE options)
 {
-  const auto& core = cb_backend_to_cluster(self);
+  auto cluster = cb_backend_to_public_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -1471,8 +1466,7 @@ cb_Backend_document_mutate_in(VALUE self,
       }
     }
 
-    auto f = couchbase::cluster(*core)
-               .bucket(cb_string_new(bucket))
+    auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
                .collection(cb_string_new(collection))
                .mutate_in(cb_string_new(id), cxx_specs, opts);

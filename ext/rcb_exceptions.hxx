@@ -26,17 +26,20 @@
 
 namespace couchbase
 {
+class error;
+namespace core
+{
 class key_value_error_context;
 class subdocument_error_context;
-class manager_error_context;
-namespace core::error_context
+namespace error_context
 {
 class query;
 class analytics;
 class view;
 class http;
 class search;
-} // namespace core::error_context
+} // namespace error_context
+} // namespace core
 } // namespace couchbase
 
 namespace couchbase::ruby
@@ -72,19 +75,19 @@ cb_map_error_code(std::error_code ec,
                   bool include_error_code = true) -> VALUE;
 
 [[nodiscard]] VALUE
-cb_map_error(const key_value_error_context& ctx, const std::string& message);
+cb_map_error(const core::key_value_error_context& ctx, const std::string& message);
+
+[[nodiscard]] VALUE
+cb_map_error(const error& err, const std::string& message);
 
 [[noreturn]] void
 cb_throw_error_code(std::error_code ec, const std::string& message);
 
 [[noreturn]] void
-cb_throw_error(const key_value_error_context& ctx, const std::string& message);
+cb_throw_error(const error& ctx, const std::string& message);
 
 [[noreturn]] void
-cb_throw_error(const subdocument_error_context& ctx, const std::string& message);
-
-[[noreturn]] void
-cb_throw_error(const manager_error_context& ctx, const std::string& message);
+cb_throw_error(const core::key_value_error_context& ctx, const std::string& message);
 
 [[noreturn]] void
 cb_throw_error(const core::error_context::query& ctx, const std::string& message);
