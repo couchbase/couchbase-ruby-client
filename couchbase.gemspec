@@ -31,12 +31,12 @@ Gem::Specification.new do |spec|
 
   spec.metadata = {
     "homepage_uri" => "https://docs.couchbase.com/ruby-sdk/current/hello-world/start-using-sdk.html",
-    "bug_tracker_uri" => "https://couchbase.com/issues/browse/RCBC",
-    "mailing_list_uri" => "https://forums.couchbase.com/c/ruby-sdk",
+    "bug_tracker_uri" => "https://issues.couchbase.com/browse/RCBC",
+    "mailing_list_uri" => "https://www.couchbase.com/forums/c/ruby-sdk",
     "source_code_uri" => "https://github.com/couchbase/couchbase-ruby-client/tree/#{spec.version}",
     "changelog_uri" => "https://github.com/couchbase/couchbase-ruby-client/releases/tag/#{spec.version}",
     "documentation_uri" => "https://docs.couchbase.com/sdk-api/couchbase-ruby-client-#{spec.version}/index.html",
-    "github_repo" => "ssh://github.com/couchbase/couchbase-ruby-client",
+    "github_repo" => "https://github.com/couchbase/couchbase-ruby-client",
     "rubygems_mfa_required" => "true",
   }
 
