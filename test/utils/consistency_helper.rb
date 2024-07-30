@@ -32,7 +32,7 @@ module Couchbase
       attr_reader :management_hosts
 
       RETRY_DELAY_SECS = 0.5
-      DEFAULT_TIMEOUT_SECS = 10
+      DEFAULT_TIMEOUT_SECS = 30
 
       def initialize(management_endpoint, username, password)
         @username = username
@@ -42,6 +42,7 @@ module Couchbase
 
       def fetch_hosts(management_endpoint, timeout: DEFAULT_TIMEOUT_SECS)
         @management_hosts = []
+        @query_hosts = []
 
         # If no management endpoint is configured, run the tests without consistency checks
         return if management_endpoint.nil?
@@ -51,14 +52,23 @@ module Couchbase
           uri = URI("#{management_endpoint}/pools/nodes")
           req = Net::HTTP::Get.new(uri)
           req.basic_auth(@username, @password)
-          resp = Net::HTTP.start(uri.hostname, uri.port) { |http| http.request(req) }
+          config_resp = Net::HTTP.start(uri.hostname, uri.port) { |http| http.request(req) }
+
+          uri = URI("#{management_endpoint}/pools/default/nodeServices")
+          req = Net::HTTP::Get.new(uri)
+          req.basic_auth(@username, @password)
+          node_services_resp = Net::HTTP.start(uri.hostname, uri.port) { |http| http.request(req) }
 
           # Retry if it was not possible to retrieve the cluster config - if the timeout is exceeded, consistency checks will be disabled
-          next unless resp.code == "200"
+          next unless config_resp.code == "200" && node_services_resp.code == "200"
 
-          resp_body = JSON.parse(resp.body)
-          resp_body["nodes"].each do |node|
+          config = JSON.parse(config_resp.body)
+          node_services = JSON.parse(node_services_resp.body)
+
+          config["nodes"].zip(node_services["nodesExt"]).each do |node, node_ext|
             @management_hosts << node["configuredHostname"]
+            host = node["configuredHostname"].split(":")[0]
+            @query_hosts << "#{host}:#{node_ext['services']['n1ql']}" if node_ext["services"].key?("n1ql")
           end
           break
         end
@@ -115,6 +125,25 @@ module Couchbase
             resp["scopes"].none? do |scope|
               scope["name"] == scope_name && scope["collections"].any? { |c| c["name"] == collection_name }
             end
+          end
+        end
+      end
+
+      def wait_until_bucket_present_in_indexes(name, timeout: DEFAULT_TIMEOUT_SECS)
+        wait_until(timeout, "Bucket `#{name}` is not present in the query service in all nodes") do
+          @query_hosts.all? do |host|
+            uri = URI("http://#{host}/query/service")
+            puts "Checking that bucket is present in indexes at #{uri}"
+            req = Net::HTTP::Post.new(uri)
+            req.basic_auth(@username, @password)
+            req.content_type = "application/json"
+            req.body = JSON.generate({
+              "statement" => "SELECT COUNT(*) as count FROM system:keyspaces where `name`=$bucket",
+              "$bucket" => name,
+            })
+            resp = Net::HTTP.start(uri.hostname, uri.port) { |http| http.request(req) }
+            body = JSON.parse(resp.body)
+            (body["results"][0]["count"]).positive?
           end
         end
       end
