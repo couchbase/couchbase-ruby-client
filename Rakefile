@@ -187,7 +187,7 @@ task :cache_cxx_dependencies do
           "spdlog/*/spdlog/cmake/*",
           "spdlog/*/spdlog/include/**/*",
           "spdlog/*/spdlog/src/**/*",
-        ].grep_v(/crypto_test_data.cc/)
+        ].grep_v(/crypto_test_data.cc|googletest/)
 
         # we don't want to fail if git is not available
         cpm_cmake_path = third_party_sources.grep(/cpm.*\.cmake$/).first
