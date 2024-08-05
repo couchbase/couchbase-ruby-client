@@ -25,7 +25,7 @@ module Couchbase
       return if use_caves?
 
       connect
-      @bucket_name = 'query-idx-test-bucket'
+      @bucket_name = "query-idx-#{SecureRandom.uuid[0..5]}"
       @cluster.buckets.create_bucket(
         Couchbase::Management::BucketSettings.new do |s|
           s.name = @bucket_name
@@ -33,19 +33,8 @@ module Couchbase
         end
       )
       env.consistency.wait_until_bucket_present(@bucket_name)
-      retry_for_duration(expected_errors: [Error::BucketNotFound]) do
-        @bucket = @cluster.bucket(@bucket_name)
-      end
-
-      # Add a scope in the bucket to verify it has been created
-      if env.server_version.supports_collections?
-        retry_for_duration(expected_errors: [Error::BucketNotFound]) do
-          @bucket.collections.create_scope("test-scope")
-        end
-      end
-
+      env.consistency.wait_until_bucket_present_in_indexes(@bucket_name)
       @idx_mgr = @cluster.query_indexes
-      sleep(2)
     end
 
     def teardown
