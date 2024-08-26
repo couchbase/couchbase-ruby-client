@@ -27,6 +27,8 @@
 #include <ruby/version.h>
 #endif
 
+#include <tao/json/value.hpp>
+
 #include "rcb_utils.hxx"
 #include "rcb_version.hxx"
 
