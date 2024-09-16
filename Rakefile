@@ -137,6 +137,7 @@ task :cache_cxx_dependencies do
           "asio/*/asio/COPYING",
           "asio/*/asio/asio/include/*.hpp",
           "asio/*/asio/asio/include/asio/**/*.[hi]pp",
+          "asio/*/asio/asio/src/*.cpp",
           "boringssl/*/boringssl/**/*.{cc,h,c,asm,S}",
           "boringssl/*/boringssl/**/CMakeLists.txt",
           "boringssl/*/boringssl/LICENSE",

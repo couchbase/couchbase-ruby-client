@@ -61,15 +61,20 @@ add_library(
   rcb_version.cxx
   rcb_views.cxx)
 target_include_directories(couchbase PRIVATE ${PROJECT_BINARY_DIR}/generated)
-target_include_directories(couchbase PRIVATE SYSTEM ${RUBY_INCLUDE_DIR})
+target_include_directories(couchbase PRIVATE SYSTEM ${RUBY_INCLUDE_DIR}
+    ${PROJECT_SOURCE_DIR}/couchbase
+    ${PROJECT_SOURCE_DIR}/couchbase/third_party/cxx_function
+    ${PROJECT_SOURCE_DIR}/couchbase/third_party/expected/include)
 target_link_libraries(
   couchbase
   PRIVATE project_options
           project_warnings
-          couchbase_cxx_client
+          couchbase_cxx_client_static
           Microsoft.GSL::GSL
           asio
           taocpp::json
+          fmt::fmt
+          spdlog::spdlog
           snappy)
 if(RUBY_LIBRUBY)
   target_link_directories(couchbase PRIVATE "${RUBY_LIBRARY_DIR}")

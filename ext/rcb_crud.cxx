@@ -30,8 +30,10 @@
 #include <core/operations/document_touch.hxx>
 #include <core/operations/document_unlock.hxx>
 #include <core/utils/json.hxx>
+
 #include <couchbase/cluster.hxx>
 #include <couchbase/codec/encoded_value.hxx>
+#include <couchbase/codec/tao_json_serializer.hxx>
 #include <couchbase/codec/transcoder_traits.hxx>
 
 #include <future>
