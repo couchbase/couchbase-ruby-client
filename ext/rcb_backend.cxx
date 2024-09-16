@@ -206,7 +206,6 @@ initialize_cluster_options(const core::utils::connection_string& connstr,
   static const auto sym_network = rb_id2sym(rb_intern("network"));
   if (auto param = options::get_string(options, sym_network); param) {
     cluster_options.network().preferred_network(param.value());
-    cluster_options.behavior().network(param.value());
   }
 
   static const auto sym_use_ip_protocol = rb_id2sym(rb_intern("use_ip_protocol"));

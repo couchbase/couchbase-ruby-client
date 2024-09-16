@@ -120,7 +120,8 @@ init_version(VALUE mCouchbase)
         name == "mozilla_ca_bundle_size") {
       rb_hash_aset(cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), INT2FIX(std::stoi(value)));
     } else if (name == "snapshot" || name == "static_stdlib" || name == "static_openssl" ||
-               name == "static_boringssl" || name == "mozilla_ca_bundle_embedded") {
+               name == "static_boringssl" || name == "columnar" || name == "static_target" ||
+               name == "mozilla_ca_bundle_embedded") {
       rb_hash_aset(
         cb_CoreInfo, rb_id2sym(rb_intern(name.c_str())), value == "true" ? Qtrue : Qfalse);
     } else {
