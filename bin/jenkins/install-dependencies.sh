@@ -43,6 +43,10 @@ case ${OS_ID} in
         exec ${PROJECT_ROOT}/bin/jenkins/install-dependencies-for-centos.sh
         ;;
 
+    rocky)
+        exec ${PROJECT_ROOT}/bin/jenkins/install-dependencies-for-rockylinux.sh
+        ;;
+
     alpine)
         exec ${PROJECT_ROOT}/bin/jenkins/install-dependencies-for-alpine.sh
         ;;
