@@ -63,6 +63,7 @@ add_library(
 target_include_directories(couchbase PRIVATE ${PROJECT_BINARY_DIR}/generated)
 target_include_directories(couchbase PRIVATE SYSTEM ${RUBY_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/couchbase
+    ${PROJECT_BINARY_DIR}/couchbase/generated
     ${PROJECT_SOURCE_DIR}/couchbase/third_party/cxx_function
     ${PROJECT_SOURCE_DIR}/couchbase/third_party/expected/include)
 target_link_libraries(
