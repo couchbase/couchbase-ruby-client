@@ -31,7 +31,7 @@ Gem::Specification.new do |spec|
 
   spec.metadata = {
     "homepage_uri" => "https://docs.couchbase.com/ruby-sdk/current/hello-world/start-using-sdk.html",
-    "bug_tracker_uri" => "https://issues.couchbase.com/browse/RCBC",
+    "bug_tracker_uri" => "https://jira.issues.couchbase.com/browse/RCBC",
     "mailing_list_uri" => "https://www.couchbase.com/forums/c/ruby-sdk",
     "source_code_uri" => "https://github.com/couchbase/couchbase-ruby-client/tree/#{spec.version}",
     "changelog_uri" => "https://github.com/couchbase/couchbase-ruby-client/releases/tag/#{spec.version}",
