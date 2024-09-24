@@ -233,7 +233,7 @@ module ActiveSupport
       end
 
       def write_serialized_entry(key, payload, expires_in: nil, race_condition_ttl: nil, raw: false, **)
-        if race_condition_ttl && expires_in && expires_in.positive? && !raw
+        if race_condition_ttl && expires_in&.positive? && !raw
           # Add few minutes to expiry in the future to support race condition TTLs on read
           expires_in += 5.minutes
         end
@@ -250,7 +250,7 @@ module ActiveSupport
         return super if local_cache
 
         expires_in = options[:expires_in]
-        if options[:race_condition_ttl] && expires_in && expires_in.positive?
+        if options[:race_condition_ttl] && expires_in&.positive?
           # Add few minutes to expiry in the future to support race condition TTLs on read
           expires_in += 5.minutes
         end

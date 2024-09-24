@@ -16,10 +16,22 @@
 
 PROJECT_ROOT="$( cd "$(dirname "$0")/.." >/dev/null 2>&1 ; pwd -P )"
 
+DEFAULT_SCAN_BUILD=$(which scan-build)
+DEFAULT_CC=$(which clang)
+DEFAULT_CXX=$(which clang++)
+
+if command -v brew &> /dev/null
+then
+    LLVM_PREFIX=$(brew --prefix llvm)
+    DEFAULT_SCAN_BUILD=${LLVM_PREFIX}/bin/scan-build
+    DEFAULT_CC=${LLVM_PREFIX}/bin/clang
+    DEFAULT_CXX=${LLVM_PREFIX}/bin/clang++
+fi
+
 CB_CMAKE=${CB_CMAKE:-$(which cmake)}
-CB_CC=${CB_CC:-$(which clang)}
-CB_CXX=${CB_CXX:-$(which clang++)}
-CB_SCAN_BUILD=${CB_SCAN_BUILD:-$(which scan-build)}
+CB_CC=${CB_CC:-${DEFAULT_CC}}
+CB_CXX=${CB_CXX:-${DEFAULT_CXX}}
+CB_SCAN_BUILD=${CB_SCAN_BUILD:-${DEFAULT_SCAN_BUILD}}
 
 echo "CB_CC=${CB_CC}"
 echo "CB_CXX=${CB_CXX}"
@@ -44,8 +56,9 @@ ${CB_SCAN_BUILD} ${SCAN_BUILD_ARGS} ${CB_CMAKE} \
     -DENABLE_CACHE=OFF \
     -DRUBY_HDR_DIR="${RUBY_HDR_DIR}" \
     -DRUBY_ARCH_HDR_DIR="${RUBY_ARCH_HDR_DIR}" \
-    -DCOUCHBASE_CXX_CLIENT_INSTALL=ON \
-    -DCOUCHBASE_CXX_CLIENT_BUILD_SHARED=ON \
+    -DCOUCHBASE_CXX_CLIENT_INSTALL=OFF \
+    -DCOUCHBASE_CXX_CLIENT_BUILD_SHARED=OFF \
+    -DCOUCHBASE_CXX_CLIENT_BUILD_STATIC=ON \
     -DCOUCHBASE_CXX_CLIENT_BUILD_TESTS=OFF \
     -DCOUCHBASE_CXX_CLIENT_BUILD_DOCS=OFF \
     -DCOUCHBASE_CXX_CLIENT_BUILD_EXAMPLES=OFF \
