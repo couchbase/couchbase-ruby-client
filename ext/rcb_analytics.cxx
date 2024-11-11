@@ -911,17 +911,17 @@ cb_Backend_analytics_link_get_all(VALUE self, VALUE options)
         cb_throw_error(
           resp.ctx,
           fmt::format(R"(unable to retrieve links type={}, dataverse="{}",  name="{}")",
-                      req.link_type,
-                      req.link_name,
-                      req.dataverse_name));
+                      req.link_type.value_or("-"),
+                      req.link_name.value_or("-"),
+                      req.dataverse_name.value_or("-")));
       } else {
         const auto& first_error = resp.errors.front();
         cb_throw_error(
           resp.ctx,
           fmt::format(R"(unable to retrieve links type={}, dataverse="{}",  name="{}" ({}: {}))",
-                      req.link_type,
-                      req.link_name,
-                      req.dataverse_name,
+                      req.link_type.value_or("-"),
+                      req.link_name.value_or("-"),
+                      req.dataverse_name.value_or("-"),
                       first_error.code,
                       first_error.message));
       }
