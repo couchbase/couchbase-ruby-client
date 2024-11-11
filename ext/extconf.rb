@@ -104,6 +104,7 @@ if ENV["CB_STATIC"] || ENV["CB_STATIC_BORINGSSL"]
 elsif ENV["CB_STATIC_OPENSSL"]
   cmake_flags << "-DCOUCHBASE_CXX_CLIENT_STATIC_OPENSSL=ON"
 end
+cmake_flags << "-DCOUCHBASE_CXX_CLIENT_WRAPPER_UNIFIED_ID=ruby/#{Couchbase::VERSION[:sdk]}"
 
 unless cmake_flags.grep(/BORINGSSL/)
   case RbConfig::CONFIG["target_os"]
