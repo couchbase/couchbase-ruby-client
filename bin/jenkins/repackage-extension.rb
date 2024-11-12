@@ -51,7 +51,7 @@ module Gem
       end
 
       if first_gemspec
-        Dir.chdir(first_gemspec.full_gem_path) do
+        Dir.chdir(first_gemspec.full_gem_path) do # rubocop:disable ThreadSafety/DirChdir
           File.write("lib/couchbase/libcouchbase.rb", <<-RUBY)
         begin
           require_relative "\#{RUBY_VERSION[/(\\d+\\.\\d+)/]}/libcouchbase"
@@ -101,7 +101,7 @@ module Gem
       # build new gem
       output_gem = nil
 
-      Dir.chdir gemspec.full_gem_path do
+      Dir.chdir gemspec.full_gem_path do # rubocop:disable ThreadSafety/DirChdir
         output_gem = Gem::Package.build(gemspec, true)
       end
 
