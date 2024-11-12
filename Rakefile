@@ -27,7 +27,7 @@ end
 desc "Compile binary extension"
 task :compile do
   require 'tempfile'
-  Dir.chdir(Dir.tmpdir) do
+  Dir.chdir(Dir.tmpdir) do # rubocop:disable ThreadSafety/DirChdir
     sh "ruby '#{File.join(__dir__, 'ext', 'extconf.rb')}'"
   end
 end
@@ -52,9 +52,9 @@ end
 
 desc "Encode git revision into 'ext/extconf.rb' template (dependency of 'build' task)"
 task :render_git_revision do
-  library_revision = Dir.chdir(__dir__) { `git rev-parse HEAD`.strip }
-  core_revision = Dir.chdir(File.join(__dir__, 'ext', 'couchbase')) { `git rev-parse HEAD`.strip }
-  core_describe = Dir.chdir(File.join(__dir__, 'ext', 'couchbase')) do
+  library_revision = Dir.chdir(__dir__) { `git rev-parse HEAD`.strip } # rubocop:disable ThreadSafety/DirChdir
+  core_revision = Dir.chdir(File.join(__dir__, 'ext', 'couchbase')) { `git rev-parse HEAD`.strip } # rubocop:disable ThreadSafety/DirChdir
+  core_describe = Dir.chdir(File.join(__dir__, 'ext', 'couchbase')) do # rubocop:disable ThreadSafety/DirChdir
     `git fetch --tags >/dev/null 2>&1`
     `git describe --long --always HEAD`.strip
   end

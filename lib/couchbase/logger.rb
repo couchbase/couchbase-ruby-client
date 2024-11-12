@@ -46,7 +46,7 @@ module Couchbase
 
   # Return logger associated with the library
   def self.logger
-    @logger # rubocop:disable ThreadSafety/InstanceVariableInClassMethod
+    @logger # rubocop:disable ThreadSafety/ClassInstanceVariable
   end
 
   # Associate logger with the library
@@ -67,8 +67,8 @@ module Couchbase
   #
   # @since 3.4.0
   def self.set_logger(logger, adapter_class: nil, verbose: false, level: :info)
-    @logger = logger # rubocop:disable ThreadSafety/InstanceVariableInClassMethod
-    if @logger.nil? # rubocop:disable ThreadSafety/InstanceVariableInClassMethod
+    @logger = logger # rubocop:disable ThreadSafety/ClassInstanceVariable
+    if @logger.nil? # rubocop:disable ThreadSafety/ClassInstanceVariable
       Backend.install_logger_shim(nil)
       return
     end
