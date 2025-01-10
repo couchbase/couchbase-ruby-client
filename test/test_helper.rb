@@ -136,6 +136,10 @@ class ServerVersion
   def supports_multiple_xattr_keys_mutation?
     trinity?
   end
+
+  def supports_server_group_replica_reads?
+    @version >= Gem::Version.create("7.6.2")
+  end
 end
 
 require "couchbase"

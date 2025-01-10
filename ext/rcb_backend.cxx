@@ -208,6 +208,11 @@ initialize_cluster_options(const core::utils::connection_string& connstr,
     cluster_options.network().preferred_network(param.value());
   }
 
+  static const auto server_group = rb_id2sym(rb_intern("preferred_server_group"));
+  if (auto group = options::get_string(options, server_group); group) {
+    cluster_options.network().preferred_server_group(group.value());
+  }
+
   static const auto sym_use_ip_protocol = rb_id2sym(rb_intern("use_ip_protocol"));
   if (auto proto = options::get_symbol(options, sym_use_ip_protocol); proto) {
     static const auto sym_any = rb_id2sym(rb_intern("any"));

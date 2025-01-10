@@ -237,10 +237,14 @@ module Couchbase
     # Options for {Collection#get_all_replicas}
     class GetAllReplicas < Base
       attr_accessor :transcoder # @return [JsonTranscoder, #decode(String, Integer)]
+      attr_accessor :read_preference # @return [Symbol]
 
       # Creates an instance of options for {Collection#get_all_replicas}
       #
       # @param [JsonTranscoder, #decode(String, Integer)] transcoder used for decoding
+      # @param [Symbol] read_preference decides how the replica nodes will be selected.
+      #  +:no_preference+:: no preference and will select any available replica. This is the default
+      #  +:selected_server_group+:: restrict to nodes in {Cluster#preferred_server_group}
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -249,12 +253,14 @@ module Couchbase
       #
       # @yieldparam [GetAllReplicas] self
       def initialize(transcoder: JsonTranscoder.new,
+                     read_preference: :no_preference,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @transcoder = transcoder
+        @read_preference = read_preference
         yield self if block_given?
       end
 
@@ -262,6 +268,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          read_preference: @read_preference,
         }
       end
 
@@ -272,10 +279,14 @@ module Couchbase
     # Options for {Collection#get_any_replica}
     class GetAnyReplica < Base
       attr_accessor :transcoder # @return [JsonTranscoder, #decode(String, Integer)]
+      attr_accessor :read_preference # @return [Symbol]
 
       # Creates an instance of options for {Collection#get_any_replica}
       #
       # @param [JsonTranscoder, #decode(String, Integer)] transcoder used for decoding
+      # @param [Symbol] read_preference decides how the replica nodes will be selected.
+      #  +:no_preference+:: no preference and will select any available replica. This is the default
+      #  +:selected_server_group+:: restrict to nodes in {Cluster#preferred_server_group}
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -284,12 +295,14 @@ module Couchbase
       #
       # @yieldparam [GetAnyReplica] self
       def initialize(transcoder: JsonTranscoder.new,
+                     read_preference: :no_preference,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @transcoder = transcoder
+        @read_preference = read_preference
         yield self if block_given?
       end
 
@@ -297,6 +310,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          read_preference: @read_preference,
         }
       end
 
@@ -1032,10 +1046,14 @@ module Couchbase
     # Options for {Collection#lookup_in_any_replica}
     class LookupInAnyReplica < Base
       attr_accessor :transcoder # @return [JsonTranscoder, #decode(String)]
+      attr_accessor :read_preference # @return [Symbol]
 
       # Creates an instance of options for {Collection#lookup_in_any_replica}
       #
       # @param [JsonTranscoder, #decode(String)] transcoder used for encoding
+      # @param [Symbol] read_preference decides how the replica nodes will be selected.
+      #  +:no_preference+:: no preference and will select any available replica. This is the default
+      #  +:selected_server_group+:: restrict to nodes in {Cluster#preferred_server_group}
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -1044,12 +1062,14 @@ module Couchbase
       #
       # @yieldparam [LookupIn] self
       def initialize(transcoder: JsonTranscoder.new,
+                     read_preference: :no_preference,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @transcoder = transcoder
+        @read_preference = read_preference
         yield self if block_given?
       end
 
@@ -1057,6 +1077,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          read_preference: @read_preference,
         }
       end
 
@@ -1071,10 +1092,14 @@ module Couchbase
     # Options for {Collection#lookup_in_all_replicas}
     class LookupInAllReplicas < Base
       attr_accessor :transcoder # @return [JsonTranscoder, #decode(String)]
+      attr_accessor :read_preference # @return [Symbol]
 
       # Creates an instance of options for {Collection#lookup_in_all_replicas}
       #
       # @param [JsonTranscoder, #decode(String)] transcoder used for encoding
+      # @param [Symbol] read_preference decides how the replica nodes will be selected.
+      #  +:no_preference+:: no preference and will select any available replica. This is the default
+      #  +:selected_server_group+:: restrict to nodes in {Cluster#preferred_server_group}
       #
       # @param [Integer, #in_milliseconds, nil] timeout
       # @param [Proc, nil] retry_strategy the custom retry strategy, if set
@@ -1083,12 +1108,14 @@ module Couchbase
       #
       # @yieldparam [LookupInAllReplicas] self
       def initialize(transcoder: JsonTranscoder.new,
+                     read_preference: :no_preference,
                      timeout: nil,
                      retry_strategy: nil,
                      client_context: nil,
                      parent_span: nil)
         super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
         @transcoder = transcoder
+        @read_preference = read_preference
         yield self if block_given?
       end
 
@@ -1096,6 +1123,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          read_preference: @read_preference,
         }
       end
 
@@ -1646,6 +1674,8 @@ module Couchbase
     class Cluster
       attr_accessor :authenticator # @return [PasswordAuthenticator, CertificateAuthenticator]
 
+      attr_accessor :preferred_server_group # @return [String]
+
       attr_accessor :enable_metrics # @return [Boolean]
       attr_accessor :metrics_emit_interval # @return [nil, Integer, #in_milliseconds]
       attr_accessor :enable_tracing # @return [Boolean]
@@ -1679,6 +1709,7 @@ module Couchbase
       # Creates an instance of options for {Couchbase::Cluster.connect}
       #
       # @param [PasswordAuthenticator, CertificateAuthenticator] authenticator
+      # @param [String] preferred_server_group the server group to use for replica APIs e.g. {Collection#get_all_replicas}
       # @param [nil, Integer, #in_milliseconds] key_value_timeout default timeout for Key/Value operations, e.g. {Collection#get}
       # @param [nil, Integer, #in_milliseconds] view_timeout default timeout for View query
       # @param [nil, Integer, #in_milliseconds] query_timeout default timeout for N1QL query
@@ -1690,6 +1721,7 @@ module Couchbase
       #
       # @yieldparam [Cluster] self
       def initialize(authenticator: nil,
+                     preferred_server_group: nil,
                      enable_metrics: nil,
                      metrics_emit_interval: nil,
                      enable_tracing: nil,
@@ -1719,6 +1751,7 @@ module Couchbase
                      config_idle_redial_timeout: nil,
                      idle_http_connection_timeout: nil)
         @authenticator = authenticator
+        @preferred_server_group = preferred_server_group
         @enable_metrics = enable_metrics
         @metrics_emit_interval = metrics_emit_interval
         @enable_tracing = enable_tracing
@@ -1765,6 +1798,7 @@ module Couchbase
       def to_backend
         {
           enable_metrics: @enable_metrics,
+          preferred_server_group: @preferred_server_group,
           metrics_emit_interval: Utils::Time.extract_duration(@metrics_emit_interval),
           enable_tracing: @enable_tracing,
           orphaned_emit_interval: Utils::Time.extract_duration(@orphaned_emit_interval),
@@ -2839,6 +2873,20 @@ module Couchbase
     # @return [Scan]
     def Scan(**args)
       Scan.new(**args)
+    end
+
+    # Construct {LookupInAnyReplica} options for {Collection#lookup_in_any_replica}
+    #
+    # @return [LookupInAnyReplica]
+    def LookupInAnyReplica(**args)
+      LookupInAnyReplica.new(**args)
+    end
+
+    # Construct {LookupInAllReplics} options for {Collection#lookup_in_all_replicas}
+    #
+    # @return [LookupInAllReplicas]
+    def LookupInAllReplicas(**args)
+      LookupInAllReplicas.new(**args)
     end
 
     # rubocop:enable Naming/MethodName

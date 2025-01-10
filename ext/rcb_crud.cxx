@@ -128,7 +128,7 @@ cb_Backend_document_get_any_replica(VALUE self,
                                     VALUE id,
                                     VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -136,23 +136,32 @@ cb_Backend_document_get_any_replica(VALUE self,
   Check_Type(id, T_STRING);
 
   try {
-    couchbase::get_any_replica_options opts;
-    set_timeout(opts, options);
+    core::document_id doc_id{
+      cb_string_new(bucket),
+      cb_string_new(scope),
+      cb_string_new(collection),
+      cb_string_new(id),
+    };
 
-    auto f = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection))
-               .get_any_replica(cb_string_new(id), opts);
-    auto [ctx, resp] = cb_wait_for_future(f);
-    if (ctx.ec()) {
-      cb_throw_error(ctx, "unable to get replica of the document");
+    core::operations::get_any_replica_request req{ doc_id };
+    cb_extract_timeout(req, options);
+    cb_extract_read_preference(req, options);
+
+    std::promise<core::operations::get_any_replica_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
+    });
+    auto resp = cb_wait_for_future(f);
+    if (resp.ctx.ec()) {
+      cb_throw_error(resp.ctx, "unable to get replica of the document");
     }
 
-    auto value = resp.content_as<passthrough_transcoder>();
     VALUE res = rb_hash_new();
-    rb_hash_aset(res, rb_id2sym(rb_intern("content")), cb_str_new(value.data));
-    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas()));
-    rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(value.flags));
+    rb_hash_aset(res, rb_id2sym(rb_intern("content")), cb_str_new(resp.value));
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
+    rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
+    rb_hash_aset(res, rb_id2sym(rb_intern("replica")), resp.replica ? Qtrue : Qfalse);
     return res;
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
@@ -171,7 +180,7 @@ cb_Backend_document_get_all_replicas(VALUE self,
                                      VALUE id,
                                      VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -179,25 +188,35 @@ cb_Backend_document_get_all_replicas(VALUE self,
   Check_Type(id, T_STRING);
 
   try {
-    couchbase::get_all_replicas_options opts;
-    set_timeout(opts, options);
+    core::document_id doc_id{
+      cb_string_new(bucket),
+      cb_string_new(scope),
+      cb_string_new(collection),
+      cb_string_new(id),
+    };
 
-    auto f = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection))
-               .get_all_replicas(cb_string_new(id), opts);
-    auto [ctx, resp] = cb_wait_for_future(f);
-    if (ctx.ec()) {
-      cb_throw_error(ctx, "unable to get all replicas for the document");
+    core::operations::get_all_replicas_request req{ doc_id };
+    cb_extract_timeout(req, options);
+    cb_extract_read_preference(req, options);
+
+    std::promise<core::operations::get_all_replicas_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
+    });
+    auto resp = cb_wait_for_future(f);
+    if (resp.ctx.ec()) {
+      cb_throw_error(resp.ctx, "unable to get all replicas for the document");
     }
 
-    VALUE res = rb_ary_new_capa(static_cast<long>(resp.size()));
-    for (const auto& entry : resp) {
+    VALUE res = rb_ary_new_capa(static_cast<long>(resp.entries.size()));
+
+    for (const auto& entry : resp.entries) {
       VALUE response = rb_hash_new();
-      auto value = entry.content_as<passthrough_transcoder>();
-      rb_hash_aset(response, rb_id2sym(rb_intern("content")), cb_str_new(value.data));
-      rb_hash_aset(response, rb_id2sym(rb_intern("cas")), cb_cas_to_num(entry.cas()));
-      rb_hash_aset(response, rb_id2sym(rb_intern("flags")), UINT2NUM(value.flags));
+      rb_hash_aset(response, rb_id2sym(rb_intern("content")), cb_str_new(entry.value));
+      rb_hash_aset(response, rb_id2sym(rb_intern("cas")), cb_cas_to_num(entry.cas));
+      rb_hash_aset(response, rb_id2sym(rb_intern("flags")), UINT2NUM(entry.flags));
+      rb_hash_aset(response, rb_id2sym(rb_intern("replica")), entry.replica ? Qtrue : Qfalse);
       rb_ary_push(res, response);
     }
     return res;
@@ -1107,6 +1126,7 @@ cb_Backend_document_lookup_in_any_replica(VALUE self,
 
     core::operations::lookup_in_any_replica_request req{ doc_id };
     cb_extract_timeout(req, options);
+    cb_extract_read_preference(req, options);
 
     static VALUE xattr_property = rb_id2sym(rb_intern("xattr"));
     static VALUE path_property = rb_id2sym(rb_intern("path"));
@@ -1234,6 +1254,7 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self,
 
     core::operations::lookup_in_all_replicas_request req{ doc_id };
     cb_extract_timeout(req, options);
+    cb_extract_read_preference(req, options);
 
     static VALUE xattr_property = rb_id2sym(rb_intern("xattr"));
     static VALUE path_property = rb_id2sym(rb_intern("path"));

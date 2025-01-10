@@ -94,6 +94,28 @@ module Couchbase
       end
     end
 
+    def test_replica_reads_from_preferred_server_group
+      skip("#{name}: CAVES does not server group replica reads") if use_caves?
+      skip("#{name}: Server does not support server group replica reads") unless env.server_version.supports_server_group_replica_reads?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+
+      @collection.upsert(doc_id, document)
+
+      options = Options::GetAllReplicas(read_preference: :selected_server_group)
+      # The cluster here does not have the selected server group configured
+      assert_raises(Couchbase::Error::DocumentIrretrievable, "Document \"#{doc_id}\" should not be retrievable") do
+        @collection.get_all_replicas(doc_id, options)
+      end
+
+      options = Options::GetAnyReplica(read_preference: :selected_server_group)
+      assert_raises(Couchbase::Error::DocumentIrretrievable, "Document \"#{doc_id}\" should not be retrievable") do
+        @collection.get_any_replica(doc_id, options)
+      end
+    end
+
     def test_touch_sets_expiration
       document = {"value" => 42}
       doc_id = uniq_id(:foo)
