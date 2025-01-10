@@ -21,6 +21,7 @@
 #include <couchbase/cas.hxx>
 #include <couchbase/durability_level.hxx>
 #include <couchbase/persist_to.hxx>
+#include <couchbase/read_preference.hxx>
 #include <couchbase/replicate_to.hxx>
 #include <couchbase/store_semantics.hxx>
 
@@ -124,6 +125,37 @@ cb_extract_timeout(Request& req, VALUE options)
       default:
         throw ruby_exception(
           rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
+    }
+  }
+}
+
+template<typename Request>
+inline void
+cb_extract_read_preference(Request& req, VALUE options)
+{
+  static VALUE property_name = rb_id2sym(rb_intern("read_preference"));
+  if (!NIL_P(options)) {
+    if (TYPE(options) != T_HASH) {
+      throw ruby_exception(rb_eArgError,
+                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+    }
+
+    VALUE val = rb_hash_aref(options, property_name);
+    if (NIL_P(val)) {
+      return;
+    }
+    if (TYPE(val) != T_SYMBOL) {
+      throw ruby_exception(
+        rb_eArgError, rb_sprintf("read_preference must be a Symbol, but given %+" PRIsVALUE, val));
+    }
+
+    if (ID mode = rb_sym2id(val); mode == rb_intern("no_preference")) {
+      req.read_preference = couchbase::read_preference::no_preference;
+    } else if (mode == rb_intern("selected_server_group")) {
+      req.read_preference = couchbase::read_preference::selected_server_group;
+    } else {
+      throw ruby_exception(rb_eArgError,
+                           rb_sprintf("unexpected read_preference, given %+" PRIsVALUE, val));
     }
   }
 }

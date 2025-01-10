@@ -1491,6 +1491,31 @@ module Couchbase
       end
     end
 
+    def test_lookup_in_replica_reads_from_preferred_server_group
+      skip("#{name}: CAVES does not support subdoc read from replica") if use_caves?
+      skip("#{name}: Server does not support server group replica reads") unless env.server_version.supports_server_group_replica_reads?
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support subdoc read from replica") if env.protostellar?
+
+      doc_id = uniq_id(:foo)
+      document = {"answer" => 42}
+
+      @collection.upsert(doc_id, document)
+
+      options = Options::LookupInAllReplicas(read_preference: :selected_server_group)
+      assert_raises(Error::DocumentIrretrievable) do
+        @collection.lookup_in_all_replicas(doc_id, [
+                                             LookupInSpec.get("answer"),
+                                           ], options)
+      end
+
+      options = Options::LookupInAnyReplica(read_preference: :selected_server_group)
+      assert_raises(Error::DocumentIrretrievable) do
+        @collection.lookup_in_any_replica(doc_id, [
+                                            LookupInSpec.get("answer"),
+                                          ], options)
+      end
+    end
+
     def test_lookup_in_path_invalid
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
