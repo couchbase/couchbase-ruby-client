@@ -24,7 +24,7 @@
 #include <core/scan_result.hxx>
 #include <couchbase/error_codes.hxx>
 
-#include <fmt/core.h>
+#include <spdlog/fmt/bundled/core.h>
 
 #include <future>
 

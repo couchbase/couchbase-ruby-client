@@ -17,7 +17,6 @@
 
 #include <couchbase/error.hxx>
 #include <couchbase/error_codes.hxx>
-#include <couchbase/fmt/retry_reason.hxx>
 
 #include <core/error_context/analytics.hxx>
 #include <core/error_context/http.hxx>
@@ -27,7 +26,9 @@
 #include <core/error_context/view.hxx>
 #include <core/fmt/key_value_status_code.hxx>
 
-#include <fmt/core.h>
+#include <spdlog/fmt/bundled/core.h>
+
+#include <couchbase/fmt/retry_reason.hxx>
 
 #include "rcb_exceptions.hxx"
 #include "rcb_utils.hxx"

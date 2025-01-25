@@ -30,8 +30,8 @@
 #include <core/operations/management/search_index_get_stats.hxx>
 #include <core/operations/management/search_index_upsert.hxx>
 
-#include <fmt/core.h>
 #include <gsl/narrow>
+#include <spdlog/fmt/bundled/core.h>
 
 #include <future>
 #include <memory>

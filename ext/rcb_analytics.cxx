@@ -36,7 +36,7 @@
 #include <core/operations/management/analytics_link_get_all.hxx>
 #include <core/operations/management/analytics_link_replace.hxx>
 
-#include <fmt/core.h>
+#include <spdlog/fmt/bundled/core.h>
 
 #include <future>
 #include <memory>

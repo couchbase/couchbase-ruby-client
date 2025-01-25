@@ -24,7 +24,7 @@
 #include <core/operations/management/bucket_get_all.hxx>
 #include <core/operations/management/bucket_update.hxx>
 
-#include <fmt/core.h>
+#include <spdlog/fmt/bundled/core.h>
 
 #include <future>
 #include <memory>

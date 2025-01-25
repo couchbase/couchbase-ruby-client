@@ -23,7 +23,7 @@
 #include <core/operations/management/scope_drop.hxx>
 #include <core/operations/management/scope_get_all.hxx>
 
-#include <fmt/core.h>
+#include <spdlog/fmt/bundled/core.h>
 
 #include <future>
 #include <memory>

@@ -28,8 +28,8 @@
 #include <core/operations/management/user_get_all.hxx>
 #include <core/operations/management/user_upsert.hxx>
 
-#include <fmt/core.h>
-#include <fmt/ranges.h>
+#include <spdlog/fmt/bundled/core.h>
+#include <spdlog/fmt/bundled/ranges.h>
 
 #include <future>
 #include <memory>

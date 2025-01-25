@@ -22,7 +22,7 @@
 #include <core/utils/connection_string.hxx>
 
 #include <asio/io_context.hpp>
-#include <fmt/core.h>
+#include <spdlog/fmt/bundled/core.h>
 
 #include <future>
 #include <memory>

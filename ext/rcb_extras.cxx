@@ -26,8 +26,8 @@
 #include <core/utils/unsigned_leb128.hxx>
 #include <core/utils/url_codec.hxx>
 
-#include <fmt/core.h>
 #include <snappy.h>
+#include <spdlog/fmt/bundled/core.h>
 
 #include <future>
 #include <string>
