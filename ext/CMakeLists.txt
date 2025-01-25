@@ -77,7 +77,6 @@ target_link_libraries(
           Microsoft.GSL::GSL
           asio
           taocpp::json
-          fmt::fmt
           spdlog::spdlog
           snappy)
 if(RUBY_LIBRUBY)
