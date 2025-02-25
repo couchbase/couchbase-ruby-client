@@ -1,7 +1,7 @@
 /.idea/sonarlint/
 /.idea/editor.xml
 /.idea/workspace.xml
-/build/
+/build*
 /cmake-build-*/
 /cmake-build-report.tar.gz
 /revisions.rb

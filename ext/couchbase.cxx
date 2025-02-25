@@ -41,6 +41,7 @@ __declspec(dllexport)
 void
 Init_libcouchbase(void)
 {
+  couchbase::ruby::install_terminate_handler();
   couchbase::ruby::init_logger();
 
   VALUE mCouchbase = rb_define_module("Couchbase");
