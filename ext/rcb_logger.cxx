@@ -268,13 +268,18 @@ cb_Backend_install_logger_shim(VALUE self, VALUE logger, VALUE log_level)
 } // namespace
 
 void
-init_logger()
+install_terminate_handler()
 {
   if (auto env_val =
         spdlog::details::os::getenv("COUCHBASE_BACKEND_DONT_INSTALL_TERMINATE_HANDLER");
       env_val.empty()) {
     core::platform::install_backtrace_terminate_handler();
   }
+}
+
+void
+init_logger()
+{
   if (auto env_val = spdlog::details::os::getenv("COUCHBASE_BACKEND_DONT_USE_BUILTIN_LOGGER");
       env_val.empty()) {
     auto default_log_level = core::logger::level::info;

@@ -17,6 +17,9 @@
 
 #include <couchbase/cluster.hxx>
 
+#include <couchbase/fork_event.hxx>
+#include <couchbase/ip_protocol.hxx>
+
 #include <core/cluster.hxx>
 #include <core/logger/logger.hxx>
 #include <core/utils/connection_string.hxx>
@@ -25,11 +28,12 @@
 #include <spdlog/fmt/bundled/core.h>
 
 #include <future>
+#include <list>
 #include <memory>
+#include <mutex>
 
 #include <ruby.h>
 
-#include "couchbase/ip_protocol.hxx"
 #include "rcb_backend.hxx"
 #include "rcb_exceptions.hxx"
 #include "rcb_logger.hxx"
@@ -44,10 +48,79 @@ struct cb_backend_data {
   std::unique_ptr<cluster> instance{ nullptr };
 };
 
+class instance_registry
+{
+public:
+  void add(cluster* instance)
+  {
+    std::scoped_lock lock(instances_mutex_);
+    known_instances_.push_back(instance);
+  }
+
+  void remove(cluster* instance)
+  {
+    std::scoped_lock lock(instances_mutex_);
+    known_instances_.remove(instance);
+  }
+
+  void notify_fork(couchbase::fork_event event)
+  {
+    if (event != couchbase::fork_event::prepare) {
+      init_logger();
+    }
+
+    {
+      std::scoped_lock lock(instances_mutex_);
+      for (auto* instance : known_instances_) {
+        instance->notify_fork(event);
+      }
+    }
+
+    if (event == couchbase::fork_event::prepare) {
+      flush_logger();
+      couchbase::core::logger::shutdown();
+    }
+  }
+
+private:
+  std::mutex instances_mutex_;
+  std::list<cluster*> known_instances_;
+};
+
+instance_registry instances;
+
+VALUE
+cb_Backend_notify_fork(VALUE self, VALUE event)
+{
+  static const auto id_prepare{ rb_intern("prepare") };
+  static const auto id_parent{ rb_intern("parent") };
+  static const auto id_child{ rb_intern("child") };
+
+  try {
+    cb_check_type(event, T_SYMBOL);
+
+    if (rb_sym2id(event) == id_prepare) {
+      instances.notify_fork(couchbase::fork_event::prepare);
+    } else if (rb_sym2id(event) == id_parent) {
+      instances.notify_fork(couchbase::fork_event::parent);
+    } else if (rb_sym2id(event) == id_child) {
+      instances.notify_fork(couchbase::fork_event::child);
+    } else {
+      throw ruby_exception(rb_eTypeError,
+                           rb_sprintf("unexpected fork event type %" PRIsVALUE "", event));
+    }
+  } catch (const ruby_exception& e) {
+    rb_exc_raise(e.exception_object());
+  }
+
+  return Qnil;
+}
+
 void
 cb_backend_close(cb_backend_data* backend)
 {
   if (auto instance = std::move(backend->instance); instance) {
+    instances.remove(instance.get());
     auto promise = std::make_shared<std::promise<void>>();
     auto f = promise->get_future();
     instance->close([promise = std::move(promise)]() mutable {
@@ -446,6 +519,7 @@ cb_Backend_open(VALUE self, VALUE connstr, VALUE credentials, VALUE options)
         error, fmt::format("failed to connect to the Couchbase Server \"{}\"", connection_string));
     }
     backend->instance = std::make_unique<couchbase::cluster>(std::move(cluster));
+    instances.add(backend->instance.get());
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
@@ -509,6 +583,8 @@ init_backend(VALUE mCouchbase)
   rb_define_method(cBackend, "open", cb_Backend_open, 3);
   rb_define_method(cBackend, "open_bucket", cb_Backend_open_bucket, 2);
   rb_define_method(cBackend, "close", cb_Backend_close, 0);
+
+  rb_define_singleton_method(cBackend, "notify_fork", cb_Backend_notify_fork, 1);
   return cBackend;
 }
 
