@@ -39,7 +39,7 @@ options = {
   sample_buckets: Set.new,
 }
 default_port = options[:strict_encryption] ? 18091 : 8091
-if (options[:cluster_run_nodes]).positive?
+if options[:cluster_run_nodes].positive?
   default_port = options[:strict_encryption] ? 19000 : 9000
 end
 options[:port] = ENV.fetch("CB_PORT", default_port).to_i

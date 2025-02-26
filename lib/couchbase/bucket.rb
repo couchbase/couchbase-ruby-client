@@ -134,13 +134,5 @@ module Couchbase
         end
       end
     end
-
-    # @api private
-    # TODO: deprecate in 3.1
-    PingOptions = ::Couchbase::Options::Ping
-
-    # @api private
-    # TODO: deprecate in 3.1
-    ViewOptions = ::Couchbase::Options::View
   end
 end

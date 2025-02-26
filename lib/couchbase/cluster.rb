@@ -48,7 +48,7 @@ module Couchbase
     #   @param [Options::Cluster, nil] options custom options when creating the cluster connection
     #
     # @example Explicitly create options object and initialize PasswordAuthenticator internally
-    #   options = Cluster::ClusterOptions.new
+    #   options = Options::Cluster.new
     #   options.authenticate("Administrator", "password")
     #   Cluster.connect("couchbase://localhost", options)
     #
@@ -354,7 +354,7 @@ module Couchbase
             raise ArgumentError, "options must have authenticator configured"
           end
         else
-          raise ArgumentError, "unexpected second argument, have to be String or ClusterOptions"
+          raise ArgumentError, "unexpected second argument, have to be String or Options::Cluster"
         end
       end
 
@@ -447,16 +447,5 @@ module Couchbase
         end
       end
     end
-
-    # @api private
-    ClusterOptions = ::Couchbase::Options::Cluster
-    # @api private
-    DiagnosticsOptions = ::Couchbase::Options::Diagnostics
-    # @api private
-    AnalyticsOptions = ::Couchbase::Options::Analytics
-    # @api private
-    QueryOptions = ::Couchbase::Options::Query
-    # @api private
-    SearchOptions = ::Couchbase::Options::Search
   end
 end

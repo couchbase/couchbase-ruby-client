@@ -660,48 +660,5 @@ module Couchbase
         end
       end
     end
-
-    # @api private
-    # TODO: deprecate in 3.1
-    GetOptions = ::Couchbase::Options::Get
-    # @api private
-    # TODO: deprecate in 3.1
-    GetAndLockOptions = ::Couchbase::Options::GetAndLock
-    # @api private
-    # TODO: deprecate in 3.1
-    GetAndTouchOptions = ::Couchbase::Options::GetAndTouch
-    # @api private
-    # TODO: deprecate in 3.1
-    LookupInOptions = ::Couchbase::Options::LookupIn
-    # @api private
-    # TODO: deprecate in 3.1
-    MutateInOptions = ::Couchbase::Options::MutateIn
-    # @api private
-    # TODO: deprecate in 3.1
-    UnlockOptions = ::Couchbase::Options::Unlock
-    # @api private
-    # TODO: deprecate in 3.1
-    TouchOptions = ::Couchbase::Options::Touch
-    # @api private
-    # TODO: deprecate in 3.1
-    ReplaceOptions = ::Couchbase::Options::Replace
-    # @api private
-    # TODO: deprecate in 3.1
-    UpsertOptions = ::Couchbase::Options::Upsert
-    # @api private
-    # TODO: deprecate in 3.1
-    InsertOptions = ::Couchbase::Options::Insert
-    # @api private
-    # TODO: deprecate in 3.1
-    RemoveOptions = ::Couchbase::Options::Remove
-    # @api private
-    # TODO: deprecate in 3.1
-    ExistsOptions = ::Couchbase::Options::Exists
-    # @api private
-    # TODO: deprecate in 3.1
-    GetAnyReplicaOptions = ::Couchbase::Options::GetAnyReplica
-    # @api private
-    # TODO: deprecate in 3.1
-    GetAllReplicasOptions = ::Couchbase::Options::GetAllReplicas
   end
 end

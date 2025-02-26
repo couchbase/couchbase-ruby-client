@@ -81,7 +81,7 @@ module Couchbase
             **proto_opts
           )
 
-          create_query_request(proto_req, :query, options, idempotent: options.readonly && true)
+          create_query_request(proto_req, :query, options, idempotent: options.readonly)
         end
 
         private

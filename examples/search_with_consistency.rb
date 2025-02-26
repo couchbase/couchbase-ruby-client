@@ -16,9 +16,9 @@
 
 require "couchbase"
 
-include Couchbase # rubocop:disable Style/MixinUsage for brevity
+include Couchbase # rubocop:disable Style/MixinUsage -- for brevity
 
-options = Cluster::ClusterOptions.new
+options = Options::Cluster.new
 options.authenticate("Administrator", "password")
 cluster = Cluster.connect("couchbase://localhost", options)
 
@@ -85,7 +85,7 @@ state = MutationState.new(res.mutation_token)
 # state.add(*tokens) could be used to add more tokens
 
 query = Cluster::SearchQuery.term("doorknob")
-options = Cluster::SearchOptions.new
+options = Options::Search.new
 options.timeout = 10_000
 options.consistent_with(state)
 res = cluster.search_query(search_index_name, query, options)

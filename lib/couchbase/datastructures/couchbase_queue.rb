@@ -112,7 +112,7 @@ module Couchbase
                                          LookupInSpec.get("[-1]"),
                                        ], @options.lookup_in_options)
         obj = result.exists?(0) ? result.content(0) : nil
-        options = Collection::MutateInOptions.new
+        options = Options::MutateIn.new
         options.cas = result.cas
         @collection.mutate_in(@id, [
                                 MutateInSpec.remove("[-1]"),

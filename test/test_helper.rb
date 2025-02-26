@@ -242,7 +242,7 @@ module Couchbase
       !use_caves?
     end
 
-    def connect(options = Cluster::ClusterOptions.new)
+    def connect(options = Options::Cluster.new)
       options.authenticate(env.username, env.password)
       @cluster = Cluster.connect(env.connection_string, options)
     end

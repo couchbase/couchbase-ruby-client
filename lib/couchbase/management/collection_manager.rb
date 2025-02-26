@@ -149,7 +149,7 @@ module Couchbase
           DEFAULT = DropCollection.new.freeze
         end
 
-        # rubocop:disable Naming/MethodName constructor shortcuts
+        # rubocop:disable Naming/MethodName -- constructor shortcuts
         module_function
 
         # Construct {GetAllScopes} options for {CollectionManager#get_all_scopes}

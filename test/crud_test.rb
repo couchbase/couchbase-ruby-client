@@ -244,7 +244,7 @@ module Couchbase
       res = @collection.upsert(doc_id, document)
       cas = res.cas
 
-      options = Collection::ReplaceOptions.new
+      options = Options::Replace.new
       options.cas = cas + 1 # incorrect CAS
 
       document["value"] = 43
@@ -264,7 +264,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       document = "42"
 
-      options = Collection::UpsertOptions.new
+      options = Options::Upsert.new
       options.transcoder = Couchbase::RawBinaryTranscoder.new
       @collection.upsert(doc_id, document, options)
 
@@ -272,7 +272,7 @@ module Couchbase
 
       assert_equal 43, res.content
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
@@ -282,7 +282,7 @@ module Couchbase
 
       assert_equal 42, res.content
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
@@ -313,7 +313,7 @@ module Couchbase
 
       assert_equal 43, res.content
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
@@ -329,7 +329,7 @@ module Couchbase
 
       assert_equal 141, res.content
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
@@ -349,7 +349,7 @@ module Couchbase
 
       assert_equal 92, res.content
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
@@ -366,7 +366,7 @@ module Couchbase
 
       assert_equal 122, res.content
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.transcoder = Couchbase::RawBinaryTranscoder.new
       res = @collection.get(doc_id, options)
 
@@ -411,13 +411,13 @@ module Couchbase
       doc_id = uniq_id(:expiry_doc)
       doc = load_json_test_dataset("beer_sample_single")
 
-      options = Collection::InsertOptions.new
+      options = Options::Insert.new
       options.expiry = 10
       res = @collection.insert(doc_id, doc, options)
 
       refute_equal 0, res.cas
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.with_expiry = true
       res = @collection.get(doc_id, options)
 
@@ -549,7 +549,7 @@ module Couchbase
       end
 
       test_cases.each do |test_case|
-        options = Collection::GetOptions.new
+        options = Options::Get.new
         options.project(test_case[:project])
         res = @collection.get(doc_id, options)
 
@@ -581,7 +581,7 @@ module Couchbase
                     end
 
       test_cases.each do |test_case|
-        options = Collection::GetOptions.new
+        options = Options::Get.new
         options.project(*test_case[:project])
         res = @collection.get(doc_id, options)
 
@@ -617,7 +617,7 @@ module Couchbase
       ]
 
       test_cases.each do |test_case|
-        options = Collection::GetOptions.new
+        options = Options::Get.new
         options.project(*test_case[:project])
         options.preserve_array_indexes = true
         res = @collection.get(doc_id, options)
@@ -637,7 +637,7 @@ module Couchbase
 
       refute_equal 0, res.cas
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.project((1..17).map { |n| "field#{n}" })
       res = @collection.get(doc_id, options)
       expected = (1..17).each_with_object({}) do |n, obj|
@@ -653,13 +653,13 @@ module Couchbase
         obj["field#{n}"] = n
       end
 
-      options = Collection::UpsertOptions.new
+      options = Options::Upsert.new
       options.expiry = 60
       res = @collection.upsert(doc_id, doc, options)
 
       refute_equal 0, res.cas
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.project((1..16).map { |n| "field#{n}" })
       options.with_expiry = true
       res = @collection.get(doc_id, options)
@@ -680,13 +680,13 @@ module Couchbase
 
       refute_equal 0, res.cas
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.project("this_field_does_not_exist")
       res = @collection.get(doc_id, options)
 
       assert_empty(res.content)
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.project("this_field_does_not_exist", "age", "attributes.hair")
       res = @collection.get(doc_id, options)
 
@@ -729,7 +729,7 @@ module Couchbase
       collection = @bucket.collection(collection_name)
 
       # make sure we've connected to the collection
-      options = Collection::UpsertOptions.new
+      options = Options::Upsert.new
       options.timeout = 15_000
       res = collection.upsert(doc_id, doc, options)
 
@@ -743,7 +743,7 @@ module Couchbase
 
       # we've wiped the collection so we need to recreate this doc
       # we know that this operation can take a bit longer than normal as collections take time to come online
-      options = Collection::UpsertOptions.new
+      options = Options::Upsert.new
       options.timeout = 15_000
       res = collection.upsert(doc_id, doc, options)
 

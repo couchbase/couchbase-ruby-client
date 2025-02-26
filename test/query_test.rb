@@ -61,7 +61,7 @@ module Couchbase
     end
 
     def test_query_with_metrics
-      options = Cluster::QueryOptions.new
+      options = Options::Query.new
       options.metrics = true
       options.timeout = 200_000 # 200 seconds
       res = @cluster.query('SELECT "ruby rules" AS greeting', options)
@@ -81,7 +81,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       @collection.insert(doc_id, {"foo" => "bar"})
 
-      options = Cluster::QueryOptions.new
+      options = Options::Query.new
       options.adhoc = true
       options.client_context_id = "123"
       options.max_parallelism = 3
@@ -105,7 +105,7 @@ module Couchbase
       # TODO: Remove skip for protostellar once the gateway handles this error
       skip("#{name}: Failing for #{Couchbase::Protostellar::NAME} because the gateway returns unknown error currently") if env.protostellar?
 
-      options = Cluster::QueryOptions.new
+      options = Options::Query.new
       options.readonly = true
 
       assert_raises Error::InternalServerFailure do
@@ -117,7 +117,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       @collection.insert(doc_id, {"foo" => "bar"})
 
-      options = Cluster::QueryOptions.new
+      options = Options::Query.new
       options.scan_consistency = :request_plus
       options.timeout = 200_000 # 200 seconds
 
@@ -136,7 +136,7 @@ module Couchbase
     end
 
     def test_select_with_profile
-      options = Cluster::QueryOptions.new
+      options = Options::Query.new
       options.timeout = 200_000 # 200 seconds
 
       options.profile = :off
@@ -165,7 +165,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       @collection.insert(doc_id, {"foo" => "bar"})
 
-      options = Cluster::QueryOptions.new
+      options = Options::Query.new
       options.scan_consistency = :request_plus
       options.named_parameters("id" => doc_id)
       options.timeout = 200_000 # 200 seconds
@@ -180,7 +180,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       @collection.insert(doc_id, {"foo" => "bar"})
 
-      options = Cluster::QueryOptions.new
+      options = Options::Query.new
       options.scan_consistency = :request_plus
       options.positional_parameters([doc_id])
       options.timeout = 200_000 # 200 seconds
@@ -197,7 +197,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       res = @collection.insert(doc_id, {"foo" => "bar"})
 
-      options = Cluster::QueryOptions.new
+      options = Options::Query.new
       options.consistent_with(MutationState.new(res.mutation_token))
       options.positional_parameters([doc_id])
       options.timeout = 200_000 # 200 seconds
@@ -266,7 +266,7 @@ module Couchbase
       global_doc = uniq_id(:foo)
       @collection.insert(global_doc, {"location" => "global"})
 
-      options = Cluster::QueryOptions.new
+      options = Options::Query.new
       options.scan_consistency = :request_plus
       options.positional_parameters([[global_doc, local_doc]])
       options.timeout = 200_000 # 200 seconds

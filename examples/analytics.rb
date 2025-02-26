@@ -16,9 +16,9 @@
 
 require "couchbase"
 
-include Couchbase # rubocop:disable Style/MixinUsage for brevity
+include Couchbase # rubocop:disable Style/MixinUsage -- for brevity
 
-options = Cluster::ClusterOptions.new
+options = Options::Cluster.new
 options.authenticate("Administrator", "password")
 cluster = Cluster.connect("couchbase://localhost", options)
 
@@ -202,7 +202,7 @@ end
 
 # Named parameters
 puts "---- named parameters"
-options = Cluster::AnalyticsOptions.new
+options = Options::Analytics.new
 options.named_parameters({user_id: 2})
 res = cluster.analytics_query("
 USE #{dataverse_name};
@@ -223,7 +223,7 @@ end
 
 # Positional parameters
 puts "---- positional parameters"
-options = Cluster::AnalyticsOptions.new
+options = Options::Analytics.new
 options.positional_parameters([2])
 res = cluster.analytics_query("
 USE #{dataverse_name};

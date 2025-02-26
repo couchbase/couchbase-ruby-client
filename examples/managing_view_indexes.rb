@@ -15,7 +15,7 @@
 #  limitations under the License.
 
 require "couchbase"
-include Couchbase # rubocop:disable Style/MixinUsage for brevity
+include Couchbase # rubocop:disable Style/MixinUsage -- for brevity
 
 def measure(msg)
   start = Time.now
@@ -38,7 +38,7 @@ end
 
 bucket_name = "beer-sample"
 
-options = Cluster::ClusterOptions.new
+options = Options::Cluster.new
 options.authenticate("Administrator", "password")
 cluster = Cluster.connect("couchbase://localhost", options)
 

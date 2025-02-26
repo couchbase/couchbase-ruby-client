@@ -18,11 +18,13 @@ jobs:
       - name: Set up ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.0
+          ruby-version: 3.3
       - name: Install dependencies
         run: bundle install
       - name: Run rubocop
-        run: bundle exec rubocop
+        run: |
+          bundle exec rubocop -v
+          bundle exec rubocop
 
   clang_format:
     runs-on: ubuntu-20.04
@@ -54,7 +56,7 @@ jobs:
       - name: Set up ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.0
+          ruby-version: 3.3
       - name: Install dependencies
         run: |
           sudo apt-get update -y
