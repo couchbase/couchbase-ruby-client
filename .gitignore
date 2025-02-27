@@ -11,7 +11,7 @@
 /.yardoc
 /_yardoc/
 /cmake-build-*/
-/build-*/
+/build*
 /coverage/
 /doc/
 /ext/cache/

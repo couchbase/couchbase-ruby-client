@@ -245,13 +245,11 @@ cb_Backend_document_scan_create(VALUE self,
     std::promise<tl::expected<couchbase::core::topology::configuration, std::error_code>> promise;
     auto f = promise.get_future();
     cluster.with_bucket_configuration(
-      bucket_name,
-      [promise = std::move(promise)](
-        std::error_code ec, const couchbase::core::topology::configuration& config) mutable {
+      bucket_name, [promise = std::move(promise)](std::error_code ec, const auto& config) mutable {
         if (ec) {
           return promise.set_value(tl::unexpected(ec));
         }
-        promise.set_value(config);
+        promise.set_value(*config);
       });
     auto config = cb_wait_for_future(f);
     if (!config.has_value()) {

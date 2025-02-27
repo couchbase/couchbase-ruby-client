@@ -154,6 +154,16 @@ build_dir = ENV['CB_EXT_BUILD_DIR'] ||
             File.join(Dir.tmpdir, "cb-#{build_type}-#{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}-#{SDK_VERSION}")
 FileUtils.rm_rf(build_dir, verbose: true) unless ENV['CB_PRESERVE_BUILD_DIR']
 FileUtils.mkdir_p(build_dir, verbose: true)
+if ENV["CB_CREATE_BUILD_DIR_LINK"]
+  links = [
+    File.expand_path(File.join(project_path, "..", "build")),
+    File.expand_path(File.join(project_path, "build"))
+  ]
+  links.each do |link|
+    next if link == build_dir
+    FileUtils.ln_sf(build_dir, link, verbose: true)
+  end
+end
 Dir.chdir(build_dir) do
   puts "-- build #{build_type} extension #{SDK_VERSION} for ruby #{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}"
   sys(cmake, *cmake_flags, "-B#{build_dir}", "-S#{project_path}")

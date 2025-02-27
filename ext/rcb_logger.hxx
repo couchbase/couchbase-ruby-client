@@ -23,6 +23,9 @@
 namespace couchbase::ruby
 {
 void
+install_terminate_handler();
+
+void
 init_logger();
 
 void
