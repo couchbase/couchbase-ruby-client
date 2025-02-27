@@ -85,7 +85,7 @@ module Couchbase
       skip("#{name}: CAVES does not support change_password") if use_caves?
 
       # Connect to the cluster with the test user
-      orig_options = Cluster::ClusterOptions.new
+      orig_options = Options::Cluster.new
       orig_options.authenticate(@test_username, @test_password)
       deadline = Time.now + 10
       success = false
@@ -106,7 +106,7 @@ module Couchbase
       @cluster.users.change_password(new_password)
 
       # Verify that the connection succeeds with the new password
-      new_options = Cluster::ClusterOptions.new
+      new_options = Options::Cluster.new
       new_options.authenticate(@test_username, new_password)
       deadline = Time.now + 10
       success = false

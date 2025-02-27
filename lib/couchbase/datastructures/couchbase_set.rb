@@ -109,7 +109,7 @@ module Couchbase
         idx = result.content.index(obj)
         return false unless idx
 
-        options = Collection::MutateInOptions.new
+        options = Options::MutateIn.new
         options.cas = result.cas
         @collection.mutate_in(@id, [
                                 MutateInSpec.remove("[#{idx}]"),

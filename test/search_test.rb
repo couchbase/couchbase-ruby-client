@@ -84,7 +84,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       res = @collection.insert(doc_id, {"type" => "character", "name" => "Arthur"})
       mutation_state = MutationState.new(res.mutation_token)
-      options = Cluster::SearchOptions.new
+      options = Options::Search.new
       options.consistent_with(mutation_state)
       options.limit = 100
       attempts = 0
@@ -120,7 +120,7 @@ module Couchbase
       res1 = @collection.insert(doc_ids[0], {"type" => "character", "name" => "Arthur"})
       res2 = @collection.insert(doc_ids[1], {"type" => "character", "name" => "Brodie"})
       mutation_state = MutationState.new(res1.mutation_token, res2.mutation_token)
-      options = Cluster::SearchOptions.new
+      options = Options::Search.new
       options.consistent_with(mutation_state)
       options.limit = 100
       attempts = 0

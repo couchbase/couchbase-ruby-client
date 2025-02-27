@@ -16,15 +16,15 @@
 
 require "couchbase"
 
-include Couchbase # rubocop:disable Style/MixinUsage for brevity
+include Couchbase # rubocop:disable Style/MixinUsage -- for brevity
 
-options = Cluster::ClusterOptions.new
+options = Options::Cluster.new
 options.authenticate("Administrator", "password")
 cluster = Cluster.connect("couchbase://localhost", options)
 
 cluster.bucket("travel-sample") # this is necessary for 6.0.x
 
-options = Cluster::QueryOptions.new
+options = Options::Query.new
 options.named_parameters({type: "hotel"})
 options.metrics = true
 res = cluster.query("SELECT * FROM `travel-sample` WHERE type = $type LIMIT 10", options)

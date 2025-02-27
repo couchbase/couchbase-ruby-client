@@ -15,9 +15,9 @@
 #  limitations under the License.
 
 require "couchbase"
-include Couchbase # rubocop:disable Style/MixinUsage for brevity
+include Couchbase # rubocop:disable Style/MixinUsage -- for brevity
 
-options = Cluster::ClusterOptions.new
+options = Options::Cluster.new
 # initializes {PasswordAuthenticator} internally
 options.authenticate("Administrator", "password")
 Cluster.connect("couchbase://localhost", options)

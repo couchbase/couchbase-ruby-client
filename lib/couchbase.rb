@@ -18,6 +18,7 @@ require "couchbase/version"
 require "couchbase/libcouchbase"
 require "couchbase/logger"
 require "couchbase/cluster"
+require "couchbase/deprecations"
 
 require "couchbase/railtie" if defined?(Rails)
 

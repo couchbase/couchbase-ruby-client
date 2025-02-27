@@ -16,9 +16,9 @@
 
 require "couchbase"
 
-include Couchbase # rubocop:disable Style/MixinUsage for brevity
+include Couchbase # rubocop:disable Style/MixinUsage -- for brevity
 
-options = Cluster::ClusterOptions.new
+options = Options::Cluster.new
 options.authenticate("Administrator", "password")
 cluster = Cluster.connect("couchbase://localhost", options)
 
@@ -42,7 +42,7 @@ collection.upsert("user:#{random_number}", {
   "data" => random_number,
 })
 
-options = Cluster::QueryOptions.new
+options = Options::Query.new
 options.timeout = 10_000
 options.positional_parameters(["Brass"])
 options.scan_consistency = :request_plus
@@ -73,7 +73,7 @@ res = collection.upsert("user:#{random_number}", {
 state = MutationState.new(res.mutation_token)
 # state.add(*tokens) could be used to add more tokens
 
-options = Cluster::QueryOptions.new
+options = Options::Query.new
 options.timeout = 10_000
 options.positional_parameters(["Brass"])
 options.consistent_with(state)

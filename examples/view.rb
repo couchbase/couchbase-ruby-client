@@ -16,16 +16,16 @@
 
 require "couchbase"
 
-include Couchbase # rubocop:disable Style/MixinUsage for brevity
+include Couchbase # rubocop:disable Style/MixinUsage -- for brevity
 
-options = Cluster::ClusterOptions.new
+options = Options::Cluster.new
 options.authenticate("Administrator", "password")
 cluster = Cluster.connect("couchbase://localhost", options)
 
 bucket = cluster.bucket("beer-sample")
 collection = bucket.default_collection
 
-options = Bucket::ViewOptions.new
+options = Options::View.new
 options.reduce = true
 options.group_level = 1
 res = bucket.view_query("beer", "by_location", options)
@@ -34,7 +34,7 @@ res.rows.each do |row|
   puts "#{row.key.first}: #{row.value} breweries"
 end
 
-options = Bucket::ViewOptions.new
+options = Options::View.new
 options.limit = 10
 options.order = :descending
 res = bucket.view_query("beer", "brewery_beers", options)
@@ -52,7 +52,7 @@ collection.upsert("random_brewery:#{random_number}", {
   "type" => "brewery",
 })
 puts "\nRequest with consistency. Generated brewery name: #{unique_brewery_id}"
-options = Bucket::ViewOptions.new
+options = Options::View.new
 options.start_key = ["random_brewery:"]
 options.scan_consistency = :request_plus
 res = bucket.view_query("beer", "brewery_beers", options)

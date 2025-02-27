@@ -16,9 +16,9 @@
 
 require "couchbase"
 
-include Couchbase # rubocop:disable Style/MixinUsage for brevity
+include Couchbase # rubocop:disable Style/MixinUsage -- for brevity
 
-options = Cluster::ClusterOptions.new
+options = Options::Cluster.new
 options.authenticate("Administrator", "password")
 cluster = Cluster.connect("couchbase://localhost", options)
 
@@ -136,7 +136,7 @@ end
 
 # search with facets advanced sort
 query = Cluster::SearchQuery.match_phrase("hop beer")
-options = Cluster::SearchOptions.new
+options = Options::Search.new
 options.limit = 10
 options.fields = %w[name]
 options.highlight_style = :html
@@ -168,7 +168,7 @@ end
 query = Cluster::SearchQuery.term("beer")
 query.field = "type"
 
-options = Cluster::SearchOptions.new
+options = Options::Search.new
 options.facets = {}
 
 term_facet = Cluster::SearchFacet.term("name")

@@ -80,7 +80,7 @@ module Couchbase
 
       # @deprecated Use {#expiry_time}
       # @return [Integer] the expiration if fetched and present
-      def expiry # rubocop:disable Style/TrivialAccessors will be removed in next major release
+      def expiry # rubocop:disable Style/TrivialAccessors -- will be removed in next major release
         @expiry
       end
 
@@ -211,7 +211,7 @@ module Couchbase
 
       # @api private
       #
-      # @see MutateInOptions#create_as_deleted
+      # @see Options::MutateIn#create_as_deleted
       #
       # @return [Boolean] true if the document is a tombstone (created in deleted state)
       def deleted?
@@ -273,7 +273,7 @@ module Couchbase
 
       # @api private
       #
-      # @see MutateInOptions#create_as_deleted
+      # @see Options::MutateIn#create_as_deleted
       #
       # @return [Boolean] true if the document is a tombstone (created in deleted state)
       def deleted?

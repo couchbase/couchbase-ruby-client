@@ -143,7 +143,7 @@ module Couchbase
             })
             resp = Net::HTTP.start(uri.hostname, uri.port) { |http| http.request(req) }
             body = JSON.parse(resp.body)
-            (body["results"][0]["count"]).positive?
+            body["results"][0]["count"].positive?
           end
         end
       end

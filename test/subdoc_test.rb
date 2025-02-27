@@ -215,7 +215,7 @@ module Couchbase
 
       @collection.upsert(doc_id, {"foo" => "bar"})
 
-      options = Collection::MutateInOptions.new
+      options = Options::MutateIn.new
       options.store_semantics = :upsert
       @collection.mutate_in(doc_id, [
                               # full document mutation should also carry XATTR spec
@@ -231,7 +231,7 @@ module Couchbase
     def test_insert_full_document
       doc_id = uniq_id(:foo)
 
-      options = Collection::MutateInOptions.new
+      options = Options::MutateIn.new
       options.store_semantics = :insert
       @collection.mutate_in(doc_id, [
                               # full document mutation should also carry XATTR spec
@@ -320,7 +320,7 @@ module Couchbase
 
       error_count = 0
       2.times do
-        options = Collection::MutateInOptions.new
+        options = Options::MutateIn.new
         options.durability_level = :majority
         options.cas = res.cas
         @collection.mutate_in(doc_id, [
@@ -1194,13 +1194,13 @@ module Couchbase
 
       @collection.upsert(doc_id, {"hello" => "world"})
 
-      options = Collection::MutateInOptions.new
+      options = Options::MutateIn.new
       options.expiry = 10
       @collection.mutate_in(doc_id, [
                               MutateInSpec.insert("foo2", "bar2"),
                             ], options)
 
-      options = Collection::GetOptions.new
+      options = Options::Get.new
       options.with_expiry = true
       res = @collection.get(doc_id, options)
 
@@ -1272,7 +1272,7 @@ module Couchbase
 
       doc_id = uniq_id(:foo)
 
-      options = Collection::MutateInOptions.new
+      options = Options::MutateIn.new
       options.store_semantics = :upsert
       exception_check =
         if env.server_version.supports_multiple_xattr_keys_mutation?
@@ -1295,7 +1295,7 @@ module Couchbase
     def test_expiration_with_document_flags_should_not_fail
       doc_id = uniq_id(:foo)
 
-      options = Collection::MutateInOptions.new
+      options = Options::MutateIn.new
       options.store_semantics = :upsert
       # options.expiry = 60 * 60 * 24
       @collection.mutate_in(doc_id, [
@@ -1310,7 +1310,7 @@ module Couchbase
 
       doc_id = uniq_id(:foo)
 
-      options = Collection::MutateInOptions.new
+      options = Options::MutateIn.new
       options.store_semantics = :upsert
       options.create_as_deleted = true
       unless env.server_version.supports_create_as_deleted?
@@ -1331,7 +1331,7 @@ module Couchbase
         @collection.get(doc_id)
       end
 
-      options = Collection::LookupInOptions.new
+      options = Options::LookupIn.new
       options.access_deleted = true
       res = @collection.lookup_in(doc_id, [
                                     LookupInSpec.get("meta").xattr,

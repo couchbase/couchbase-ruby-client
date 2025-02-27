@@ -208,7 +208,10 @@ class Caves
   end
 
   def binary_ready?
-    File.executable?(mock_path) && `#{mock_path} --help #{windows? ? ">NUL 2>NUL" : ">/dev/null 2>&1"}`
+    return false unless File.executable?(mock_path)
+
+    system("#{mock_path} --help #{windows? ? '>NUL 2>NUL' : '>/dev/null 2>&1'}")
+    $CHILD_STATUS.success?
   end
 
   def open_control_socket
@@ -245,5 +248,5 @@ if __FILE__ == $PROGRAM_NAME
   caves.start
   cluster_id = SecureRandom.uuid
   info caves.create_cluster(cluster_id)
-  binding.irb # rubocop:disable Lint/Debugger easy REPL for CAVES
+  binding.irb # rubocop:disable Lint/Debugger -- easy REPL for CAVES
 end

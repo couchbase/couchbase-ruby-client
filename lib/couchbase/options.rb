@@ -2392,7 +2392,7 @@ module Couchbase
 
       # @param [:and, :or, nil] vector_query_combination
       #
-      # @yieldparam [VectorSearchOptions] self
+      # @yieldparam [Options::VectorSearch] self
       def initialize(vector_query_combination: nil)
         @vector_query_combination = vector_query_combination
 
@@ -2536,7 +2536,7 @@ module Couchbase
     # TODO: deprecate in 3.1
     CommonOptions = ::Couchbase::Options::Base
 
-    # rubocop:disable Naming/MethodName constructor shortcuts
+    # rubocop:disable Naming/MethodName -- constructor shortcuts
     module_function
 
     # Construct {Get} options for {Collection#get}

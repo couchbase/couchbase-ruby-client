@@ -513,7 +513,7 @@ module Couchbase
           end
         end
 
-        # rubocop:disable Naming/MethodName constructor shortcuts
+        # rubocop:disable Naming/MethodName -- constructor shortcuts
         module_function
 
         # Construct {CreateDataverse} options for {AnalyticsIndexManager#create_dataverse}

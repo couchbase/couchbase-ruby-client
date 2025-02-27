@@ -339,7 +339,7 @@ module Couchbase
           end
         end
 
-        # rubocop:disable Naming/MethodName constructor shortcuts
+        # rubocop:disable Naming/MethodName -- constructor shortcuts
         module_function
 
         # Construct {GetAllIndexes} options for {QueryIndexManager#get_all_indexes}

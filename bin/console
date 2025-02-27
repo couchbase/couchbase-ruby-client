@@ -20,7 +20,7 @@ require "irb"
 require "open3"
 require "couchbase"
 
-include Couchbase # rubocop:disable Style/MixinUsage for brevity
+include Couchbase # rubocop:disable Style/MixinUsage -- for brevity
 
 customer123 = {
   "name" => "Douglas Reynholm",
@@ -105,4 +105,4 @@ alias collection default_collection
 #   cluster             # returns connected cluster
 #   default_collection  # returns default collection (accept bucket name, defaults to "default")
 #   customer123         # returns sample document
-binding.irb # rubocop:disable Lint/Debugger start REPL
+binding.irb # rubocop:disable Lint/Debugger -- start REPL

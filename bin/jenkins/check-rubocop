@@ -40,4 +40,5 @@ chruby ruby-${CB_RUBY_VERSION}
 bundle config set --local path ${PROJECT_ROOT}/vendor/bundle
 
 bundle install
+bundle exec rubocop -v
 bundle exec rubocop
