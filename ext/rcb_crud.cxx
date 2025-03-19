@@ -652,6 +652,7 @@ cb_Backend_document_append(VALUE self,
     couchbase::append_options opts;
     set_timeout(opts, options);
     set_durability(opts, options);
+    set_cas(opts, options);
 
     auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
@@ -698,6 +699,7 @@ cb_Backend_document_prepend(VALUE self,
     couchbase::prepend_options opts;
     set_timeout(opts, options);
     set_durability(opts, options);
+    set_cas(opts, options);
 
     auto f = cluster.bucket(cb_string_new(bucket))
                .scope(cb_string_new(scope))
