@@ -23,6 +23,7 @@ gem "rake"
 
 group :development do
   gem "activesupport", "~> 7.0.3"
+  gem "drb"
   gem "faker"
   gem "flay"
   gem "flog"
@@ -31,6 +32,7 @@ group :development do
   gem "heckle"
   gem "minitest"
   gem "minitest-reporters"
+  gem "mutex_m"
   gem "rack"
   gem "reek"
   gem "rubocop", require: false
