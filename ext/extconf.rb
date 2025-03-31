@@ -93,6 +93,12 @@ cmake_flags = [
   "-DCOUCHBASE_CXX_CLIENT_INSTALL=OFF",
 ]
 
+if version.start_with?("4")
+  # snappy requires CMake 3.1
+  cmake_flags << "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+end
+
+
 extconf_include = File.expand_path("cache/extconf_include.rb", __dir__)
 if File.exist?(extconf_include)
   puts "-- include extra cmake options from #{extconf_include}"
