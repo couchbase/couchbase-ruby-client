@@ -221,6 +221,7 @@ module Couchbase
             history_retention_collection_default: settings.history_retention_collection_default,
             history_retention_duration: settings.history_retention_duration,
             history_retention_bytes: settings.history_retention_bytes,
+            num_vbuckets: settings.num_vbuckets,
           }, options.to_backend
         )
       end
@@ -251,6 +252,7 @@ module Couchbase
             history_retention_collection_default: settings.history_retention_collection_default,
             history_retention_bytes: settings.history_retention_bytes,
             history_retention_duration: settings.history_retention_duration,
+            num_vbuckets: settings.num_vbuckets,
           }, options.to_backend
         )
       end
@@ -345,6 +347,7 @@ module Couchbase
           bucket.history_retention_collection_default = entry[:history_retention_collection_default]
           bucket.history_retention_bytes = entry[:history_retention_bytes]
           bucket.history_retention_duration = entry[:history_retention_duration]
+          bucket.num_vbuckets = entry[:num_vbuckets]
         end
       end
     end
@@ -405,7 +408,7 @@ module Couchbase
       # @return [nil, :none, :majority, :majority_and_persist_to_active, :persist_to_majority] the minimum durability level
       attr_accessor :minimum_durability_level
 
-      # @return [Boolean, nil] whether to enable history retention on collections  by default
+      # @return [Boolean, nil] whether to enable history retention on collections by default
       attr_accessor :history_retention_collection_default
 
       # @return [Integer, nil] the maximum size, in bytes, of the change history that is written to disk for all
@@ -415,6 +418,9 @@ module Couchbase
       # @return [Integer, nil] the maximum duration, in seconds, to be covered by the change history that is written to disk for all
       # collections in this bucket
       attr_accessor :history_retention_duration
+
+      # @return [Integer, nil] the number of vBuckets the bucket should have. If not set, the server default will be used
+      attr_accessor :num_vbuckets
 
       # @api private
       # @return [Boolean] false if status of the bucket is not healthy
