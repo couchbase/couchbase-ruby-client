@@ -232,6 +232,17 @@ cb_generate_bucket_settings(VALUE bucket,
     }
   }
 
+  if (VALUE num_vbuckets = rb_hash_aref(bucket, rb_id2sym(rb_intern("num_vbuckets")));
+      !NIL_P(num_vbuckets)) {
+    if (TYPE(num_vbuckets) == T_FIXNUM) {
+      entry.num_vbuckets = FIX2UINT(num_vbuckets);
+    } else {
+      throw ruby_exception(
+        rb_eArgError,
+        rb_sprintf("num vbuckets must be an Integer, given %+" PRIsVALUE, num_vbuckets));
+    }
+  }
+
   if (is_create) {
     if (VALUE conflict_resolution_type =
           rb_hash_aref(bucket, rb_id2sym(rb_intern("conflict_resolution_type")));
@@ -529,6 +540,9 @@ cb_extract_bucket_settings(const core::management::cluster::bucket_settings& ent
   if (const auto& val = entry.history_retention_duration; val.has_value()) {
     rb_hash_aset(
       bucket, rb_id2sym(rb_intern("history_retention_duration")), ULONG2NUM(val.value()));
+  }
+  if (const auto& val = entry.num_vbuckets; val.has_value()) {
+    rb_hash_aset(bucket, rb_id2sym(rb_intern("num_vbuckets")), USHORT2NUM(val.value()));
   }
 
   VALUE capabilities = rb_ary_new_capa(static_cast<long>(entry.capabilities.size()));
