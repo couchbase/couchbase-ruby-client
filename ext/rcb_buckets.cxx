@@ -506,6 +506,18 @@ cb_extract_bucket_settings(const core::management::cluster::bucket_settings& ent
         break;
     }
   }
+  switch (entry.storage_backend) {
+    case core::management::cluster::bucket_storage_backend::couchstore:
+      rb_hash_aset(
+        bucket, rb_id2sym(rb_intern("storage_backend")), rb_id2sym(rb_intern("couchstore")));
+      break;
+    case core::management::cluster::bucket_storage_backend::magma:
+      rb_hash_aset(bucket, rb_id2sym(rb_intern("storage_backend")), rb_id2sym(rb_intern("magma")));
+      break;
+    case core::management::cluster::bucket_storage_backend::unknown:
+      rb_hash_aset(bucket, rb_id2sym(rb_intern("storage_backend")), Qnil);
+      break;
+  }
   if (entry.history_retention_collection_default.has_value()) {
     rb_hash_aset(bucket,
                  rb_id2sym(rb_intern("history_retention_collection_default")),

@@ -206,7 +206,6 @@ module Couchbase
       def create_bucket(settings, options = Options::Bucket::CreateBucket.new)
         @backend.bucket_create(
           {
-
             name: settings.name,
             flush_enabled: settings.flush_enabled,
             ram_quota_mb: settings.ram_quota_mb,
@@ -342,6 +341,7 @@ module Couchbase
           bucket.minimum_durability_level = entry[:minimum_durability_level]
           bucket.compression_mode = entry[:compression_mode]
           bucket.instance_variable_set(:@healthy, entry[:nodes].all? { |node| node[:status] == "healthy" })
+          bucket.storage_backend = entry[:storage_backend]
           bucket.history_retention_collection_default = entry[:history_retention_collection_default]
           bucket.history_retention_bytes = entry[:history_retention_bytes]
           bucket.history_retention_duration = entry[:history_retention_duration]
