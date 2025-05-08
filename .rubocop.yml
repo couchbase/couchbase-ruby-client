@@ -47,5 +47,8 @@ Style/TrailingCommaInArrayLiteral:
 Style/TrailingCommaInHashLiteral:
   EnforcedStyleForMultiline: comma
 
+Style/TrailingCommaInArguments:
+  EnforcedStyleForMultiline: comma
+
 Layout/FirstHashElementIndentation:
   EnforcedStyle: consistent

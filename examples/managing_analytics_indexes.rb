@@ -30,7 +30,7 @@ cluster = Cluster.connect("couchbase://localhost", options)
 manager = cluster.analytics_indexes
 options = Management::Options::Analytics::DropDataset(
   ignore_if_does_not_exist: true,
-  dataverse_name: "beer-data"
+  dataverse_name: "beer-data",
 )
 manager.drop_dataset("beers", options)
 manager.drop_dataset("breweries", options)

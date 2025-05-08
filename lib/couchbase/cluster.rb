@@ -391,7 +391,7 @@ module Couchbase
                     location.end_offset = loc[:end_offset]
                     location.array_positions = loc[:array_positions]
                   end
-                end
+                end,
               )
             end
             row.instance_variable_set(:@fields, r[:fields])

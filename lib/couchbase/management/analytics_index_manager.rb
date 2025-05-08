@@ -846,7 +846,7 @@ module Couchbase
               entry[:access_key_id],
               nil,
               entry[:region],
-              service_endpoint: entry[:service_endpoint]
+              service_endpoint: entry[:service_endpoint],
             )
           when :couchbase
             CouchbaseRemoteAnalyticsLink.new(
@@ -857,8 +857,8 @@ module Couchbase
               encryption: EncryptionSettings.new(
                 level: entry[:encryption_level],
                 certificate: entry[:certificate],
-                client_certificate: entry[:client_certificate]
-              )
+                client_certificate: entry[:client_certificate],
+              ),
             )
           when :azureblob
             AzureBlobExternalAnalyticsLink.new(
@@ -866,7 +866,7 @@ module Couchbase
               entry[:dataverse],
               account_name: entry[:account_name],
               blob_endpoint: entry[:blob_endpoint],
-              endpoint_suffix: entry[:endpoint_suffix]
+              endpoint_suffix: entry[:endpoint_suffix],
             )
           end
         end

@@ -78,7 +78,7 @@ module Couchbase
 
           proto_req = Generated::Query::V1::QueryRequest.new(
             statement: statement,
-            **proto_opts
+            **proto_opts,
           )
 
           create_query_request(proto_req, :query, options, idempotent: options.readonly)
@@ -92,7 +92,7 @@ module Couchbase
             rpc: rpc,
             proto_request: proto_request,
             timeout: options.timeout,
-            idempotent: idempotent
+            idempotent: idempotent,
           )
         end
 
@@ -105,7 +105,7 @@ module Couchbase
             duration_millis = Utils::Time.extract_duration(options.scan_wait)
             tuning_opts[:scan_wait] = Google::Protobuf::Duration.new(
               seconds: duration_millis / 1000,
-              nanos: (duration_millis % 1000) * (10**6)
+              nanos: (duration_millis % 1000) * (10**6),
             )
           end
           tuning_opts[:scan_cap] = options.scan_cap unless options.scan_cap.nil?
@@ -123,7 +123,7 @@ module Couchbase
               bucket_name: t.bucket_name,
               vbucket_id: t.partition_id,
               vbucket_uuid: t.partition_uuid,
-              seq_no: t.sequence_number
+              seq_no: t.sequence_number,
             )
           end
         end

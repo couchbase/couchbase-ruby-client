@@ -626,7 +626,7 @@ module Couchbase
         core_scan_result: @backend.document_scan_create(
           @bucket_name, @scope_name, @name, scan_type.to_backend, options.to_backend
         ),
-        transcoder: options.transcoder
+        transcoder: options.transcoder,
       )
     end
 

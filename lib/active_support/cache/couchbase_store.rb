@@ -316,7 +316,7 @@ module ActiveSupport
           @couchbase_options[:connection_string],
           ::Couchbase::Options::Cluster(authenticator: ::Couchbase::PasswordAuthenticator.new(
             @couchbase_options[:username], @couchbase_options[:password]
-          ))
+          )),
         )
       end
 

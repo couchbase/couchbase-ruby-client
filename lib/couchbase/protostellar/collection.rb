@@ -49,7 +49,7 @@ module Couchbase
           client: @client,
           bucket_name: @bucket_name,
           scope_name: @scope_name,
-          collection_name: @name
+          collection_name: @name,
         )
       end
 

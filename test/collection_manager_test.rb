@@ -29,7 +29,7 @@ module Couchbase
           s.name = TEST_MAGMA_BUCKET_NAME
           s.storage_backend = :magma
           s.ram_quota_mb = 1024
-        end
+        end,
       )
 
       env.consistency.wait_until_bucket_present(TEST_MAGMA_BUCKET_NAME)
@@ -646,7 +646,7 @@ module Couchbase
           spec.name = coll_name
           spec.scope_name = scope_name
         end,
-        Management::Options::Collection::CreateCollection.new(timeout: 80_000)
+        Management::Options::Collection::CreateCollection.new(timeout: 80_000),
       )
       env.consistency.wait_until_collection_present(env.bucket, scope_name, coll_name)
 
@@ -665,7 +665,7 @@ module Couchbase
         Management::CollectionSpec.new do |spec|
           spec.name = coll_name
           spec.scope_name = scope_name
-        end
+        end,
       )
       env.consistency.wait_until_collection_present(env.bucket, scope_name, coll_name)
 
@@ -676,7 +676,7 @@ module Couchbase
           spec.name = coll_name
           spec.scope_name = scope_name
         end,
-        Management::Options::Collection::DropCollection.new(timeout: 80_000)
+        Management::Options::Collection::DropCollection.new(timeout: 80_000),
       )
       env.consistency.wait_until_collection_dropped(env.bucket, scope_name, coll_name)
 

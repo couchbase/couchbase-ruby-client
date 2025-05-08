@@ -35,7 +35,7 @@ class CouchbaseTest < Minitest::Test
                             'username' => env.username,
                             'password' => env.password,
                           },
-                        }
+                        },
                       ))
       temp_file.flush
 

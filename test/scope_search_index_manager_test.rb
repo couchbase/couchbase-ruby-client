@@ -78,7 +78,7 @@ module Couchbase
         Management::SearchIndex.new do |idx|
           idx.name = index_name
           idx.source_name = env.bucket
-        end
+        end,
       )
 
       # Upsert requires a UUID
@@ -87,7 +87,7 @@ module Couchbase
           Management::SearchIndex.new do |idx|
             idx.name = index_name
             idx.source_name = env.bucket
-          end
+          end,
         )
       end
 

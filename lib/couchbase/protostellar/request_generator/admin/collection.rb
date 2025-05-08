@@ -30,7 +30,7 @@ module Couchbase
 
           def list_collections_request(options)
             proto_req = Generated::Admin::Collection::V1::ListCollectionsRequest.new(
-              bucket_name: @bucket_name
+              bucket_name: @bucket_name,
             )
             create_request(proto_req, :list_collections, options, idempotent: true)
           end
@@ -38,7 +38,7 @@ module Couchbase
           def create_scope_request(scope_name, options)
             proto_req = Generated::Admin::Collection::V1::CreateScopeRequest.new(
               bucket_name: @bucket_name,
-              scope_name: scope_name
+              scope_name: scope_name,
             )
             create_request(proto_req, :create_scope, options)
           end
@@ -46,7 +46,7 @@ module Couchbase
           def delete_scope_request(scope_name, options)
             proto_req = Generated::Admin::Collection::V1::DeleteScopeRequest.new(
               bucket_name: @bucket_name,
-              scope_name: scope_name
+              scope_name: scope_name,
             )
             create_request(proto_req, :delete_scope, options)
           end
@@ -62,7 +62,7 @@ module Couchbase
               bucket_name: @bucket_name,
               scope_name: scope_name,
               collection_name: collection_name,
-              **proto_opts
+              **proto_opts,
             )
             create_request(proto_req, :create_collection, options)
           end
@@ -71,7 +71,7 @@ module Couchbase
             proto_req = Generated::Admin::Collection::V1::DeleteCollectionRequest.new(
               bucket_name: @bucket_name,
               scope_name: scope_name,
-              collection_name: collection_name
+              collection_name: collection_name,
             )
             create_request(proto_req, :delete_collection, options)
           end
@@ -84,7 +84,7 @@ module Couchbase
               rpc: rpc,
               proto_request: proto_request,
               idempotent: idempotent,
-              timeout: options.timeout
+              timeout: options.timeout,
             )
           end
         end
