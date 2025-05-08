@@ -75,7 +75,7 @@ module Couchbase
           query_timeout: options.query_timeout,
           analytics_timeout: options.analytics_timeout,
           search_timeout: options.search_timeout,
-          management_timeout: options.management_timeout
+          management_timeout: options.management_timeout,
         )
       end
     end

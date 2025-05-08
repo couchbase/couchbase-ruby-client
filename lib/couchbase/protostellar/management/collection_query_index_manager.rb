@@ -29,7 +29,7 @@ module Couchbase
           @scope_name = scope_name
           @collection_name = collection_name
           @request_generator = RequestGenerator::Admin::Query.new(
-            bucket_name: @bucket_name, scope_name: @scope_name, collection_name: @collection_name
+            bucket_name: @bucket_name, scope_name: @scope_name, collection_name: @collection_name,
           )
         end
 

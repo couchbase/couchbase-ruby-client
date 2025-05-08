@@ -107,7 +107,7 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10"),
-          to: ScanTerm.new("#{@shared_prefix}-29")
+          to: ScanTerm.new("#{@shared_prefix}-29"),
         ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
@@ -124,7 +124,7 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10", exclusive: true),
-          to: ScanTerm.new("#{@shared_prefix}-29")
+          to: ScanTerm.new("#{@shared_prefix}-29"),
         ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
@@ -135,7 +135,7 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10", exclusive: false),
-          to: ScanTerm.new("#{@shared_prefix}-29", exclusive: true)
+          to: ScanTerm.new("#{@shared_prefix}-29", exclusive: true),
         ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
@@ -146,7 +146,7 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10", exclusive: true),
-          to: ScanTerm.new("#{@shared_prefix}-29", exclusive: true)
+          to: ScanTerm.new("#{@shared_prefix}-29", exclusive: true),
         ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
@@ -156,7 +156,7 @@ module Couchbase
       expected_ids = (0..9).map { |i| "#{@shared_prefix}-0#{i}" }
       scan_result = @collection.scan(
         RangeScan.new(
-          to: ScanTerm.new("#{@shared_prefix}-09")
+          to: ScanTerm.new("#{@shared_prefix}-09"),
         ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
@@ -166,7 +166,7 @@ module Couchbase
       expected_ids = (0..9).map { |i| "#{@shared_prefix}-9#{i}" }
       scan_result = @collection.scan(
         RangeScan.new(
-          from: ScanTerm.new("#{@shared_prefix}-90")
+          from: ScanTerm.new("#{@shared_prefix}-90"),
         ), Options::Scan(mutation_state: @mutation_state)
       )
       validate_scan(scan_result, expected_ids)
@@ -182,9 +182,9 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10"),
-          to: ScanTerm.new("#{@shared_prefix}-29")
+          to: ScanTerm.new("#{@shared_prefix}-29"),
         ),
-        Options::Scan.new(ids_only: true, mutation_state: @mutation_state)
+        Options::Scan.new(ids_only: true, mutation_state: @mutation_state),
       )
       validate_scan(scan_result, expected_ids, ids_only: true)
     end
@@ -194,9 +194,9 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10"),
-          to: ScanTerm.new("#{@shared_prefix}-29")
+          to: ScanTerm.new("#{@shared_prefix}-29"),
         ),
-        Options::Scan.new(ids_only: false, mutation_state: @mutation_state)
+        Options::Scan.new(ids_only: false, mutation_state: @mutation_state),
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -226,9 +226,9 @@ module Couchbase
         scan_result = @collection.scan(
           RangeScan.new(
             from: ScanTerm.new("#{@shared_prefix}-10"),
-            to: ScanTerm.new("#{@shared_prefix}-29")
+            to: ScanTerm.new("#{@shared_prefix}-29"),
           ),
-          Options::Scan.new(batch_byte_limit: b, mutation_state: @mutation_state)
+          Options::Scan.new(batch_byte_limit: b, mutation_state: @mutation_state),
         )
         validate_scan(scan_result, expected_ids)
       end
@@ -259,9 +259,9 @@ module Couchbase
         scan_result = @collection.scan(
           RangeScan.new(
             from: ScanTerm.new("#{@shared_prefix}-10"),
-            to: ScanTerm.new("#{@shared_prefix}-29")
+            to: ScanTerm.new("#{@shared_prefix}-29"),
           ),
-          Options::Scan.new(concurrency: c, mutation_state: @mutation_state)
+          Options::Scan.new(concurrency: c, mutation_state: @mutation_state),
         )
         validate_scan(scan_result, expected_ids)
       end
@@ -294,9 +294,9 @@ module Couchbase
         scan_result = @collection.scan(
           RangeScan.new(
             from: ScanTerm.new("#{@shared_prefix}-10"),
-            to: ScanTerm.new("#{@shared_prefix}-29")
+            to: ScanTerm.new("#{@shared_prefix}-29"),
           ),
-          Options::Scan.new(batch_item_limit: b, mutation_state: @mutation_state)
+          Options::Scan.new(batch_item_limit: b, mutation_state: @mutation_state),
         )
         validate_scan(scan_result, expected_ids)
       end
@@ -324,9 +324,9 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10"),
-          to: ScanTerm.new("#{@shared_prefix}-29")
+          to: ScanTerm.new("#{@shared_prefix}-29"),
         ),
-        Options::Scan.new(batch_byte_limit: 100, batch_item_limit: 20, ids_only: false, mutation_state: @mutation_state)
+        Options::Scan.new(batch_byte_limit: 100, batch_item_limit: 20, ids_only: false, mutation_state: @mutation_state),
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -344,9 +344,9 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10"),
-          to: ScanTerm.new("#{@shared_prefix}-10")
+          to: ScanTerm.new("#{@shared_prefix}-10"),
         ),
-        Options::Scan.new(mutation_state: @mutation_state)
+        Options::Scan.new(mutation_state: @mutation_state),
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -356,9 +356,9 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-10", exclusive: true),
-          to: ScanTerm.new("#{@shared_prefix}-10", exclusive: true)
+          to: ScanTerm.new("#{@shared_prefix}-10", exclusive: true),
         ),
-        Options::Scan.new(mutation_state: @mutation_state)
+        Options::Scan.new(mutation_state: @mutation_state),
       )
       validate_scan(scan_result, expected_ids)
     end
@@ -368,9 +368,9 @@ module Couchbase
       scan_result = @collection.scan(
         RangeScan.new(
           from: ScanTerm.new("#{@shared_prefix}-20", exclusive: true),
-          to: ScanTerm.new("#{@shared_prefix}-10", exclusive: true)
+          to: ScanTerm.new("#{@shared_prefix}-10", exclusive: true),
         ),
-        Options::Scan.new(mutation_state: @mutation_state)
+        Options::Scan.new(mutation_state: @mutation_state),
       )
       validate_scan(scan_result, expected_ids)
     end

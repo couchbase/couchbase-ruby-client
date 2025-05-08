@@ -54,7 +54,7 @@ module Couchbase
           s.history_retention_collection_default = false
           s.history_retention_bytes = 2147483648
           s.history_retention_duration = 600
-        end
+        end,
       )
 
       env.consistency.wait_until_bucket_present(bucket_name)
@@ -79,7 +79,7 @@ module Couchbase
             s.history_retention_collection_default = false
             s.history_retention_bytes = 2**31
             s.history_retention_duration = 600
-          end
+          end,
         )
       end
     end
@@ -94,7 +94,7 @@ module Couchbase
           s.name = bucket_name
           s.storage_backend = :magma
           s.ram_quota_mb = 1024
-        end
+        end,
       )
 
       env.consistency.wait_until_bucket_present(bucket_name)
@@ -113,7 +113,7 @@ module Couchbase
           s.history_retention_collection_default = false
           s.history_retention_bytes = 2147483648
           s.history_retention_duration = 600
-        end
+        end,
       )
       res = @bucket_manager.get_bucket(bucket_name)
 
@@ -131,7 +131,7 @@ module Couchbase
         Couchbase::Management::BucketSettings.new do |s|
           s.name = bucket_name
           s.storage_backend = :couchstore
-        end
+        end,
       )
 
       env.consistency.wait_until_bucket_present(bucket_name)
@@ -150,7 +150,7 @@ module Couchbase
             s.history_retention_collection_default = false
             s.history_retention_bytes = 2147483648
             s.history_retention_duration = 600
-          end
+          end,
         )
       end
     end

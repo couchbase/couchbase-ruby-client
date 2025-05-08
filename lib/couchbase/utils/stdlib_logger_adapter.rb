@@ -39,7 +39,7 @@ module Couchbase
         payload += " at #{filename}:#{line} #{function}" if @verbose && filename
         logdev.write(
           @logger.send(:format_message, @logger.send(:format_severity, severity), ::Time.at(seconds, nanoseconds, :nanosecond), progname,
-                       payload)
+                       payload),
         )
       end
 

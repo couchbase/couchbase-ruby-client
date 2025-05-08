@@ -182,7 +182,7 @@ sleep(1)
 
 puts "---- inner join"
 res = cluster.analytics_query(
-  "SELECT * FROM #{dataverse_name}.GleambookUsers u, #{dataverse_name}.GleambookMessages m WHERE m.authorId = u.id"
+  "SELECT * FROM #{dataverse_name}.GleambookUsers u, #{dataverse_name}.GleambookMessages m WHERE m.authorId = u.id",
 )
 res.rows.each do |row|
   puts "#{row['u']['name']}: #{row['m']['message'].inspect}"

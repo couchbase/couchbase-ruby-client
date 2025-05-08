@@ -27,7 +27,7 @@ Net::HTTP.start("rubygems.org", use_ssl: true) do |client|
     puts JSON.pretty_generate(
       versions: stats,
       total: stats.values.sum,
-      total3: stats.filter_map { |version, downloads| downloads if version.match?(/^3.\d+.\d+/) }.sum
+      total3: stats.filter_map { |version, downloads| downloads if version.match?(/^3.\d+.\d+/) }.sum,
     )
   end
 end

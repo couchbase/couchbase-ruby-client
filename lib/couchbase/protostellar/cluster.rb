@@ -95,7 +95,7 @@ module Couchbase
           username: username,
           password: password,
           timeouts: Protostellar::Timeouts.from_cluster_options(options),
-          root_certificates: params.key?("trust_certificate") ? File.read(params["trust_certificate"]) : nil
+          root_certificates: params.key?("trust_certificate") ? File.read(params["trust_certificate"]) : nil,
         )
         new(connection_string.split("://")[1].split("?")[0], connect_options)
       end
@@ -160,7 +160,7 @@ module Couchbase
           credentials: options.grpc_credentials,
           channel_args: options.grpc_channel_args,
           call_metadata: options.grpc_call_metadata,
-          timeouts: options.timeouts
+          timeouts: options.timeouts,
         )
 
         @query_request_generator = RequestGenerator::Query.new

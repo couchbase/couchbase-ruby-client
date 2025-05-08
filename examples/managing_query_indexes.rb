@@ -52,7 +52,7 @@ measure("Index \"#{index_name}\" has been created") do
   cluster.query_indexes.create_index(bucket_name, index_name, %w[`type` `name`],
                                      Management::Options::Query::CreateIndex(
                                        ignore_if_exists: true,
-                                       condition: "abv > 2"
+                                       condition: "abv > 2",
                                      ))
 end
 

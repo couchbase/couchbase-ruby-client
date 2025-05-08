@@ -381,7 +381,7 @@ module Couchbase
             yield ScanResult.new(
               id: resp[:id],
               id_only: resp[:id_only],
-              transcoder: @transcoder
+              transcoder: @transcoder,
             )
           else
             yield ScanResult.new(
@@ -391,7 +391,7 @@ module Couchbase
               expiry: resp[:expiry],
               encoded: resp[:encoded],
               flags: resp[:flags],
-              transcoder: @transcoder
+              transcoder: @transcoder,
             )
           end
         end

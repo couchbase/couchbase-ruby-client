@@ -318,6 +318,6 @@ unless ENV['RM_INFO']
     [
       Minitest::Reporters::SpecReporter.new(print_failure_summary: true),
       Minitest::Reporters::JUnitReporter.new(Minitest::Reporters::JUnitReporter::DEFAULT_REPORTS_DIR, true, include_timestamp: true),
-    ]
+    ],
   )
 end

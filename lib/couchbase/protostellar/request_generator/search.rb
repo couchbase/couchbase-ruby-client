@@ -62,7 +62,7 @@ module Couchbase
           proto_req = Generated::Search::V1::SearchQueryRequest.new(
             query: create_query(query),
             index_name: index_name,
-            **proto_opts
+            **proto_opts,
           )
 
           # Set the search facets in the request
@@ -81,7 +81,7 @@ module Couchbase
             rpc: rpc,
             proto_request: proto_request,
             timeout: options.timeout,
-            idempotent: idempotent
+            idempotent: idempotent,
           )
         end
 
@@ -188,11 +188,11 @@ module Couchbase
           query_attrs = query.to_h
           query_attrs[:top_left] = Generated::Search::V1::LatLng.new(
             longitude: query_attrs[:top_left][0],
-            latitude: query_attrs[:top_left][1]
+            latitude: query_attrs[:top_left][1],
           )
           query_attrs[:bottom_right] = Generated::Search::V1::LatLng.new(
             longitude: query_attrs[:bottom_right][0],
-            latitude: query_attrs[:bottom_right][1]
+            latitude: query_attrs[:bottom_right][1],
           )
           Generated::Search::V1::GeoBoundingBoxQuery.new(query_attrs)
         end
@@ -202,7 +202,7 @@ module Couchbase
           longitude, latitude = query_attrs.delete(:location)
           query_attrs[:center] = Generated::Search::V1::LatLng.new(
             longitude: longitude,
-            latitude: latitude
+            latitude: latitude,
           )
           Generated::Search::V1::GeoDistanceQuery.new(query_attrs)
         end
@@ -213,7 +213,7 @@ module Couchbase
           query_attrs[:vertices] = polygon_points.map do |lon, lat|
             Generated::Search::V1::LatLng.new(
               longitude: lon,
-              latitude: lat
+              latitude: lat,
             )
           end
           Generated::Search::V1::GeoPolygonQuery.new(query_attrs)
@@ -288,20 +288,20 @@ module Couchbase
                   descending: s.desc,
                   missing: s.missing.to_s,
                   mode: s.mode.to_s,
-                  type: s.type.to_s
-                )
+                  type: s.type.to_s,
+                ),
               )
             when Couchbase::Cluster::SearchSort::SearchSortId
               Generated::Search::V1::Sorting.new(
                 id_sorting: Generated::Search::V1::IdSorting.new(
-                  descending: s.desc
-                )
+                  descending: s.desc,
+                ),
               )
             when Couchbase::Cluster::SearchSort::SearchSortScore
               Generated::Search::V1::Sorting.new(
                 score_sorting: Generated::Search::V1::ScoreSorting.new(
-                  descending: s.desc
-                )
+                  descending: s.desc,
+                ),
               )
             when Couchbase::Cluster::SearchSort::SearchSortGeoDistance
               Generated::Search::V1::Sorting.new(
@@ -310,10 +310,10 @@ module Couchbase
                   descending: s.desc,
                   center: Generated::Search::V1::LatLng.new(
                     latitude: s.latitude,
-                    longitude: s.longitude
+                    longitude: s.longitude,
                   ),
-                  unit: s.unit.to_s
-                )
+                  unit: s.unit.to_s,
+                ),
               )
             when String
               if s[0] == "-"
@@ -326,16 +326,16 @@ module Couchbase
               if field == "_score"
                 Generated::Search::V1::Sorting.new(
                   score_sorting: Generated::Search::V1::ScoreSorting.new(
-                    descending: desc
-                  )
+                    descending: desc,
+                  ),
                 )
               else
                 Generated::Search::V1::Sorting.new(
                   # TODO: What to do with the rest of the FieldSorting attributes?
                   core_sorting: Generated::Search::V1::FieldSorting.new(
                     field: field,
-                    descending: desc
-                  )
+                    descending: desc,
+                  ),
                 )
               end
             else
@@ -353,8 +353,8 @@ module Couchbase
               Generated::Search::V1::Facet.new(
                 term_facet: Generated::Search::V1::TermFacet.new(
                   field: facet.field,
-                  size: facet.size
-                )
+                  size: facet.size,
+                ),
               )
             when Couchbase::Cluster::SearchFacet::SearchFacetNumericRange
               Generated::Search::V1::Facet.new(
@@ -363,8 +363,8 @@ module Couchbase
                   size: facet.size,
                   numeric_ranges: facet.instance_variable_get(:@ranges).map do |r|
                     Generated::Search::V1::NumericRange(name: r[:name], min: r[:min], max: r[:max])
-                  end
-                )
+                  end,
+                ),
               )
             when Couchbase::Cluster::SearchFacet::SearchFacetDateRange
               Generated::Search::V1::Facet.new(
@@ -373,8 +373,8 @@ module Couchbase
                   size: facet.size,
                   date_ranges: facet.instance_variable_get(:@ranges).map do |r|
                     Generated::Search::V1::DateRange(name: r[:name], start: r[:start], end: r[:end])
-                  end
-                )
+                  end,
+                ),
               )
             else
               raise Couchbase::Error::CouchbaseError, "Unrecognised search facet type"

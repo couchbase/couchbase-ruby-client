@@ -31,7 +31,7 @@ puts "Range Scan (from 'airline_1' to 'airline_11')"
 
 scan_type = RangeScan.new(
   from: ScanTerm.new("airline_1"),
-  to: ScanTerm.new("airline_11", exclusive: true)
+  to: ScanTerm.new("airline_11", exclusive: true),
 )
 res = collection.scan(scan_type, options)
 

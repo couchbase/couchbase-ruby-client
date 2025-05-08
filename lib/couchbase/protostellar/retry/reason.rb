@@ -27,7 +27,7 @@ module Couchbase
             name,
             new(name: name,
                 allows_non_idempotent_retry: allows_non_idempotent_retry,
-                always_retry: always_retry).freeze
+                always_retry: always_retry).freeze,
           )
         end
 

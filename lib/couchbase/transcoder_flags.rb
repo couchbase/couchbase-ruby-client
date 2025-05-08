@@ -52,7 +52,7 @@ module Couchbase
       TranscoderFlags.new(
         format: INV_FORMAT_MAP[format_bits],
         compression: INV_COMPRESSION_MAP[compression_bits],
-        lower_bits: lower_bits
+        lower_bits: lower_bits,
       )
     end
 

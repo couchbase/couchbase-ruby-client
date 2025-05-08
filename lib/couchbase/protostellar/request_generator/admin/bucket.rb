@@ -62,21 +62,21 @@ module Couchbase
 
           def create_bucket_request(settings, options)
             proto_req = Generated::Admin::Bucket::V1::CreateBucketRequest.new(
-              extract_bucket_settings(settings, create: true)
+              extract_bucket_settings(settings, create: true),
             )
             create_request(proto_req, :create_bucket, options)
           end
 
           def update_bucket_request(settings, options)
             proto_req = Generated::Admin::Bucket::V1::UpdateBucketRequest.new(
-              extract_bucket_settings(settings, create: false)
+              extract_bucket_settings(settings, create: false),
             )
             create_request(proto_req, :update_bucket, options)
           end
 
           def delete_bucket_request(bucket_name, options)
             proto_req = Generated::Admin::Bucket::V1::DeleteBucketRequest.new(
-              bucket_name: bucket_name
+              bucket_name: bucket_name,
             )
             create_request(proto_req, :delete_bucket, options)
           end
@@ -114,7 +114,7 @@ module Couchbase
               rpc: rpc,
               proto_request: proto_request,
               idempotent: idempotent,
-              timeout: options.timeout
+              timeout: options.timeout,
             )
           end
         end

@@ -39,7 +39,7 @@ module Couchbase
         doc_id,
         [
           MutateInSpec.increment("value", 4),
-        ]
+        ],
       )
 
       expected = {"value" => 46}

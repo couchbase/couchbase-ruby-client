@@ -86,7 +86,7 @@ module Couchbase
           proto_req = Generated::KV::V1::GetRequest.new(
             key: id,
             **location,
-            **proto_opts
+            **proto_opts,
           )
 
           create_kv_request(proto_req, :get, options, idempotent: true)
@@ -100,7 +100,7 @@ module Couchbase
           proto_req = Generated::KV::V1::GetAndTouchRequest.new(
             **{expiry_type => expiry_value},
             **location,
-            key: id
+            key: id,
           )
 
           create_kv_request(proto_req, :get_and_touch, options)
@@ -110,7 +110,7 @@ module Couchbase
           proto_req = Generated::KV::V1::GetAndLockRequest.new(
             **location,
             key: id,
-            lock_time: lock_time.respond_to?(:in_seconds) ? lock_time.in_seconds : lock_time
+            lock_time: lock_time.respond_to?(:in_seconds) ? lock_time.in_seconds : lock_time,
           )
 
           create_kv_request(proto_req, :get_and_lock, options)
@@ -120,7 +120,7 @@ module Couchbase
           proto_req = Generated::KV::V1::UnlockRequest.new(
             **location,
             key: id,
-            cas: cas
+            cas: cas,
           )
 
           create_kv_request(proto_req, :unlock, options)
@@ -134,7 +134,7 @@ module Couchbase
           proto_req = Generated::KV::V1::TouchRequest.new(
             **{expiry_type => expiry_value},
             **location,
-            key: id
+            key: id,
           )
 
           create_kv_request(proto_req, :touch, options)
@@ -156,7 +156,7 @@ module Couchbase
             key: id,
             content_uncompressed: encoded,
             **location,
-            **proto_opts
+            **proto_opts,
           )
 
           create_kv_request(proto_req, :upsert, options)
@@ -177,7 +177,7 @@ module Couchbase
             key: id,
             content_uncompressed: encoded,
             **location,
-            **proto_opts
+            **proto_opts,
           )
 
           create_kv_request(proto_req, :insert, options)
@@ -202,7 +202,7 @@ module Couchbase
             key: id,
             content_uncompressed: encoded,
             **location,
-            **proto_opts
+            **proto_opts,
           )
 
           create_kv_request(proto_req, :replace, options)
@@ -217,7 +217,7 @@ module Couchbase
           proto_req = Generated::KV::V1::RemoveRequest.new(
             key: id,
             **location,
-            **proto_opts
+            **proto_opts,
           )
 
           create_kv_request(proto_req, :remove, options)
@@ -229,7 +229,7 @@ module Couchbase
           proto_req = Generated::KV::V1::ExistsRequest.new(
             key: id,
             **proto_opts,
-            **location
+            **location,
           )
 
           create_kv_request(proto_req, :exists, options)
@@ -256,7 +256,7 @@ module Couchbase
             key: id,
             **location,
             specs: specs.map { |s| get_mutate_in_spec(s) },
-            **proto_opts
+            **proto_opts,
           )
 
           create_kv_request(proto_req, :mutate_in, options)
@@ -271,7 +271,7 @@ module Couchbase
             key: id,
             **location,
             specs: specs.map { |s| get_lookup_in_spec(s) },
-            **proto_opts
+            **proto_opts,
           )
 
           create_kv_request(proto_req, :lookup_in, options, idempotent: true)
@@ -288,7 +288,7 @@ module Couchbase
           proto_req = Generated::KV::V1::IncrementRequest.new(
             key: id,
             **location,
-            **proto_opts
+            **proto_opts,
           )
 
           create_kv_request(proto_req, :increment, options)
@@ -305,7 +305,7 @@ module Couchbase
           proto_req = Generated::KV::V1::DecrementRequest.new(
             key: id,
             **location,
-            **proto_opts
+            **proto_opts,
           )
 
           create_kv_request(proto_req, :decrement, options)
@@ -320,7 +320,7 @@ module Couchbase
             key: id,
             content: content,
             **location,
-            **proto_opts
+            **proto_opts,
           )
 
           create_kv_request(proto_req, :append, options)
@@ -335,7 +335,7 @@ module Couchbase
             key: id,
             content: content,
             **location,
-            **proto_opts
+            **proto_opts,
           )
 
           create_kv_request(proto_req, :prepend, options)
@@ -344,7 +344,7 @@ module Couchbase
         def get_all_replicas_request(id, options)
           proto_req = Generated::KV::V1::GetAllReplicasRequest.new(
             key: id,
-            **location
+            **location,
           )
 
           create_kv_request(proto_req, :get_all_replicas, options, idempotent: true)
@@ -363,7 +363,7 @@ module Couchbase
             rpc: rpc,
             proto_request: proto_request,
             timeout: options.timeout,
-            idempotent: idempotent
+            idempotent: idempotent,
           )
         end
 
@@ -385,7 +385,7 @@ module Couchbase
             [:expiry_secs, time_or_duration]
           when :time_point
             timestamp = Google::Protobuf::Timestamp.new(
-              seconds: time_or_duration
+              seconds: time_or_duration,
             )
             [:expiry_time, timestamp]
           else
@@ -405,7 +405,7 @@ module Couchbase
           Generated::KV::V1::LookupInRequest::Spec.new(
             operation: get_lookup_in_operation(lookup_in_spec),
             path: lookup_in_spec.path,
-            flags: get_lookup_in_spec_flags(lookup_in_spec)
+            flags: get_lookup_in_spec_flags(lookup_in_spec),
           )
         end
 
@@ -415,13 +415,13 @@ module Couchbase
 
         def get_lookup_in_spec_flags(lookup_in_spec)
           Generated::KV::V1::LookupInRequest::Spec::Flags.new(
-            xattr: lookup_in_spec.xattr?
+            xattr: lookup_in_spec.xattr?,
           )
         end
 
         def get_lookup_in_flags(options)
           Generated::KV::V1::LookupInRequest::Flags.new(
-            access_deleted: options.access_deleted
+            access_deleted: options.access_deleted,
           )
         end
 
@@ -434,7 +434,7 @@ module Couchbase
             operation: get_mutate_in_operation(mutate_in_spec),
             path: mutate_in_spec.path,
             content: mutate_in_spec.param.to_s,
-            flags: get_mutate_in_spec_flags(mutate_in_spec)
+            flags: get_mutate_in_spec_flags(mutate_in_spec),
           )
         end
 
@@ -445,13 +445,13 @@ module Couchbase
         def get_mutate_in_spec_flags(mutate_in_spec)
           Generated::KV::V1::MutateInRequest::Spec::Flags.new(
             create_path: mutate_in_spec.create_path?,
-            xattr: mutate_in_spec.xattr?
+            xattr: mutate_in_spec.xattr?,
           )
         end
 
         def get_mutate_in_flags(options)
           Generated::KV::V1::MutateInRequest::Flags.new(
-            access_deleted: options.access_deleted
+            access_deleted: options.access_deleted,
           )
         end
 

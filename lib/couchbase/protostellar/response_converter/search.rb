@@ -45,7 +45,7 @@ module Couchbase
             r.score = proto_row.score.to_f
             unless proto_row.locations.empty?
               r.locations = Couchbase::Cluster::SearchRowLocations.new(
-                proto_row.locations.map { |loc| convert_search_row_location(loc) }
+                proto_row.locations.map { |loc| convert_search_row_location(loc) },
               )
             end
             r.fragments = convert_fragments(proto_row.fragments)

@@ -30,7 +30,7 @@ module Couchbase
         Couchbase::Management::BucketSettings.new do |s|
           s.name = @bucket_name
           s.ram_quota_mb = 256
-        end
+        end,
       )
       env.consistency.wait_until_bucket_present(@bucket_name)
       env.consistency.wait_until_bucket_present_in_indexes(@bucket_name)
