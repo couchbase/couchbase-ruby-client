@@ -1112,7 +1112,7 @@ module Couchbase
         vector_base64: @base64_vector_query,
         k: num_candidates || 3,
         boost: boost,
-        filter: prefilter.to_h
+        filter: prefilter.to_h,
       }.compact
 
       raise Error::InvalidArgument, "The vector cannot be nil" if !h.include?(:vector) && !h.include?(:vector_base64)
