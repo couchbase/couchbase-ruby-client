@@ -321,8 +321,8 @@ module Couchbase
     # @yieldparam [BooleanFieldQuery] query
     #
     # @return [BooleanFieldQuery]
-    def self.boolean_field(value)
-      BooleanFieldQuery.new(value)
+    def self.boolean_field(value, &)
+      BooleanFieldQuery.new(value, &)
     end
 
     # Allow to match `true`/`false` in a field mapped as boolean.
@@ -1073,6 +1073,9 @@ module Couchbase
     # @return [Float, nil]
     attr_accessor :boost
 
+    # @return [SearchQuery, nil]
+    attr_accessor :prefilter
+
     # Constructs a +VectorQuery+ instance
     #
     # @overload initialize(vector_field_name, vector_query)
@@ -1109,6 +1112,7 @@ module Couchbase
         vector_base64: @base64_vector_query,
         k: num_candidates || 3,
         boost: boost,
+        filter: prefilter.to_h
       }.compact
 
       raise Error::InvalidArgument, "The vector cannot be nil" if !h.include?(:vector) && !h.include?(:vector_base64)
