@@ -1112,8 +1112,9 @@ module Couchbase
         vector_base64: @base64_vector_query,
         k: num_candidates || 3,
         boost: boost,
-        filter: prefilter.to_h,
       }.compact
+
+      h[:filter] = prefilter.to_h unless prefilter.nil?
 
       raise Error::InvalidArgument, "The vector cannot be nil" if !h.include?(:vector) && !h.include?(:vector_base64)
       raise Error::InvalidArgument, "The vector query cannot be an empty array" if h.include?(:vector) && h[:vector].empty?
