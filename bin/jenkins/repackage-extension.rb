@@ -8,7 +8,7 @@ require "tmpdir"
 require "rubygems/installer"
 require "rubygems/package"
 
-def run(*args)
+def run(*args) # rubocop:disable Naming/PredicateMethod
   _, status = Open3.capture2e(*args)
   status.success?
 end
