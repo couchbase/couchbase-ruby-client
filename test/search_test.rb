@@ -231,8 +231,8 @@ module Couchbase
         proc { SearchRequest.new(vector_search).search_query(query).search_query(query) },
       ]
 
-      invalid_initializations.each do |it|
-        assert_raises(Error::InvalidArgument) { it.call }
+      invalid_initializations.each do |initialization|
+        assert_raises(Error::InvalidArgument) { initialization.call }
       end
     end
 

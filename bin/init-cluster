@@ -19,7 +19,7 @@ require "set"
 require "optparse"
 
 class Object
-  def to_b
+  def to_b # rubocop:disable Naming/PredicateMethod
     ![nil, false, 0, "", "0", "f", "F", "false", "FALSE", "off", "OFF", "no", "NO"].include?(self)
   end
 end
