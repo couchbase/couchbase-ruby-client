@@ -20,6 +20,7 @@
 #include <core/io/dns_client.hxx>
 #include <core/io/dns_config.hxx>
 #include <core/logger/logger.hxx>
+#include <core/operations/document_analytics.hxx>
 #include <core/operations/management/cluster_developer_preview_enable.hxx>
 #include <core/operations/management/collections_manifest_get.hxx>
 #include <core/utils/connection_string.hxx>
@@ -318,6 +319,13 @@ cb_Backend_path_escape(VALUE self, VALUE data)
   return cb_str_new(encoded);
 }
 
+VALUE
+cb_Backend_allow_enterprise_analytics(VALUE self)
+{
+  core::operations::analytics_request::allow_enterprise_analytics = true;
+  return Qnil;
+}
+
 int
 cb_for_each_form_encode_value(VALUE key, VALUE value, VALUE arg)
 {
@@ -390,5 +398,7 @@ init_extras(VALUE cBackend)
   rb_define_singleton_method(cBackend, "query_escape", cb_Backend_query_escape, 1);
   rb_define_singleton_method(cBackend, "path_escape", cb_Backend_path_escape, 1);
   rb_define_singleton_method(cBackend, "form_encode", cb_Backend_form_encode, 1);
+  rb_define_singleton_method(
+    cBackend, "allow_enterprise_analytics", cb_Backend_allow_enterprise_analytics, 0);
 }
 } // namespace couchbase::ruby
