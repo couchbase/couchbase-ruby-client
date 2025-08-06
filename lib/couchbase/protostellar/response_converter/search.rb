@@ -38,7 +38,7 @@ module Couchbase
 
         def self.convert_search_row(proto_row, options)
           Couchbase::Cluster::SearchRow.new do |r|
-            r.instance_variable_set(:@fields, (proto_row.fields.to_h.transform_values { |v| JSON.parse(v) }).to_json)
+            r.instance_variable_set(:@fields, proto_row.fields.to_h.transform_values { |v| JSON.parse(v) }.to_json)
             r.transcoder = options.transcoder
             r.index = proto_row.index
             r.id = proto_row.id
