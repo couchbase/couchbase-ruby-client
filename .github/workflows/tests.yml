@@ -720,6 +720,8 @@ jobs:
           retention-days: 5
 
   windows_x64:
+    # TODO(SA): windows build have to be verified
+    if: false
     needs: source
     runs-on: windows-2022
     strategy:

@@ -71,9 +71,7 @@ target_include_directories(
           ${PROJECT_SOURCE_DIR}/couchbase/third_party/expected/include)
 target_link_libraries(
   couchbase
-  PRIVATE project_options
-          project_warnings
-          couchbase_cxx_client_static
+  PRIVATE couchbase_cxx_client_static_intermediate
           Microsoft.GSL::GSL
           asio
           taocpp::json
