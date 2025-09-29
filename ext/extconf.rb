@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #  Copyright 2020-2021 Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require 'English'
 require "mkmf"
 require "tempfile"
 
@@ -26,12 +29,19 @@ when /mingw/
   require "ruby_installer/runtime"
   # ridk install 1
   # ridk install 3
-  # ridk exec pacman --sync --noconfirm mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-go mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-ccache
+  # ridk exec pacman --sync --noconfirm \
+  #   mingw-w64-ucrt-x86_64-ninja \
+  #   mingw-w64-ucrt-x86_64-cmake \
+  #   mingw-w64-ucrt-x86_64-toolchain \
+  #   mingw-w64-ucrt-x86_64-go \
+  #   mingw-w64-ucrt-x86_64-nasm \
+  #   mingw-w64-ucrt-x86_64-ccache
   ENV["CB_STATIC_BORINGSSL"] = "true"
   ENV["CB_STATIC_STDLIB"] = "true"
   ENV["GOROOT"] = File.join(RubyInstaller::Runtime.msys2_installation.msys_path, "ucrt64/lib/go")
-else
 end
+
+pp ENV.select { |k, _| k =~ /^CB_|^DEBUG$/ }.merge("SDK_VERSION" => SDK_VERSION)
 
 def which(name, extra_locations = [])
   ENV.fetch("PATH", "")
@@ -53,28 +63,24 @@ def check_version(name, extra_locations = [])
 end
 
 cmake_extra_locations = []
-if RUBY_PLATFORM =~ /mswin|mingw/
+if RUBY_PLATFORM.match?(/mswin|mingw/)
   cmake_extra_locations = [
     'C:\Program Files\CMake\bin',
     'C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin',
     'C:\Program Files\Microsoft Visual Studio\2019\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin',
   ]
-  local_app_data = ENV.fetch("LOCALAPPDATA", "#{ENV.fetch("HOME")}\\AppData\\Local")
-  if File.directory?(local_app_data)
-    cmake_extra_locations.unshift("#{local_app_data}\\CMake\\bin")
-  end
+  local_app_data = ENV.fetch("LOCALAPPDATA", "#{Dir.home}\\AppData\\Local")
+  cmake_extra_locations.unshift("#{local_app_data}\\CMake\\bin") if File.directory?(local_app_data)
 end
 cmake, version = check_version("cmake", cmake_extra_locations)
-if version[/cmake version (\d+\.\d+)/, 1].to_f < 3.15
-  cmake, version = check_version("cmake3")
-end
+cmake, version = check_version("cmake3") if version[/cmake version (\d+\.\d+)/, 1].to_f < 3.15
 abort "ERROR: CMake is required to build couchbase extension." unless cmake
 puts "-- #{version}, #{cmake}"
 
 def sys(*cmd)
   puts "-- #{Dir.pwd}"
   puts "-- #{cmd.join(' ')}"
-  system(*cmd) || abort("failed to execute command: #{$?.inspect}\n#{cmd.join(' ')}")
+  system(*cmd) || abort("failed to execute command: #{$CHILD_STATUS.inspect}\n#{cmd.join(' ')}")
 end
 
 build_type = ENV["DEBUG"] ? "Debug" : "Release"
@@ -97,7 +103,6 @@ if version.start_with?("4")
   # snappy requires CMake 3.1
   cmake_flags << "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 end
-
 
 extconf_include = File.expand_path("cache/extconf_include.rb", __dir__)
 if File.exist?(extconf_include)
@@ -132,18 +137,18 @@ cmake_flags << "-DENABLE_SANITIZER_MEMORY=ON" if ENV["CB_MSAN"]
 cmake_flags << "-DENABLE_SANITIZER_THREAD=ON" if ENV["CB_TSAN"]
 cmake_flags << "-DENABLE_SANITIZER_UNDEFINED_BEHAVIOUR=ON" if ENV["CB_UBSAN"]
 
-cc = ENV["CB_CC"]
-cxx = ENV["CB_CXX"]
-ar = ENV["CB_AR"]
+cc = ENV.fetch("CB_CC", nil)
+cxx = ENV.fetch("CB_CXX", nil)
+ar = ENV.fetch("CB_AR", nil)
 
-if RbConfig::CONFIG["target_os"] =~ /mingw/
+if RbConfig::CONFIG["target_os"].include?('mingw')
   require "ruby_installer/runtime"
   RubyInstaller::Runtime.enable_dll_search_paths
   RubyInstaller::Runtime.enable_msys_apps
   cc = RbConfig::CONFIG["CC"]
   cxx = RbConfig::CONFIG["CXX"]
   cmake_flags << "-G Ninja"
-  cmake_flags << "-DRUBY_LIBRUBY=#{File.basename(RbConfig::CONFIG["LIBRUBY_SO"], ".#{RbConfig::CONFIG["SOEXT"]}")}"
+  cmake_flags << "-DRUBY_LIBRUBY=#{File.basename(RbConfig::CONFIG['LIBRUBY_SO'], ".#{RbConfig::CONFIG['SOEXT']}")}"
 end
 
 cmake_flags << "-DCMAKE_C_COMPILER=#{cc}" if cc
@@ -163,26 +168,25 @@ FileUtils.mkdir_p(build_dir, verbose: true)
 if ENV["CB_CREATE_BUILD_DIR_LINK"]
   links = [
     File.expand_path(File.join(project_path, "..", "build")),
-    File.expand_path(File.join(project_path, "build"))
+    File.expand_path(File.join(project_path, "build")),
   ]
   links.each do |link|
     next if link == build_dir
+
     FileUtils.ln_sf(build_dir, link, verbose: true)
   end
 end
-Dir.chdir(build_dir) do
+Dir.chdir(build_dir) do # rubocop:disable ThreadSafety/DirChdir
   puts "-- build #{build_type} extension #{SDK_VERSION} for ruby #{RUBY_VERSION}-#{RUBY_PATCHLEVEL}-#{RUBY_PLATFORM}"
   sys(cmake, *cmake_flags, "-B#{build_dir}", "-S#{project_path}")
   number_of_jobs = (ENV["CB_NUMBER_OF_JOBS"] || 4).to_s
-  sys(cmake, "--build", build_dir, "--parallel", number_of_jobs,  "--verbose")
+  sys(cmake, "--build", build_dir, "--parallel", number_of_jobs, "--verbose")
 end
 extension_name = "libcouchbase.#{RbConfig::CONFIG['SOEXT'] || RbConfig::CONFIG['DLEXT']}"
 extension_path = File.expand_path(File.join(build_dir, extension_name))
 abort "ERROR: failed to build extension in #{extension_path}" unless File.file?(extension_path)
-extension_name.gsub!(/\.dylib/, '.bundle')
-if RbConfig::CONFIG["target_os"] =~ /mingw/
-  extension_name.gsub!(/\.dll$/, '.so')
-end
+extension_name.gsub!('.dylib', '.bundle')
+extension_name.gsub!(/\.dll$/, '.so') if RbConfig::CONFIG["target_os"].include?('mingw')
 install_path = File.expand_path(File.join(__dir__, "..", "lib", "couchbase", extension_name))
 puts "-- copy extension to #{install_path}"
 FileUtils.cp(extension_path, install_path, verbose: true)
