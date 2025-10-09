@@ -472,6 +472,43 @@ initialize_cluster_options(const core::utils::connection_string& connstr,
     cluster_options.metrics().emit_interval(param.value());
   }
 
+  static const auto sym_app_telemetry = rb_id2sym(rb_intern("application_telemetry"));
+  if (auto app_telemetry_options = options::get_hash(options, sym_app_telemetry);
+      app_telemetry_options) {
+    static const auto sym_enable_app_telemetry = rb_id2sym(rb_intern("enable"));
+    if (auto param = options::get_bool(app_telemetry_options.value(), sym_enable_app_telemetry);
+        param) {
+      cluster_options.application_telemetry().enable(param.value());
+    }
+
+    static const auto sym_app_telemetry_endpoint = rb_id2sym(rb_intern("override_endpoint"));
+    if (auto param = options::get_string(app_telemetry_options.value(), sym_app_telemetry_endpoint);
+        param) {
+      cluster_options.application_telemetry().override_endpoint(param.value());
+    }
+
+    static const auto sym_app_telemetry_backoff = rb_id2sym(rb_intern("backoff"));
+    if (auto param =
+          options::get_milliseconds(app_telemetry_options.value(), sym_app_telemetry_backoff);
+        param) {
+      cluster_options.application_telemetry().backoff_interval(param.value());
+    }
+
+    static const auto sym_app_telemetry_ping_interval = rb_id2sym(rb_intern("ping_interval"));
+    if (auto param =
+          options::get_milliseconds(app_telemetry_options.value(), sym_app_telemetry_ping_interval);
+        param) {
+      cluster_options.application_telemetry().ping_interval(param.value());
+    }
+
+    static const auto sym_app_telemetry_ping_timeout = rb_id2sym(rb_intern("ping_timeout"));
+    if (auto param =
+          options::get_milliseconds(app_telemetry_options.value(), sym_app_telemetry_ping_timeout);
+        param) {
+      cluster_options.application_telemetry().ping_timeout(param.value());
+    }
+  }
+
   return cluster_options;
 }
 

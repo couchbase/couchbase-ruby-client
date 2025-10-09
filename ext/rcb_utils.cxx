@@ -568,6 +568,25 @@ get_symbol(VALUE options, VALUE name)
   return {};
 }
 
+std::optional<VALUE>
+get_hash(VALUE options, VALUE name)
+{
+  if (!NIL_P(options) && TYPE(options) == T_HASH) {
+    cb_check_type(name, T_SYMBOL);
+    VALUE val = rb_hash_aref(options, name);
+    if (NIL_P(val)) {
+      return {};
+    }
+    if (TYPE(val) == T_HASH) {
+      return val;
+    }
+    throw couchbase::ruby::ruby_exception(
+      rb_eArgError,
+      rb_sprintf("%+" PRIsVALUE " must be a Hash, but given %+" PRIsVALUE, name, val));
+  }
+  return {};
+}
+
 std::optional<std::string>
 get_string(VALUE options, VALUE name)
 {
