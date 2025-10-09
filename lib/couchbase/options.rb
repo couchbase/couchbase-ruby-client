@@ -1706,6 +1706,10 @@ module Couchbase
       attr_accessor :config_idle_redial_timeout # @return [nil, Integer, #in_milliseconds]
       attr_accessor :idle_http_connection_timeout # @return [nil, Integer, #in_milliseconds]
 
+      # @return [ApplicationTelemetry]
+      # @!macro volatile
+      attr_accessor :application_telemetry
+
       # Creates an instance of options for {Couchbase::Cluster.connect}
       #
       # @param [PasswordAuthenticator, CertificateAuthenticator] authenticator
@@ -1720,7 +1724,7 @@ module Couchbase
       # @see .Cluster
       #
       # @yieldparam [Cluster] self
-      def initialize(authenticator: nil,
+      def initialize(authenticator: nil, # rubocop:disable Metrics/ParameterLists
                      preferred_server_group: nil,
                      enable_metrics: nil,
                      metrics_emit_interval: nil,
@@ -1749,7 +1753,8 @@ module Couchbase
                      config_poll_interval: nil,
                      config_poll_floor: nil,
                      config_idle_redial_timeout: nil,
-                     idle_http_connection_timeout: nil)
+                     idle_http_connection_timeout: nil,
+                     application_telemetry: ApplicationTelemetry.new)
         @authenticator = authenticator
         @preferred_server_group = preferred_server_group
         @enable_metrics = enable_metrics
@@ -1780,6 +1785,8 @@ module Couchbase
         @config_poll_floor = config_poll_floor
         @config_idle_redial_timeout = config_idle_redial_timeout
         @idle_http_connection_timeout = idle_http_connection_timeout
+        @application_telemetry = application_telemetry
+
         yield self if block_given?
       end
 
@@ -1826,7 +1833,59 @@ module Couchbase
           config_poll_floor: Utils::Time.extract_duration(@config_poll_floor),
           config_idle_redial_timeout: Utils::Time.extract_duration(@config_idle_redial_timeout),
           idle_http_connection_timeout: Utils::Time.extract_duration(@idle_http_connection_timeout),
+          application_telemetry: @application_telemetry.to_backend,
         }
+      end
+
+      # Application Telemetry Options for {Couchbase::Cluster.connect}. Part of {Couchbase::Options::Cluster}
+      #
+      # @see Options::Cluster#application_telemetry
+      #
+      # @!macro volatile
+      class ApplicationTelemetry
+        attr_accessor :enable # @return [nil, Boolean]
+        attr_accessor :override_endpoint # @return [nil, String]
+        attr_accessor :backoff # @return [nil, Integer, #in_milliseconds]
+        attr_accessor :ping_interval # @return [nil, Integer, #in_milliseconds]
+        attr_accessor :ping_timeout # @return [nil, Integer, #in_milliseconds]
+
+        # Creates an instance of app telemetry options for {Couchbase::Cluster.connect}.
+        # Part of {Couchbase::Options::Cluster}.
+        #
+        # @param [nil, Boolean] enable whether to enable application telemetry capture.
+        #   Application telemetry is enabled by default.
+        # @param [nil, String] override_endpoint overrides the default endpoint used for application service telemetry
+        #   The endpoint must use the WebSocket protocol and the string should start with `ws://`.
+        # @param [nil, Integer, #in_milliseconds] backoff specifies the duration to wait between connection attempts
+        #   to an application telemetry endpoint
+        # @param [nil, Integer, #in_milliseconds] ping_interval specifies how often the SDK should ping the application
+        #   service telemetry collector
+        # @param [nil, Integer, #in_milliseconds] ping_timeout specifies how long the SDK should wait for a ping
+        #   response (pong) from the application service collector, before closing the connection and attempting to reconnect
+        def initialize(enable: nil,
+                       override_endpoint: nil,
+                       backoff: nil,
+                       ping_interval: nil,
+                       ping_timeout: nil)
+          @enable = enable
+          @override_endpoint = override_endpoint
+          @backoff = backoff
+          @ping_interval = ping_interval
+          @ping_timeout = ping_timeout
+
+          yield self if block_given?
+        end
+
+        # @api private
+        def to_backend
+          {
+            enable: @enable,
+            override_endpoint: @override_endpoint,
+            backoff: Utils::Time.extract_duration(@backoff),
+            ping_interval: Utils::Time.extract_duration(@ping_interval),
+            ping_timeout: Utils::Time.extract_duration(@ping_timeout),
+          }
+        end
       end
     end
 

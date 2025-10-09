@@ -106,6 +106,9 @@ get_uint16_t(VALUE options, VALUE name);
 std::optional<VALUE>
 get_symbol(VALUE options, VALUE name);
 
+std::optional<VALUE>
+get_hash(VALUE options, VALUE name);
+
 std::optional<std::string>
 get_string(VALUE options, VALUE name);
 } // namespace options
