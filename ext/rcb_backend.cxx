@@ -178,7 +178,8 @@ cb_Backend_allocate(VALUE klass)
 }
 
 auto
-construct_cluster_options(VALUE credentials, bool tls_enabled) -> couchbase::cluster_options
+construct_authenticator(VALUE credentials)
+  -> std::variant<couchbase::password_authenticator, couchbase::certificate_authenticator>
 {
   cb_check_type(credentials, T_HASH);
 
@@ -198,11 +199,30 @@ construct_cluster_options(VALUE credentials, bool tls_enabled) -> couchbase::clu
     cb_check_type(username, T_STRING);
     cb_check_type(password, T_STRING);
 
-    return cluster_options{
-      password_authenticator{
-        cb_string_new(username),
-        cb_string_new(password),
-      },
+    return couchbase::password_authenticator{
+      cb_string_new(username),
+      cb_string_new(password),
+    };
+  }
+
+  cb_check_type(certificate_path, T_STRING);
+  cb_check_type(key_path, T_STRING);
+
+  return couchbase::certificate_authenticator{
+    cb_string_new(certificate_path),
+    cb_string_new(key_path),
+  };
+}
+
+auto
+construct_cluster_options(VALUE credentials, bool tls_enabled) -> couchbase::cluster_options
+{
+  std::variant<couchbase::password_authenticator, couchbase::certificate_authenticator>
+    authenticator = construct_authenticator(credentials);
+
+  if (std::holds_alternative<couchbase::password_authenticator>(authenticator)) {
+    return couchbase::cluster_options{
+      std::get<couchbase::password_authenticator>(std::move(authenticator)),
     };
   }
 
@@ -212,14 +232,8 @@ construct_cluster_options(VALUE credentials, bool tls_enabled) -> couchbase::clu
       "Certificate authenticator requires TLS connection, check the connection string");
   }
 
-  cb_check_type(certificate_path, T_STRING);
-  cb_check_type(key_path, T_STRING);
-
-  return cluster_options{
-    certificate_authenticator{
-      cb_string_new(certificate_path),
-      cb_string_new(key_path),
-    },
+  return couchbase::cluster_options{
+    std::get<couchbase::certificate_authenticator>(std::move(authenticator)),
   };
 }
 
@@ -610,6 +624,36 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
   return Qnil;
 }
 
+VALUE
+cb_Backend_update_credentials(VALUE self, VALUE credentials)
+{
+  auto cluster = cb_backend_to_public_api_cluster(self);
+
+  try {
+    std::variant<couchbase::password_authenticator, couchbase::certificate_authenticator>
+      authenticator = construct_authenticator(credentials);
+
+    couchbase::error err{};
+    if (std::holds_alternative<couchbase::password_authenticator>(authenticator)) {
+      err = cluster.set_authenticator(
+        std::get<couchbase::password_authenticator>(std::move(authenticator)));
+    } else {
+      err = cluster.set_authenticator(
+        std::get<couchbase::certificate_authenticator>(std::move(authenticator)));
+    }
+    if (err) {
+      cb_throw_error(err, "failed to update authenticator");
+    }
+  } catch (const std::system_error& se) {
+    rb_exc_raise(cb_map_error_code(
+      se.code(), fmt::format("failed to update authenticator {}: {}", __func__, se.what()), false));
+  } catch (const ruby_exception& e) {
+    rb_exc_raise(e.exception_object());
+  }
+
+  return Qnil;
+}
+
 } // namespace
 
 VALUE
@@ -620,6 +664,7 @@ init_backend(VALUE mCouchbase)
   rb_define_method(cBackend, "open", cb_Backend_open, 3);
   rb_define_method(cBackend, "open_bucket", cb_Backend_open_bucket, 2);
   rb_define_method(cBackend, "close", cb_Backend_close, 0);
+  rb_define_method(cBackend, "update_credentials", cb_Backend_update_credentials, 1);
 
   rb_define_singleton_method(cBackend, "notify_fork", cb_Backend_notify_fork, 1);
   return cBackend;
