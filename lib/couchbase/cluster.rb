@@ -90,6 +90,31 @@ module Couchbase
       Bucket.new(@backend, name)
     end
 
+    def update_authenticator(authenticator)
+      credentials = {}
+
+      case authenticator
+      when PasswordAuthenticator
+        credentials[:username] = authenticator.username
+        raise ArgumentError, "missing username" unless credentials[:username]
+
+        credentials[:password] = authenticator.password
+        raise ArgumentError, "missing password" unless credentials[:password]
+
+      when CertificateAuthenticator
+        credentials[:certificate_path] = authenticator.certificate_path
+        raise ArgumentError, "missing certificate path" unless credentials[:certificate_path]
+
+        credentials[:key_path] = authenticator.key_path
+        raise ArgumentError, "missing key path" unless credentials[:key_path]
+
+      else
+        raise ArgumentError, "argument must be an authenticator"
+      end
+
+      @backend.update_credentials(credentials)
+    end
+
     # Performs a query against the query (N1QL) services
     #
     # @param [String] statement the N1QL query statement
@@ -332,22 +357,22 @@ module Couchbase
           raise ArgumentError, "missing username" unless credentials[:username]
           raise ArgumentError, "missing password" unless credentials[:password]
         when Options::Cluster
-          open_options = options&.to_backend || {}
-          authenticator = options&.authenticator
+          open_options = options.to_backend || {}
+          authenticator = options.authenticator
           case authenticator
           when PasswordAuthenticator
-            credentials[:username] = authenticator&.username
+            credentials[:username] = authenticator.username
             raise ArgumentError, "missing username" unless credentials[:username]
 
-            credentials[:password] = authenticator&.password
+            credentials[:password] = authenticator.password
             raise ArgumentError, "missing password" unless credentials[:password]
 
-            open_options[:allowed_sasl_mechanisms] = authenticator&.allowed_sasl_mechanisms
+            open_options[:allowed_sasl_mechanisms] = authenticator.allowed_sasl_mechanisms
           when CertificateAuthenticator
-            credentials[:certificate_path] = authenticator&.certificate_path
+            credentials[:certificate_path] = authenticator.certificate_path
             raise ArgumentError, "missing certificate path" unless credentials[:certificate_path]
 
-            credentials[:key_path] = authenticator&.key_path
+            credentials[:key_path] = authenticator.key_path
             raise ArgumentError, "missing key path" unless credentials[:key_path]
 
           else
