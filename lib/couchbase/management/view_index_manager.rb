@@ -15,9 +15,114 @@
 #  limitations under the License.
 
 require "couchbase/errors"
+require "couchbase/options"
 
 module Couchbase
   module Management
+    module Options
+      module View
+        # Options for {ViewIndexManager#get_design_document}
+        class GetDesignDocument < Couchbase::Options::Base
+          # Creates an instance of options for {ViewIndexManager#get_design_document}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetDesignDocument]
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = new.freeze
+        end
+
+        # Options for {ViewIndexManager#get_all_design_documents}
+        class GetAllDesignDocuments < Couchbase::Options::Base
+          # Creates an instance of options for {ViewIndexManager#get_all_design_documents}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetAllDesignDocuments]
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = new.freeze
+        end
+
+        # Options for {ViewIndexManager#upsert_design_document}
+        class UpsertDesignDocument < Couchbase::Options::Base
+          # Creates an instance of options for {ViewIndexManager#upsert_design_document}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [UpsertDesignDocument]
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = new.freeze
+        end
+
+        # Options for {ViewIndexManager#drop_design_document}
+        class DropDesignDocument < Couchbase::Options::Base
+          # Creates an instance of options for {ViewIndexManager#drop_design_document}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [DropDesignDocument]
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = new.freeze
+        end
+
+        # Options for {ViewIndexManager#publish_design_document}
+        class PublishDesignDocument < Couchbase::Options::Base
+          # Creates an instance of options for {ViewIndexManager#publish_design_document}
+          #
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [PublishDesignDocument]
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = new.freeze
+        end
+      end
+    end
+
     # The View Index Manager interface contains the means for managing design documents used for views.
     #
     # A design document belongs to either the "development" or "production" namespace. A development document has a name
@@ -50,12 +155,12 @@ module Couchbase
       #
       # @param [String] name the name of the design document
       # @param [:production, :development] namespace the namespace
-      # @param [GetDesignDocumentOptions] options
+      # @param [Options::View::GetDesignDocument] options
       #
       # @return [DesignDocument]
       #
       # @raise [Error::DesignDocumentNotFound]
-      def get_design_document(name, namespace, options = GetDesignDocumentOptions.new)
+      def get_design_document(name, namespace, options = Options::View::GetDesignDocument::DEFAULT)
         resp = @backend.view_index_get(@bucket_name, name, namespace, options.timeout)
         extract_design_document(resp)
       end
@@ -63,10 +168,10 @@ module Couchbase
       # Fetches all design documents from the server
       #
       # @param [:production, :development] namespace the namespace
-      # @param [GetAllDesignDocumentsOptions] options
+      # @param [Options::View::GetAllDesignDocuments] options
       #
       # @return [Array<DesignDocument>]
-      def get_all_design_documents(namespace, options = GetAllDesignDocumentsOptions.new)
+      def get_all_design_documents(namespace, options = Options::View::GetAllDesignDocuments::DEFAULT)
         resp = @backend.view_index_get_all(@bucket_name, namespace, options.timeout)
         resp.map do |entry|
           extract_design_document(entry)
@@ -77,10 +182,10 @@ module Couchbase
       #
       # @param [DesignDocument] document
       # @param [:production, :development] namespace the namespace
-      # @param [UpsertDesignDocumentOptions] options
+      # @param [Options::View::UpsertDesignDocument] options
       #
       # @return [void]
-      def upsert_design_document(document, namespace, options = UpsertDesignDocumentOptions.new)
+      def upsert_design_document(document, namespace, options = Options::View::UpsertDesignDocument::DEFAULT)
         @backend.view_index_upsert(@bucket_name, {
           name: document.name,
           views: document.views.map do |name, view|
@@ -97,12 +202,12 @@ module Couchbase
       #
       # @param [String] name design document name
       # @param [:production, :development] namespace the namespace
-      # @param [DropDesignDocumentOptions] options
+      # @param [Options::View::DropDesignDocument] options
       #
       # @return [void]
       #
       # @raise [Error::DesignDocumentNotFound]
-      def drop_design_document(name, namespace, options = DropDesignDocumentOptions.new)
+      def drop_design_document(name, namespace, options = Options::View::DropDesignDocument::DEFAULT)
         @backend.view_index_drop(@bucket_name, name, namespace, options.timeout)
       end
 
@@ -112,66 +217,36 @@ module Couchbase
       # it to the production namespace.
       #
       # @param [String] name design document name
-      # @param [PublishDesignDocumentOptions] options
+      # @param [Options::View::PublishDesignDocument] options
       #
       # @return [void]
       #
       # @raise [ArgumentError]
       # @raise [Error::DesignDocumentNotFound]
-      def publish_design_document(name, options = PublishDesignDocumentOptions.new)
-        document = get_design_document(name, :development, GetDesignDocumentOptions.new { |o| o.timeout = options.timeout })
-        upsert_design_document(document, :production, UpsertDesignDocumentOptions.new { |o| o.timeout = options.timeout })
+      def publish_design_document(name, options = Options::View::PublishDesignDocument::DEFAULT)
+        document = get_design_document(name, :development, Options::View::GetDesignDocument.new(timeout: options.timeout))
+        upsert_design_document(document, :production, Options::View::UpsertDesignDocument.new(timeout: options.timeout))
       end
 
-      class GetDesignDocumentOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
+      # @api private
+      # @deprecated use {Options::View::GetDesignDocument} instead
+      GetDesignDocumentOptions = Options::View::GetDesignDocument
 
-        # @yieldparam [GetDesignDocumentOptions] self
-        def initialize
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # @deprecated use {Options::View::GetAllDesignDocuments} instead
+      GetAllDesignDocumentsOptions = Options::View::GetAllDesignDocuments
 
-      class GetAllDesignDocumentsOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
+      # @api private
+      # @deprecated use {Options::View::UpsertDesignDocument} instead
+      UpsertDesignDocumentOptions = Options::View::UpsertDesignDocument
 
-        # @yieldparam [GetAllDesignDocumentsOptions] self
-        def initialize
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # @deprecated use {Options::View::DropDesignDocument} instead
+      DropDesignDocumentOptions = Options::View::DropDesignDocument
 
-      class UpsertDesignDocumentOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [UpsertDesignDocumentOptions] self
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class DropDesignDocumentOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [DropDesignDocumentOptions] self
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class PublishDesignDocumentOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [PublishDesignDocumentOptions] self
-        def initialize
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # @deprecated use {Options::View::PublishDesignDocument} instead
+      PublishDesignDocumentOptions = Options::View::PublishDesignDocument
 
       private
 

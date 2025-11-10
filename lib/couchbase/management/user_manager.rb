@@ -15,11 +15,227 @@
 #  limitations under the License.
 
 require "couchbase/errors"
+require "couchbase/options"
 
 require "time"
 
 module Couchbase
   module Management
+    module Options
+      module User
+        # Options for {UserManager#get_user}
+        class GetUser < ::Couchbase::Options::Base
+          # @return [:local, :external] Name of the user's domain. Defaults to +:local+
+          attr_accessor :domain
+
+          # Creates an instance of options for {UserManager#get_user}
+          # @param [:local, :external] domain the name of the user's domain. Defaults to +:local+
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetUser] self
+          def initialize(domain: :local,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, parent_span: parent_span)
+            @domain = domain
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = GetUser.new.freeze
+        end
+
+        # Options for {UserManager#get_all_users}
+        class GetAllUsers < ::Couchbase::Options::Base
+          # @return [:local, :external] Name of the user's domain. Defaults to +:local+
+          attr_accessor :domain
+
+          # Creates an instance of options for {UserManager#get_all_users}
+          # @param [:local, :external] the name of the user's domain. Defaults to +:local+
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetAllUsers] self
+          def initialize(domain: :local,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, parent_span: parent_span)
+            @domain = domain
+            yield self if block_given?
+          end
+        end
+
+        # Options for {UserManager#upsert_user}
+        class UpsertUser < ::Couchbase::Options::Base
+          # @return [:local, :external] Name of the user's domain. Defaults to +:local+
+          attr_accessor :domain
+
+          # Creates an instance of options for {UserManager#upsert_user}
+          # @param [:local, :external] domain the name of the user's domain. Defaults to +:local+
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [UpsertUser] self
+          def initialize(domain: :local,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, parent_span: parent_span)
+            @domain = domain
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = UpsertUser.new.freeze
+        end
+
+        # Options for {UserManager#drop_user}
+        class DropUser < ::Couchbase::Options::Base
+          # @return [:local, :external] Name of the user's domain. Defaults to +:local+
+          attr_accessor :domain
+
+          # Creates an instance of options for {UserManager#drop_user}
+          # @param [:local, :external] domain the name of the user's domain. Defaults to +:local+
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [DropUser] self
+          def initialize(domain: :local,
+                         timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super(timeout: timeout, retry_strategy: retry_strategy, parent_span: parent_span)
+            @domain = domain
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = DropUser.new.freeze
+        end
+
+        # Options for {UserManager#change_password}
+        class ChangePassword < ::Couchbase::Options::Base
+          # Creates an instance of options for {UserManager#change_password}
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [ChangePassword] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = ChangePassword.new.freeze
+        end
+
+        # Options for {UserManager#get_roles}
+        class GetRoles < ::Couchbase::Options::Base
+          # Creates an instance of options for {UserManager#get_roles}
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetRoles] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = GetRoles.new.freeze
+        end
+
+        # Options for {UserManager#get_group}
+        class GetGroup < ::Couchbase::Options::Base
+          # Creates an instance of options for {UserManager#get_group}
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetGroup] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = GetGroup.new.freeze
+        end
+
+        # Options for {UserManager#get_all_groups}
+        class GetAllGroups < ::Couchbase::Options::Base
+          # Creates an instance of options for {UserManager#get_all_groups}
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [GetAllGroups] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = GetAllGroups.new.freeze
+        end
+
+        # Options for {UserManager#upsert_group}
+        class UpsertGroup < ::Couchbase::Options::Base
+          # Creates an instance of options for {UserManager#upsert_group}
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [UpsertGroup] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = UpsertGroup.new.freeze
+        end
+
+        # Options for {UserManager#drop_group}
+        class DropGroup < ::Couchbase::Options::Base
+          # Creates an instance of options for {UserManager#drop_group}
+          # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
+          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+          #
+          # @yieldparam [DropGroup] self
+          def initialize(timeout: nil,
+                         retry_strategy: nil,
+                         parent_span: nil)
+            super
+            yield self if block_given?
+          end
+
+          # @api private
+          DEFAULT = DropGroup.new.freeze
+        end
+      end
+    end
+
     class UserManager
       alias inspect to_s
 
@@ -31,21 +247,23 @@ module Couchbase
       # Get a user
       #
       # @param [String] username ID of the user
-      # @param [GetUserOptions] options
+      # @param [Options::User::GetUser] options
       #
       # @return [UserAndMetadata]
       #
       # @raise [ArgumentError]
       # @raise [Error::UserNotFound]
-      def get_user(username, options = GetUserOptions.new)
+      def get_user(username, options = Options::User::GetUser::DEFAULT)
         resp = @backend.user_get(options.domain, username, options.timeout)
         extract_user(resp)
       end
 
       # Gets all users
       #
+      # @param [Options::User::GetAllUsers] options
+      #
       # @return [Array<UserAndMetadata>]
-      def get_all_users(options = GetAllUsersOptions.new)
+      def get_all_users(options = Options::User::GetAllUsers::DEFAULT)
         resp = @backend.user_get_all(options.domain, options.timeout)
         resp.map { |entry| extract_user(entry) }
       end
@@ -53,10 +271,10 @@ module Couchbase
       # Creates or updates a user
       #
       # @param [User] user the new version of the user
-      # @param [UpsertUserOptions] options
+      # @param [Options::User::UpsertUser] options
       #
       # @raise [ArgumentError]
-      def upsert_user(user, options = UpsertUserOptions.new)
+      def upsert_user(user, options = Options::User::UpsertUser::DEFAULT)
         @backend.user_upsert(
           options.domain,
           {
@@ -79,17 +297,17 @@ module Couchbase
       # Removes a user
       #
       # @param [String] username ID of the user
-      # @param [DropUserOptions] options
-      def drop_user(username, options = DropUserOptions.new)
+      # @param [Options::User::DropUser] options
+      def drop_user(username, options = Options::User::DropUser::DEFAULT)
         @backend.user_drop(options.domain, username, options.timeout)
       end
 
       # Gets all roles supported by the server
       #
-      # @param [GetRolesOptions] options
+      # @param [Options::User::GetRoles] options
       #
       # @return [Array<RoleAndDescription>]
-      def get_roles(options = GetRolesOptions.new)
+      def get_roles(options = Options::User::GetRoles::DEFAULT)
         resp = @backend.role_get_all(options.timeout)
         resp.map do |r|
           RoleAndDescription.new do |role|
@@ -105,32 +323,33 @@ module Couchbase
 
       # Changes the password of the currently authenticated user
       #
-      # @param [ChangePasswordOptions] options
+      # @param [Options::User::ChangePassword] options
       #
       # @raise [ArgumentError]
-      def change_password(new_password, options = ChangePasswordOptions.new)
+      def change_password(new_password, options = Options::User::ChangePassword::DEFAULT)
         @backend.change_password(new_password, options.timeout)
       end
 
       # Gets a group
       #
       # @param [String] group_name name of the group to get
+      # @param [Options::User::GetGroup] options
       #
       # @return [Group]
       #
       # @raise [ArgumentError]
       # @raise [Error::GroupNotFound]
-      def get_group(group_name, options = GetGroupOptions.new)
+      def get_group(group_name, options = Options::User::GetGroup::DEFAULT)
         resp = @backend.group_get(group_name, options.timeout)
         extract_group(resp)
       end
 
       # Gets all groups
       #
-      # @param [GetAllGroupsOptions] options
+      # @param [Options::User::GetAllGroups] options
       #
       # @return [Array<Group>]
-      def get_all_groups(options = GetAllGroupsOptions.new)
+      def get_all_groups(options = Options::User::GetAllGroups::DEFAULT)
         resp = @backend.group_get_all(options.timeout)
         resp.map { |entry| extract_group(entry) }
       end
@@ -138,11 +357,11 @@ module Couchbase
       # Creates or updates a group
       #
       # @param [Group] group the new version of the group
-      # @param [UpsertGroupOptions] options
+      # @param [Options::User::UpsertGroup] options
       #
       # @raise [ArgumentError]
       # @raise [Error::GroupNotFound]
-      def upsert_group(group, options = UpsertGroupOptions.new)
+      def upsert_group(group, options = Options::User::UpsertGroup::DEFAULT)
         @backend.group_upsert({
           name: group.name,
           description: group.description,
@@ -161,128 +380,52 @@ module Couchbase
       # Removes a group
       #
       # @param [String] group_name name of the group
-      # @param [DropGroupOptions] options
+      # @param [Options::User::DropGroup] options
       #
       # @raise [Error::GroupNotFound]
-      def drop_group(group_name, options = DropGroupOptions.new)
+      def drop_group(group_name, options = Options::User::DropGroup::DEFAULT)
         @backend.group_drop(group_name, options.timeout)
       end
 
-      class GetUserOptions
-        # @return [:local, :external] Name of the user's domain. Defaults to +:local+
-        attr_accessor :domain
+      # @api private
+      # @deprecated Use {Couchbase::Management::Options::User::GetUser} instead
+      GetUserOptions = ::Couchbase::Management::Options::User::GetUser
 
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
+      # @api private
+      # @deprecated Use {Couchbase::Management::Options::User::GetAllUsers} instead
+      GetAllUsersOptions = ::Couchbase::Management::Options::User::GetAllUsers
 
-        # @yieldparam [GetUserOptions] self
-        def initialize
-          @domain = :local
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # @deprecated Use {Couchbase::Management::Options::User::UpsertUser} instead
+      UpsertUserOptions = ::Couchbase::Management::Options::User::UpsertUser
 
-      class GetAllUsersOptions
-        # @return [:local, :external] Name of the user's domain. Defaults to +:local+
-        attr_accessor :domain
+      # @api private
+      # @deprecated Use {Couchbase::Management::Options::User::DropUser} instead
+      DropUserOptions = ::Couchbase::Management::Options::User::DropUser
 
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
+      # @api private
+      # @deprecated Use {Couchbase::Management::Options::User::ChangePassword} instead
+      ChangePasswordOptions = ::Couchbase::Management::Options::User::ChangePassword
 
-        # @yieldparam [GetAllUsersOptions] self
-        def initialize
-          @domain = :local
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # @deprecated Use {Couchbase::Management::Options::User::GetRoles} instead
+      GetRolesOptions = ::Couchbase::Management::Options::User::GetRoles
 
-      class UpsertUserOptions
-        # @return [:local, :external] Name of the user's domain. Defaults to +:local+
-        attr_accessor :domain
+      # @api private
+      # @deprecated Use {Couchbase::Management::Options::User::GetGroup} instead
+      GetGroupOptions = ::Couchbase::Management::Options::User::GetGroup
 
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
+      # @api private
+      # @deprecated Use {Couchbase::Management::Options::User::GetAllGroups} instead
+      GetAllGroupsOptions = ::Couchbase::Management::Options::User::GetAllGroups
 
-        # @yieldparam [UpsertUserOptions] self
-        def initialize
-          @domain = :local
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # @deprecated Use {Couchbase::Management::Options::User::UpsertGroup} instead
+      UpsertGroupOptions = ::Couchbase::Management::Options::User::UpsertGroup
 
-      class DropUserOptions
-        # @return [:local, :external] Name of the user's domain. Defaults to +:local+
-        attr_accessor :domain
-
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [DropUserOptions] self
-        def initialize
-          @domain = :local
-          yield self if block_given?
-        end
-      end
-
-      class ChangePasswordOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [ChangePasswordOptions] self
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class GetRolesOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [GetRolesOptions] self
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class GetGroupOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [GetGroupOptions] self
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class GetAllGroupsOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [GetAllGroupsOptions] self
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class UpsertGroupOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [UpsertGroupOptions] self
-        def initialize
-          yield self if block_given?
-        end
-      end
-
-      class DropGroupOptions
-        # @return [Integer] the time in milliseconds allowed for the operation to complete
-        attr_accessor :timeout
-
-        # @yieldparam [DropGroupOptions] self
-        def initialize
-          yield self if block_given?
-        end
-      end
+      # @api private
+      # @deprecated Use {Couchbase::Management::Options::User::DropGroup} instead
+      DropGroupOptions = ::Couchbase::Management::Options::User::DropGroup
 
       private
 
