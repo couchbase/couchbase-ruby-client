@@ -85,6 +85,10 @@ module Couchbase
     #                     ))
     #
     # @return [ViewResult]
+    #
+    # @deprecated Views are deprecated in Couchbase Server 7.0+, and will be removed from a future server version.
+    #   Views are not compatible with the Magma storage engine. Instead of views, use indexes and queries using the
+    #   Index Service (GSI) and the Query Service (SQL++).
     def view_query(design_document_name, view_name, options = Options::View::DEFAULT)
       @observability.record_operation(Observability::OP_VIEW_QUERY, opts.parent_span, self, :views) do |_obs_handler|
         resp = @backend.document_view(@name, design_document_name, view_name, options.namespace, options.to_backend)
@@ -110,6 +114,10 @@ module Couchbase
     end
 
     # @return [Management::ViewIndexManager]
+    #
+    # @deprecated Views are deprecated in Couchbase Server 7.0+, and will be removed from a future server version.
+    #   Views are not compatible with the Magma storage engine. Instead of views, use indexes and queries using the
+    #   Index Service (GSI) and the Query Service (SQL++).
     def view_indexes
       Management::ViewIndexManager.new(@backend, @name, @observability)
     end

@@ -15,6 +15,7 @@
  *   limitations under the License.
  */
 
+#define COUCHBASE_CXX_CLIENT_IGNORE_CORE_DEPRECATIONS
 #include <core/cluster.hxx>
 #include <core/design_document_namespace_fmt.hxx>
 #include <core/operations/document_view.hxx>
@@ -22,6 +23,7 @@
 #include <core/operations/management/view_index_get.hxx>
 #include <core/operations/management/view_index_get_all.hxx>
 #include <core/operations/management/view_index_upsert.hxx>
+#undef COUCHBASE_CXX_CLIENT_IGNORE_CORE_DEPRECATIONS
 
 #include <future>
 

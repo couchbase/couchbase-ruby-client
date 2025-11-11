@@ -138,6 +138,10 @@ module Couchbase
     # All methods (except publish) have a required "namespace" argument indicating whether the operation targets a
     # development document or a production document. The type of this argument is [Symbol] with allowed values
     # +:production+ and +:development+.
+    #
+    # @deprecated Views are deprecated in Couchbase Server 7.0+, and will be removed from a future server version.
+    #   Views are not compatible with the Magma storage engine. Instead of views, use indexes and queries using the
+    #   Index Service (GSI) and the Query Service (SQL++).
     class ViewIndexManager
       alias inspect to_s
 
