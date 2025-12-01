@@ -37,6 +37,7 @@ module Couchbase
         @collection = collection
         @options = options
         @cas = 0
+        @observability = collection.instance_variable_get(:@observability)
       end
 
       # Calls the given block once for each element in the map, passing that element as a parameter.
@@ -44,46 +45,57 @@ module Couchbase
       # @yieldparam [Object] item
       #
       # @return [CouchbaseMap, Enumerable]
-      def each(&)
+      def each(parent_span: nil, &)
         if block_given?
-          begin
-            result = @collection.get(@id, @options.get_options)
-            current = result.content
-            @cas = result.cas
-          rescue Error::DocumentNotFound
-            current = []
-            @cas = 0
-          end
+          current =
+            @observability.record_operation(Observability::OP_MAP_EACH, parent_span, self) do |obs_handler|
+              options = @options.get_options.clone
+              options.parent_span = obs_handler.op_span
+              result = @collection.get(@id, options)
+              @cas = result.cas
+              result.content
+            rescue Error::DocumentNotFound
+              @cas = 0
+              []
+            end
           current.each(&)
           self
         else
-          enum_for(:each)
+          enum_for(:each, parent_span: parent_span)
         end
       end
 
       # @return [Integer] returns the number of elements in the map.
-      def length
-        result = @collection.lookup_in(@id, [
-                                         LookupInSpec.count(""),
-                                       ], @options.lookup_in_options)
-        result.content(0)
-      rescue Error::DocumentNotFound
-        0
+      def length(parent_span: nil)
+        @observability.record_operation(Observability::OP_MAP_LENGTH, parent_span, self) do |obs_handler|
+          options = @options.lookup_in_options.clone
+          options.parent_span = obs_handler.op_span
+          result = @collection.lookup_in(@id, [
+                                           LookupInSpec.count(""),
+                                         ], options)
+          result.content(0)
+        rescue Error::DocumentNotFound
+          0
+        end
       end
 
       alias size length
 
       # @return [Boolean] returns true if map is empty
-      def empty?
-        size.zero?
+      def empty?(parent_span: nil)
+        size(parent_span: parent_span).zero?
       end
 
       # Removes all elements from the map
-      def clear
-        @collection.remove(@id, @options.remove_options)
-        nil
-      rescue Error::DocumentNotFound
-        nil
+      def clear(parent_span: nil)
+        @observability.record_operation(Observability::OP_MAP_CLEAR, parent_span, self) do |obs_handler|
+          options = @options.remove_options.clone
+          options.parent_span = obs_handler.op_span
+          @collection.remove(@id, options)
+          nil
+        rescue Error::DocumentNotFound
+          nil
+        end
       end
 
       # Returns a value from the map for the given key.
@@ -109,16 +121,20 @@ module Couchbase
       #   @yieldreturn [Object] the default value to return in case the key could not be found
       #
       # @return [Object]
-      def fetch(key, *rest)
-        result = @collection.lookup_in(@id, [
-                                         LookupInSpec.get(key),
-                                       ], @options.lookup_in_options)
-        result.content(0)
-      rescue Error::DocumentNotFound, Error::PathNotFound
-        return yield if block_given?
-        return rest.first unless rest.empty?
+      def fetch(key, *rest, parent_span: nil)
+        @observability.record_operation(Observability::OP_MAP_FETCH, parent_span, self) do |obs_handler|
+          options = @options.lookup_in_options.clone
+          options.parent_span = obs_handler.op_span
+          result = @collection.lookup_in(@id, [
+                                           LookupInSpec.get(key),
+                                         ], options)
+          result.content(0)
+        rescue Error::DocumentNotFound, Error::PathNotFound
+          return yield if block_given?
+          return rest.first unless rest.empty?
 
-        raise KeyError, "key not found: #{key}"
+          raise KeyError, "key not found: #{key}"
+        end
       end
 
       # Returns a value from the map for the given key.
@@ -138,10 +154,24 @@ module Couchbase
       # @param [Object] value
       #
       # @return [void]
+      def store(key, value, parent_span: nil)
+        @observability.record_operation(Observability::OP_MAP_STORE, parent_span, self) do |obs_handler|
+          options = @options.mutate_in_options.clone
+          options.parent_span = obs_handler.op_span
+          @collection.mutate_in(@id, [
+                                  MutateInSpec.upsert(key, value),
+                                ], options)
+        end
+      end
+
+      # Associate the value given by +value+ with the key given by +key+.
+      #
+      # @param [String] key
+      # @param [Object] value
+      #
+      # @return [void]
       def []=(key, value)
-        @collection.mutate_in(@id, [
-                                MutateInSpec.upsert(key, value),
-                              ], @options.mutate_in_options)
+        store(key, value)
       end
 
       # Deletes the key-value pair from the map.
@@ -149,25 +179,31 @@ module Couchbase
       # @param [String] key
       #
       # @return void
-      def delete(key)
-        @collection.mutate_in(@id, [
-                                MutateInSpec.remove(key),
-                              ])
-      rescue Error::DocumentNotFound, Error::PathNotFound
-        nil
+      def delete(key, parent_span: nil)
+        @observability.record_operation(Observability::OP_MAP_DELETE, parent_span, self) do |obs_handler|
+          @collection.mutate_in(@id, [
+                                  MutateInSpec.remove(key),
+                                ], Options::MutateIn.new(parent_span: obs_handler.op_span))
+        rescue Error::DocumentNotFound, Error::PathNotFound
+          nil
+        end
       end
 
       # Returns +true+ if the given key is present
       #
       # @param [String] key
       # @return [Boolean]
-      def key?(key)
-        result = @collection.lookup_in(@id, [
-                                         LookupInSpec.exists(key),
-                                       ], @options.lookup_in_options)
-        result.exists?(0)
-      rescue Error::DocumentNotFound, Error::PathNotFound
-        false
+      def key?(key, parent_span: nil)
+        @observability.record_operation(Observability::OP_MAP_KEY_EXISTS, parent_span, self) do |obs_handler|
+          options = @options.lookup_in_options.clone
+          options.parent_span = obs_handler.op_span
+          result = @collection.lookup_in(@id, [
+                                           LookupInSpec.exists(key),
+                                         ], options)
+          result.exists?(0)
+        rescue Error::DocumentNotFound, Error::PathNotFound
+          false
+        end
       end
 
       alias member? key?

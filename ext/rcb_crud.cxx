@@ -41,6 +41,7 @@
 #include <ruby.h>
 
 #include "rcb_backend.hxx"
+#include "rcb_observability.hxx"
 #include "rcb_utils.hxx"
 
 namespace couchbase
@@ -77,7 +78,8 @@ cb_Backend_document_get(VALUE self,
                         VALUE scope,
                         VALUE collection,
                         VALUE id,
-                        VALUE options)
+                        VALUE options,
+                        VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -96,12 +98,14 @@ cb_Backend_document_get(VALUE self,
 
     core::operations::get_request req{ doc_id };
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::get_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to fetch document");
     }
@@ -235,7 +239,8 @@ cb_Backend_document_get_projected(VALUE self,
                                   VALUE scope,
                                   VALUE collection,
                                   VALUE id,
-                                  VALUE options)
+                                  VALUE options,
+                                  VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -257,6 +262,7 @@ cb_Backend_document_get_projected(VALUE self,
 
     core::operations::get_projected_request req{ doc_id };
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     cb_extract_option_bool(req.with_expiry, options, "with_expiry");
     cb_extract_option_bool(req.preserve_array_indexes, options, "preserve_array_indexes");
     VALUE projections = Qnil;
@@ -280,6 +286,7 @@ cb_Backend_document_get_projected(VALUE self,
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable fetch with projections");
     }
@@ -1540,10 +1547,10 @@ cb_Backend_document_mutate_in(VALUE self,
 void
 init_crud(VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_get", cb_Backend_document_get, 5);
+  rb_define_method(cBackend, "document_get", cb_Backend_document_get, 6);
   rb_define_method(cBackend, "document_get_any_replica", cb_Backend_document_get_any_replica, 5);
   rb_define_method(cBackend, "document_get_all_replicas", cb_Backend_document_get_all_replicas, 5);
-  rb_define_method(cBackend, "document_get_projected", cb_Backend_document_get_projected, 5);
+  rb_define_method(cBackend, "document_get_projected", cb_Backend_document_get_projected, 6);
   rb_define_method(cBackend, "document_get_and_lock", cb_Backend_document_get_and_lock, 6);
   rb_define_method(cBackend, "document_get_and_touch", cb_Backend_document_get_and_touch, 6);
   rb_define_method(cBackend, "document_insert", cb_Backend_document_insert, 7);

@@ -198,9 +198,13 @@ module Couchbase
 
       # @param [Couchbase::Backend] backend
       # @param [String] bucket_name
-      def initialize(backend, bucket_name)
+      # @param [Observability::Wrapper] observability wrapper
+      #
+      # @api private
+      def initialize(backend, bucket_name, observability)
         @backend = backend
         @bucket_name = bucket_name
+        @observability = observability
       end
 
       # Get all scopes
@@ -209,16 +213,18 @@ module Couchbase
       #
       # @return [Array<ScopeSpec>]
       def get_all_scopes(options = Options::Collection::GetAllScopes.new)
-        res = @backend.scope_get_all(@bucket_name, options.to_backend)
-        res[:scopes].map do |s|
-          ScopeSpec.new do |scope|
-            scope.name = s[:name]
-            scope.collections = s[:collections].map do |c|
-              CollectionSpec.new do |collection|
-                collection.name = c[:name]
-                collection.scope_name = s[:name]
-                collection.max_expiry = c[:max_expiry]
-                collection.history = c[:history]
+        @observability.record_operation(Observability::OP_CM_GET_ALL_SCOPES, options.parent_span, self, :management) do |_obs_handler|
+          res = @backend.scope_get_all(@bucket_name, options.to_backend)
+          res[:scopes].map do |s|
+            ScopeSpec.new do |scope|
+              scope.name = s[:name]
+              scope.collections = s[:collections].map do |c|
+                CollectionSpec.new do |collection|
+                  collection.name = c[:name]
+                  collection.scope_name = s[:name]
+                  collection.max_expiry = c[:max_expiry]
+                  collection.history = c[:history]
+                end
               end
             end
           end
@@ -236,8 +242,12 @@ module Couchbase
       #
       # @raise [Error::ScopeNotFound]
       def get_scope(scope_name, options = GetScopeOptions.new)
-        get_all_scopes(Options::Collection::GetAllScopes(timeout: options.timeout))
-          .find { |scope| scope.name == scope_name } or raise Error::ScopeNotFound, "unable to find scope #{scope_name}"
+        @observability.record_operation(Observability::OP_CM_GET_SCOPE, options.parent_span, self, :management) do |obs_handler|
+          obs_handler.add_scope_name(scope_name)
+
+          get_all_scopes(Options::Collection::GetAllScopes(timeout: options.timeout, parent_span: options.parent_span))
+            .find { |scope| scope.name == scope_name } or raise Error::ScopeNotFound, "unable to find scope #{scope_name}"
+        end
       end
 
       deprecate :get_scope, :get_all_scopes, 2021, 6
@@ -251,7 +261,11 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def create_scope(scope_name, options = Options::Collection::CreateScope.new)
-        @backend.scope_create(@bucket_name, scope_name, options.to_backend)
+        @observability.record_operation(Observability::OP_CM_CREATE_SCOPE, options.parent_span, self, :management) do |obs_handler|
+          obs_handler.add_scope_name(scope_name)
+
+          @backend.scope_create(@bucket_name, scope_name, options.to_backend)
+        end
       end
 
       # Removes a scope
@@ -263,7 +277,11 @@ module Couchbase
       #
       # @raise [Error::ScopeNotFound]
       def drop_scope(scope_name, options = Options::Collection::DropScope.new)
-        @backend.scope_drop(@bucket_name, scope_name, options.to_backend)
+        @observability.record_operation(Observability::OP_CM_DROP_SCOPE, options.parent_span, self, :management) do |obs_handler|
+          obs_handler.add_scope_name(scope_name)
+
+          @backend.scope_drop(@bucket_name, scope_name, options.to_backend)
+        end
       end
 
       # Creates a new collection
@@ -286,20 +304,30 @@ module Couchbase
       # @raise [Error::CollectionExists]
       # @raise [Error::ScopeNotFound]
       def create_collection(*args)
-        if args[0].is_a?(CollectionSpec)
-          collection = args[0]
-          options = args[1] || Options::Collection::CreateCollection::DEFAULT
-          settings = CreateCollectionSettings.new(max_expiry: collection.max_expiry, history: collection.history)
+        scope_name, collection_name, settings, options =
+          if args[0].is_a?(CollectionSpec)
+            warn "Calling create_collection with a CollectionSpec object has been deprecated, supply scope name, " \
+                 "collection name and optionally a CreateCollectionSettings instance"
+            collection = args[0]
+            [
+              collection.scope_name,
+              collection.name,
+              CreateCollectionSettings.new(max_expiry: collection.max_expiry, history: collection.history),
+              args[1] || Options::Collection::CreateCollection::DEFAULT,
+            ]
+          else
+            [
+              args[0],
+              args[1],
+              args[2] || CreateCollectionSettings::DEFAULT,
+              args[3] || Options::Collection::CreateCollection::DEFAULT,
+            ]
+          end
 
-          warn "Calling create_collection with a CollectionSpec object has been deprecated, supply scope name, " \
-               "collection name and optionally a CreateCollectionSettings instance"
+        @observability.record_operation(Observability::OP_CM_CREATE_COLLECTION, options.parent_span, self, :management) do |obs_handler|
+          obs_handler.add_scope_name(scope_name)
+          obs_handler.add_collection_name(collection_name)
 
-          @backend.collection_create(@bucket_name, collection.scope_name, collection.name, settings.to_backend, options.to_backend)
-        else
-          scope_name = args[0]
-          collection_name = args[1]
-          settings = args[2] || CreateCollectionSettings::DEFAULT
-          options = args[3] || Options::Collection::CreateCollection::DEFAULT
           @backend.collection_create(@bucket_name, scope_name, collection_name, settings.to_backend, options.to_backend)
         end
       end
@@ -315,7 +343,12 @@ module Couchbase
       # @raise [Error::ScopeNotFound]
       def update_collection(scope_name, collection_name, settings = UpdateCollectionSettings::DEFAULT,
                             options = Options::Collection::UpdateCollection::DEFAULT)
-        @backend.collection_update(@bucket_name, scope_name, collection_name, settings.to_backend, options.to_backend)
+        @observability.record_operation(Observability::OP_CM_UPDATE_COLLECTION, options.parent_span, self, :management) do |obs_handler|
+          obs_handler.add_scope_name(scope_name)
+          obs_handler.add_collection_name(collection_name)
+
+          @backend.collection_update(@bucket_name, scope_name, collection_name, settings.to_backend, options.to_backend)
+        end
       end
 
       # Removes a collection
@@ -336,17 +369,27 @@ module Couchbase
       # @raise [Error::CollectionNotFound]
       # @raise [Error::ScopeNotFound]
       def drop_collection(*args)
-        if args[0].is_a?(CollectionSpec)
-          collection = args[0]
-          options = args[1] || Options::Collection::CreateCollection::DEFAULT
+        scope_name, collection_name, options =
+          if args[0].is_a?(CollectionSpec)
+            warn "Calling drop_collection with a CollectionSpec object has been deprecated, supply scope name and collection name"
+            collection = args[0]
+            [
+              collection.scope_name,
+              collection.name,
+              args[1] || Options::Collection::CreateCollection::DEFAULT,
+            ]
+          else
+            [
+              args[0],
+              args[1],
+              args[2] || Options::Collection::CreateCollection::DEFAULT,
+            ]
+          end
 
-          warn "Calling drop_collection with a CollectionSpec object has been deprecated, supply scope name and collection name"
+        @observability.record_operation(Observability::OP_CM_DROP_COLLECTION, options.parent_span, self, :management) do |obs_handler|
+          obs_handler.add_scope_name(scope_name)
+          obs_handler.add_collection_name(collection_name)
 
-          @backend.collection_drop(@bucket_name, collection.scope_name, collection.name, options.to_backend)
-        else
-          scope_name = args[0]
-          collection_name = args[1]
-          options = args[2] || Options::Collection::CreateCollection::DEFAULT
           @backend.collection_drop(@bucket_name, scope_name, collection_name, options.to_backend)
         end
       end

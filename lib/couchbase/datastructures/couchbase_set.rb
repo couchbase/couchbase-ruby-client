@@ -37,6 +37,7 @@ module Couchbase
         @collection = collection
         @options = options
         @cas = 0
+        @observability = @collection.instance_variable_get(:@observability)
       end
 
       # Calls the given block once for each element in the set, passing that element as a parameter.
@@ -44,49 +45,58 @@ module Couchbase
       # @yieldparam [Object] item
       #
       # @return [CouchbaseSet, Enumerable]
-      def each(&)
+      def each(parent_span: nil, &)
         if block_given?
-          begin
-            result = @collection.get(@id, @options.get_options)
-            current = result.content
-            @cas = result.cas
-          rescue Error::DocumentNotFound
-            current = []
-            @cas = 0
-          end
+          current =
+            @observability.record_operation(Observability::OP_SET_EACH, parent_span, self) do |obs_handler|
+              options = @options.get_options.clone
+              options.parent_span = obs_handler.op_span
+              result = @collection.get(@id, options)
+              @cas = result.cas
+              result.content
+            rescue Error::DocumentNotFound
+              @cas = 0
+              []
+            end
           current.each(&)
           self
         else
-          enum_for(:each)
+          enum_for(:each, parent_span: parent_span)
         end
       end
 
       # @return [Integer] returns the number of elements in the set.
-      def length
-        result = @collection.lookup_in(@id, [
-                                         LookupInSpec.count(""),
-                                       ], @options.lookup_in_options)
-        result.content(0)
-      rescue Error::DocumentNotFound
-        0
+      def length(parent_span: nil)
+        @observability.record_operation(Observability::OP_SET_LENGTH, parent_span, self) do |obs_handler|
+          options = @options.lookup_in_options.clone
+          options.parent_span = obs_handler.op_span
+          result = @collection.lookup_in(@id, [
+                                           LookupInSpec.count(""),
+                                         ], options)
+          result.content(0)
+        rescue Error::DocumentNotFound
+          0
+        end
       end
 
       alias size length
 
       # @return [Boolean] returns true if set is empty
-      def empty?
-        size.zero?
+      def empty?(parent_span: nil)
+        size(parent_span: parent_span).zero?
       end
 
       # Adds the given value to the set
       #
       # @param [Object] obj
       # @return [CouchbaseSet]
-      def add(obj)
-        begin
+      def add(obj, parent_span: nil)
+        @observability.record_operation(Observability::OP_SET_ADD, parent_span, self) do |obs_handler|
+          options = @options.mutate_in_options.clone
+          options.parent_span = obs_handler.op_span
           @collection.mutate_in(@id, [
                                   MutateInSpec.array_add_unique("", obj),
-                                ], @options.mutate_in_options)
+                                ], options)
         rescue Error::PathExists
           # ignore
         end
@@ -94,31 +104,37 @@ module Couchbase
       end
 
       # Removes all elements from the set
-      def clear
-        @collection.remove(@id, @options.remove_options)
-        nil
-      rescue Error::DocumentNotFound
-        nil
+      def clear(parent_span: nil)
+        @observability.record_operation(Observability::OP_SET_CLEAR, parent_span, self) do |obs_handler|
+          options = @options.remove_options.clone
+          options.parent_span = obs_handler.op_span
+          @collection.remove(@id, options)
+          nil
+        rescue Error::DocumentNotFound
+          nil
+        end
       end
 
       # Deletes the given object from the set.
       #
       # @return [Boolean] true if the value has been removed
-      def delete(obj)
-        result = @collection.get(@id)
-        idx = result.content.index(obj)
-        return false unless idx
+      def delete(obj, parent_span: nil)
+        @observability.record_operation(Observability::OP_SET_DELETE, parent_span, self) do |obs_handler|
+          result = @collection.get(@id, Options::Get.new(parent_span: obs_handler.op_span))
+          idx = result.content.index(obj)
+          return false unless idx
 
-        options = Options::MutateIn.new
-        options.cas = result.cas
-        @collection.mutate_in(@id, [
-                                MutateInSpec.remove("[#{idx}]"),
-                              ], options)
-        true
-      rescue Error::CasMismatch
-        retry
-      rescue Error::DocumentNotFound
-        false
+          options = Options::MutateIn.new(parent_span: obs_handler.op_span)
+          options.cas = result.cas
+          @collection.mutate_in(@id, [
+                                  MutateInSpec.remove("[#{idx}]"),
+                                ], options)
+          true
+        rescue Error::CasMismatch
+          retry
+        rescue Error::DocumentNotFound
+          false
+        end
       end
     end
 

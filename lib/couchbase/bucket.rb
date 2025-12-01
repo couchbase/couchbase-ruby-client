@@ -30,17 +30,20 @@ module Couchbase
     alias inspect to_s
 
     # @param [Couchbase::Backend] backend
-    def initialize(backend, name)
+    #
+    # @api private
+    def initialize(backend, name, observability)
       backend.open_bucket(name, true)
       @backend = backend
       @name = name
+      @observability = observability
     end
 
     # Get default scope
     #
     # @return [Scope]
     def default_scope
-      Scope.new(@backend, @name, "_default")
+      Scope.new(@backend, @name, "_default", @observability)
     end
 
     # Get a named scope
@@ -49,7 +52,7 @@ module Couchbase
     #
     # @return [Scope]
     def scope(scope_name)
-      Scope.new(@backend, @name, scope_name)
+      Scope.new(@backend, @name, scope_name, @observability)
     end
 
     # Opens the named collection in the default scope of the bucket
@@ -65,7 +68,7 @@ module Couchbase
     #
     # @return [Collection]
     def default_collection
-      Collection.new(@backend, @name, "_default", "_default")
+      Collection.new(@backend, @name, "_default", "_default", @observability)
     end
 
     # Performs query to view index.
@@ -83,17 +86,19 @@ module Couchbase
     #
     # @return [ViewResult]
     def view_query(design_document_name, view_name, options = Options::View::DEFAULT)
-      resp = @backend.document_view(@name, design_document_name, view_name, options.namespace, options.to_backend)
-      ViewResult.new do |res|
-        res.meta_data = ViewMetaData.new do |meta|
-          meta.total_rows = resp[:meta][:total_rows]
-          meta.debug_info = resp[:meta][:debug_info]
-        end
-        res.rows = resp[:rows].map do |entry|
-          ViewRow.new do |row|
-            row.id = entry[:id] if entry.key?(:id)
-            row.key = JSON.parse(entry[:key])
-            row.value = JSON.parse(entry[:value])
+      @observability.record_operation(Observability::OP_VIEW_QUERY, opts.parent_span, self, :views) do |_obs_handler|
+        resp = @backend.document_view(@name, design_document_name, view_name, options.namespace, options.to_backend)
+        ViewResult.new do |res|
+          res.meta_data = ViewMetaData.new do |meta|
+            meta.total_rows = resp[:meta][:total_rows]
+            meta.debug_info = resp[:meta][:debug_info]
+          end
+          res.rows = resp[:rows].map do |entry|
+            ViewRow.new do |row|
+              row.id = entry[:id] if entry.key?(:id)
+              row.key = JSON.parse(entry[:key])
+              row.value = JSON.parse(entry[:value])
+            end
           end
         end
       end
@@ -101,12 +106,12 @@ module Couchbase
 
     # @return [Management::CollectionManager]
     def collections
-      Management::CollectionManager.new(@backend, @name)
+      Management::CollectionManager.new(@backend, @name, @observability)
     end
 
     # @return [Management::ViewIndexManager]
     def view_indexes
-      Management::ViewIndexManager.new(@backend, @name)
+      Management::ViewIndexManager.new(@backend, @name, @observability)
     end
 
     # Performs application-level ping requests against services in the couchbase cluster
@@ -115,20 +120,22 @@ module Couchbase
     #
     # @return [PingResult]
     def ping(options = Options::Ping::DEFAULT)
-      resp = @backend.ping(@name, options.to_backend)
-      PingResult.new do |res|
-        res.version = resp[:version]
-        res.id = resp[:id]
-        res.sdk = resp[:sdk]
-        resp[:services].each do |type, svcs|
-          res.services[type] = svcs.map do |svc|
-            PingResult::ServiceInfo.new do |info|
-              info.id = svc[:id]
-              info.state = svc[:state]
-              info.latency = svc[:latency]
-              info.remote = svc[:remote]
-              info.local = svc[:local]
-              info.error = svc[:error]
+      @observability.record_operation(Observability::OP_PING, options.parent_span, self) do |_obs_handler|
+        resp = @backend.ping(@name, options.to_backend)
+        PingResult.new do |res|
+          res.version = resp[:version]
+          res.id = resp[:id]
+          res.sdk = resp[:sdk]
+          resp[:services].each do |type, svcs|
+            res.services[type] = svcs.map do |svc|
+              PingResult::ServiceInfo.new do |info|
+                info.id = svc[:id]
+                info.state = svc[:state]
+                info.latency = svc[:latency]
+                info.remote = svc[:remote]
+                info.local = svc[:local]
+                info.error = svc[:error]
+              end
             end
           end
         end

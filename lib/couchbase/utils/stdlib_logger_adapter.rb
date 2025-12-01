@@ -43,9 +43,7 @@ module Couchbase
         )
       end
 
-      private
-
-      def map_spdlog_level(level)
+      def self.map_spdlog_level(level)
         case level
         when :trace, :debug
           ::Logger::Severity::DEBUG

@@ -29,10 +29,11 @@ module Couchbase
     # @param [Couchbase::Backend] backend
     # @param [String] bucket_name name of the bucket
     # @param [String] scope_name name of the scope
-    def initialize(backend, bucket_name, scope_name)
+    def initialize(backend, bucket_name, scope_name, observability)
       @backend = backend
       @bucket_name = bucket_name
       @name = scope_name
+      @observability = observability
     end
 
     # Opens the default collection for this scope
@@ -41,7 +42,7 @@ module Couchbase
     #
     # @return [Collection]
     def collection(collection_name)
-      Collection.new(@backend, @bucket_name, @name, collection_name)
+      Collection.new(@backend, @bucket_name, @name, collection_name, @observability)
     end
 
     # Performs a query against the query (N1QL) services.
@@ -60,30 +61,34 @@ module Couchbase
     #
     # @return [QueryResult]
     def query(statement, options = Options::Query::DEFAULT)
-      resp = @backend.document_query(statement, options.to_backend(scope_name: @name, bucket_name: @bucket_name))
+      @observability.record_operation(Observability::OP_QUERY, options.parent_span, self, :query) do |obs_handler|
+        obs_handler.add_query_statement(statement, options)
 
-      Cluster::QueryResult.new do |res|
-        res.meta_data = Cluster::QueryMetaData.new do |meta|
-          meta.status = resp[:meta][:status]
-          meta.request_id = resp[:meta][:request_id]
-          meta.client_context_id = resp[:meta][:client_context_id]
-          meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
-          meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
-          meta.metrics = Cluster::QueryMetrics.new do |metrics|
-            if resp[:meta][:metrics]
-              metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
-              metrics.execution_time = resp[:meta][:metrics][:execution_time]
-              metrics.sort_count = resp[:meta][:metrics][:sort_count]
-              metrics.result_count = resp[:meta][:metrics][:result_count]
-              metrics.result_size = resp[:meta][:metrics][:result_size]
-              metrics.mutation_count = resp[:meta][:metrics][:mutation_count]
-              metrics.error_count = resp[:meta][:metrics][:error_count]
-              metrics.warning_count = resp[:meta][:metrics][:warning_count]
+        resp = @backend.document_query(statement, options.to_backend(scope_name: @name, bucket_name: @bucket_name))
+
+        Cluster::QueryResult.new do |res|
+          res.meta_data = Cluster::QueryMetaData.new do |meta|
+            meta.status = resp[:meta][:status]
+            meta.request_id = resp[:meta][:request_id]
+            meta.client_context_id = resp[:meta][:client_context_id]
+            meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
+            meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
+            meta.metrics = Cluster::QueryMetrics.new do |metrics|
+              if resp[:meta][:metrics]
+                metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
+                metrics.execution_time = resp[:meta][:metrics][:execution_time]
+                metrics.sort_count = resp[:meta][:metrics][:sort_count]
+                metrics.result_count = resp[:meta][:metrics][:result_count]
+                metrics.result_size = resp[:meta][:metrics][:result_size]
+                metrics.mutation_count = resp[:meta][:metrics][:mutation_count]
+                metrics.error_count = resp[:meta][:metrics][:error_count]
+                metrics.warning_count = resp[:meta][:metrics][:warning_count]
+              end
             end
+            meta.warnings = resp[:warnings].map { |warn| Cluster::QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
           end
-          meta.warnings = resp[:warnings].map { |warn| Cluster::QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
+          res.instance_variable_set(:@rows, resp[:rows])
         end
-        res.instance_variable_set(:@rows, resp[:rows])
       end
     end
 
@@ -100,30 +105,34 @@ module Couchbase
     #
     # @return [AnalyticsResult]
     def analytics_query(statement, options = Options::Analytics::DEFAULT)
-      resp = @backend.document_analytics(statement, options.to_backend(scope_name: @name, bucket_name: @bucket_name))
+      @observability.record_operation(Observability::OP_ANALYTICS_QUERY, options.parent_span, self, :analytics) do |obs_handler|
+        obs_handler.add_query_statement(statement, options)
 
-      Cluster::AnalyticsResult.new do |res|
-        res.transcoder = options.transcoder
-        res.meta_data = Cluster::AnalyticsMetaData.new do |meta|
-          meta.status = resp[:meta][:status]
-          meta.request_id = resp[:meta][:request_id]
-          meta.client_context_id = resp[:meta][:client_context_id]
-          meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
-          meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
-          meta.metrics = Cluster::AnalyticsMetrics.new do |metrics|
-            if resp[:meta][:metrics]
-              metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
-              metrics.execution_time = resp[:meta][:metrics][:execution_time]
-              metrics.result_count = resp[:meta][:metrics][:result_count]
-              metrics.result_size = resp[:meta][:metrics][:result_size]
-              metrics.error_count = resp[:meta][:metrics][:error_count]
-              metrics.warning_count = resp[:meta][:metrics][:warning_count]
-              metrics.processed_objects = resp[:meta][:metrics][:processed_objects]
+        resp = @backend.document_analytics(statement, options.to_backend(scope_name: @name, bucket_name: @bucket_name))
+
+        Cluster::AnalyticsResult.new do |res|
+          res.transcoder = options.transcoder
+          res.meta_data = Cluster::AnalyticsMetaData.new do |meta|
+            meta.status = resp[:meta][:status]
+            meta.request_id = resp[:meta][:request_id]
+            meta.client_context_id = resp[:meta][:client_context_id]
+            meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
+            meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
+            meta.metrics = Cluster::AnalyticsMetrics.new do |metrics|
+              if resp[:meta][:metrics]
+                metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
+                metrics.execution_time = resp[:meta][:metrics][:execution_time]
+                metrics.result_count = resp[:meta][:metrics][:result_count]
+                metrics.result_size = resp[:meta][:metrics][:result_size]
+                metrics.error_count = resp[:meta][:metrics][:error_count]
+                metrics.warning_count = resp[:meta][:metrics][:warning_count]
+                metrics.processed_objects = resp[:meta][:metrics][:processed_objects]
+              end
             end
+            res[:warnings] = resp[:warnings].map { |warn| Cluster::AnalyticsWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
           end
-          res[:warnings] = resp[:warnings].map { |warn| Cluster::AnalyticsWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
+          res.instance_variable_set(:@rows, resp[:rows])
         end
-        res.instance_variable_set(:@rows, resp[:rows])
       end
     end
 
@@ -145,8 +154,10 @@ module Couchbase
     #
     # @return [SearchResult]
     def search_query(index_name, query, options = Options::Search::DEFAULT)
-      resp = @backend.document_search(@bucket_name, @name, index_name, JSON.generate(query), {}, options.to_backend)
-      convert_search_result(resp, options)
+      @observability.record_operation(Observability::OP_SEARCH_QUERY, options.parent_span, self, :search) do |_obs_handler|
+        resp = @backend.document_search(@bucket_name, @name, index_name, JSON.generate(query), {}, options.to_backend)
+        convert_search_result(resp, options)
+      end
     end
 
     # Performs a request against the Full Text Search (FTS) service.
@@ -157,14 +168,17 @@ module Couchbase
     #
     # @return [SearchResult]
     def search(index_name, search_request, options = Options::Search::DEFAULT)
-      encoded_query, encoded_req = search_request.to_backend
-      resp = @backend.document_search(@bucket_name, @name, index_name, encoded_query, encoded_req, options.to_backend(show_request: false))
-      convert_search_result(resp, options)
+      @observability.record_operation(Observability::OP_SEARCH_QUERY, options.parent_span, self, :search) do |_obs_handler|
+        encoded_query, encoded_req = search_request.to_backend
+        resp = @backend.document_search(@bucket_name, @name, index_name, encoded_query, encoded_req,
+                                        options.to_backend(show_request: false))
+        convert_search_result(resp, options)
+      end
     end
 
     # @return [Management::ScopeSearchIndexManager]
     def search_indexes
-      Management::ScopeSearchIndexManager.new(@backend, @bucket_name, @name)
+      Management::ScopeSearchIndexManager.new(@backend, @bucket_name, @name, @observability)
     end
 
     private

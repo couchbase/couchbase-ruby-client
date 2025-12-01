@@ -190,8 +190,12 @@ module Couchbase
       alias inspect to_s
 
       # @param [Couchbase::Backend] backend
-      def initialize(backend)
+      # @param [Couchbase::Observability::Wrapper] observability wrapper
+      #
+      # @api private
+      def initialize(backend, observability)
         @backend = backend
+        @observability = observability
       end
 
       # Creates new bucket
@@ -204,26 +208,30 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::BucketExists]
       def create_bucket(settings, options = Options::Bucket::CreateBucket.new)
-        @backend.bucket_create(
-          {
-            name: settings.name,
-            flush_enabled: settings.flush_enabled,
-            ram_quota_mb: settings.ram_quota_mb,
-            num_replicas: settings.num_replicas,
-            replica_indexes: settings.replica_indexes,
-            bucket_type: settings.bucket_type,
-            eviction_policy: settings.eviction_policy,
-            max_expiry: settings.max_expiry,
-            compression_mode: settings.compression_mode,
-            minimum_durability_level: settings.minimum_durability_level,
-            conflict_resolution_type: settings.conflict_resolution_type,
-            storage_backend: settings.storage_backend,
-            history_retention_collection_default: settings.history_retention_collection_default,
-            history_retention_duration: settings.history_retention_duration,
-            history_retention_bytes: settings.history_retention_bytes,
-            num_vbuckets: settings.num_vbuckets,
-          }, options.to_backend
-        )
+        @observability.record_operation(Observability::OP_BM_CREATE_BUCKET, options.parent_span, self, :management) do |obs_handler|
+          obs_handler.add_bucket_name(settings.name)
+
+          @backend.bucket_create(
+            {
+              name: settings.name,
+              flush_enabled: settings.flush_enabled,
+              ram_quota_mb: settings.ram_quota_mb,
+              num_replicas: settings.num_replicas,
+              replica_indexes: settings.replica_indexes,
+              bucket_type: settings.bucket_type,
+              eviction_policy: settings.eviction_policy,
+              max_expiry: settings.max_expiry,
+              compression_mode: settings.compression_mode,
+              minimum_durability_level: settings.minimum_durability_level,
+              conflict_resolution_type: settings.conflict_resolution_type,
+              storage_backend: settings.storage_backend,
+              history_retention_collection_default: settings.history_retention_collection_default,
+              history_retention_duration: settings.history_retention_duration,
+              history_retention_bytes: settings.history_retention_bytes,
+              num_vbuckets: settings.num_vbuckets,
+            }, options.to_backend
+          )
+        end
       end
 
       # Updates the bucket settings
@@ -236,25 +244,29 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
       def update_bucket(settings, options = Options::Bucket::UpdateBucket.new)
-        @backend.bucket_update(
-          {
-            name: settings.name,
-            flush_enabled: settings.flush_enabled,
-            ram_quota_mb: settings.ram_quota_mb,
-            num_replicas: settings.num_replicas,
-            replica_indexes: settings.replica_indexes,
-            bucket_type: settings.bucket_type,
-            eviction_policy: settings.eviction_policy,
-            max_expiry: settings.max_expiry,
-            compression_mode: settings.compression_mode,
-            minimum_durability_level: settings.minimum_durability_level,
-            storage_backend: settings.storage_backend,
-            history_retention_collection_default: settings.history_retention_collection_default,
-            history_retention_bytes: settings.history_retention_bytes,
-            history_retention_duration: settings.history_retention_duration,
-            num_vbuckets: settings.num_vbuckets,
-          }, options.to_backend
-        )
+        @observability.record_operation(Observability::OP_BM_UPDATE_BUCKET, options.parent_span, self, :management) do |obs_handler|
+          obs_handler.add_bucket_name(settings.name)
+
+          @backend.bucket_update(
+            {
+              name: settings.name,
+              flush_enabled: settings.flush_enabled,
+              ram_quota_mb: settings.ram_quota_mb,
+              num_replicas: settings.num_replicas,
+              replica_indexes: settings.replica_indexes,
+              bucket_type: settings.bucket_type,
+              eviction_policy: settings.eviction_policy,
+              max_expiry: settings.max_expiry,
+              compression_mode: settings.compression_mode,
+              minimum_durability_level: settings.minimum_durability_level,
+              storage_backend: settings.storage_backend,
+              history_retention_collection_default: settings.history_retention_collection_default,
+              history_retention_bytes: settings.history_retention_bytes,
+              history_retention_duration: settings.history_retention_duration,
+              num_vbuckets: settings.num_vbuckets,
+            }, options.to_backend
+          )
+        end
       end
 
       # Removes a bucket
@@ -267,7 +279,11 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
       def drop_bucket(bucket_name, options = Options::Bucket::DropBucket.new)
-        @backend.bucket_drop(bucket_name, options.to_backend)
+        @observability.record_operation(Observability::OP_BM_DROP_BUCKET, options.parent_span, self, :management) do |obs_handler|
+          obs_handler.add_bucket_name(bucket_name)
+
+          @backend.bucket_drop(bucket_name, options.to_backend)
+        end
       end
 
       # Fetch settings of the bucket
@@ -280,7 +296,11 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::BucketNotFound]
       def get_bucket(bucket_name, options = Options::Bucket::GetBucket.new)
-        extract_bucket_settings(@backend.bucket_get(bucket_name, options.to_backend))
+        @observability.record_operation(Observability::OP_BM_GET_BUCKET, options.parent_span, self, :management) do |obs_handler|
+          obs_handler.add_bucket_name(bucket_name)
+
+          extract_bucket_settings(@backend.bucket_get(bucket_name, options.to_backend))
+        end
       end
 
       # Get settings for all buckets
@@ -288,8 +308,10 @@ module Couchbase
       # @param [Options::Bucket::GetAllBuckets] options
       # @return [Array<BucketSettings>]
       def get_all_buckets(options = Options::Bucket::GetAllBuckets.new)
-        @backend.bucket_get_all(options.to_backend)
-                .map { |entry| extract_bucket_settings(entry) }
+        @observability.record_operation(Observability::OP_BM_GET_ALL_BUCKETS, options.parent_span, self, :management) do |_obs_handler|
+          @backend.bucket_get_all(options.to_backend)
+                  .map { |entry| extract_bucket_settings(entry) }
+        end
       end
 
       # @param [String] bucket_name name of the bucket
@@ -301,7 +323,9 @@ module Couchbase
       # @raise [Error::BucketNotFound]
       # @raise [Error::BucketNotFlushable]
       def flush_bucket(bucket_name, options = Options::Bucket::FlushBucket.new)
-        @backend.bucket_flush(bucket_name, options.to_backend)
+        @observability.record_operation(Observability::OP_BM_FLUSH_BUCKET, options.parent_span, self, :management) do |_obs_handler|
+          @backend.bucket_flush(bucket_name, options.to_backend)
+        end
       end
 
       # @api private

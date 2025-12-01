@@ -629,8 +629,9 @@ module Couchbase
       alias inspect to_s
 
       # @param [Couchbase::Backend] backend
-      def initialize(backend)
+      def initialize(backend, observability)
         @backend = backend
+        @observability = observability
       end
 
       # Creates a new dataverse
@@ -643,7 +644,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::DataverseExists]
       def create_dataverse(dataverse_name, options = Options::Analytics::CreateDataverse.new)
-        @backend.analytics_dataverse_create(dataverse_name, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_CREATE_DATAVERSE, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_dataverse_create(dataverse_name, options.to_backend)
+        end
       end
 
       # Drops a dataverse
@@ -656,7 +659,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::DataverseNotFound]
       def drop_dataverse(dataverse_name, options = Options::Analytics::DropDataverse.new)
-        @backend.analytics_dataverse_drop(dataverse_name, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_DROP_DATAVERSE, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_dataverse_drop(dataverse_name, options.to_backend)
+        end
       end
 
       # Creates a new dataset
@@ -671,7 +676,9 @@ module Couchbase
       # @raise [Error::DatasetExists]
       # @raise [Error::LinkNotFound]
       def create_dataset(dataset_name, bucket_name, options = Options::Analytics::CreateDataset.new)
-        @backend.analytics_dataset_create(dataset_name, bucket_name, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_CREATE_DATASET, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_dataset_create(dataset_name, bucket_name, options.to_backend)
+        end
       end
 
       # Drops a dataset
@@ -684,7 +691,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::DatasetNotFound]
       def drop_dataset(dataset_name, options = Options::Analytics::DropDataset.new)
-        @backend.analytics_dataset_drop(dataset_name, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_DROP_DATASET, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_dataset_drop(dataset_name, options.to_backend)
+        end
       end
 
       # Gets all datasets
@@ -693,13 +702,15 @@ module Couchbase
       #
       # @return [Array<AnalyticsDataset>]
       def get_all_datasets(options = Options::Analytics::GetAllDatasets.new)
-        resp = @backend.analytics_dataset_get_all(options.to_backend)
-        resp.map do |entry|
-          AnalyticsDataset.new do |dataset|
-            dataset.name = entry[:name]
-            dataset.dataverse_name = entry[:dataverse_name]
-            dataset.link_name = entry[:link_name]
-            dataset.bucket_name = entry[:bucket_name]
+        @observability.record_operation(Observability::OP_AM_GET_ALL_DATASETS, options.parent_span, self, :analytics) do |_obs_handler|
+          resp = @backend.analytics_dataset_get_all(options.to_backend)
+          resp.map do |entry|
+            AnalyticsDataset.new do |dataset|
+              dataset.name = entry[:name]
+              dataset.dataverse_name = entry[:dataverse_name]
+              dataset.link_name = entry[:link_name]
+              dataset.bucket_name = entry[:bucket_name]
+            end
           end
         end
       end
@@ -716,7 +727,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexExists]
       def create_index(index_name, dataset_name, fields, options = Options::Analytics::CreateIndex.new)
-        @backend.analytics_index_create(index_name, dataset_name, fields.entries, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_CREATE_INDEX, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_index_create(index_name, dataset_name, fields.entries, options.to_backend)
+        end
       end
 
       # Drops an index
@@ -730,7 +743,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def drop_index(index_name, dataset_name, options = Options::Analytics::DropIndex.new)
-        @backend.analytics_index_drop(index_name, dataset_name, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_DROP_INDEX, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_index_drop(index_name, dataset_name, options.to_backend)
+        end
       end
 
       # Gets all indexes
@@ -739,13 +754,15 @@ module Couchbase
       #
       # @return [Array<AnalyticsIndex>]
       def get_all_indexes(options = Options::Analytics::GetAllIndexes.new)
-        resp = @backend.analytics_index_get_all(options.to_backend)
-        resp.map do |entry|
-          AnalyticsIndex.new do |dataset|
-            dataset.name = entry[:name]
-            dataset.dataverse_name = entry[:dataverse_name]
-            dataset.dataset_name = entry[:dataset_name]
-            dataset.is_primary = entry[:is_primary]
+        @observability.record_operation(Observability::OP_AM_GET_ALL_INDEXES, options.parent_span, self, :analytics) do |_obs_handler|
+          resp = @backend.analytics_index_get_all(options.to_backend)
+          resp.map do |entry|
+            AnalyticsIndex.new do |dataset|
+              dataset.name = entry[:name]
+              dataset.dataverse_name = entry[:dataverse_name]
+              dataset.dataset_name = entry[:dataset_name]
+              dataset.is_primary = entry[:is_primary]
+            end
           end
         end
       end
@@ -759,7 +776,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
       def connect_link(options = Options::Analytics::ConnectLink.new)
-        @backend.analytics_link_connect(options.to_backend)
+        @observability.record_operation(Observability::OP_AM_CONNECT_LINK, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_link_connect(options.to_backend)
+        end
       end
 
       # Disconnects a link,
@@ -771,7 +790,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
       def disconnect_link(options = Options::Analytics::DisconnectLink.new)
-        @backend.analytics_link_disconnect(options.to_backend)
+        @observability.record_operation(Observability::OP_AM_DISCONNECT_LINK, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_link_disconnect(options.to_backend)
+        end
       end
 
       # Gets the pending mutations for all datasets.
@@ -784,7 +805,9 @@ module Couchbase
       # @return [Hash<String => Integer>] dictionary, where keys are dataset coordinates encoded as +"dataverse.dataset"+
       #   and values are number of mutations for given dataset.
       def get_pending_mutations(options = Options::Analytics::GetPendingMutations.new)
-        @backend.analytics_get_pending_mutations(options.to_backend)
+        @observability.record_operation(Observability::OP_AM_GET_PENDING_MUTATIONS, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_get_pending_mutations(options.to_backend)
+        end
       end
 
       # Creates a link
@@ -797,7 +820,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkExists]
       def create_link(link, options = Options::Analytics::CreateLink.new)
-        @backend.analytics_link_create(link.to_backend, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_CREATE_LINK, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_link_create(link.to_backend, options.to_backend)
+        end
       end
 
       # Replaces the link
@@ -810,7 +835,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
       def replace_link(link, options = Options::Analytics::ReplaceLink.new)
-        @backend.analytics_link_replace(link.to_backend, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_REPLACE_LINK, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_link_replace(link.to_backend, options.to_backend)
+        end
       end
 
       # Drops the link
@@ -824,7 +851,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
       def drop_link(link_name, dataverse_name, options = Options::Analytics::DropLink.new)
-        @backend.analytics_link_drop(link_name, dataverse_name, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_DROP_LINK, options.parent_span, self, :analytics) do |_obs_handler|
+          @backend.analytics_link_drop(link_name, dataverse_name, options.to_backend)
+        end
       end
 
       # Retrieves the links
@@ -836,38 +865,40 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
       def get_links(options = Options::Analytics::GetLinks.new)
-        resp = @backend.analytics_link_get_all(options.to_backend)
-        resp.map do |entry|
-          case entry[:type]
-          when :s3
-            S3ExternalAnalyticsLink.new(
-              entry[:link_name],
-              entry[:dataverse],
-              entry[:access_key_id],
-              nil,
-              entry[:region],
-              service_endpoint: entry[:service_endpoint],
-            )
-          when :couchbase
-            CouchbaseRemoteAnalyticsLink.new(
-              entry[:link_name],
-              entry[:dataverse],
-              entry[:hostname],
-              username: entry[:username],
-              encryption: EncryptionSettings.new(
-                level: entry[:encryption_level],
-                certificate: entry[:certificate],
-                client_certificate: entry[:client_certificate],
-              ),
-            )
-          when :azureblob
-            AzureBlobExternalAnalyticsLink.new(
-              entry[:link_name],
-              entry[:dataverse],
-              account_name: entry[:account_name],
-              blob_endpoint: entry[:blob_endpoint],
-              endpoint_suffix: entry[:endpoint_suffix],
-            )
+        @observability.record_operation(Observability::OP_AM_GET_LINKS, options.parent_span, self, :analytics) do |_obs_handler|
+          resp = @backend.analytics_link_get_all(options.to_backend)
+          resp.map do |entry|
+            case entry[:type]
+            when :s3
+              S3ExternalAnalyticsLink.new(
+                entry[:link_name],
+                entry[:dataverse],
+                entry[:access_key_id],
+                nil,
+                entry[:region],
+                service_endpoint: entry[:service_endpoint],
+              )
+            when :couchbase
+              CouchbaseRemoteAnalyticsLink.new(
+                entry[:link_name],
+                entry[:dataverse],
+                entry[:hostname],
+                username: entry[:username],
+                encryption: EncryptionSettings.new(
+                  level: entry[:encryption_level],
+                  certificate: entry[:certificate],
+                  client_certificate: entry[:client_certificate],
+                ),
+              )
+            when :azureblob
+              AzureBlobExternalAnalyticsLink.new(
+                entry[:link_name],
+                entry[:dataverse],
+                account_name: entry[:account_name],
+                blob_endpoint: entry[:blob_endpoint],
+                endpoint_suffix: entry[:endpoint_suffix],
+              )
+            end
           end
         end
       end

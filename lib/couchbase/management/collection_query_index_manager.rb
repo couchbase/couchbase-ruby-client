@@ -27,11 +27,15 @@ module Couchbase
       # @param [String] bucket_name name of the bucket
       # @param [String] scope_name name of the scope
       # @param [String] collection_name name of the collection
-      def initialize(backend, bucket_name, scope_name, collection_name)
+      # @param [Observability::Wrapper] observability wrapper
+      #
+      # @api private
+      def initialize(backend, bucket_name, scope_name, collection_name, observability)
         @backend = backend
         @bucket_name = bucket_name
         @scope_name = scope_name
         @collection_name = collection_name
+        @observability = observability
       end
 
       # Fetches all indexes from the server
@@ -52,19 +56,21 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        res = @backend.collection_query_index_get_all(@bucket_name, @scope_name, @collection_name, options.to_backend)
-        res[:indexes].map do |idx|
-          QueryIndex.new do |index|
-            index.name = idx[:name]
-            index.is_primary = idx[:is_primary]
-            index.type = idx[:type]
-            index.state = idx[:state]
-            index.bucket = idx[:bucket_name]
-            index.scope = idx[:scope_name]
-            index.collection = idx[:collection_name]
-            index.index_key = idx[:index_key]
-            index.condition = idx[:condition]
-            index.partition = idx[:partition]
+        @observability.record_operation(Observability::OP_QM_GET_ALL_INDEXES, options.parent_span, self, :query) do |_obs_handler|
+          res = @backend.collection_query_index_get_all(@bucket_name, @scope_name, @collection_name, options.to_backend)
+          res[:indexes].map do |idx|
+            QueryIndex.new do |index|
+              index.name = idx[:name]
+              index.is_primary = idx[:is_primary]
+              index.type = idx[:type]
+              index.state = idx[:state]
+              index.bucket = idx[:bucket_name]
+              index.scope = idx[:scope_name]
+              index.collection = idx[:collection_name]
+              index.index_key = idx[:index_key]
+              index.condition = idx[:condition]
+              index.partition = idx[:partition]
+            end
           end
         end
       end
@@ -90,7 +96,9 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        @backend.collection_query_index_create(@bucket_name, @scope_name, @collection_name, index_name, fields, options.to_backend)
+        @observability.record_operation(Observability::OP_QM_CREATE_INDEX, options.parent_span, self, :query) do |_obs_handler|
+          @backend.collection_query_index_create(@bucket_name, @scope_name, @collection_name, index_name, fields, options.to_backend)
+        end
       end
 
       # Creates new primary index
@@ -112,7 +120,9 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        @backend.collection_query_index_create_primary(@bucket_name, @scope_name, @collection_name, options.to_backend)
+        @observability.record_operation(Observability::OP_QM_CREATE_PRIMARY_INDEX, options.parent_span, self, :query) do |_obs_handler|
+          @backend.collection_query_index_create_primary(@bucket_name, @scope_name, @collection_name, options.to_backend)
+        end
       end
 
       # Drops the index
@@ -135,7 +145,9 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        @backend.collection_query_index_drop(@bucket_name, @scope_name, @collection_name, index_name, options.to_backend)
+        @observability.record_operation(Observability::OP_QM_DROP_INDEX, options.parent_span, self, :query) do |_obs_handler|
+          @backend.collection_query_index_drop(@bucket_name, @scope_name, @collection_name, index_name, options.to_backend)
+        end
       end
 
       # Drops the primary index
@@ -157,7 +169,9 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        @backend.collection_query_index_drop_primary(@bucket_name, @scope_name, @collection_name, options.to_backend)
+        @observability.record_operation(Observability::OP_QM_DROP_PRIMARY_INDEX, options.parent_span, self, :query) do |_obs_handler|
+          @backend.collection_query_index_drop_primary(@bucket_name, @scope_name, @collection_name, options.to_backend)
+        end
       end
 
       # Build all indexes which are currently in deferred state
@@ -178,7 +192,9 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        @backend.collection_query_index_build_deferred(@bucket_name, @scope_name, @collection_name, options.to_backend)
+        @observability.record_operation(Observability::OP_QM_BUILD_DEFERRED_INDEXES, options.parent_span, self, :query) do |_obs_handler|
+          @backend.collection_query_index_build_deferred(@bucket_name, @scope_name, @collection_name, options.to_backend)
+        end
       end
 
       # Polls indexes until they are online
@@ -200,24 +216,30 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        index_names.append("#primary") if options.watch_primary
+        @observability.record_operation(Observability::OP_QM_WATCH_INDEXES, options.parent_span, self, :query) do |obs_handler|
+          index_names.append("#primary") if options.watch_primary
 
-        interval_millis = 50
-        deadline = Time.now + (Utils::Time.extract_duration(timeout) * 0.001)
-        while Time.now <= deadline
-          get_all_opts = Options::Query::GetAllIndexes.new(timeout: ((deadline - Time.now) * 1000).round)
-          indexes = get_all_indexes(get_all_opts).select { |idx| index_names.include? idx.name }
-          indexes_not_found = index_names - indexes.map(&:name)
-          raise Error::IndexNotFound, "Failed to find the indexes: #{indexes_not_found.join(', ')}" unless indexes_not_found.empty?
+          interval_millis = 50
+          deadline = Time.now + (Utils::Time.extract_duration(timeout) * 0.001)
+          all_online = false
+          while Time.now <= deadline
+            get_all_opts = Options::Query::GetAllIndexes.new(
+              timeout: ((deadline - Time.now) * 1000).round,
+              parent_span: obs_handler.op_span,
+            )
+            indexes = get_all_indexes(get_all_opts).select { |idx| index_names.include? idx.name }
+            indexes_not_found = index_names - indexes.map(&:name)
+            raise Error::IndexNotFound, "Failed to find the indexes: #{indexes_not_found.join(', ')}" unless indexes_not_found.empty?
 
-          all_online = indexes.all? { |idx| idx.state == :online }
-          return if all_online
+            all_online = indexes.all? { |idx| idx.state == :online }
+            break if all_online
 
-          sleep(interval_millis / 1000)
-          interval_millis += 500
-          interval_millis = 1000 if interval_millis > 1000
+            sleep(interval_millis / 1000)
+            interval_millis += 500
+            interval_millis = 1000 if interval_millis > 1000
+          end
+          raise Error::UnambiguousTimeout, "Failed to find all indexes online within the allotted time" unless all_online
         end
-        raise Error::UnambiguousTimeout, "Failed to find all indexes online within the allotted time"
       end
     end
   end

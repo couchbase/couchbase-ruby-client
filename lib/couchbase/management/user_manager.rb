@@ -240,8 +240,12 @@ module Couchbase
       alias inspect to_s
 
       # @param [Couchbase::Backend] backend
-      def initialize(backend)
+      # @param [Couchbase::Observability::Wrapper] observability wrapper
+      #
+      # @api private
+      def initialize(backend, observability)
         @backend = backend
+        @observability = observability
       end
 
       # Get a user
@@ -254,8 +258,10 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::UserNotFound]
       def get_user(username, options = Options::User::GetUser::DEFAULT)
-        resp = @backend.user_get(options.domain, username, options.timeout)
-        extract_user(resp)
+        @observability.record_operation(Observability::OP_UM_GET_USER, options.parent_span, self, :management) do |_obs_handler|
+          resp = @backend.user_get(options.domain, username, options.timeout)
+          extract_user(resp)
+        end
       end
 
       # Gets all users
@@ -264,8 +270,10 @@ module Couchbase
       #
       # @return [Array<UserAndMetadata>]
       def get_all_users(options = Options::User::GetAllUsers::DEFAULT)
-        resp = @backend.user_get_all(options.domain, options.timeout)
-        resp.map { |entry| extract_user(entry) }
+        @observability.record_operation(Observability::OP_UM_GET_ALL_USERS, options.parent_span, self, :management) do |_obs_handler|
+          resp = @backend.user_get_all(options.domain, options.timeout)
+          resp.map { |entry| extract_user(entry) }
+        end
       end
 
       # Creates or updates a user
@@ -275,23 +283,25 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def upsert_user(user, options = Options::User::UpsertUser::DEFAULT)
-        @backend.user_upsert(
-          options.domain,
-          {
-            username: user.username,
-            display_name: user.display_name,
-            groups: user.groups,
-            password: user.password,
-            roles: user.roles.map do |role|
-                     {
-                       name: role.name,
-                       bucket: role.bucket,
-                       scope: role.scope,
-                       collection: role.collection,
-                     }
-                   end,
-          }, options.timeout
-        )
+        @observability.record_operation(Observability::OP_UM_UPSERT_USER, options.parent_span, self, :management) do |_obs_handler|
+          @backend.user_upsert(
+            options.domain,
+            {
+              username: user.username,
+              display_name: user.display_name,
+              groups: user.groups,
+              password: user.password,
+              roles: user.roles.map do |role|
+                {
+                  name: role.name,
+                  bucket: role.bucket,
+                  scope: role.scope,
+                  collection: role.collection,
+                }
+              end,
+            }, options.timeout
+          )
+        end
       end
 
       # Removes a user
@@ -299,7 +309,9 @@ module Couchbase
       # @param [String] username ID of the user
       # @param [Options::User::DropUser] options
       def drop_user(username, options = Options::User::DropUser::DEFAULT)
-        @backend.user_drop(options.domain, username, options.timeout)
+        @observability.record_operation(Observability::OP_UM_DROP_USER, options.parent_span, self, :management) do |_obs_handler|
+          @backend.user_drop(options.domain, username, options.timeout)
+        end
       end
 
       # Gets all roles supported by the server
@@ -308,15 +320,17 @@ module Couchbase
       #
       # @return [Array<RoleAndDescription>]
       def get_roles(options = Options::User::GetRoles::DEFAULT)
-        resp = @backend.role_get_all(options.timeout)
-        resp.map do |r|
-          RoleAndDescription.new do |role|
-            role.name = r[:name]
-            role.display_name = r[:display_name]
-            role.description = r[:description]
-            role.bucket = r[:bucket]
-            role.scope = r[:scope]
-            role.collection = r[:collection]
+        @observability.record_operation(Observability::OP_UM_GET_ROLES, options.parent_span, self, :management) do |_obs_handler|
+          resp = @backend.role_get_all(options.timeout)
+          resp.map do |r|
+            RoleAndDescription.new do |role|
+              role.name = r[:name]
+              role.display_name = r[:display_name]
+              role.description = r[:description]
+              role.bucket = r[:bucket]
+              role.scope = r[:scope]
+              role.collection = r[:collection]
+            end
           end
         end
       end
@@ -327,7 +341,9 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def change_password(new_password, options = Options::User::ChangePassword::DEFAULT)
-        @backend.change_password(new_password, options.timeout)
+        @observability.record_operation(Observability::OP_UM_CHANGE_PASSWORD, options.parent_span, self, :management) do |_obs_handler|
+          @backend.change_password(new_password, options.timeout)
+        end
       end
 
       # Gets a group
@@ -340,8 +356,10 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::GroupNotFound]
       def get_group(group_name, options = Options::User::GetGroup::DEFAULT)
-        resp = @backend.group_get(group_name, options.timeout)
-        extract_group(resp)
+        @observability.record_operation(Observability::OP_UM_GET_GROUP, options.parent_span, self, :management) do |_obs_handler|
+          resp = @backend.group_get(group_name, options.timeout)
+          extract_group(resp)
+        end
       end
 
       # Gets all groups
@@ -350,8 +368,10 @@ module Couchbase
       #
       # @return [Array<Group>]
       def get_all_groups(options = Options::User::GetAllGroups::DEFAULT)
-        resp = @backend.group_get_all(options.timeout)
-        resp.map { |entry| extract_group(entry) }
+        @observability.record_operation(Observability::OP_UM_GET_ALL_GROUPS, options.parent_span, self, :management) do |_obs_handler|
+          resp = @backend.group_get_all(options.timeout)
+          resp.map { |entry| extract_group(entry) }
+        end
       end
 
       # Creates or updates a group
@@ -362,19 +382,21 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::GroupNotFound]
       def upsert_group(group, options = Options::User::UpsertGroup::DEFAULT)
-        @backend.group_upsert({
-          name: group.name,
-          description: group.description,
-          ldap_group_reference: group.ldap_group_reference,
-          roles: group.roles.map do |role|
-                   {
-                     name: role.name,
-                     bucket: role.bucket,
-                     scope: role.scope,
-                     collection: role.collection,
-                   }
-                 end,
-        }, options.timeout)
+        @observability.record_operation(Observability::OP_UM_UPSERT_GROUP, options.parent_span, self, :management) do |_obs_handler|
+          @backend.group_upsert({
+            name: group.name,
+            description: group.description,
+            ldap_group_reference: group.ldap_group_reference,
+            roles: group.roles.map do |role|
+              {
+                name: role.name,
+                bucket: role.bucket,
+                scope: role.scope,
+                collection: role.collection,
+              }
+            end,
+          }, options.timeout)
+        end
       end
 
       # Removes a group
@@ -384,7 +406,9 @@ module Couchbase
       #
       # @raise [Error::GroupNotFound]
       def drop_group(group_name, options = Options::User::DropGroup::DEFAULT)
-        @backend.group_drop(group_name, options.timeout)
+        @observability.record_operation(Observability::OP_UM_DROP_GROUP, options.parent_span, self, :management) do |_obs_handler|
+          @backend.group_drop(group_name, options.timeout)
+        end
       end
 
       # @api private

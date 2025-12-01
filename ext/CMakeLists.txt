@@ -59,7 +59,8 @@ add_library(
   rcb_users.cxx
   rcb_utils.cxx
   rcb_version.cxx
-  rcb_views.cxx)
+  rcb_views.cxx
+  rcb_observability.cxx)
 target_include_directories(couchbase PRIVATE ${PROJECT_BINARY_DIR}/generated)
 target_include_directories(
   couchbase

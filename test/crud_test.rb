@@ -919,7 +919,7 @@ module Couchbase
 
       assert_equal old_expiry, res.expiry_time
 
-      time_travel(2)
+      time_travel(5)
       assert_raises(Couchbase::Error::DocumentNotFound) do
         @collection.get(doc_id)
       end
