@@ -17,6 +17,8 @@
 
 #include <core/cluster.hxx>
 #include <core/impl/subdoc/path_flags.hxx>
+#include <core/operations/document_append.hxx>
+#include <core/operations/document_decrement.hxx>
 #include <core/operations/document_exists.hxx>
 #include <core/operations/document_get.hxx>
 #include <core/operations/document_get_all_replicas.hxx>
@@ -24,11 +26,18 @@
 #include <core/operations/document_get_and_touch.hxx>
 #include <core/operations/document_get_any_replica.hxx>
 #include <core/operations/document_get_projected.hxx>
+#include <core/operations/document_increment.hxx>
+#include <core/operations/document_insert.hxx>
 #include <core/operations/document_lookup_in.hxx>
 #include <core/operations/document_lookup_in_all_replicas.hxx>
 #include <core/operations/document_lookup_in_any_replica.hxx>
+#include <core/operations/document_mutate_in.hxx>
+#include <core/operations/document_prepend.hxx>
+#include <core/operations/document_remove.hxx>
+#include <core/operations/document_replace.hxx>
 #include <core/operations/document_touch.hxx>
 #include <core/operations/document_unlock.hxx>
+#include <core/operations/document_upsert.hxx>
 #include <core/utils/json.hxx>
 
 #include <couchbase/cluster.hxx>
@@ -543,6 +552,7 @@ cb_Backend_document_unlock(VALUE self,
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
+  Check_Type(scope, T_STRING);
   Check_Type(collection, T_STRING);
   Check_Type(id, T_STRING);
   if (!NIL_P(options)) {
@@ -555,7 +565,6 @@ cb_Backend_document_unlock(VALUE self,
       cb_string_new(scope),
       cb_string_new(collection),
       cb_string_new(id),
-
     };
 
     core::operations::unlock_request req{ doc_id };
@@ -594,7 +603,7 @@ cb_Backend_document_upsert(VALUE self,
                            VALUE flags,
                            VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -607,25 +616,48 @@ cb_Backend_document_upsert(VALUE self,
   }
 
   try {
-    couchbase::upsert_options opts;
-    set_timeout(opts, options);
-    set_expiry(opts, options);
-    set_durability(opts, options);
-    set_preserve_expiry(opts, options);
+    core::operations::upsert_request req{
+      core::document_id{
+        cb_string_new(bucket),
+        cb_string_new(scope),
+        cb_string_new(collection),
+        cb_string_new(id),
+      },
+    };
+    cb_extract_content(req, content);
+    cb_extract_flags(req, flags);
+    cb_extract_timeout(req, options);
+    cb_extract_expiry(req, options);
+    cb_extract_durability_level(req, options);
+    cb_extract_preserve_expiry(req, options);
 
-    auto f = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection))
-               .upsert(cb_string_new(id),
-                       couchbase::codec::encoded_value{ cb_binary_new(content), FIX2UINT(flags) },
-                       opts);
+    std::promise<core::operations::upsert_response> promise;
+    auto f = promise.get_future();
 
-    auto [ctx, resp] = cb_wait_for_future(f);
-    if (ctx.ec()) {
-      cb_throw_error(ctx, "unable to upsert");
+    if (const auto legacy_durability = extract_legacy_durability_constraints(options);
+        legacy_durability.has_value()) {
+      cluster.execute(
+        core::operations::upsert_request_with_legacy_durability{
+          std::move(req),
+          legacy_durability.value().first,
+          legacy_durability.value().second,
+        },
+        [promise = std::move(promise)](auto&& resp) mutable {
+          promise.set_value(std::forward<decltype(resp)>(resp));
+        });
+    } else {
+      cluster.execute(std::move(req), [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
+      });
     }
 
-    return to_mutation_result_value(resp);
+    auto resp = cb_wait_for_future(f);
+    if (resp.ctx.ec()) {
+      cb_throw_error(resp.ctx, "unable to upsert");
+    }
+
+    return cb_create_mutation_result(resp);
+
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
@@ -644,7 +676,7 @@ cb_Backend_document_append(VALUE self,
                            VALUE content,
                            VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -656,22 +688,45 @@ cb_Backend_document_append(VALUE self,
   }
 
   try {
-    couchbase::append_options opts;
-    set_timeout(opts, options);
-    set_durability(opts, options);
+    core::operations::append_request req{
+      core::document_id{
+        cb_string_new(bucket),
+        cb_string_new(scope),
+        cb_string_new(collection),
+        cb_string_new(id),
+      },
+    };
+    cb_extract_content(req, content);
+    cb_extract_timeout(req, options);
+    cb_extract_durability_level(req, options);
 
-    auto f = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection))
-               .binary()
-               .append(cb_string_new(id), cb_binary_new(content), opts);
+    std::promise<core::operations::append_response> promise;
+    auto f = promise.get_future();
 
-    auto [ctx, resp] = cb_wait_for_future(f);
-    if (ctx.ec()) {
-      cb_throw_error(ctx, "unable to append");
+    if (const auto legacy_durability = extract_legacy_durability_constraints(options);
+        legacy_durability.has_value()) {
+      cluster.execute(
+        core::operations::append_request_with_legacy_durability{
+          std::move(req),
+          legacy_durability.value().first,
+          legacy_durability.value().second,
+        },
+        [promise = std::move(promise)](auto&& resp) mutable {
+          promise.set_value(std::forward<decltype(resp)>(resp));
+        });
+    } else {
+      cluster.execute(std::move(req), [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
+      });
     }
 
-    return to_mutation_result_value(resp);
+    auto resp = cb_wait_for_future(f);
+    if (resp.ctx.ec()) {
+      cb_throw_error(resp.ctx, "unable to append");
+    }
+
+    return cb_create_mutation_result(resp);
+
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
@@ -690,7 +745,7 @@ cb_Backend_document_prepend(VALUE self,
                             VALUE content,
                             VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -702,22 +757,44 @@ cb_Backend_document_prepend(VALUE self,
   }
 
   try {
-    couchbase::prepend_options opts;
-    set_timeout(opts, options);
-    set_durability(opts, options);
+    core::operations::prepend_request req{
+      core::document_id{
+        cb_string_new(bucket),
+        cb_string_new(scope),
+        cb_string_new(collection),
+        cb_string_new(id),
+      },
+    };
+    cb_extract_content(req, content);
+    cb_extract_timeout(req, options);
+    cb_extract_durability_level(req, options);
 
-    auto f = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection))
-               .binary()
-               .prepend(cb_string_new(id), cb_binary_new(content), opts);
+    std::promise<core::operations::prepend_response> promise;
+    auto f = promise.get_future();
 
-    auto [ctx, resp] = cb_wait_for_future(f);
-    if (ctx.ec()) {
-      cb_throw_error(ctx, "unable to prepend");
+    if (const auto legacy_durability = extract_legacy_durability_constraints(options);
+        legacy_durability.has_value()) {
+      cluster.execute(
+        core::operations::prepend_request_with_legacy_durability{
+          std::move(req),
+          legacy_durability.value().first,
+          legacy_durability.value().second,
+        },
+        [promise = std::move(promise)](auto&& resp) mutable {
+          promise.set_value(std::forward<decltype(resp)>(resp));
+        });
+    } else {
+      cluster.execute(std::move(req), [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
+      });
     }
 
-    return to_mutation_result_value(resp);
+    auto resp = cb_wait_for_future(f);
+    if (resp.ctx.ec()) {
+      cb_throw_error(resp.ctx, "unable to prepend");
+    }
+
+    return cb_create_mutation_result(resp);
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
@@ -737,7 +814,7 @@ cb_Backend_document_replace(VALUE self,
                             VALUE flags,
                             VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -750,26 +827,48 @@ cb_Backend_document_replace(VALUE self,
   }
 
   try {
-    couchbase::replace_options opts;
-    set_timeout(opts, options);
-    set_expiry(opts, options);
-    set_durability(opts, options);
-    set_preserve_expiry(opts, options);
-    set_cas(opts, options);
+    core::operations::replace_request req{
+      core::document_id{
+        cb_string_new(bucket),
+        cb_string_new(scope),
+        cb_string_new(collection),
+        cb_string_new(id),
+      },
+    };
+    cb_extract_content(req, content);
+    cb_extract_flags(req, flags);
+    cb_extract_timeout(req, options);
+    cb_extract_expiry(req, options);
+    cb_extract_durability_level(req, options);
+    cb_extract_preserve_expiry(req, options);
+    cb_extract_cas(req, options);
 
-    auto f = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection))
-               .replace(cb_string_new(id),
-                        couchbase::codec::encoded_value{ cb_binary_new(content), FIX2UINT(flags) },
-                        opts);
+    std::promise<core::operations::replace_response> promise;
+    auto f = promise.get_future();
 
-    auto [ctx, resp] = cb_wait_for_future(f);
-    if (ctx.ec()) {
-      cb_throw_error(ctx, "unable to replace");
+    if (const auto legacy_durability = extract_legacy_durability_constraints(options);
+        legacy_durability.has_value()) {
+      cluster.execute(
+        core::operations::replace_request_with_legacy_durability{
+          std::move(req),
+          legacy_durability.value().first,
+          legacy_durability.value().second,
+        },
+        [promise = std::move(promise)](auto&& resp) mutable {
+          promise.set_value(std::forward<decltype(resp)>(resp));
+        });
+    } else {
+      cluster.execute(std::move(req), [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
+      });
     }
 
-    return to_mutation_result_value(resp);
+    auto resp = cb_wait_for_future(f);
+    if (resp.ctx.ec()) {
+      cb_throw_error(resp.ctx, "unable to replace");
+    }
+    return cb_create_mutation_result(resp);
+
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
@@ -789,7 +888,7 @@ cb_Backend_document_insert(VALUE self,
                            VALUE flags,
                            VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -802,24 +901,46 @@ cb_Backend_document_insert(VALUE self,
   }
 
   try {
-    couchbase::insert_options opts;
-    set_timeout(opts, options);
-    set_expiry(opts, options);
-    set_durability(opts, options);
+    core::operations::insert_request req{
+      core::document_id{
+        cb_string_new(bucket),
+        cb_string_new(scope),
+        cb_string_new(collection),
+        cb_string_new(id),
+      },
+    };
+    cb_extract_content(req, content);
+    cb_extract_flags(req, flags);
+    cb_extract_timeout(req, options);
+    cb_extract_expiry(req, options);
+    cb_extract_durability_level(req, options);
 
-    auto f = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection))
-               .insert(cb_string_new(id),
-                       couchbase::codec::encoded_value{ cb_binary_new(content), FIX2UINT(flags) },
-                       opts);
+    std::promise<core::operations::insert_response> promise;
+    auto f = promise.get_future();
 
-    auto [ctx, resp] = cb_wait_for_future(f);
-    if (ctx.ec()) {
-      cb_throw_error(ctx, "unable to insert");
+    if (const auto legacy_durability = extract_legacy_durability_constraints(options);
+        legacy_durability.has_value()) {
+      cluster.execute(
+        core::operations::insert_request_with_legacy_durability{
+          std::move(req),
+          legacy_durability.value().first,
+          legacy_durability.value().second,
+        },
+        [promise = std::move(promise)](auto&& resp) mutable {
+          promise.set_value(std::forward<decltype(resp)>(resp));
+        });
+    } else {
+      cluster.execute(std::move(req), [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
+      });
     }
 
-    return to_mutation_result_value(resp);
+    auto resp = cb_wait_for_future(f);
+    if (resp.ctx.ec()) {
+      cb_throw_error(resp.ctx, "unable to insert");
+    }
+    return cb_create_mutation_result(resp);
+
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
@@ -837,7 +958,7 @@ cb_Backend_document_remove(VALUE self,
                            VALUE id,
                            VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -848,22 +969,43 @@ cb_Backend_document_remove(VALUE self,
   }
 
   try {
-    couchbase::remove_options opts;
-    set_timeout(opts, options);
-    set_durability(opts, options);
-    set_cas(opts, options);
+    core::operations::remove_request req{
+      core::document_id{
+        cb_string_new(bucket),
+        cb_string_new(scope),
+        cb_string_new(collection),
+        cb_string_new(id),
+      },
+    };
+    cb_extract_timeout(req, options);
+    cb_extract_durability_level(req, options);
+    cb_extract_cas(req, options);
 
-    auto f = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection))
-               .remove(cb_string_new(id), opts);
+    std::promise<core::operations::remove_response> promise;
+    auto f = promise.get_future();
 
-    auto [ctx, resp] = cb_wait_for_future(f);
-    if (ctx.ec()) {
-      cb_throw_error(ctx, "unable to remove");
+    if (const auto legacy_durability = extract_legacy_durability_constraints(options);
+        legacy_durability.has_value()) {
+      cluster.execute(
+        core::operations::remove_request_with_legacy_durability{
+          std::move(req),
+          legacy_durability.value().first,
+          legacy_durability.value().second,
+        },
+        [promise = std::move(promise)](auto&& resp) mutable {
+          promise.set_value(std::forward<decltype(resp)>(resp));
+        });
+    } else {
+      cluster.execute(std::move(req), [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
+      });
     }
 
-    return to_mutation_result_value(resp);
+    auto resp = cb_wait_for_future(f);
+    if (resp.ctx.ec()) {
+      cb_throw_error(resp.ctx, "unable to remove");
+    }
+    return cb_create_mutation_result(resp);
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
@@ -881,7 +1023,7 @@ cb_Backend_document_increment(VALUE self,
                               VALUE id,
                               VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -892,27 +1034,50 @@ cb_Backend_document_increment(VALUE self,
   }
 
   try {
-    couchbase::increment_options opts;
-    set_timeout(opts, options);
-    set_durability(opts, options);
-    set_expiry(opts, options);
-    set_delta(opts, options);
-    set_initial_value(opts, options);
+    core::operations::increment_request req{
+      core::document_id{
+        cb_string_new(bucket),
+        cb_string_new(scope),
+        cb_string_new(collection),
+        cb_string_new(id),
+      },
+    };
 
-    auto f = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection))
-               .binary()
-               .increment(cb_string_new(id), opts);
+    cb_extract_timeout(req, options);
+    cb_extract_expiry(req, options);
+    cb_extract_option_uint64(req.delta, options, "delta");
+    cb_extract_option_uint64(req.initial_value, options, "initial_value");
+    cb_extract_durability_level(req, options);
 
-    auto [ctx, resp] = cb_wait_for_future(f);
-    if (ctx.ec()) {
-      cb_throw_error(ctx, "unable to increment");
+    std::promise<core::operations::increment_response> promise;
+    auto f = promise.get_future();
+
+    if (const auto legacy_durability = extract_legacy_durability_constraints(options);
+        legacy_durability.has_value()) {
+      cluster.execute(
+        core::operations::increment_request_with_legacy_durability{
+          std::move(req),
+          legacy_durability.value().first,
+          legacy_durability.value().second,
+        },
+        [promise = std::move(promise)](auto&& resp) mutable {
+          promise.set_value(std::forward<decltype(resp)>(resp));
+        });
+    } else {
+      cluster.execute(std::move(req), [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
+      });
     }
 
-    VALUE res = to_mutation_result_value(resp);
-    rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content()));
+    auto resp = cb_wait_for_future(f);
+    if (resp.ctx.ec()) {
+      cb_throw_error(resp.ctx, "unable to increment");
+    }
+
+    VALUE res = cb_create_mutation_result(resp);
+    rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content));
     return res;
+
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
@@ -930,7 +1095,7 @@ cb_Backend_document_decrement(VALUE self,
                               VALUE id,
                               VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -941,26 +1106,48 @@ cb_Backend_document_decrement(VALUE self,
   }
 
   try {
-    couchbase::decrement_options opts;
-    set_timeout(opts, options);
-    set_durability(opts, options);
-    set_expiry(opts, options);
-    set_delta(opts, options);
-    set_initial_value(opts, options);
+    core::operations::decrement_request req{
+      core::document_id{
+        cb_string_new(bucket),
+        cb_string_new(scope),
+        cb_string_new(collection),
+        cb_string_new(id),
+      },
+    };
 
-    auto f = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection))
-               .binary()
-               .decrement(cb_string_new(id), opts);
+    cb_extract_timeout(req, options);
+    cb_extract_expiry(req, options);
+    cb_extract_option_uint64(req.delta, options, "delta");
+    cb_extract_option_uint64(req.initial_value, options, "initial_value");
+    cb_extract_durability_level(req, options);
 
-    auto [ctx, resp] = cb_wait_for_future(f);
-    if (ctx.ec()) {
-      cb_throw_error(ctx, "unable to decrement");
+    std::promise<core::operations::decrement_response> promise;
+    auto f = promise.get_future();
+
+    if (const auto legacy_durability = extract_legacy_durability_constraints(options);
+        legacy_durability.has_value()) {
+      cluster.execute(
+        core::operations::decrement_request_with_legacy_durability{
+          std::move(req),
+          legacy_durability.value().first,
+          legacy_durability.value().second,
+        },
+        [promise = std::move(promise)](auto&& resp) mutable {
+          promise.set_value(std::forward<decltype(resp)>(resp));
+        });
+    } else {
+      cluster.execute(std::move(req), [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
+      });
     }
 
-    VALUE res = to_mutation_result_value(resp);
-    rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content()));
+    auto resp = cb_wait_for_future(f);
+    if (resp.ctx.ec()) {
+      cb_throw_error(resp.ctx, "unable to decrement");
+    }
+
+    VALUE res = cb_create_mutation_result(resp);
+    rb_hash_aset(res, rb_id2sym(rb_intern("content")), ULL2NUM(resp.content));
     return res;
 
   } catch (const std::system_error& se) {
@@ -1374,7 +1561,7 @@ cb_Backend_document_mutate_in(VALUE self,
                               VALUE specs,
                               VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -1391,15 +1578,22 @@ cb_Backend_document_mutate_in(VALUE self,
   }
 
   try {
-    couchbase::mutate_in_options opts;
-    set_timeout(opts, options);
-    set_durability(opts, options);
-    set_expiry(opts, options);
-    set_preserve_expiry(opts, options);
-    set_access_deleted(opts, options);
-    set_create_as_deleted(opts, options);
-    set_cas(opts, options);
-    set_store_semantics(opts, options);
+    core::operations::mutate_in_request req{
+      core::document_id{
+        cb_string_new(bucket),
+        cb_string_new(scope),
+        cb_string_new(collection),
+        cb_string_new(id),
+      },
+    };
+    cb_extract_timeout(req, options);
+    cb_extract_durability_level(req, options);
+    cb_extract_expiry(req, options);
+    cb_extract_preserve_expiry(req, options);
+    cb_extract_option_bool(req.access_deleted, options, "access_deleted");
+    cb_extract_option_bool(req.create_as_deleted, options, "create_as_deleted");
+    cb_extract_cas(req, options);
+    cb_extract_store_semantics(req, options);
 
     static VALUE xattr_property = rb_id2sym(rb_intern("xattr"));
     static VALUE create_path_property = rb_id2sym(rb_intern("create_path"));
@@ -1409,130 +1603,144 @@ cb_Backend_document_mutate_in(VALUE self,
     static VALUE param_property = rb_id2sym(rb_intern("param"));
 
     couchbase::mutate_in_specs cxx_specs;
-    auto entries_size = static_cast<std::size_t>(RARRAY_LEN(specs));
-    for (std::size_t i = 0; i < entries_size; ++i) {
-      VALUE entry = rb_ary_entry(specs, static_cast<long>(i));
-      cb_check_type(entry, T_HASH);
-      bool xattr = RTEST(rb_hash_aref(entry, xattr_property));
-      bool create_path = RTEST(rb_hash_aref(entry, create_path_property));
-      bool expand_macros = RTEST(rb_hash_aref(entry, expand_macros_property));
-      VALUE path = rb_hash_aref(entry, path_property);
-      cb_check_type(path, T_STRING);
-      VALUE operation = rb_hash_aref(entry, opcode_property);
-      cb_check_type(operation, T_SYMBOL);
-      VALUE param = rb_hash_aref(entry, param_property);
-      if (ID operation_id = rb_sym2id(operation); operation_id == rb_intern("dict_add")) {
-        cb_check_type(param, T_STRING);
-        cxx_specs.push_back(couchbase::mutate_in_specs::insert_raw(
-                              cb_string_new(path), cb_binary_new(param), expand_macros)
-                              .xattr(xattr)
-                              .create_path(create_path));
-      } else if (operation_id == rb_intern("dict_upsert")) {
-        cb_check_type(param, T_STRING);
+    {
+      auto entries_size = static_cast<std::size_t>(RARRAY_LEN(specs));
+      for (std::size_t i = 0; i < entries_size; ++i) {
+        VALUE entry = rb_ary_entry(specs, static_cast<long>(i));
+        cb_check_type(entry, T_HASH);
+        bool xattr = RTEST(rb_hash_aref(entry, xattr_property));
+        bool create_path = RTEST(rb_hash_aref(entry, create_path_property));
+        bool expand_macros = RTEST(rb_hash_aref(entry, expand_macros_property));
+        VALUE path = rb_hash_aref(entry, path_property);
+        cb_check_type(path, T_STRING);
+        VALUE operation = rb_hash_aref(entry, opcode_property);
+        cb_check_type(operation, T_SYMBOL);
+        VALUE param = rb_hash_aref(entry, param_property);
+        if (ID operation_id = rb_sym2id(operation); operation_id == rb_intern("dict_add")) {
+          cb_check_type(param, T_STRING);
+          cxx_specs.push_back(couchbase::mutate_in_specs::insert_raw(
+                                cb_string_new(path), cb_binary_new(param), expand_macros)
+                                .xattr(xattr)
+                                .create_path(create_path));
+        } else if (operation_id == rb_intern("dict_upsert")) {
+          cb_check_type(param, T_STRING);
 
-        cxx_specs.push_back(couchbase::mutate_in_specs::upsert_raw(
-                              cb_string_new(path), cb_binary_new(param), expand_macros)
-                              .xattr(xattr)
-                              .create_path(create_path));
-      } else if (operation_id == rb_intern("remove")) {
-        cxx_specs.push_back(couchbase::mutate_in_specs::remove(cb_string_new(path)).xattr(xattr));
-      } else if (operation_id == rb_intern("replace")) {
-        cb_check_type(param, T_STRING);
-        cxx_specs.push_back(couchbase::mutate_in_specs::replace_raw(
-                              cb_string_new(path), cb_binary_new(param), expand_macros)
-                              .xattr(xattr));
-      } else if (operation_id == rb_intern("array_push_last")) {
-        cb_check_type(param, T_STRING);
-        cxx_specs.push_back(
-          couchbase::mutate_in_specs::array_append_raw(cb_string_new(path), cb_binary_new(param))
-            .xattr(xattr)
-            .create_path(create_path));
-      } else if (operation_id == rb_intern("array_push_first")) {
-        cb_check_type(param, T_STRING);
-        cxx_specs.push_back(
-          couchbase::mutate_in_specs::array_prepend_raw(cb_string_new(path), cb_binary_new(param))
-            .xattr(xattr)
-            .create_path(create_path));
-      } else if (operation_id == rb_intern("array_insert")) {
-        cb_check_type(param, T_STRING);
-        cxx_specs.push_back(
-          couchbase::mutate_in_specs::array_insert_raw(cb_string_new(path), cb_binary_new(param))
-            .xattr(xattr)
-            .create_path(create_path));
-      } else if (operation_id == rb_intern("array_add_unique")) {
-        cb_check_type(param, T_STRING);
-        cxx_specs.push_back(couchbase::mutate_in_specs::array_add_unique_raw(
-                              cb_string_new(path), cb_binary_new(param), expand_macros)
-                              .xattr(xattr)
-                              .create_path(create_path));
-      } else if (operation_id == rb_intern("counter")) {
-        if (TYPE(param) == T_FIXNUM || TYPE(param) == T_BIGNUM) {
-          if (std::int64_t num = NUM2LL(param); num < 0) {
-            cxx_specs.push_back(couchbase::mutate_in_specs::decrement(cb_string_new(path), -1 * num)
-                                  .xattr(xattr)
-                                  .create_path(create_path));
+          cxx_specs.push_back(couchbase::mutate_in_specs::upsert_raw(
+                                cb_string_new(path), cb_binary_new(param), expand_macros)
+                                .xattr(xattr)
+                                .create_path(create_path));
+        } else if (operation_id == rb_intern("remove")) {
+          cxx_specs.push_back(couchbase::mutate_in_specs::remove(cb_string_new(path)).xattr(xattr));
+        } else if (operation_id == rb_intern("replace")) {
+          cb_check_type(param, T_STRING);
+          cxx_specs.push_back(couchbase::mutate_in_specs::replace_raw(
+                                cb_string_new(path), cb_binary_new(param), expand_macros)
+                                .xattr(xattr));
+        } else if (operation_id == rb_intern("array_push_last")) {
+          cb_check_type(param, T_STRING);
+          cxx_specs.push_back(
+            couchbase::mutate_in_specs::array_append_raw(cb_string_new(path), cb_binary_new(param))
+              .xattr(xattr)
+              .create_path(create_path));
+        } else if (operation_id == rb_intern("array_push_first")) {
+          cb_check_type(param, T_STRING);
+          cxx_specs.push_back(
+            couchbase::mutate_in_specs::array_prepend_raw(cb_string_new(path), cb_binary_new(param))
+              .xattr(xattr)
+              .create_path(create_path));
+        } else if (operation_id == rb_intern("array_insert")) {
+          cb_check_type(param, T_STRING);
+          cxx_specs.push_back(
+            couchbase::mutate_in_specs::array_insert_raw(cb_string_new(path), cb_binary_new(param))
+              .xattr(xattr)
+              .create_path(create_path));
+        } else if (operation_id == rb_intern("array_add_unique")) {
+          cb_check_type(param, T_STRING);
+          cxx_specs.push_back(couchbase::mutate_in_specs::array_add_unique_raw(
+                                cb_string_new(path), cb_binary_new(param), expand_macros)
+                                .xattr(xattr)
+                                .create_path(create_path));
+        } else if (operation_id == rb_intern("counter")) {
+          if (TYPE(param) == T_FIXNUM || TYPE(param) == T_BIGNUM) {
+            if (std::int64_t num = NUM2LL(param); num < 0) {
+              cxx_specs.push_back(
+                couchbase::mutate_in_specs::decrement(cb_string_new(path), -1 * num)
+                  .xattr(xattr)
+                  .create_path(create_path));
+            } else {
+              cxx_specs.push_back(couchbase::mutate_in_specs::increment(cb_string_new(path), num)
+                                    .xattr(xattr)
+                                    .create_path(create_path));
+            }
           } else {
-            cxx_specs.push_back(couchbase::mutate_in_specs::increment(cb_string_new(path), num)
-                                  .xattr(xattr)
-                                  .create_path(create_path));
+            throw ruby_exception(
+              exc_invalid_argument(),
+              rb_sprintf("subdocument counter operation expects number, but given: %+" PRIsVALUE,
+                         param));
           }
+        } else if (operation_id == rb_intern("set_doc")) {
+          cb_check_type(param, T_STRING);
+          cxx_specs.push_back(
+            couchbase::mutate_in_specs::replace_raw("", cb_binary_new(param), expand_macros)
+              .xattr(xattr));
+        } else if (operation_id == rb_intern("remove_doc")) {
+          cxx_specs.push_back(couchbase::mutate_in_specs::remove("").xattr(xattr));
         } else {
           throw ruby_exception(
             exc_invalid_argument(),
-            rb_sprintf("subdocument counter operation expects number, but given: %+" PRIsVALUE,
-                       param));
+            rb_sprintf("unsupported operation for subdocument mutation: %+" PRIsVALUE, operation));
         }
-      } else if (operation_id == rb_intern("set_doc")) {
-        cb_check_type(param, T_STRING);
-        cxx_specs.push_back(
-          couchbase::mutate_in_specs::replace_raw("", cb_binary_new(param), expand_macros)
-            .xattr(xattr));
-      } else if (operation_id == rb_intern("remove_doc")) {
-        cxx_specs.push_back(couchbase::mutate_in_specs::remove("").xattr(xattr));
-      } else {
-        throw ruby_exception(
-          exc_invalid_argument(),
-          rb_sprintf("unsupported operation for subdocument mutation: %+" PRIsVALUE, operation));
       }
     }
+    req.specs = cxx_specs.specs();
 
-    auto f = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection))
-               .mutate_in(cb_string_new(id), cxx_specs, opts);
+    std::promise<core::operations::mutate_in_response> promise;
+    auto f = promise.get_future();
 
-    auto [ctx, resp] = cb_wait_for_future(f);
-    if (ctx.ec()) {
-      cb_throw_error(ctx, "unable to mutate_in");
+    if (const auto legacy_durability = extract_legacy_durability_constraints(options);
+        legacy_durability.has_value()) {
+      cluster.execute(
+        core::operations::mutate_in_request_with_legacy_durability{
+          std::move(req),
+          legacy_durability.value().first,
+          legacy_durability.value().second,
+        },
+        [promise = std::move(promise)](auto&& resp) mutable {
+          promise.set_value(std::forward<decltype(resp)>(resp));
+        });
+    } else {
+      cluster.execute(std::move(req), [promise = std::move(promise)](auto&& resp) mutable {
+        promise.set_value(std::forward<decltype(resp)>(resp));
+      });
+    }
+
+    auto resp = cb_wait_for_future(f);
+    if (resp.ctx.ec()) {
+      cb_throw_error(resp.ctx, "unable to mutate_in");
     }
 
     static VALUE deleted_property = rb_id2sym(rb_intern("deleted"));
     static VALUE fields_property = rb_id2sym(rb_intern("fields"));
     static VALUE index_property = rb_id2sym(rb_intern("index"));
-    static VALUE cas_property = rb_id2sym(rb_intern("cas"));
     static VALUE value_property = rb_id2sym(rb_intern("value"));
 
-    VALUE res = to_mutation_result_value(resp);
-    rb_hash_aset(res, deleted_property, resp.is_deleted() ? Qtrue : Qfalse);
-    if (!ctx.ec()) {
-      rb_hash_aset(res, cas_property, cb_cas_to_num(resp.cas()));
-
-      VALUE fields = rb_ary_new_capa(static_cast<long>(entries_size));
-      rb_hash_aset(res, fields_property, fields);
-      for (std::size_t i = 0; i < entries_size; ++i) {
-        VALUE entry = rb_hash_new();
-        rb_hash_aset(entry, index_property, ULL2NUM(i));
-        rb_hash_aset(entry,
-                     path_property,
-                     rb_hash_aref(rb_ary_entry(specs, static_cast<long>(i)), path_property));
-        if (resp.has_value(i)) {
-          auto value = resp.content_as<tao::json::value>(i);
-          rb_hash_aset(entry, value_property, cb_str_new(core::utils::json::generate(value)));
-        }
-        rb_ary_store(fields, static_cast<long>(i), entry);
+    VALUE res = cb_create_mutation_result(resp);
+    rb_hash_aset(res, deleted_property, resp.deleted ? Qtrue : Qfalse);
+    VALUE fields = rb_ary_new_capa(static_cast<long>(resp.fields.size()));
+    rb_hash_aset(res, fields_property, fields);
+    for (std::size_t i = 0; i < resp.fields.size(); ++i) {
+      VALUE entry = rb_hash_new();
+      rb_hash_aset(entry, index_property, ULL2NUM(i));
+      rb_hash_aset(entry,
+                   path_property,
+                   rb_hash_aref(rb_ary_entry(specs, static_cast<long>(i)), path_property));
+      if (!resp.fields.at(i).value.empty()) {
+        rb_hash_aset(entry, value_property, cb_str_new(resp.fields.at(i).value));
       }
+      rb_ary_store(fields, static_cast<long>(i), entry);
     }
     return res;
+
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
