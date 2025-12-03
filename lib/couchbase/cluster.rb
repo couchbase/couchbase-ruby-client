@@ -28,6 +28,9 @@ require "couchbase/analytics_options"
 require "couchbase/diagnostics"
 
 require "couchbase/protostellar"
+require "couchbase/utils/observability"
+require "couchbase/tracing/threshold_logging_tracer"
+require "couchbase/tracing/noop_tracer"
 
 module Couchbase
   # The main entry point when connecting to a Couchbase cluster.
@@ -87,7 +90,7 @@ module Couchbase
     #
     # @return [Bucket]
     def bucket(name)
-      Bucket.new(@backend, name)
+      Bucket.new(@backend, name, @observability)
     end
 
     def update_authenticator(authenticator)
@@ -134,30 +137,34 @@ module Couchbase
     #
     # @return [QueryResult]
     def query(statement, options = Options::Query::DEFAULT)
-      resp = @backend.document_query(statement, options.to_backend)
+      @observability.record_operation(Observability::OP_QUERY, options.parent_span, self, :query) do |obs_handler|
+        obs_handler.add_query_statement(statement, options)
 
-      QueryResult.new do |res|
-        res.meta_data = QueryMetaData.new do |meta|
-          meta.status = resp[:meta][:status]
-          meta.request_id = resp[:meta][:request_id]
-          meta.client_context_id = resp[:meta][:client_context_id]
-          meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
-          meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
-          meta.metrics = QueryMetrics.new do |metrics|
-            if resp[:meta][:metrics]
-              metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
-              metrics.execution_time = resp[:meta][:metrics][:execution_time]
-              metrics.sort_count = resp[:meta][:metrics][:sort_count]
-              metrics.result_count = resp[:meta][:metrics][:result_count]
-              metrics.result_size = resp[:meta][:metrics][:result_size]
-              metrics.mutation_count = resp[:meta][:metrics][:mutation_count]
-              metrics.error_count = resp[:meta][:metrics][:error_count]
-              metrics.warning_count = resp[:meta][:metrics][:warning_count]
+        resp = @backend.document_query(statement, options.to_backend)
+
+        QueryResult.new do |res|
+          res.meta_data = QueryMetaData.new do |meta|
+            meta.status = resp[:meta][:status]
+            meta.request_id = resp[:meta][:request_id]
+            meta.client_context_id = resp[:meta][:client_context_id]
+            meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
+            meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
+            meta.metrics = QueryMetrics.new do |metrics|
+              if resp[:meta][:metrics]
+                metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
+                metrics.execution_time = resp[:meta][:metrics][:execution_time]
+                metrics.sort_count = resp[:meta][:metrics][:sort_count]
+                metrics.result_count = resp[:meta][:metrics][:result_count]
+                metrics.result_size = resp[:meta][:metrics][:result_size]
+                metrics.mutation_count = resp[:meta][:metrics][:mutation_count]
+                metrics.error_count = resp[:meta][:metrics][:error_count]
+                metrics.warning_count = resp[:meta][:metrics][:warning_count]
+              end
             end
+            meta.warnings = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
           end
-          meta.warnings = resp[:warnings].map { |warn| QueryWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
+          res.instance_variable_set(:@rows, resp[:rows])
         end
-        res.instance_variable_set(:@rows, resp[:rows])
       end
     end
 
@@ -172,30 +179,34 @@ module Couchbase
     #
     # @return [AnalyticsResult]
     def analytics_query(statement, options = Options::Analytics::DEFAULT)
-      resp = @backend.document_analytics(statement, options.to_backend)
+      @observability.record_operation(Observability::OP_ANALYTICS_QUERY, options.parent_span, self, :analytics) do |obs_handler|
+        obs_handler.add_query_statement(statement, options)
 
-      AnalyticsResult.new do |res|
-        res.transcoder = options.transcoder
-        res.meta_data = AnalyticsMetaData.new do |meta|
-          meta.status = resp[:meta][:status]
-          meta.request_id = resp[:meta][:request_id]
-          meta.client_context_id = resp[:meta][:client_context_id]
-          meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
-          meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
-          meta.metrics = AnalyticsMetrics.new do |metrics|
-            if resp[:meta][:metrics]
-              metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
-              metrics.execution_time = resp[:meta][:metrics][:execution_time]
-              metrics.result_count = resp[:meta][:metrics][:result_count]
-              metrics.result_size = resp[:meta][:metrics][:result_size]
-              metrics.error_count = resp[:meta][:metrics][:error_count]
-              metrics.warning_count = resp[:meta][:metrics][:warning_count]
-              metrics.processed_objects = resp[:meta][:metrics][:processed_objects]
+        resp = @backend.document_analytics(statement, options.to_backend)
+
+        AnalyticsResult.new do |res|
+          res.transcoder = options.transcoder
+          res.meta_data = AnalyticsMetaData.new do |meta|
+            meta.status = resp[:meta][:status]
+            meta.request_id = resp[:meta][:request_id]
+            meta.client_context_id = resp[:meta][:client_context_id]
+            meta.signature = JSON.parse(resp[:meta][:signature]) if resp[:meta][:signature]
+            meta.profile = JSON.parse(resp[:meta][:profile]) if resp[:meta][:profile]
+            meta.metrics = AnalyticsMetrics.new do |metrics|
+              if resp[:meta][:metrics]
+                metrics.elapsed_time = resp[:meta][:metrics][:elapsed_time]
+                metrics.execution_time = resp[:meta][:metrics][:execution_time]
+                metrics.result_count = resp[:meta][:metrics][:result_count]
+                metrics.result_size = resp[:meta][:metrics][:result_size]
+                metrics.error_count = resp[:meta][:metrics][:error_count]
+                metrics.warning_count = resp[:meta][:metrics][:warning_count]
+                metrics.processed_objects = resp[:meta][:metrics][:processed_objects]
+              end
             end
+            res[:warnings] = resp[:warnings].map { |warn| AnalyticsWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
           end
-          res[:warnings] = resp[:warnings].map { |warn| AnalyticsWarning.new(warn[:code], warn[:message]) } if resp[:warnings]
+          res.instance_variable_set(:@rows, resp[:rows])
         end
-        res.instance_variable_set(:@rows, resp[:rows])
       end
     end
 
@@ -216,8 +227,10 @@ module Couchbase
     #
     # @return [SearchResult]
     def search_query(index_name, query, options = Options::Search::DEFAULT)
-      resp = @backend.document_search(nil, nil, index_name, JSON.generate(query), {}, options.to_backend)
-      convert_search_result(resp, options)
+      @observability.record_operation(Observability::OP_SEARCH_QUERY, options.parent_span, self, :search) do |_obs_handler|
+        resp = @backend.document_search(nil, nil, index_name, JSON.generate(query), {}, options.to_backend)
+        convert_search_result(resp, options)
+      end
     end
 
     # Performs a request against the Full Text Search (FTS) service.
@@ -228,34 +241,36 @@ module Couchbase
     #
     # @return [SearchResult]
     def search(index_name, search_request, options = Options::Search::DEFAULT)
-      encoded_query, encoded_req = search_request.to_backend
-      resp = @backend.document_search(nil, nil, index_name, encoded_query, encoded_req, options.to_backend(show_request: false))
-      convert_search_result(resp, options)
+      @observability.record_operation(Observability::OP_SEARCH_QUERY, options.parent_span, self, :search) do |_obs_handler|
+        encoded_query, encoded_req = search_request.to_backend
+        resp = @backend.document_search(nil, nil, index_name, encoded_query, encoded_req, options.to_backend(show_request: false))
+        convert_search_result(resp, options)
+      end
     end
 
     # @return [Management::UserManager]
     def users
-      Management::UserManager.new(@backend)
+      Management::UserManager.new(@backend, @observability)
     end
 
     # @return [Management::BucketManager]
     def buckets
-      Management::BucketManager.new(@backend)
+      Management::BucketManager.new(@backend, @observability)
     end
 
     # @return [Management::QueryIndexManager]
     def query_indexes
-      Management::QueryIndexManager.new(@backend)
+      Management::QueryIndexManager.new(@backend, @observability)
     end
 
     # @return [Management::AnalyticsIndexManager]
     def analytics_indexes
-      Management::AnalyticsIndexManager.new(@backend)
+      Management::AnalyticsIndexManager.new(@backend, @observability)
     end
 
     # @return [Management::SearchIndexManager]
     def search_indexes
-      Management::SearchIndexManager.new(@backend)
+      Management::SearchIndexManager.new(@backend, @observability)
     end
 
     # Closes all connections to services and free allocated resources
@@ -263,6 +278,7 @@ module Couchbase
     # @return [void]
     def disconnect
       @backend.close
+      @observability.close
     end
 
     # Creates diagnostic report that can be used to determine the health of the network connections.
@@ -357,6 +373,7 @@ module Couchbase
           raise ArgumentError, "missing username" unless credentials[:username]
           raise ArgumentError, "missing password" unless credentials[:password]
         when Options::Cluster
+          tracer = options.tracer
           open_options = options.to_backend || {}
           authenticator = options.authenticator
           case authenticator
@@ -380,6 +397,23 @@ module Couchbase
           end
         else
           raise ArgumentError, "unexpected second argument, have to be String or Options::Cluster"
+        end
+      end
+
+      @observability = Observability::Wrapper.new do |w|
+        if !(open_options[:enable_tracing].nil? && !open_options[:enable_tracing])
+          w.tracer = Tracing::NoopTracer.new
+        elsif tracer.nil?
+          w.tracer = Tracing::ThresholdLoggingTracer.new(
+            emit_interval: open_options[:threshold_emit_interval],
+            kv_threshold: open_options[:key_value_threshold],
+            query_threshold: open_options[:query_threshold],
+            views_threshold: open_options[:view_threshold],
+            search_threshold: open_options[:search_threshold],
+            analytics_threshold: open_options[:analytics_threshold],
+            management_threshold: open_options[:management_threshold],
+            sample_size: open_options[:threshold_sample_size],
+          )
         end
       end
 

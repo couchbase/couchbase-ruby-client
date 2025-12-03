@@ -24,10 +24,12 @@ module Couchbase
       # @param [Couchbase::Backend] backend
       # @param [String] bucket_name
       # @param [String] scope_name
-      def initialize(backend, bucket_name, scope_name)
+      # @param [Couchbase::Observability::Wrapper] observability wrapper
+      def initialize(backend, bucket_name, scope_name, observability)
         @backend = backend
         @bucket_name = bucket_name
         @scope_name = scope_name
+        @observability = observability
       end
 
       # Fetches an index from the server if it exists
@@ -40,8 +42,10 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def get_index(index_name, options = Options::Search::GetIndex::DEFAULT)
-        res = @backend.search_index_get(@bucket_name, @scope_name, index_name, options.timeout)
-        SearchIndexManager.extract_search_index(res)
+        @observability.record_operation(Observability::OP_SM_GET_INDEX, options.parent_span, self, :search) do |_obs_handler|
+          res = @backend.search_index_get(@bucket_name, @scope_name, index_name, options.timeout)
+          SearchIndexManager.extract_search_index(res)
+        end
       end
 
       # Fetches all indexes from the server
@@ -50,8 +54,10 @@ module Couchbase
       #
       # @return [Array<SearchIndex>]
       def get_all_indexes(options = Options::Search::GetAllIndexes::DEFAULT)
-        res = @backend.search_index_get_all(@bucket_name, @scope_name, options.timeout)
-        res[:indexes].map { |idx| SearchIndexManager.extract_search_index(idx) }
+        @observability.record_operation(Observability::OP_SM_GET_ALL_INDEXES, options.parent_span, self, :search) do |_obs_handler|
+          res = @backend.search_index_get_all(@bucket_name, @scope_name, options.timeout)
+          res[:indexes].map { |idx| SearchIndexManager.extract_search_index(idx) }
+        end
       end
 
       # Creates or updates the index
@@ -63,7 +69,9 @@ module Couchbase
       #
       # @raise [ArgumentError] if name, type or source_type is empty
       def upsert_index(index_definition, options = Options::Search::UpsertIndex::DEFAULT)
-        @backend.search_index_upsert(@bucket_name, @scope_name, index_definition.to_backend, options.timeout)
+        @observability.record_operation(Observability::OP_SM_UPSERT_INDEX, options.parent_span, self, :search) do |_obs_handler|
+          @backend.search_index_upsert(@bucket_name, @scope_name, index_definition.to_backend, options.timeout)
+        end
       end
 
       # Drops the index
@@ -76,7 +84,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def drop_index(index_name, options = Options::Search::DropIndex::DEFAULT)
-        @backend.search_index_drop(@bucket_name, @scope_name, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_DROP_INDEX, options.parent_span, self, :search) do |_obs_handler|
+          @backend.search_index_drop(@bucket_name, @scope_name, index_name, options.timeout)
+        end
       end
 
       # Retrieves the number of documents that have been indexed for an index
@@ -89,8 +99,11 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def get_indexed_documents_count(index_name, options = Options::Search::GetIndexedDocumentsCount::DEFAULT)
-        res = @backend.search_index_get_documents_count(@bucket_name, @scope_name, index_name, options.timeout)
-        res[:count]
+        @observability.record_operation(Observability::OP_SM_GET_INDEXED_DOCUMENTS_COUNT, options.parent_span, self,
+                                        :search) do |_obs_handler|
+          res = @backend.search_index_get_documents_count(@bucket_name, @scope_name, index_name, options.timeout)
+          res[:count]
+        end
       end
 
       # Pauses updates and maintenance for the index
@@ -103,7 +116,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def pause_ingest(index_name, options = Options::Search::PauseIngest::DEFAULT)
-        @backend.search_index_pause_ingest(@bucket_name, @scope_name, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_PAUSE_INGEST, options.parent_span, self, :search) do |_obs_handler|
+          @backend.search_index_pause_ingest(@bucket_name, @scope_name, index_name, options.timeout)
+        end
       end
 
       # Resumes updates and maintenance for an index
@@ -116,7 +131,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def resume_ingest(index_name, options = Options::Search::ResumeIngest::DEFAULT)
-        @backend.search_index_resume_ingest(@bucket_name, @scope_name, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_RESUME_INGEST, options.parent_span, self, :search) do |_obs_handler|
+          @backend.search_index_resume_ingest(@bucket_name, @scope_name, index_name, options.timeout)
+        end
       end
 
       # Allows querying against the index
@@ -129,7 +146,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def allow_querying(index_name, options = Options::Search::AllowQuerying::DEFAULT)
-        @backend.search_index_allow_querying(@bucket_name, @scope_name, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_ALLOW_QUERYING, options.parent_span, self, :search) do |_obs_handler|
+          @backend.search_index_allow_querying(@bucket_name, @scope_name, index_name, options.timeout)
+        end
       end
 
       # Disallows querying against the index
@@ -142,7 +161,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def disallow_querying(index_name, options = Options::Search::DisallowQuerying::DEFAULT)
-        @backend.search_index_disallow_querying(@bucket_name, @scope_name, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_DISALLOW_QUERYING, options.parent_span, self, :search) do |_obs_handler|
+          @backend.search_index_disallow_querying(@bucket_name, @scope_name, index_name, options.timeout)
+        end
       end
 
       # Freeze the assignment of index partitions to nodes
@@ -155,7 +176,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def freeze_plan(index_name, options = Options::Search::FreezePlan::DEFAULT)
-        @backend.search_index_freeze_plan(@bucket_name, @scope_name, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_FREEZE_PLAN, options.parent_span, self, :search) do |_obs_handler|
+          @backend.search_index_freeze_plan(@bucket_name, @scope_name, index_name, options.timeout)
+        end
       end
 
       # Unfreeze the assignment of index partitions to nodes
@@ -168,7 +191,9 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def unfreeze_plan(index_name, options = Options::Search::UnfreezePlan::DEFAULT)
-        @backend.search_index_unfreeze_plan(@bucket_name, @scope_name, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_UNFREEZE_PLAN, options.parent_span, self, :search) do |_obs_handler|
+          @backend.search_index_unfreeze_plan(@bucket_name, @scope_name, index_name, options.timeout)
+        end
       end
 
       # Allows to see how a document is analyzed against a specific index
@@ -182,8 +207,10 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def analyze_document(index_name, document, options = Options::Search::AnalyzeDocument::DEFAULT)
-        res = @backend.search_index_analyze_document(@bucket_name, @scope_name, index_name, JSON.generate(document), options.timeout)
-        JSON.parse(res[:analysis])
+        @observability.record_operation(Observability::OP_SM_ANALYZE_DOCUMENT, options.parent_span, self, :search) do |_obs_handler|
+          res = @backend.search_index_analyze_document(@bucket_name, @scope_name, index_name, JSON.generate(document), options.timeout)
+          JSON.parse(res[:analysis])
+        end
       end
 
       # @api private

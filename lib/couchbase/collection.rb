@@ -32,11 +32,13 @@ module Couchbase
     # @param [String] bucket_name name of the bucket
     # @param [String] scope_name name of the scope
     # @param [String] collection_name name of the collection
-    def initialize(backend, bucket_name, scope_name, collection_name)
+    # @param [Observability::Wrapper] observability wrapper containing tracer and meter
+    def initialize(backend, bucket_name, scope_name, collection_name, observability)
       @backend = backend
       @bucket_name = bucket_name
       @scope_name = scope_name
       @name = collection_name
+      @observability = observability
     end
 
     # Provides access to the binary APIs, not used for JSON documents
@@ -48,7 +50,7 @@ module Couchbase
 
     # @return [Management::CollectionQueryIndexManager]
     def query_indexes
-      Management::CollectionQueryIndexManager.new(@backend, @bucket_name, @scope_name, @name)
+      Management::CollectionQueryIndexManager.new(@backend, @bucket_name, @scope_name, @name, @observability)
     end
 
     # Fetches the full document from the collection
@@ -78,17 +80,19 @@ module Couchbase
     #
     # @return [GetResult]
     def get(id, options = Options::Get::DEFAULT)
-      resp = if options.need_projected_get?
-               @backend.document_get_projected(bucket_name, @scope_name, @name, id, options.to_backend)
-             else
-               @backend.document_get(bucket_name, @scope_name, @name, id, options.to_backend)
-             end
-      GetResult.new do |res|
-        res.transcoder = options.transcoder
-        res.cas = resp[:cas]
-        res.flags = resp[:flags]
-        res.encoded = resp[:content]
-        res.expiry = resp[:expiry] if resp.key?(:expiry)
+      @observability.record_operation(Observability::OP_GET, options.parent_span, self, :kv) do |obs_handler|
+        resp = if options.need_projected_get?
+                 @backend.document_get_projected(bucket_name, @scope_name, @name, id, options.to_backend, obs_handler)
+               else
+                 @backend.document_get(bucket_name, @scope_name, @name, id, options.to_backend, obs_handler)
+               end
+        GetResult.new do |res|
+          res.transcoder = options.transcoder
+          res.cas = resp[:cas]
+          res.flags = resp[:flags]
+          res.encoded = resp[:content]
+          res.expiry = resp[:expiry] if resp.key?(:expiry)
+        end
       end
     end
 
@@ -107,15 +111,17 @@ module Couchbase
     #
     # @return [Array<GetResult>]
     def get_multi(ids, options = Options::GetMulti::DEFAULT)
-      resp = @backend.document_get_multi(ids.map { |id| [bucket_name, @scope_name, @name, id] }, options.to_backend)
-      resp.map do |entry|
-        GetResult.new do |res|
-          res.transcoder = options.transcoder
-          res.id = entry[:id]
-          res.cas = entry[:cas]
-          res.flags = entry[:flags]
-          res.encoded = entry[:content]
-          res.error = entry[:error]
+      @observability.record_operation(Observability::OP_GET_MULTI, options.parent_span, self, :kv) do |_obs_handler|
+        resp = @backend.document_get_multi(ids.map { |id| [bucket_name, @scope_name, @name, id] }, options.to_backend)
+        resp.map do |entry|
+          GetResult.new do |res|
+            res.transcoder = options.transcoder
+            res.id = entry[:id]
+            res.cas = entry[:cas]
+            res.flags = entry[:flags]
+            res.encoded = entry[:content]
+            res.error = entry[:error]
+          end
         end
       end
     end
@@ -137,14 +143,16 @@ module Couchbase
     #
     # @return [GetResult]
     def get_and_lock(id, lock_time, options = Options::GetAndLock::DEFAULT)
-      resp = @backend.document_get_and_lock(bucket_name, @scope_name, @name, id,
-                                            lock_time.respond_to?(:in_seconds) ? lock_time.in_seconds : lock_time,
-                                            options.to_backend)
-      GetResult.new do |res|
-        res.transcoder = options.transcoder
-        res.cas = resp[:cas]
-        res.flags = resp[:flags]
-        res.encoded = resp[:content]
+      @observability.record_operation(Observability::OP_GET_AND_LOCK, options.parent_span, self, :kv) do |_obs_handler|
+        resp = @backend.document_get_and_lock(bucket_name, @scope_name, @name, id,
+                                              lock_time.respond_to?(:in_seconds) ? lock_time.in_seconds : lock_time,
+                                              options.to_backend)
+        GetResult.new do |res|
+          res.transcoder = options.transcoder
+          res.cas = resp[:cas]
+          res.flags = resp[:flags]
+          res.encoded = resp[:content]
+        end
       end
     end
 
@@ -159,14 +167,16 @@ module Couchbase
     #
     # @return [GetResult]
     def get_and_touch(id, expiry, options = Options::GetAndTouch::DEFAULT)
-      resp = @backend.document_get_and_touch(bucket_name, @scope_name, @name, id,
-                                             Utils::Time.extract_expiry_time(expiry),
-                                             options.to_backend)
-      GetResult.new do |res|
-        res.transcoder = options.transcoder
-        res.cas = resp[:cas]
-        res.flags = resp[:flags]
-        res.encoded = resp[:content]
+      @observability.record_operation(Observability::OP_GET_AND_TOUCH, options.parent_span, self, :kv) do |_obs_handler|
+        resp = @backend.document_get_and_touch(bucket_name, @scope_name, @name, id,
+                                               Utils::Time.extract_expiry_time(expiry),
+                                               options.to_backend)
+        GetResult.new do |res|
+          res.transcoder = options.transcoder
+          res.cas = resp[:cas]
+          res.flags = resp[:flags]
+          res.encoded = resp[:content]
+        end
       end
     end
 
@@ -177,14 +187,16 @@ module Couchbase
     #
     # @return [Array<GetReplicaResult>]
     def get_all_replicas(id, options = Options::GetAllReplicas::DEFAULT)
-      resp = @backend.document_get_all_replicas(@bucket_name, @scope_name, @name, id, options.to_backend)
-      resp.map do |entry|
-        GetReplicaResult.new do |res|
-          res.transcoder = options.transcoder
-          res.cas = entry[:cas]
-          res.flags = entry[:flags]
-          res.encoded = entry[:content]
-          res.is_replica = entry[:is_replica]
+      @observability.record_operation(Observability::OP_GET_ALL_REPLICAS, options.parent_span, self, :kv) do |_obs_handler|
+        resp = @backend.document_get_all_replicas(@bucket_name, @scope_name, @name, id, options.to_backend)
+        resp.map do |entry|
+          GetReplicaResult.new do |res|
+            res.transcoder = options.transcoder
+            res.cas = entry[:cas]
+            res.flags = entry[:flags]
+            res.encoded = entry[:content]
+            res.is_replica = entry[:is_replica]
+          end
         end
       end
     end
@@ -207,13 +219,15 @@ module Couchbase
     #
     # @return [GetReplicaResult]
     def get_any_replica(id, options = Options::GetAnyReplica::DEFAULT)
-      resp = @backend.document_get_any_replica(@bucket_name, @scope_name, @name, id, options.to_backend)
-      GetReplicaResult.new do |res|
-        res.transcoder = options.transcoder
-        res.cas = resp[:cas]
-        res.flags = resp[:flags]
-        res.encoded = resp[:content]
-        res.is_replica = resp[:is_replica]
+      @observability.record_operation(Observability::OP_GET_ANY_REPLICA, options.parent_span, self, :kv) do |_obs_handler|
+        resp = @backend.document_get_any_replica(@bucket_name, @scope_name, @name, id, options.to_backend)
+        GetReplicaResult.new do |res|
+          res.transcoder = options.transcoder
+          res.cas = resp[:cas]
+          res.flags = resp[:flags]
+          res.encoded = resp[:content]
+          res.is_replica = resp[:is_replica]
+        end
       end
     end
 
@@ -228,15 +242,17 @@ module Couchbase
     #
     # @return [ExistsResult]
     def exists(id, options = Options::Exists::DEFAULT)
-      resp = @backend.document_exists(bucket_name, @scope_name, @name, id, options.to_backend)
-      ExistsResult.new do |res|
-        res.deleted = resp[:deleted]
-        res.exists = resp[:exists]
-        res.expiry = resp[:expiry]
-        res.flags = resp[:flags]
-        res.sequence_number = resp[:sequence_number]
-        res.datatype = resp[:datatype]
-        res.cas = resp[:cas]
+      @observability.record_operation(Observability::OP_EXISTS, options.parent_span, self, :kv) do |_obs_handler|
+        resp = @backend.document_exists(bucket_name, @scope_name, @name, id, options.to_backend)
+        ExistsResult.new do |res|
+          res.deleted = resp[:deleted]
+          res.exists = resp[:exists]
+          res.expiry = resp[:expiry]
+          res.flags = resp[:flags]
+          res.sequence_number = resp[:sequence_number]
+          res.datatype = resp[:datatype]
+          res.cas = resp[:cas]
+        end
       end
     end
 
@@ -261,10 +277,13 @@ module Couchbase
     #
     # @return [MutationResult]
     def remove(id, options = Options::Remove::DEFAULT)
-      resp = @backend.document_remove(bucket_name, @scope_name, @name, id, options.to_backend)
-      MutationResult.new do |res|
-        res.cas = resp[:cas]
-        res.mutation_token = extract_mutation_token(resp)
+      @observability.record_operation(Observability::OP_REMOVE, options.parent_span, self, :kv) do |obs_handler|
+        obs_handler.add_durability_level(options.durability_level)
+        resp = @backend.document_remove(bucket_name, @scope_name, @name, id, options.to_backend)
+        MutationResult.new do |res|
+          res.cas = resp[:cas]
+          res.mutation_token = extract_mutation_token(resp)
+        end
       end
     end
 
@@ -287,22 +306,25 @@ module Couchbase
     #
     # @return [Array<MutationResult>]
     def remove_multi(ids, options = Options::RemoveMulti::DEFAULT)
-      resp = @backend.document_remove_multi(bucket_name, @scope_name, @name, ids.map do |id|
-        case id
-        when String
-          [id, nil]
-        when Array
-          id
-        else
-          raise ArgumentError, "id argument of remove_multi must be a String or Array<String, Integer>, given: #{id.inspect}"
-        end
-      end, options.to_backend)
-      resp.map do |entry|
-        MutationResult.new do |res|
-          res.cas = entry[:cas]
-          res.mutation_token = extract_mutation_token(entry)
-          res.error = entry[:error]
-          res.id = entry[:id]
+      @observability.record_operation(Observability::OP_REMOVE_MULTI, options.parent_span, self, :kv) do |obs_handler|
+        obs_handler.add_durability_level(options.durability_level)
+        resp = @backend.document_remove_multi(bucket_name, @scope_name, @name, ids.map do |id|
+          case id
+          when String
+            [id, nil]
+          when Array
+            id
+          else
+            raise ArgumentError, "id argument of remove_multi must be a String or Array<String, Integer>, given: #{id.inspect}"
+          end
+        end, options.to_backend)
+        resp.map do |entry|
+          MutationResult.new do |res|
+            res.cas = entry[:cas]
+            res.mutation_token = extract_mutation_token(entry)
+            res.error = entry[:error]
+            res.id = entry[:id]
+          end
         end
       end
     end
@@ -327,11 +349,14 @@ module Couchbase
     #
     # @return [MutationResult]
     def insert(id, content, options = Options::Insert::DEFAULT)
-      blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
-      resp = @backend.document_insert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
-      MutationResult.new do |res|
-        res.cas = resp[:cas]
-        res.mutation_token = extract_mutation_token(resp)
+      @observability.record_operation(Observability::OP_INSERT, options.parent_span, self, :kv) do |obs_handler|
+        obs_handler.add_durability_level(options.durability_level)
+        blob, flags = encode_content(content, options, obs_handler)
+        resp = @backend.document_insert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
+        MutationResult.new do |res|
+          res.cas = resp[:cas]
+          res.mutation_token = extract_mutation_token(resp)
+        end
       end
     end
 
@@ -347,11 +372,14 @@ module Couchbase
     #
     # @return [MutationResult]
     def upsert(id, content, options = Options::Upsert::DEFAULT)
-      blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
-      resp = @backend.document_upsert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
-      MutationResult.new do |res|
-        res.cas = resp[:cas]
-        res.mutation_token = extract_mutation_token(resp)
+      @observability.record_operation(Observability::OP_UPSERT, options.parent_span, self, :kv) do |obs_handler|
+        obs_handler.add_durability_level(options.durability_level)
+        blob, flags = encode_content(content, options, obs_handler)
+        resp = @backend.document_upsert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
+        MutationResult.new do |res|
+          res.cas = resp[:cas]
+          res.mutation_token = extract_mutation_token(resp)
+        end
       end
     end
 
@@ -374,16 +402,16 @@ module Couchbase
     #
     # @return [Array<MutationResult>]
     def upsert_multi(id_content, options = Options::UpsertMulti::DEFAULT)
-      resp = @backend.document_upsert_multi(bucket_name, @scope_name, @name, id_content.map do |(id, content)|
-        blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
-        [id, blob, flags]
-      end, options.to_backend)
-      resp.map do |entry|
-        MutationResult.new do |res|
-          res.cas = entry[:cas]
-          res.mutation_token = extract_mutation_token(entry)
-          res.error = entry[:error]
-          res.id = entry[:id]
+      @observability.record_operation(Observability::OP_UPSERT, options.parent_span, self, :kv) do |obs_handler|
+        encoded_id_content = encode_content_multi(id_content, options, obs_handler)
+        resp = @backend.document_upsert_multi(bucket_name, @scope_name, @name, encoded_id_content, options.to_backend)
+        resp.map do |entry|
+          MutationResult.new do |res|
+            res.cas = entry[:cas]
+            res.mutation_token = extract_mutation_token(entry)
+            res.error = entry[:error]
+            res.id = entry[:id]
+          end
         end
       end
     end
@@ -401,11 +429,14 @@ module Couchbase
     #
     # @return [MutationResult]
     def replace(id, content, options = Options::Replace::DEFAULT)
-      blob, flags = options.transcoder ? options.transcoder.encode(content) : [content, 0]
-      resp = @backend.document_replace(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
-      MutationResult.new do |res|
-        res.cas = resp[:cas]
-        res.mutation_token = extract_mutation_token(resp)
+      @observability.record_operation(Observability::OP_REPLACE, options.parent_span, self, :kv) do |obs_handler|
+        obs_handler.add_durability_level(options.durability_level)
+        blob, flags = encode_content(content, options, obs_handler)
+        resp = @backend.document_replace(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
+        MutationResult.new do |res|
+          res.cas = resp[:cas]
+          res.mutation_token = extract_mutation_token(resp)
+        end
       end
     end
 
@@ -420,11 +451,13 @@ module Couchbase
     #
     # @return [MutationResult]
     def touch(id, expiry, options = Options::Touch::DEFAULT)
-      resp = @backend.document_touch(bucket_name, @scope_name, @name, id,
-                                     Utils::Time.extract_expiry_time(expiry),
-                                     options.to_backend)
-      MutationResult.new do |res|
-        res.cas = resp[:cas]
+      @observability.record_operation(Observability::OP_TOUCH, options.parent_span, self, :kv) do |_obs_handler|
+        resp = @backend.document_touch(bucket_name, @scope_name, @name, id,
+                                       Utils::Time.extract_expiry_time(expiry),
+                                       options.to_backend)
+        MutationResult.new do |res|
+          res.cas = resp[:cas]
+        end
       end
     end
 
@@ -442,7 +475,9 @@ module Couchbase
     #
     # @raise [Error::DocumentNotFound]
     def unlock(id, cas, options = Options::Unlock::DEFAULT)
-      @backend.document_unlock(bucket_name, @scope_name, @name, id, cas, options.to_backend)
+      @observability.record_operation(Observability::OP_UNLOCK, options.parent_span, self, :kv) do |_obs_handler|
+        @backend.document_unlock(bucket_name, @scope_name, @name, id, cas, options.to_backend)
+      end
     end
 
     # Performs lookups to document fragments
@@ -464,27 +499,29 @@ module Couchbase
     #   ]
     # @return [LookupInResult]
     def lookup_in(id, specs, options = Options::LookupIn::DEFAULT)
-      resp = @backend.document_lookup_in(
-        bucket_name, @scope_name, @name, id,
-        specs.map do |s|
-          {
-            opcode: s.type,
-            xattr: s.xattr?,
-            path: s.path,
-          }
-        end, options.to_backend
-      )
-      LookupInResult.new do |res|
-        res.transcoder = options.transcoder
-        res.cas = resp[:cas]
-        res.deleted = resp[:deleted]
-        res.encoded = resp[:fields].map do |field|
-          SubDocumentField.new do |f|
-            f.exists = field[:exists]
-            f.index = field[:index]
-            f.path = field[:path]
-            f.value = field[:value]
-            f.error = field[:error]
+      @observability.record_operation(Observability::OP_LOOKUP_IN, options.parent_span, self, :kv) do |_obs_handler|
+        resp = @backend.document_lookup_in(
+          bucket_name, @scope_name, @name, id,
+          specs.map do |s|
+            {
+              opcode: s.type,
+              xattr: s.xattr?,
+              path: s.path,
+            }
+          end, options.to_backend
+        )
+        LookupInResult.new do |res|
+          res.transcoder = options.transcoder
+          res.cas = resp[:cas]
+          res.deleted = resp[:deleted]
+          res.encoded = resp[:fields].map do |field|
+            SubDocumentField.new do |f|
+              f.exists = field[:exists]
+              f.index = field[:index]
+              f.path = field[:path]
+              f.value = field[:value]
+              f.error = field[:error]
+            end
           end
         end
       end
@@ -504,17 +541,19 @@ module Couchbase
     # @raise [Error::CouchbaseError]
     # @raise [Error::FeatureNotAvailable]
     def lookup_in_any_replica(id, specs, options = Options::LookupInAnyReplica::DEFAULT)
-      resp = @backend.document_lookup_in_any_replica(
-        bucket_name, @scope_name, @name, id,
-        specs.map do |s|
-          {
-            opcode: s.type,
-            xattr: s.xattr?,
-            path: s.path,
-          }
-        end, options.to_backend
-      )
-      extract_lookup_in_replica_result(resp, options)
+      @observability.record_operation(Observability::OP_LOOKUP_IN_ANY_REPLICA, options.parent_span, self, :kv) do |_obs_handler|
+        resp = @backend.document_lookup_in_any_replica(
+          bucket_name, @scope_name, @name, id,
+          specs.map do |s|
+            {
+              opcode: s.type,
+              xattr: s.xattr?,
+              path: s.path,
+            }
+          end, options.to_backend
+        )
+        extract_lookup_in_replica_result(resp, options)
+      end
     end
 
     # Performs lookups to document fragments. Reads from the active node and all available replicas and returns all of
@@ -531,18 +570,20 @@ module Couchbase
     # @raise [Error::CouchbaseError]
     # @raise [Error::FeatureNotAvailable]
     def lookup_in_all_replicas(id, specs, options = Options::LookupInAllReplicas::DEFAULT)
-      resp = @backend.document_lookup_in_all_replicas(
-        bucket_name, @scope_name, @name, id,
-        specs.map do |s|
-          {
-            opcode: s.type,
-            xattr: s.xattr?,
-            path: s.path,
-          }
-        end, options.to_backend
-      )
-      resp.map do |entry|
-        extract_lookup_in_replica_result(entry, options)
+      @observability.record_operation(Observability::OP_LOOKUP_IN_ALL_REPLICAS, options.parent_span, self, :kv) do |_obs_handler|
+        resp = @backend.document_lookup_in_all_replicas(
+          bucket_name, @scope_name, @name, id,
+          specs.map do |s|
+            {
+              opcode: s.type,
+              xattr: s.xattr?,
+              path: s.path,
+            }
+          end, options.to_backend
+        )
+        resp.map do |entry|
+          extract_lookup_in_replica_result(entry, options)
+        end
       end
     end
 
@@ -567,29 +608,32 @@ module Couchbase
     #
     # @return [MutateInResult]
     def mutate_in(id, specs, options = Options::MutateIn::DEFAULT)
-      resp = @backend.document_mutate_in(
-        bucket_name, @scope_name, @name, id,
-        specs.map do |s|
-          {
-            opcode: s.type,
-            path: s.path,
-            param: s.param,
-            xattr: s.xattr?,
-            expand_macros: s.expand_macros?,
-            create_path: s.create_path?,
-          }
-        end, options.to_backend
-      )
-      MutateInResult.new do |res|
-        res.transcoder = options.transcoder
-        res.cas = resp[:cas]
-        res.deleted = resp[:deleted]
-        res.mutation_token = extract_mutation_token(resp)
-        res.encoded = resp[:fields].map do |field|
-          SubDocumentField.new do |f|
-            f.index = field[:index]
-            f.path = field[:path]
-            f.value = field[:value]
+      @observability.record_operation(Observability::OP_MUTATE_IN, options.parent_span, self, :kv) do |obs_handler|
+        obs_handler.add_durability_level(options.durability_level)
+        resp = @backend.document_mutate_in(
+          bucket_name, @scope_name, @name, id,
+          specs.map do |s|
+            {
+              opcode: s.type,
+              path: s.path,
+              param: s.param,
+              xattr: s.xattr?,
+              expand_macros: s.expand_macros?,
+              create_path: s.create_path?,
+            }
+          end, options.to_backend
+        )
+        MutateInResult.new do |res|
+          res.transcoder = options.transcoder
+          res.cas = resp[:cas]
+          res.deleted = resp[:deleted]
+          res.mutation_token = extract_mutation_token(resp)
+          res.encoded = resp[:fields].map do |field|
+            SubDocumentField.new do |f|
+              f.index = field[:index]
+              f.path = field[:path]
+              f.value = field[:value]
+            end
           end
         end
       end
@@ -622,15 +666,40 @@ module Couchbase
     #   a lot of documents to find the matching documents. For low latency range queries, it is recommended that you use
     #   SQL++ with the necessary indexes.
     def scan(scan_type, options = Options::Scan::DEFAULT)
-      ScanResults.new(
-        core_scan_result: @backend.document_scan_create(
-          @bucket_name, @scope_name, @name, scan_type.to_backend, options.to_backend
-        ),
-        transcoder: options.transcoder,
-      )
+      @observability.record_operation(Observability::OP_SCAN, options.parent_span, self, :kv) do |_obs_handler|
+        ScanResults.new(
+          core_scan_result: @backend.document_scan_create(
+            @bucket_name, @scope_name, @name, scan_type.to_backend, options.to_backend
+          ),
+          transcoder: options.transcoder,
+        )
+      end
     end
 
     private
+
+    def encode_content(content, options, obs_handler)
+      return [content, 0] unless options.transcoder
+
+      obs_handler.with_request_encoding_span do
+        options.transcoder.encode(content)
+      end
+    end
+
+    def encode_content_multi(id_content_pairs, options, obs_handler)
+      unless options.transcoder
+        return id_content_pairs.map do |(id, content)|
+          [id, content, 0]
+        end
+      end
+
+      obs_handler.with_request_encoding_span do
+        id_content_pairs.map do |(id, content)|
+          blob, flags = options.transcoder.encode(content)
+          [id, blob, flags]
+        end
+      end
+    end
 
     def extract_mutation_token(resp)
       return unless resp.key?(:mutation_token)

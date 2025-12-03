@@ -1710,6 +1710,8 @@ module Couchbase
       # @!macro volatile
       attr_accessor :application_telemetry
 
+      attr_accessor :tracer # @return [nil, Tracing::RequestTracer]
+
       # Creates an instance of options for {Couchbase::Cluster.connect}
       #
       # @param [PasswordAuthenticator, CertificateAuthenticator] authenticator
@@ -1754,6 +1756,7 @@ module Couchbase
                      config_poll_floor: nil,
                      config_idle_redial_timeout: nil,
                      idle_http_connection_timeout: nil,
+                     tracer: nil,
                      application_telemetry: ApplicationTelemetry.new)
         @authenticator = authenticator
         @preferred_server_group = preferred_server_group
@@ -1785,6 +1788,7 @@ module Couchbase
         @config_poll_floor = config_poll_floor
         @config_idle_redial_timeout = config_idle_redial_timeout
         @idle_http_connection_timeout = idle_http_connection_timeout
+        @tracer = tracer
         @application_telemetry = application_telemetry
 
         yield self if block_given?

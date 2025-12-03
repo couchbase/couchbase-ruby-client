@@ -22,6 +22,7 @@
 
 #include <core/cluster.hxx>
 #include <core/logger/logger.hxx>
+#include <core/tracing/wrapper_sdk_tracer.hxx>
 #include <core/utils/connection_string.hxx>
 
 #include <asio/io_context.hpp>
@@ -422,59 +423,8 @@ initialize_cluster_options(const core::utils::connection_string& connstr,
     cluster_options.network().max_http_connections(param.value());
   }
 
-  static const auto sym_enable_tracing = rb_id2sym(rb_intern("enable_tracing"));
-  if (auto param = options::get_bool(options, sym_enable_tracing); param) {
-    cluster_options.tracing().enable(param.value());
-  }
-  static const auto sym_orphaned_emit_interval = rb_id2sym(rb_intern("orphaned_emit_interval"));
-  if (auto param = options::get_milliseconds(options, sym_orphaned_emit_interval); param) {
-    cluster_options.tracing().orphaned_emit_interval(param.value());
-  }
-
-  static const auto sym_orphaned_sample_size = rb_id2sym(rb_intern("orphaned_sample_size"));
-  if (auto param = options::get_size_t(options, sym_orphaned_sample_size); param) {
-    cluster_options.tracing().orphaned_sample_size(param.value());
-  }
-
-  static const auto sym_threshold_emit_interval = rb_id2sym(rb_intern("threshold_emit_interval"));
-  if (auto param = options::get_milliseconds(options, sym_threshold_emit_interval); param) {
-    cluster_options.tracing().threshold_emit_interval(param.value());
-  }
-
-  static const auto sym_threshold_sample_size = rb_id2sym(rb_intern("threshold_sample_size"));
-  if (auto param = options::get_size_t(options, sym_threshold_sample_size); param) {
-    cluster_options.tracing().threshold_sample_size(param.value());
-  }
-
-  static const auto sym_key_value_threshold = rb_id2sym(rb_intern("key_value_threshold"));
-  if (auto param = options::get_milliseconds(options, sym_key_value_threshold); param) {
-    cluster_options.tracing().key_value_threshold(param.value());
-  }
-
-  static const auto sym_query_threshold = rb_id2sym(rb_intern("query_threshold"));
-  if (auto param = options::get_milliseconds(options, sym_query_threshold); param) {
-    cluster_options.tracing().query_threshold(param.value());
-  }
-
-  static const auto sym_view_threshold = rb_id2sym(rb_intern("view_threshold"));
-  if (auto param = options::get_milliseconds(options, sym_view_threshold); param) {
-    cluster_options.tracing().view_threshold(param.value());
-  }
-
-  static const auto sym_search_threshold = rb_id2sym(rb_intern("search_threshold"));
-  if (auto param = options::get_milliseconds(options, sym_search_threshold); param) {
-    cluster_options.tracing().search_threshold(param.value());
-  }
-
-  static const auto sym_analytics_threshold = rb_id2sym(rb_intern("analytics_threshold"));
-  if (auto param = options::get_milliseconds(options, sym_analytics_threshold); param) {
-    cluster_options.tracing().analytics_threshold(param.value());
-  }
-
-  static const auto sym_management_threshold = rb_id2sym(rb_intern("management_threshold"));
-  if (auto param = options::get_milliseconds(options, sym_management_threshold); param) {
-    cluster_options.tracing().management_threshold(param.value());
-  }
+  cluster_options.tracing().tracer(
+    std::make_shared<couchbase::core::tracing::wrapper_sdk_tracer>());
 
   static const auto sym_enable_metrics = rb_id2sym(rb_intern("enable_metrics"));
   if (auto param = options::get_bool(options, sym_enable_metrics); param) {

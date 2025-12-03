@@ -37,6 +37,7 @@ module Couchbase
         @collection = collection
         @options = options
         @cas = 0
+        @observability = @collection.instance_variable_get(:@observability)
       end
 
       # Calls the given block once for each element in the queue, passing that element as a parameter.
@@ -44,57 +45,69 @@ module Couchbase
       # @yieldparam [Object] item
       #
       # @return [CouchbaseQueue, Enumerable]
-      def each(&)
+      def each(parent_span: nil, &)
         if block_given?
-          begin
-            result = @collection.get(@id, @options.get_options)
-            current = result.content
+          current = @observability.record_operation(Observability::OP_QUEUE_EACH, parent_span, self) do |obs_handler|
+            options = @options.get_options.clone
+            options.parent_span = obs_handler.op_span
+            result = @collection.get(@id, options)
             @cas = result.cas
+            result.content
           rescue Error::DocumentNotFound
-            current = []
             @cas = 0
+            []
           end
           current.each(&)
           self
         else
-          enum_for(:each)
+          enum_for(:each, parent_span: parent_span)
         end
       end
 
       # @return [Integer] returns the number of elements in the queue.
-      def length
-        result = @collection.lookup_in(@id, [
-                                         LookupInSpec.count(""),
-                                       ], @options.lookup_in_options)
-        result.content(0)
-      rescue Error::DocumentNotFound
-        0
+      def length(parent_span: nil)
+        @observability.record_operation(Observability::OP_QUEUE_LENGTH, parent_span, self) do |obs_handler|
+          options = @options.lookup_in_options.clone
+          options.parent_span = obs_handler.op_span
+          result = @collection.lookup_in(@id, [
+                                           LookupInSpec.count(""),
+                                         ], options)
+          result.content(0)
+        rescue Error::DocumentNotFound
+          0
+        end
       end
 
       alias size length
 
       # @return [Boolean] returns true if queue is empty
-      def empty?
-        size.zero?
+      def empty?(parent_span: nil)
+        size(parent_span: parent_span).zero?
       end
 
       # Removes all elements from the queue
-      def clear
-        @collection.remove(@id, @options.remove_options)
-        nil
-      rescue Error::DocumentNotFound
-        nil
+      def clear(parent_span: nil)
+        @observability.record_operation(Observability::OP_QUEUE_CLEAR, parent_span, self) do |obs_handler|
+          options = @options.remove_options.clone
+          options.parent_span = obs_handler.op_span
+          @collection.remove(@id, options)
+          nil
+        rescue Error::DocumentNotFound
+          nil
+        end
       end
 
       # Adds the given value to the queue
       #
       # @param [Object] obj
       # @return [CouchbaseQueue]
-      def push(obj)
-        begin
+      def push(obj, parent_span: nil)
+        @observability.record_operation(Observability::OP_QUEUE_PUSH, parent_span, self) do |obs_handler|
+          options = @options.mutate_in_options.clone
+          options.parent_span = obs_handler.op_span
           @collection.mutate_in(@id, [
                                   MutateInSpec.array_prepend("", [obj]),
-                                ], @options.mutate_in_options)
+                                ], options)
         rescue Error::PathExists
           # ignore
         end
@@ -107,21 +120,34 @@ module Couchbase
       # Retrieves object from the queue
       #
       # @return [Object, nil] queue entry or nil
-      def pop
-        result = @collection.lookup_in(@id, [
-                                         LookupInSpec.get("[-1]"),
-                                       ], @options.lookup_in_options)
-        obj = result.exists?(0) ? result.content(0) : nil
-        options = Options::MutateIn.new
-        options.cas = result.cas
-        @collection.mutate_in(@id, [
-                                MutateInSpec.remove("[-1]"),
-                              ], options)
-        obj
-      rescue Error::CasMismatch
-        retry
-      rescue Error::DocumentNotFound, Error::PathNotFound
-        nil
+      def pop(parent_span: nil)
+        @observability.record_operation(Observability::OP_QUEUE_POP, parent_span, self) do |obs_handler|
+          obj, cas = begin
+            options = @options.lookup_in_options.clone
+            options.parent_span = obs_handler.op_span
+            result = @collection.lookup_in(@id, [
+                                             LookupInSpec.get("[-1]"),
+                                           ], @options.lookup_in_options)
+            [
+              result.exists?(0) ? result.content(0) : nil,
+              result.cas,
+            ]
+          end
+          begin
+            options = Options::MutateIn.new(
+              parent_span: obs_handler.op_span,
+              cas: cas,
+            )
+            @collection.mutate_in(@id, [
+                                    MutateInSpec.remove("[-1]"),
+                                  ], options)
+          end
+          obj
+        rescue Error::CasMismatch
+          retry
+        rescue Error::DocumentNotFound, Error::PathNotFound
+          nil
+        end
       end
 
       alias deq pop

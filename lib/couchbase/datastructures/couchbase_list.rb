@@ -37,6 +37,7 @@ module Couchbase
         @collection = collection
         @options = options
         @cas = 0
+        @observability = @collection.instance_variable_get(:@observability)
       end
 
       # Calls the given block once for each element in the list, passing that element as a parameter.
@@ -44,38 +45,45 @@ module Couchbase
       # @yieldparam [Object] item
       #
       # @return [CouchbaseList, Enumerable]
-      def each(&)
+      def each(parent_span: nil, &)
         if block_given?
-          begin
-            result = @collection.get(@id, @options.get_options)
-            current = result.content
-            @cas = result.cas
-          rescue Error::DocumentNotFound
-            current = []
-            @cas = 0
-          end
+          current =
+            @observability.record_operation(Observability::OP_LIST_EACH, parent_span, self) do |obs_handler|
+              options = @options.get_options.clone
+              options.parent_span = obs_handler.op_span
+              result = @collection.get(@id, options)
+              @cas = result.cas
+              result.content
+            rescue Error::DocumentNotFound
+              @cas = 0
+              []
+            end
           current.each(&)
           self
         else
-          enum_for(:each)
+          enum_for(:each, parent_span: parent_span)
         end
       end
 
       # @return [Integer] returns the number of elements in the list.
-      def length
-        result = @collection.lookup_in(@id, [
-                                         LookupInSpec.count(""),
-                                       ], @options.lookup_in_options)
-        result.content(0)
-      rescue Error::DocumentNotFound
-        0
+      def length(parent_span: nil)
+        @observability.record_operation(Observability::OP_LIST_LENGTH, parent_span, self) do |obs_handler|
+          options = @options.lookup_in_options.clone
+          options.parent_span = obs_handler.op_span
+          result = @collection.lookup_in(@id, [
+                                           LookupInSpec.count(""),
+                                         ], options)
+          result.content(0)
+        rescue Error::DocumentNotFound
+          0
+        end
       end
 
       alias size length
 
       # @return [Boolean] returns true if list is empty
-      def empty?
-        size.zero?
+      def empty?(parent_span: nil)
+        size(parent_span: parent_span).zero?
       end
 
       # Appends the given object(s) on to the end of this error. This expression returns the array itself, so several
@@ -83,10 +91,14 @@ module Couchbase
       #
       # @param [Object...] obj object(s) to append
       # @return [CouchbaseList]
-      def push(*obj)
-        @collection.mutate_in(@id, [
-                                MutateInSpec.array_append("", obj),
-                              ], @options.mutate_in_options)
+      def push(*obj, parent_span: nil)
+        @observability.record_operation(Observability::OP_LIST_PUSH, parent_span, self) do |obs_handler|
+          options = @options.mutate_in_options.clone
+          options.parent_span = obs_handler.op_span
+          @collection.mutate_in(@id, [
+                                  MutateInSpec.array_append("", obj),
+                                ], options)
+        end
         self
       end
 
@@ -96,10 +108,14 @@ module Couchbase
       #
       # @param [Object...] obj object(s) to prepend
       # @return [CouchbaseList]
-      def unshift(*obj)
-        @collection.mutate_in(@id, [
-                                MutateInSpec.array_prepend("", obj),
-                              ], @options.mutate_in_options)
+      def unshift(*obj, parent_span: nil)
+        @observability.record_operation(Observability::OP_LIST_UNSHIFT, parent_span, self) do |obs_handler|
+          options = @options.mutate_in_options.clone
+          options.parent_span = obs_handler.op_span
+          @collection.mutate_in(@id, [
+                                  MutateInSpec.array_prepend("", obj),
+                                ], options)
+        end
         self
       end
 
@@ -110,10 +126,14 @@ module Couchbase
       # @param [Integer] index
       # @param [Object...] obj object(s) to insert
       # @return [CouchbaseList]
-      def insert(index, *obj)
-        @collection.mutate_in(@id, [
-                                MutateInSpec.array_insert("[#{index.to_i}]", obj),
-                              ])
+      def insert(index, *obj, parent_span: nil)
+        @observability.record_operation(Observability::OP_LIST_INSERT, parent_span, self) do |obs_handler|
+          options = @options.mutate_in_options.clone
+          options.parent_span = obs_handler.op_span
+          @collection.mutate_in(@id, [
+                                  MutateInSpec.array_insert("[#{index.to_i}]", obj),
+                                ])
+        end
         self
       end
 
@@ -121,13 +141,17 @@ module Couchbase
       #
       # @param [Integer] index
       # @return [Object, nil]
-      def at(index)
-        result = @collection.lookup_in(@id, [
-                                         LookupInSpec.get("[#{index.to_i}]"),
-                                       ], @options.lookup_in_options)
-        result.exists?(0) ? result.content(0) : nil
-      rescue Error::DocumentNotFound
-        nil
+      def at(index, parent_span: nil)
+        @observability.record_operation(Observability::OP_LIST_AT, parent_span, self) do |obs_handler|
+          options = @options.mutate_in_options.clone
+          options.parent_span = obs_handler.op_span
+          result = @collection.lookup_in(@id, [
+                                           LookupInSpec.get("[#{index.to_i}]"),
+                                         ], options)
+          result.exists?(0) ? result.content(0) : nil
+        rescue Error::DocumentNotFound
+          nil
+        end
       end
 
       alias [] at
@@ -136,21 +160,28 @@ module Couchbase
       #
       # @param [Integer] index
       # @return [CouchbaseList]
-      def delete_at(index)
-        @collection.mutate_in(@id, [
-                                MutateInSpec.remove("[#{index.to_i}]"),
-                              ])
-        self
-      rescue Error::DocumentNotFound
-        self
+      def delete_at(index, parent_span: nil)
+        @observability.record_operation(Observability::OP_LIST_DELETE_AT, parent_span, self) do |obs_handler|
+          options = Options::MutateIn.new(parent_span: obs_handler.op_span)
+          @collection.mutate_in(@id, [
+                                  MutateInSpec.remove("[#{index.to_i}]"),
+                                ], options)
+          self
+        rescue Error::DocumentNotFound
+          self
+        end
       end
 
       # Removes all elements from the list
-      def clear
-        @collection.remove(@id, @options.remove_options)
-        nil
-      rescue Error::DocumentNotFound
-        nil
+      def clear(parent_span: nil)
+        @observability.record_operation(Observability::OP_LIST_CLEAR, parent_span, self) do |obs_handler|
+          options = @options.remove_options.clone
+          options.parent_span = obs_handler.op_span
+          @collection.remove(@id, options)
+          nil
+        rescue Error::DocumentNotFound
+          nil
+        end
       end
     end
 

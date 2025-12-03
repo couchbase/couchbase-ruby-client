@@ -19,7 +19,7 @@ module Couchbase
     def self.deprecate_constants(removed_in_version, parent, constants)
       deprecator = Module.new do
         define_method(:const_missing) do |old_name|
-          return super unless constants.key?(old_name)
+          return super(old_name) unless constants.key?(old_name)
 
           new_name = constants[old_name]
 
