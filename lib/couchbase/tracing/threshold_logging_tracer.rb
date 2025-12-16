@@ -116,7 +116,7 @@ module Couchbase
             next if report.empty?
 
             begin
-              @logger.debug("Threshold Logging Report: #{report.to_json}")
+              @logger.info("Threshold Logging Report: #{report.to_json}")
             rescue StandardError => e
               @logger.debug("Failed to log threshold logging report: #{e.message}")
             end

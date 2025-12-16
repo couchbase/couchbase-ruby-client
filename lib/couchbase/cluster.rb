@@ -29,8 +29,11 @@ require "couchbase/diagnostics"
 
 require "couchbase/protostellar"
 require "couchbase/utils/observability"
+
 require "couchbase/tracing/threshold_logging_tracer"
 require "couchbase/tracing/noop_tracer"
+require "couchbase/metrics/noop_meter"
+require "couchbase/metrics/logging_meter"
 
 module Couchbase
   # The main entry point when connecting to a Couchbase cluster.
@@ -374,6 +377,7 @@ module Couchbase
           raise ArgumentError, "missing password" unless credentials[:password]
         when Options::Cluster
           tracer = options.tracer
+          meter = options.meter
           open_options = options.to_backend || {}
           authenticator = options.authenticator
           case authenticator
@@ -401,7 +405,7 @@ module Couchbase
       end
 
       @observability = Observability::Wrapper.new do |w|
-        w.tracer = if !(open_options[:enable_tracing].nil? && !open_options[:enable_tracing])
+        w.tracer = if !open_options[:enable_tracing].nil? && !open_options[:enable_tracing]
                      Tracing::NoopTracer.new
                    elsif tracer.nil?
                      Tracing::ThresholdLoggingTracer.new(
@@ -417,6 +421,15 @@ module Couchbase
                    else
                      tracer
                    end
+        w.meter = if !open_options[:enable_metrics].nil? && !open_options[:enable_metrics]
+                    Metrics::NoopMeter.new
+                  elsif meter.nil?
+                    Metrics::LoggingMeter.new(
+                      emit_interval: open_options[:metrics_emit_interval],
+                    )
+                  else
+                    meter
+                  end
       end
 
       @backend = Backend.new

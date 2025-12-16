@@ -25,6 +25,7 @@
 #include "rcb_diagnostics.hxx"
 #include "rcb_exceptions.hxx"
 #include "rcb_extras.hxx"
+#include "rcb_hdr_histogram.hxx"
 #include "rcb_logger.hxx"
 #include "rcb_multi.hxx"
 #include "rcb_query.hxx"
@@ -64,5 +65,6 @@ Init_libcouchbase(void)
   couchbase::ruby::init_diagnostics(cBackend);
   couchbase::ruby::init_extras(cBackend);
   couchbase::ruby::init_logger_methods(cBackend);
+  couchbase::ruby::init_hdr_histogram(mCouchbase);
 }
 }

@@ -39,6 +39,9 @@ module Couchbase
         handler.add_service(service) unless service.nil?
         begin
           res = yield(handler)
+        rescue StandardError => e
+          handler.add_error(e)
+          raise e
         ensure
           handler.finish
         end
@@ -47,6 +50,7 @@ module Couchbase
 
       def close
         @tracer&.close
+        @meter&.close
       end
     end
 
@@ -57,11 +61,14 @@ module Couchbase
         @tracer = tracer
         @meter = meter
         @op_span = create_span(op_name, parent_span)
+        @meter_attributes = create_meter_attributes
+        @start_time = Time.now
+        add_operation_name(op_name)
         add_receiver_attributes(receiver)
       end
 
       def with_request_encoding_span
-        span = create_span(Observability::STEP_REQUEST_ENCODING, @op_span)
+        span = create_span(STEP_REQUEST_ENCODING, @op_span)
         begin
           res = yield
         ensure
@@ -87,18 +94,27 @@ module Couchbase
             ATTR_VALUE_SERVICE_VIEWS
           end
         @op_span.set_attribute(ATTR_SERVICE, service_str) unless service_str.nil?
+        @meter_attributes[ATTR_SERVICE] = service_str unless service_str.nil?
+      end
+
+      def add_operation_name(name)
+        @op_span.set_attribute(ATTR_OPERATION_NAME, name)
+        @meter_attributes[ATTR_OPERATION_NAME] = name
       end
 
       def add_bucket_name(name)
         @op_span.set_attribute(ATTR_BUCKET_NAME, name)
+        @meter_attributes[ATTR_BUCKET_NAME] = name
       end
 
       def add_scope_name(name)
         @op_span.set_attribute(ATTR_SCOPE_NAME, name)
+        @meter_attributes[ATTR_SCOPE_NAME] = name
       end
 
       def add_collection_name(name)
         @op_span.set_attribute(ATTR_COLLECTION_NAME, name)
+        @meter_attributes[ATTR_COLLECTION_NAME] = name
       end
 
       def add_durability_level(level)
@@ -118,6 +134,15 @@ module Couchbase
         return unless retries.positive?
 
         @op_span.set_attribute(ATTR_RETRIES, retries.to_i)
+      end
+
+      def add_error(error)
+        @meter_attributes[ATTR_ERROR_TYPE] =
+          if error.is_a?(Couchbase::Error::CouchbaseError) || error.is_a?(Couchbase::Error::InvalidArgument)
+            error.class.name.split("::").last
+          else
+            "_OTHER"
+          end
       end
 
       def add_query_statement(statement, options)
@@ -142,6 +167,8 @@ module Couchbase
 
       def finish
         @op_span.finish
+        duration_us = ((Time.now - @start_time) * 1_000_000).round
+        @meter.value_recorder(METER_NAME_OPERATION_DURATION, @meter_attributes).record_value(duration_us)
       end
 
       private
@@ -165,6 +192,12 @@ module Couchbase
 
       def convert_backend_timestamp(backend_timestamp)
         Time.at(backend_timestamp / (10**6), backend_timestamp % (10**6))
+      end
+
+      def create_meter_attributes
+        {
+          ATTR_SYSTEM_NAME => ATTR_VALUE_SYSTEM_NAME,
+        }
       end
 
       def create_span(name, parent, start_timestamp: nil)
