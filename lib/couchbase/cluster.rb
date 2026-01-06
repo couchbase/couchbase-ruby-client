@@ -401,20 +401,22 @@ module Couchbase
       end
 
       @observability = Observability::Wrapper.new do |w|
-        if !(open_options[:enable_tracing].nil? && !open_options[:enable_tracing])
-          w.tracer = Tracing::NoopTracer.new
-        elsif tracer.nil?
-          w.tracer = Tracing::ThresholdLoggingTracer.new(
-            emit_interval: open_options[:threshold_emit_interval],
-            kv_threshold: open_options[:key_value_threshold],
-            query_threshold: open_options[:query_threshold],
-            views_threshold: open_options[:view_threshold],
-            search_threshold: open_options[:search_threshold],
-            analytics_threshold: open_options[:analytics_threshold],
-            management_threshold: open_options[:management_threshold],
-            sample_size: open_options[:threshold_sample_size],
-          )
-        end
+        w.tracer = if !(open_options[:enable_tracing].nil? && !open_options[:enable_tracing])
+                     Tracing::NoopTracer.new
+                   elsif tracer.nil?
+                     Tracing::ThresholdLoggingTracer.new(
+                       emit_interval: open_options[:threshold_emit_interval],
+                       kv_threshold: open_options[:key_value_threshold],
+                       query_threshold: open_options[:query_threshold],
+                       views_threshold: open_options[:view_threshold],
+                       search_threshold: open_options[:search_threshold],
+                       analytics_threshold: open_options[:analytics_threshold],
+                       management_threshold: open_options[:management_threshold],
+                       sample_size: open_options[:threshold_sample_size],
+                     )
+                   else
+                     tracer
+                   end
       end
 
       @backend = Backend.new

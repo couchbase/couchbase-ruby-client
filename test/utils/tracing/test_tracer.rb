@@ -20,7 +20,7 @@ require_relative "test_span"
 
 module Couchbase
   module TestUtilities
-    class TestTracer < RequestTracer
+    class TestTracer < Couchbase::Tracing::RequestTracer
       def initialize
         super
         @spans = []
