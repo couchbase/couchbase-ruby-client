@@ -363,7 +363,7 @@ jobs:
 
   build_macos_x86_64:
     needs: source
-    runs-on: macos-13
+    runs-on: macos-15-intel
     strategy:
       fail-fast: false
       matrix:
@@ -402,7 +402,7 @@ jobs:
     needs:
       - source
       - build_macos_x86_64
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -565,7 +565,7 @@ jobs:
     needs:
       - source
       - repackage_macos_x86_64
-    runs-on: macos-13
+    runs-on: macos-15-intel
     strategy:
       fail-fast: false
       matrix:
