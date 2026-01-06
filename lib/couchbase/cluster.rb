@@ -404,6 +404,8 @@ module Couchbase
         end
       end
 
+      @backend = Backend.new
+
       @observability = Observability::Wrapper.new do |w|
         w.tracer = if !open_options[:enable_tracing].nil? && !open_options[:enable_tracing]
                      Tracing::NoopTracer.new
@@ -432,7 +434,6 @@ module Couchbase
                   end
       end
 
-      @backend = Backend.new
       @backend.open(connection_string, credentials, open_options)
     end
 

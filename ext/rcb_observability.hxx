@@ -36,4 +36,7 @@ void
 cb_add_core_spans(VALUE observability_handler,
                   std::shared_ptr<couchbase::core::tracing::wrapper_sdk_span> parent_span,
                   std::size_t retry_attempts);
+
+void
+init_observability(VALUE cBackend);
 } // namespace couchbase::ruby
