@@ -18,6 +18,7 @@ require_relative "metrics/test_meter"
 require_relative "metrics/test_value_recorder"
 
 def assert_operation_metrics(
+  env,
   count,
   operation_name:,
   service: nil,
@@ -30,6 +31,11 @@ def assert_operation_metrics(
     "db.system.name" => "couchbase",
     "db.operation.name" => operation_name,
   }
+
+  if env.server_version.supports_cluster_labels?
+    attributes["couchbase.cluster.name"] = env.cluster_name
+    attributes["couchbase.cluster.uuid"] = env.cluster_uuid
+  end
 
   attributes["couchbase.service"] = service unless service.nil?
   attributes["db.namespace"] = bucket_name unless bucket_name.nil?

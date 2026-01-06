@@ -43,6 +43,7 @@ module Couchbase
       end
 
       assert_operation_metrics(
+        env,
         10,
         operation_name: "get",
         service: "kv",
@@ -51,6 +52,7 @@ module Couchbase
         collection_name: "_default",
       )
       assert_operation_metrics(
+        env,
         10,
         operation_name: "replace",
         service: "kv",
@@ -66,6 +68,7 @@ module Couchbase
       end
 
       assert_operation_metrics(
+        env,
         1,
         operation_name: "get",
         service: "kv",
@@ -80,6 +83,7 @@ module Couchbase
       @collection.upsert(uniq_id(:foo), {foo: "bar"})
 
       assert_operation_metrics(
+        env,
         1,
         operation_name: "upsert",
         service: "kv",
@@ -95,6 +99,7 @@ module Couchbase
       @cluster.query("SELECT 1=1")
 
       assert_operation_metrics(
+        env,
         1,
         operation_name: "query",
         service: "query",
@@ -107,6 +112,7 @@ module Couchbase
       @bucket.default_scope.query("SELECT 1=1")
 
       assert_operation_metrics(
+        env,
         1,
         operation_name: "query",
         service: "query",
@@ -123,6 +129,7 @@ module Couchbase
       end
 
       assert_operation_metrics(
+        env,
         1,
         operation_name: "query",
         service: "query",

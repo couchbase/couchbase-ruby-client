@@ -30,12 +30,16 @@ module Couchbase
       attr_accessor :tracer
       attr_accessor :meter
 
-      def initialize
+      def initialize(backend:, tracer: nil, meter: nil)
+        @backend = backend
+        @tracer = tracer
+        @meter = meter
+
         yield self if block_given?
       end
 
       def record_operation(op_name, parent_span, receiver, service = nil)
-        handler = Handler.new(op_name, parent_span, receiver, @tracer, @meter)
+        handler = Handler.new(@backend, op_name, parent_span, receiver, @tracer, @meter)
         handler.add_service(service) unless service.nil?
         begin
           res = yield(handler)
@@ -57,9 +61,14 @@ module Couchbase
     class Handler
       attr_reader :op_span
 
-      def initialize(op_name, parent_span, receiver, tracer, meter)
+      def initialize(backend, op_name, parent_span, receiver, tracer, meter)
         @tracer = tracer
         @meter = meter
+
+        cluster_labels = backend.cluster_labels
+        @cluster_name = cluster_labels[:cluster_name]
+        @cluster_uuid = cluster_labels[:cluster_uuid]
+
         @op_span = create_span(op_name, parent_span)
         @meter_attributes = create_meter_attributes
         @start_time = Time.now
@@ -195,14 +204,19 @@ module Couchbase
       end
 
       def create_meter_attributes
-        {
+        attrs = {
           ATTR_SYSTEM_NAME => ATTR_VALUE_SYSTEM_NAME,
         }
+        attrs[ATTR_CLUSTER_NAME] = @cluster_name unless @cluster_name.nil?
+        attrs[ATTR_CLUSTER_UUID] = @cluster_uuid unless @cluster_uuid.nil?
+        attrs
       end
 
       def create_span(name, parent, start_timestamp: nil)
         span = @tracer.request_span(name, parent: parent, start_timestamp: start_timestamp)
         span.set_attribute(ATTR_SYSTEM_NAME, ATTR_VALUE_SYSTEM_NAME)
+        span.set_attribute(ATTR_CLUSTER_NAME, @cluster_name) unless @cluster_name.nil?
+        span.set_attribute(ATTR_CLUSTER_UUID, @cluster_uuid) unless @cluster_uuid.nil?
         span
       end
 

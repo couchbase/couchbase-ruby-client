@@ -17,7 +17,7 @@
 require_relative "tracing/test_span"
 require_relative "tracing/test_tracer"
 
-def assert_span(span, name, parent = nil)
+def assert_span(env, span, name, parent = nil)
   puts JSON.pretty_generate(@tracer.spans[0].to_h)
 
   assert_equal name, span.name
@@ -26,10 +26,18 @@ def assert_span(span, name, parent = nil)
   assert_instance_of Time, span.end_time
   assert_operator span.start_time, :<, span.end_time
   assert_equal "couchbase", span.attributes["db.system.name"]
+
+  if env.server_version.supports_cluster_labels?
+    assert_equal env.cluster_name, span.attributes["couchbase.cluster.name"]
+    assert_equal env.cluster_uuid, span.attributes["couchbase.cluster.uuid"]
+  else
+    refute span.attributes.key?("couchbase.cluster.name")
+    refute span.attributes.key?("couchbase.cluster.uuid")
+  end
 end
 
-def assert_kv_span(span, op_name, parent = nil)
-  assert_span span, op_name, parent
+def assert_kv_span(env, span, op_name, parent = nil)
+  assert_span env, span, op_name, parent
 
   assert_equal "kv", span.attributes["couchbase.service"]
   assert_equal @collection.bucket_name, span.attributes["db.namespace"]
@@ -37,15 +45,16 @@ def assert_kv_span(span, op_name, parent = nil)
   assert_equal @collection.name, span.attributes["couchbase.collection.name"]
 end
 
-def assert_has_request_encoding_span(span)
+def assert_has_request_encoding_span(env, span)
   assert_predicate span.children.size, :positive?
 
   request_encoding_span = span.children[0] # The request encoding span is always the first child span
 
-  assert_span request_encoding_span, "request_encoding", span
+  assert_span env, request_encoding_span, "request_encoding", span
 end
 
 def assert_http_span(
+  env,
   span,
   op_name,
   parent: nil,
@@ -55,7 +64,7 @@ def assert_http_span(
   collection_name: nil,
   statement: nil
 )
-  assert_span span, op_name, parent
+  assert_span env, span, op_name, parent
 
   if service.nil?
     assert_nil span.attributes["couchbase.service"]

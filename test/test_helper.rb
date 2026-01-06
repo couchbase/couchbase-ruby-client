@@ -141,6 +141,10 @@ class ServerVersion
   def supports_server_group_replica_reads?
     @version >= Gem::Version.create("7.6.2")
   end
+
+  def supports_cluster_labels?
+    @version >= Gem::Version.create("7.6.4")
+  end
 end
 
 require "couchbase"
@@ -177,7 +181,7 @@ module Couchbase
     end
 
     def management_endpoint
-      @management_endpoint = ENV.fetch("TEST_MANAGEMENT_ENDPOINT") do
+      @management_endpoint ||= ENV.fetch("TEST_MANAGEMENT_ENDPOINT") do
         if connection_string
           parsed = Couchbase::Backend.parse_connection_string(connection_string)
           first_node_address = parsed[:nodes].first[:address]
@@ -215,6 +219,31 @@ module Couchbase
         else
           TestUtilities::MockConsistencyHelper.new
         end
+    end
+
+    def cluster_name
+      fetch_cluster_labels if @cluster_labels.nil?
+      @cluster_labels[:cluster_name]
+    end
+
+    def cluster_uuid
+      fetch_cluster_labels if @cluster_labels.nil?
+      @cluster_labels[:cluster_uuid]
+    end
+
+    private
+
+    def fetch_cluster_labels
+      uri = URI("#{management_endpoint}/pools/default/nodeServices")
+      req = Net::HTTP::Get.new(uri)
+      req.basic_auth(username, password)
+      resp = Net::HTTP.start(uri.hostname, uri.port) { |http| http.request(req) }
+      body = JSON.parse(resp.body)
+
+      @cluster_labels = {
+        cluster_name: body["clusterName"],
+        cluster_uuid: body["clusterUUID"],
+      }
     end
   end
 
