@@ -30,7 +30,7 @@ group :development do
   gem "gem-compiler"
   gem "grpc-tools", "~> 1.59"
   gem "heckle"
-  gem "minitest"
+  gem "minitest", "~> 5.27"
   gem "minitest-reporters"
   gem "mutex_m"
   gem "rack"
