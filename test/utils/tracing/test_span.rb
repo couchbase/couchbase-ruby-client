@@ -18,7 +18,7 @@ require "couchbase/tracing/request_span"
 
 module Couchbase
   module TestUtilities
-    class TestSpan < RequestSpan
+    class TestSpan < Couchbase::Tracing::RequestSpan
       attr_accessor :name
       attr_accessor :start_time, :end_time
       attr_accessor :attributes
@@ -26,7 +26,7 @@ module Couchbase
       attr_accessor :children
 
       def initialize(name, parent: nil, start_timestamp: nil)
-        super
+        super()
         @name = name
         @start_time = start_timestamp.nil? ? Time.now : start_timestamp
         @parent = parent
