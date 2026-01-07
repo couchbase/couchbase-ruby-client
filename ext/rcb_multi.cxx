@@ -17,7 +17,20 @@
 
 #include <core/cluster.hxx>
 #include <core/document_id.hxx>
+
+// TODO(DC): Compilation fails unless all operations that support legacy durability are included
+// This is probably something we should address in the C++ core. Including them all for now.
+#include <core/operations/document_append.hxx>
+#include <core/operations/document_decrement.hxx>
 #include <core/operations/document_get.hxx>
+#include <core/operations/document_increment.hxx>
+#include <core/operations/document_insert.hxx>
+#include <core/operations/document_mutate_in.hxx>
+#include <core/operations/document_prepend.hxx>
+#include <core/operations/document_remove.hxx>
+#include <core/operations/document_replace.hxx>
+#include <core/operations/document_upsert.hxx>
+
 #include <couchbase/cluster.hxx>
 #include <couchbase/upsert_options.hxx>
 
@@ -32,7 +45,6 @@ namespace couchbase::ruby
 {
 namespace
 {
-
 void
 cb_extract_array_of_ids(std::vector<core::document_id>& ids, VALUE arg)
 {
@@ -82,21 +94,29 @@ cb_extract_array_of_ids(std::vector<core::document_id>& ids, VALUE arg)
 
 void
 cb_extract_array_of_id_content(
-  std::vector<std::pair<std::string, couchbase::codec::encoded_value>>& id_content,
-  VALUE arg)
+  std::vector<std::pair<core::document_id, couchbase::codec::encoded_value>>& id_content,
+  VALUE bucket_name,
+  VALUE scope_name,
+  VALUE collection_name,
+  VALUE tuples)
 {
-  if (TYPE(arg) != T_ARRAY) {
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
+  cb_check_type(collection_name, T_STRING);
+
+  if (TYPE(tuples) != T_ARRAY) {
     throw ruby_exception(
       rb_eArgError,
-      rb_sprintf("Type of ID/content tuples must be an Array, but given %+" PRIsVALUE, arg));
+      rb_sprintf("Type of ID/content tuples must be an Array, but given %+" PRIsVALUE, tuples));
   }
-  auto num_of_tuples = static_cast<std::size_t>(RARRAY_LEN(arg));
+
+  auto num_of_tuples = static_cast<std::size_t>(RARRAY_LEN(tuples));
   if (num_of_tuples < 1) {
     throw ruby_exception(rb_eArgError, "Array of ID/content tuples must not be empty");
   }
   id_content.reserve(num_of_tuples);
   for (std::size_t i = 0; i < num_of_tuples; ++i) {
-    VALUE entry = rb_ary_entry(arg, static_cast<long>(i));
+    VALUE entry = rb_ary_entry(tuples, static_cast<long>(i));
     if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 3) {
       throw ruby_exception(rb_eArgError,
                            rb_sprintf("ID/content tuple must be represented as an Array[id, "
@@ -118,27 +138,40 @@ cb_extract_array_of_id_content(
       throw ruby_exception(rb_eArgError,
                            rb_sprintf("Flags must be an Integer, but given %+" PRIsVALUE, flags));
     }
-    id_content.emplace_back(
-      cb_string_new(id),
-      couchbase::codec::encoded_value{ cb_binary_new(content), FIX2UINT(flags) });
+    id_content.emplace_back(core::document_id{ cb_string_new(bucket_name),
+                                               cb_string_new(scope_name),
+                                               cb_string_new(collection_name),
+                                               cb_string_new(id) },
+                            couchbase::codec::encoded_value{
+                              cb_binary_new(content),
+                              FIX2UINT(flags),
+                            });
   }
 }
 
 void
-cb_extract_array_of_id_cas(std::vector<std::pair<std::string, couchbase::cas>>& id_cas, VALUE arg)
+cb_extract_array_of_id_cas(std::vector<std::pair<core::document_id, couchbase::cas>>& id_cas,
+                           VALUE bucket_name,
+                           VALUE scope_name,
+                           VALUE collection_name,
+                           VALUE tuples)
 {
-  if (TYPE(arg) != T_ARRAY) {
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
+  cb_check_type(collection_name, T_STRING);
+
+  if (TYPE(tuples) != T_ARRAY) {
     throw ruby_exception(
       rb_eArgError,
-      rb_sprintf("Type of ID/CAS tuples must be an Array, but given %+" PRIsVALUE, arg));
+      rb_sprintf("Type of ID/CAS tuples must be an Array, but given %+" PRIsVALUE, tuples));
   }
-  auto num_of_tuples = static_cast<std::size_t>(RARRAY_LEN(arg));
+  auto num_of_tuples = static_cast<std::size_t>(RARRAY_LEN(tuples));
   if (num_of_tuples < 1) {
     rb_raise(rb_eArgError, "Array of ID/CAS tuples must not be empty");
   }
   id_cas.reserve(num_of_tuples);
   for (std::size_t i = 0; i < num_of_tuples; ++i) {
-    VALUE entry = rb_ary_entry(arg, static_cast<long>(i));
+    VALUE entry = rb_ary_entry(tuples, static_cast<long>(i));
     if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 2) {
       throw ruby_exception(
         rb_eArgError,
@@ -156,7 +189,11 @@ cb_extract_array_of_id_cas(std::vector<std::pair<std::string, couchbase::cas>>& 
       cb_extract_cas(cas_val, cas);
     }
 
-    id_cas.emplace_back(cb_string_new(id), cas_val);
+    id_cas.emplace_back(core::document_id{ cb_string_new(bucket_name),
+                                           cb_string_new(scope_name),
+                                           cb_string_new(collection_name),
+                                           cb_string_new(id) },
+                        cas_val);
   }
 }
 
@@ -222,45 +259,72 @@ cb_Backend_document_upsert_multi(VALUE self,
                                  VALUE id_content,
                                  VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
+
+  Check_Type(bucket, T_STRING);
+  Check_Type(scope, T_STRING);
+  Check_Type(collection, T_STRING);
+  if (!NIL_P(options)) {
+    Check_Type(options, T_HASH);
+  }
 
   try {
-    couchbase::upsert_options opts;
-    set_timeout(opts, options);
-    set_expiry(opts, options);
-    set_durability(opts, options);
-    set_preserve_expiry(opts, options);
-
-    auto c = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection));
-
-    std::vector<std::pair<std::string, couchbase::codec::encoded_value>> tuples{};
-    cb_extract_array_of_id_content(tuples, id_content);
+    std::vector<std::pair<core::document_id, couchbase::codec::encoded_value>> tuples{};
+    cb_extract_array_of_id_content(tuples, bucket, scope, collection, id_content);
 
     auto num_of_tuples = tuples.size();
-    std::vector<
-      std::pair<std::string, std::future<std::pair<couchbase::error, couchbase::mutation_result>>>>
-      futures;
+    std::vector<std::pair<std::string, std::future<core::operations::upsert_response>>> futures;
     futures.reserve(num_of_tuples);
 
     for (auto& [id, content] : tuples) {
-      futures.emplace_back(id, c.upsert(id, std::move(content), opts));
+      core::operations::upsert_request req{
+        id,
+        std::move(content.data),
+      };
+      req.flags = content.flags;
+      cb_extract_timeout(req, options);
+      cb_extract_expiry(req, options);
+      cb_extract_durability_level(req, options);
+      cb_extract_preserve_expiry(req, options);
+
+      std::promise<core::operations::upsert_response> promise;
+      futures.emplace_back(id.key(), promise.get_future());
+
+      if (const auto legacy_durability = extract_legacy_durability_constraints(options);
+          legacy_durability.has_value()) {
+        cluster.execute(
+          core::operations::upsert_request_with_legacy_durability{
+            std::move(req),
+            legacy_durability.value().first,
+            legacy_durability.value().second,
+          },
+          [promise = std::move(promise)](auto&& resp) mutable {
+            promise.set_value(std::forward<decltype(resp)>(resp));
+          });
+      } else {
+        cluster.execute(std::move(req), [promise = std::move(promise)](auto&& resp) mutable {
+          promise.set_value(std::forward<decltype(resp)>(resp));
+        });
+      }
     }
 
     VALUE res = rb_ary_new_capa(static_cast<long>(num_of_tuples));
     for (auto& [id, f] : futures) {
-      auto [err, resp] = f.get();
-      VALUE entry = to_mutation_result_value(resp);
-      if (err.ec()) {
+      auto resp = f.get();
+      VALUE entry;
+      if (resp.ctx.ec()) {
+        entry = rb_hash_new();
         static const auto sym_error = rb_id2sym(rb_intern("error"));
-        rb_hash_aset(entry, sym_error, cb_map_error(err, "unable (multi)upsert"));
+        rb_hash_aset(entry, sym_error, cb_map_error(resp.ctx, "unable (multi)upsert"));
+      } else {
+        entry = cb_create_mutation_result(resp);
       }
       static const auto sym_id = rb_id2sym(rb_intern("id"));
       rb_hash_aset(entry, sym_id, cb_str_new(id));
       rb_ary_push(res, entry);
     }
     return res;
+
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
@@ -278,50 +342,69 @@ cb_Backend_document_remove_multi(VALUE self,
                                  VALUE id_cas,
                                  VALUE options)
 {
-  auto cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = cb_backend_to_core_api_cluster(self);
 
+  Check_Type(bucket, T_STRING);
+  Check_Type(scope, T_STRING);
+  Check_Type(collection, T_STRING);
   if (!NIL_P(options)) {
     Check_Type(options, T_HASH);
   }
 
   try {
-    couchbase::remove_options opts;
-    set_timeout(opts, options);
-    set_durability(opts, options);
-
-    std::vector<std::pair<std::string, couchbase::cas>> tuples{};
-    cb_extract_array_of_id_cas(tuples, id_cas);
-
-    auto c = cluster.bucket(cb_string_new(bucket))
-               .scope(cb_string_new(scope))
-               .collection(cb_string_new(collection));
+    std::vector<std::pair<core::document_id, couchbase::cas>> tuples{};
+    cb_extract_array_of_id_cas(tuples, bucket, scope, collection, id_cas);
 
     auto num_of_tuples = tuples.size();
-    std::vector<
-      std::pair<std::string, std::future<std::pair<couchbase::error, couchbase::mutation_result>>>>
-      futures;
+    std::vector<std::pair<std::string, std::future<core::operations::remove_response>>> futures;
     futures.reserve(num_of_tuples);
 
     for (const auto& [id, cas] : tuples) {
-      opts.cas(cas);
-      futures.emplace_back(id, c.remove(id, opts));
+      core::operations::remove_request req{
+        id,
+      };
+      cb_extract_timeout(req, options);
+      cb_extract_durability_level(req, options);
+      req.cas = cas;
+
+      std::promise<core::operations::remove_response> promise;
+      futures.emplace_back(id.key(), promise.get_future());
+
+      if (const auto legacy_durability = extract_legacy_durability_constraints(options);
+          legacy_durability.has_value()) {
+        cluster.execute(
+          core::operations::remove_request_with_legacy_durability{
+            std::move(req),
+            legacy_durability.value().first,
+            legacy_durability.value().second,
+          },
+          [promise = std::move(promise)](auto&& resp) mutable {
+            promise.set_value(std::forward<decltype(resp)>(resp));
+          });
+      } else {
+        cluster.execute(std::move(req), [promise = std::move(promise)](auto&& resp) mutable {
+          promise.set_value(std::forward<decltype(resp)>(resp));
+        });
+      }
     }
 
     VALUE res = rb_ary_new_capa(static_cast<long>(num_of_tuples));
     for (auto& [id, f] : futures) {
-      auto [ctx, resp] = f.get();
-      VALUE entry = to_mutation_result_value(resp);
-      if (ctx.ec()) {
+      auto resp = f.get();
+      VALUE entry;
+      if (resp.ctx.ec()) {
+        entry = rb_hash_new();
         static const auto sym_error = rb_id2sym(rb_intern("error"));
-        rb_hash_aset(entry, sym_error, cb_map_error(ctx, "unable (multi)remove"));
+        rb_hash_aset(entry, sym_error, cb_map_error(resp.ctx, "unable (multi)remove"));
+      } else {
+        entry = cb_create_mutation_result(resp);
       }
       static const auto sym_id = rb_id2sym(rb_intern("id"));
       rb_hash_aset(entry, sym_id, cb_str_new(id));
-
       rb_ary_push(res, entry);
     }
-
     return res;
+
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));

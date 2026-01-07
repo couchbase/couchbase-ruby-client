@@ -20,6 +20,7 @@
 
 #include <couchbase/cas.hxx>
 #include <couchbase/durability_level.hxx>
+#include <couchbase/expiry.hxx>
 #include <couchbase/persist_to.hxx>
 #include <couchbase/read_preference.hxx>
 #include <couchbase/replicate_to.hxx>
@@ -134,6 +135,43 @@ cb_extract_timeout(Request& req, VALUE options)
 
 template<typename Request>
 inline void
+cb_extract_durability_level(Request& req, VALUE options)
+{
+  if (NIL_P(options)) {
+    return;
+  }
+
+  if (TYPE(options) != T_HASH) {
+    throw ruby_exception(rb_eArgError,
+                         rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+  }
+
+  static VALUE property_name = rb_id2sym(rb_intern("durability_level"));
+
+  VALUE val = rb_hash_aref(options, property_name);
+  if (NIL_P(val)) {
+    return;
+  }
+  if (TYPE(val) != T_SYMBOL) {
+    throw ruby_exception(
+      rb_eArgError, rb_sprintf("durability_level must be a Symbol, but given %+" PRIsVALUE, val));
+  }
+  if (ID level = rb_sym2id(val); level == rb_intern("none")) {
+    req.durability_level = couchbase::durability_level::none;
+  } else if (level == rb_intern("majority")) {
+    req.durability_level = couchbase::durability_level::majority;
+  } else if (level == rb_intern("majority_and_persist_to_active")) {
+    req.durability_level = couchbase::durability_level::majority_and_persist_to_active;
+  } else if (level == rb_intern("persist_to_majority")) {
+    req.durability_level = couchbase::durability_level::persist_to_majority;
+  } else {
+    throw ruby_exception(rb_eArgError,
+                         rb_sprintf("unexpected durability_level, given %+" PRIsVALUE, val));
+  }
+}
+
+template<typename Request>
+inline void
 cb_extract_read_preference(Request& req, VALUE options)
 {
   static VALUE property_name = rb_id2sym(rb_intern("read_preference"));
@@ -180,6 +218,26 @@ cb_extract_duration(Field& field, VALUE options, const char* name)
           rb_eArgError, rb_sprintf("%s must be an Integer, but given %+" PRIsVALUE, name, options));
     }
   }
+}
+
+void
+cb_extract_content(std::vector<std::byte>& field, VALUE content);
+
+template<typename Request>
+inline void
+cb_extract_content(Request& req, VALUE options)
+{
+  cb_extract_content(req.value, options);
+}
+
+void
+cb_extract_flags(std::uint32_t& field, VALUE flags);
+
+template<typename Request>
+inline void
+cb_extract_flags(Request& req, VALUE options)
+{
+  cb_extract_flags(req.flags, options);
 }
 
 void
@@ -266,6 +324,41 @@ cb_extract_option_array(VALUE& val, VALUE options, const char* name);
 void
 cb_extract_cas(couchbase::cas& field, VALUE cas);
 
+template<typename Request>
+inline void
+cb_extract_cas(Request& req, VALUE options)
+{
+  if (NIL_P(options) || TYPE(options) != T_HASH) {
+    return;
+  }
+  static VALUE property_name = rb_id2sym(rb_intern("cas"));
+  VALUE cas_value = rb_hash_aref(options, property_name);
+  if (NIL_P(cas_value)) {
+    return;
+  }
+  cb_extract_cas(req.cas, cas_value);
+}
+
+void
+cb_extract_expiry(std::uint32_t& field, VALUE options);
+
+void
+cb_extract_expiry(std::optional<std::uint32_t>& field, VALUE options);
+
+template<typename Request>
+inline void
+cb_extract_expiry(Request& req, VALUE options)
+{
+  cb_extract_expiry(req.expiry, options);
+}
+
+template<typename Request>
+inline void
+cb_extract_preserve_expiry(Request& req, VALUE options)
+{
+  cb_extract_option_bool(req.preserve_expiry, options, "preserve_expiry");
+}
+
 VALUE
 cb_cas_to_num(const couchbase::cas& cas);
 
@@ -274,6 +367,24 @@ cb_num_to_cas(VALUE num);
 
 VALUE
 to_cas_value(couchbase::cas cas);
+
+template<typename Response>
+inline VALUE
+cb_create_mutation_result(Response resp)
+{
+  VALUE res = rb_hash_new();
+  rb_hash_aset(res, rb_id2sym(rb_intern("cas")), to_cas_value(resp.cas));
+
+  VALUE token = rb_hash_new();
+  rb_hash_aset(token, rb_id2sym(rb_intern("partition_uuid")), ULL2NUM(resp.token.partition_uuid()));
+  rb_hash_aset(
+    token, rb_id2sym(rb_intern("sequence_number")), ULL2NUM(resp.token.sequence_number()));
+  rb_hash_aset(token, rb_id2sym(rb_intern("partition_id")), UINT2NUM(resp.token.partition_id()));
+  rb_hash_aset(token, rb_id2sym(rb_intern("bucket_name")), cb_str_new(resp.token.bucket_name()));
+  rb_hash_aset(res, rb_id2sym(rb_intern("mutation_token")), token);
+
+  return res;
+}
 
 template<typename Response>
 inline VALUE
@@ -366,66 +477,6 @@ set_expiry(CommandOptions& opts, VALUE options)
 
 template<typename CommandOptions>
 inline void
-set_access_deleted(CommandOptions& opts, VALUE options)
-{
-  static VALUE property_name = rb_id2sym(rb_intern("access_deleted"));
-  if (!NIL_P(options)) {
-    if (TYPE(options) != T_HASH) {
-      throw ruby_exception(rb_eArgError,
-                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
-    }
-    VALUE val = rb_hash_aref(options, property_name);
-    if (NIL_P(val)) {
-      return;
-    }
-    switch (TYPE(val)) {
-      case T_TRUE:
-        opts.access_deleted(true);
-        break;
-      case T_FALSE:
-        opts.access_deleted(false);
-        break;
-
-      default:
-        throw ruby_exception(
-          rb_eArgError,
-          rb_sprintf("access_deleted must be an Boolean, but given %+" PRIsVALUE, val));
-    }
-  }
-}
-
-template<typename CommandOptions>
-inline void
-set_create_as_deleted(CommandOptions& opts, VALUE options)
-{
-  static VALUE property_name = rb_id2sym(rb_intern("create_as_deleted"));
-  if (!NIL_P(options)) {
-    if (TYPE(options) != T_HASH) {
-      throw ruby_exception(rb_eArgError,
-                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
-    }
-    VALUE val = rb_hash_aref(options, property_name);
-    if (NIL_P(val)) {
-      return;
-    }
-    switch (TYPE(val)) {
-      case T_TRUE:
-        opts.create_as_deleted(true);
-        break;
-      case T_FALSE:
-        opts.create_as_deleted(false);
-        break;
-
-      default:
-        throw ruby_exception(
-          rb_eArgError,
-          rb_sprintf("create_as_deleted must be an Boolean, but given %+" PRIsVALUE, val));
-    }
-  }
-}
-
-template<typename CommandOptions>
-inline void
 set_preserve_expiry(CommandOptions& opts, VALUE options)
 {
   static VALUE property_name = rb_id2sym(rb_intern("preserve_expiry"));
@@ -449,88 +500,6 @@ set_preserve_expiry(CommandOptions& opts, VALUE options)
         throw ruby_exception(
           rb_eArgError,
           rb_sprintf("preserve_expiry must be a Boolean, but given %+" PRIsVALUE, val));
-    }
-  }
-}
-
-template<typename CommandOptions>
-inline void
-set_cas(CommandOptions& opts, VALUE options)
-{
-  static VALUE property_name = rb_id2sym(rb_intern("cas"));
-  if (!NIL_P(options)) {
-    if (TYPE(options) != T_HASH) {
-      throw ruby_exception(rb_eArgError,
-                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
-    }
-    VALUE val = rb_hash_aref(options, property_name);
-    if (NIL_P(val)) {
-      return;
-    }
-    switch (TYPE(val)) {
-      case T_FIXNUM:
-      case T_BIGNUM:
-        opts.cas(couchbase::cas{ static_cast<std::uint64_t>(NUM2ULL(val)) });
-        break;
-
-      default:
-        throw ruby_exception(rb_eArgError,
-                             rb_sprintf("cas must be an Integer, but given %+" PRIsVALUE, val));
-    }
-  }
-}
-
-template<typename CommandOptions>
-inline void
-set_delta(CommandOptions& opts, VALUE options)
-{
-  static VALUE property_name = rb_id2sym(rb_intern("delta"));
-  if (!NIL_P(options)) {
-    if (TYPE(options) != T_HASH) {
-      throw ruby_exception(rb_eArgError,
-                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
-    }
-    VALUE val = rb_hash_aref(options, property_name);
-    if (NIL_P(val)) {
-      return;
-    }
-    switch (TYPE(val)) {
-      case T_FIXNUM:
-      case T_BIGNUM:
-        opts.delta(NUM2ULL(val));
-        break;
-
-      default:
-        throw ruby_exception(rb_eArgError,
-                             rb_sprintf("delta must be an Integer, but given %+" PRIsVALUE, val));
-    }
-  }
-}
-
-template<typename CommandOptions>
-inline void
-set_initial_value(CommandOptions& opts, VALUE options)
-{
-  static VALUE property_name = rb_id2sym(rb_intern("initial_value"));
-  if (!NIL_P(options)) {
-    if (TYPE(options) != T_HASH) {
-      throw ruby_exception(rb_eArgError,
-                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
-    }
-    VALUE val = rb_hash_aref(options, property_name);
-    if (NIL_P(val)) {
-      return;
-    }
-    switch (TYPE(val)) {
-      case T_FIXNUM:
-      case T_BIGNUM:
-        opts.initial(NUM2ULL(val));
-        break;
-
-      default:
-        throw ruby_exception(
-          rb_eArgError,
-          rb_sprintf("initial_value must be an Integer, but given %+" PRIsVALUE, val));
     }
   }
 }
@@ -561,39 +530,40 @@ set_durability(CommandOptions& opts, VALUE options)
   }
 }
 
-template<typename CommandOptions>
+template<typename Request>
 inline void
-set_store_semantics(CommandOptions& opts, VALUE options)
+cb_extract_store_semantics(Request& req, VALUE options)
 {
   static VALUE property_name = rb_id2sym(rb_intern("store_semantics"));
-  if (!NIL_P(options)) {
-    if (TYPE(options) != T_HASH) {
-      throw ruby_exception(rb_eArgError,
-                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
-    }
 
-    VALUE val = rb_hash_aref(options, property_name);
-    if (NIL_P(val)) {
-      return;
-    }
-    if (TYPE(val) != T_SYMBOL) {
-      throw ruby_exception(
-        rb_eArgError, rb_sprintf("store_semantics must be a Symbol, but given %+" PRIsVALUE, val));
-    }
+  if (NIL_P(options)) {
+    return;
+  }
+  if (TYPE(options) != T_HASH) {
+    throw ruby_exception(rb_eArgError,
+                         rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+  }
 
-    if (ID mode = rb_sym2id(val); mode == rb_intern("replace")) {
-      opts.store_semantics(store_semantics::replace);
-    } else if (mode == rb_intern("insert")) {
-      opts.store_semantics(store_semantics::insert);
-    } else if (mode == rb_intern("upsert")) {
-      opts.store_semantics(store_semantics::upsert);
-    } else {
-      throw ruby_exception(rb_eArgError,
-                           rb_sprintf("unexpected store_semantics, given %+" PRIsVALUE, val));
-    }
+  VALUE val = rb_hash_aref(options, property_name);
+  if (NIL_P(val)) {
+    return;
+  }
+  if (TYPE(val) != T_SYMBOL) {
+    throw ruby_exception(
+      rb_eArgError, rb_sprintf("store_semantics must be a Symbol, but given %+" PRIsVALUE, val));
+  }
+
+  if (ID mode = rb_sym2id(val); mode == rb_intern("replace")) {
+    req.store_semantics = couchbase::store_semantics::replace;
+  } else if (mode == rb_intern("insert")) {
+    req.store_semantics = couchbase::store_semantics::insert;
+  } else if (mode == rb_intern("upsert")) {
+    req.store_semantics = couchbase::store_semantics::upsert;
+  } else {
+    throw ruby_exception(rb_eArgError,
+                         rb_sprintf("unexpected store_semantics, given %+" PRIsVALUE, val));
   }
 }
-
 } // namespace couchbase::ruby
 
 #endif

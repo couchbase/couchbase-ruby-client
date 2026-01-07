@@ -15,6 +15,8 @@
  *   limitations under the License.
  */
 
+#include <couchbase/expiry.hxx>
+
 #include <core/utils/binary.hxx>
 
 #include "rcb_exceptions.hxx"
@@ -213,6 +215,20 @@ cb_str_new(const std::optional<std::string>& str)
 }
 
 void
+cb_extract_content(std::vector<std::byte>& field, VALUE content)
+{
+  cb_check_type(content, T_STRING);
+  field = cb_binary_new(content);
+}
+
+void
+cb_extract_flags(std::uint32_t& field, VALUE flags)
+{
+  cb_check_type(flags, T_FIXNUM);
+  field = FIX2UINT(flags);
+}
+
+void
 cb_extract_timeout(std::chrono::milliseconds& field, VALUE options)
 {
   cb_extract_duration(field, options, "timeout");
@@ -355,6 +371,62 @@ cb_extract_cas(couchbase::cas& field, VALUE cas)
     default:
       throw couchbase::ruby::ruby_exception(
         rb_eArgError, rb_sprintf("CAS must be an Integer, but given %+" PRIsVALUE, cas));
+  }
+}
+
+void
+cb_extract_expiry(std::uint32_t& field, VALUE options)
+{
+  if (NIL_P(options)) {
+    return;
+  }
+  Check_Type(options, T_HASH);
+
+  static VALUE property_name = rb_id2sym(rb_intern("expiry"));
+  VALUE val = rb_hash_aref(options, property_name);
+  if (NIL_P(val)) {
+    return;
+  }
+  const auto [type, duration] = unpack_expiry(val);
+  switch (type) {
+    case expiry_type::relative:
+      field = couchbase::core::impl::expiry_relative(duration);
+      break;
+    case expiry_type::absolute:
+      field =
+        couchbase::core::impl::expiry_absolute(std::chrono::system_clock::time_point(duration));
+      break;
+    case expiry_type::none:
+      field = couchbase::core::impl::expiry_none();
+      break;
+  }
+}
+
+void
+cb_extract_expiry(std::optional<std::uint32_t>& field, VALUE options)
+{
+  if (NIL_P(options)) {
+    return;
+  }
+  Check_Type(options, T_HASH);
+
+  static VALUE property_name = rb_id2sym(rb_intern("expiry"));
+  VALUE val = rb_hash_aref(options, property_name);
+  if (NIL_P(val)) {
+    return;
+  }
+  const auto [type, duration] = unpack_expiry(val);
+  switch (type) {
+    case expiry_type::relative:
+      field = couchbase::core::impl::expiry_relative(duration);
+      break;
+    case expiry_type::absolute:
+      field =
+        couchbase::core::impl::expiry_absolute(std::chrono::system_clock::time_point(duration));
+      break;
+    case expiry_type::none:
+      field = couchbase::core::impl::expiry_none();
+      break;
   }
 }
 
