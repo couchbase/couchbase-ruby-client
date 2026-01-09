@@ -23,6 +23,7 @@ gem "rake"
 
 group :development do
   gem "activesupport", "~> 7.0.3"
+  gem "curb"
   gem "drb"
   gem "faker"
   gem "flay"
@@ -30,7 +31,7 @@ group :development do
   gem "gem-compiler"
   gem "grpc-tools", "~> 1.59"
   gem "heckle"
-  gem "minitest"
+  gem "minitest", "< 6.0"
   gem "minitest-reporters"
   gem "mutex_m"
   gem "rack"
@@ -44,15 +45,4 @@ group :development do
   gem "ruby-lsp", require: false
   gem "simplecov-cobertura"
   gem "yard"
-
-  # Resolves https://github.com/ruby/openssl/issues/949 which we encounter when downloading gocaves on macOS on CI
-  # This has been fixed in openssl versions 3.1.2, 3.2.2, 3.3.1.
-  # The latest dot-patch version of Ruby 3.3 and 3.4 now comes with a new enough openssl version by default.
-  if RUBY_PLATFORM.include?("darwin")
-    if RUBY_VERSION.start_with?('3.2')
-      gem "openssl", "~> 3.2.2"
-    elsif RUBY_VERSION.start_with?('3.1')
-      gem "openssl", "~> 3.1.2"
-    end
-  end
 end

@@ -26,6 +26,10 @@ jobs:
           submodules: recursive
           fetch-depth: 0
           fetch-tags: true
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: 3.3
@@ -109,6 +113,7 @@ jobs:
             make \
             openssl \
             openssl-dev \
+            curl-dev \
             readline-dev \
             ruby \
             tar \
@@ -454,6 +459,10 @@ jobs:
           - '3.3'
           - '3.4'
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
       - uses: actions/download-artifact@v4
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
@@ -555,6 +564,15 @@ jobs:
             logs/*
             test/**/*.{log,xml}
           retention-days: 5
+      - name: Upload crash logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-crash
+          path: |
+            ~/Library/Logs/DiagnosticReports/
+            /Library/Logs/DiagnosticReports/
+          retention-days: 5
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v4.1.0
         if: always()
@@ -616,6 +634,15 @@ jobs:
             logs/*
             test/**/*.{log,xml}
           retention-days: 5
+      - name: Upload crash logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-crash
+          path: |
+            ~/Library/Logs/DiagnosticReports/
+            /Library/Logs/DiagnosticReports/
+          retention-days: 5
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v4.1.0
         if: always()
@@ -640,6 +667,10 @@ jobs:
           - 7.1.6
           - 7.0.5
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
       - name: Install cbdinocluster
         run: |
           mkdir -p "$HOME/bin"
