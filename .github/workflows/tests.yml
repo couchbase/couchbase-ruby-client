@@ -649,7 +649,7 @@ jobs:
           annotate_only: true
 
   test_linux_x86_64:
-    timeout-minutes: 30
+    timeout-minutes: 60
     needs:
       - source
       - repackage_linux_x86_64
@@ -658,10 +658,9 @@ jobs:
       fail-fast: false
       matrix:
         server:
-          - 7.6.1
-          - 7.2.5
-          - 7.1.6
-          - 7.0.5
+          - 8.0.0
+          - 7.6.8
+          - 7.2.9
     steps:
       - name: Install cbdinocluster
         run: |
