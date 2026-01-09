@@ -20,30 +20,33 @@ require "json"
 require "fileutils"
 require "tmpdir"
 require "socket"
+require "curb"
 
 class Caves
   attr_accessor :verbose
 
-  VERSION = "v0.0.1-78"
+  VERSION = "v0.0.1-79"
   FORK = "couchbaselabs"
 
   def download_mock(url = caves_url)
     return if binary_ready?
 
     puts "download #{url}"
-    resp = Net::HTTP.get_response(URI.parse(url))
 
-    case resp
-    when Net::HTTPSuccess
-      raise "Unexpected content type: #{resp['content-type']}" if resp["content-type"] != "application/octet-stream"
+    curl = Curl::Easy.new(url) do |c|
+      c.follow_location = true
+      c.max_redirects = 5
+    end
+    curl.perform
 
+    case curl.response_code
+    when 200..299
+      raise "Unexpected content type: #{curl.content_type}" if curl.content_type != "application/octet-stream"
       FileUtils.mkdir_p(caves_dir, verbose: verbose?)
-      File.write(mock_path, resp.body, binmode: true)
+      File.write(mock_path, curl.body, binmode: true)
       FileUtils.chmod("a+x", mock_path, verbose: verbose?) unless windows?
-    when Net::HTTPRedirection
-      download_mock(resp["location"])
     else
-      raise "Unable to download mock from #{url}: #{resp.status}"
+      raise "Unable to download mock from #{url}: #{curl.response_code}"
     end
   end
 
