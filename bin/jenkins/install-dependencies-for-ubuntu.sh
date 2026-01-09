@@ -47,7 +47,7 @@ ${SUDO} apt-get install -y \
 
 # NOTE: Ubuntu 22+ removed OpenSSL 1.1 compatibility,
 #       so Ruby 3.0.x will not work without extra patches
-export SUPPORTED_RUBY_VERSIONS="3.1 3.2 3.3"
+export SUPPORTED_RUBY_VERSIONS="3.2 3.3 3.4 4.0"
 
 rm -rf ${HOME}/.rubies
 exec ${PROJECT_ROOT}/bin/jenkins/install-rubies.sh

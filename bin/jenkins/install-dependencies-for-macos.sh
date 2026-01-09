@@ -54,5 +54,5 @@ then
     rm -rf ${HOME}/.gem/ruby
 fi
 # NOTE: Exclude Ruby 3.0 to avoid openssl@1.1
-export SUPPORTED_RUBY_VERSIONS="3.1 3.2 3.3"
+export SUPPORTED_RUBY_VERSIONS="3.2 3.3 3.4 4.0"
 exec ${PROJECT_ROOT}/bin/jenkins/install-rubies.sh

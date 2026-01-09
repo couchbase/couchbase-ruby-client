@@ -124,7 +124,7 @@ jobs:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - name: Install build environment
         env:
-          SUPPORTED_RUBY_VERSIONS: "3.1 3.2 3.3 3.4 4.0"
+          SUPPORTED_RUBY_VERSIONS: "3.2 3.3 3.4 4.0"
         run: |
           bash bin/jenkins/install-rubies.sh
       - uses: actions/download-artifact@v4
@@ -133,7 +133,7 @@ jobs:
           name: couchbase-${{ needs.source.outputs.gem_version }}
       - name: Build gem
         env:
-          SUPPORTED_RUBY_VERSIONS: "3.1 3.2 3.3 3.4 4.0"
+          SUPPORTED_RUBY_VERSIONS: "3.2 3.3 3.4 4.0"
           BUNDLE_ALLOW_ROOT: true
         run: |
           bash bin/jenkins/build-gem.sh
@@ -150,7 +150,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.1'
           - '3.2'
           - '3.3'
           - '3.4'
@@ -192,10 +191,6 @@ jobs:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v4
         with:
-          path: pkg/binary/3.1
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.1
-      - uses: actions/download-artifact@v4
-        with:
           path: pkg/binary/3.2
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.2
       - uses: actions/download-artifact@v4
@@ -229,7 +224,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.1'
           - '3.2'
           - '3.3'
           - '3.4'
@@ -271,10 +265,6 @@ jobs:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v4
         with:
-          path: pkg/binary/3.1
-          name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-3.1
-      - uses: actions/download-artifact@v4
-        with:
           path: pkg/binary/3.2
           name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-3.2
       - uses: actions/download-artifact@v4
@@ -308,7 +298,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.1'
           - '3.2'
           - '3.3'
           - '3.4'
@@ -350,10 +339,6 @@ jobs:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v4
         with:
-          path: pkg/binary/3.1
-          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.1
-      - uses: actions/download-artifact@v4
-        with:
           path: pkg/binary/3.2
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.2
       - uses: actions/download-artifact@v4
@@ -387,7 +372,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.1'
           - '3.2'
           - '3.3'
           - '3.4'
@@ -429,10 +413,6 @@ jobs:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v4
         with:
-          path: pkg/binary/3.1
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.1
-      - uses: actions/download-artifact@v4
-        with:
           path: pkg/binary/3.2
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.2
       - uses: actions/download-artifact@v4
@@ -469,7 +449,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.1'
           - '3.2'
           - '3.3'
           - '3.4'
@@ -531,7 +510,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.1'
           - '3.2'
           - '3.3'
           - '3.4'
@@ -596,7 +574,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.1'
           - '3.2'
           - '3.3'
           - '3.4'
@@ -755,7 +732,6 @@ jobs:
       fail-fast: false
       matrix:
         ruby:
-          - '3.1'
           - '3.2'
           - '3.3'
           - '3.4'
@@ -794,10 +770,6 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
-        with:
-          path: pkg/binary/3.1
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-3.1
       - uses: actions/download-artifact@v4
         with:
           path: pkg/binary/3.2
@@ -845,7 +817,6 @@ jobs:
   #     fail-fast: false
   #     matrix:
   #       ruby:
-  #         - '3.1'
   #         - '3.2'
   #         - '3.3'
   #         - '3.4'
