@@ -124,7 +124,7 @@ jobs:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - name: Install build environment
         env:
-          SUPPORTED_RUBY_VERSIONS: "3.1 3.2 3.3 3.4"
+          SUPPORTED_RUBY_VERSIONS: "3.1 3.2 3.3 3.4 4.0"
         run: |
           bash bin/jenkins/install-rubies.sh
       - uses: actions/download-artifact@v4
@@ -133,7 +133,7 @@ jobs:
           name: couchbase-${{ needs.source.outputs.gem_version }}
       - name: Build gem
         env:
-          SUPPORTED_RUBY_VERSIONS: "3.1 3.2 3.3 3.4"
+          SUPPORTED_RUBY_VERSIONS: "3.1 3.2 3.3 3.4 4.0"
           BUNDLE_ALLOW_ROOT: true
         run: |
           bash bin/jenkins/build-gem.sh
@@ -154,6 +154,7 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
     steps:
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
@@ -205,9 +206,13 @@ jobs:
         with:
           path: pkg/binary/3.4
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.4
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/4.0
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-4.0
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.4
+          ruby-version: 4.0
       - name: Repackage
         run: |
           ruby bin/jenkins/repackage-extension.rb
@@ -228,6 +233,7 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
     steps:
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
@@ -279,9 +285,13 @@ jobs:
         with:
           path: pkg/binary/3.4
           name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-3.4
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/4.0
+          name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-4.0
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.4
+          ruby-version: 4.0
       - name: Repackage
         run: |
           ruby bin/jenkins/repackage-extension.rb
@@ -302,6 +312,7 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
     steps:
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
@@ -353,9 +364,13 @@ jobs:
         with:
           path: pkg/binary/3.4
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.4
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/4.0
+          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-4.0
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.4
+          ruby-version: 4.0
       - name: Repackage
         run: |
           ruby bin/jenkins/repackage-extension.rb
@@ -376,6 +391,7 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
     steps:
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
@@ -427,9 +443,13 @@ jobs:
         with:
           path: pkg/binary/3.4
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.4
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/4.0
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-4.0
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.4
+          ruby-version: 4.0
       - name: Repackage
         run: |
           ruby bin/jenkins/repackage-extension.rb
@@ -453,6 +473,7 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -514,6 +535,7 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -578,6 +600,7 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -736,6 +759,7 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+          - '4.0'
     steps:
       - uses: ruby/setup-ruby@v1
         with:
@@ -786,9 +810,13 @@ jobs:
         with:
           path: pkg/binary/3.4
           name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-3.4
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/4.0
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-4.0
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.4
+          ruby-version: 4.0
       - name: Repackage
         run: |
           ruby bin/jenkins/repackage-extension.rb
@@ -821,6 +849,7 @@ jobs:
   #         - '3.2'
   #         - '3.3'
   #         - '3.4'
+  #         - '4.0'
   #   steps:
   #     - uses: actions/download-artifact@v4
   #       with:
