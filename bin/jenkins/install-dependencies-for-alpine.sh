@@ -45,6 +45,6 @@ ${SUDO} /sbin/apk add \
 
 # NOTE: we don't want to build 3.0 on Alpine, as it will require
 #       switching OpenSSL to 1.1
-export SUPPORTED_RUBY_VERSIONS="3.1 3.2 3.3"
+export SUPPORTED_RUBY_VERSIONS="3.2 3.3 3.4 4.0"
 
 exec bash ${PROJECT_ROOT}/bin/jenkins/install-rubies.sh

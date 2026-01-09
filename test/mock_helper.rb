@@ -24,7 +24,7 @@ require "socket"
 class Caves
   attr_accessor :verbose
 
-  VERSION = "v0.0.1-78"
+  VERSION = "v0.0.1-79"
   FORK = "couchbaselabs"
 
   def download_mock(url = caves_url)
