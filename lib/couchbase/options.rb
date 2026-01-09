@@ -1711,6 +1711,7 @@ module Couchbase
       attr_accessor :application_telemetry
 
       attr_accessor :tracer # @return [nil, Tracing::RequestTracer]
+      attr_accessor :meter # @return [nil, Metrics::Meter]
 
       # Creates an instance of options for {Couchbase::Cluster.connect}
       #
@@ -1757,6 +1758,7 @@ module Couchbase
                      config_idle_redial_timeout: nil,
                      idle_http_connection_timeout: nil,
                      tracer: nil,
+                     meter: nil,
                      application_telemetry: ApplicationTelemetry.new)
         @authenticator = authenticator
         @preferred_server_group = preferred_server_group
@@ -1789,6 +1791,7 @@ module Couchbase
         @config_idle_redial_timeout = config_idle_redial_timeout
         @idle_http_connection_timeout = idle_http_connection_timeout
         @tracer = tracer
+        @meter = meter
         @application_telemetry = application_telemetry
 
         yield self if block_given?
