@@ -67,5 +67,6 @@ Gem::Specification.new do |spec|
   spec.extensions = ["ext/extconf.rb"]
   spec.rdoc_options << "--exclude" << "ext/"
 
+  spec.add_dependency "concurrent-ruby", "~> 1.3"
   spec.add_dependency "grpc", "~> 1.59"
 end

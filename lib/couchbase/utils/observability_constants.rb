@@ -189,5 +189,7 @@ module Couchbase
     ATTR_VALUE_SERVICE_VIEWS = "views"
     ATTR_VALUE_SERVICE_ANALYTICS = "analytics"
     ATTR_VALUE_SERVICE_MANAGEMENT = "management"
+
+    METER_NAME_OPERATION_DURATION = "db.client.operation.duration"
   end
 end

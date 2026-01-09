@@ -60,7 +60,8 @@ add_library(
   rcb_utils.cxx
   rcb_version.cxx
   rcb_views.cxx
-  rcb_observability.cxx)
+  rcb_observability.cxx
+  rcb_hdr_histogram.cxx)
 target_include_directories(couchbase PRIVATE ${PROJECT_BINARY_DIR}/generated)
 target_include_directories(
   couchbase
@@ -77,6 +78,7 @@ target_link_libraries(
           asio
           taocpp::json
           spdlog::spdlog
+          hdr_histogram_static
           snappy)
 if(RUBY_LIBRUBY)
   target_link_directories(couchbase PRIVATE "${RUBY_LIBRARY_DIR}")

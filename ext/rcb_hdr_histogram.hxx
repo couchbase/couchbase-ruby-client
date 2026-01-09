@@ -15,28 +15,14 @@
  *   limitations under the License.
  */
 
-#include <core/tracing/wrapper_sdk_tracer.hxx>
+#ifndef COUCHBASE_RUBY_RCB_HDR_HISTOGRAM_HXX
+#define COUCHBASE_RUBY_RCB_HDR_HISTOGRAM_HXX
 
-#include <memory>
+#include <ruby/internal/value.h>
 
 namespace couchbase::ruby
 {
-template<typename Request>
-inline auto
-cb_create_parent_span(Request& req, VALUE backend)
-  -> std::shared_ptr<couchbase::core::tracing::wrapper_sdk_span>
-{
-  // TODO(Tracing): Conditionally set the parent span only if tracing is enabled
-  auto span = std::make_shared<couchbase::core::tracing::wrapper_sdk_span>();
-  req.parent_span = span;
-  return span;
-}
-
 void
-cb_add_core_spans(VALUE observability_handler,
-                  std::shared_ptr<couchbase::core::tracing::wrapper_sdk_span> parent_span,
-                  std::size_t retry_attempts);
-
-void
-init_observability(VALUE cBackend);
+init_hdr_histogram(VALUE mCouchbase);
 } // namespace couchbase::ruby
+#endif // COUCHBASE_RUBY_RCB_HDR_HISTOGRAM_HXX

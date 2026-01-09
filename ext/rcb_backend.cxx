@@ -426,15 +426,7 @@ initialize_cluster_options(const core::utils::connection_string& connstr,
   cluster_options.tracing().tracer(
     std::make_shared<couchbase::core::tracing::wrapper_sdk_tracer>());
 
-  static const auto sym_enable_metrics = rb_id2sym(rb_intern("enable_metrics"));
-  if (auto param = options::get_bool(options, sym_enable_metrics); param) {
-    cluster_options.metrics().enable(param.value());
-  }
-
-  static const auto sym_metrics_emit_interval = rb_id2sym(rb_intern("metrics_emit_interval"));
-  if (auto param = options::get_milliseconds(options, sym_metrics_emit_interval); param) {
-    cluster_options.metrics().emit_interval(param.value());
-  }
+  cluster_options.metrics().enable(false); // Metrics are handled on the wrapper-side
 
   static const auto sym_app_telemetry = rb_id2sym(rb_intern("application_telemetry"));
   if (auto app_telemetry_options = options::get_hash(options, sym_app_telemetry);
