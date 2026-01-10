@@ -23,6 +23,7 @@ gem "rake"
 
 group :development do
   gem "activesupport", "~> 7.0.3"
+  gem "curb"
   gem "drb"
   gem "faker"
   gem "flay"
@@ -30,7 +31,7 @@ group :development do
   gem "gem-compiler"
   gem "grpc-tools", "~> 1.59"
   gem "heckle"
-  gem "minitest"
+  gem "minitest", "< 6.0"
   gem "minitest-reporters"
   gem "mutex_m"
   gem "rack"
