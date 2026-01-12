@@ -14,6 +14,25 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+if ENV["COUCHBASE_TRACE_LOADED_FEATURES"]
+  unless defined?(COUCHBASE_LOADED_FEATURES_TRACE_FUNC)
+    loaded_before = $LOADED_FEATURES.dup
+
+    COUCHBASE_LOADED_FEATURES_TRACE_FUNC = -> (event, file, line, id, binding, klass) do
+      if event == 'c-return' && [:require, :load].include?(id)
+        new_loads = $LOADED_FEATURES - loaded_before
+        unless new_loads.empty?
+          puts "#{file}:#{line}"
+          new_loads.each { |path| puts "    LOADED: #{path}" }
+          loaded_before.concat(new_loads)
+        end
+      end
+    end
+
+    set_trace_func(COUCHBASE_LOADED_FEATURES_TRACE_FUNC)
+  end
+end
+
 require_relative "test_helper"
 
 module Couchbase

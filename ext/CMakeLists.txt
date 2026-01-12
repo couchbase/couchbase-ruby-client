@@ -87,5 +87,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
 endif()
 
 if(APPLE)
-  target_link_libraries(couchbase PRIVATE -Wl,-undefined,dynamic_lookup)
+  target_link_options(couchbase PRIVATE
+    # -Wl,-undefined,dynamic_lookup
+    -Wl,-dead_strip
+  )
 endif()

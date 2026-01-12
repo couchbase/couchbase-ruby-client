@@ -1,0 +1,298 @@
+name: debug
+permissions: {}
+
+on:
+  push:
+    branches:
+      - main
+      - release*
+  pull_request:
+    branches:
+      - main
+      - release*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug_source:
+    runs-on: ubuntu-22.04
+    outputs:
+      gem_version: ${{ steps.build_gem.outputs.gem_version }}
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
+          bundler-cache: true
+      - name: Build
+        id: build_gem
+        run: |
+          COMMITS_SINCE_LAST_TAG=$(git describe --tags --always --long | awk -F '-' '{print $2}')
+          ruby bin/jenkins/patch-version.rb ${COMMITS_SINCE_LAST_TAG}
+          GEM_VERSION=$(ruby -r ./lib/couchbase/version.rb -e "puts Couchbase::VERSION[:sdk]")
+          echo "gem_version=${GEM_VERSION}" >> "$GITHUB_OUTPUT"
+          bundle exec rake build
+      - name: RDoc
+        run: |
+          cat > patch-readme.rb <<EOF
+          require_relative "./lib/couchbase/version.rb"
+          gemfile = <<EOS.strip
+            gem "couchbase", "#{Couchbase::VERSION[:sdk]}"
+          EOS
+          old_content = File.read("README.md")
+          new_content = old_content.gsub(/(gem "couchbase", ").*?"/, gemfile)
+          File.write("README.md", new_content)
+          EOF
+          ruby patch-readme.rb
+          bundle exec yard doc --hide-api private --output-dir docs/couchbase-ruby-client-${{ steps.build_gem.outputs.gem_version }} lib --main README.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: couchbase-${{ steps.build_gem.outputs.gem_version }}
+          path: |
+            pkg/*.gem
+      - uses: actions/upload-artifact@v4
+        with:
+          retention-days: 1
+          name: scripts-${{ steps.build_gem.outputs.gem_version }}
+          path: |
+            Gemfile
+            Rakefile
+            bin/**/*
+            couchbase.gemspec
+            lib/couchbase/version.rb
+            task/**/*
+      - uses: actions/upload-artifact@v4
+        with:
+          retention-days: 1
+          name: tests-${{ steps.build_gem.outputs.gem_version }}
+          path: |
+            test/**/*
+            test_data/**/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docs-${{ steps.build_gem.outputs.gem_version }}
+          path: |
+            docs/**/*
+
+
+  debug_verify_openssl:
+    needs: debug_source
+    runs-on: macos-15-intel
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.3'
+    steps:
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 2G
+          key: ${{ github.job }}-${{ matrix.ruby }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+
+      - name: Check system OpenSSL & Homebrew
+        run: |
+          echo "macOS version:"
+          /usr/bin/sw_vers
+          echo "--- System OpenSSL:"
+          find /usr/lib -name '*ssl*' -type f 2>/dev/null | head -10 || echo "No system ssl libs found"
+          ls -la /usr/lib/libssl* /System/Library/Frameworks/Security.framework/libssl* 2>/dev/null || echo "No explicit libssl*"
+          openssl version || echo "OpenSSL CLI not found"
+          echo "--- Homebrew OpenSSL:"
+          ls -la /opt/homebrew/lib/libssl* /usr/local/lib/libssl* 2>/dev/null || echo "No Homebrew libssl"
+          echo "--- Ruby lib path (for native exts):"
+          ruby -e 'puts RbConfig::CONFIG["libdir"] + "/ruby/" + RbConfig::CONFIG["ruby_version"]'
+
+      - name: Check Ruby OpenSSL
+        run: |
+          ruby -r openssl -e "
+            puts 'Ruby OpenSSL version: ' + OpenSSL::OPENSSL_VERSION
+            ctx = OpenSSL::SSL::SSLContext.new
+            puts 'SSLContext min_version: ' + (ctx.respond_to?(:min_version) ? ctx.min_version.to_s : 'unsupported')
+            puts 'SSLContext max_version: ' + (ctx.respond_to?(:max_version) ? ctx.max_version.to_s : 'unsupported')
+            puts 'SSL config file: ' + (defined?(OpenSSL::OPENSSL_CONF) ? OpenSSL::OPENSSL_CONF.to_s : 'undefined')
+            begin
+              engines = OpenSSL::Engine.engines
+              puts 'Loaded OpenSSL engines: ' + engines.map(&:name).join(', ')
+            rescue NameError
+              puts 'OpenSSL::Engine unavailable'
+            end
+          " || echo "Ruby OpenSSL check completed (ignore NameError)"
+
+      - name: Test OpenSSL HTTPS fetch
+        run: |
+          ruby -e "
+            require 'net/http'; require 'uri'; require 'openssl'
+            uri = URI('https://www.couchbase.com/')
+            http = Net::HTTP.new(uri.host, uri.port)
+            http.use_ssl = true
+            http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+            begin
+              response = http.get(uri.path.empty? ? '/' : uri.path)
+              puts 'SUCCESS: HTTP ' + response.code + ' - ' + response['content-type']
+              puts 'SSL handshake OK - OpenSSL functional'
+            rescue OpenSSL::SSL::SSLError => e
+              puts 'SSL Error: ' + e.message
+            rescue => e
+              puts 'Error: ' + e.class.name + ' - ' + e.message
+            end
+          "
+
+  debug_build_macos_x86_64:
+    needs: debug_source
+    runs-on: macos-15-intel
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.3'
+    steps:
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 2G
+          key: ${{ github.job }}-${{ matrix.ruby }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-${{ needs.debug_source.outputs.gem_version }}
+      - name: Precompile
+        env:
+          CB_STATIC_BORINGSSL: 1
+          CB_STATIC_STDLIB: 1
+          CB_REMOVE_EXT_DIRECTORY: 1
+        run: |
+          gem install gem-compiler
+          gem compile --prune couchbase-${{ needs.debug_source.outputs.gem_version }}.gem
+      - uses: actions/upload-artifact@v4
+        with:
+          retention-days: 1
+          name: couchbase-${{ needs.debug_source.outputs.gem_version }}-x86_64-darwin-${{ matrix.ruby }}
+          path: |
+            *-x86_64-darwin*.gem
+
+  debug_repackage_macos_x86_64:
+    needs:
+      - debug_source
+      - debug_build_macos_x86_64
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.debug_source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg/binary/3.3
+          name: couchbase-${{ needs.debug_source.outputs.gem_version }}-x86_64-darwin-3.3
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
+      - name: Repackage
+        run: |
+          ruby bin/jenkins/repackage-extension.rb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: couchbase-${{ needs.debug_source.outputs.gem_version }}-x86_64-darwin
+          path: |
+            pkg/fat/*.gem
+
+  debug_mock_macos_x86_64:
+    timeout-minutes: 15
+    needs:
+      - debug_source
+      - debug_repackage_macos_x86_64
+    runs-on: macos-15-intel
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.3'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-${{ needs.debug_source.outputs.gem_version }}-x86_64-darwin
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.debug_source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tests-${{ needs.debug_source.outputs.gem_version }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - name: Install
+        run: |
+          COUCHBASE_GEM_PATH=$(realpath couchbase-*.gem)
+          UNPACKED_GEM_PATH=$(gem unpack ${COUCHBASE_GEM_PATH} | grep "Unpacked gem" | cut -d "'" -f 2)
+          gem unpack --spec --target ${UNPACKED_GEM_PATH} ${COUCHBASE_GEM_PATH}
+          ruby -i.bak -pe "gsub(/gemspec/, 'gem \"couchbase\", path: \"${UNPACKED_GEM_PATH}\"')" Gemfile
+          bundle install
+          export DYLD_BIND_AT_LAUNCH=1
+          export DYLD_PRINT_LIBRARIES=1
+          bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
+
+      - name: Check ALL gem library dependencies
+        run: |
+          set -ex
+
+          echo "=== Before exports ==="
+          echo "DYLD_LIBRARY_PATH: $DYLD_LIBRARY_PATH"
+          echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+          echo "PATH: $PATH"
+
+          echo "DYLD_LIBRARY_PATH: $DYLD_LIBRARY_PATH"
+          echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+
+          echo "=== libruby.3.3.dylib ==="
+          otool -L /Users/runner/hostedtoolcache/Ruby/3.3.10/x64/lib/libruby.3.3.dylib || true
+
+          echo "=== ALL Gem shared objects (dylib/bundle/so) ==="
+          bundle exec ruby -e '
+            libs = Gem.loaded_specs.values.map{|x| Dir["#{x.full_gem_path}/**/*.{dylib,bundle,so}"]}.flatten.sort.uniq
+            puts "Found #{libs.size} libraries:"
+            puts libs
+            libs.each do |lib|
+              puts "=== #{lib} ==="
+              system("otool", "-L", lib)
+              system("nm", "-uU", lib)
+            end
+          ' || true
+
+          export DYLD_LIBRARY_PATH="/usr/local/lib:/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
+          export LD_LIBRARY_PATH="/usr/local/lib:/opt/homebrew/lib:$LD_LIBRARY_PATH"
+
+          echo "=== After exports ==="
+          echo "DYLD_LIBRARY_PATH: $DYLD_LIBRARY_PATH"
+          echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+          echo "PATH: $PATH"
+
+          echo "=== libruby.3.3.dylib ==="
+          otool -L /Users/runner/hostedtoolcache/Ruby/3.3.10/x64/lib/libruby.3.3.dylib || true
+
+          echo "=== ALL Gem shared objects (dylib/bundle/so) ==="
+          bundle exec ruby -e '
+            libs = Gem.loaded_specs.values.map{|x| Dir["#{x.full_gem_path}/**/*.{dylib,bundle,so}"]}.flatten.sort.uniq
+            puts "Found #{libs.size} libraries:"
+            puts libs
+            libs.each do |lib|
+              puts "=== #{lib} ==="
+              system("otool", "-L", lib)
+              system("nm", "-uU", lib)
+            end
+          ' || true
+
+          export DYLD_PRINT_LIBRARIES=1
+          bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::Cluster.connect("couchbases://127.0.0.1", "Administrator", "password")'

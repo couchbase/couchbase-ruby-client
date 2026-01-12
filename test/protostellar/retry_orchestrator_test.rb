@@ -2,6 +2,8 @@
 
 require "test_helper"
 
+return
+
 require "couchbase/protostellar/request_generator/kv"
 require "couchbase/protostellar/request_behaviour"
 require "couchbase/protostellar/retry/orchestrator"

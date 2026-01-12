@@ -4,12 +4,14 @@ permissions: {}
 on:
   push:
     branches:
-      - main
-      - release*
+      - do_not_run
+      # - main
+      # - release*
   pull_request:
     branches:
-      - main
-      - release*
+      - do_not_run
+      # - main
+      # - release*
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

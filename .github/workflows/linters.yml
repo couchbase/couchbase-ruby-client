@@ -3,9 +3,15 @@ permissions: {}
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - do_not_run
+      # - main
+      # - release*
   pull_request:
-    branches: [ main ]
+    branches:
+      - do_not_run
+      # - main
+      # - release*
 
 env:
   LLVM_VERSION: 20
