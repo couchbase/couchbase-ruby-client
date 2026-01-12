@@ -626,7 +626,7 @@ jobs:
           annotate_only: true
 
   test_linux_x86_64:
-    timeout-minutes: 30
+    timeout-minutes: 60
     needs:
       - source
       - repackage_linux_x86_64
@@ -635,15 +635,14 @@ jobs:
       fail-fast: false
       matrix:
         server:
-          - 7.6.1
-          - 7.2.5
-          - 7.1.6
-          - 7.0.5
+          - 8.0.0
+          - 7.6.8
+          - 7.2.9
     steps:
       - name: Install cbdinocluster
         run: |
           mkdir -p "$HOME/bin"
-          curl -L -o "$HOME/bin/cbdinocluster" https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.35/cbdinocluster-linux
+          curl -L -o "$HOME/bin/cbdinocluster" https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.98/cbdinocluster-linux-amd64
           chmod a+x "$HOME/bin/cbdinocluster"
           echo "$HOME/bin" >> $GITHUB_PATH
       - name: Initialize cbdinocluster
@@ -667,6 +666,8 @@ jobs:
                   - cbas
             docker:
               kv-memory: 1500
+              fts-memory: 2048
+            expiry: 1h
         run: |
           CLUSTER_ID=$(cbdinocluster -v allocate --def="${CLUSTERCONFIG}")
           CONNECTION_STRING=$(cbdinocluster -v connstr "${CLUSTER_ID}")
