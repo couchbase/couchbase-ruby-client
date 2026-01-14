@@ -88,7 +88,6 @@ endif()
 
 if(APPLE)
   target_link_options(couchbase PRIVATE
-    # -Wl,-undefined,dynamic_lookup
-    -Wl,-dead_strip
+    -Wl,-undefined,dynamic_lookup
   )
 endif()
