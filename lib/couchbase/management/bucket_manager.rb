@@ -229,7 +229,9 @@ module Couchbase
               history_retention_duration: settings.history_retention_duration,
               history_retention_bytes: settings.history_retention_bytes,
               num_vbuckets: settings.num_vbuckets,
-            }, options.to_backend
+            },
+            options.to_backend,
+            obs_handler,
           )
         end
       end
@@ -264,7 +266,9 @@ module Couchbase
               history_retention_bytes: settings.history_retention_bytes,
               history_retention_duration: settings.history_retention_duration,
               num_vbuckets: settings.num_vbuckets,
-            }, options.to_backend
+            },
+            options.to_backend,
+            obs_handler,
           )
         end
       end
@@ -282,7 +286,7 @@ module Couchbase
         @observability.record_operation(Observability::OP_BM_DROP_BUCKET, options.parent_span, self, :management) do |obs_handler|
           obs_handler.add_bucket_name(bucket_name)
 
-          @backend.bucket_drop(bucket_name, options.to_backend)
+          @backend.bucket_drop(bucket_name, options.to_backend, obs_handler)
         end
       end
 
@@ -299,7 +303,7 @@ module Couchbase
         @observability.record_operation(Observability::OP_BM_GET_BUCKET, options.parent_span, self, :management) do |obs_handler|
           obs_handler.add_bucket_name(bucket_name)
 
-          extract_bucket_settings(@backend.bucket_get(bucket_name, options.to_backend))
+          extract_bucket_settings(@backend.bucket_get(bucket_name, options.to_backend, obs_handler))
         end
       end
 
@@ -308,8 +312,8 @@ module Couchbase
       # @param [Options::Bucket::GetAllBuckets] options
       # @return [Array<BucketSettings>]
       def get_all_buckets(options = Options::Bucket::GetAllBuckets.new)
-        @observability.record_operation(Observability::OP_BM_GET_ALL_BUCKETS, options.parent_span, self, :management) do |_obs_handler|
-          @backend.bucket_get_all(options.to_backend)
+        @observability.record_operation(Observability::OP_BM_GET_ALL_BUCKETS, options.parent_span, self, :management) do |obs_handler|
+          @backend.bucket_get_all(options.to_backend, obs_handler)
                   .map { |entry| extract_bucket_settings(entry) }
         end
       end
@@ -323,8 +327,8 @@ module Couchbase
       # @raise [Error::BucketNotFound]
       # @raise [Error::BucketNotFlushable]
       def flush_bucket(bucket_name, options = Options::Bucket::FlushBucket.new)
-        @observability.record_operation(Observability::OP_BM_FLUSH_BUCKET, options.parent_span, self, :management) do |_obs_handler|
-          @backend.bucket_flush(bucket_name, options.to_backend)
+        @observability.record_operation(Observability::OP_BM_FLUSH_BUCKET, options.parent_span, self, :management) do |obs_handler|
+          @backend.bucket_flush(bucket_name, options.to_backend, obs_handler)
         end
       end
 

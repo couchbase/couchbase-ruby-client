@@ -411,7 +411,7 @@ module Couchbase
           obs_handler.add_scope_name(options.scope_name) unless options.scope_name.nil?
           obs_handler.add_collection_name(options.collection_name) unless options.collection_name.nil?
 
-          res = @backend.query_index_get_all(bucket_name, options.to_backend)
+          res = @backend.query_index_get_all(bucket_name, options.to_backend, obs_handler)
           res[:indexes].map do |idx|
             QueryIndex.new do |index|
               index.name = idx[:name]
@@ -450,7 +450,7 @@ module Couchbase
           obs_handler.add_scope_name(options.scope_name) unless options.scope_name.nil?
           obs_handler.add_collection_name(options.collection_name) unless options.collection_name.nil?
 
-          @backend.query_index_create(bucket_name, index_name, fields, options.to_backend)
+          @backend.query_index_create(bucket_name, index_name, fields, options.to_backend, obs_handler)
         end
       end
 
@@ -473,7 +473,7 @@ module Couchbase
           obs_handler.add_scope_name(options.scope_name) unless options.scope_name.nil?
           obs_handler.add_collection_name(options.collection_name) unless options.collection_name.nil?
 
-          @backend.query_index_create_primary(bucket_name, options.to_backend)
+          @backend.query_index_create_primary(bucket_name, options.to_backend, obs_handler)
         end
       end
 
@@ -497,7 +497,7 @@ module Couchbase
           obs_handler.add_scope_name(options.scope_name) unless options.scope_name.nil?
           obs_handler.add_collection_name(options.collection_name) unless options.collection_name.nil?
 
-          @backend.query_index_drop(bucket_name, index_name, options.to_backend)
+          @backend.query_index_drop(bucket_name, index_name, options.to_backend, obs_handler)
         end
       end
 
@@ -520,7 +520,7 @@ module Couchbase
           obs_handler.add_scope_name(options.scope_name) unless options.scope_name.nil?
           obs_handler.add_collection_name(options.collection_name) unless options.collection_name.nil?
 
-          @backend.query_index_drop_primary(bucket_name, options.to_backend)
+          @backend.query_index_drop_primary(bucket_name, options.to_backend, obs_handler)
         end
       end
 
@@ -542,7 +542,7 @@ module Couchbase
           obs_handler.add_scope_name(options.scope_name) unless options.scope_name.nil?
           obs_handler.add_collection_name(options.collection_name) unless options.collection_name.nil?
 
-          @backend.query_index_build_deferred(bucket_name, options.to_backend)
+          @backend.query_index_build_deferred(bucket_name, options.to_backend, obs_handler)
         end
       end
 

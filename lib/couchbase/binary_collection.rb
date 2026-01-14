@@ -23,9 +23,12 @@ module Couchbase
     alias inspect to_s
 
     # @param [Couchbase::Collection] collection parent collection
+    #
+    # @api private
     def initialize(collection)
       @collection = collection
       @backend = collection.instance_variable_get(:@backend)
+      @observability = collection.instance_variable_get(:@observability)
     end
 
     # Appends binary content to the document
@@ -41,11 +44,14 @@ module Couchbase
     #
     # @return [Collection::MutationResult]
     def append(id, content, options = Options::Append::DEFAULT)
-      resp = @backend.document_append(@collection.bucket_name, @collection.scope_name, @collection.name,
-                                      id, content, options.to_backend)
-      Collection::MutationResult.new do |res|
-        res.cas = resp[:cas]
-        res.mutation_token = @collection.send(:extract_mutation_token, resp)
+      @observability.record_operation(Observability::OP_APPEND, options.parent_span, self, :kv) do |obs_handler|
+        obs_handler.add_durability_level(options.durability_level)
+        resp = @backend.document_append(@collection.bucket_name, @collection.scope_name, @collection.name,
+                                        id, content, options.to_backend, obs_handler)
+        Collection::MutationResult.new do |res|
+          res.cas = resp[:cas]
+          res.mutation_token = @collection.send(:extract_mutation_token, resp)
+        end
       end
     end
 
@@ -62,11 +68,14 @@ module Couchbase
     #
     # @return [Collection::MutationResult]
     def prepend(id, content, options = Options::Prepend::DEFAULT)
-      resp = @backend.document_prepend(@collection.bucket_name, @collection.scope_name, @collection.name,
-                                       id, content, options.to_backend)
-      Collection::MutationResult.new do |res|
-        res.cas = resp[:cas]
-        res.mutation_token = @collection.send(:extract_mutation_token, resp)
+      @observability.record_operation(Observability::OP_PREPEND, options.parent_span, self, :kv) do |obs_handler|
+        obs_handler.add_durability_level(options.durability_level)
+        resp = @backend.document_prepend(@collection.bucket_name, @collection.scope_name, @collection.name,
+                                         id, content, options.to_backend, obs_handler)
+        Collection::MutationResult.new do |res|
+          res.cas = resp[:cas]
+          res.mutation_token = @collection.send(:extract_mutation_token, resp)
+        end
       end
     end
 
@@ -83,12 +92,15 @@ module Couchbase
     #
     # @return [CounterResult]
     def increment(id, options = Options::Increment::DEFAULT)
-      resp = @backend.document_increment(@collection.bucket_name, @collection.scope_name, @collection.name, id,
-                                         options.to_backend)
-      CounterResult.new do |res|
-        res.cas = resp[:cas]
-        res.content = resp[:content]
-        res.mutation_token = @collection.send(:extract_mutation_token, resp)
+      @observability.record_operation(Observability::OP_INCREMENT, options.parent_span, self, :kv) do |obs_handler|
+        obs_handler.add_durability_level(options.durability_level)
+        resp = @backend.document_increment(@collection.bucket_name, @collection.scope_name, @collection.name, id,
+                                           options.to_backend, obs_handler)
+        CounterResult.new do |res|
+          res.cas = resp[:cas]
+          res.content = resp[:content]
+          res.mutation_token = @collection.send(:extract_mutation_token, resp)
+        end
       end
     end
 
@@ -105,12 +117,15 @@ module Couchbase
     #
     # @return [CounterResult]
     def decrement(id, options = Options::Decrement::DEFAULT)
-      resp = @backend.document_decrement(@collection.bucket_name, @collection.scope_name, @collection.name, id,
-                                         options.to_backend)
-      CounterResult.new do |res|
-        res.cas = resp[:cas]
-        res.content = resp[:content]
-        res.mutation_token = @collection.send(:extract_mutation_token, resp)
+      @observability.record_operation(Observability::OP_DECREMENT, options.parent_span, self, :kv) do |obs_handler|
+        obs_handler.add_durability_level(options.durability_level)
+        resp = @backend.document_decrement(@collection.bucket_name, @collection.scope_name, @collection.name, id,
+                                           options.to_backend, obs_handler)
+        CounterResult.new do |res|
+          res.cas = resp[:cas]
+          res.content = resp[:content]
+          res.mutation_token = @collection.send(:extract_mutation_token, resp)
+        end
       end
     end
 

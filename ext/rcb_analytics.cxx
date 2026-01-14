@@ -44,6 +44,7 @@
 #include <ruby.h>
 
 #include "rcb_backend.hxx"
+#include "rcb_observability.hxx"
 #include "rcb_utils.hxx"
 
 namespace couchbase::ruby
@@ -51,19 +52,23 @@ namespace couchbase::ruby
 namespace
 {
 VALUE
-cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE options)
+cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::analytics_get_pending_mutations_request req{};
     cb_extract_timeout(req, options);
+
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::management::analytics_get_pending_mutations_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(resp.ctx, "unable to get pending mutations for the analytics service");
@@ -91,19 +96,23 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE options)
 }
 
 VALUE
-cb_Backend_analytics_dataset_get_all(VALUE self, VALUE options)
+cb_Backend_analytics_dataset_get_all(VALUE self, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::analytics_dataset_get_all_request req{};
     cb_extract_timeout(req, options);
+
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::management::analytics_dataset_get_all_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(resp.ctx, "unable to fetch all datasets");
@@ -135,7 +144,10 @@ cb_Backend_analytics_dataset_get_all(VALUE self, VALUE options)
 }
 
 VALUE
-cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE options)
+cb_Backend_analytics_dataset_drop(VALUE self,
+                                  VALUE dataset_name,
+                                  VALUE options,
+                                  VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -151,13 +163,19 @@ cb_Backend_analytics_dataset_drop(VALUE self, VALUE dataset_name, VALUE options)
       req.dataverse_name = cb_string_new(dataverse_name);
     }
     cb_extract_option_bool(req.ignore_if_does_not_exist, options, "ignore_if_does_not_exist");
+
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::management::analytics_dataset_drop_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+
+    if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(
           resp.ctx,
@@ -186,7 +204,8 @@ VALUE
 cb_Backend_analytics_dataset_create(VALUE self,
                                     VALUE dataset_name,
                                     VALUE bucket_name,
-                                    VALUE options)
+                                    VALUE options,
+                                    VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -201,13 +220,17 @@ cb_Backend_analytics_dataset_create(VALUE self,
     cb_extract_option_string(req.condition, options, "condition");
     cb_extract_option_string(req.dataverse_name, options, "dataverse_name");
     cb_extract_option_bool(req.ignore_if_exists, options, "ignore_if_exists");
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::analytics_dataset_create_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+
+    if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(
           resp.ctx,
@@ -233,7 +256,10 @@ cb_Backend_analytics_dataset_create(VALUE self,
 }
 
 VALUE
-cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE options)
+cb_Backend_analytics_dataverse_drop(VALUE self,
+                                    VALUE dataverse_name,
+                                    VALUE options,
+                                    VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -244,12 +270,15 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE opti
     cb_extract_timeout(req, options);
     req.dataverse_name = cb_string_new(dataverse_name);
     cb_extract_option_bool(req.ignore_if_does_not_exist, options, "ignore_if_does_not_exist");
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::analytics_dataverse_drop_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(resp.ctx, fmt::format("unable to drop dataverse `{}`", req.dataverse_name));
       } else {
@@ -272,7 +301,10 @@ cb_Backend_analytics_dataverse_drop(VALUE self, VALUE dataverse_name, VALUE opti
 }
 
 VALUE
-cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE options)
+cb_Backend_analytics_dataverse_create(VALUE self,
+                                      VALUE dataverse_name,
+                                      VALUE options,
+                                      VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -286,12 +318,15 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE op
     cb_extract_timeout(req, options);
     req.dataverse_name = cb_string_new(dataverse_name);
     cb_extract_option_bool(req.ignore_if_exists, options, "ignore_if_exists");
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::analytics_dataverse_create_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(resp.ctx,
                        fmt::format("unable to create dataverse `{}`", req.dataverse_name));
@@ -315,19 +350,21 @@ cb_Backend_analytics_dataverse_create(VALUE self, VALUE dataverse_name, VALUE op
 }
 
 VALUE
-cb_Backend_analytics_index_get_all(VALUE self, VALUE options)
+cb_Backend_analytics_index_get_all(VALUE self, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::analytics_index_get_all_request req{};
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::analytics_index_get_all_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(resp.ctx, "unable to fetch all indexes");
@@ -363,7 +400,8 @@ cb_Backend_analytics_index_create(VALUE self,
                                   VALUE index_name,
                                   VALUE dataset_name,
                                   VALUE fields,
-                                  VALUE options)
+                                  VALUE options,
+                                  VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -389,12 +427,17 @@ cb_Backend_analytics_index_create(VALUE self,
 
     cb_extract_option_string(req.dataverse_name, options, "dataverse_name");
     cb_extract_option_bool(req.ignore_if_exists, options, "ignore_if_exists");
+
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::management::analytics_index_create_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(resp.ctx,
                        fmt::format("unable to create index `{}` on `{}`.`{}`",
@@ -423,7 +466,11 @@ cb_Backend_analytics_index_create(VALUE self,
 }
 
 VALUE
-cb_Backend_analytics_index_drop(VALUE self, VALUE index_name, VALUE dataset_name, VALUE options)
+cb_Backend_analytics_index_drop(VALUE self,
+                                VALUE index_name,
+                                VALUE dataset_name,
+                                VALUE options,
+                                VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -437,12 +484,15 @@ cb_Backend_analytics_index_drop(VALUE self, VALUE index_name, VALUE dataset_name
     req.dataset_name = cb_string_new(dataset_name);
     cb_extract_option_string(req.dataverse_name, options, "dataverse_name");
     cb_extract_option_bool(req.ignore_if_does_not_exist, options, "ignore_if_does_not_exist");
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::analytics_index_drop_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(resp.ctx,
                        fmt::format("unable to drop index `{}`.`{}`.`{}`",
@@ -471,7 +521,7 @@ cb_Backend_analytics_index_drop(VALUE self, VALUE index_name, VALUE dataset_name
 }
 
 VALUE
-cb_Backend_analytics_link_connect(VALUE self, VALUE options)
+cb_Backend_analytics_link_connect(VALUE self, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -481,13 +531,17 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE options)
     cb_extract_option_string(req.link_name, options, "link_name");
     cb_extract_option_string(req.dataverse_name, options, "dataverse_name");
     cb_extract_option_bool(req.force, options, "force");
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::analytics_link_connect_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+
+    if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(
           resp.ctx,
@@ -513,7 +567,7 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE options)
 }
 
 VALUE
-cb_Backend_analytics_link_disconnect(VALUE self, VALUE options)
+cb_Backend_analytics_link_disconnect(VALUE self, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -522,12 +576,17 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE options)
     cb_extract_timeout(req, options);
     cb_extract_option_string(req.link_name, options, "link_name");
     cb_extract_option_string(req.dataverse_name, options, "dataverse_name");
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::analytics_link_disconnect_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+
+    if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(
           resp.ctx,
@@ -603,7 +662,7 @@ cb_fill_link(core::management::analytics::s3_external_link& dst, VALUE src)
 }
 
 VALUE
-cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
+cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -621,13 +680,18 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
+      auto parent_span = cb_create_parent_span(req, self);
+
       std::promise<core::operations::management::analytics_link_create_response> promise;
       auto f = promise.get_future();
       cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
         promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
-      if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+      auto resp = cb_wait_for_future(f);
+      cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+
+      if (resp.ctx.ec) {
         if (resp.errors.empty()) {
           cb_throw_error(resp.ctx,
                          fmt::format("unable to create couchbase_remote link `{}` on `{}`",
@@ -651,13 +715,18 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
+      auto parent_span = cb_create_parent_span(req, self);
+
       std::promise<core::operations::management::analytics_link_create_response> promise;
       auto f = promise.get_future();
       cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
         promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
-      if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+      auto resp = cb_wait_for_future(f);
+      cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+
+      if (resp.ctx.ec) {
         if (resp.errors.empty()) {
           cb_throw_error(resp.ctx,
                          fmt::format("unable to create azure_blob_external link `{}` on `{}`",
@@ -682,13 +751,18 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
+      auto parent_span = cb_create_parent_span(req, self);
+
       std::promise<core::operations::management::analytics_link_create_response> promise;
       auto f = promise.get_future();
       cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
         promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
-      if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+      auto resp = cb_wait_for_future(f);
+      cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+
+      if (resp.ctx.ec) {
         if (resp.errors.empty()) {
           cb_throw_error(resp.ctx,
                          fmt::format("unable to create s3_external link `{}` on `{}`",
@@ -717,7 +791,10 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options)
 }
 
 VALUE
-cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
+cb_Backend_analytics_link_replace(VALUE self,
+                                  VALUE link,
+                                  VALUE options,
+                                  VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -736,13 +813,18 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
+      auto parent_span = cb_create_parent_span(req, self);
+
       std::promise<core::operations::management::analytics_link_replace_response> promise;
       auto f = promise.get_future();
       cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
         promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
-      if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+      auto resp = cb_wait_for_future(f);
+      cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+
+      if (resp.ctx.ec) {
         if (resp.errors.empty()) {
           cb_throw_error(resp.ctx,
                          fmt::format("unable to replace couchbase_remote link `{}` on `{}`",
@@ -767,13 +849,18 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
+      auto parent_span = cb_create_parent_span(req, self);
+
       std::promise<core::operations::management::analytics_link_replace_response> promise;
       auto f = promise.get_future();
       cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
         promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
-      if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+      auto resp = cb_wait_for_future(f);
+      cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+
+      if (resp.ctx.ec) {
         if (resp.errors.empty()) {
           cb_throw_error(resp.ctx,
                          fmt::format("unable to replace azure_blob_external link `{}` on `{}`",
@@ -798,13 +885,18 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
       cb_extract_timeout(req, options);
       cb_fill_link(req.link, link);
 
+      auto parent_span = cb_create_parent_span(req, self);
+
       std::promise<core::operations::management::analytics_link_replace_response> promise;
       auto f = promise.get_future();
       cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
         promise.set_value(std::forward<decltype(resp)>(resp));
       });
 
-      if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+      auto resp = cb_wait_for_future(f);
+      cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+
+      if (resp.ctx.ec) {
         if (resp.errors.empty()) {
           cb_throw_error(resp.ctx,
                          fmt::format("unable to replace s3_external link `{}` on `{}`",
@@ -833,7 +925,11 @@ cb_Backend_analytics_link_replace(VALUE self, VALUE link, VALUE options)
 }
 
 VALUE
-cb_Backend_analytics_link_drop(VALUE self, VALUE link, VALUE dataverse, VALUE options)
+cb_Backend_analytics_link_drop(VALUE self,
+                               VALUE link,
+                               VALUE dataverse,
+                               VALUE options,
+                               VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -850,13 +946,18 @@ cb_Backend_analytics_link_drop(VALUE self, VALUE link, VALUE dataverse, VALUE op
     req.link_name = cb_string_new(link);
     req.dataverse_name = cb_string_new(dataverse);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::management::analytics_link_drop_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+
+    if (resp.ctx.ec) {
       if (resp.errors.empty()) {
         cb_throw_error(
           resp.ctx,
@@ -883,7 +984,7 @@ cb_Backend_analytics_link_drop(VALUE self, VALUE link, VALUE dataverse, VALUE op
 }
 
 VALUE
-cb_Backend_analytics_link_get_all(VALUE self, VALUE options)
+cb_Backend_analytics_link_get_all(VALUE self, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -899,12 +1000,15 @@ cb_Backend_analytics_link_get_all(VALUE self, VALUE options)
     cb_extract_option_string(req.link_name, options, "link_name");
     cb_extract_option_string(req.dataverse_name, options, "dataverse");
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::management::analytics_link_get_all_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
 
     if (resp.ctx.ec) {
       if (resp.errors.empty()) {
@@ -1029,7 +1133,10 @@ cb_for_each_named_param_analytics(VALUE key, VALUE value, VALUE arg)
 }
 
 VALUE
-cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
+cb_Backend_document_analytics(VALUE self,
+                              VALUE statement,
+                              VALUE options,
+                              VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -1103,12 +1210,15 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
       rb_hash_foreach(raw_params, cb_for_each_named_param_analytics, reinterpret_cast<VALUE>(&req));
     }
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::analytics_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (!resp.meta.errors.empty()) {
         const auto& first_error = resp.meta.errors.front();
@@ -1171,25 +1281,25 @@ cb_Backend_document_analytics(VALUE self, VALUE statement, VALUE options)
 void
 init_analytics(VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_analytics", cb_Backend_document_analytics, 2);
+  rb_define_method(cBackend, "document_analytics", cb_Backend_document_analytics, 3);
 
   // Management APIs
   rb_define_method(
-    cBackend, "analytics_get_pending_mutations", cb_Backend_analytics_get_pending_mutations, 1);
-  rb_define_method(cBackend, "analytics_dataverse_drop", cb_Backend_analytics_dataverse_drop, 2);
+    cBackend, "analytics_get_pending_mutations", cb_Backend_analytics_get_pending_mutations, 2);
+  rb_define_method(cBackend, "analytics_dataverse_drop", cb_Backend_analytics_dataverse_drop, 3);
   rb_define_method(
-    cBackend, "analytics_dataverse_create", cb_Backend_analytics_dataverse_create, 2);
-  rb_define_method(cBackend, "analytics_dataset_create", cb_Backend_analytics_dataset_create, 3);
-  rb_define_method(cBackend, "analytics_dataset_drop", cb_Backend_analytics_dataset_drop, 2);
-  rb_define_method(cBackend, "analytics_dataset_get_all", cb_Backend_analytics_dataset_get_all, 1);
-  rb_define_method(cBackend, "analytics_index_get_all", cb_Backend_analytics_index_get_all, 1);
-  rb_define_method(cBackend, "analytics_index_create", cb_Backend_analytics_index_create, 4);
-  rb_define_method(cBackend, "analytics_index_drop", cb_Backend_analytics_index_drop, 3);
-  rb_define_method(cBackend, "analytics_link_connect", cb_Backend_analytics_link_connect, 1);
-  rb_define_method(cBackend, "analytics_link_disconnect", cb_Backend_analytics_link_disconnect, 1);
-  rb_define_method(cBackend, "analytics_link_create", cb_Backend_analytics_link_create, 2);
-  rb_define_method(cBackend, "analytics_link_replace", cb_Backend_analytics_link_replace, 2);
-  rb_define_method(cBackend, "analytics_link_drop", cb_Backend_analytics_link_drop, 3);
-  rb_define_method(cBackend, "analytics_link_get_all", cb_Backend_analytics_link_get_all, 1);
+    cBackend, "analytics_dataverse_create", cb_Backend_analytics_dataverse_create, 3);
+  rb_define_method(cBackend, "analytics_dataset_create", cb_Backend_analytics_dataset_create, 4);
+  rb_define_method(cBackend, "analytics_dataset_drop", cb_Backend_analytics_dataset_drop, 3);
+  rb_define_method(cBackend, "analytics_dataset_get_all", cb_Backend_analytics_dataset_get_all, 2);
+  rb_define_method(cBackend, "analytics_index_get_all", cb_Backend_analytics_index_get_all, 2);
+  rb_define_method(cBackend, "analytics_index_create", cb_Backend_analytics_index_create, 5);
+  rb_define_method(cBackend, "analytics_index_drop", cb_Backend_analytics_index_drop, 4);
+  rb_define_method(cBackend, "analytics_link_connect", cb_Backend_analytics_link_connect, 2);
+  rb_define_method(cBackend, "analytics_link_disconnect", cb_Backend_analytics_link_disconnect, 2);
+  rb_define_method(cBackend, "analytics_link_create", cb_Backend_analytics_link_create, 3);
+  rb_define_method(cBackend, "analytics_link_replace", cb_Backend_analytics_link_replace, 3);
+  rb_define_method(cBackend, "analytics_link_drop", cb_Backend_analytics_link_drop, 4);
+  rb_define_method(cBackend, "analytics_link_get_all", cb_Backend_analytics_link_get_all, 2);
 }
 } // namespace couchbase::ruby

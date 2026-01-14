@@ -90,8 +90,8 @@ module Couchbase
     #   Views are not compatible with the Magma storage engine. Instead of views, use indexes and queries using the
     #   Index Service (GSI) and the Query Service (SQL++).
     def view_query(design_document_name, view_name, options = Options::View::DEFAULT)
-      @observability.record_operation(Observability::OP_VIEW_QUERY, opts.parent_span, self, :views) do |_obs_handler|
-        resp = @backend.document_view(@name, design_document_name, view_name, options.namespace, options.to_backend)
+      @observability.record_operation(Observability::OP_VIEW_QUERY, options.parent_span, self, :views) do |obs_handler|
+        resp = @backend.document_view(@name, design_document_name, view_name, options.namespace, options.to_backend, obs_handler)
         ViewResult.new do |res|
           res.meta_data = ViewMetaData.new do |meta|
             meta.total_rows = resp[:meta][:total_rows]

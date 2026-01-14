@@ -37,6 +37,7 @@
 #include <ruby.h>
 
 #include "rcb_backend.hxx"
+#include "rcb_observability.hxx"
 #include "rcb_utils.hxx"
 
 namespace couchbase::ruby
@@ -61,7 +62,7 @@ cb_extract_role(const core::management::rbac::role_and_description& entry, VALUE
 }
 
 VALUE
-cb_Backend_role_get_all(VALUE self, VALUE timeout)
+cb_Backend_role_get_all(VALUE self, VALUE timeout, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -69,11 +70,13 @@ cb_Backend_role_get_all(VALUE self, VALUE timeout)
     core::operations::management::role_get_all_request req{};
     cb_extract_timeout(req, timeout);
     std::promise<core::operations::management::role_get_all_response> promise;
+    auto parent_span = cb_create_parent_span(req, self);
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, "unable to fetch roles");
     }
@@ -172,7 +175,7 @@ cb_extract_user(const core::management::rbac::user_and_metadata& entry, VALUE us
 }
 
 VALUE
-cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
+cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -189,12 +192,14 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
       throw ruby_exception(exc_invalid_argument(),
                            rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
     }
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::user_get_all_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, "unable to fetch users");
     }
@@ -216,7 +221,11 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout)
 }
 
 VALUE
-cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
+cb_Backend_user_get(VALUE self,
+                    VALUE domain,
+                    VALUE username,
+                    VALUE timeout,
+                    VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -235,12 +244,14 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
                            rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
     }
     req.username = cb_string_new(username);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::user_get_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, fmt::format(R"(unable to fetch user "{}")", req.username));
     }
@@ -258,7 +269,11 @@ cb_Backend_user_get(VALUE self, VALUE domain, VALUE username, VALUE timeout)
 }
 
 VALUE
-cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
+cb_Backend_user_drop(VALUE self,
+                     VALUE domain,
+                     VALUE username,
+                     VALUE timeout,
+                     VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -277,12 +292,15 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
                            rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
     }
     req.username = cb_string_new(username);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::user_drop_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, fmt::format(R"(unable to fetch user "{}")", req.username));
     }
 
@@ -297,7 +315,11 @@ cb_Backend_user_drop(VALUE self, VALUE domain, VALUE username, VALUE timeout)
 }
 
 VALUE
-cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
+cb_Backend_user_upsert(VALUE self,
+                       VALUE domain,
+                       VALUE user,
+                       VALUE timeout,
+                       VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -365,13 +387,17 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
       }
     }
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::management::user_upsert_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format(R"(unable to upsert user "{}" ({}))",
                                  req.user.username,
@@ -389,7 +415,10 @@ cb_Backend_user_upsert(VALUE self, VALUE domain, VALUE user, VALUE timeout)
 }
 
 VALUE
-cb_Backend_change_password(VALUE self, VALUE new_password, VALUE timeout)
+cb_Backend_change_password(VALUE self,
+                           VALUE new_password,
+                           VALUE timeout,
+                           VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -399,12 +428,15 @@ cb_Backend_change_password(VALUE self, VALUE new_password, VALUE timeout)
     core::operations::management::change_password_request req{};
     cb_extract_timeout(req, timeout);
     req.newPassword = cb_string_new(new_password);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::change_password_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, "unable to change password");
     }
 
@@ -449,19 +481,21 @@ cb_extract_group(const core::management::rbac::group& entry, VALUE group)
 }
 
 VALUE
-cb_Backend_group_get_all(VALUE self, VALUE timeout)
+cb_Backend_group_get_all(VALUE self, VALUE timeout, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::group_get_all_request req{};
     cb_extract_timeout(req, timeout);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::group_get_all_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, "unable to fetch groups");
     }
@@ -483,7 +517,7 @@ cb_Backend_group_get_all(VALUE self, VALUE timeout)
 }
 
 VALUE
-cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
+cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -493,12 +527,14 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
     core::operations::management::group_get_request req{};
     cb_extract_timeout(req, timeout);
     req.name = cb_string_new(name);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::group_get_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, fmt::format(R"(unable to fetch group "{}")", req.name));
     }
@@ -516,7 +552,7 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout)
 }
 
 VALUE
-cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
+cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -526,13 +562,16 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
     core::operations::management::group_drop_request req{};
     cb_extract_timeout(req, timeout);
     req.name = cb_string_new(name);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::group_drop_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, fmt::format(R"(unable to drop group "{}")", req.name));
     }
     return Qtrue;
@@ -546,7 +585,7 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout)
 }
 
 VALUE
-cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
+cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -596,12 +635,16 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
       }
     }
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::management::group_upsert_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format(R"(unable to upsert group "{}" ({}))",
                                  req.group.name,
@@ -621,16 +664,16 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout)
 void
 init_users(VALUE cBackend)
 {
-  rb_define_method(cBackend, "role_get_all", cb_Backend_role_get_all, 1);
-  rb_define_method(cBackend, "user_get_all", cb_Backend_user_get_all, 2);
-  rb_define_method(cBackend, "user_get", cb_Backend_user_get, 3);
-  rb_define_method(cBackend, "user_drop", cb_Backend_user_drop, 3);
-  rb_define_method(cBackend, "user_upsert", cb_Backend_user_upsert, 3);
-  rb_define_method(cBackend, "group_get_all", cb_Backend_group_get_all, 1);
-  rb_define_method(cBackend, "group_get", cb_Backend_group_get, 2);
-  rb_define_method(cBackend, "group_drop", cb_Backend_group_drop, 2);
-  rb_define_method(cBackend, "group_upsert", cb_Backend_group_upsert, 2);
+  rb_define_method(cBackend, "role_get_all", cb_Backend_role_get_all, 2);
+  rb_define_method(cBackend, "user_get_all", cb_Backend_user_get_all, 3);
+  rb_define_method(cBackend, "user_get", cb_Backend_user_get, 4);
+  rb_define_method(cBackend, "user_drop", cb_Backend_user_drop, 4);
+  rb_define_method(cBackend, "user_upsert", cb_Backend_user_upsert, 4);
+  rb_define_method(cBackend, "group_get_all", cb_Backend_group_get_all, 2);
+  rb_define_method(cBackend, "group_get", cb_Backend_group_get, 3);
+  rb_define_method(cBackend, "group_drop", cb_Backend_group_drop, 3);
+  rb_define_method(cBackend, "group_upsert", cb_Backend_group_upsert, 3);
 
-  rb_define_method(cBackend, "change_password", cb_Backend_change_password, 2);
+  rb_define_method(cBackend, "change_password", cb_Backend_change_password, 3);
 }
 } // namespace couchbase::ruby

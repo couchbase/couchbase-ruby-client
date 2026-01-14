@@ -15,6 +15,8 @@
  *   limitations under the License.
  */
 
+#include "rcb_observability.hxx"
+
 #include "rcb_backend.hxx"
 #include "rcb_utils.hxx"
 
@@ -29,6 +31,52 @@
 
 namespace couchbase::ruby
 {
+namespace
+{
+VALUE
+core_span_to_rb_hash(std::shared_ptr<couchbase::core::tracing::wrapper_sdk_span> core_span)
+{
+  VALUE res = rb_hash_new();
+
+  static VALUE sym_name = rb_id2sym(rb_intern("name"));
+  static VALUE sym_attributes = rb_id2sym(rb_intern("attributes"));
+  static VALUE sym_start_timestamp = rb_id2sym(rb_intern("start_timestamp"));
+  static VALUE sym_end_timestamp = rb_id2sym(rb_intern("end_timestamp"));
+  static VALUE sym_children = rb_id2sym(rb_intern("children"));
+
+  VALUE attributes = rb_hash_new();
+
+  for (const auto& [key, value] : core_span->uint_tags()) {
+    rb_hash_aset(attributes, cb_str_new(key), ULL2NUM(value));
+  }
+
+  for (const auto& [key, value] : core_span->string_tags()) {
+    rb_hash_aset(attributes, cb_str_new(key), cb_str_new(value));
+  }
+
+  rb_hash_aset(res, sym_name, cb_str_new(core_span->name()));
+  rb_hash_aset(res, sym_attributes, attributes);
+  rb_hash_aset(res,
+               sym_start_timestamp,
+               LL2NUM(std::chrono::duration_cast<std::chrono::microseconds>(
+                        core_span->start_time().time_since_epoch())
+                        .count()));
+  rb_hash_aset(res,
+               sym_end_timestamp,
+               LL2NUM(std::chrono::duration_cast<std::chrono::microseconds>(
+                        core_span->end_time().time_since_epoch())
+                        .count()));
+
+  VALUE children = rb_ary_new_capa(static_cast<long>(core_span->children().size()));
+  for (const auto& child : core_span->children()) {
+    rb_ary_push(children, core_span_to_rb_hash(child));
+  }
+  rb_hash_aset(res, sym_children, children);
+
+  return res;
+}
+} // namespace
+
 void
 cb_add_core_spans(VALUE observability_handler,
                   std::shared_ptr<couchbase::core::tracing::wrapper_sdk_span> parent_span,
@@ -38,46 +86,14 @@ cb_add_core_spans(VALUE observability_handler,
   VALUE spans = rb_ary_new_capa(static_cast<long>(children.size()));
 
   for (const auto& child : parent_span->children()) {
-    VALUE span = rb_hash_new();
-
-    static VALUE sym_name = rb_id2sym(rb_intern("name"));
-    static VALUE sym_attributes = rb_id2sym(rb_intern("attributes"));
-    static VALUE sym_start_timestamp = rb_id2sym(rb_intern("start_timestamp"));
-    static VALUE sym_end_timestamp = rb_id2sym(rb_intern("end_timestamp"));
-
-    VALUE attributes = rb_hash_new();
-
-    for (const auto& [key, value] : child->uint_tags()) {
-      rb_hash_aset(attributes, cb_str_new(key), ULL2NUM(value));
-    }
-
-    for (const auto& [key, value] : child->string_tags()) {
-      rb_hash_aset(attributes, cb_str_new(key), cb_str_new(value));
-    }
-
-    rb_hash_aset(span, sym_name, cb_str_new(child->name()));
-    rb_hash_aset(span, sym_attributes, attributes);
-    rb_hash_aset(span,
-                 sym_start_timestamp,
-                 LL2NUM(std::chrono::duration_cast<std::chrono::microseconds>(
-                          child->start_time().time_since_epoch())
-                          .count()));
-    rb_hash_aset(span,
-                 sym_end_timestamp,
-                 LL2NUM(std::chrono::duration_cast<std::chrono::microseconds>(
-                          child->end_time().time_since_epoch())
-                          .count()));
-
-    rb_ary_push(spans, span);
+    rb_ary_push(spans, core_span_to_rb_hash(child));
   }
 
   static ID add_backend_spans_func = rb_intern("add_spans_from_backend");
   rb_funcall(observability_handler, add_backend_spans_func, 1, spans);
 
-  if (retry_attempts > 0) {
-    static ID add_retries_func = rb_intern("add_retries");
-    rb_funcall(observability_handler, add_retries_func, ULONG2NUM(retry_attempts));
-  }
+  static ID add_retries_func = rb_intern("add_retries");
+  rb_funcall(observability_handler, add_retries_func, 1, ULONG2NUM(retry_attempts));
 }
 
 namespace
