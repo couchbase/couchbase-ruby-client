@@ -33,6 +33,8 @@ module Couchbase
     # @param [String] scope_name name of the scope
     # @param [String] collection_name name of the collection
     # @param [Observability::Wrapper] observability wrapper containing tracer and meter
+    #
+    # @api private
     def initialize(backend, bucket_name, scope_name, collection_name, observability)
       @backend = backend
       @bucket_name = bucket_name
@@ -143,10 +145,10 @@ module Couchbase
     #
     # @return [GetResult]
     def get_and_lock(id, lock_time, options = Options::GetAndLock::DEFAULT)
-      @observability.record_operation(Observability::OP_GET_AND_LOCK, options.parent_span, self, :kv) do |_obs_handler|
+      @observability.record_operation(Observability::OP_GET_AND_LOCK, options.parent_span, self, :kv) do |obs_handler|
         resp = @backend.document_get_and_lock(bucket_name, @scope_name, @name, id,
                                               lock_time.respond_to?(:in_seconds) ? lock_time.in_seconds : lock_time,
-                                              options.to_backend)
+                                              options.to_backend, obs_handler)
         GetResult.new do |res|
           res.transcoder = options.transcoder
           res.cas = resp[:cas]
@@ -167,10 +169,10 @@ module Couchbase
     #
     # @return [GetResult]
     def get_and_touch(id, expiry, options = Options::GetAndTouch::DEFAULT)
-      @observability.record_operation(Observability::OP_GET_AND_TOUCH, options.parent_span, self, :kv) do |_obs_handler|
+      @observability.record_operation(Observability::OP_GET_AND_TOUCH, options.parent_span, self, :kv) do |obs_handler|
         resp = @backend.document_get_and_touch(bucket_name, @scope_name, @name, id,
                                                Utils::Time.extract_expiry_time(expiry),
-                                               options.to_backend)
+                                               options.to_backend, obs_handler)
         GetResult.new do |res|
           res.transcoder = options.transcoder
           res.cas = resp[:cas]
@@ -187,8 +189,8 @@ module Couchbase
     #
     # @return [Array<GetReplicaResult>]
     def get_all_replicas(id, options = Options::GetAllReplicas::DEFAULT)
-      @observability.record_operation(Observability::OP_GET_ALL_REPLICAS, options.parent_span, self, :kv) do |_obs_handler|
-        resp = @backend.document_get_all_replicas(@bucket_name, @scope_name, @name, id, options.to_backend)
+      @observability.record_operation(Observability::OP_GET_ALL_REPLICAS, options.parent_span, self, :kv) do |obs_handler|
+        resp = @backend.document_get_all_replicas(@bucket_name, @scope_name, @name, id, options.to_backend, obs_handler)
         resp.map do |entry|
           GetReplicaResult.new do |res|
             res.transcoder = options.transcoder
@@ -219,8 +221,8 @@ module Couchbase
     #
     # @return [GetReplicaResult]
     def get_any_replica(id, options = Options::GetAnyReplica::DEFAULT)
-      @observability.record_operation(Observability::OP_GET_ANY_REPLICA, options.parent_span, self, :kv) do |_obs_handler|
-        resp = @backend.document_get_any_replica(@bucket_name, @scope_name, @name, id, options.to_backend)
+      @observability.record_operation(Observability::OP_GET_ANY_REPLICA, options.parent_span, self, :kv) do |obs_handler|
+        resp = @backend.document_get_any_replica(@bucket_name, @scope_name, @name, id, options.to_backend, obs_handler)
         GetReplicaResult.new do |res|
           res.transcoder = options.transcoder
           res.cas = resp[:cas]
@@ -242,8 +244,8 @@ module Couchbase
     #
     # @return [ExistsResult]
     def exists(id, options = Options::Exists::DEFAULT)
-      @observability.record_operation(Observability::OP_EXISTS, options.parent_span, self, :kv) do |_obs_handler|
-        resp = @backend.document_exists(bucket_name, @scope_name, @name, id, options.to_backend)
+      @observability.record_operation(Observability::OP_EXISTS, options.parent_span, self, :kv) do |obs_handler|
+        resp = @backend.document_exists(bucket_name, @scope_name, @name, id, options.to_backend, obs_handler)
         ExistsResult.new do |res|
           res.deleted = resp[:deleted]
           res.exists = resp[:exists]
@@ -279,7 +281,7 @@ module Couchbase
     def remove(id, options = Options::Remove::DEFAULT)
       @observability.record_operation(Observability::OP_REMOVE, options.parent_span, self, :kv) do |obs_handler|
         obs_handler.add_durability_level(options.durability_level)
-        resp = @backend.document_remove(bucket_name, @scope_name, @name, id, options.to_backend)
+        resp = @backend.document_remove(bucket_name, @scope_name, @name, id, options.to_backend, obs_handler)
         MutationResult.new do |res|
           res.cas = resp[:cas]
           res.mutation_token = extract_mutation_token(resp)
@@ -352,7 +354,7 @@ module Couchbase
       @observability.record_operation(Observability::OP_INSERT, options.parent_span, self, :kv) do |obs_handler|
         obs_handler.add_durability_level(options.durability_level)
         blob, flags = encode_content(content, options, obs_handler)
-        resp = @backend.document_insert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
+        resp = @backend.document_insert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend, obs_handler)
         MutationResult.new do |res|
           res.cas = resp[:cas]
           res.mutation_token = extract_mutation_token(resp)
@@ -375,7 +377,7 @@ module Couchbase
       @observability.record_operation(Observability::OP_UPSERT, options.parent_span, self, :kv) do |obs_handler|
         obs_handler.add_durability_level(options.durability_level)
         blob, flags = encode_content(content, options, obs_handler)
-        resp = @backend.document_upsert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
+        resp = @backend.document_upsert(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend, obs_handler)
         MutationResult.new do |res|
           res.cas = resp[:cas]
           res.mutation_token = extract_mutation_token(resp)
@@ -432,7 +434,7 @@ module Couchbase
       @observability.record_operation(Observability::OP_REPLACE, options.parent_span, self, :kv) do |obs_handler|
         obs_handler.add_durability_level(options.durability_level)
         blob, flags = encode_content(content, options, obs_handler)
-        resp = @backend.document_replace(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend)
+        resp = @backend.document_replace(bucket_name, @scope_name, @name, id, blob, flags, options.to_backend, obs_handler)
         MutationResult.new do |res|
           res.cas = resp[:cas]
           res.mutation_token = extract_mutation_token(resp)
@@ -451,10 +453,10 @@ module Couchbase
     #
     # @return [MutationResult]
     def touch(id, expiry, options = Options::Touch::DEFAULT)
-      @observability.record_operation(Observability::OP_TOUCH, options.parent_span, self, :kv) do |_obs_handler|
+      @observability.record_operation(Observability::OP_TOUCH, options.parent_span, self, :kv) do |obs_handler|
         resp = @backend.document_touch(bucket_name, @scope_name, @name, id,
                                        Utils::Time.extract_expiry_time(expiry),
-                                       options.to_backend)
+                                       options.to_backend, obs_handler)
         MutationResult.new do |res|
           res.cas = resp[:cas]
         end
@@ -475,8 +477,8 @@ module Couchbase
     #
     # @raise [Error::DocumentNotFound]
     def unlock(id, cas, options = Options::Unlock::DEFAULT)
-      @observability.record_operation(Observability::OP_UNLOCK, options.parent_span, self, :kv) do |_obs_handler|
-        @backend.document_unlock(bucket_name, @scope_name, @name, id, cas, options.to_backend)
+      @observability.record_operation(Observability::OP_UNLOCK, options.parent_span, self, :kv) do |obs_handler|
+        @backend.document_unlock(bucket_name, @scope_name, @name, id, cas, options.to_backend, obs_handler)
       end
     end
 
@@ -499,7 +501,7 @@ module Couchbase
     #   ]
     # @return [LookupInResult]
     def lookup_in(id, specs, options = Options::LookupIn::DEFAULT)
-      @observability.record_operation(Observability::OP_LOOKUP_IN, options.parent_span, self, :kv) do |_obs_handler|
+      @observability.record_operation(Observability::OP_LOOKUP_IN, options.parent_span, self, :kv) do |obs_handler|
         resp = @backend.document_lookup_in(
           bucket_name, @scope_name, @name, id,
           specs.map do |s|
@@ -508,7 +510,7 @@ module Couchbase
               xattr: s.xattr?,
               path: s.path,
             }
-          end, options.to_backend
+          end, options.to_backend, obs_handler
         )
         LookupInResult.new do |res|
           res.transcoder = options.transcoder
@@ -541,7 +543,7 @@ module Couchbase
     # @raise [Error::CouchbaseError]
     # @raise [Error::FeatureNotAvailable]
     def lookup_in_any_replica(id, specs, options = Options::LookupInAnyReplica::DEFAULT)
-      @observability.record_operation(Observability::OP_LOOKUP_IN_ANY_REPLICA, options.parent_span, self, :kv) do |_obs_handler|
+      @observability.record_operation(Observability::OP_LOOKUP_IN_ANY_REPLICA, options.parent_span, self, :kv) do |obs_handler|
         resp = @backend.document_lookup_in_any_replica(
           bucket_name, @scope_name, @name, id,
           specs.map do |s|
@@ -550,7 +552,7 @@ module Couchbase
               xattr: s.xattr?,
               path: s.path,
             }
-          end, options.to_backend
+          end, options.to_backend, obs_handler
         )
         extract_lookup_in_replica_result(resp, options)
       end
@@ -570,7 +572,7 @@ module Couchbase
     # @raise [Error::CouchbaseError]
     # @raise [Error::FeatureNotAvailable]
     def lookup_in_all_replicas(id, specs, options = Options::LookupInAllReplicas::DEFAULT)
-      @observability.record_operation(Observability::OP_LOOKUP_IN_ALL_REPLICAS, options.parent_span, self, :kv) do |_obs_handler|
+      @observability.record_operation(Observability::OP_LOOKUP_IN_ALL_REPLICAS, options.parent_span, self, :kv) do |obs_handler|
         resp = @backend.document_lookup_in_all_replicas(
           bucket_name, @scope_name, @name, id,
           specs.map do |s|
@@ -579,7 +581,7 @@ module Couchbase
               xattr: s.xattr?,
               path: s.path,
             }
-          end, options.to_backend
+          end, options.to_backend, obs_handler
         )
         resp.map do |entry|
           extract_lookup_in_replica_result(entry, options)
@@ -621,7 +623,7 @@ module Couchbase
               expand_macros: s.expand_macros?,
               create_path: s.create_path?,
             }
-          end, options.to_backend
+          end, options.to_backend, obs_handler
         )
         MutateInResult.new do |res|
           res.transcoder = options.transcoder

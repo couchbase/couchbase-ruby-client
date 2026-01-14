@@ -213,8 +213,8 @@ module Couchbase
       #
       # @return [Array<ScopeSpec>]
       def get_all_scopes(options = Options::Collection::GetAllScopes.new)
-        @observability.record_operation(Observability::OP_CM_GET_ALL_SCOPES, options.parent_span, self, :management) do |_obs_handler|
-          res = @backend.scope_get_all(@bucket_name, options.to_backend)
+        @observability.record_operation(Observability::OP_CM_GET_ALL_SCOPES, options.parent_span, self, :management) do |obs_handler|
+          res = @backend.scope_get_all(@bucket_name, options.to_backend, obs_handler)
           res[:scopes].map do |s|
             ScopeSpec.new do |scope|
               scope.name = s[:name]
@@ -245,7 +245,7 @@ module Couchbase
         @observability.record_operation(Observability::OP_CM_GET_SCOPE, options.parent_span, self, :management) do |obs_handler|
           obs_handler.add_scope_name(scope_name)
 
-          get_all_scopes(Options::Collection::GetAllScopes(timeout: options.timeout, parent_span: options.parent_span))
+          get_all_scopes(Options::Collection::GetAllScopes(timeout: options.timeout, parent_span: obs_handler.op_span))
             .find { |scope| scope.name == scope_name } or raise Error::ScopeNotFound, "unable to find scope #{scope_name}"
         end
       end
@@ -264,7 +264,7 @@ module Couchbase
         @observability.record_operation(Observability::OP_CM_CREATE_SCOPE, options.parent_span, self, :management) do |obs_handler|
           obs_handler.add_scope_name(scope_name)
 
-          @backend.scope_create(@bucket_name, scope_name, options.to_backend)
+          @backend.scope_create(@bucket_name, scope_name, options.to_backend, obs_handler)
         end
       end
 
@@ -280,7 +280,7 @@ module Couchbase
         @observability.record_operation(Observability::OP_CM_DROP_SCOPE, options.parent_span, self, :management) do |obs_handler|
           obs_handler.add_scope_name(scope_name)
 
-          @backend.scope_drop(@bucket_name, scope_name, options.to_backend)
+          @backend.scope_drop(@bucket_name, scope_name, options.to_backend, obs_handler)
         end
       end
 
@@ -328,7 +328,7 @@ module Couchbase
           obs_handler.add_scope_name(scope_name)
           obs_handler.add_collection_name(collection_name)
 
-          @backend.collection_create(@bucket_name, scope_name, collection_name, settings.to_backend, options.to_backend)
+          @backend.collection_create(@bucket_name, scope_name, collection_name, settings.to_backend, options.to_backend, obs_handler)
         end
       end
 
@@ -347,7 +347,7 @@ module Couchbase
           obs_handler.add_scope_name(scope_name)
           obs_handler.add_collection_name(collection_name)
 
-          @backend.collection_update(@bucket_name, scope_name, collection_name, settings.to_backend, options.to_backend)
+          @backend.collection_update(@bucket_name, scope_name, collection_name, settings.to_backend, options.to_backend, obs_handler)
         end
       end
 
@@ -390,7 +390,7 @@ module Couchbase
           obs_handler.add_scope_name(scope_name)
           obs_handler.add_collection_name(collection_name)
 
-          @backend.collection_drop(@bucket_name, scope_name, collection_name, options.to_backend)
+          @backend.collection_drop(@bucket_name, scope_name, collection_name, options.to_backend, obs_handler)
         end
       end
 
