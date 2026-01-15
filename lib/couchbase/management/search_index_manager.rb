@@ -305,8 +305,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def get_index(index_name, options = Options::Search::GetIndex::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_GET_INDEX, options.parent_span, self, :search) do |_obs_handler|
-          res = @backend.search_index_get(nil, nil, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_GET_INDEX, options.parent_span, self, :search) do |obs_handler|
+          res = @backend.search_index_get(nil, nil, index_name, options.timeout, obs_handler)
           self.class.extract_search_index(res)
         end
       end
@@ -317,8 +317,8 @@ module Couchbase
       #
       # @return [Array<SearchIndex>]
       def get_all_indexes(options = Options::Search::GetAllIndexes::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_GET_ALL_INDEXES, options.parent_span, self, :search) do |_obs_handler|
-          res = @backend.search_index_get_all(nil, nil, options.timeout)
+        @observability.record_operation(Observability::OP_SM_GET_ALL_INDEXES, options.parent_span, self, :search) do |obs_handler|
+          res = @backend.search_index_get_all(nil, nil, options.timeout, obs_handler)
           res[:indexes].map { |idx| self.class.extract_search_index(idx) }
         end
       end
@@ -332,7 +332,7 @@ module Couchbase
       #
       # @raise [ArgumentError] if name, type or source_type is empty
       def upsert_index(index_definition, options = Options::Search::UpsertIndex::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_UPSERT_INDEX, options.parent_span, self, :search) do |_obs_handler|
+        @observability.record_operation(Observability::OP_SM_UPSERT_INDEX, options.parent_span, self, :search) do |obs_handler|
           @backend.search_index_upsert(
             nil,
             nil,
@@ -346,7 +346,9 @@ module Couchbase
               source_uuid: index_definition.source_uuid,
               source_params: (JSON.generate(index_definition.source_params) if index_definition.source_params),
               plan_params: (JSON.generate(index_definition.plan_params) if index_definition.plan_params),
-            }, options.timeout
+            },
+            options.timeout,
+            obs_handler,
           )
         end
       end
@@ -361,8 +363,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def drop_index(index_name, options = Options::Search::DropIndex::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_DROP_INDEX, options.parent_span, self, :search) do |_obs_handler|
-          @backend.search_index_drop(nil, nil, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_DROP_INDEX, options.parent_span, self, :search) do |obs_handler|
+          @backend.search_index_drop(nil, nil, index_name, options.timeout, obs_handler)
         end
       end
 
@@ -377,8 +379,8 @@ module Couchbase
       # @raise [Error::IndexNotFound]
       def get_indexed_documents_count(index_name, options = Options::Search::GetIndexedDocumentsCount::DEFAULT)
         @observability.record_operation(Observability::OP_SM_GET_INDEXED_DOCUMENTS_COUNT, options.parent_span, self,
-                                        :search) do |_obs_handler|
-          res = @backend.search_index_get_documents_count(nil, nil, index_name, options.timeout)
+                                        :search) do |obs_handler|
+          res = @backend.search_index_get_documents_count(nil, nil, index_name, options.timeout, obs_handler)
           res[:count]
         end
       end
@@ -395,8 +397,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def get_index_stats(index_name, options = Options::Search::GetIndexStats::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_GET_INDEX_STATS, options.parent_span, self, :search) do |_obs_handler|
-          res = @backend.search_index_get_stats(index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_GET_INDEX_STATS, options.parent_span, self, :search) do |obs_handler|
+          res = @backend.search_index_get_stats(index_name, options.timeout, obs_handler)
           JSON.parse(res)
         end
       end
@@ -412,8 +414,8 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def get_stats(options = Options::Search::GetIndexStats::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_GET_STATS, options.parent_span, self, :search) do |_obs_handler|
-          res = @backend.search_get_stats(options.timeout)
+        @observability.record_operation(Observability::OP_SM_GET_STATS, options.parent_span, self, :search) do |obs_handler|
+          res = @backend.search_get_stats(options.timeout, obs_handler)
           JSON.parse(res)
         end
       end
@@ -428,8 +430,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def pause_ingest(index_name, options = Options::Search::PauseIngest::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_PAUSE_INGEST, options.parent_span, self, :search) do |_obs_handler|
-          @backend.search_index_pause_ingest(nil, nil, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_PAUSE_INGEST, options.parent_span, self, :search) do |obs_handler|
+          @backend.search_index_pause_ingest(nil, nil, index_name, options.timeout, obs_handler)
         end
       end
 
@@ -443,8 +445,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def resume_ingest(index_name, options = Options::Search::ResumeIngest::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_RESUME_INGEST, options.parent_span, self, :search) do |_obs_handler|
-          @backend.search_index_resume_ingest(nil, nil, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_RESUME_INGEST, options.parent_span, self, :search) do |obs_handler|
+          @backend.search_index_resume_ingest(nil, nil, index_name, options.timeout, obs_handler)
         end
       end
 
@@ -458,8 +460,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def allow_querying(index_name, options = Options::Search::AllowQuerying::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_ALLOW_QUERYING, options.parent_span, self, :search) do |_obs_handler|
-          @backend.search_index_allow_querying(nil, nil, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_ALLOW_QUERYING, options.parent_span, self, :search) do |obs_handler|
+          @backend.search_index_allow_querying(nil, nil, index_name, options.timeout, obs_handler)
         end
       end
 
@@ -473,8 +475,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def disallow_querying(index_name, options = Options::Search::DisallowQuerying::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_DISALLOW_QUERYING, options.parent_span, self, :search) do |_obs_handler|
-          @backend.search_index_disallow_querying(nil, nil, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_DISALLOW_QUERYING, options.parent_span, self, :search) do |obs_handler|
+          @backend.search_index_disallow_querying(nil, nil, index_name, options.timeout, obs_handler)
         end
       end
 
@@ -488,8 +490,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def freeze_plan(index_name, options = Options::Search::FreezePlan::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_FREEZE_PLAN, options.parent_span, self, :search) do |_obs_handler|
-          @backend.search_index_freeze_plan(nil, nil, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_FREEZE_PLAN, options.parent_span, self, :search) do |obs_handler|
+          @backend.search_index_freeze_plan(nil, nil, index_name, options.timeout, obs_handler)
         end
       end
 
@@ -503,8 +505,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def unfreeze_plan(index_name, options = Options::Search::UnfreezePlan::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_UNFREEZE_PLAN, options.parent_span, self, :search) do |_obs_handler|
-          @backend.search_index_unfreeze_plan(nil, nil, index_name, options.timeout)
+        @observability.record_operation(Observability::OP_SM_UNFREEZE_PLAN, options.parent_span, self, :search) do |obs_handler|
+          @backend.search_index_unfreeze_plan(nil, nil, index_name, options.timeout, obs_handler)
         end
       end
 
@@ -519,8 +521,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def analyze_document(index_name, document, options = Options::Search::AnalyzeDocument::DEFAULT)
-        @observability.record_operation(Observability::OP_SM_ANALYZE_DOCUMENT, options.parent_span, self, :search) do |_obs_handler|
-          res = @backend.search_index_analyze_document(nil, nil, index_name, JSON.generate(document), options.timeout)
+        @observability.record_operation(Observability::OP_SM_ANALYZE_DOCUMENT, options.parent_span, self, :search) do |obs_handler|
+          res = @backend.search_index_analyze_document(nil, nil, index_name, JSON.generate(document), options.timeout, obs_handler)
           JSON.parse(res[:analysis])
         end
       end

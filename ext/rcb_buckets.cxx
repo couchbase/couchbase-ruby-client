@@ -32,6 +32,7 @@
 #include <ruby.h>
 
 #include "rcb_backend.hxx"
+#include "rcb_observability.hxx"
 #include "rcb_utils.hxx"
 
 namespace couchbase::ruby
@@ -273,7 +274,10 @@ cb_generate_bucket_settings(VALUE bucket,
 }
 
 VALUE
-cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE options)
+cb_Backend_bucket_create(VALUE self,
+                         VALUE bucket_settings,
+                         VALUE options,
+                         VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -286,12 +290,15 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE options)
     core::operations::management::bucket_create_request req{};
     cb_extract_timeout(req, options);
     cb_generate_bucket_settings(bucket_settings, req.bucket, true);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::bucket_create_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format("unable to create bucket \"{}\" on the cluster ({})",
                                  req.bucket.name,
@@ -309,7 +316,10 @@ cb_Backend_bucket_create(VALUE self, VALUE bucket_settings, VALUE options)
 }
 
 VALUE
-cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE options)
+cb_Backend_bucket_update(VALUE self,
+                         VALUE bucket_settings,
+                         VALUE options,
+                         VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -321,12 +331,15 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE options)
     core::operations::management::bucket_update_request req{};
     cb_extract_timeout(req, options);
     cb_generate_bucket_settings(bucket_settings, req.bucket, false);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::bucket_update_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format("unable to update bucket \"{}\" on the cluster ({})",
                                  req.bucket.name,
@@ -343,7 +356,7 @@ cb_Backend_bucket_update(VALUE self, VALUE bucket_settings, VALUE options)
 }
 
 VALUE
-cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE options)
+cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -355,12 +368,15 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE options)
   try {
     core::operations::management::bucket_drop_request req{ cb_string_new(bucket_name) };
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::bucket_drop_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format("unable to remove bucket \"{}\" on the cluster", req.name));
     }
@@ -375,7 +391,7 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE options)
 }
 
 VALUE
-cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE options)
+cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -387,12 +403,15 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE options)
   try {
     core::operations::management::bucket_flush_request req{ cb_string_new(bucket_name) };
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::bucket_flush_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format("unable to flush bucket \"{}\" on the cluster", req.name));
     }
@@ -562,7 +581,7 @@ cb_extract_bucket_settings(const core::management::cluster::bucket_settings& ent
 }
 
 VALUE
-cb_Backend_bucket_get_all(VALUE self, VALUE options)
+cb_Backend_bucket_get_all(VALUE self, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -573,12 +592,14 @@ cb_Backend_bucket_get_all(VALUE self, VALUE options)
   try {
     core::operations::management::bucket_get_all_request req{};
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::bucket_get_all_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, "unable to get list of the buckets of the cluster");
     }
@@ -601,7 +622,7 @@ cb_Backend_bucket_get_all(VALUE self, VALUE options)
 }
 
 VALUE
-cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options)
+cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -613,12 +634,14 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options)
   try {
     core::operations::management::bucket_get_request req{ cb_string_new(bucket_name) };
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::bucket_get_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format("unable to locate bucket \"{}\" on the cluster", req.name));
@@ -640,11 +663,11 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options)
 void
 init_buckets(VALUE cBackend)
 {
-  rb_define_method(cBackend, "bucket_create", cb_Backend_bucket_create, 2);
-  rb_define_method(cBackend, "bucket_update", cb_Backend_bucket_update, 2);
-  rb_define_method(cBackend, "bucket_drop", cb_Backend_bucket_drop, 2);
-  rb_define_method(cBackend, "bucket_flush", cb_Backend_bucket_flush, 2);
-  rb_define_method(cBackend, "bucket_get_all", cb_Backend_bucket_get_all, 1);
-  rb_define_method(cBackend, "bucket_get", cb_Backend_bucket_get, 2);
+  rb_define_method(cBackend, "bucket_create", cb_Backend_bucket_create, 3);
+  rb_define_method(cBackend, "bucket_update", cb_Backend_bucket_update, 3);
+  rb_define_method(cBackend, "bucket_drop", cb_Backend_bucket_drop, 3);
+  rb_define_method(cBackend, "bucket_flush", cb_Backend_bucket_flush, 3);
+  rb_define_method(cBackend, "bucket_get_all", cb_Backend_bucket_get_all, 2);
+  rb_define_method(cBackend, "bucket_get", cb_Backend_bucket_get, 3);
 }
 } // namespace couchbase::ruby

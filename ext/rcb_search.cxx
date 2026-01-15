@@ -39,6 +39,7 @@
 #include <ruby.h>
 
 #include "rcb_backend.hxx"
+#include "rcb_observability.hxx"
 #include "rcb_utils.hxx"
 
 namespace couchbase::ruby
@@ -71,7 +72,11 @@ cb_extract_search_index(VALUE index, const core::management::search::index& idx)
 }
 
 VALUE
-cb_Backend_search_index_get_all(VALUE self, VALUE bucket, VALUE scope, VALUE options)
+cb_Backend_search_index_get_all(VALUE self,
+                                VALUE bucket,
+                                VALUE scope,
+                                VALUE options,
+                                VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -87,12 +92,14 @@ cb_Backend_search_index_get_all(VALUE self, VALUE bucket, VALUE scope, VALUE opt
     }
 
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_index_get_all_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, "unable to get list of the search indexes");
     }
@@ -117,7 +124,12 @@ cb_Backend_search_index_get_all(VALUE self, VALUE bucket, VALUE scope, VALUE opt
 }
 
 VALUE
-cb_Backend_search_index_get(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_get(VALUE self,
+                            VALUE bucket,
+                            VALUE scope,
+                            VALUE index_name,
+                            VALUE timeout,
+                            VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -135,12 +147,14 @@ cb_Backend_search_index_get(VALUE self, VALUE bucket, VALUE scope, VALUE index_n
     }
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_index_get_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(resp.ctx, fmt::format("unable to get search index \"{}\"", req.index_name));
@@ -167,7 +181,8 @@ cb_Backend_search_index_upsert(VALUE self,
                                VALUE bucket,
                                VALUE scope,
                                VALUE index_definition,
-                               VALUE timeout)
+                               VALUE timeout,
+                               VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -233,12 +248,15 @@ cb_Backend_search_index_upsert(VALUE self,
       req.index.plan_params_json = cb_string_new(plan_params);
     }
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::management::search_index_upsert_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(resp.ctx,
@@ -262,7 +280,12 @@ cb_Backend_search_index_upsert(VALUE self,
 }
 
 VALUE
-cb_Backend_search_index_drop(VALUE self, VALUE bucket, VALUE scope, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_drop(VALUE self,
+                             VALUE bucket,
+                             VALUE scope,
+                             VALUE index_name,
+                             VALUE timeout,
+                             VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -280,12 +303,14 @@ cb_Backend_search_index_drop(VALUE self, VALUE bucket, VALUE scope, VALUE index_
     }
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_index_drop_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(resp.ctx,
@@ -313,7 +338,8 @@ cb_Backend_search_index_get_documents_count(VALUE self,
                                             VALUE bucket,
                                             VALUE scope,
                                             VALUE index_name,
-                                            VALUE timeout)
+                                            VALUE timeout,
+                                            VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -331,12 +357,14 @@ cb_Backend_search_index_get_documents_count(VALUE self,
     }
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_index_get_documents_count_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(
@@ -366,7 +394,10 @@ cb_Backend_search_index_get_documents_count(VALUE self,
 }
 
 VALUE
-cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
+cb_Backend_search_index_get_stats(VALUE self,
+                                  VALUE index_name,
+                                  VALUE timeout,
+                                  VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -376,12 +407,14 @@ cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
     core::operations::management::search_index_get_stats_request req{};
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_index_get_stats_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(
@@ -404,19 +437,21 @@ cb_Backend_search_index_get_stats(VALUE self, VALUE index_name, VALUE timeout)
 }
 
 VALUE
-cb_Backend_search_get_stats(VALUE self, VALUE timeout)
+cb_Backend_search_get_stats(VALUE self, VALUE timeout, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   try {
     core::operations::management::search_get_stats_request req{};
     cb_extract_timeout(req, timeout);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_get_stats_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, "unable to get stats for the search service");
     }
@@ -435,7 +470,8 @@ cb_Backend_search_index_pause_ingest(VALUE self,
                                      VALUE bucket,
                                      VALUE scope,
                                      VALUE index_name,
-                                     VALUE timeout)
+                                     VALUE timeout,
+                                     VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -454,12 +490,14 @@ cb_Backend_search_index_pause_ingest(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.pause = true;
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_index_control_ingest_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(
@@ -489,7 +527,8 @@ cb_Backend_search_index_resume_ingest(VALUE self,
                                       VALUE bucket,
                                       VALUE scope,
                                       VALUE index_name,
-                                      VALUE timeout)
+                                      VALUE timeout,
+                                      VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -508,12 +547,14 @@ cb_Backend_search_index_resume_ingest(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.pause = false;
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_index_control_ingest_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(
@@ -543,7 +584,8 @@ cb_Backend_search_index_allow_querying(VALUE self,
                                        VALUE bucket,
                                        VALUE scope,
                                        VALUE index_name,
-                                       VALUE timeout)
+                                       VALUE timeout,
+                                       VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -562,12 +604,14 @@ cb_Backend_search_index_allow_querying(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.allow = true;
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_index_control_query_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(
@@ -597,7 +641,8 @@ cb_Backend_search_index_disallow_querying(VALUE self,
                                           VALUE bucket,
                                           VALUE scope,
                                           VALUE index_name,
-                                          VALUE timeout)
+                                          VALUE timeout,
+                                          VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -616,12 +661,14 @@ cb_Backend_search_index_disallow_querying(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.allow = false;
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_index_control_query_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(
@@ -651,7 +698,8 @@ cb_Backend_search_index_freeze_plan(VALUE self,
                                     VALUE bucket,
                                     VALUE scope,
                                     VALUE index_name,
-                                    VALUE timeout)
+                                    VALUE timeout,
+                                    VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -670,12 +718,14 @@ cb_Backend_search_index_freeze_plan(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.freeze = true;
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_index_control_plan_freeze_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(resp.ctx,
@@ -704,7 +754,8 @@ cb_Backend_search_index_unfreeze_plan(VALUE self,
                                       VALUE bucket,
                                       VALUE scope,
                                       VALUE index_name,
-                                      VALUE timeout)
+                                      VALUE timeout,
+                                      VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -723,12 +774,14 @@ cb_Backend_search_index_unfreeze_plan(VALUE self,
     cb_extract_timeout(req, timeout);
     req.index_name = cb_string_new(index_name);
     req.freeze = false;
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::search_index_control_plan_freeze_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(
@@ -759,7 +812,8 @@ cb_Backend_search_index_analyze_document(VALUE self,
                                          VALUE scope,
                                          VALUE index_name,
                                          VALUE encoded_document,
-                                         VALUE timeout)
+                                         VALUE timeout,
+                                         VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -781,12 +835,15 @@ cb_Backend_search_index_analyze_document(VALUE self,
     req.index_name = cb_string_new(index_name);
     req.encoded_document = cb_string_new(encoded_document);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::management::search_index_analyze_document_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error.empty()) {
         cb_throw_error(
@@ -834,7 +891,8 @@ cb_Backend_document_search(VALUE self,
                            VALUE index_name,
                            VALUE query,
                            VALUE search_request,
-                           VALUE options)
+                           VALUE options,
+                           VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -1017,12 +1075,15 @@ cb_Backend_document_search(VALUE self,
       rb_hash_foreach(raw_params, cb_for_each_raw_param, reinterpret_cast<VALUE>(&req));
     }
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::search_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format("unable to perform search query for index \"{}\": {}",
@@ -1190,27 +1251,27 @@ cb_Backend_document_search(VALUE self,
 void
 init_search(VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_search", cb_Backend_document_search, 6);
+  rb_define_method(cBackend, "document_search", cb_Backend_document_search, 7);
 
-  rb_define_method(cBackend, "search_get_stats", cb_Backend_search_get_stats, 1);
-  rb_define_method(cBackend, "search_index_get_all", cb_Backend_search_index_get_all, 3);
-  rb_define_method(cBackend, "search_index_get", cb_Backend_search_index_get, 4);
-  rb_define_method(cBackend, "search_index_upsert", cb_Backend_search_index_upsert, 4);
-  rb_define_method(cBackend, "search_index_drop", cb_Backend_search_index_drop, 4);
-  rb_define_method(cBackend, "search_index_get_stats", cb_Backend_search_index_get_stats, 2);
+  rb_define_method(cBackend, "search_get_stats", cb_Backend_search_get_stats, 2);
+  rb_define_method(cBackend, "search_index_get_all", cb_Backend_search_index_get_all, 4);
+  rb_define_method(cBackend, "search_index_get", cb_Backend_search_index_get, 5);
+  rb_define_method(cBackend, "search_index_upsert", cb_Backend_search_index_upsert, 5);
+  rb_define_method(cBackend, "search_index_drop", cb_Backend_search_index_drop, 5);
+  rb_define_method(cBackend, "search_index_get_stats", cb_Backend_search_index_get_stats, 3);
   rb_define_method(
-    cBackend, "search_index_get_documents_count", cb_Backend_search_index_get_documents_count, 4);
-  rb_define_method(cBackend, "search_index_pause_ingest", cb_Backend_search_index_pause_ingest, 4);
+    cBackend, "search_index_get_documents_count", cb_Backend_search_index_get_documents_count, 5);
+  rb_define_method(cBackend, "search_index_pause_ingest", cb_Backend_search_index_pause_ingest, 5);
   rb_define_method(
-    cBackend, "search_index_resume_ingest", cb_Backend_search_index_resume_ingest, 4);
+    cBackend, "search_index_resume_ingest", cb_Backend_search_index_resume_ingest, 5);
   rb_define_method(
-    cBackend, "search_index_allow_querying", cb_Backend_search_index_allow_querying, 4);
+    cBackend, "search_index_allow_querying", cb_Backend_search_index_allow_querying, 5);
   rb_define_method(
-    cBackend, "search_index_disallow_querying", cb_Backend_search_index_disallow_querying, 4);
-  rb_define_method(cBackend, "search_index_freeze_plan", cb_Backend_search_index_freeze_plan, 4);
+    cBackend, "search_index_disallow_querying", cb_Backend_search_index_disallow_querying, 5);
+  rb_define_method(cBackend, "search_index_freeze_plan", cb_Backend_search_index_freeze_plan, 5);
   rb_define_method(
-    cBackend, "search_index_unfreeze_plan", cb_Backend_search_index_unfreeze_plan, 4);
+    cBackend, "search_index_unfreeze_plan", cb_Backend_search_index_unfreeze_plan, 5);
   rb_define_method(
-    cBackend, "search_index_analyze_document", cb_Backend_search_index_analyze_document, 5);
+    cBackend, "search_index_analyze_document", cb_Backend_search_index_analyze_document, 6);
 }
 } // namespace couchbase::ruby

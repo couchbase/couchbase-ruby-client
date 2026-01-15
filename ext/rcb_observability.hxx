@@ -15,7 +15,12 @@
  *   limitations under the License.
  */
 
+#ifndef COUCHBASE_RUBY_RCB_OBSERVABILITY_HXX
+#define COUCHBASE_RUBY_RCB_OBSERVABILITY_HXX
+
 #include <core/tracing/wrapper_sdk_tracer.hxx>
+
+#include <ruby.h>
 
 #include <memory>
 
@@ -37,3 +42,5 @@ cb_add_core_spans(VALUE observability_handler,
                   std::shared_ptr<couchbase::core::tracing::wrapper_sdk_span> parent_span,
                   std::size_t retry_attempts);
 } // namespace couchbase::ruby
+
+#endif // COUCHBASE_RUBY_RCB_OBSERVABILITY_HXX

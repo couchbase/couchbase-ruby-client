@@ -56,8 +56,8 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        @observability.record_operation(Observability::OP_QM_GET_ALL_INDEXES, options.parent_span, self, :query) do |_obs_handler|
-          res = @backend.collection_query_index_get_all(@bucket_name, @scope_name, @collection_name, options.to_backend)
+        @observability.record_operation(Observability::OP_QM_GET_ALL_INDEXES, options.parent_span, self, :query) do |obs_handler|
+          res = @backend.collection_query_index_get_all(@bucket_name, @scope_name, @collection_name, options.to_backend, obs_handler)
           res[:indexes].map do |idx|
             QueryIndex.new do |index|
               index.name = idx[:name]
@@ -96,8 +96,9 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        @observability.record_operation(Observability::OP_QM_CREATE_INDEX, options.parent_span, self, :query) do |_obs_handler|
-          @backend.collection_query_index_create(@bucket_name, @scope_name, @collection_name, index_name, fields, options.to_backend)
+        @observability.record_operation(Observability::OP_QM_CREATE_INDEX, options.parent_span, self, :query) do |obs_handler|
+          @backend.collection_query_index_create(@bucket_name, @scope_name, @collection_name, index_name, fields, options.to_backend,
+                                                 obs_handler)
         end
       end
 
@@ -120,8 +121,8 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        @observability.record_operation(Observability::OP_QM_CREATE_PRIMARY_INDEX, options.parent_span, self, :query) do |_obs_handler|
-          @backend.collection_query_index_create_primary(@bucket_name, @scope_name, @collection_name, options.to_backend)
+        @observability.record_operation(Observability::OP_QM_CREATE_PRIMARY_INDEX, options.parent_span, self, :query) do |obs_handler|
+          @backend.collection_query_index_create_primary(@bucket_name, @scope_name, @collection_name, options.to_backend, obs_handler)
         end
       end
 
@@ -145,8 +146,8 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        @observability.record_operation(Observability::OP_QM_DROP_INDEX, options.parent_span, self, :query) do |_obs_handler|
-          @backend.collection_query_index_drop(@bucket_name, @scope_name, @collection_name, index_name, options.to_backend)
+        @observability.record_operation(Observability::OP_QM_DROP_INDEX, options.parent_span, self, :query) do |obs_handler|
+          @backend.collection_query_index_drop(@bucket_name, @scope_name, @collection_name, index_name, options.to_backend, obs_handler)
         end
       end
 
@@ -169,8 +170,8 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        @observability.record_operation(Observability::OP_QM_DROP_PRIMARY_INDEX, options.parent_span, self, :query) do |_obs_handler|
-          @backend.collection_query_index_drop_primary(@bucket_name, @scope_name, @collection_name, options.to_backend)
+        @observability.record_operation(Observability::OP_QM_DROP_PRIMARY_INDEX, options.parent_span, self, :query) do |obs_handler|
+          @backend.collection_query_index_drop_primary(@bucket_name, @scope_name, @collection_name, options.to_backend, obs_handler)
         end
       end
 
@@ -192,8 +193,8 @@ module Couchbase
                 "Collection name cannot be set in the options when using the Query Index manager at the collection level"
         end
 
-        @observability.record_operation(Observability::OP_QM_BUILD_DEFERRED_INDEXES, options.parent_span, self, :query) do |_obs_handler|
-          @backend.collection_query_index_build_deferred(@bucket_name, @scope_name, @collection_name, options.to_backend)
+        @observability.record_operation(Observability::OP_QM_BUILD_DEFERRED_INDEXES, options.parent_span, self, :query) do |obs_handler|
+          @backend.collection_query_index_build_deferred(@bucket_name, @scope_name, @collection_name, options.to_backend, obs_handler)
         end
       end
 

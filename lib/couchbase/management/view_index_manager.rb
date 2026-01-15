@@ -167,8 +167,8 @@ module Couchbase
       #
       # @raise [Error::DesignDocumentNotFound]
       def get_design_document(name, namespace, options = Options::View::GetDesignDocument::DEFAULT)
-        @observability.record_operation(Observability::OP_VM_GET_DESIGN_DOCUMENT, options.parent_span, self, :views) do |_obs_handler|
-          resp = @backend.view_index_get(@bucket_name, name, namespace, options.timeout)
+        @observability.record_operation(Observability::OP_VM_GET_DESIGN_DOCUMENT, options.parent_span, self, :views) do |obs_handler|
+          resp = @backend.view_index_get(@bucket_name, name, namespace, options.timeout, obs_handler)
           extract_design_document(resp)
         end
       end
@@ -180,8 +180,8 @@ module Couchbase
       #
       # @return [Array<DesignDocument>]
       def get_all_design_documents(namespace, options = Options::View::GetAllDesignDocuments::DEFAULT)
-        @observability.record_operation(Observability::OP_VM_GET_ALL_DESIGN_DOCUMENTS, options.parent_span, self, :views) do |_obs_handler|
-          resp = @backend.view_index_get_all(@bucket_name, namespace, options.timeout)
+        @observability.record_operation(Observability::OP_VM_GET_ALL_DESIGN_DOCUMENTS, options.parent_span, self, :views) do |obs_handler|
+          resp = @backend.view_index_get_all(@bucket_name, namespace, options.timeout, obs_handler)
           resp.map do |entry|
             extract_design_document(entry)
           end
@@ -196,7 +196,7 @@ module Couchbase
       #
       # @return [void]
       def upsert_design_document(document, namespace, options = Options::View::UpsertDesignDocument::DEFAULT)
-        @observability.record_operation(Observability::OP_VM_UPSERT_DESIGN_DOCUMENT, options.parent_span, self, :views) do |_obs_handler|
+        @observability.record_operation(Observability::OP_VM_UPSERT_DESIGN_DOCUMENT, options.parent_span, self, :views) do |obs_handler|
           @backend.view_index_upsert(@bucket_name, {
             name: document.name,
             views: document.views.map do |name, view|
@@ -206,7 +206,7 @@ module Couchbase
                 reduce: view.reduce_function,
               }
             end,
-          }, namespace, options.timeout)
+          }, namespace, options.timeout, obs_handler)
         end
       end
 
@@ -220,8 +220,8 @@ module Couchbase
       #
       # @raise [Error::DesignDocumentNotFound]
       def drop_design_document(name, namespace, options = Options::View::DropDesignDocument::DEFAULT)
-        @observability.record_operation(Observability::OP_VM_DROP_DESIGN_DOCUMENT, options.parent_span, self, :views) do |_obs_handler|
-          @backend.view_index_drop(@bucket_name, name, namespace, options.timeout)
+        @observability.record_operation(Observability::OP_VM_DROP_DESIGN_DOCUMENT, options.parent_span, self, :views) do |obs_handler|
+          @backend.view_index_drop(@bucket_name, name, namespace, options.timeout, obs_handler)
         end
       end
 
@@ -238,9 +238,11 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::DesignDocumentNotFound]
       def publish_design_document(name, options = Options::View::PublishDesignDocument::DEFAULT)
-        @observability.record_operation(Observability::OP_VM_PUBLISH_DESIGN_DOCUMENT, options.parent_span, self, :views) do |_obs_handler|
-          document = get_design_document(name, :development, Options::View::GetDesignDocument.new(timeout: options.timeout))
-          upsert_design_document(document, :production, Options::View::UpsertDesignDocument.new(timeout: options.timeout))
+        @observability.record_operation(Observability::OP_VM_PUBLISH_DESIGN_DOCUMENT, options.parent_span, self, :views) do |obs_handler|
+          document = get_design_document(name, :development,
+                                         Options::View::GetDesignDocument.new(timeout: options.timeout, parent_span: obs_handler.op_span))
+          upsert_design_document(document, :production,
+                                 Options::View::UpsertDesignDocument.new(timeout: options.timeout, parent_span: obs_handler.op_span))
         end
       end
 

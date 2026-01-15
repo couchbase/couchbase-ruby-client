@@ -30,6 +30,7 @@
 #include <ruby.h>
 
 #include "rcb_backend.hxx"
+#include "rcb_observability.hxx"
 #include "rcb_utils.hxx"
 
 namespace couchbase::ruby
@@ -37,7 +38,10 @@ namespace couchbase::ruby
 namespace
 {
 VALUE
-cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE options)
+cb_Backend_query_index_get_all(VALUE self,
+                               VALUE bucket_name,
+                               VALUE options,
+                               VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -60,12 +64,14 @@ cb_Backend_query_index_get_all(VALUE self, VALUE bucket_name, VALUE options)
         req.collection_name = cb_string_new(collection_name);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::query_index_get_all_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(
         resp.ctx,
@@ -120,7 +126,8 @@ cb_Backend_query_index_create(VALUE self,
                               VALUE bucket_name,
                               VALUE index_name,
                               VALUE keys,
-                              VALUE options)
+                              VALUE options,
+                              VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -173,6 +180,7 @@ cb_Backend_query_index_create(VALUE self,
         req.collection_name = cb_string_new(collection_name);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::query_index_create_response> promise;
     auto f = promise.get_future();
@@ -180,6 +188,7 @@ cb_Backend_query_index_create(VALUE self,
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (!resp.errors.empty()) {
         const auto& first_error = resp.errors.front();
@@ -219,7 +228,11 @@ cb_Backend_query_index_create(VALUE self,
 }
 
 VALUE
-cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VALUE options)
+cb_Backend_query_index_drop(VALUE self,
+                            VALUE bucket_name,
+                            VALUE index_name,
+                            VALUE options,
+                            VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -252,6 +265,7 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
         req.collection_name = cb_string_new(collection_name);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::query_index_drop_response> promise;
     auto f = promise.get_future();
@@ -259,6 +273,7 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (!resp.errors.empty()) {
         const auto& first_error = resp.errors.front();
@@ -298,7 +313,10 @@ cb_Backend_query_index_drop(VALUE self, VALUE bucket_name, VALUE index_name, VAL
 }
 
 VALUE
-cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE options)
+cb_Backend_query_index_create_primary(VALUE self,
+                                      VALUE bucket_name,
+                                      VALUE options,
+                                      VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -342,6 +360,7 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
         req.collection_name = cb_string_new(collection_name);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::query_index_create_response> promise;
     auto f = promise.get_future();
@@ -349,6 +368,7 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (!resp.errors.empty()) {
         const auto& first_error = resp.errors.front();
@@ -387,7 +407,10 @@ cb_Backend_query_index_create_primary(VALUE self, VALUE bucket_name, VALUE optio
 }
 
 VALUE
-cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options)
+cb_Backend_query_index_drop_primary(VALUE self,
+                                    VALUE bucket_name,
+                                    VALUE options,
+                                    VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -424,6 +447,7 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
         req.collection_name = cb_string_new(collection_name);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::query_index_drop_response> promise;
     auto f = promise.get_future();
@@ -431,6 +455,7 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (!resp.errors.empty()) {
         const auto& first_error = resp.errors.front();
@@ -468,7 +493,10 @@ cb_Backend_query_index_drop_primary(VALUE self, VALUE bucket_name, VALUE options
 }
 
 VALUE
-cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE options)
+cb_Backend_query_index_build_deferred(VALUE self,
+                                      VALUE bucket_name,
+                                      VALUE options,
+                                      VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -492,6 +520,7 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE optio
         req.collection_name = cb_string_new(collection_name);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::query_index_build_deferred_response> promise;
     auto f = promise.get_future();
@@ -500,6 +529,7 @@ cb_Backend_query_index_build_deferred(VALUE self, VALUE bucket_name, VALUE optio
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (!resp.errors.empty()) {
         const auto& first_error = resp.errors.front();
@@ -568,7 +598,7 @@ cb_for_each_raw_param(VALUE key, VALUE value, VALUE arg)
 }
 
 VALUE
-cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
+cb_Backend_document_query(VALUE self, VALUE statement, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -679,6 +709,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
       rb_hash_foreach(raw_params, cb_for_each_raw_param, reinterpret_cast<VALUE>(&req));
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::query_response> promise;
     auto f = promise.get_future();
@@ -686,6 +717,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options)
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.meta.errors && !resp.meta.errors->empty()) {
         const auto& first_error = resp.meta.errors->front();
@@ -757,7 +789,8 @@ cb_Backend_collection_query_index_get_all(VALUE self,
                                           VALUE bucket_name,
                                           VALUE scope_name,
                                           VALUE collection_name,
-                                          VALUE options)
+                                          VALUE options,
+                                          VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -774,12 +807,14 @@ cb_Backend_collection_query_index_get_all(VALUE self,
     req.scope_name = cb_string_new(scope_name);
     req.collection_name = cb_string_new(collection_name);
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::query_index_get_all_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format("unable to get list of the indexes of the collection \"{}\"",
@@ -836,7 +871,8 @@ cb_Backend_collection_query_index_create(VALUE self,
                                          VALUE collection_name,
                                          VALUE index_name,
                                          VALUE keys,
-                                         VALUE options)
+                                         VALUE options,
+                                         VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
   Check_Type(bucket_name, T_STRING);
@@ -892,6 +928,7 @@ cb_Backend_collection_query_index_create(VALUE self,
         req.collection_name = cb_string_new(collection_name);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::query_index_create_response> promise;
     auto f = promise.get_future();
@@ -899,6 +936,7 @@ cb_Backend_collection_query_index_create(VALUE self,
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (!resp.errors.empty()) {
         const auto& first_error = resp.errors.front();
@@ -943,7 +981,8 @@ cb_Backend_collection_query_index_drop(VALUE self,
                                        VALUE scope_name,
                                        VALUE collection_name,
                                        VALUE index_name,
-                                       VALUE options)
+                                       VALUE options,
+                                       VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -979,6 +1018,7 @@ cb_Backend_collection_query_index_drop(VALUE self,
         req.collection_name = cb_string_new(collection_name);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::query_index_drop_response> promise;
     auto f = promise.get_future();
@@ -986,6 +1026,7 @@ cb_Backend_collection_query_index_drop(VALUE self,
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (!resp.errors.empty()) {
         const auto& first_error = resp.errors.front();
@@ -1030,7 +1071,8 @@ cb_Backend_collection_query_index_create_primary(VALUE self,
                                                  VALUE bucket_name,
                                                  VALUE scope_name,
                                                  VALUE collection_name,
-                                                 VALUE options)
+                                                 VALUE options,
+                                                 VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -1078,6 +1120,7 @@ cb_Backend_collection_query_index_create_primary(VALUE self,
         req.collection_name = cb_string_new(collection_name);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::query_index_create_response> promise;
     auto f = promise.get_future();
@@ -1085,6 +1128,7 @@ cb_Backend_collection_query_index_create_primary(VALUE self,
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (!resp.errors.empty()) {
         const auto& first_error = resp.errors.front();
@@ -1127,7 +1171,8 @@ cb_Backend_collection_query_index_drop_primary(VALUE self,
                                                VALUE bucket_name,
                                                VALUE scope_name,
                                                VALUE collection_name,
-                                               VALUE options)
+                                               VALUE options,
+                                               VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -1168,6 +1213,7 @@ cb_Backend_collection_query_index_drop_primary(VALUE self,
         req.collection_name = cb_string_new(collection_name);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::query_index_drop_response> promise;
     auto f = promise.get_future();
@@ -1175,6 +1221,7 @@ cb_Backend_collection_query_index_drop_primary(VALUE self,
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (!resp.errors.empty()) {
         const auto& first_error = resp.errors.front();
@@ -1217,7 +1264,8 @@ cb_Backend_collection_query_index_build_deferred(VALUE self,
                                                  VALUE bucket_name,
                                                  VALUE scope_name,
                                                  VALUE collection_name,
-                                                 VALUE options)
+                                                 VALUE options,
+                                                 VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -1234,6 +1282,7 @@ cb_Backend_collection_query_index_build_deferred(VALUE self,
     req.bucket_name = cb_string_new(bucket_name);
     req.scope_name = cb_string_new(scope_name);
     req.collection_name = cb_string_new(collection_name);
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::query_index_build_deferred_response> promise;
     auto f = promise.get_future();
@@ -1241,6 +1290,7 @@ cb_Backend_collection_query_index_build_deferred(VALUE self,
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (!resp.errors.empty()) {
         const auto& first_error = resp.errors.front();
@@ -1283,34 +1333,34 @@ cb_Backend_collection_query_index_build_deferred(VALUE self,
 void
 init_query(VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_query", cb_Backend_document_query, 2);
+  rb_define_method(cBackend, "document_query", cb_Backend_document_query, 3);
 
-  rb_define_method(cBackend, "query_index_get_all", cb_Backend_query_index_get_all, 2);
-  rb_define_method(cBackend, "query_index_create", cb_Backend_query_index_create, 4);
+  rb_define_method(cBackend, "query_index_get_all", cb_Backend_query_index_get_all, 3);
+  rb_define_method(cBackend, "query_index_create", cb_Backend_query_index_create, 5);
   rb_define_method(
-    cBackend, "query_index_create_primary", cb_Backend_query_index_create_primary, 2);
-  rb_define_method(cBackend, "query_index_drop", cb_Backend_query_index_drop, 3);
-  rb_define_method(cBackend, "query_index_drop_primary", cb_Backend_query_index_drop_primary, 2);
+    cBackend, "query_index_create_primary", cb_Backend_query_index_create_primary, 3);
+  rb_define_method(cBackend, "query_index_drop", cb_Backend_query_index_drop, 4);
+  rb_define_method(cBackend, "query_index_drop_primary", cb_Backend_query_index_drop_primary, 3);
   rb_define_method(
-    cBackend, "query_index_build_deferred", cb_Backend_query_index_build_deferred, 2);
+    cBackend, "query_index_build_deferred", cb_Backend_query_index_build_deferred, 3);
 
   rb_define_method(
-    cBackend, "collection_query_index_get_all", cb_Backend_collection_query_index_get_all, 4);
+    cBackend, "collection_query_index_get_all", cb_Backend_collection_query_index_get_all, 5);
   rb_define_method(
-    cBackend, "collection_query_index_create", cb_Backend_collection_query_index_create, 6);
+    cBackend, "collection_query_index_create", cb_Backend_collection_query_index_create, 7);
   rb_define_method(cBackend,
                    "collection_query_index_create_primary",
                    cb_Backend_collection_query_index_create_primary,
-                   4);
+                   5);
   rb_define_method(
-    cBackend, "collection_query_index_drop", cb_Backend_collection_query_index_drop, 5);
+    cBackend, "collection_query_index_drop", cb_Backend_collection_query_index_drop, 6);
   rb_define_method(cBackend,
                    "collection_query_index_drop_primary",
                    cb_Backend_collection_query_index_drop_primary,
-                   4);
+                   5);
   rb_define_method(cBackend,
                    "collection_query_index_build_deferred",
                    cb_Backend_collection_query_index_build_deferred,
-                   4);
+                   5);
 }
 } // namespace couchbase::ruby

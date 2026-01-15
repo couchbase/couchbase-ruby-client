@@ -107,7 +107,9 @@ cb_Backend_document_get(VALUE self,
 
     core::operations::get_request req{ doc_id };
     cb_extract_timeout(req, options);
+
     auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::get_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
@@ -139,7 +141,8 @@ cb_Backend_document_get_any_replica(VALUE self,
                                     VALUE scope,
                                     VALUE collection,
                                     VALUE id,
-                                    VALUE options)
+                                    VALUE options,
+                                    VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -160,12 +163,15 @@ cb_Backend_document_get_any_replica(VALUE self,
     cb_extract_timeout(req, options);
     cb_extract_read_preference(req, options);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::get_any_replica_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to get replica of the document");
     }
@@ -191,7 +197,8 @@ cb_Backend_document_get_all_replicas(VALUE self,
                                      VALUE scope,
                                      VALUE collection,
                                      VALUE id,
-                                     VALUE options)
+                                     VALUE options,
+                                     VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -212,12 +219,15 @@ cb_Backend_document_get_all_replicas(VALUE self,
     cb_extract_timeout(req, options);
     cb_extract_read_preference(req, options);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::get_all_replicas_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to get all replicas for the document");
     }
@@ -324,7 +334,8 @@ cb_Backend_document_get_and_lock(VALUE self,
                                  VALUE collection,
                                  VALUE id,
                                  VALUE lock_time,
-                                 VALUE options)
+                                 VALUE options,
+                                 VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -349,12 +360,15 @@ cb_Backend_document_get_and_lock(VALUE self,
     cb_extract_timeout(req, options);
     req.lock_time = NUM2UINT(lock_time);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::get_and_lock_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable lock and fetch");
     }
@@ -380,7 +394,8 @@ cb_Backend_document_get_and_touch(VALUE self,
                                   VALUE collection,
                                   VALUE id,
                                   VALUE expiry,
-                                  VALUE options)
+                                  VALUE options,
+                                  VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -405,12 +420,15 @@ cb_Backend_document_get_and_touch(VALUE self,
     auto [type, duration] = unpack_expiry(expiry, false);
     req.expiry = static_cast<std::uint32_t>(duration.count());
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::get_and_touch_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable fetch and touch");
     }
@@ -436,7 +454,8 @@ cb_Backend_document_touch(VALUE self,
                           VALUE collection,
                           VALUE id,
                           VALUE expiry,
-                          VALUE options)
+                          VALUE options,
+                          VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -461,12 +480,15 @@ cb_Backend_document_touch(VALUE self,
     auto [type, duration] = unpack_expiry(expiry, false);
     req.expiry = static_cast<std::uint32_t>(duration.count());
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::touch_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to touch");
     }
@@ -489,7 +511,8 @@ cb_Backend_document_exists(VALUE self,
                            VALUE scope,
                            VALUE collection,
                            VALUE id,
-                           VALUE options)
+                           VALUE options,
+                           VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -512,12 +535,15 @@ cb_Backend_document_exists(VALUE self,
     core::operations::exists_request req{ doc_id };
     cb_extract_timeout(req, options);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::exists_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec() && resp.ctx.ec() != couchbase::errc::key_value::document_not_found) {
       cb_throw_error(resp.ctx, "unable to exists");
     }
@@ -547,7 +573,8 @@ cb_Backend_document_unlock(VALUE self,
                            VALUE collection,
                            VALUE id,
                            VALUE cas,
-                           VALUE options)
+                           VALUE options,
+                           VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -571,12 +598,15 @@ cb_Backend_document_unlock(VALUE self,
     cb_extract_timeout(req, options);
     cb_extract_cas(req.cas, cas);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::unlock_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to unlock");
     }
@@ -601,7 +631,8 @@ cb_Backend_document_upsert(VALUE self,
                            VALUE id,
                            VALUE content,
                            VALUE flags,
-                           VALUE options)
+                           VALUE options,
+                           VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -631,6 +662,8 @@ cb_Backend_document_upsert(VALUE self,
     cb_extract_durability_level(req, options);
     cb_extract_preserve_expiry(req, options);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::upsert_response> promise;
     auto f = promise.get_future();
 
@@ -652,6 +685,7 @@ cb_Backend_document_upsert(VALUE self,
     }
 
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to upsert");
     }
@@ -674,7 +708,8 @@ cb_Backend_document_append(VALUE self,
                            VALUE collection,
                            VALUE id,
                            VALUE content,
-                           VALUE options)
+                           VALUE options,
+                           VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -700,6 +735,8 @@ cb_Backend_document_append(VALUE self,
     cb_extract_timeout(req, options);
     cb_extract_durability_level(req, options);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::append_response> promise;
     auto f = promise.get_future();
 
@@ -721,6 +758,7 @@ cb_Backend_document_append(VALUE self,
     }
 
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to append");
     }
@@ -743,7 +781,8 @@ cb_Backend_document_prepend(VALUE self,
                             VALUE collection,
                             VALUE id,
                             VALUE content,
-                            VALUE options)
+                            VALUE options,
+                            VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -769,6 +808,8 @@ cb_Backend_document_prepend(VALUE self,
     cb_extract_timeout(req, options);
     cb_extract_durability_level(req, options);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::prepend_response> promise;
     auto f = promise.get_future();
 
@@ -790,6 +831,7 @@ cb_Backend_document_prepend(VALUE self,
     }
 
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to prepend");
     }
@@ -812,7 +854,8 @@ cb_Backend_document_replace(VALUE self,
                             VALUE id,
                             VALUE content,
                             VALUE flags,
-                            VALUE options)
+                            VALUE options,
+                            VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -843,6 +886,8 @@ cb_Backend_document_replace(VALUE self,
     cb_extract_preserve_expiry(req, options);
     cb_extract_cas(req, options);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::replace_response> promise;
     auto f = promise.get_future();
 
@@ -864,6 +909,7 @@ cb_Backend_document_replace(VALUE self,
     }
 
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to replace");
     }
@@ -886,7 +932,8 @@ cb_Backend_document_insert(VALUE self,
                            VALUE id,
                            VALUE content,
                            VALUE flags,
-                           VALUE options)
+                           VALUE options,
+                           VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -915,6 +962,8 @@ cb_Backend_document_insert(VALUE self,
     cb_extract_expiry(req, options);
     cb_extract_durability_level(req, options);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::insert_response> promise;
     auto f = promise.get_future();
 
@@ -934,8 +983,8 @@ cb_Backend_document_insert(VALUE self,
         promise.set_value(std::forward<decltype(resp)>(resp));
       });
     }
-
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to insert");
     }
@@ -956,7 +1005,8 @@ cb_Backend_document_remove(VALUE self,
                            VALUE scope,
                            VALUE collection,
                            VALUE id,
-                           VALUE options)
+                           VALUE options,
+                           VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -981,6 +1031,8 @@ cb_Backend_document_remove(VALUE self,
     cb_extract_durability_level(req, options);
     cb_extract_cas(req, options);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::remove_response> promise;
     auto f = promise.get_future();
 
@@ -1002,6 +1054,7 @@ cb_Backend_document_remove(VALUE self,
     }
 
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to remove");
     }
@@ -1021,7 +1074,8 @@ cb_Backend_document_increment(VALUE self,
                               VALUE scope,
                               VALUE collection,
                               VALUE id,
-                              VALUE options)
+                              VALUE options,
+                              VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -1049,6 +1103,8 @@ cb_Backend_document_increment(VALUE self,
     cb_extract_option_uint64(req.initial_value, options, "initial_value");
     cb_extract_durability_level(req, options);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::increment_response> promise;
     auto f = promise.get_future();
 
@@ -1070,6 +1126,7 @@ cb_Backend_document_increment(VALUE self,
     }
 
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to increment");
     }
@@ -1093,7 +1150,8 @@ cb_Backend_document_decrement(VALUE self,
                               VALUE scope,
                               VALUE collection,
                               VALUE id,
-                              VALUE options)
+                              VALUE options,
+                              VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -1121,6 +1179,8 @@ cb_Backend_document_decrement(VALUE self,
     cb_extract_option_uint64(req.initial_value, options, "initial_value");
     cb_extract_durability_level(req, options);
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::decrement_response> promise;
     auto f = promise.get_future();
 
@@ -1142,6 +1202,7 @@ cb_Backend_document_decrement(VALUE self,
     }
 
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to decrement");
     }
@@ -1166,7 +1227,8 @@ cb_Backend_document_lookup_in(VALUE self,
                               VALUE collection,
                               VALUE id,
                               VALUE specs,
-                              VALUE options)
+                              VALUE options,
+                              VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -1231,12 +1293,15 @@ cb_Backend_document_lookup_in(VALUE self,
         core::impl::subdoc::build_lookup_in_path_flags(xattr, false) });
     }
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::lookup_in_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to perform lookup_in operation");
     }
@@ -1292,7 +1357,8 @@ cb_Backend_document_lookup_in_any_replica(VALUE self,
                                           VALUE collection,
                                           VALUE id,
                                           VALUE specs,
-                                          VALUE options)
+                                          VALUE options,
+                                          VALUE observability_handler)
 {
 
   auto cluster = cb_backend_to_core_api_cluster(self);
@@ -1357,12 +1423,15 @@ cb_Backend_document_lookup_in_any_replica(VALUE self,
         core::impl::subdoc::build_lookup_in_path_flags(xattr, false) });
     }
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::lookup_in_any_replica_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to perform lookup_in_any_replica operation");
     }
@@ -1421,7 +1490,8 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self,
                                            VALUE collection,
                                            VALUE id,
                                            VALUE specs,
-                                           VALUE options)
+                                           VALUE options,
+                                           VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -1486,12 +1556,16 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self,
         {},
         core::impl::subdoc::build_lookup_in_path_flags(xattr, false) });
     }
+
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::lookup_in_all_replicas_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to perform lookup_in_all_replicas operation");
     }
@@ -1559,7 +1633,8 @@ cb_Backend_document_mutate_in(VALUE self,
                               VALUE collection,
                               VALUE id,
                               VALUE specs,
-                              VALUE options)
+                              VALUE options,
+                              VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -1694,6 +1769,8 @@ cb_Backend_document_mutate_in(VALUE self,
     }
     req.specs = cxx_specs.specs();
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::mutate_in_response> promise;
     auto f = promise.get_future();
 
@@ -1715,6 +1792,7 @@ cb_Backend_document_mutate_in(VALUE self,
     }
 
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
     if (resp.ctx.ec()) {
       cb_throw_error(resp.ctx, "unable to mutate_in");
     }
@@ -1756,27 +1834,27 @@ void
 init_crud(VALUE cBackend)
 {
   rb_define_method(cBackend, "document_get", cb_Backend_document_get, 6);
-  rb_define_method(cBackend, "document_get_any_replica", cb_Backend_document_get_any_replica, 5);
-  rb_define_method(cBackend, "document_get_all_replicas", cb_Backend_document_get_all_replicas, 5);
+  rb_define_method(cBackend, "document_get_any_replica", cb_Backend_document_get_any_replica, 6);
+  rb_define_method(cBackend, "document_get_all_replicas", cb_Backend_document_get_all_replicas, 6);
   rb_define_method(cBackend, "document_get_projected", cb_Backend_document_get_projected, 6);
-  rb_define_method(cBackend, "document_get_and_lock", cb_Backend_document_get_and_lock, 6);
-  rb_define_method(cBackend, "document_get_and_touch", cb_Backend_document_get_and_touch, 6);
-  rb_define_method(cBackend, "document_insert", cb_Backend_document_insert, 7);
-  rb_define_method(cBackend, "document_replace", cb_Backend_document_replace, 7);
-  rb_define_method(cBackend, "document_upsert", cb_Backend_document_upsert, 7);
-  rb_define_method(cBackend, "document_append", cb_Backend_document_append, 6);
-  rb_define_method(cBackend, "document_prepend", cb_Backend_document_prepend, 6);
-  rb_define_method(cBackend, "document_remove", cb_Backend_document_remove, 5);
-  rb_define_method(cBackend, "document_lookup_in", cb_Backend_document_lookup_in, 6);
+  rb_define_method(cBackend, "document_get_and_lock", cb_Backend_document_get_and_lock, 7);
+  rb_define_method(cBackend, "document_get_and_touch", cb_Backend_document_get_and_touch, 7);
+  rb_define_method(cBackend, "document_insert", cb_Backend_document_insert, 8);
+  rb_define_method(cBackend, "document_replace", cb_Backend_document_replace, 8);
+  rb_define_method(cBackend, "document_upsert", cb_Backend_document_upsert, 8);
+  rb_define_method(cBackend, "document_append", cb_Backend_document_append, 7);
+  rb_define_method(cBackend, "document_prepend", cb_Backend_document_prepend, 7);
+  rb_define_method(cBackend, "document_remove", cb_Backend_document_remove, 6);
+  rb_define_method(cBackend, "document_lookup_in", cb_Backend_document_lookup_in, 7);
   rb_define_method(
-    cBackend, "document_lookup_in_any_replica", cb_Backend_document_lookup_in_any_replica, 6);
+    cBackend, "document_lookup_in_any_replica", cb_Backend_document_lookup_in_any_replica, 7);
   rb_define_method(
-    cBackend, "document_lookup_in_all_replicas", cb_Backend_document_lookup_in_all_replicas, 6);
-  rb_define_method(cBackend, "document_mutate_in", cb_Backend_document_mutate_in, 6);
-  rb_define_method(cBackend, "document_touch", cb_Backend_document_touch, 6);
-  rb_define_method(cBackend, "document_exists", cb_Backend_document_exists, 5);
-  rb_define_method(cBackend, "document_unlock", cb_Backend_document_unlock, 6);
-  rb_define_method(cBackend, "document_increment", cb_Backend_document_increment, 5);
-  rb_define_method(cBackend, "document_decrement", cb_Backend_document_decrement, 5);
+    cBackend, "document_lookup_in_all_replicas", cb_Backend_document_lookup_in_all_replicas, 7);
+  rb_define_method(cBackend, "document_mutate_in", cb_Backend_document_mutate_in, 7);
+  rb_define_method(cBackend, "document_touch", cb_Backend_document_touch, 7);
+  rb_define_method(cBackend, "document_exists", cb_Backend_document_exists, 6);
+  rb_define_method(cBackend, "document_unlock", cb_Backend_document_unlock, 7);
+  rb_define_method(cBackend, "document_increment", cb_Backend_document_increment, 6);
+  rb_define_method(cBackend, "document_decrement", cb_Backend_document_decrement, 6);
 }
 } // namespace couchbase::ruby
