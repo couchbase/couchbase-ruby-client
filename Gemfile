@@ -30,7 +30,9 @@ group :development do
   gem "gem-compiler"
   gem "grpc-tools", "~> 1.59"
   gem "heckle"
-  gem "minitest"
+  gem "irb"
+  # TODO(SA): review https://minite.st/docs/History_rdoc.html#label-6.0.0+-2F+2025-12-17
+  gem "minitest", "< 6.0"
   gem "minitest-reporters"
   gem "mutex_m"
   gem "rack"

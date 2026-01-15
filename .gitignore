@@ -18,6 +18,7 @@
 /pkg/
 /test/reports/
 /tmp/
+/logs/
 /vendor/bundle/
 Gemfile.lock
 Makefile
