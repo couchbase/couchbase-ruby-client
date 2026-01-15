@@ -15,6 +15,20 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+if ARGV.delete("--trace-loaded-features") || ENV["COUCHBASE_TRACE_LOADED_FEATURES"]
+  loaded_before = $LOADED_FEATURES.dup
+  set_trace_func lambda { |event, file, line, id, _binding, _klass|
+    if event == 'c-return' && [:require, :load].include?(id)
+      new_loads = $LOADED_FEATURES - loaded_before
+      unless new_loads.empty?
+        puts "#{file}:#{line}"
+        new_loads.each { |path| puts "    LOADED: #{path}" }
+        loaded_before.concat(new_loads)
+      end
+    end
+  }
+end
+
 require "bundler/setup"
 require "irb"
 require "open3"
