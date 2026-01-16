@@ -555,6 +555,15 @@ jobs:
             logs/*
             test/**/*.{log,xml}
           retention-days: 5
+      - name: Upload crash logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-crash
+          path: |
+            ~/Library/Logs/DiagnosticReports/
+            /Library/Logs/DiagnosticReports/
+          retention-days: 5
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v4.1.0
         if: always()
@@ -615,6 +624,15 @@ jobs:
             caves-logs/*
             logs/*
             test/**/*.{log,xml}
+          retention-days: 5
+      - name: Upload crash logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-crash
+          path: |
+            ~/Library/Logs/DiagnosticReports/
+            /Library/Logs/DiagnosticReports/
           retention-days: 5
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v4.1.0
