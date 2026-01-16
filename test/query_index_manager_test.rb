@@ -67,6 +67,7 @@ module Couchbase
 
       assert_equal 1, get_all_indexes_spans.size
       assert_http_span(
+        env,
         get_all_indexes_spans.first,
         "manager_query_get_all_indexes",
         parent: @parent_span,
@@ -79,6 +80,7 @@ module Couchbase
       assert_equal 2, create_index_spans.size
       create_index_spans.each do |span|
         assert_http_span(
+          env,
           span,
           "manager_query_create_index",
           parent: @parent_span,
@@ -129,6 +131,7 @@ module Couchbase
       assert_equal 4, get_all_indexes_root_spans.size
       get_all_indexes_root_spans.each do |span|
         assert_http_span(
+          env,
           span,
           "manager_query_get_all_indexes",
           parent: @parent_span,
@@ -141,6 +144,7 @@ module Couchbase
 
       assert_equal 1, create_primary_index_spans.size
       assert_http_span(
+        env,
         create_primary_index_spans.first,
         "manager_query_create_primary_index",
         parent: @parent_span,
@@ -153,6 +157,7 @@ module Couchbase
       assert_equal 2, create_index_spans.size
       create_index_spans.each do |span|
         assert_http_span(
+          env,
           span,
           "manager_query_create_index",
           parent: @parent_span,
@@ -165,6 +170,7 @@ module Couchbase
 
       assert_equal 1, build_deferred_indexes_spans.size
       assert_http_span(
+        env,
         build_deferred_indexes_spans.first,
         "manager_query_build_deferred_indexes",
         parent: @parent_span,
@@ -177,6 +183,7 @@ module Couchbase
       assert_equal 2, watch_indexes_spans.size
       watch_indexes_spans.each do |span|
         assert_http_span(
+          env,
           span,
           "manager_query_watch_indexes",
           parent: @parent_span,
@@ -187,6 +194,7 @@ module Couchbase
         assert_predicate span.children.size, :positive?
         span.children.each do |child_span|
           assert_http_span(
+            env,
             child_span,
             "manager_query_get_all_indexes",
             parent: span,

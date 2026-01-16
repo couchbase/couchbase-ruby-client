@@ -42,7 +42,7 @@ module Couchbase
       spans = @tracer.spans("get")
 
       assert_equal 1, spans.size
-      assert_kv_span spans[0], "get", parent
+      assert_kv_span env, spans[0], "get", parent
     end
 
     def test_upsert
@@ -53,8 +53,8 @@ module Couchbase
       spans = @tracer.spans("upsert")
 
       assert_equal 1, spans.size
-      assert_kv_span spans[0], "upsert", parent
-      assert_has_request_encoding_span spans[0]
+      assert_kv_span env, spans[0], "upsert", parent
+      assert_has_request_encoding_span env, spans[0]
     end
 
     def test_replace
@@ -67,8 +67,8 @@ module Couchbase
       spans = @tracer.spans("replace")
 
       assert_equal 1, spans.size
-      assert_kv_span spans[0], "replace", parent
-      assert_has_request_encoding_span spans[0]
+      assert_kv_span env, spans[0], "replace", parent
+      assert_has_request_encoding_span env, spans[0]
     end
 
     def test_replace_durable
@@ -84,8 +84,8 @@ module Couchbase
       spans = @tracer.spans("replace")
 
       assert_equal 1, spans.size
-      assert_kv_span spans[0], "replace", parent
-      assert_has_request_encoding_span spans[0]
+      assert_kv_span env, spans[0], "replace", parent
+      assert_has_request_encoding_span env, spans[0]
       assert_equal "persist_majority", spans[0].attributes["couchbase.durability"]
     end
   end

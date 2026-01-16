@@ -28,6 +28,7 @@
 #include "rcb_hdr_histogram.hxx"
 #include "rcb_logger.hxx"
 #include "rcb_multi.hxx"
+#include "rcb_observability.hxx"
 #include "rcb_query.hxx"
 #include "rcb_range_scan.hxx"
 #include "rcb_search.hxx"
@@ -66,5 +67,6 @@ Init_libcouchbase(void)
   couchbase::ruby::init_extras(cBackend);
   couchbase::ruby::init_logger_methods(cBackend);
   couchbase::ruby::init_hdr_histogram(mCouchbase);
+  couchbase::ruby::init_observability(cBackend);
 }
 }

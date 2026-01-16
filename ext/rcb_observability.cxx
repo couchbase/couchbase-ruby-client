@@ -15,8 +15,11 @@
  *   limitations under the License.
  */
 
+#include "rcb_backend.hxx"
 #include "rcb_utils.hxx"
 
+#include <core/cluster.hxx>
+#include <core/cluster_label_listener.hxx>
 #include <core/tracing/wrapper_sdk_tracer.hxx>
 
 #include <ruby.h>
@@ -75,5 +78,39 @@ cb_add_core_spans(VALUE observability_handler,
     static ID add_retries_func = rb_intern("add_retries");
     rb_funcall(observability_handler, add_retries_func, ULONG2NUM(retry_attempts));
   }
+}
+
+namespace
+{
+VALUE
+cb_Backend_cluster_labels(VALUE self)
+{
+  VALUE res = rb_hash_new();
+  {
+    auto cluster = cb_backend_to_core_api_cluster(self);
+    auto labels = cluster.cluster_label_listener()->cluster_labels();
+
+    static const auto sym_cluster_name = rb_id2sym(rb_intern("cluster_name"));
+    static const auto sym_cluster_uuid = rb_id2sym(rb_intern("cluster_uuid"));
+
+    if (labels.cluster_name.has_value()) {
+      rb_hash_aset(res, sym_cluster_name, cb_str_new(labels.cluster_name.value()));
+    } else {
+      rb_hash_aset(res, sym_cluster_name, Qnil);
+    }
+    if (labels.cluster_uuid.has_value()) {
+      rb_hash_aset(res, sym_cluster_uuid, cb_str_new(labels.cluster_uuid.value()));
+    } else {
+      rb_hash_aset(res, sym_cluster_uuid, Qnil);
+    }
+  }
+  return res;
+}
+} // namespace
+
+void
+init_observability(VALUE cBackend)
+{
+  rb_define_method(cBackend, "cluster_labels", cb_Backend_cluster_labels, 0);
 }
 } // namespace couchbase::ruby
