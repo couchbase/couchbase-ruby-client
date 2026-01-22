@@ -18,6 +18,7 @@ source "https://rubygems.org"
 git_source(:github) { |repo_name| "https://github.com/#{repo_name}" }
 
 gemspec
+gemspec path: "couchbase-opentelemetry"
 
 gem "rake"
 
@@ -35,6 +36,8 @@ group :development do
   gem "minitest", "< 6.0"
   gem "minitest-reporters"
   gem "mutex_m"
+  gem "opentelemetry-metrics-sdk"
+  gem "opentelemetry-sdk"
   gem "rack"
   gem "reek"
   gem "rubocop", require: false

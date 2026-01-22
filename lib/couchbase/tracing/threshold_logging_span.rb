@@ -63,6 +63,8 @@ module Couchbase
         end
       end
 
+      def status=(*); end
+
       def finish(end_timestamp: nil)
         duration_us = (((end_timestamp || Time.now) - @start_timestamp) * 1_000_000).round
         case name

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-#  Copyright 2025-Present Couchbase, Inc.
+#  Copyright 2026-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,20 +14,35 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "couchbase/tracing/request_span"
+
+require "opentelemetry-api"
+
 module Couchbase
   module Tracing
-    # @!macro volatile
-    class RequestSpan
+    class OpenTelemetryRequestSpan < RequestSpan
+      def initialize(span)
+        super()
+
+        @wrapped = span
+      end
+
       def set_attribute(key, value)
-        raise NotImplementedError, "The RequestSpan does not implement #set_attribute"
+        @wrapped.set_attribute(key, value)
       end
 
       def status=(status_code)
-        raise NotImplementedError, "The RequestSpan does not implement #status="
+        @wrapped.status = if status_code == :ok
+                            ::OpenTelemetry::Trace::Status.ok
+                          elsif status_code == :error
+                            ::OpenTelemetry::Trace::Status.error
+                          else
+                            ::OpenTelemetry::Trace::Status.unset
+                          end
       end
 
       def finish(end_timestamp: nil)
-        raise NotImplementedError, "The RequestSpan does not implement #finish"
+        @wrapped.finish(end_timestamp: end_timestamp)
       end
     end
   end

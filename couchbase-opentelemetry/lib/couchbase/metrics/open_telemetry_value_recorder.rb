@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-#  Copyright 2025-Present Couchbase, Inc.
+#  Copyright 2026-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,16 +14,29 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require_relative 'request_span'
+require "couchbase/metrics/value_recorder"
 
 module Couchbase
-  module Tracing
-    class NoopSpan < RequestSpan
-      def set_attribute(*); end
+  module Metrics
+    class OpenTelemetryValueRecorder < ValueRecorder
+      def initialize(recorder, tags, unit: nil)
+        super()
+        @wrapped = recorder
+        @tags = tags
+        @unit = unit
+      end
 
-      def status=(*); end
+      def record_value(value)
+        value =
+          case @unit
+          when "s"
+            value / 1_000_000.0
+          else
+            value
+          end
 
-      def finish(*); end
+        @wrapped.record(value, attributes: @tags)
+      end
     end
   end
 end
