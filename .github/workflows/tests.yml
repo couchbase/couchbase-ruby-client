@@ -471,7 +471,7 @@ jobs:
           COUCHBASE_GEM_PATH=$(realpath couchbase-*.gem)
           UNPACKED_GEM_PATH=$(gem unpack ${COUCHBASE_GEM_PATH} | grep "Unpacked gem" | cut -d "'" -f 2)
           gem unpack --spec --target ${UNPACKED_GEM_PATH} ${COUCHBASE_GEM_PATH}
-          ruby -i.bak -pe "gsub(/gemspec/, 'gem \"couchbase\", path: \"${UNPACKED_GEM_PATH}\"')" Gemfile
+          ruby -i.bak -pe "gsub(/gemspec$/, 'gem \"couchbase\", path: \"${UNPACKED_GEM_PATH}\"')" Gemfile
           bundle install
           bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
       - name: Test
