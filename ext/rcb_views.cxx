@@ -30,6 +30,7 @@
 #include <ruby.h>
 
 #include "rcb_backend.hxx"
+#include "rcb_observability.hxx"
 #include "rcb_utils.hxx"
 
 namespace couchbase::ruby
@@ -37,7 +38,11 @@ namespace couchbase::ruby
 namespace
 {
 VALUE
-cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, VALUE timeout)
+cb_Backend_view_index_get_all(VALUE self,
+                              VALUE bucket_name,
+                              VALUE name_space,
+                              VALUE timeout,
+                              VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -59,12 +64,14 @@ cb_Backend_view_index_get_all(VALUE self, VALUE bucket_name, VALUE name_space, V
     req.bucket_name = cb_string_new(bucket_name);
     req.ns = ns;
     cb_extract_timeout(req, timeout);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::view_index_get_all_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx, "unable to get list of the design documents");
     }
@@ -112,7 +119,8 @@ cb_Backend_view_index_get(VALUE self,
                           VALUE bucket_name,
                           VALUE document_name,
                           VALUE name_space,
-                          VALUE timeout)
+                          VALUE timeout,
+                          VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -136,12 +144,14 @@ cb_Backend_view_index_get(VALUE self,
     req.document_name = cb_string_new(document_name);
     req.ns = ns;
     cb_extract_timeout(req, timeout);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::view_index_get_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format(R"(unable to get design document "{}" ({}) on bucket "{}")",
@@ -189,7 +199,8 @@ cb_Backend_view_index_drop(VALUE self,
                            VALUE bucket_name,
                            VALUE document_name,
                            VALUE name_space,
-                           VALUE timeout)
+                           VALUE timeout,
+                           VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -213,13 +224,16 @@ cb_Backend_view_index_drop(VALUE self,
     req.document_name = cb_string_new(document_name);
     req.ns = ns;
     cb_extract_timeout(req, timeout);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::view_index_drop_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format(R"(unable to drop design document "{}" ({}) on bucket "{}")",
                                  req.document_name,
@@ -241,7 +255,8 @@ cb_Backend_view_index_upsert(VALUE self,
                              VALUE bucket_name,
                              VALUE document,
                              VALUE name_space,
-                             VALUE timeout)
+                             VALUE timeout,
+                             VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -289,13 +304,16 @@ cb_Backend_view_index_upsert(VALUE self,
     }
 
     cb_extract_timeout(req, timeout);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::view_index_upsert_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
 
-    if (auto resp = cb_wait_for_future(f); resp.ctx.ec) {
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
+    if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format(R"(unable to store design document "{}" ({}) on bucket "{}")",
                                  req.document.name,
@@ -318,7 +336,8 @@ cb_Backend_document_view(VALUE self,
                          VALUE design_document_name,
                          VALUE view_name,
                          VALUE name_space,
-                         VALUE options)
+                         VALUE options,
+                         VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -422,12 +441,15 @@ cb_Backend_document_view(VALUE self,
       }
     }
 
+    auto parent_span = cb_create_parent_span(req, self);
+
     std::promise<core::operations::document_view_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       if (resp.error) {
         cb_throw_error(resp.ctx,
@@ -477,11 +499,11 @@ cb_Backend_document_view(VALUE self,
 void
 init_views(VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_view", cb_Backend_document_view, 5);
+  rb_define_method(cBackend, "document_view", cb_Backend_document_view, 6);
 
-  rb_define_method(cBackend, "view_index_get_all", cb_Backend_view_index_get_all, 3);
-  rb_define_method(cBackend, "view_index_get", cb_Backend_view_index_get, 4);
-  rb_define_method(cBackend, "view_index_drop", cb_Backend_view_index_drop, 4);
-  rb_define_method(cBackend, "view_index_upsert", cb_Backend_view_index_upsert, 4);
+  rb_define_method(cBackend, "view_index_get_all", cb_Backend_view_index_get_all, 4);
+  rb_define_method(cBackend, "view_index_get", cb_Backend_view_index_get, 5);
+  rb_define_method(cBackend, "view_index_drop", cb_Backend_view_index_drop, 5);
+  rb_define_method(cBackend, "view_index_upsert", cb_Backend_view_index_upsert, 5);
 }
 } // namespace couchbase::ruby

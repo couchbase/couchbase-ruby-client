@@ -31,6 +31,7 @@
 #include <ruby.h>
 
 #include "rcb_backend.hxx"
+#include "rcb_observability.hxx"
 #include "rcb_utils.hxx"
 
 namespace couchbase::ruby
@@ -38,7 +39,7 @@ namespace couchbase::ruby
 namespace
 {
 VALUE
-cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options)
+cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options, VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -50,12 +51,14 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options)
   try {
     core::operations::management::scope_get_all_request req{ cb_string_new(bucket_name) };
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::scope_get_all_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(
         resp.ctx,
@@ -97,7 +100,11 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options)
 }
 
 VALUE
-cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE options)
+cb_Backend_scope_create(VALUE self,
+                        VALUE bucket_name,
+                        VALUE scope_name,
+                        VALUE options,
+                        VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -111,12 +118,14 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE o
     core::operations::management::scope_create_request req{ cb_string_new(bucket_name),
                                                             cb_string_new(scope_name) };
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::scope_create_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
 
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
@@ -135,7 +144,11 @@ cb_Backend_scope_create(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE o
 }
 
 VALUE
-cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE options)
+cb_Backend_scope_drop(VALUE self,
+                      VALUE bucket_name,
+                      VALUE scope_name,
+                      VALUE options,
+                      VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -149,12 +162,14 @@ cb_Backend_scope_drop(VALUE self, VALUE bucket_name, VALUE scope_name, VALUE opt
     core::operations::management::scope_drop_request req{ cb_string_new(bucket_name),
                                                           cb_string_new(scope_name) };
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::scope_drop_response> promise;
     auto f = promise.get_future();
     cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format(R"(unable to drop the scope "{}" on the bucket "{}")",
@@ -177,7 +192,8 @@ cb_Backend_collection_create(VALUE self,
                              VALUE scope_name,
                              VALUE collection_name,
                              VALUE settings,
-                             VALUE options)
+                             VALUE options,
+                             VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -220,6 +236,7 @@ cb_Backend_collection_create(VALUE self,
         req.history = RTEST(history);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::collection_create_response> promise;
     auto f = promise.get_future();
@@ -227,6 +244,7 @@ cb_Backend_collection_create(VALUE self,
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format(R"(unable create the collection "{}.{}" on the bucket "{}")",
@@ -250,7 +268,8 @@ cb_Backend_collection_update(VALUE self,
                              VALUE scope_name,
                              VALUE collection_name,
                              VALUE settings,
-                             VALUE options)
+                             VALUE options,
+                             VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -293,6 +312,7 @@ cb_Backend_collection_update(VALUE self,
         req.history = RTEST(history);
       }
     }
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::collection_update_response> promise;
     auto f = promise.get_future();
@@ -300,6 +320,7 @@ cb_Backend_collection_update(VALUE self,
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format(R"(unable update the collection "{}.{}" on the bucket "{}")",
@@ -322,7 +343,8 @@ cb_Backend_collection_drop(VALUE self,
                            VALUE bucket_name,
                            VALUE scope_name,
                            VALUE collection_name,
-                           VALUE options)
+                           VALUE options,
+                           VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
@@ -338,6 +360,7 @@ cb_Backend_collection_drop(VALUE self,
                                                                cb_string_new(scope_name),
                                                                cb_string_new(collection_name) };
     cb_extract_timeout(req, options);
+    auto parent_span = cb_create_parent_span(req, self);
 
     std::promise<core::operations::management::collection_drop_response> promise;
     auto f = promise.get_future();
@@ -345,6 +368,7 @@ cb_Backend_collection_drop(VALUE self,
       promise.set_value(std::forward<decltype(resp)>(resp));
     });
     auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts);
     if (resp.ctx.ec) {
       cb_throw_error(resp.ctx,
                      fmt::format(R"(unable to drop the collection  "{}.{}" on the bucket "{}")",
@@ -367,11 +391,11 @@ cb_Backend_collection_drop(VALUE self,
 void
 init_collections(VALUE cBackend)
 {
-  rb_define_method(cBackend, "scope_get_all", cb_Backend_scope_get_all, 2);
-  rb_define_method(cBackend, "scope_create", cb_Backend_scope_create, 3);
-  rb_define_method(cBackend, "scope_drop", cb_Backend_scope_drop, 3);
-  rb_define_method(cBackend, "collection_create", cb_Backend_collection_create, 5);
-  rb_define_method(cBackend, "collection_update", cb_Backend_collection_update, 5);
-  rb_define_method(cBackend, "collection_drop", cb_Backend_collection_drop, 4);
+  rb_define_method(cBackend, "scope_get_all", cb_Backend_scope_get_all, 3);
+  rb_define_method(cBackend, "scope_create", cb_Backend_scope_create, 4);
+  rb_define_method(cBackend, "scope_drop", cb_Backend_scope_drop, 4);
+  rb_define_method(cBackend, "collection_create", cb_Backend_collection_create, 6);
+  rb_define_method(cBackend, "collection_update", cb_Backend_collection_update, 6);
+  rb_define_method(cBackend, "collection_drop", cb_Backend_collection_drop, 5);
 }
 } // namespace couchbase::ruby

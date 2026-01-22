@@ -644,8 +644,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::DataverseExists]
       def create_dataverse(dataverse_name, options = Options::Analytics::CreateDataverse.new)
-        @observability.record_operation(Observability::OP_AM_CREATE_DATAVERSE, options.parent_span, self, :analytics) do |_obs_handler|
-          @backend.analytics_dataverse_create(dataverse_name, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_CREATE_DATAVERSE, options.parent_span, self, :analytics) do |obs_handler|
+          @backend.analytics_dataverse_create(dataverse_name, options.to_backend, obs_handler)
         end
       end
 
@@ -659,8 +659,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::DataverseNotFound]
       def drop_dataverse(dataverse_name, options = Options::Analytics::DropDataverse.new)
-        @observability.record_operation(Observability::OP_AM_DROP_DATAVERSE, options.parent_span, self, :analytics) do |_obs_handler|
-          @backend.analytics_dataverse_drop(dataverse_name, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_DROP_DATAVERSE, options.parent_span, self, :analytics) do |obs_handler|
+          @backend.analytics_dataverse_drop(dataverse_name, options.to_backend, obs_handler)
         end
       end
 
@@ -691,8 +691,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::DatasetNotFound]
       def drop_dataset(dataset_name, options = Options::Analytics::DropDataset.new)
-        @observability.record_operation(Observability::OP_AM_DROP_DATASET, options.parent_span, self, :analytics) do |_obs_handler|
-          @backend.analytics_dataset_drop(dataset_name, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_DROP_DATASET, options.parent_span, self, :analytics) do |obs_handler|
+          @backend.analytics_dataset_drop(dataset_name, options.to_backend, obs_handler)
         end
       end
 
@@ -702,8 +702,8 @@ module Couchbase
       #
       # @return [Array<AnalyticsDataset>]
       def get_all_datasets(options = Options::Analytics::GetAllDatasets.new)
-        @observability.record_operation(Observability::OP_AM_GET_ALL_DATASETS, options.parent_span, self, :analytics) do |_obs_handler|
-          resp = @backend.analytics_dataset_get_all(options.to_backend)
+        @observability.record_operation(Observability::OP_AM_GET_ALL_DATASETS, options.parent_span, self, :analytics) do |obs_handler|
+          resp = @backend.analytics_dataset_get_all(options.to_backend, obs_handler)
           resp.map do |entry|
             AnalyticsDataset.new do |dataset|
               dataset.name = entry[:name]
@@ -727,8 +727,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexExists]
       def create_index(index_name, dataset_name, fields, options = Options::Analytics::CreateIndex.new)
-        @observability.record_operation(Observability::OP_AM_CREATE_INDEX, options.parent_span, self, :analytics) do |_obs_handler|
-          @backend.analytics_index_create(index_name, dataset_name, fields.entries, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_CREATE_INDEX, options.parent_span, self, :analytics) do |obs_handler|
+          @backend.analytics_index_create(index_name, dataset_name, fields.entries, options.to_backend, obs_handler)
         end
       end
 
@@ -743,8 +743,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::IndexNotFound]
       def drop_index(index_name, dataset_name, options = Options::Analytics::DropIndex.new)
-        @observability.record_operation(Observability::OP_AM_DROP_INDEX, options.parent_span, self, :analytics) do |_obs_handler|
-          @backend.analytics_index_drop(index_name, dataset_name, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_DROP_INDEX, options.parent_span, self, :analytics) do |obs_handler|
+          @backend.analytics_index_drop(index_name, dataset_name, options.to_backend, obs_handler)
         end
       end
 
@@ -754,8 +754,8 @@ module Couchbase
       #
       # @return [Array<AnalyticsIndex>]
       def get_all_indexes(options = Options::Analytics::GetAllIndexes.new)
-        @observability.record_operation(Observability::OP_AM_GET_ALL_INDEXES, options.parent_span, self, :analytics) do |_obs_handler|
-          resp = @backend.analytics_index_get_all(options.to_backend)
+        @observability.record_operation(Observability::OP_AM_GET_ALL_INDEXES, options.parent_span, self, :analytics) do |obs_handler|
+          resp = @backend.analytics_index_get_all(options.to_backend, obs_handler)
           resp.map do |entry|
             AnalyticsIndex.new do |dataset|
               dataset.name = entry[:name]
@@ -776,8 +776,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
       def connect_link(options = Options::Analytics::ConnectLink.new)
-        @observability.record_operation(Observability::OP_AM_CONNECT_LINK, options.parent_span, self, :analytics) do |_obs_handler|
-          @backend.analytics_link_connect(options.to_backend)
+        @observability.record_operation(Observability::OP_AM_CONNECT_LINK, options.parent_span, self, :analytics) do |obs_handler|
+          @backend.analytics_link_connect(options.to_backend, obs_handler)
         end
       end
 
@@ -790,8 +790,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
       def disconnect_link(options = Options::Analytics::DisconnectLink.new)
-        @observability.record_operation(Observability::OP_AM_DISCONNECT_LINK, options.parent_span, self, :analytics) do |_obs_handler|
-          @backend.analytics_link_disconnect(options.to_backend)
+        @observability.record_operation(Observability::OP_AM_DISCONNECT_LINK, options.parent_span, self, :analytics) do |obs_handler|
+          @backend.analytics_link_disconnect(options.to_backend, obs_handler)
         end
       end
 
@@ -805,8 +805,8 @@ module Couchbase
       # @return [Hash<String => Integer>] dictionary, where keys are dataset coordinates encoded as +"dataverse.dataset"+
       #   and values are number of mutations for given dataset.
       def get_pending_mutations(options = Options::Analytics::GetPendingMutations.new)
-        @observability.record_operation(Observability::OP_AM_GET_PENDING_MUTATIONS, options.parent_span, self, :analytics) do |_obs_handler|
-          @backend.analytics_get_pending_mutations(options.to_backend)
+        @observability.record_operation(Observability::OP_AM_GET_PENDING_MUTATIONS, options.parent_span, self, :analytics) do |obs_handler|
+          @backend.analytics_get_pending_mutations(options.to_backend, obs_handler)
         end
       end
 
@@ -820,8 +820,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkExists]
       def create_link(link, options = Options::Analytics::CreateLink.new)
-        @observability.record_operation(Observability::OP_AM_CREATE_LINK, options.parent_span, self, :analytics) do |_obs_handler|
-          @backend.analytics_link_create(link.to_backend, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_CREATE_LINK, options.parent_span, self, :analytics) do |obs_handler|
+          @backend.analytics_link_create(link.to_backend, options.to_backend, obs_handler)
         end
       end
 
@@ -835,8 +835,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
       def replace_link(link, options = Options::Analytics::ReplaceLink.new)
-        @observability.record_operation(Observability::OP_AM_REPLACE_LINK, options.parent_span, self, :analytics) do |_obs_handler|
-          @backend.analytics_link_replace(link.to_backend, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_REPLACE_LINK, options.parent_span, self, :analytics) do |obs_handler|
+          @backend.analytics_link_replace(link.to_backend, options.to_backend, obs_handler)
         end
       end
 
@@ -851,8 +851,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
       def drop_link(link_name, dataverse_name, options = Options::Analytics::DropLink.new)
-        @observability.record_operation(Observability::OP_AM_DROP_LINK, options.parent_span, self, :analytics) do |_obs_handler|
-          @backend.analytics_link_drop(link_name, dataverse_name, options.to_backend)
+        @observability.record_operation(Observability::OP_AM_DROP_LINK, options.parent_span, self, :analytics) do |obs_handler|
+          @backend.analytics_link_drop(link_name, dataverse_name, options.to_backend, obs_handler)
         end
       end
 
@@ -865,8 +865,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::LinkNotFound]
       def get_links(options = Options::Analytics::GetLinks.new)
-        @observability.record_operation(Observability::OP_AM_GET_LINKS, options.parent_span, self, :analytics) do |_obs_handler|
-          resp = @backend.analytics_link_get_all(options.to_backend)
+        @observability.record_operation(Observability::OP_AM_GET_LINKS, options.parent_span, self, :analytics) do |obs_handler|
+          resp = @backend.analytics_link_get_all(options.to_backend, obs_handler)
           resp.map do |entry|
             case entry[:type]
             when :s3

@@ -64,7 +64,7 @@ module Couchbase
       @observability.record_operation(Observability::OP_QUERY, options.parent_span, self, :query) do |obs_handler|
         obs_handler.add_query_statement(statement, options)
 
-        resp = @backend.document_query(statement, options.to_backend(scope_name: @name, bucket_name: @bucket_name))
+        resp = @backend.document_query(statement, options.to_backend(scope_name: @name, bucket_name: @bucket_name), obs_handler)
 
         Cluster::QueryResult.new do |res|
           res.meta_data = Cluster::QueryMetaData.new do |meta|
@@ -154,8 +154,8 @@ module Couchbase
     #
     # @return [SearchResult]
     def search_query(index_name, query, options = Options::Search::DEFAULT)
-      @observability.record_operation(Observability::OP_SEARCH_QUERY, options.parent_span, self, :search) do |_obs_handler|
-        resp = @backend.document_search(@bucket_name, @name, index_name, JSON.generate(query), {}, options.to_backend)
+      @observability.record_operation(Observability::OP_SEARCH_QUERY, options.parent_span, self, :search) do |obs_handler|
+        resp = @backend.document_search(@bucket_name, @name, index_name, JSON.generate(query), {}, options.to_backend, obs_handler)
         convert_search_result(resp, options)
       end
     end
@@ -168,10 +168,10 @@ module Couchbase
     #
     # @return [SearchResult]
     def search(index_name, search_request, options = Options::Search::DEFAULT)
-      @observability.record_operation(Observability::OP_SEARCH_QUERY, options.parent_span, self, :search) do |_obs_handler|
+      @observability.record_operation(Observability::OP_SEARCH_QUERY, options.parent_span, self, :search) do |obs_handler|
         encoded_query, encoded_req = search_request.to_backend
         resp = @backend.document_search(@bucket_name, @name, index_name, encoded_query, encoded_req,
-                                        options.to_backend(show_request: false))
+                                        options.to_backend(show_request: false), obs_handler)
         convert_search_result(resp, options)
       end
     end

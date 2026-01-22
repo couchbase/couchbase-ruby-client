@@ -258,8 +258,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::UserNotFound]
       def get_user(username, options = Options::User::GetUser::DEFAULT)
-        @observability.record_operation(Observability::OP_UM_GET_USER, options.parent_span, self, :management) do |_obs_handler|
-          resp = @backend.user_get(options.domain, username, options.timeout)
+        @observability.record_operation(Observability::OP_UM_GET_USER, options.parent_span, self, :management) do |obs_handler|
+          resp = @backend.user_get(options.domain, username, options.timeout, obs_handler)
           extract_user(resp)
         end
       end
@@ -270,8 +270,8 @@ module Couchbase
       #
       # @return [Array<UserAndMetadata>]
       def get_all_users(options = Options::User::GetAllUsers::DEFAULT)
-        @observability.record_operation(Observability::OP_UM_GET_ALL_USERS, options.parent_span, self, :management) do |_obs_handler|
-          resp = @backend.user_get_all(options.domain, options.timeout)
+        @observability.record_operation(Observability::OP_UM_GET_ALL_USERS, options.parent_span, self, :management) do |obs_handler|
+          resp = @backend.user_get_all(options.domain, options.timeout, obs_handler)
           resp.map { |entry| extract_user(entry) }
         end
       end
@@ -283,7 +283,7 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def upsert_user(user, options = Options::User::UpsertUser::DEFAULT)
-        @observability.record_operation(Observability::OP_UM_UPSERT_USER, options.parent_span, self, :management) do |_obs_handler|
+        @observability.record_operation(Observability::OP_UM_UPSERT_USER, options.parent_span, self, :management) do |obs_handler|
           @backend.user_upsert(
             options.domain,
             {
@@ -299,7 +299,9 @@ module Couchbase
                   collection: role.collection,
                 }
               end,
-            }, options.timeout
+            },
+            options.timeout,
+            obs_handler,
           )
         end
       end
@@ -309,8 +311,8 @@ module Couchbase
       # @param [String] username ID of the user
       # @param [Options::User::DropUser] options
       def drop_user(username, options = Options::User::DropUser::DEFAULT)
-        @observability.record_operation(Observability::OP_UM_DROP_USER, options.parent_span, self, :management) do |_obs_handler|
-          @backend.user_drop(options.domain, username, options.timeout)
+        @observability.record_operation(Observability::OP_UM_DROP_USER, options.parent_span, self, :management) do |obs_handler|
+          @backend.user_drop(options.domain, username, options.timeout, obs_handler)
         end
       end
 
@@ -320,8 +322,8 @@ module Couchbase
       #
       # @return [Array<RoleAndDescription>]
       def get_roles(options = Options::User::GetRoles::DEFAULT)
-        @observability.record_operation(Observability::OP_UM_GET_ROLES, options.parent_span, self, :management) do |_obs_handler|
-          resp = @backend.role_get_all(options.timeout)
+        @observability.record_operation(Observability::OP_UM_GET_ROLES, options.parent_span, self, :management) do |obs_handler|
+          resp = @backend.role_get_all(options.timeout, obs_handler)
           resp.map do |r|
             RoleAndDescription.new do |role|
               role.name = r[:name]
@@ -341,8 +343,8 @@ module Couchbase
       #
       # @raise [ArgumentError]
       def change_password(new_password, options = Options::User::ChangePassword::DEFAULT)
-        @observability.record_operation(Observability::OP_UM_CHANGE_PASSWORD, options.parent_span, self, :management) do |_obs_handler|
-          @backend.change_password(new_password, options.timeout)
+        @observability.record_operation(Observability::OP_UM_CHANGE_PASSWORD, options.parent_span, self, :management) do |obs_handler|
+          @backend.change_password(new_password, options.timeout, obs_handler)
         end
       end
 
@@ -356,8 +358,8 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::GroupNotFound]
       def get_group(group_name, options = Options::User::GetGroup::DEFAULT)
-        @observability.record_operation(Observability::OP_UM_GET_GROUP, options.parent_span, self, :management) do |_obs_handler|
-          resp = @backend.group_get(group_name, options.timeout)
+        @observability.record_operation(Observability::OP_UM_GET_GROUP, options.parent_span, self, :management) do |obs_handler|
+          resp = @backend.group_get(group_name, options.timeout, obs_handler)
           extract_group(resp)
         end
       end
@@ -368,8 +370,8 @@ module Couchbase
       #
       # @return [Array<Group>]
       def get_all_groups(options = Options::User::GetAllGroups::DEFAULT)
-        @observability.record_operation(Observability::OP_UM_GET_ALL_GROUPS, options.parent_span, self, :management) do |_obs_handler|
-          resp = @backend.group_get_all(options.timeout)
+        @observability.record_operation(Observability::OP_UM_GET_ALL_GROUPS, options.parent_span, self, :management) do |obs_handler|
+          resp = @backend.group_get_all(options.timeout, obs_handler)
           resp.map { |entry| extract_group(entry) }
         end
       end
@@ -382,7 +384,7 @@ module Couchbase
       # @raise [ArgumentError]
       # @raise [Error::GroupNotFound]
       def upsert_group(group, options = Options::User::UpsertGroup::DEFAULT)
-        @observability.record_operation(Observability::OP_UM_UPSERT_GROUP, options.parent_span, self, :management) do |_obs_handler|
+        @observability.record_operation(Observability::OP_UM_UPSERT_GROUP, options.parent_span, self, :management) do |obs_handler|
           @backend.group_upsert({
             name: group.name,
             description: group.description,
@@ -395,7 +397,7 @@ module Couchbase
                 collection: role.collection,
               }
             end,
-          }, options.timeout)
+          }, options.timeout, obs_handler)
         end
       end
 
@@ -406,8 +408,8 @@ module Couchbase
       #
       # @raise [Error::GroupNotFound]
       def drop_group(group_name, options = Options::User::DropGroup::DEFAULT)
-        @observability.record_operation(Observability::OP_UM_DROP_GROUP, options.parent_span, self, :management) do |_obs_handler|
-          @backend.group_drop(group_name, options.timeout)
+        @observability.record_operation(Observability::OP_UM_DROP_GROUP, options.parent_span, self, :management) do |obs_handler|
+          @backend.group_drop(group_name, options.timeout, obs_handler)
         end
       end
 

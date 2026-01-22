@@ -40,6 +40,7 @@ module Couchbase
 
       def record_operation(op_name, parent_span, receiver, service = nil)
         handler = Handler.new(@backend, op_name, parent_span, receiver, @tracer, @meter)
+        handler.add_operation_name(op_name)
         handler.add_service(service) unless service.nil?
         begin
           res = yield(handler)
@@ -140,8 +141,6 @@ module Couchbase
       end
 
       def add_retries(retries)
-        return unless retries.positive?
-
         @op_span.set_attribute(ATTR_RETRIES, retries.to_i)
       end
 
@@ -159,19 +158,15 @@ module Couchbase
         named_params = options.instance_variable_get(:@named_parameters)
 
         # The statement attribute is added only if positional or named parameters are in use.
-        return if pos_params.nil? || named_params.nil? || pos_params.empty? || named_params.empty?
+        return if (pos_params.nil? || pos_params.empty?) && (named_params.nil? || named_params.empty?)
 
         @op_span.set_attribute(ATTR_QUERY_STATEMENT, statement)
       end
 
       def add_spans_from_backend(backend_spans)
-        retries = -1
         backend_spans.each do |backend_span|
-          retries += 1 if backend_span[:name] == STEP_DISPATCH_TO_SERVER
           add_backend_span(backend_span, @op_span)
         end
-
-        @op_span.set_attribute(ATTR_RETRIES, retries) if retries.positive?
       end
 
       def finish
