@@ -47,7 +47,7 @@ module Couchbase
         yield self if block_given?
       end
 
-      def to_json(*args)
+      def to_json(*)
         data = {
           id: @id,
           state: @state,
@@ -56,7 +56,7 @@ module Couchbase
         }
         data[:details] = @details if @details
         data[:last_activity_us] = @last_activity_us if @last_activity_us
-        data.to_json(*args)
+        data.to_json(*)
       end
     end
 
@@ -88,13 +88,13 @@ module Couchbase
     # @return [Integer] version
     attr_accessor :version
 
-    def to_json(*args)
+    def to_json(*)
       {
         version: @version,
         id: @id,
         sdk: @sdk,
         services: @services,
-      }.to_json(*args)
+      }.to_json(*)
     end
   end
 
@@ -130,7 +130,7 @@ module Couchbase
         yield self if block_given?
       end
 
-      def to_json(*args)
+      def to_json(*)
         data = {
           id: @id,
           state: @state,
@@ -139,7 +139,7 @@ module Couchbase
           latency: @latency,
         }
         data[:error] = @error if @error
-        data.to_json(*args)
+        data.to_json(*)
       end
     end
 
@@ -171,13 +171,13 @@ module Couchbase
     # @return [Integer] version
     attr_accessor :version
 
-    def to_json(*args)
+    def to_json(*)
       {
         version: @version,
         id: @id,
         sdk: @sdk,
         services: @services,
-      }.to_json(*args)
+      }.to_json(*)
     end
   end
 end

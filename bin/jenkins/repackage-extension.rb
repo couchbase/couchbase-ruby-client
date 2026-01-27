@@ -8,8 +8,8 @@ require "tmpdir"
 require "rubygems/installer"
 require "rubygems/package"
 
-def run(*args) # rubocop:disable Naming/PredicateMethod
-  _, status = Open3.capture2e(*args)
+def run(*) # rubocop:disable Naming/PredicateMethod
+  _, status = Open3.capture2e(*)
   status.success?
 end
 
@@ -96,7 +96,7 @@ module Gem
         gemspec.platform.version = nil
         gemspec.original_platform = gemspec.platform
       end
-      gemspec.required_ruby_version = "> 3.1"
+      gemspec.required_ruby_version = "> 3.2"
 
       # build new gem
       output_gem = nil

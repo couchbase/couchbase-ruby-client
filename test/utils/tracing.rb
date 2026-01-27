@@ -129,7 +129,7 @@ def assert_compound_http_span(
   scope_name: nil,
   collection_name: nil,
   statement: nil,
-  &block
+  &
 )
   assert_span env, span, op_name, parent
 
@@ -163,7 +163,7 @@ def assert_compound_http_span(
 
   assert_equal child_count, span.children.size unless child_count.nil?
 
-  span.children.each_with_index(&block)
+  span.children.each_with_index(&)
 end
 
 def assert_http_span(
