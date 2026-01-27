@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       gem_version: ${{ steps.build_gem.outputs.gem_version }}
+      otel_gem_version: ${{ steps.build_otel_gem.outputs.otel_gem_version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,7 +31,7 @@ jobs:
         with:
           ruby-version: 3.3
           bundler-cache: true
-      - name: Build
+      - name: Build couchbase gem
         id: build_gem
         run: |
           COMMITS_SINCE_LAST_TAG=$(git describe --tags --always --long | awk -F '-' '{print $2}')
@@ -38,7 +39,14 @@ jobs:
           GEM_VERSION=$(ruby -r ./lib/couchbase/version.rb -e "puts Couchbase::VERSION[:sdk]")
           echo "gem_version=${GEM_VERSION}" >> "$GITHUB_OUTPUT"
           bundle exec rake build
-      - name: RDoc
+      - name: Build couchbase-opentelemetry gem
+        id: build_otel_gem
+        run: |
+          cd couchbase-opentelemetry
+          OTEL_GEM_VERSION=$(ruby -r ./lib/couchbase/opentelemetry/version.rb -e "puts Couchbase::OpenTelemetry::VERSION")
+          echo "otel_gem_version=${OTEL_GEM_VERSION}" >> "$GITHUB_OUTPUT"
+          bundle exec rake build
+      - name: Generate documentation for the couchbase gem
         run: |
           cat > patch-readme.rb <<EOF
           require_relative "./lib/couchbase/version.rb"
@@ -50,36 +58,66 @@ jobs:
           File.write("README.md", new_content)
           EOF
           ruby patch-readme.rb
-          bundle exec yard doc --hide-api private --output-dir docs/couchbase-ruby-client-${{ steps.build_gem.outputs.gem_version }} lib --main README.md
-      - uses: actions/upload-artifact@v4
+          bundle exec rake doc
+      - name: Generate documentation for the couchbase-opentelemetry gem
+        run: |
+          cd couchbase-opentelemetry
+          cat > patch-readme.rb <<EOF
+          require_relative "./lib/couchbase/opentelemetry/version.rb"
+          gemfile = <<EOS.strip
+            gem "couchbase-opentelemetry", "#{Couchbase::OpenTelemetry::VERSION}"
+          EOS
+          old_content = File.read("README.md")
+          new_content = old_content.gsub(/(gem "couchbase-opentelemetry", ").*?"/, gemfile)
+          File.write("README.md", new_content)
+          EOF
+          ruby patch-readme.rb
+          bundle exec rake doc
+      - name: Upload artifact - couchbase gem
+        uses: actions/upload-artifact@v4
         with:
           name: couchbase-${{ steps.build_gem.outputs.gem_version }}
           path: |
             pkg/*.gem
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact - couchbase-opentelemetry gem
+        uses: actions/upload-artifact@v4
+        with:
+          name: couchbase-opentelemetry-${{ steps.build_otel_gem.outputs.otel_gem_version }}
+          path: |
+            couchbase-opentelemetry/pkg/*.gem      
+      - name: Upload artifact - scripts
+        uses: actions/upload-artifact@v4
         with:
           retention-days: 1
           name: scripts-${{ steps.build_gem.outputs.gem_version }}
           path: |
-            Gemfile
             Rakefile
+            couchbase*.gemspec
+            lib/couchbase/**/version.rb
+            Gemfile
             bin/**/*
-            couchbase.gemspec
-            lib/couchbase/version.rb
             task/**/*
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact - tests and test data
+        uses: actions/upload-artifact@v4
         with:
           retention-days: 1
           name: tests-${{ steps.build_gem.outputs.gem_version }}
           path: |
             test/**/*
             test_data/**/*
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact - couchbase gem docs      
+        uses: actions/upload-artifact@v4
         with:
           name: docs-${{ steps.build_gem.outputs.gem_version }}
           path: |
-            docs/**/*
-
+            doc/**/*
+      - name: Upload artifact - couchbase-opentelemetry gem docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: otel-docs-${{ steps.build_otel_gem.outputs.otel_gem_version }}
+          path: |
+            couchbase-opentelemetry/doc/**/*
+      
   build_alpine_x86_64:
     # FIXME(SA): add aarch64 for Alpine Linux
     # Right now github does not allow to execute JS-based actions (like
