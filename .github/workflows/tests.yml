@@ -97,6 +97,9 @@ jobs:
             Gemfile
             bin/**/*
             task/**/*
+            couchbase-opentelemetry/Rakefile
+            couchbase-opentelemetry/couchbase-opentelemetry*.gemspec
+            couchbase-opentelemetry/lib/couchbase/opentelemetry/version.rb
       - name: Upload artifact - tests and test data
         uses: actions/upload-artifact@v4
         with:
@@ -169,6 +172,10 @@ jobs:
         with:
           path: pkg
           name: couchbase-${{ needs.source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg
+          name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
       - name: Build gem
         env:
           SUPPORTED_RUBY_VERSIONS: "3.2 3.3 3.4 4.0"

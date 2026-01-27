@@ -56,5 +56,5 @@ def assert_operation_metrics(
   end
 
   assert_equal count, values.size,
-               "Expected exactly #{count} value for meter db.client.operation.duration and attributes #{attributes.inspect}"
+               "Expected exactly #{count} value(s) for meter db.client.operation.duration and attributes #{attributes.inspect}"
 end
