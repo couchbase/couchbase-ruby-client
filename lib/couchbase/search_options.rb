@@ -84,8 +84,8 @@ module Couchbase
     end
 
     # @return [String]
-    def to_json(*args)
-      to_h.to_json(*args)
+    def to_json(*)
+      to_h.to_json(*)
     end
 
     # Prepare {MatchQuery} body
@@ -1128,8 +1128,8 @@ module Couchbase
     end
 
     # @api private
-    def to_json(*args)
-      to_h.to_json(*args)
+    def to_json(*)
+      to_h.to_json(*)
     end
   end
 
@@ -1173,8 +1173,8 @@ module Couchbase
       end
 
       # @api private
-      def to_json(*args)
-        {by: :score, desc: desc}.to_json(*args)
+      def to_json(*)
+        {by: :score, desc: desc}.to_json(*)
       end
     end
 
@@ -1189,8 +1189,8 @@ module Couchbase
       end
 
       # @api private
-      def to_json(*args)
-        {by: :id, desc: desc}.to_json(*args)
+      def to_json(*)
+        {by: :id, desc: desc}.to_json(*)
       end
     end
 
@@ -1219,8 +1219,8 @@ module Couchbase
       end
 
       # @api private
-      def to_json(*args)
-        {by: :field, field: field, desc: desc, type: type, missing: missing, mode: mode}.to_json(*args)
+      def to_json(*)
+        {by: :field, field: field, desc: desc, type: type, missing: missing, mode: mode}.to_json(*)
       end
     end
 
@@ -1253,8 +1253,8 @@ module Couchbase
       end
 
       # @api private
-      def to_json(*args)
-        {by: :geo_distance, field: field, desc: desc, location: [longitude, latitude], unit: unit}.to_json(*args)
+      def to_json(*)
+        {by: :geo_distance, field: field, desc: desc, location: [longitude, latitude], unit: unit}.to_json(*)
       end
     end
   end
@@ -1292,8 +1292,8 @@ module Couchbase
       end
 
       # @api private
-      def to_json(*args)
-        {field: field, size: size}.to_json(*args)
+      def to_json(*)
+        {field: field, size: size}.to_json(*)
       end
     end
 
@@ -1319,8 +1319,8 @@ module Couchbase
       end
 
       # @api private
-      def to_json(*args)
-        {field: field, size: size, numeric_ranges: @ranges}.to_json(*args)
+      def to_json(*)
+        {field: field, size: size, numeric_ranges: @ranges}.to_json(*)
       end
     end
 
@@ -1351,8 +1351,8 @@ module Couchbase
       end
 
       # @api private
-      def to_json(*args)
-        {field: field, size: size, date_ranges: @ranges}.to_json(*args)
+      def to_json(*)
+        {field: field, size: size, date_ranges: @ranges}.to_json(*)
       end
     end
   end

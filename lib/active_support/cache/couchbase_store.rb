@@ -180,11 +180,11 @@ module ActiveSupport
         end
       end
 
-      def serialize_entry(entry, raw: false, **options)
+      def serialize_entry(entry, raw: false, **)
         if raw
           entry.value.to_s
         else
-          super(entry, **options)
+          super(entry, **)
         end
       end
 
@@ -195,8 +195,8 @@ module ActiveSupport
       end
 
       # Reads an entry from the cache
-      def read_entry(key, **options)
-        deserialize_entry(read_serialized_entry(key, **options), **options)
+      def read_entry(key, **)
+        deserialize_entry(read_serialized_entry(key, **), **)
       end
 
       def read_serialized_entry(key, **)
@@ -228,8 +228,8 @@ module ActiveSupport
       end
 
       # Writes an entry to the cache
-      def write_entry(key, entry, raw: false, **options)
-        write_serialized_entry(key, serialize_entry(entry, raw: raw, **options), raw: raw, **options)
+      def write_entry(key, entry, raw: false, **)
+        write_serialized_entry(key, serialize_entry(entry, raw: raw, **), raw: raw, **)
       end
 
       def write_serialized_entry(key, payload, expires_in: nil, race_condition_ttl: nil, raw: false, **)
