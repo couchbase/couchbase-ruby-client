@@ -100,48 +100,60 @@ module Couchbase
         parent_span_id: nil,
       )
 
+      expected_attributes = {
+        "db.system.name" => "couchbase",
+        "db.operation.name" => "upsert",
+        "db.namespace" => @bucket.name,
+        "couchbase.scope.name" => "_default",
+        "couchbase.collection.name" => "_default",
+        "couchbase.retries" => nil,
+      }
+      if env.server_version.supports_cluster_labels?
+        expected_attributes["couchbase.cluster.name"] = env.cluster_name
+        expected_attributes["couchbase.cluster.uuid"] = env.cluster_uuid
+      end
+
       assert_otel_span(
         spans[1],
         "upsert",
-        attributes: {
-          "db.system.name" => "couchbase",
-          "couchbase.cluster.name" => env.cluster_name,
-          "couchbase.cluster.uuid" => env.cluster_uuid,
-          "db.operation.name" => "upsert",
-          "db.namespace" => @bucket.name,
-          "couchbase.scope.name" => "_default",
-          "couchbase.collection.name" => "_default",
-          "couchbase.retries" => nil,
-        },
+        attributes: expected_attributes,
         parent_span_id: spans[0].span_id,
         status_code: ::OpenTelemetry::Trace::Status::OK,
       )
 
+      expected_attributes = {
+        "db.system.name" => "couchbase",
+      }
+      if env.server_version.supports_cluster_labels?
+        expected_attributes["couchbase.cluster.name"] = env.cluster_name
+        expected_attributes["couchbase.cluster.uuid"] = env.cluster_uuid
+      end
+
       assert_otel_span(
         spans[2],
         "request_encoding",
-        attributes: {
-          "db.system.name" => "couchbase",
-          "couchbase.cluster.name" => env.cluster_name,
-          "couchbase.cluster.uuid" => env.cluster_uuid,
-        },
+        attributes: expected_attributes,
         parent_span_id: spans[1].span_id,
       )
+
+      expected_attributes = {
+        "db.system.name" => "couchbase",
+        "network.peer.address" => nil,
+        "network.peer.port" => nil,
+        "network.transport" => "tcp",
+        "server.address" => nil,
+        "server.port" => nil,
+        "couchbase.local_id" => nil,
+      }
+      if env.server_version.supports_cluster_labels?
+        expected_attributes["couchbase.cluster.name"] = env.cluster_name
+        expected_attributes["couchbase.cluster.uuid"] = env.cluster_uuid
+      end
 
       assert_otel_span(
         spans[3],
         "dispatch_to_server",
-        attributes: {
-          "db.system.name" => "couchbase",
-          "couchbase.cluster.name" => env.cluster_name,
-          "couchbase.cluster.uuid" => env.cluster_uuid,
-          "network.peer.address" => nil,
-          "network.peer.port" => nil,
-          "network.transport" => "tcp",
-          "server.address" => nil,
-          "server.port" => nil,
-          "couchbase.local_id" => nil,
-        },
+        attributes: expected_attributes,
         parent_span_id: spans[1].span_id,
       )
     end
@@ -167,8 +179,15 @@ module Couchbase
 
       snapshot.data_points.each_with_index do |p, idx|
         assert_equal "couchbase", p.attributes["db.system.name"]
-        assert_equal env.cluster_name, p.attributes["couchbase.cluster.name"]
-        assert_equal env.cluster_uuid, p.attributes["couchbase.cluster.uuid"]
+
+        if env.server_version.supports_cluster_labels?
+          assert_equal env.cluster_name, p.attributes["couchbase.cluster.name"]
+          assert_equal env.cluster_uuid, p.attributes["couchbase.cluster.uuid"]
+        else
+          assert_nil p.attributes["couchbase.cluster.name"]
+          assert_nil p.attributes["couchbase.cluster.uuid"]
+        end
+
         assert_equal env.bucket, p.attributes["db.namespace"]
         assert_equal "_default", p.attributes["couchbase.scope.name"]
         assert_equal "_default", p.attributes["couchbase.collection.name"]

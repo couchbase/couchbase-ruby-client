@@ -30,6 +30,7 @@ def assert_operation_metrics(
   attributes = {
     "db.system.name" => "couchbase",
     "db.operation.name" => operation_name,
+    "__unit" => "s",
   }
 
   if env.server_version.supports_cluster_labels?
