@@ -16,3 +16,4 @@
 
 require_relative "opentelemetry/request_tracer"
 require_relative "opentelemetry/meter"
+require_relative "opentelemetry/version"

@@ -16,10 +16,11 @@
 
 lib = File.expand_path("lib", __dir__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+require "couchbase/opentelemetry/version"
 
 Gem::Specification.new do |spec|
   spec.name = "couchbase-opentelemetry"
-  spec.version = "0.0.1"
+  spec.version = Couchbase::OpenTelemetry::VERSION
   spec.authors = ["Sergey Avseyev"]
   spec.email = ["sergey.avseyev@gmail.com"]
   spec.summary = "OpenTelemetry integration for the Couchbase Ruby Client"

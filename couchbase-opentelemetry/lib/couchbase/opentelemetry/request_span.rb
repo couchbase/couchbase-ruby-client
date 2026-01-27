@@ -28,8 +28,7 @@ module Couchbase
       end
 
       def set_attribute(key, value)
-        @wrapped
-          .set_attribute(key, value)
+        @wrapped.set_attribute(key, value)
       end
 
       def status=(status_code)

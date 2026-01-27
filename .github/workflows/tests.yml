@@ -497,6 +497,9 @@ jobs:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
       - uses: actions/download-artifact@v4
         with:
+          name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v4
         with:
@@ -506,12 +509,17 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
       - name: Install
         run: |
-          COUCHBASE_GEM_PATH=$(realpath couchbase-*.gem)
-          UNPACKED_GEM_PATH=$(gem unpack ${COUCHBASE_GEM_PATH} | grep "Unpacked gem" | cut -d "'" -f 2)
-          gem unpack --spec --target ${UNPACKED_GEM_PATH} ${COUCHBASE_GEM_PATH}
-          ruby -i.bak -pe "gsub(/gemspec$/, 'gem \"couchbase\", path: \"${UNPACKED_GEM_PATH}\"')" Gemfile
+          COUCHBASE_GEM_PATH=$(realpath couchbase-${{ needs.source.outputs.gem_version }}-*.gem)
+          COUCHBASE_OPENTELEMETRY_GEM_PATH=$(realpath couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}.gem)
+          mkdir -p local-gem-repo/gems
+          mv ${COUCHBASE_GEM_PATH} local-gem-repo/gems
+          mv ${COUCHBASE_OPENTELEMETRY_GEM_PATH} local-gem-repo/gems
+          GEM_REPO_PATH=$(realpath local-gem-repo)
+          gem generate_index --directory local-gem-repo
+          ruby -i.bak -pe "gsub(/gemspec$/, 'gem \"couchbase\", source: \"file://${GEM_REPO_PATH}\"')" Gemfile
+          ruby -i.bak -pe "gsub(/gemspec path: \"couchbase-opentelemetry\"$/, 'gem \"couchbase-opentelemetry\", source: \"file://${GEM_REPO_PATH}\"')" Gemfile
           bundle install
-          bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
+          bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
       - name: Test
         env:
           CB_CAVES_LOGS_DIR: caves-logs
@@ -558,6 +566,9 @@ jobs:
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin
       - uses: actions/download-artifact@v4
         with:
+          name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v4
         with:
@@ -568,14 +579,17 @@ jobs:
       - name: Install
         run: |
           set -xe
-          COUCHBASE_GEM_PATH=$(realpath couchbase-*.gem)
-          UNPACKED_GEM_PATH=$(gem unpack ${COUCHBASE_GEM_PATH} | grep "Unpacked gem" | cut -d "'" -f 2)
-          gem unpack --spec --target ${UNPACKED_GEM_PATH} ${COUCHBASE_GEM_PATH}
-          ruby -i.bak -pe "gsub(/gemspec/, 'gem \"couchbase\", path: \"${UNPACKED_GEM_PATH}\"')" Gemfile
-          find .
-          ls -ld ${UNPACKED_GEM_PATH}
+          COUCHBASE_GEM_PATH=$(realpath couchbase-${{ needs.source.outputs.gem_version }}-*.gem)
+          COUCHBASE_OPENTELEMETRY_GEM_PATH=$(realpath couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}.gem)
+          mkdir -p local-gem-repo/gems
+          mv ${COUCHBASE_GEM_PATH} local-gem-repo/gems
+          mv ${COUCHBASE_OPENTELEMETRY_GEM_PATH} local-gem-repo/gems
+          GEM_REPO_PATH=$(realpath local-gem-repo)
+          gem generate_index --directory local-gem-repo
+          ruby -i.bak -pe "gsub(/gemspec$/, 'gem \"couchbase\", source: \"file://${GEM_REPO_PATH}\"')" Gemfile
+          ruby -i.bak -pe "gsub(/gemspec path: \"couchbase-opentelemetry\"$/, 'gem \"couchbase-opentelemetry\", source: \"file://${GEM_REPO_PATH}\"')" Gemfile
           bundle install
-          bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
+          bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
       - name: Test
         env:
           CB_CAVES_LOGS_DIR: caves-logs
@@ -631,6 +645,9 @@ jobs:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin
       - uses: actions/download-artifact@v4
         with:
+          name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v4
         with:
@@ -640,12 +657,17 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
       - name: Install
         run: |
-          COUCHBASE_GEM_PATH=$(realpath couchbase-*.gem)
-          UNPACKED_GEM_PATH=$(gem unpack ${COUCHBASE_GEM_PATH} | grep "Unpacked gem" | cut -d "'" -f 2)
-          gem unpack --spec --target ${UNPACKED_GEM_PATH} ${COUCHBASE_GEM_PATH}
-          ruby -i.bak -pe "gsub(/gemspec/, 'gem \"couchbase\", path: \"${UNPACKED_GEM_PATH}\"')" Gemfile
+          COUCHBASE_GEM_PATH=$(realpath couchbase-${{ needs.source.outputs.gem_version }}-*.gem)
+          COUCHBASE_OPENTELEMETRY_GEM_PATH=$(realpath couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}.gem)
+          mkdir -p local-gem-repo/gems
+          mv ${COUCHBASE_GEM_PATH} local-gem-repo/gems
+          mv ${COUCHBASE_OPENTELEMETRY_GEM_PATH} local-gem-repo/gems
+          GEM_REPO_PATH=$(realpath local-gem-repo)
+          gem generate_index --directory local-gem-repo
+          ruby -i.bak -pe "gsub(/gemspec$/, 'gem \"couchbase\", source: \"file://${GEM_REPO_PATH}\"')" Gemfile
+          ruby -i.bak -pe "gsub(/gemspec path: \"couchbase-opentelemetry\"$/, 'gem \"couchbase-opentelemetry\", source: \"file://${GEM_REPO_PATH}\"')" Gemfile
           bundle install
-          bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
+          bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
       - name: Test
         env:
           CB_CAVES_LOGS_DIR: caves-logs
@@ -736,6 +758,9 @@ jobs:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
       - uses: actions/download-artifact@v4
         with:
+          name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v4
         with:
@@ -745,12 +770,17 @@ jobs:
           ruby-version: 3.3
       - name: Install
         run: |
-          COUCHBASE_GEM_PATH=$(realpath couchbase-*.gem)
-          UNPACKED_GEM_PATH=$(gem unpack ${COUCHBASE_GEM_PATH} | grep "Unpacked gem" | cut -d "'" -f 2)
-          gem unpack --spec --target ${UNPACKED_GEM_PATH} ${COUCHBASE_GEM_PATH}
-          ruby -i.bak -pe "gsub(/gemspec/, 'gem \"couchbase\", path: \"${UNPACKED_GEM_PATH}\"')" Gemfile
+          COUCHBASE_GEM_PATH=$(realpath couchbase-${{ needs.source.outputs.gem_version }}-*.gem)
+          COUCHBASE_OPENTELEMETRY_GEM_PATH=$(realpath couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}.gem)
+          mkdir -p local-gem-repo/gems
+          mv ${COUCHBASE_GEM_PATH} local-gem-repo/gems
+          mv ${COUCHBASE_OPENTELEMETRY_GEM_PATH} local-gem-repo/gems
+          GEM_REPO_PATH=$(realpath local-gem-repo)
+          gem generate_index --directory local-gem-repo
+          ruby -i.bak -pe "gsub(/gemspec$/, 'gem \"couchbase\", source: \"file://${GEM_REPO_PATH}\"')" Gemfile
+          ruby -i.bak -pe "gsub(/gemspec path: \"couchbase-opentelemetry\"$/, 'gem \"couchbase-opentelemetry\", source: \"file://${GEM_REPO_PATH}\"')" Gemfile
           bundle install
-          bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
+          bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
       - name: Test
         env:
           TEST_SERVER_VERSION: ${{ matrix.server }}
