@@ -1,0 +1,3 @@
+--no-progress --output-dir doc/couchbase-ruby-client-master lib - README.md
+--tag couchbase.stability:"Stability"
+--transitive-tag couchbase.stability

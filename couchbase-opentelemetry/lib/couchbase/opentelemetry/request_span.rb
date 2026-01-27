@@ -19,8 +19,8 @@ require "couchbase/tracing/request_span"
 require "opentelemetry-api"
 
 module Couchbase
-  module Tracing
-    class OpenTelemetryRequestSpan < RequestSpan
+  module OpenTelemetry
+    class RequestSpan < ::Couchbase::Tracing::RequestSpan
       def initialize(span)
         super()
 
@@ -28,7 +28,8 @@ module Couchbase
       end
 
       def set_attribute(key, value)
-        @wrapped.set_attribute(key, value)
+        @wrapped
+          .set_attribute(key, value)
       end
 
       def status=(status_code)

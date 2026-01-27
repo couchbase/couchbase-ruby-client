@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-#  Copyright 2020-2021 Couchbase, Inc.
+#  Copyright 2026-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,19 +14,5 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/version"
-require "couchbase/libcouchbase"
-require "couchbase/fork_hooks"
-require "couchbase/logger"
-require "couchbase/cluster"
-require "couchbase/deprecations"
-
-require "couchbase/railtie" if defined?(Rails)
-
-# @!macro uncommitted
-#   @couchbase.stability
-#     **Uncommitted:** This API may change in the future.
-#
-# @!macro volatile
-#   @couchbase.stability
-#     **Volatile:** This API is subject to change at any time.
+require_relative "opentelemetry/request_tracer"
+require_relative "opentelemetry/meter"

@@ -16,8 +16,7 @@
 
 require_relative "test_helper"
 
-require "couchbase/tracing/open_telemetry_request_tracer"
-require "couchbase/metrics/open_telemetry_meter"
+require "couchbase/opentelemetry"
 
 require "opentelemetry-sdk"
 require "opentelemetry-metrics-sdk"
@@ -36,7 +35,7 @@ module Couchbase
           )
           tracer_provider
         end
-      @tracer = Couchbase::Tracing::OpenTelemetryRequestTracer.new(@tracer_provider)
+      @tracer = Couchbase::OpenTelemetry::RequestTracer.new(@tracer_provider)
 
       @metric_exporter = ::OpenTelemetry::SDK::Metrics::Export::InMemoryMetricPullExporter.new
       @metric_reader = ::OpenTelemetry::SDK::Metrics::Export::PeriodicMetricReader.new(exporter: @metric_exporter)
@@ -46,7 +45,7 @@ module Couchbase
           meter_provider.add_metric_reader(@metric_reader)
           meter_provider
         end
-      @meter = Couchbase::Metrics::OpenTelemetryMeter.new(@meter_provider)
+      @meter = Couchbase::OpenTelemetry::Meter.new(@meter_provider)
 
       connect(Options::Cluster.new(tracer: @tracer, meter: @meter))
       @bucket = @cluster.bucket(env.bucket)
@@ -65,7 +64,7 @@ module Couchbase
       name,
       attributes: {},
       parent_span_id: nil,
-      status_code: OpenTelemetry::Trace::Status::UNSET
+      status_code: ::OpenTelemetry::Trace::Status::UNSET
     )
       assert_equal name, span_data.name
       assert_equal :client, span_data.kind
@@ -115,7 +114,7 @@ module Couchbase
           "couchbase.retries" => nil,
         },
         parent_span_id: spans[0].span_id,
-        status_code: OpenTelemetry::Trace::Status::OK,
+        status_code: ::OpenTelemetry::Trace::Status::OK,
       )
 
       assert_otel_span(

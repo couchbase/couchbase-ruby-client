@@ -17,8 +17,8 @@
 require "couchbase/metrics/value_recorder"
 
 module Couchbase
-  module Metrics
-    class OpenTelemetryValueRecorder < ValueRecorder
+  module OpenTelemetry
+    class ValueRecorder < ::Couchbase::Metrics::ValueRecorder
       def initialize(recorder, tags, unit: nil)
         super()
         @wrapped = recorder
