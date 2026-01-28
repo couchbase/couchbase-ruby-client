@@ -32,7 +32,7 @@ module Couchbase
       # @example Initializing a Couchbase OpenTelemetry Request Tracer with an OTLP Exporter
       #   require "opentelemetry-sdk"
       #
-      #   # Initialize a trqacer provider
+      #   # Initialize a tracer provider
       #   tracer_provider = ::OpenTelemetry::SDK::Trace::TracerProvider.new
       #   tracer_provider.add_span_processor(
       #       ::OpenTelemetry::SDK::Trace::Export::BatchSpanProcessor.new(

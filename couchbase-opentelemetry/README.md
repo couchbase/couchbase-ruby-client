@@ -20,7 +20,7 @@ Or install it yourself as:
 
 ## Usage
 
-Here is an example on how to set up Tracing and Metrics with OpenTelemetr:
+Here is an example on how to set up Tracing and Metrics with OpenTelemetry:
 
 ```ruby
 require "couchbase"
@@ -43,7 +43,7 @@ tracer = Couchbase::OpenTelemetry::RequestTracer.new(tracer_provider)
 # Initialize a meter provider
 meter_provider = OpenTelemetry::SDK::Metrics::MeterProvider.new
 meter_provider.add_metric_reader(
-    OpenTelemetry::SDk::Metrics::Export::PeriodicMetricReader.new(
+    OpenTelemetry::SDK::Metrics::Export::PeriodicMetricReader.new(
         exporter: OpenTelemetry::Exporter::OTLP::Metrics::MetricsExporter.new(
             endpoint: "https://<hostname>:<port>/v1/metrics"
         )
