@@ -47,6 +47,8 @@ module Couchbase
         rescue StandardError => e
           handler.add_error(e)
           raise e
+        else
+          handler.set_success
         ensure
           handler.finish
         end
@@ -144,7 +146,12 @@ module Couchbase
         @op_span.set_attribute(ATTR_RETRIES, retries.to_i)
       end
 
+      def set_success
+        @op_span.status = :ok
+      end
+
       def add_error(error)
+        @op_span.status = :error
         @meter_attributes[ATTR_ERROR_TYPE] =
           if error.is_a?(Couchbase::Error::CouchbaseError) || error.is_a?(Couchbase::Error::InvalidArgument)
             error.class.name.split("::").last
@@ -201,6 +208,7 @@ module Couchbase
       def create_meter_attributes
         attrs = {
           ATTR_SYSTEM_NAME => ATTR_VALUE_SYSTEM_NAME,
+          ATTR_RESERVED_UNIT => ATTR_VALUE_RESERVED_UNIT_SECONDS,
         }
         attrs[ATTR_CLUSTER_NAME] = @cluster_name unless @cluster_name.nil?
         attrs[ATTR_CLUSTER_UUID] = @cluster_uuid unless @cluster_uuid.nil?

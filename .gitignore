@@ -8,14 +8,14 @@
 .byebug_history
 /.rakeTasks
 /.ruby-version
-/.yardoc
+/**/.yardoc
 /_yardoc/
 /cmake-build-*/
 /build*
 /coverage/
-/doc/
+/**/doc/
 /ext/cache/
-/pkg/
+/**/pkg/
 /test/reports/
 /tmp/
 /logs/

@@ -30,6 +30,7 @@ def assert_operation_metrics(
   attributes = {
     "db.system.name" => "couchbase",
     "db.operation.name" => operation_name,
+    "__unit" => "s",
   }
 
   if env.server_version.supports_cluster_labels?
@@ -55,5 +56,5 @@ def assert_operation_metrics(
   end
 
   assert_equal count, values.size,
-               "Expected exactly #{count} value for meter db.client.operation.duration and attributes #{attributes.inspect}"
+               "Expected exactly #{count} value(s) for meter db.client.operation.duration and attributes #{attributes.inspect}"
 end

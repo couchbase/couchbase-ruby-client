@@ -24,6 +24,7 @@ module Couchbase
       attr_accessor :attributes
       attr_accessor :parent
       attr_accessor :children
+      attr_accessor :status_code
 
       def initialize(name, parent: nil, start_timestamp: nil)
         super()
@@ -36,6 +37,10 @@ module Couchbase
 
       def set_attribute(key, value)
         @attributes[key] = value
+      end
+
+      def status=(status_code)
+        @status_code = status_code
       end
 
       def finish(end_timestamp: nil)

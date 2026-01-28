@@ -410,5 +410,11 @@ module Couchbase
 
     class ClusterClosed < CouchbaseError
     end
+
+    class TracerError < CouchbaseError
+    end
+
+    class MeterError < CouchbaseError
+    end
   end
 end

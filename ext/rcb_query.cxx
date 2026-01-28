@@ -536,8 +536,8 @@ cb_Backend_query_index_build_deferred(VALUE self,
         cb_throw_error(
           resp.ctx,
           fmt::format(R"(unable to build deferred indexes on the bucket "{}" ({}: {}))",
+                      req.bucket_name,
                       first_error.code,
-
                       first_error.message));
       } else {
         cb_throw_error(

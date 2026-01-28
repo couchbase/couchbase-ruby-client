@@ -177,6 +177,9 @@ module Couchbase
     ATTR_PEER_PORT = "network.peer.port"
     ATTR_SERVER_DURATION = "couchbase.server_duration"
 
+    # Reserved attributes
+    ATTR_RESERVED_UNIT = "__unit"
+
     ATTR_VALUE_SYSTEM_NAME = "couchbase"
 
     ATTR_VALUE_DURABILITY_MAJORITY = "majority"
@@ -189,6 +192,8 @@ module Couchbase
     ATTR_VALUE_SERVICE_VIEWS = "views"
     ATTR_VALUE_SERVICE_ANALYTICS = "analytics"
     ATTR_VALUE_SERVICE_MANAGEMENT = "management"
+
+    ATTR_VALUE_RESERVED_UNIT_SECONDS = "s"
 
     METER_NAME_OPERATION_DURATION = "db.client.operation.duration"
   end
