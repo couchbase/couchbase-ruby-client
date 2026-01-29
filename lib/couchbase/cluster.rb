@@ -96,6 +96,9 @@ module Couchbase
       Bucket.new(@backend, name, @observability)
     end
 
+    # Updates the authenticator used for this cluster connection
+    #
+    # @param [PasswordAuthenticator, CertificateAuthenticator, JWTAuthenticator] authenticator the new authenticator
     def update_authenticator(authenticator)
       credentials = {}
 
@@ -113,6 +116,10 @@ module Couchbase
 
         credentials[:key_path] = authenticator.key_path
         raise ArgumentError, "missing key path" unless credentials[:key_path]
+
+      when JWTAuthenticator
+        credentials[:jwt] = authenticator.token
+        raise ArgumentError, "missing token" unless credentials[:jwt]
 
       else
         raise ArgumentError, "argument must be an authenticator"
@@ -396,7 +403,9 @@ module Couchbase
 
             credentials[:key_path] = authenticator.key_path
             raise ArgumentError, "missing key path" unless credentials[:key_path]
-
+          when JWTAuthenticator
+            credentials[:jwt] = authenticator.token
+            raise ArgumentError, "missing token" unless credentials[:jwt]
           else
             raise ArgumentError, "options must have authenticator configured"
           end

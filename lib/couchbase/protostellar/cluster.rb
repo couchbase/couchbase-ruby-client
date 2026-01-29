@@ -79,6 +79,9 @@ module Couchbase
             when Couchbase::CertificateAuthenticator
               raise Couchbase::Error::FeatureNotAvailable,
                     "The #{Couchbase::Protostellar::NAME} protocol does not support the CertificateAuthenticator"
+            when Couchbase::JWTAuthenticator
+              raise Couchbase::Error::FeatureNotAvailable,
+                    "The #{Couchbase::Protostellar::NAME} protocol does not support the JWTAuthenticator"
             else
               raise ArgumentError, "options must have authenticator configured"
             end
