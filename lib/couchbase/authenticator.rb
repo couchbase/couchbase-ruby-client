@@ -63,4 +63,18 @@ module Couchbase
       @key_path = key_path
     end
   end
+
+  # Authenticator using a JSON Web Token (JWT)
+  #
+  # @!macro uncommitted
+  class JWTAuthenticator
+    attr_accessor :token
+
+    # Creates a new authenticator with a JSON Web Token (JWT)
+    #
+    # @param [String] token the JWT
+    def initialize(token)
+      @token = token
+    end
+  end
 end

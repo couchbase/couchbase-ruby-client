@@ -1672,7 +1672,7 @@ module Couchbase
     # @see .Cluster
     #
     class Cluster
-      attr_accessor :authenticator # @return [PasswordAuthenticator, CertificateAuthenticator]
+      attr_accessor :authenticator # @return [PasswordAuthenticator, CertificateAuthenticator, JWTAuthenticator]
 
       attr_accessor :preferred_server_group # @return [String]
 

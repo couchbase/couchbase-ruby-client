@@ -179,18 +179,21 @@ cb_Backend_allocate(VALUE klass)
 }
 
 auto
-construct_authenticator(VALUE credentials)
-  -> std::variant<couchbase::password_authenticator, couchbase::certificate_authenticator>
+construct_authenticator(VALUE credentials) -> std::variant<couchbase::password_authenticator,
+                                                           couchbase::certificate_authenticator,
+                                                           couchbase::jwt_authenticator>
 {
   cb_check_type(credentials, T_HASH);
 
   static const auto sym_certificate_path{ rb_id2sym(rb_intern("certificate_path")) };
   static const auto sym_key_path{ rb_id2sym(rb_intern("key_path")) };
+  static const auto sym_jwt{ rb_id2sym(rb_intern("jwt")) };
 
   const VALUE certificate_path = rb_hash_aref(credentials, sym_certificate_path);
   const VALUE key_path = rb_hash_aref(credentials, sym_key_path);
+  const VALUE jwt = rb_hash_aref(credentials, sym_jwt);
 
-  if (NIL_P(certificate_path) || NIL_P(key_path)) {
+  if (NIL_P(certificate_path) && NIL_P(key_path) && NIL_P(jwt)) {
     static const auto sym_username = rb_id2sym(rb_intern("username"));
     static const auto sym_password = rb_id2sym(rb_intern("password"));
 
@@ -206,24 +209,42 @@ construct_authenticator(VALUE credentials)
     };
   }
 
-  cb_check_type(certificate_path, T_STRING);
-  cb_check_type(key_path, T_STRING);
+  if (NIL_P(jwt)) {
+    cb_check_type(certificate_path, T_STRING);
+    cb_check_type(key_path, T_STRING);
 
-  return couchbase::certificate_authenticator{
-    cb_string_new(certificate_path),
-    cb_string_new(key_path),
+    return couchbase::certificate_authenticator{
+      cb_string_new(certificate_path),
+      cb_string_new(key_path),
+    };
+  }
+
+  cb_check_type(jwt, T_STRING);
+  return couchbase::jwt_authenticator{
+    cb_string_new(jwt),
   };
 }
 
 auto
 construct_cluster_options(VALUE credentials, bool tls_enabled) -> couchbase::cluster_options
 {
-  std::variant<couchbase::password_authenticator, couchbase::certificate_authenticator>
-    authenticator = construct_authenticator(credentials);
+  auto authenticator = construct_authenticator(credentials);
 
   if (std::holds_alternative<couchbase::password_authenticator>(authenticator)) {
     return couchbase::cluster_options{
       std::get<couchbase::password_authenticator>(std::move(authenticator)),
+    };
+  }
+
+  if (std::holds_alternative<couchbase::jwt_authenticator>(authenticator)) {
+    if (!tls_enabled) {
+      throw ruby_exception(
+        exc_invalid_argument(),
+        "JWT authenticator requires TLS connection, check the connection string");
+    }
+
+    return couchbase::cluster_options{
+      std::get<couchbase::jwt_authenticator>(std::move(authenticator)),
     };
   }
 
@@ -572,13 +593,15 @@ cb_Backend_update_credentials(VALUE self, VALUE credentials)
   auto cluster = cb_backend_to_public_api_cluster(self);
 
   try {
-    std::variant<couchbase::password_authenticator, couchbase::certificate_authenticator>
-      authenticator = construct_authenticator(credentials);
+    auto authenticator = construct_authenticator(credentials);
 
     couchbase::error err{};
     if (std::holds_alternative<couchbase::password_authenticator>(authenticator)) {
       err = cluster.set_authenticator(
         std::get<couchbase::password_authenticator>(std::move(authenticator)));
+    } else if (std::holds_alternative<couchbase::jwt_authenticator>(authenticator)) {
+      err =
+        cluster.set_authenticator(std::get<couchbase::jwt_authenticator>(std::move(authenticator)));
     } else {
       err = cluster.set_authenticator(
         std::get<couchbase::certificate_authenticator>(std::move(authenticator)));
