@@ -19,13 +19,11 @@ require_relative 'request_span'
 module Couchbase
   module Tracing
     class NoopSpan < RequestSpan
-      def set_attribute(*)
-        nil
-      end
+      def set_attribute(*); end
 
-      def finish(*)
-        nil
-      end
+      def status=(*); end
+
+      def finish(*); end
     end
   end
 end

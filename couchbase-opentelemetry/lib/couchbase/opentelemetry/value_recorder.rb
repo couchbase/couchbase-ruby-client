@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-#  Copyright 2020-2021 Couchbase, Inc.
+#  Copyright 2026-Present Couchbase, Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,19 +14,29 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require "couchbase/version"
-require "couchbase/libcouchbase"
-require "couchbase/fork_hooks"
-require "couchbase/logger"
-require "couchbase/cluster"
-require "couchbase/deprecations"
+require "couchbase/metrics/value_recorder"
 
-require "couchbase/railtie" if defined?(Rails)
+module Couchbase
+  module OpenTelemetry
+    class ValueRecorder < ::Couchbase::Metrics::ValueRecorder
+      def initialize(recorder, tags, unit: nil)
+        super()
+        @wrapped = recorder
+        @tags = tags
+        @unit = unit
+      end
 
-# @!macro uncommitted
-#   @couchbase.stability
-#     **Uncommitted:** This API may change in the future.
-#
-# @!macro volatile
-#   @couchbase.stability
-#     **Volatile:** This API is subject to change at any time.
+      def record_value(value)
+        value =
+          case @unit
+          when "s"
+            value / 1_000_000.0
+          else
+            value
+          end
+
+        @wrapped.record(value, attributes: @tags)
+      end
+    end
+  end
+end
