@@ -52,3 +52,6 @@ Style/TrailingCommaInArguments:
 
 Layout/FirstHashElementIndentation:
   EnforcedStyle: consistent
+
+Style/OneClassPerFile:
+  Enabled: false
