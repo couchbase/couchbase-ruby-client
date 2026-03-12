@@ -629,8 +629,8 @@ module Couchbase
 
     def test_insert_get_projection_18_fields
       doc_id = uniq_id(:project_too_many_fields)
-      doc = (1..18).each_with_object({}) do |n, obj|
-        obj["field#{n}"] = n
+      doc = (1..18).to_h do |n|
+        ["field#{n}", n]
       end
 
       res = @collection.insert(doc_id, doc)
@@ -640,8 +640,8 @@ module Couchbase
       options = Options::Get.new
       options.project((1..17).map { |n| "field#{n}" })
       res = @collection.get(doc_id, options)
-      expected = (1..17).each_with_object({}) do |n, obj|
-        obj["field#{n}"] = n
+      expected = (1..17).to_h do |n|
+        ["field#{n}", n]
       end
 
       assert_equal(expected, res.content, "expected result do not include field18")
@@ -649,8 +649,8 @@ module Couchbase
 
     def test_upsert_get_projection_16_fields_and_expiry
       doc_id = uniq_id(:project_too_many_fields)
-      doc = (1..18).each_with_object({}) do |n, obj|
-        obj["field#{n}"] = n
+      doc = (1..18).to_h do |n|
+        ["field#{n}", n]
       end
 
       options = Options::Upsert.new
@@ -663,8 +663,8 @@ module Couchbase
       options.project((1..16).map { |n| "field#{n}" })
       options.with_expiry = true
       res = @collection.get(doc_id, options)
-      expected = (1..16).each_with_object({}) do |n, obj|
-        obj["field#{n}"] = n
+      expected = (1..16).to_h do |n|
+        ["field#{n}", n]
       end
 
       assert_equal(expected, res.content, "expected result do not include field17, field18")

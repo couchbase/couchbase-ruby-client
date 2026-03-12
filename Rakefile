@@ -58,11 +58,16 @@ task :render_git_revision do
     `git fetch --tags >/dev/null 2>&1`
     `git describe --long --always HEAD`.strip
   end
+  core_timestamp = Dir.chdir(File.join(__dir__, 'ext', 'couchbase')) do # rubocop:disable ThreadSafety/DirChdir
+    `git log --max-count=1 --no-patch --format=%cd --date=format:%Y-%m-%dT%H:%M:%S HEAD`.strip
+  end
+
   File.open(File.join(__dir__, "ext", "cache", "extconf_include.rb"), "a+") do |io|
     io.puts(<<~REVISIONS)
       cmake_flags << "-DEXT_GIT_REVISION=#{library_revision}"
       cmake_flags << "-DCOUCHBASE_CXX_CLIENT_GIT_REVISION=#{core_revision}"
       cmake_flags << "-DCOUCHBASE_CXX_CLIENT_GIT_DESCRIBE=#{core_describe}"
+      cmake_flags << "-DCOUCHBASE_CXX_CLIENT_BUILD_TIMESTAMP=#{core_timestamp}"
     REVISIONS
   end
 end
