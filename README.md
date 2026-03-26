@@ -9,7 +9,7 @@ This repository contains the third generation of the official Couchbase SDK for 
 
 ## Support and Feedback
 
-If you find an issue, please file it in [our JIRA issue tracker](https://couchbase.com/issues/browse/RCBC). Also you are
+If you find an issue, please file it in [our JIRA issue tracker](https://jira.issues.couchbase.com/browse/RCBC). Also you are
 always welcome on [our forum](https://forums.couchbase.com/c/ruby-sdk) and [Discord](https://discord.com/invite/sQ5qbPZuTh).
 
 Please attach version information to the ticket/post. To obtain this information, use the following command:
@@ -23,7 +23,7 @@ The library has been tested with MRI 3.2, 3.3, 3.4 and 4.0. Supported platforms 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "couchbase", "3.7.0"
+gem "couchbase", "3.8.0"
 ```
 
 And then execute:

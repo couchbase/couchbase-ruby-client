@@ -55,7 +55,7 @@ meter = Couchbase::OpenTelemetry::Meter.new(meter_provider)
 
 # Configure tracer and meter in cluster options
 options = Couchbase::Options::Cluster.new(
-    authenticator: Couchbase::PasswordAuthenticator.new("Administrator", "password")
+    authenticator: Couchbase::PasswordAuthenticator.new("Administrator", "password"),
     tracer: tracer,
     meter: meter
 )
