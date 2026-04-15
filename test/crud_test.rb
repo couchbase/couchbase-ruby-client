@@ -818,6 +818,28 @@ module Couchbase
       assert_equal "barfoo", res.content
     end
 
+    def test_append_with_bad_cas
+      doc_id = uniq_id(:append)
+
+      res = @collection.upsert(doc_id, "foo", Options::Upsert(transcoder: RawBinaryTranscoder.new))
+
+      refute_equal 0, res.cas
+      assert_raises(Couchbase::Error::CasMismatch) do
+        @collection.binary.append(doc_id, "bar", Options::Append(cas: res.cas + 1))
+      end
+    end
+
+    def test_prepend_with_bad_cas
+      doc_id = uniq_id(:prepend)
+
+      res = @collection.upsert(doc_id, "foo", Options::Upsert(transcoder: RawBinaryTranscoder.new))
+
+      refute_equal 0, res.cas
+      assert_raises(Couchbase::Error::CasMismatch) do
+        @collection.binary.prepend(doc_id, "bar", Options::Prepend(cas: res.cas + 1))
+      end
+    end
+
     def test_multi_ops
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
 

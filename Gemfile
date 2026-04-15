@@ -36,8 +36,8 @@ group :development do
   gem "minitest", "< 6.0"
   gem "minitest-reporters"
   gem "mutex_m"
-  gem "opentelemetry-metrics-sdk"
-  gem "opentelemetry-sdk"
+  gem "opentelemetry-metrics-sdk", "~> 0.11.2"
+  gem "opentelemetry-sdk", "~> 1.10"
   gem "rack"
   gem "reek"
   gem "rubocop", require: false
