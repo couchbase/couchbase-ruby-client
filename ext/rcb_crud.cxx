@@ -734,6 +734,7 @@ cb_Backend_document_append(VALUE self,
     cb_extract_content(req, content);
     cb_extract_timeout(req, options);
     cb_extract_durability_level(req, options);
+    cb_extract_cas(req, options);
 
     auto parent_span = cb_create_parent_span(req, self);
 
@@ -807,6 +808,7 @@ cb_Backend_document_prepend(VALUE self,
     cb_extract_content(req, content);
     cb_extract_timeout(req, options);
     cb_extract_durability_level(req, options);
+    cb_extract_cas(req, options);
 
     auto parent_span = cb_create_parent_span(req, self);
 
