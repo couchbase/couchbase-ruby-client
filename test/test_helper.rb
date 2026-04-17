@@ -209,12 +209,12 @@ module Couchbase
     end
 
     def protostellar?
-      Couchbase::Protostellar::SCHEMES.any? { |s| !@connection_string[s].nil? }
+      Couchbase::Protostellar::SCHEMES.any? { |s| !connection_string[s].nil? }
     end
 
     def consistency
       @consistency ||=
-        if ENV.fetch("TEST_CONNECTION_STRING", nil)
+        if ENV.fetch("TEST_CONNECTION_STRING", nil) && !protostellar?
           TestUtilities::ConsistencyHelper.new(management_endpoint, username, password)
         else
           TestUtilities::MockConsistencyHelper.new

@@ -155,6 +155,10 @@ module Couchbase
         raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support ping"
       end
 
+      def search_indexes
+        raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support search index management"
+      end
+
       private
 
       def initialize(host, options = ConnectOptions.new)

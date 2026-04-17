@@ -724,42 +724,12 @@ jobs:
           - 7.6.8
           - 7.2.9
     steps:
-      - name: Install cbdinocluster
-        run: |
-          mkdir -p "$HOME/bin"
-          curl -L -o "$HOME/bin/cbdinocluster" https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.98/cbdinocluster-linux-amd64
-          chmod a+x "$HOME/bin/cbdinocluster"
-          echo "$HOME/bin" >> $GITHUB_PATH
-      - name: Initialize cbdinocluster
-        run: |
-          cbdinocluster -v init --auto
-      - name: Start couchbase cluster
-        env:
-          CLUSTERCONFIG: |
-            nodes:
-              - count: 2
-                version: ${{ matrix.server }}
-                services:
-                  - kv
-                  - n1ql
-                  - index
-              - count: 1
-                version: ${{ matrix.server }}
-                services:
-                  - kv
-                  - fts
-                  - cbas
-            docker:
-              kv-memory: 1500
-              fts-memory: 2048
-            expiry: 1h
-        run: |
-          CLUSTER_ID=$(cbdinocluster -v allocate --def="${CLUSTERCONFIG}")
-          CONNECTION_STRING=$(cbdinocluster -v connstr "${CLUSTER_ID}")
-          cbdinocluster -v buckets add ${CLUSTER_ID} default --ram-quota-mb=100 --flush-enabled=true
-          cbdinocluster -v buckets load-sample ${CLUSTER_ID} travel-sample
-          echo "CLUSTER_ID=${CLUSTER_ID}" >> "$GITHUB_ENV"
-          echo "TEST_CONNECTION_STRING=${CONNECTION_STRING}?dump_configuration=true" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+      - name: Create Couchbase cluster
+        id: create-cluster
+        uses: ./.github/actions/create-cluster
+        with:
+          version: ${{ matrix.server }}
       - uses: actions/download-artifact@v4
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
@@ -790,6 +760,7 @@ jobs:
           bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
       - name: Test
         env:
+          TEST_CONNECTION_STRING: ${{ steps.create-cluster.outputs.connstr }}?dump_configuration=true
           TEST_SERVER_VERSION: ${{ matrix.server }}
         run: |
           bundle exec rake test
@@ -806,7 +777,88 @@ jobs:
         if: failure()
         run: |
           mkdir -p logs
-          cbdinocluster -v collect-logs $CLUSTER_ID ./logs
+          cbdinocluster -v collect-logs ${{ steps.create-cluster.outputs.id }} ./logs
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.server }}-logs
+          path: |
+            logs/*
+            test/**/*.{log,xml}
+          retention-days: 5
+
+  test_cng_linux_x86_64:
+    timeout-minutes: 60
+    needs:
+      - source
+      - repackage_linux_x86_64
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        server:
+          - 8.0.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Couchbase cluster
+        id: create-cluster
+        uses: ./.github/actions/create-cluster
+        with:
+          version: ${{ matrix.server }}
+      - name: Start CNG
+        id: start-cng
+        uses: ./.github/actions/start-cng
+        with:
+          couchbase-hostname: ${{ steps.create-cluster.outputs.ip }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: scripts-${{ needs.source.outputs.gem_version }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tests-${{ needs.source.outputs.gem_version }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.3
+      - name: Install
+        run: |
+          COUCHBASE_GEM_PATH=$(realpath couchbase-${{ needs.source.outputs.gem_version }}-*.gem)
+          COUCHBASE_OPENTELEMETRY_GEM_PATH=$(realpath couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}.gem)
+          mkdir -p local-gem-repo/gems
+          mv ${COUCHBASE_GEM_PATH} local-gem-repo/gems
+          mv ${COUCHBASE_OPENTELEMETRY_GEM_PATH} local-gem-repo/gems
+          GEM_REPO_PATH=$(realpath local-gem-repo)
+          gem generate_index --directory local-gem-repo
+          ruby -i.bak -pe "gsub(/gemspec$/, 'gem \"couchbase\", source: \"file://${GEM_REPO_PATH}\"')" Gemfile
+          ruby -i.bak -pe "gsub(/gemspec path: \"couchbase-opentelemetry\"$/, 'gem \"couchbase-opentelemetry\", source: \"file://${GEM_REPO_PATH}\"')" Gemfile
+          bundle install
+          bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
+      - name: Test
+        env:
+          TEST_CONNECTION_STRING: ${{ steps.start-cng.outputs.cng-connection-string }}?trust_certificate=${{ steps.start-cng.outputs.ca-cert-path }}
+          TEST_SERVER_VERSION: ${{ matrix.server }}
+        run: |
+          bundle exec rake test
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v4.1.0
+        if: always()
+        with:
+          check_name: 🐧cng, ee-${{ matrix.server }}
+          report_paths: test/reports/*.xml
+          require_tests: true
+          annotate_only: true
+      - name: Collect server logs
+        timeout-minutes: 15
+        if: failure()
+        run: |
+          mkdir -p logs
+          cbdinocluster -v collect-logs ${{ steps.create-cluster.outputs.id }} ./logs
       - name: Upload logs
         if: failure()
         uses: actions/upload-artifact@v4

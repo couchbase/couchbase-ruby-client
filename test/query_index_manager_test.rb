@@ -25,8 +25,13 @@ module Couchbase
     def setup
       return if use_caves?
 
-      @tracer = TestTracer.new
-      connect(Couchbase::Options::Cluster.new(tracer: @tracer))
+      if env.protostellar?
+        connect
+      else
+        @tracer = TestTracer.new
+        connect(Couchbase::Options::Cluster.new(tracer: @tracer))
+      end
+
       @bucket_name = "query-idx-#{SecureRandom.uuid[0..5]}"
       @cluster.buckets.create_bucket(
         Couchbase::Management::BucketSettings.new do |s|
@@ -37,6 +42,9 @@ module Couchbase
       env.consistency.wait_until_bucket_present(@bucket_name)
       env.consistency.wait_until_bucket_present_in_indexes(@bucket_name)
       @idx_mgr = @cluster.query_indexes
+
+      return if env.protostellar?
+
       @parent_span = @tracer.request_span("parent_span")
       @tracer.reset
     end
@@ -62,6 +70,8 @@ module Couchbase
       index_names.each do |idx_name|
         assert_includes(res.map(&:name), idx_name)
       end
+
+      return if env.protostellar? # rubocop:disable Minitest/ReturnInTestMethod
 
       get_all_indexes_spans = @tracer.spans("manager_query_get_all_indexes")
 
@@ -92,6 +102,9 @@ module Couchbase
 
     def test_query_indexes
       skip("#{name}: CAVES does not support query service yet") if use_caves?
+      if env.protostellar?
+        skip("#{name}: Failing for #{Couchbase::Protostellar::NAME} because of a CNG issue. Skipping until ING-1495 is resolved")
+      end
 
       @idx_mgr.create_primary_index(@bucket_name, Management::Options::Query::CreatePrimaryIndex.new(parent_span: @parent_span))
       @idx_mgr.create_index(@bucket_name, "test_index", ["test"], Management::Options::Query::CreateIndex.new(parent_span: @parent_span))
@@ -125,6 +138,8 @@ module Couchbase
       res4 = @idx_mgr.get_all_indexes(@bucket_name, Management::Options::Query::GetAllIndexes.new(parent_span: @parent_span))
 
       assert_equal 1, res4.size
+
+      return if env.protostellar? # rubocop:disable Minitest/ReturnInTestMethod
 
       get_all_indexes_root_spans = @tracer.spans("manager_query_get_all_indexes", parent: @parent_span)
 

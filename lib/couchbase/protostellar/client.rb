@@ -16,7 +16,6 @@
 
 require_relative "error_handling"
 
-require_relative "generated/routing/v1/routing_services_pb"
 require_relative "generated/kv/v1/kv_services_pb"
 require_relative "generated/query/v1/query_services_pb"
 require_relative "generated/search/v1/search_services_pb"
@@ -37,7 +36,6 @@ module Couchbase
         @timeouts = timeouts
 
         @stubs = {
-          routing: Generated::Routing::V1::RoutingService::Stub.new(host, credentials, channel_override: @channel),
           kv: Generated::KV::V1::KvService::Stub.new(host, credentials, channel_override: @channel),
           query: Generated::Query::V1::QueryService::Stub.new(host, credentials, channel_override: @channel),
           search: Generated::Search::V1::SearchService::Stub.new(host, credentials, channel_override: @channel),

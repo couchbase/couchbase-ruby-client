@@ -44,7 +44,7 @@ module Couchbase
       end
 
       def to_s
-        result = super
+        result = +super
         result << ", context=#{JSON.generate(@context)}" if @context
         result << ", cause=#{@cause}" if @cause
         result
