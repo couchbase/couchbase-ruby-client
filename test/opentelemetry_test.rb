@@ -86,6 +86,8 @@ module Couchbase
     end
 
     def test_opentelemetry_tracer
+      skip("#{name}: Tracing and metrics are not supported in couchbase2 mode") if env.protostellar?
+
       res = @collection.upsert(uniq_id(:otel_test), {foo: "bar"}, Options::Upsert.new(parent_span: @parent_span))
 
       assert_predicate res.cas, :positive?
@@ -159,6 +161,8 @@ module Couchbase
     end
 
     def test_opentelemetry_meter
+      skip("#{name}: Tracing and metrics are not supported in couchbase2 mode") if env.protostellar?
+
       assert_raises(Error::DocumentNotFound) do
         @collection.get(uniq_id(:does_not_exist))
       end

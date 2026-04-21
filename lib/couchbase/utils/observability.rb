@@ -16,6 +16,8 @@
 
 require "couchbase/tracing/request_span"
 require "couchbase/tracing/request_tracer"
+require "couchbase/tracing/noop_tracer"
+require "couchbase/metrics/noop_meter"
 
 require_relative "observability_constants"
 
@@ -30,7 +32,7 @@ module Couchbase
       attr_accessor :tracer
       attr_accessor :meter
 
-      def initialize(backend:, tracer: nil, meter: nil)
+      def initialize(backend: nil, tracer: nil, meter: nil)
         @backend = backend
         @tracer = tracer
         @meter = meter
@@ -67,10 +69,14 @@ module Couchbase
       def initialize(backend, op_name, parent_span, receiver, tracer, meter)
         @tracer = tracer
         @meter = meter
+        @tracer = Tracing::NoopTracer.new if @tracer.nil?
+        @meter = Metrics::NoopMeter.new if @meter.nil?
 
-        cluster_labels = backend.cluster_labels
-        @cluster_name = cluster_labels[:cluster_name]
-        @cluster_uuid = cluster_labels[:cluster_uuid]
+        unless backend.nil?
+          cluster_labels = backend.cluster_labels
+          @cluster_name = cluster_labels[:cluster_name]
+          @cluster_uuid = cluster_labels[:cluster_uuid]
+        end
 
         @op_span = create_span(op_name, parent_span)
         @meter_attributes = create_meter_attributes

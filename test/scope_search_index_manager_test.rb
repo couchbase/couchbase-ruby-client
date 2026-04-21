@@ -21,6 +21,8 @@ module Couchbase
     include TestUtilities
 
     def setup
+      return if use_caves? || env.protostellar?
+
       @index_names = []
 
       connect
@@ -30,6 +32,8 @@ module Couchbase
     end
 
     def teardown
+      return if use_caves? || env.protostellar?
+
       @index_names.each do |name|
         @mgr.drop_index(name)
       rescue StandardError
@@ -46,6 +50,7 @@ module Couchbase
 
     def test_index_not_found
       skip("#{name}: CAVES does not support query service yet") if use_caves?
+      skip("#{name}: There is no support for scope search indexes in couchbase2") if env.protostellar?
       unless env.server_version.supports_scoped_search_indexes?
         skip("skipped for (#{env.server_version}) as the ScopeSearchIndexManagerTest requires scoped search index support")
       end
@@ -68,6 +73,7 @@ module Couchbase
 
     def test_index_crud
       skip("#{name}: CAVES does not support query service yet") if use_caves?
+      skip("#{name}: There is no support for scope search indexes in couchbase2") if env.protostellar?
       unless env.server_version.supports_scoped_search_indexes?
         skip("skipped for (#{env.server_version}) as the ScopeSearchIndexManagerTest requires scoped search index support")
       end

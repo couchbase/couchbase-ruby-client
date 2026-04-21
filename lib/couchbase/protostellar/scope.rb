@@ -52,6 +52,10 @@ module Couchbase
       def search(...)
         raise Error::FeatureNotAvailable, "scope search not supported in #{Protostellar::NAME} mode"
       end
+
+      def search_indexes(...)
+        raise Error::FeatureNotAvailable, "scope search indexes not supported in #{Protostellar::NAME} mode"
+      end
     end
   end
 end

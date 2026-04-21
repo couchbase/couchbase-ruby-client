@@ -24,6 +24,8 @@ module Couchbase
     EXISTING_DOC_ID = "metrics-test-doc"
 
     def setup
+      skip("#{name}: Metrics are not supported in couchbase2 mode") if env.protostellar?
+
       @meter = TestMeter.new
       connect(Options::Cluster.new(meter: @meter))
       @bucket = @cluster.bucket(env.bucket)

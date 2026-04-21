@@ -21,7 +21,7 @@ module Couchbase
     include TestUtilities
 
     def setup
-      return if use_caves?
+      return if use_caves? || env.protostellar?
 
       connect
       @bucket = @cluster.bucket(env.bucket)
@@ -71,7 +71,7 @@ module Couchbase
     end
 
     def teardown
-      return if use_caves?
+      return if use_caves? || env.protostellar?
 
       @cluster.search_indexes.drop_index(@index_name)
       disconnect
