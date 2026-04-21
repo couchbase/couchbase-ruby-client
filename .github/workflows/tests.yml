@@ -811,6 +811,7 @@ jobs:
         uses: ./.github/actions/start-cng
         with:
           couchbase-hostname: ${{ steps.create-cluster.outputs.ip }}
+          cng-ref: 3949daef30ebe55d75690cd7e487bfae7da82c9f
       - uses: actions/download-artifact@v4
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux

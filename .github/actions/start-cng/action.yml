@@ -5,6 +5,10 @@ inputs:
   couchbase-hostname:
     description: "Hostname of the Couchbase cluster to connect CNG to"
     required: true
+  cng-ref:
+    description: "The git ref (branch, tag, or SHA) of CNG to use"
+    required: false
+    default: master
 
 outputs:
   ca-cert-path:
@@ -27,6 +31,7 @@ runs:
       with:
         repository: couchbase/stellar-gateway
         path: stellar-gateway
+        ref: ${{ inputs.cng-ref }}
 
     - name: Generate self-signed certificate
       id: generate-cert
