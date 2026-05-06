@@ -74,6 +74,10 @@ module Couchbase
     end
 
     def test_collection_query_indexes
+      if env.protostellar?
+        skip("#{name}: Failing for #{Couchbase::Protostellar::NAME} because of a CNG issue. Skipping until ING-1495 is resolved")
+      end
+
       @idx_mgr.create_primary_index
       @idx_mgr.create_index("test_index", ["test"])
       res1 = @idx_mgr.get_all_indexes

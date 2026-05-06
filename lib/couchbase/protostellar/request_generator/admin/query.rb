@@ -41,6 +41,7 @@ module Couchbase
           def create_primary_index_request(options, bucket_name = nil)
             proto_opts = {
               deferred: options.deferred,
+              ignore_if_exists: options.ignore_if_exists,
             }
             proto_opts[:name] = options.index_name unless options.index_name.nil?
             proto_opts[:num_replicas] = options.num_replicas unless options.num_replicas.nil?
@@ -58,6 +59,7 @@ module Couchbase
           def create_index_request(index_name, fields, options, bucket_name = nil)
             proto_opts = {
               deferred: options.deferred,
+              ignore_if_exists: options.ignore_if_exists,
             }
             proto_opts[:num_replicas] = options.num_replicas unless options.num_replicas.nil?
 

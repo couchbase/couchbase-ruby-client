@@ -1,0 +1,63 @@
+name: "Start CNG (Stellar Gateway)"
+description: "Checks out and starts the Couchbase Stellar Gateway (CNG), generating a self-signed certificate for TLS."
+
+inputs:
+  couchbase-hostname:
+    description: "Hostname of the Couchbase cluster to connect CNG to"
+    required: true
+  cng-ref:
+    description: "The git ref (branch, tag, or SHA) of CNG to use"
+    required: false
+    default: master
+
+outputs:
+  ca-cert-path:
+    description: "Absolute path to the self-signed CA certificate"
+    value: ${{ steps.generate-cert.outputs.ca-cert-path }}
+  cng-connection-string:
+    description: "The connection string for CNG"
+    value: "couchbase2://localhost:18098"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: stable
+
+    - name: Checkout Stellar Gateway
+      uses: actions/checkout@v4
+      with:
+        repository: couchbase/stellar-gateway
+        path: stellar-gateway
+        ref: ${{ inputs.cng-ref }}
+
+    - name: Generate self-signed certificate
+      id: generate-cert
+      shell: bash
+      working-directory: stellar-gateway
+      run: |
+        openssl req -x509 -newkey rsa:4096 -keyout key.pem \
+          -out cert.pem -days 365 -nodes \
+          -subj "/CN=CNG Local CA" \
+          -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
+        echo "ca-cert-path=$(pwd)/cert.pem" >> "$GITHUB_OUTPUT"
+
+    - name: Build Stellar Gateway
+      shell: bash
+      working-directory: stellar-gateway
+      run: |
+        go generate ./...
+        go build -o stellar-gateway ./cmd/gateway
+
+    - name: Start Stellar Gateway
+      shell: bash
+      working-directory: stellar-gateway
+      run: |
+        ./stellar-gateway \
+          --cb-host "${{ inputs.couchbase-hostname }}" \
+          --data-port 18098 \
+          --cert cert.pem \
+          --key key.pem &

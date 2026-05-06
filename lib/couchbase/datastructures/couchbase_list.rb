@@ -38,6 +38,7 @@ module Couchbase
         @options = options
         @cas = 0
         @observability = @collection.instance_variable_get(:@observability)
+        @observability = Observability::Wrapper.new if @observability.nil?
       end
 
       # Calls the given block once for each element in the list, passing that element as a parameter.

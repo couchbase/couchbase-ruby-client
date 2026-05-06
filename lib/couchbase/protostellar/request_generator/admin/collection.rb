@@ -52,11 +52,13 @@ module Couchbase
           end
 
           def create_collection_request(scope_name, collection_name, settings, options)
-            proto_opts = {}
-            proto_opts[:max_expiry_secs] = settings.max_expiry unless settings.max_expiry.nil?
             unless settings.history.nil?
               raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support the history setting"
             end
+            raise Couchbase::Error::InvalidArgument, "max_expiry must be a non-negative integer" if settings.max_expiry&.negative?
+
+            proto_opts = {}
+            proto_opts[:max_expiry_secs] = settings.max_expiry unless settings.max_expiry.nil?
 
             proto_req = Generated::Admin::Collection::V1::CreateCollectionRequest.new(
               bucket_name: @bucket_name,

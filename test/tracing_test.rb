@@ -22,6 +22,8 @@ module Couchbase
     include TestUtilities
 
     def setup
+      skip("#{name}: Tracing is not supported in couchbase2 mode") if env.protostellar?
+
       @tracer = TestTracer.new
       connect(Options::Cluster.new(tracer: @tracer))
       @bucket = @cluster.bucket(env.bucket)
@@ -74,7 +76,7 @@ module Couchbase
     def test_replace_durable
       doc_id = uniq_id(:foo)
       assert_raises(Couchbase::Error::DocumentNotFound) do
-        @collection.replace(doc_id, {foo: "bar"}, Options::Upsert.new(
+        @collection.replace(doc_id, {foo: "bar"}, Options::Replace.new(
                                                     parent_span: @parent_span,
                                                     durability_level: :persist_to_majority,
                                                   ))

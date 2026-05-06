@@ -78,12 +78,20 @@ module Couchbase
       end
     end
 
-    def test_reads_from_replica_does_not_exist
+    def test_get_any_replica_does_not_exist
+      skip("Failing for #{Couchbase::Protostellar::NAME} because of a CNG issue. Skipping until ING-1496 is resolved") if env.protostellar?
+
       doc_id = uniq_id(:foo)
 
       assert_raises(Couchbase::Error::DocumentIrretrievable) do
         @collection.get_any_replica(doc_id)
       end
+    end
+
+    def test_get_all_replicas_does_not_exist
+      skip("Failing for #{Couchbase::Protostellar::NAME} because of a CNG issue. Skipping until ING-1496 is resolved") if env.protostellar?
+
+      doc_id = uniq_id(:foo)
 
       if env.protostellar?
         assert_empty @collection.get_all_replicas(doc_id)

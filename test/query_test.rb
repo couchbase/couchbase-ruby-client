@@ -24,8 +24,12 @@ module Couchbase
       if env.server_version.is_rcbc_408_applicable?
         skip("skipped for (#{env.server_version}) because of query_context known issue, see RCBC-408")
       end
+      if env.protostellar?
+        skip("#{name}: Primary index creation failing in couchbase2 because of a CNG issue. Skipping until ING-1495 is resolved")
+      end
       connect
       skip("#{name}: CAVES does not support query service yet") if use_caves?
+
       @bucket = @cluster.bucket(env.bucket)
       @collection = @bucket.default_collection
       options = Management::QueryIndexManager::CreatePrimaryIndexOptions.new
