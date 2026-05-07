@@ -129,6 +129,18 @@ module Couchbase
         end
       end
 
+      def wait_until_collection_satisfies_predicate(bucket_name, scope_name, collection_name, timeout: DEFAULT_TIMEOUT_SECS, &blk)
+        wait_until(timeout,
+                   "Collection `#{collection_name}` in scope `#{scope_name}` & bucket `#{bucket_name}` does not " \
+                   "satisfy the predicate at #{blk.source_location.join(':')} in all nodes") do
+          resource_satisfies_predicate("pools/default/buckets/#{bucket_name}/scopes") do |resp|
+            resp["scopes"].any? do |scope|
+              scope["name"] == scope_name && scope["collections"].any? { |c| c["name"] == collection_name && yield(c) }
+            end
+          end
+        end
+      end
+
       def wait_until_bucket_present_in_indexes(name, timeout: DEFAULT_TIMEOUT_SECS)
         wait_until(timeout, "Bucket `#{name}` is not present in the query service in all nodes") do
           @query_hosts.all? do |host|

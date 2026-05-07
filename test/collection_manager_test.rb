@@ -297,6 +297,9 @@ module Couchbase
 
       settings = Management::UpdateCollectionSettings.new(history: true)
       @magma_collection_manager.update_collection(scope_name, collection_name, settings)
+      env.consistency.wait_until_collection_satisfies_predicate(TEST_MAGMA_BUCKET_NAME, scope_name, collection_name) do |c|
+        c["history"] == true
+      end
 
       coll = get_collection(scope_name, collection_name, @magma_collection_manager)
 
@@ -479,6 +482,9 @@ module Couchbase
 
       settings = Management::UpdateCollectionSettings.new(max_expiry: 1)
       @collection_manager.update_collection(scope_name, collection_name, settings)
+      env.consistency.wait_until_collection_satisfies_predicate(env.bucket, scope_name, collection_name) do |c|
+        c["maxTTL"] == 1
+      end
 
       coll_spec = get_collection(scope_name, collection_name)
 
@@ -529,6 +535,9 @@ module Couchbase
       settings = Management::UpdateCollectionSettings.new(max_expiry: -1)
 
       @collection_manager.update_collection(scope_name, collection_name, settings)
+      env.consistency.wait_until_collection_satisfies_predicate(env.bucket, scope_name, collection_name) do |c|
+        c["maxTTL"] == -1
+      end
 
       coll_spec = get_collection(scope_name, collection_name)
 
