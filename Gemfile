@@ -33,7 +33,8 @@ group :development do
   gem "heckle"
   gem "irb"
   # TODO(SA): review https://minite.st/docs/History_rdoc.html#label-6.0.0+-2F+2025-12-17
-  gem "minitest", "< 6.0"
+  gem "minitest", "~> 6.0"
+  gem "minitest-mock"
   gem "minitest-reporters"
   gem "mutex_m"
   gem "opentelemetry-metrics-sdk", "~> 0.11.2"

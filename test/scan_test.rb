@@ -252,8 +252,6 @@ module Couchbase
     end
 
     def test_range_scan_concurrency
-      skip("Skipped until CXXCBC-345 is resolved")
-
       CONCURRENCY_VALUES.each do |c|
         expected_ids = (0..9).map { |i| "#{@shared_prefix}-1#{i}" } + (0..9).map { |i| "#{@shared_prefix}-2#{i}" }
         scan_result = @collection.scan(
@@ -268,8 +266,6 @@ module Couchbase
     end
 
     def test_prefix_scan_concurrency
-      skip("Skipped until CXXCBC-345 is resolved")
-
       CONCURRENCY_VALUES.each do |c|
         expected_ids = (0..9).map { |i| "#{@shared_prefix}-1#{i}" }
         scan_result = @collection.scan(PrefixScan.new("#{@shared_prefix}-1"),
@@ -279,8 +275,6 @@ module Couchbase
     end
 
     def test_sampling_scan_concurrency
-      skip("Skipped until CXXCBC-345 is resolved")
-
       CONCURRENCY_VALUES.each do |c|
         limit = 20
         scan_result = @collection.scan(SamplingScan.new(limit), Options::Scan.new(concurrency: c, mutation_state: @mutation_state))
