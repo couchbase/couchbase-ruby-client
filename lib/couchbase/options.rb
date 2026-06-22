@@ -107,7 +107,7 @@ module Couchbase
       # @api private
       # @return [Boolean]
       def need_projected_get?
-        @with_expiry || !@projections&.empty?
+        @with_expiry || (!@projections.nil? && !@projections.empty?)
       end
 
       # @api private
@@ -116,7 +116,7 @@ module Couchbase
           timeout: Utils::Time.extract_duration(@timeout),
         }
         options.update(with_expiry: true) if @with_expiry
-        unless @projections&.empty?
+        unless @projections.nil? || @projections.empty?
           options.update({
             projections: @projections,
             preserve_array_indexes: @preserve_array_indexes,
