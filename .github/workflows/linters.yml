@@ -22,7 +22,7 @@ jobs:
   rubocop:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
       - name: Set up ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -37,7 +37,7 @@ jobs:
   clang_format:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 2
@@ -58,7 +58,7 @@ jobs:
   clang_static_analyzer:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Set up ruby
@@ -85,7 +85,7 @@ jobs:
           CB_SCAN_BUILD: /usr/bin/scan-build-${{ env.LLVM_VERSION }}
       - name: Upload scan-build report
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: report
           path: ext/cmake-build-report.tar.gz

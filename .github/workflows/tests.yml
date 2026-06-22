@@ -22,7 +22,7 @@ jobs:
       gem_version: ${{ steps.build_gem.outputs.gem_version }}
       otel_gem_version: ${{ steps.build_otel_gem.outputs.otel_gem_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 0
@@ -74,19 +74,19 @@ jobs:
           ruby patch-readme.rb
           bundle exec rake doc
       - name: Upload artifact - couchbase gem
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: couchbase-${{ steps.build_gem.outputs.gem_version }}
           path: |
             pkg/*.gem
       - name: Upload artifact - couchbase-opentelemetry gem
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: couchbase-opentelemetry-${{ steps.build_otel_gem.outputs.otel_gem_version }}
           path: |
             couchbase-opentelemetry/pkg/*.gem      
       - name: Upload artifact - scripts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           retention-days: 1
           name: scripts-${{ steps.build_gem.outputs.gem_version }}
@@ -101,7 +101,7 @@ jobs:
             couchbase-opentelemetry/couchbase-opentelemetry*.gemspec
             couchbase-opentelemetry/lib/couchbase/opentelemetry/version.rb
       - name: Upload artifact - tests and test data
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           retention-days: 1
           name: tests-${{ steps.build_gem.outputs.gem_version }}
@@ -109,13 +109,13 @@ jobs:
             test/**/*
             test_data/**/*
       - name: Upload artifact - couchbase gem docs      
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docs-${{ steps.build_gem.outputs.gem_version }}
           path: |
             doc/**/*
       - name: Upload artifact - couchbase-opentelemetry gem docs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: otel-docs-${{ steps.build_otel_gem.outputs.otel_gem_version }}
           path: |
@@ -160,7 +160,7 @@ jobs:
         with:
           max-size: 2G
           key: ${{ github.job }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - name: Install build environment
@@ -168,11 +168,11 @@ jobs:
           SUPPORTED_RUBY_VERSIONS: "3.2 3.3 3.4 4.0"
         run: |
           bash bin/jenkins/install-rubies.sh
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg
           name: couchbase-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
@@ -182,7 +182,7 @@ jobs:
           BUNDLE_ALLOW_ROOT: true
         run: |
           bash bin/jenkins/build-gem.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-musl
           path: |
@@ -207,7 +207,7 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}
       - name: Precompile
@@ -218,7 +218,7 @@ jobs:
         run: |
           gem install gem-compiler
           gem compile --strip --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           retention-days: 1
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-${{ matrix.ruby }}
@@ -231,22 +231,22 @@ jobs:
       - build_linux_x86_64
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.2
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.3
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.3
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.4
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-3.4
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/4.0
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-4.0
@@ -256,7 +256,7 @@ jobs:
       - name: Repackage
         run: |
           ruby bin/jenkins/repackage-extension.rb
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
           path: |
@@ -281,7 +281,7 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}
       - name: Precompile
@@ -292,7 +292,7 @@ jobs:
         run: |
           gem install gem-compiler
           gem compile --strip --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           retention-days: 1
           name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-${{ matrix.ruby }}
@@ -305,22 +305,22 @@ jobs:
       - build_linux_aarch64
     runs-on: ubuntu-22.04-arm
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.2
           name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-3.2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.3
           name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-3.3
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.4
           name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-3.4
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/4.0
           name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-4.0
@@ -330,7 +330,7 @@ jobs:
       - name: Repackage
         run: |
           ruby bin/jenkins/repackage-extension.rb
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux
           path: |
@@ -355,7 +355,7 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}
       - name: Precompile
@@ -366,7 +366,7 @@ jobs:
         run: |
           gem install gem-compiler
           gem compile --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           retention-days: 1
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-${{ matrix.ruby }}
@@ -379,22 +379,22 @@ jobs:
       - build_macos_arm64
     runs-on: macos-14
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.2
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.3
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.3
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.4
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-3.4
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/4.0
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-4.0
@@ -404,7 +404,7 @@ jobs:
       - name: Repackage
         run: |
           ruby bin/jenkins/repackage-extension.rb
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin
           path: |
@@ -429,7 +429,7 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}
       - name: Precompile
@@ -440,7 +440,7 @@ jobs:
         run: |
           gem install gem-compiler
           gem compile --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           retention-days: 1
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-${{ matrix.ruby }}
@@ -453,22 +453,22 @@ jobs:
       - build_macos_x86_64
     runs-on: macos-15-intel
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.2
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.3
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.3
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.4
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-3.4
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/4.0
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-4.0
@@ -478,7 +478,7 @@ jobs:
       - name: Repackage
         run: |
           ruby bin/jenkins/repackage-extension.rb
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin
           path: |
@@ -499,16 +499,16 @@ jobs:
           - '3.4'
           - '4.0'
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: tests-${{ needs.source.outputs.gem_version }}
       - uses: ruby/setup-ruby@v1
@@ -536,7 +536,7 @@ jobs:
           bundle exec rake test
       - name: Upload logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
           path: |
@@ -545,7 +545,7 @@ jobs:
             test/**/*.{log,xml}
           retention-days: 5
       - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v4.1.0
+        uses: mikepenz/action-junit-report@v6.4.2
         if: always()
         with:
           check_name: 🐧caves, ruby-${{ matrix.ruby }}
@@ -568,16 +568,16 @@ jobs:
           - '3.4'
           - '4.0'
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: tests-${{ needs.source.outputs.gem_version }}
       - uses: ruby/setup-ruby@v1
@@ -606,7 +606,7 @@ jobs:
           bundle exec rake test
       - name: Upload logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
           path: |
@@ -616,7 +616,7 @@ jobs:
           retention-days: 5
       - name: Upload crash logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-crash
           path: |
@@ -624,7 +624,7 @@ jobs:
             /Library/Logs/DiagnosticReports/
           retention-days: 5
       - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v4.1.0
+        uses: mikepenz/action-junit-report@v6.4.2
         if: always()
         with:
           check_name: 🍎caves, ruby-${{ matrix.ruby }}
@@ -647,16 +647,16 @@ jobs:
           - '3.4'
           - '4.0'
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: tests-${{ needs.source.outputs.gem_version }}
       - uses: ruby/setup-ruby@v1
@@ -684,7 +684,7 @@ jobs:
           bundle exec rake test
       - name: Upload logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
           path: |
@@ -694,7 +694,7 @@ jobs:
           retention-days: 5
       - name: Upload crash logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-crash
           path: |
@@ -702,7 +702,7 @@ jobs:
             /Library/Logs/DiagnosticReports/
           retention-days: 5
       - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v4.1.0
+        uses: mikepenz/action-junit-report@v6.4.2
         if: always()
         with:
           check_name: 🍏caves, ruby-${{ matrix.ruby }}
@@ -724,22 +724,22 @@ jobs:
           - 7.6.8
           - 7.2.9
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Create Couchbase cluster
         id: create-cluster
         uses: ./.github/actions/create-cluster
         with:
           version: ${{ matrix.server }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: tests-${{ needs.source.outputs.gem_version }}
       - uses: ruby/setup-ruby@v1
@@ -765,7 +765,7 @@ jobs:
         run: |
           bundle exec rake test
       - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v4.1.0
+        uses: mikepenz/action-junit-report@v6.4.2
         if: always()
         with:
           check_name: 🐧server, ee-${{ matrix.server }}
@@ -780,7 +780,7 @@ jobs:
           cbdinocluster -v collect-logs ${{ steps.create-cluster.outputs.id }} ./logs
       - name: Upload logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.server }}-logs
           path: |
@@ -800,7 +800,7 @@ jobs:
         server:
           - 8.0.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Create Couchbase cluster
         id: create-cluster
         uses: ./.github/actions/create-cluster
@@ -812,16 +812,16 @@ jobs:
         with:
           couchbase-hostname: ${{ steps.create-cluster.outputs.ip }}
           cng-ref: 3949daef30ebe55d75690cd7e487bfae7da82c9f
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: tests-${{ needs.source.outputs.gem_version }}
       - uses: ruby/setup-ruby@v1
@@ -847,7 +847,7 @@ jobs:
         run: |
           bundle exec rake test
       - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v4.1.0
+        uses: mikepenz/action-junit-report@v6.4.2
         if: always()
         with:
           check_name: 🐧cng, ee-${{ matrix.server }}
@@ -862,7 +862,7 @@ jobs:
           cbdinocluster -v collect-logs ${{ steps.create-cluster.outputs.id }} ./logs
       - name: Upload logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.server }}-logs
           path: |
@@ -890,7 +890,7 @@ jobs:
       - name: Install dependencies
         run: |
           ridk exec pacman --sync --noconfirm --needed mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-go mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-toolchain
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}
       - name: Precompile
@@ -901,7 +901,7 @@ jobs:
         run: |
           gem install gem-compiler
           gem compile --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           retention-days: 1
           name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-${{ matrix.ruby }}
@@ -914,22 +914,22 @@ jobs:
       - windows_x64
     runs-on: windows-2022
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.2
           name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-3.2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.3
           name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-3.3
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.4
           name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-3.4
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/4.0
           name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-4.0
@@ -939,7 +939,7 @@ jobs:
       - name: Repackage
         run: |
           ruby bin/jenkins/repackage-extension.rb
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw
           path: |
@@ -969,13 +969,13 @@ jobs:
   #         - '3.4'
   #         - '4.0'
   #   steps:
-  #     - uses: actions/download-artifact@v4
+  #     - uses: actions/download-artifact@v8
   #       with:
   #         name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw
-  #     - uses: actions/download-artifact@v4
+  #     - uses: actions/download-artifact@v8
   #       with:
   #         name: scripts-${{ needs.source.outputs.gem_version }}
-  #     - uses: actions/download-artifact@v4
+  #     - uses: actions/download-artifact@v8
   #       with:
   #         name: tests-${{ needs.source.outputs.gem_version }}
   #     - uses: ruby/setup-ruby@v1
