@@ -31,6 +31,7 @@ module Couchbase
     include TestUtilities
 
     def lookup_store(options = {})
+      ActiveSupport::Cache::Store.logger = Logger.new($stderr)
       ActiveSupport::Cache.lookup_store(:couchbase_store, {
         connection_string: env.connection_string,
         username: env.username,

@@ -17,12 +17,14 @@
 require_relative "../test_helper"
 
 require "active_support"
+require "logger"
 
 module Couchbase
   class CacheStoreTest < Minitest::Test
     include TestUtilities
 
     def setup
+      ActiveSupport::Cache::Store.logger = Logger.new($stderr)
       @cache = ActiveSupport::Cache.lookup_store(:couchbase_store, {
         connection_string: env.connection_string,
         username: env.username,

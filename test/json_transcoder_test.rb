@@ -58,6 +58,14 @@ module Couchbase
       assert_raises(Couchbase::Error::EncodingFailure) { @transcoder.encode(document) }
     end
 
+    def test_encode_nil
+      document = nil
+      encoded, flag = @transcoder.encode(document)
+
+      assert_equal "null", encoded
+      assert_equal 2, flag >> 24
+    end
+
     def test_decode_hash
       blob = "{\"foo\":10,\"bar\":\"baz\"}"
       flag = Couchbase::TranscoderFlags.new(format: :json).encode
@@ -87,6 +95,14 @@ module Couchbase
       flag = Couchbase::TranscoderFlags.new(format: :binary).encode
 
       assert_raises(Couchbase::Error::DecodingFailure) { @transcoder.decode(blob, flag) }
+    end
+
+    def test_decode_nil
+      blob = "null"
+      flag = Couchbase::TranscoderFlags.new(format: :json).encode
+      decoded = @transcoder.decode(blob, flag)
+
+      assert_nil decoded
     end
   end
 end

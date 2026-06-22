@@ -35,7 +35,7 @@ module Couchbase
       format = TranscoderFlags.decode(flags).format
       raise Error::DecodingFailure, "Unable to decode #{format} with the JsonTranscoder" unless format == :json || format.nil?
 
-      JSON.parse(blob) unless blob&.empty?
+      JSON.parse(blob) unless blob && blob.empty?
     end
   end
 end
