@@ -49,4 +49,29 @@ class CouchbaseTest < Minitest::Test
       cluster.disconnect
     end
   end
+
+  # Regression test for RCBC-550
+  def test_it_can_connect_after_process_fork
+    skip("Forking not supported on Windows") if Gem.win_platform?
+    skip("Forking not supported") unless Process.respond_to?(:fork)
+    skip("Cannot use gRPC before and after fork (unless GRPC_ENABLE_FORK_SUPPORT is set)") if env.protostellar?
+
+    pid = Process.fork do
+      # Connect in the child process
+      cluster = Couchbase::Cluster.connect(env.connection_string, env.username, env.password)
+
+      refute_nil cluster
+      cluster.disconnect
+    end
+
+    _, status = Process.wait2(pid)
+
+    assert_predicate status, :success?, "Child process failed with status #{status.exitstatus}"
+
+    # Connect in the parent process post-fork
+    cluster = Couchbase::Cluster.connect(env.connection_string, env.username, env.password)
+
+    refute_nil cluster
+    cluster.disconnect
+  end
 end
