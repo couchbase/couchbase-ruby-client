@@ -184,19 +184,19 @@ cb_Backend_set_log_level(VALUE /* self */, VALUE log_level)
 {
   Check_Type(log_level, T_SYMBOL);
   if (ID type = rb_sym2id(log_level); type == rb_intern("trace")) {
-    spdlog::set_level(spdlog::level::trace);
+    core::logger::set_log_levels(core::logger::level::trace);
   } else if (type == rb_intern("debug")) {
-    spdlog::set_level(spdlog::level::debug);
+    core::logger::set_log_levels(core::logger::level::debug);
   } else if (type == rb_intern("info")) {
-    spdlog::set_level(spdlog::level::info);
+    core::logger::set_log_levels(core::logger::level::info);
   } else if (type == rb_intern("warn")) {
-    spdlog::set_level(spdlog::level::warn);
+    core::logger::set_log_levels(core::logger::level::warn);
   } else if (type == rb_intern("error")) {
-    spdlog::set_level(spdlog::level::err);
+    core::logger::set_log_levels(core::logger::level::err);
   } else if (type == rb_intern("critical")) {
-    spdlog::set_level(spdlog::level::critical);
+    core::logger::set_log_levels(core::logger::level::critical);
   } else if (type == rb_intern("off")) {
-    spdlog::set_level(spdlog::level::off);
+    core::logger::set_log_levels(core::logger::level::off);
   } else {
     rb_raise(rb_eArgError, "Unsupported log level type: %+" PRIsVALUE, log_level);
     return Qnil;
@@ -207,23 +207,21 @@ cb_Backend_set_log_level(VALUE /* self */, VALUE log_level)
 static VALUE
 cb_Backend_get_log_level(VALUE /* self */)
 {
-  switch (spdlog::get_level()) {
-    case spdlog::level::trace:
+  switch (core::logger::get_lowest_log_level()) {
+    case core::logger::level::trace:
       return rb_id2sym(rb_intern("trace"));
-    case spdlog::level::debug:
+    case core::logger::level::debug:
       return rb_id2sym(rb_intern("debug"));
-    case spdlog::level::info:
+    case core::logger::level::info:
       return rb_id2sym(rb_intern("info"));
-    case spdlog::level::warn:
+    case core::logger::level::warn:
       return rb_id2sym(rb_intern("warn"));
-    case spdlog::level::err:
+    case core::logger::level::err:
       return rb_id2sym(rb_intern("error"));
-    case spdlog::level::critical:
+    case core::logger::level::critical:
       return rb_id2sym(rb_intern("critical"));
-    case spdlog::level::off:
+    case core::logger::level::off:
       return rb_id2sym(rb_intern("off"));
-    case spdlog::level::n_levels:
-      return Qnil;
   }
   return Qnil;
 }
