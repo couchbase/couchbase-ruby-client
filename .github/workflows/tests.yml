@@ -2,10 +2,14 @@ name: tests
 permissions: {}
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
       - release*
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-*'
   pull_request:
     branches:
       - main
