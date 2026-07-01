@@ -343,6 +343,7 @@ module Couchbase
       assert scope
 
       @collection_manager.create_collection(scope_name, collection_name)
+      env.consistency.wait_until_collection_present(env.bucket, scope_name, collection_name)
 
       coll = get_collection(scope_name, collection_name)
 
