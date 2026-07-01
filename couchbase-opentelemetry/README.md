@@ -7,7 +7,7 @@ The library has been tested with MRI 3.2, 3.3, 3.4 and 4.0. Supported platforms 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "couchbase-opentelemetry", "0.1.0"
+gem "couchbase-opentelemetry", "3.8.1"
 ```
 
 And then execute:
