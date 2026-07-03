@@ -14,19 +14,18 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require 'fit/performer/workloads/sdk_workload'
-require 'fit/performer/performer_error'
-
 module FIT
   module Performer
-    module Workloads
-      def self.build_workload(raw_workload, connection, run_id, stream_owner, span_owner, global_counters)
-        workload_type = raw_workload.workload
-        case workload_type
-        when :sdk
-          SdkWorkload.new(raw_workload.sdk, connection, run_id, stream_owner, span_owner, global_counters)
-        else
-          raise PerformerError, "Workload type `#{workload_type}` not supported"
+    module Bounds
+      # A simple bounds implementation that executes every command in the workload once.
+      class Simple
+        def initialize(command_count)
+          @remaining_command_count = command_count
+        end
+
+        def can_execute?
+          @remaining_command_count -= 1
+          @remaining_command_count >= 0
         end
       end
     end

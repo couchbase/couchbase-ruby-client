@@ -14,19 +14,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-require 'fit/performer/workloads/sdk_workload'
-require 'fit/performer/performer_error'
-
 module FIT
   module Performer
-    module Workloads
-      def self.build_workload(raw_workload, connection, run_id, stream_owner, span_owner, global_counters)
-        workload_type = raw_workload.workload
-        case workload_type
-        when :sdk
-          SdkWorkload.new(raw_workload.sdk, connection, run_id, stream_owner, span_owner, global_counters)
-        else
-          raise PerformerError, "Workload type `#{workload_type}` not supported"
+    module Bounds
+      # A bounds implementation that executes commands for a specified duration of time.
+      class ForTime
+        def initialize(duration_seconds)
+          @deadline = Time.now + duration_seconds
+        end
+
+        def can_execute?
+          Time.now < @deadline
         end
       end
     end
