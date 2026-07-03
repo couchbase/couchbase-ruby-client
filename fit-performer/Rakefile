@@ -1,0 +1,50 @@
+# frozen_string_literal: true
+
+#  Copyright 2026-Present Couchbase, Inc.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+require "rubocop/rake_task"
+
+require "mkmf"
+
+RuboCop::RakeTask.new
+
+desc "Re-generate gRPC server implementation"
+task :generate_grpc_server do
+  protoc_binary = find_executable("grpc_tools_ruby_protoc")
+  grpc_dir = File.expand_path("proto", __dir__)
+  proto_files = Dir["#{grpc_dir}/*.proto"]
+  output_dir = File.expand_path("lib/fit/protocol", __dir__)
+  rm_rf(output_dir)
+  mkdir(output_dir)
+  sh(protoc_binary,
+     "--proto_path=#{grpc_dir.shellescape}",
+     "--grpc_out=#{output_dir.shellescape}",
+     "--ruby_out=#{output_dir.shellescape}",
+     *proto_files)
+  Dir["#{output_dir}/*_pb.rb"].each do |file|
+    content = File.read(file)
+                  .gsub(/^require ["']([\w.]+)_pb['"]/, "require_relative '\\1_pb'")
+    File.write(file, content)
+  end
+end
+
+desc "Re-generate gRPC server implementation and reformat using Rubocop"
+task generate: %w[generate_grpc_server rubocop:autocorrect_all]
+
+desc "Fetch the latest FIT protocol"
+task :update_protocol do
+  root_dir = File.expand_path("..", __dir__)
+  sh(File.join(root_dir, "bin", "update-fit-protocol"), chdir: root_dir)
+end

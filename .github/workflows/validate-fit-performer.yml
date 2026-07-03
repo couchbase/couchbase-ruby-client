@@ -1,0 +1,27 @@
+name: validate-fit-performer
+permissions: {}
+
+on:
+  pull_request:
+    branches:
+      - main
+      - release*
+
+    paths:
+      - 'fit-performer/**'
+      - '.github/workflows/validate-fit-performer.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'push'
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          fetch-tags: true
+
+      - run: |
+          docker build -f fit-performer/Dockerfile .

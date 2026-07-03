@@ -22,6 +22,14 @@ gemspec path: "couchbase-opentelemetry"
 
 gem "rake"
 
+group :fit_performer, :development do
+  gem "grpc-tools", "~> 1.59"
+  gem 'opentelemetry-exporter-otlp', '~> 0.31.1'
+  gem "opentelemetry-exporter-otlp-metrics", '~> 0.6.1'
+  gem "opentelemetry-metrics-sdk", "~> 0.11.2"
+  gem "opentelemetry-sdk", "~> 1.10"
+end
+
 group :development do
   gem "activesupport", "~> 7.0.3"
   gem "drb"
@@ -29,7 +37,6 @@ group :development do
   gem "flay"
   gem "flog"
   gem "gem-compiler"
-  gem "grpc-tools", "~> 1.59"
   gem "heckle"
   gem "irb"
   # TODO(SA): review https://minite.st/docs/History_rdoc.html#label-6.0.0+-2F+2025-12-17
@@ -37,8 +44,6 @@ group :development do
   gem "minitest-mock"
   gem "minitest-reporters"
   gem "mutex_m"
-  gem "opentelemetry-metrics-sdk", "~> 0.11.2"
-  gem "opentelemetry-sdk", "~> 1.10"
   gem "rack"
   gem "reek"
   gem "rubocop", require: false

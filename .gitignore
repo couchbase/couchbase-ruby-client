@@ -23,3 +23,6 @@
 Gemfile.lock
 Makefile
 mkmf.log
+
+# Generated FIT performer protobuf code
+fit-performer/lib/fit/protocol/**/*
