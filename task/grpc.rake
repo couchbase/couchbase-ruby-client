@@ -15,26 +15,7 @@
 #  limitations under the License.
 
 require "tmpdir"
-
-def find_executable(cmd)
-  exts = RbConfig::CONFIG["EXECUTABLE_EXTS"].split | [RbConfig::CONFIG["EXEEXT"]]
-  ENV["PATH"].split(File::PATH_SEPARATOR).each do |path|
-    path.strip!
-    next if path.empty?
-
-    path = File.join(path, cmd)
-    exts.each do |ext|
-      executable_path = path + ext
-      if File.executable?(executable_path)
-        puts("# found #{cmd}: #{executable_path}")
-        return executable_path
-      end
-    end
-  end
-  abort "#{cmd}: command not found"
-end
-
-require "open-uri"
+require "mkmf"
 
 desc "Re-generate gRPC client implementation"
 task :generate_grpc_client do
