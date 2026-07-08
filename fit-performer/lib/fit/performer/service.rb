@@ -27,6 +27,7 @@ require 'fit/performer/multi_thread_executor'
 require 'fit/performer/request_executor'
 require 'fit/performer/streaming'
 require 'fit/performer/observability/span_owner'
+require 'fit/performer/counters'
 
 require 'fit/protocol/performer_services_pb'
 require 'fit/protocol/performer.caps_pb'
@@ -95,6 +96,7 @@ module FIT
         @connections = Connections.new
         @stream_owner = Streaming::StreamOwner.new
         @span_owner = Observability::SpanOwner.new
+        @global_counters = Counters.new
         @logger.info("Using Ruby SDK version #{SDK_VERSION}")
       end
 
@@ -144,7 +146,7 @@ module FIT
           begin
             connection = @connections[request.workloads.cluster_connection_id]
             workload_executor = MultiThreadExecutor.build_executor(
-              request, connection, run_id, @stream_owner, @span_owner
+              request, connection, run_id, @stream_owner, @span_owner, @global_counters
             )
             @logger.info("Created the workload executor")
             req_executor = RequestExecutor.build_request(workload_executor, request)
@@ -187,6 +189,16 @@ module FIT
         FIT::Protocol::Observability::SpanFinishResponse.new
       rescue PerformerError => e
         raise GRPC::FailedPrecondition, e.message
+      end
+
+      def set_counter(request, _call)
+        @global_counters.set_counter_value(request.counter_id, request.global.count)
+        FIT::Protocol::Shared::SetCounterResponse.new
+      end
+
+      def clear_all_counters(_request, _call)
+        @global_counters.clear
+        FIT::Protocol::Shared::ClearAllCountersResponse.new
       end
     end
   end

@@ -22,14 +22,14 @@ module FIT
   module Performer
     module Workloads
       class SdkWorkload < BaseWorkload
-        def initialize(raw_workload, connection, run_id, stream_owner, span_owner)
+        def initialize(raw_workload, connection, run_id, stream_owner, span_owner, global_counters)
           super
           @logger = Logger.new($stdout)
         end
 
-        def execute(results, global_counters, global_semaphore)
+        def execute(results)
           executed_cmd_count = 0
-          while within_bounds(global_counters, global_semaphore)
+          while @bounds.can_execute?
             raw_cmd = @raw_workload.command[executed_cmd_count % @command_count]
             execute_command(raw_cmd, executed_cmd_count, results)
             executed_cmd_count += 1

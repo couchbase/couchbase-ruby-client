@@ -22,21 +22,20 @@ module FIT
     class MultiThreadExecutor
       attr_reader :results
 
-      def initialize(connection, run_id, stream_owner, span_owner)
+      def initialize(connection, run_id, stream_owner, span_owner, global_counters)
         @logger = Logger.new($stdout)
         @results = Queue.new
         @connection = connection
         @run_id = run_id
         @stream_owner = stream_owner
         @span_owner = span_owner
-        @global_counters = {}
-        @global_semaphore = Mutex.new
+        @global_counters = global_counters
       end
 
       def build_workloads(request)
         @workloads = request.workloads.horizontal_scaling.map do |h|
           h.workloads.map do |w|
-            Workloads.build_workload(w, @connection, @run_id, @stream_owner, @span_owner)
+            Workloads.build_workload(w, @connection, @run_id, @stream_owner, @span_owner, @global_counters)
           end
         end
       end
@@ -44,8 +43,7 @@ module FIT
       def start_workload_thread(workloads)
         Thread.new do # rubocop:disable ThreadSafety/NewThread
           workloads.each do |w|
-            w.set_bounds(@global_counters, @global_semaphore)
-            w.execute(@results, @global_counters, @global_semaphore)
+            w.execute(@results)
           end
         end
       end
@@ -69,8 +67,8 @@ module FIT
         end
       end
 
-      def self.build_executor(request, connection, run_id, stream_owner, span_owner)
-        executor = MultiThreadExecutor.new(connection, run_id, stream_owner, span_owner)
+      def self.build_executor(request, connection, run_id, stream_owner, span_owner, global_counters)
+        executor = MultiThreadExecutor.new(connection, run_id, stream_owner, span_owner, global_counters)
         executor.build_workloads(request)
         executor
       end
