@@ -115,6 +115,11 @@ module Couchbase
           s.history_retention_duration = 600
         end,
       )
+
+      env.consistency.wait_until_bucket_satisfies_predicate(bucket_name) do |c|
+        c["historyRetentionCollectionDefault"] == false
+      end
+
       res = @bucket_manager.get_bucket(bucket_name)
 
       refute res.history_retention_collection_default
