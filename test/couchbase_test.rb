@@ -50,6 +50,8 @@ class CouchbaseTest < Minitest::Test
     end
   end
 
+  FORK_CHILD_TIMEOUT = 30
+
   # Regression test for RCBC-550
   def test_it_can_connect_after_process_fork
     skip("Forking not supported on Windows") if Gem.win_platform?
@@ -64,7 +66,7 @@ class CouchbaseTest < Minitest::Test
       cluster.disconnect
     end
 
-    _, status = Process.wait2(pid)
+    status = wait_for_child_or_kill(pid, timeout: FORK_CHILD_TIMEOUT)
 
     assert_predicate status, :success?, "Child process failed with status #{status.exitstatus}"
 
@@ -73,5 +75,27 @@ class CouchbaseTest < Minitest::Test
 
     refute_nil cluster
     cluster.disconnect
+  end
+
+  private
+
+  # Polls for +pid+ to exit, killing it and failing the test if it doesn't within
+  # +timeout+ seconds, instead of blocking forever like Process.wait2 would.
+  def wait_for_child_or_kill(pid, timeout:)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+
+    loop do
+      _, status = Process.waitpid2(pid, Process::WNOHANG)
+      return status if status
+
+      if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+        Process.kill("KILL", pid)
+        Process.waitpid2(pid)
+
+        flunk "Child process (pid #{pid}) did not exit within #{timeout}s after fork."
+      end
+
+      sleep 0.1
+    end
   end
 end
