@@ -33,6 +33,12 @@ module Couchbase
       })
     end
 
+    def teardown
+      # TODO(DC): We might need to add a way to do this on the CouchbaseStore API
+      cluster = @cache.instance_variable_get(:@cluster)
+      cluster&.disconnect
+    end
+
     def test_clear
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support consistent_with yet") if env.protostellar?
       skip("#{name}: CAVES does not support query service yet for clear in cache adapter") if use_caves?

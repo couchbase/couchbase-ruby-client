@@ -46,6 +46,21 @@ module Couchbase
 
       @cache = lookup_store(expires_in: 300.seconds)
     end
+
+    def teardown
+      disconnect_store(@cache)
+      disconnect_store(@peek) if defined?(@peek)
+    end
+
+    private
+
+    # TODO(DC): We might need to add a way to do this on the CouchbaseStore API
+    def disconnect_store(store)
+      return unless store
+
+      cluster = store.instance_variable_get(:@cluster)
+      cluster&.disconnect
+    end
   end
 
   class HealthyStoreTest < CachingTest
