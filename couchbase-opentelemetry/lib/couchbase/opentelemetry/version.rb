@@ -17,6 +17,6 @@
 module Couchbase
   module OpenTelemetry
     # Version of the Couchbase OpenTelemetry integration gem
-    VERSION = "3.8.1"
+    VERSION = "3.8.2"
   end
 end
