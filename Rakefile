@@ -258,8 +258,8 @@ task :cache_cxx_dependencies do
       cmake_flags << "-DCPM_DOWNLOAD_ALL=OFF"
       cmake_flags << "-DCPM_USE_NAMED_CACHE_DIRECTORIES=ON"
       cmake_flags << "-DCPM_USE_LOCAL_PACKAGES=OFF"
-      cmake_flags << "-DCPM_SOURCE_CACHE=\#{File.expand_path('cache', __dir__)}"
-      cmake_flags << "-DCOUCHBASE_CXX_CLIENT_EMBED_MOZILLA_CA_BUNDLE_ROOT=\#{File.expand_path('cache', __dir__)}"
+      cmake_flags << "-DCPM_SOURCE_CACHE=\#{__dir__}"
+      cmake_flags << "-DCOUCHBASE_CXX_CLIENT_EMBED_MOZILLA_CA_BUNDLE_ROOT=\#{__dir__}"
     CACHE_FLAGS
   end
 end

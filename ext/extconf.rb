@@ -108,7 +108,9 @@ end
 extconf_include = File.expand_path("cache/extconf_include.rb", __dir__)
 if File.exist?(extconf_include)
   puts "-- include extra cmake options from #{extconf_include}"
-  eval(File.read(extconf_include)) # rubocop:disable Security/Eval
+  # Evaluated with the file name so that __dir__ inside the snippet resolves to the
+  # cache directory on the installing machine rather than nil.
+  eval(File.read(extconf_include), binding, extconf_include) # rubocop:disable Security/Eval
 end
 
 if ENV["CB_STATIC"] || ENV["CB_STATIC_BORINGSSL"]
