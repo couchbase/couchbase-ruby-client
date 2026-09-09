@@ -39,6 +39,7 @@ group :development do
   gem "gem-compiler"
   gem "heckle"
   gem "irb"
+  gem "json", "< 3.0"
   # TODO(SA): review https://minite.st/docs/History_rdoc.html#label-6.0.0+-2F+2025-12-17
   gem "minitest", "~> 6.0"
   gem "minitest-mock"
