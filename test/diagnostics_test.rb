@@ -52,8 +52,22 @@ module Couchbase
     def test_bucket_ping
       res = @bucket.ping
 
-      assert_equal 1, res.services.size
-      assert_equal :kv, res.services.keys[0]
+      assert_includes res.services.keys, :kv
+      # Catches a ping collector that completes before the whole fan-out has been
+      # dispatched (CXXCBC-1022). Comparing against a cluster ping keeps this
+      # independent of the topology under test.
+      assert_equal @cluster.ping.services.keys.sort, res.services.keys.sort
+    end
+
+    def test_bucket_ping_single_service
+      service_types = @cluster.ping.services.keys
+
+      assert_includes service_types, :kv
+      service_types.each do |service_type|
+        res = @bucket.ping(Options::Ping.new(service_types: [service_type]))
+
+        assert_equal [service_type], res.services.keys
+      end
     end
   end
 end
