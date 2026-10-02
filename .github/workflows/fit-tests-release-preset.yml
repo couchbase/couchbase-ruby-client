@@ -1,0 +1,18 @@
+name: Run FIT Testing (Release preset)
+
+on:
+  schedule:
+    - cron: '0 8 * * SUN'
+
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  checks: write
+
+jobs:
+  fit:
+    uses: ./.github/workflows/fit-tests.yml
+    with:
+      preset: ${{ vars.FIT_CLI_RELEASE_PRESET || 'op-multi-release' }}
