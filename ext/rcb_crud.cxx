@@ -127,10 +127,8 @@ cb_Backend_document_get(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -183,10 +181,8 @@ cb_Backend_document_get_any_replica(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("replica")), resp.replica ? Qtrue : Qfalse);
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -244,10 +240,8 @@ cb_Backend_document_get_all_replicas(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -319,10 +313,8 @@ cb_Backend_document_get_projected(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -379,10 +371,8 @@ cb_Backend_document_get_and_lock(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -439,10 +429,8 @@ cb_Backend_document_get_and_touch(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -497,10 +485,8 @@ cb_Backend_document_touch(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -558,10 +544,8 @@ cb_Backend_document_exists(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("datatype")), UINT2NUM(resp.datatype));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -615,10 +599,8 @@ cb_Backend_document_unlock(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -693,10 +675,8 @@ cb_Backend_document_upsert(VALUE self,
     return cb_create_mutation_result(resp);
 
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -767,10 +747,8 @@ cb_Backend_document_append(VALUE self,
     return cb_create_mutation_result(resp);
 
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -840,10 +818,8 @@ cb_Backend_document_prepend(VALUE self,
 
     return cb_create_mutation_result(resp);
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -918,10 +894,8 @@ cb_Backend_document_replace(VALUE self,
     return cb_create_mutation_result(resp);
 
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -993,10 +967,8 @@ cb_Backend_document_insert(VALUE self,
     return cb_create_mutation_result(resp);
 
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1062,10 +1034,8 @@ cb_Backend_document_remove(VALUE self,
     }
     return cb_create_mutation_result(resp);
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1138,10 +1108,8 @@ cb_Backend_document_increment(VALUE self,
     return res;
 
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1214,10 +1182,8 @@ cb_Backend_document_decrement(VALUE self,
     return res;
 
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1344,10 +1310,8 @@ cb_Backend_document_lookup_in(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1477,10 +1441,8 @@ cb_Backend_document_lookup_in_any_replica(VALUE self,
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1620,10 +1582,8 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self,
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1822,10 +1782,8 @@ cb_Backend_document_mutate_in(VALUE self,
     return res;
 
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1835,28 +1793,45 @@ cb_Backend_document_mutate_in(VALUE self,
 void
 init_crud(VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_get", cb_Backend_document_get, 6);
-  rb_define_method(cBackend, "document_get_any_replica", cb_Backend_document_get_any_replica, 6);
-  rb_define_method(cBackend, "document_get_all_replicas", cb_Backend_document_get_all_replicas, 6);
-  rb_define_method(cBackend, "document_get_projected", cb_Backend_document_get_projected, 6);
-  rb_define_method(cBackend, "document_get_and_lock", cb_Backend_document_get_and_lock, 7);
-  rb_define_method(cBackend, "document_get_and_touch", cb_Backend_document_get_and_touch, 7);
-  rb_define_method(cBackend, "document_insert", cb_Backend_document_insert, 8);
-  rb_define_method(cBackend, "document_replace", cb_Backend_document_replace, 8);
-  rb_define_method(cBackend, "document_upsert", cb_Backend_document_upsert, 8);
-  rb_define_method(cBackend, "document_append", cb_Backend_document_append, 7);
-  rb_define_method(cBackend, "document_prepend", cb_Backend_document_prepend, 7);
-  rb_define_method(cBackend, "document_remove", cb_Backend_document_remove, 6);
-  rb_define_method(cBackend, "document_lookup_in", cb_Backend_document_lookup_in, 7);
+  rb_define_method(cBackend, "document_get", cb_method<cb_Backend_document_get>::invoke, 6);
+  rb_define_method(cBackend,
+                   "document_get_any_replica",
+                   cb_method<cb_Backend_document_get_any_replica>::invoke,
+                   6);
+  rb_define_method(cBackend,
+                   "document_get_all_replicas",
+                   cb_method<cb_Backend_document_get_all_replicas>::invoke,
+                   6);
   rb_define_method(
-    cBackend, "document_lookup_in_any_replica", cb_Backend_document_lookup_in_any_replica, 7);
+    cBackend, "document_get_projected", cb_method<cb_Backend_document_get_projected>::invoke, 6);
   rb_define_method(
-    cBackend, "document_lookup_in_all_replicas", cb_Backend_document_lookup_in_all_replicas, 7);
-  rb_define_method(cBackend, "document_mutate_in", cb_Backend_document_mutate_in, 7);
-  rb_define_method(cBackend, "document_touch", cb_Backend_document_touch, 7);
-  rb_define_method(cBackend, "document_exists", cb_Backend_document_exists, 6);
-  rb_define_method(cBackend, "document_unlock", cb_Backend_document_unlock, 7);
-  rb_define_method(cBackend, "document_increment", cb_Backend_document_increment, 6);
-  rb_define_method(cBackend, "document_decrement", cb_Backend_document_decrement, 6);
+    cBackend, "document_get_and_lock", cb_method<cb_Backend_document_get_and_lock>::invoke, 7);
+  rb_define_method(
+    cBackend, "document_get_and_touch", cb_method<cb_Backend_document_get_and_touch>::invoke, 7);
+  rb_define_method(cBackend, "document_insert", cb_method<cb_Backend_document_insert>::invoke, 8);
+  rb_define_method(cBackend, "document_replace", cb_method<cb_Backend_document_replace>::invoke, 8);
+  rb_define_method(cBackend, "document_upsert", cb_method<cb_Backend_document_upsert>::invoke, 8);
+  rb_define_method(cBackend, "document_append", cb_method<cb_Backend_document_append>::invoke, 7);
+  rb_define_method(cBackend, "document_prepend", cb_method<cb_Backend_document_prepend>::invoke, 7);
+  rb_define_method(cBackend, "document_remove", cb_method<cb_Backend_document_remove>::invoke, 6);
+  rb_define_method(
+    cBackend, "document_lookup_in", cb_method<cb_Backend_document_lookup_in>::invoke, 7);
+  rb_define_method(cBackend,
+                   "document_lookup_in_any_replica",
+                   cb_method<cb_Backend_document_lookup_in_any_replica>::invoke,
+                   7);
+  rb_define_method(cBackend,
+                   "document_lookup_in_all_replicas",
+                   cb_method<cb_Backend_document_lookup_in_all_replicas>::invoke,
+                   7);
+  rb_define_method(
+    cBackend, "document_mutate_in", cb_method<cb_Backend_document_mutate_in>::invoke, 7);
+  rb_define_method(cBackend, "document_touch", cb_method<cb_Backend_document_touch>::invoke, 7);
+  rb_define_method(cBackend, "document_exists", cb_method<cb_Backend_document_exists>::invoke, 6);
+  rb_define_method(cBackend, "document_unlock", cb_method<cb_Backend_document_unlock>::invoke, 7);
+  rb_define_method(
+    cBackend, "document_increment", cb_method<cb_Backend_document_increment>::invoke, 6);
+  rb_define_method(
+    cBackend, "document_decrement", cb_method<cb_Backend_document_decrement>::invoke, 6);
 }
 } // namespace couchbase::ruby

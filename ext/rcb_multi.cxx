@@ -243,10 +243,8 @@ cb_Backend_document_get_multi(VALUE self, VALUE keys, VALUE options)
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -326,10 +324,8 @@ cb_Backend_document_upsert_multi(VALUE self,
     return res;
 
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -406,10 +402,8 @@ cb_Backend_document_remove_multi(VALUE self,
     return res;
 
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -419,8 +413,11 @@ cb_Backend_document_remove_multi(VALUE self,
 void
 init_multi(VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_get_multi", cb_Backend_document_get_multi, 2);
-  rb_define_method(cBackend, "document_remove_multi", cb_Backend_document_remove_multi, 5);
-  rb_define_method(cBackend, "document_upsert_multi", cb_Backend_document_upsert_multi, 5);
+  rb_define_method(
+    cBackend, "document_get_multi", cb_method<cb_Backend_document_get_multi>::invoke, 2);
+  rb_define_method(
+    cBackend, "document_remove_multi", cb_method<cb_Backend_document_remove_multi>::invoke, 5);
+  rb_define_method(
+    cBackend, "document_upsert_multi", cb_method<cb_Backend_document_upsert_multi>::invoke, 5);
 }
 } // namespace couchbase::ruby

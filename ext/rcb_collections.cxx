@@ -91,10 +91,8 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options, VALUE obs
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -135,10 +133,8 @@ cb_Backend_scope_create(VALUE self,
     }
     return ULL2NUM(resp.uid);
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -178,10 +174,8 @@ cb_Backend_scope_drop(VALUE self,
     }
     return ULL2NUM(resp.uid);
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -254,10 +248,8 @@ cb_Backend_collection_create(VALUE self,
     }
     return ULL2NUM(resp.uid);
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -330,10 +322,8 @@ cb_Backend_collection_update(VALUE self,
     }
     return ULL2NUM(resp.uid);
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -379,10 +369,8 @@ cb_Backend_collection_drop(VALUE self,
 
     return ULL2NUM(resp.uid);
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -391,11 +379,13 @@ cb_Backend_collection_drop(VALUE self,
 void
 init_collections(VALUE cBackend)
 {
-  rb_define_method(cBackend, "scope_get_all", cb_Backend_scope_get_all, 3);
-  rb_define_method(cBackend, "scope_create", cb_Backend_scope_create, 4);
-  rb_define_method(cBackend, "scope_drop", cb_Backend_scope_drop, 4);
-  rb_define_method(cBackend, "collection_create", cb_Backend_collection_create, 6);
-  rb_define_method(cBackend, "collection_update", cb_Backend_collection_update, 6);
-  rb_define_method(cBackend, "collection_drop", cb_Backend_collection_drop, 5);
+  rb_define_method(cBackend, "scope_get_all", cb_method<cb_Backend_scope_get_all>::invoke, 3);
+  rb_define_method(cBackend, "scope_create", cb_method<cb_Backend_scope_create>::invoke, 4);
+  rb_define_method(cBackend, "scope_drop", cb_method<cb_Backend_scope_drop>::invoke, 4);
+  rb_define_method(
+    cBackend, "collection_create", cb_method<cb_Backend_collection_create>::invoke, 6);
+  rb_define_method(
+    cBackend, "collection_update", cb_method<cb_Backend_collection_update>::invoke, 6);
+  rb_define_method(cBackend, "collection_drop", cb_method<cb_Backend_collection_drop>::invoke, 5);
 }
 } // namespace couchbase::ruby
