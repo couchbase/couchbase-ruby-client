@@ -82,7 +82,14 @@ target_link_libraries(
           snappy)
 if(RUBY_LIBRUBY)
   target_link_directories(couchbase PRIVATE "${RUBY_LIBRARY_DIR}")
-  target_link_libraries(couchbase PRIVATE "${RUBY_LIBRUBY}")
+  if(MINGW)
+    # The Ruby import library exports connect, socket, setsockopt and the other Winsock names as
+    # aliases of its rb_w32_* wrappers, which take CRT descriptors. Linked first, it captures asio's
+    # calls, and every connect on a WSASocketW handle fails with WSAENOTSOCK.
+    target_link_libraries(couchbase PRIVATE ws2_32 "${RUBY_LIBRUBY}")
+  else()
+    target_link_libraries(couchbase PRIVATE "${RUBY_LIBRUBY}")
+  endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
