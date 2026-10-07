@@ -26,7 +26,7 @@ class RetryStrategyTest < Minitest::Test
     Couchbase::Options::Remove, Couchbase::Options::Append, Couchbase::Options::Prepend,
     Couchbase::Options::Increment, Couchbase::Options::Decrement, Couchbase::Options::LookupIn,
     Couchbase::Options::MutateIn, Couchbase::Options::GetMulti, Couchbase::Options::UpsertMulti,
-    Couchbase::Options::RemoveMulti
+    Couchbase::Options::RemoveMulti, Couchbase::Options::GetReplica
   ].freeze
 
   def test_kv_options_pass_retry_strategy_to_backend

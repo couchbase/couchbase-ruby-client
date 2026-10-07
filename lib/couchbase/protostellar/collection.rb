@@ -138,6 +138,10 @@ module Couchbase
         ResponseConverter::KV.to_get_any_replica_result(resp, options)
       end
 
+      def get_replica(_id, _strategy, _options = Couchbase::Options::GetReplica::DEFAULT)
+        raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support get replica"
+      end
+
       def get_all_replicas(id, options = Couchbase::Options::GetAllReplicas::DEFAULT)
         req = @kv_request_generator.get_all_replicas_request(id, options)
         resp = @client.send_request(req)
