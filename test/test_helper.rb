@@ -151,6 +151,7 @@ require "couchbase"
 require "couchbase/protostellar"
 require "json"
 require "securerandom"
+require "tempfile"
 
 require "minitest/autorun"
 
@@ -247,6 +248,24 @@ module Couchbase
     end
   end
 
+  module ThreadStacks
+    # Every thread's stack of +pid+ from gdb, which is killed after 10 seconds. Empty without gdb.
+    def self.of(pid)
+      return "" unless ENV["PATH"].split(File::PATH_SEPARATOR).any? { |dir| File.executable?(File.join(dir, "gdb")) }
+
+      Tempfile.create("stacks") do |file|
+        gdb = Process.spawn("gdb", "-p", pid.to_s, "-batch", "-ex", "thread apply all bt", out: file, err: file)
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 10
+        sleep 0.1 until (exited = Process.waitpid(gdb, Process::WNOHANG)) || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+        unless exited
+          Process.kill("KILL", gdb)
+          Process.waitpid(gdb)
+        end
+        File.read(file.path)
+      end
+    end
+  end
+
   module TestUtilities
     def env
       @env ||= begin
@@ -282,6 +301,35 @@ module Couchbase
       index_manager = @cluster.query_indexes
       index_manager.create_primary_index(env.bucket, Management::Options::Query::CreatePrimaryIndex.new(ignore_if_exists: true))
       sleep 0.1 while index_manager.get_all_indexes(env.bucket).none? { |idx| idx.name == "#primary" && idx.state == :online }
+    end
+
+    FORK_CHILD_TIMEOUT = 30
+
+    # Polls for +pid+ to exit, killing it and failing the test if it doesn't within
+    # +timeout+ seconds, instead of blocking forever like Process.wait2 would.
+    def wait_for_child_or_kill(pid, timeout: FORK_CHILD_TIMEOUT)
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+
+      loop do
+        _, status = Process.waitpid2(pid, Process::WNOHANG)
+        return status if status
+
+        if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+          stacks = ""
+          begin
+            stacks = ThreadStacks.of(pid)
+          rescue StandardError => e
+            stacks = "stack capture failed: #{e.message}"
+          ensure
+            Process.kill("KILL", pid)
+            Process.waitpid2(pid)
+          end
+
+          flunk "Child process (pid #{pid}) did not exit within #{timeout}s after fork.\n#{stacks}"
+        end
+
+        sleep 0.1
+      end
     end
 
     def disconnect

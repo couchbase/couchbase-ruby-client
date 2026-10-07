@@ -28,8 +28,11 @@
 #include <spdlog/sinks/base_sink.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <deque>
+#include <iterator>
 #include <memory>
-#include <queue>
+#include <mutex>
 
 #include <ruby.h>
 
@@ -49,14 +52,52 @@ public:
   {
   }
 
-  void flush_deferred_messages()
+  // Returns the rb_protect state of the failed write, or zero. The caller jumps with it once its
+  // own C++ objects are destroyed.
+  int flush_deferred_messages()
   {
-    std::lock_guard<Mutex> lock(spdlog::sinks::base_sink<Mutex>::mutex_);
-    auto messages_ = std::move(deferred_messages_);
-    while (!messages_.empty()) {
-      write_message(messages_.front());
-      messages_.pop();
+    int state = 0;
+    {
+      // The mutex is held only to move messages in and out of the queue. A longjmp out of the
+      // Ruby logger would leave it locked, and a logger that releases the GVL would deadlock with
+      // a flush that holds the GVL and waits for the mutex.
+      std::deque<log_message_for_ruby> messages{};
+      {
+        std::lock_guard<Mutex> lock(spdlog::sinks::base_sink<Mutex>::mutex_);
+        std::swap(messages, deferred_messages_);
+      }
+      // The logger may be replaced while it runs, which drops the last reference to it.
+      VALUE logger = ruby_logger_;
+      while (state == 0 && !messages.empty()) {
+        state = write_message(logger, messages.front());
+        messages.pop_front();
+      }
+      RB_GC_GUARD(logger);
+      // After a failed write the unwritten messages go back to the front of the queue, ahead of
+      // those logged meanwhile, so the next flush delivers them in order. The caller's jump is not
+      // delayed by writing them, and rb_errinfo() is left as the failing callback set it.
+      if (!messages.empty()) {
+        std::lock_guard<Mutex> lock(spdlog::sinks::base_sink<Mutex>::mutex_);
+        std::move(
+          deferred_messages_.begin(), deferred_messages_.end(), std::back_inserter(messages));
+        std::swap(messages, deferred_messages_);
+      }
     }
+    return state;
+  }
+
+  // Moves the messages queued in other to the front of this sink's queue.
+  void take_deferred_messages(ruby_logger_sink& other)
+  {
+    if (&other == this) {
+      return;
+    }
+    std::scoped_lock lock(this->mutex_, other.mutex_);
+    std::move(deferred_messages_.begin(),
+              deferred_messages_.end(),
+              std::back_inserter(other.deferred_messages_));
+    std::swap(other.deferred_messages_, deferred_messages_);
+    other.deferred_messages_.clear();
   }
 
   static VALUE map_log_level(spdlog::level::level_enum level)
@@ -95,7 +136,7 @@ protected:
 
   void sink_it_(const spdlog::details::log_msg& msg) override
   {
-    deferred_messages_.emplace(log_message_for_ruby{
+    deferred_messages_.emplace_back(log_message_for_ruby{
       msg.level,
       msg.time,
       msg.thread_id,
@@ -152,18 +193,27 @@ private:
                       function_name);
   }
 
-  void write_message(const log_message_for_ruby& msg)
+  static VALUE invoke_log_rescue_standard_error(VALUE arg)
   {
-    if (NIL_P(ruby_logger_)) {
-      return;
+    return rb_rescue(invoke_log, arg, nullptr, Qnil);
+  }
+
+  // Returns the rb_protect state, non-zero when the logger call ended by a jump other than a
+  // rescued StandardError: another exception, a throw, or a thread kill.
+  static int write_message(VALUE logger, const log_message_for_ruby& msg)
+  {
+    if (NIL_P(logger)) {
+      return 0;
     }
-    argument_pack args{ ruby_logger_, msg };
+    argument_pack args{ logger, msg };
+    int state = 0;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    rb_rescue(invoke_log, reinterpret_cast<VALUE>(&args), nullptr, Qnil);
+    rb_protect(invoke_log_rescue_standard_error, reinterpret_cast<VALUE>(&args), &state);
+    return state;
   }
 
   VALUE ruby_logger_{ Qnil };
-  std::queue<log_message_for_ruby> deferred_messages_{};
+  std::deque<log_message_for_ruby> deferred_messages_{};
 };
 
 using ruby_logger_sink_ptr = std::shared_ptr<ruby_logger_sink<std::mutex>>;
@@ -227,15 +277,26 @@ cb_Backend_get_log_level(VALUE /* self */)
   return Qnil;
 }
 
-VALUE
-cb_Backend_install_logger_shim(VALUE self, VALUE logger, VALUE log_level)
+// Returns the rb_protect state of a failed flush, or zero. When sink is no longer the current
+// one, its unwritten messages move to the front of the current sink's queue, because a replaced
+// sink is never flushed again.
+int
+flush_sink(const ruby_logger_sink_ptr& sink)
 {
-  core::logger::reset();
+  int state = sink->flush_deferred_messages();
+  if (state != 0 && cb_global_sink && cb_global_sink != sink) {
+    cb_global_sink->take_deferred_messages(*sink);
+  }
+  return state;
+}
+
+void
+install_logger_sink(VALUE self, VALUE logger, VALUE log_level)
+{
   rb_iv_set(self, "@__logger_shim", logger);
   if (NIL_P(logger)) {
-    return Qnil;
+    return;
   }
-  Check_Type(log_level, T_SYMBOL);
   core::logger::level level{ core::logger::level::off };
   if (ID type = rb_sym2id(log_level); type == rb_intern("trace")) {
     level = core::logger::level::trace;
@@ -251,7 +312,7 @@ cb_Backend_install_logger_shim(VALUE self, VALUE logger, VALUE log_level)
     level = core::logger::level::critical;
   } else {
     rb_iv_set(self, "__logger_shim", Qnil);
-    return Qnil;
+    return;
   }
 
   auto sink = std::make_shared<ruby_logger_sink<std::mutex>>(logger);
@@ -261,6 +322,30 @@ cb_Backend_install_logger_shim(VALUE self, VALUE logger, VALUE log_level)
   configuration.sink = sink;
   core::logger::create_file_logger(configuration);
   cb_global_sink = sink;
+}
+
+VALUE
+cb_Backend_install_logger_shim(VALUE self, VALUE logger, VALUE log_level)
+{
+  if (!NIL_P(logger)) {
+    Check_Type(log_level, T_SYMBOL);
+  }
+  VALUE old_logger = rb_iv_get(self, "@__logger_shim");
+  int state = 0;
+  {
+    // The new sink is installed before the old one is flushed, so a failed flush leaves the new
+    // logger in place and hands it the old sink's unwritten messages.
+    auto old_sink = cb_global_sink;
+    core::logger::reset();
+    install_logger_sink(self, logger, log_level);
+    if (old_sink) {
+      state = flush_sink(old_sink);
+    }
+  }
+  RB_GC_GUARD(old_logger);
+  if (state != 0) {
+    rb_jump_tag(state);
+  }
   return Qnil;
 }
 
@@ -299,19 +384,61 @@ init_logger()
   }
 }
 
+int
+try_flush_logger()
+{
+  if (auto sink = cb_global_sink; sink) {
+    return flush_sink(sink);
+  }
+  core::logger::flush();
+  return 0;
+}
+
 void
 flush_logger()
 {
-  if (cb_global_sink) {
-    cb_global_sink->flush_deferred_messages();
-  } else {
-    core::logger::flush();
+  if (int state = try_flush_logger(); state != 0) {
+    rb_jump_tag(state);
   }
 }
 
 void
 init_logger_methods(VALUE cBackend)
 {
+  // A failed flush leaves messages queued. At exit, flush again after a failure that is an
+  // ordinary exception; each failed flush consumes the message whose callback failed. A signal,
+  // exit, throw or thread kill stops the loop and is re-raised for the end-proc runner.
+  rb_set_end_proc(
+    [](VALUE) {
+      // The swallowed exception must not replace the $! the exit started with, which the logger
+      // sees on the next attempt. rb_set_errinfo accepts only nil or an Exception.
+      VALUE exit_error = rb_errinfo();
+      bool restorable = NIL_P(exit_error) || RTEST(rb_obj_is_kind_of(exit_error, rb_eException));
+      int state = 0;
+      for (;;) {
+        rb_protect(
+          [](VALUE) -> VALUE {
+            flush_logger();
+            return Qnil;
+          },
+          Qnil,
+          &state);
+        if (state != 0) {
+          VALUE error = rb_errinfo();
+          if (!RB_TYPE_P(error, T_OBJECT) || RTEST(rb_obj_is_kind_of(error, rb_eSignal)) ||
+              RTEST(rb_obj_is_kind_of(error, rb_eSystemExit))) {
+            rb_jump_tag(state);
+          }
+        }
+        if (restorable) {
+          rb_set_errinfo(exit_error);
+        }
+        if (state == 0) {
+          return;
+        }
+      }
+    },
+    Qnil);
   rb_define_singleton_method(cBackend, "set_log_level", cb_Backend_set_log_level, 1);
   rb_define_singleton_method(cBackend, "get_log_level", cb_Backend_get_log_level, 0);
   rb_define_singleton_method(cBackend, "install_logger_shim", cb_Backend_install_logger_shim, 2);

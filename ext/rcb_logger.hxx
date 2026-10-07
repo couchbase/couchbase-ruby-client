@@ -31,6 +31,11 @@ init_logger();
 void
 flush_logger();
 
+// Flushes like flush_logger, but returns the rb_protect state of a failed logger call instead of
+// re-raising it. The caller re-raises with rb_jump_tag once its own C++ objects are destroyed.
+int
+try_flush_logger();
+
 void
 init_logger_methods(VALUE cBackend);
 

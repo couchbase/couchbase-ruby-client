@@ -64,7 +64,8 @@ public:
     known_instances_.remove(instance);
   }
 
-  void notify_fork(couchbase::fork_event event)
+  // Returns the rb_protect state of a failed logger flush during prepare, or zero.
+  int notify_fork(couchbase::fork_event event)
   {
     if (event != couchbase::fork_event::prepare) {
       init_logger();
@@ -78,9 +79,16 @@ public:
     }
 
     if (event == couchbase::fork_event::prepare) {
-      flush_logger();
+      int state = try_flush_logger();
       couchbase::core::logger::shutdown();
+      if (state != 0) {
+        // The fork does not happen, so the instances stopped above are restarted as in the
+        // parent of a completed fork.
+        notify_fork(couchbase::fork_event::parent);
+      }
+      return state;
     }
+    return 0;
   }
 
 private:
@@ -97,11 +105,12 @@ cb_Backend_notify_fork(VALUE self, VALUE event)
   static const auto id_parent{ rb_intern("parent") };
   static const auto id_child{ rb_intern("child") };
 
+  int state = 0;
   try {
     cb_check_type(event, T_SYMBOL);
 
     if (rb_sym2id(event) == id_prepare) {
-      instances.notify_fork(couchbase::fork_event::prepare);
+      state = instances.notify_fork(couchbase::fork_event::prepare);
     } else if (rb_sym2id(event) == id_parent) {
       instances.notify_fork(couchbase::fork_event::parent);
     } else if (rb_sym2id(event) == id_child) {
@@ -112,6 +121,9 @@ cb_Backend_notify_fork(VALUE self, VALUE event)
     }
   } catch (const ruby_exception& e) {
     rb_exc_raise(e.exception_object());
+  }
+  if (state != 0) {
+    rb_jump_tag(state);
   }
 
   return Qnil;
