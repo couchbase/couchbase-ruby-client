@@ -137,7 +137,8 @@ private:
       function_name = cb_str_new(msg.funcname);
     }
     auto seconds = std::chrono::duration_cast<std::chrono::seconds>(msg.time.time_since_epoch());
-    auto nanoseconds = msg.time.time_since_epoch() - seconds;
+    auto nanoseconds =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(msg.time.time_since_epoch() - seconds);
     return rb_funcall(args->logger,
                       rb_intern("log"),
                       8,
