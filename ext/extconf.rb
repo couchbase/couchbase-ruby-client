@@ -148,9 +148,10 @@ if RbConfig::CONFIG["target_os"].include?('mingw')
   require "ruby_installer/runtime"
   RubyInstaller::Runtime.enable_dll_search_paths
   RubyInstaller::Runtime.enable_msys_apps
-  cc = RbConfig::CONFIG["CC"]
-  cxx = RbConfig::CONFIG["CXX"]
+  cc = RbConfig::CONFIG["CC"].split.first
+  cxx = RbConfig::CONFIG["CXX"].split.first # RubyInstaller appends flags, e.g. "g++ -std=gnu++11"
   cmake_flags << "-G Ninja"
+  cmake_flags << "-DWARNINGS_AS_ERRORS=OFF" # core CI checks Windows warnings with MSVC only
   cmake_flags << "-DRUBY_LIBRUBY=#{File.basename(RbConfig::CONFIG['LIBRUBY_SO'], ".#{RbConfig::CONFIG['SOEXT']}")}"
 end
 

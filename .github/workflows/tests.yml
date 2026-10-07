@@ -916,8 +916,6 @@ jobs:
           retention-days: 5
 
   windows_x64:
-    # TODO(SA): windows build have to be verified
-    if: false
     needs: source
     runs-on: windows-2022
     timeout-minutes: 60
@@ -997,49 +995,75 @@ jobs:
           path: |
             pkg/fat/*.gem
 
-  ######
-  ###### TODO: Windows builds have issues with ASIO mix with Ruby interpreter around socket API
-  ######       ASIO creates sockets using 'WSASocket', but connect using with 'connect' (sync)
-  ######       or 'WSAIoctl' with ConnectEx GUID. Typically it works, unless these APIs invoked
-  ######       inside Ruby process compiled with MinGW/ucrt.
-  ######
-  ######       The issue tracked here: https://issues.couchbase.com/browse/RCBC-480
-  ######
-
-  # mock_windows_x64:
-  #   timeout-minutes: 15
-  #   needs:
-  #     - source
-  #     - repackage_windows_x64
-  #   runs-on: windows-2019
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       ruby:
-  #         - '3.2'
-  #         - '3.3'
-  #         - '3.4'
-  #         - '4.0'
-  #   steps:
-  #     - uses: actions/download-artifact@v8
-  #       with:
-  #         name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw
-  #     - uses: actions/download-artifact@v8
-  #       with:
-  #         name: scripts-${{ needs.source.outputs.gem_version }}
-  #     - uses: actions/download-artifact@v8
-  #       with:
-  #         name: tests-${{ needs.source.outputs.gem_version }}
-  #     - uses: ruby/setup-ruby@v1
-  #       with:
-  #         ruby-version: ${{ matrix.ruby }}
-  #     - name: Install
-  #       shell: pwsh
-  #       run: |
-  #         $COUCHBASE_GEM_PATH = Get-ChildItem -Filter 'couchbase-*.gem' | Select-Object -ExpandProperty FullName -First 1
-  #         $UNPACKED_GEM_PATH = (gem unpack $COUCHBASE_GEM_PATH | Select-String "Unpacked gem: '(.*)'").Matches.Groups[1].Value
-  #         gem unpack --spec --target $UNPACKED_GEM_PATH $COUCHBASE_GEM_PATH
-  #         ruby -ibak -pe "gsub(/gemspec/, 'gem `"couchbase`", path: `"${UNPACKED_GEM_PATH}`"')" Gemfile
-  #         bundle install
-  #         bundle exec ruby -r bundler/setup -r couchbase -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO'
-  #         bundle exec rake test
+  mock_windows_x64:
+    timeout-minutes: 15
+    needs:
+      - source
+      - repackage_windows_x64
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.2'
+          - '3.3'
+          - '3.4'
+          - '4.0'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw
+      - uses: actions/download-artifact@v8
+        with:
+          name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: scripts-${{ needs.source.outputs.gem_version }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: tests-${{ needs.source.outputs.gem_version }}
+      - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - name: Install
+        timeout-minutes: 15
+        run: |
+          mkdir -p local-gem-repo/gems
+          mv couchbase-${{ needs.source.outputs.gem_version }}-*.gem local-gem-repo/gems
+          mv couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}.gem local-gem-repo/gems
+          # realpath in Git Bash prints /d/a/..., which is not a Windows path; File.expand_path gives D:/a/...
+          GEM_REPO_URL=$(ruby -e 'puts "file:///#{File.expand_path("local-gem-repo")}"')
+          gem generate_index --directory local-gem-repo
+          ruby -i.bak -pe "gsub(/gemspec$/, 'gem \"couchbase\", source: \"${GEM_REPO_URL}\"')" Gemfile
+          ruby -i.bak -pe "gsub(/gemspec path: \"couchbase-opentelemetry\"$/, 'gem \"couchbase-opentelemetry\", source: \"${GEM_REPO_URL}\"')" Gemfile
+          bundle install
+          bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
+      - name: Test
+        env:
+          CB_CAVES_LOGS_DIR: caves-logs
+          COUCHBASE_BACKEND_DONT_WRITE_TO_STDERR: true
+          COUCHBASE_BACKEND_LOG_PATH: logs/couchbase.log
+        run: |
+          bundle exec rake test
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
+          path: |
+            caves-logs/*
+            logs/*
+            test/**/*.{log,xml}
+          retention-days: 5
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v6.4.2
+        if: always()
+        with:
+          check_name: 🪟caves, ruby-${{ matrix.ruby }}
+          report_paths: test/reports/*.xml
+          require_tests: true
+          annotate_only: true
