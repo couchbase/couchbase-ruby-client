@@ -159,6 +159,7 @@ require "couchbase"
 require "couchbase/protostellar"
 require "json"
 require "securerandom"
+require "tempfile"
 
 require "minitest/autorun"
 
@@ -255,6 +256,36 @@ module Couchbase
     end
   end
 
+  module ThreadStacks
+    # Every thread's stack of +pid+ from gdb, or from sample(1) on macOS, which has no gdb. The tool is
+    # killed after 10 seconds. Empty when neither is installed.
+    def self.of(pid)
+      Tempfile.create("stacks") do |file|
+        command, output =
+          if installed?("gdb")
+            [["gdb", "-p", pid.to_s, "-batch", "-ex", "thread apply all bt"], file]
+          elsif installed?("sample")
+            # sample writes its report to the -file path itself.
+            [["sample", pid.to_s, "1", "-mayDie", "-file", file.path], File::NULL]
+          end
+        return "" unless command
+
+        tool = Process.spawn(*command, out: output, err: output)
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 10
+        sleep 0.1 until (exited = Process.waitpid(tool, Process::WNOHANG)) || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+        unless exited
+          Process.kill("KILL", tool)
+          Process.waitpid(tool)
+        end
+        File.read(file.path)
+      end
+    end
+
+    def self.installed?(name)
+      ENV["PATH"].split(File::PATH_SEPARATOR).any? { |dir| File.executable?(File.join(dir, name)) }
+    end
+  end
+
   module TestUtilities
     def env
       @env ||= begin
@@ -296,6 +327,35 @@ module Couchbase
       index_manager = @cluster.query_indexes
       index_manager.create_primary_index(env.bucket, Management::Options::Query::CreatePrimaryIndex.new(ignore_if_exists: true))
       sleep 0.1 while index_manager.get_all_indexes(env.bucket).none? { |idx| idx.name == "#primary" && idx.state == :online }
+    end
+
+    FORK_CHILD_TIMEOUT = 30
+
+    # Polls for +pid+ to exit, killing it and failing the test if it doesn't within
+    # +timeout+ seconds, instead of blocking forever like Process.wait2 would.
+    def wait_for_child_or_kill(pid, timeout: FORK_CHILD_TIMEOUT)
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+
+      loop do
+        _, status = Process.waitpid2(pid, Process::WNOHANG)
+        return status if status
+
+        if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+          stacks = ""
+          begin
+            stacks = ThreadStacks.of(pid)
+          rescue StandardError => e
+            stacks = "stack capture failed: #{e.message}"
+          ensure
+            Process.kill("KILL", pid)
+            Process.waitpid2(pid)
+          end
+
+          flunk "Child process (pid #{pid}) did not exit within #{timeout}s after fork.\n#{stacks}"
+        end
+
+        sleep 0.1
+      end
     end
 
     def disconnect
