@@ -161,15 +161,30 @@ cb_HdrHistogramC_get_percentiles_and_reset(VALUE self, VALUE percentiles)
   cb_hdr_histogram_data* hdr_histogram;
   TypedData_Get_Struct(self, cb_hdr_histogram_data, &cb_hdr_histogram_type, hdr_histogram);
 
+  // Validate before any C++ object is live and before taking the lock: a raise longjmps past
+  // destructors, so a raise under the lock would leave the mutex locked.
+  const long percentiles_len = RARRAY_LEN(percentiles);
+  for (long i = 0; i < percentiles_len; ++i) {
+    VALUE entry = rb_ary_entry(percentiles, i);
+    if (!RB_FLOAT_TYPE_P(entry) && !RB_INTEGER_TYPE_P(entry)) {
+      rb_raise(rb_eTypeError,
+               "wrong argument type %" PRIsVALUE " (expected Float or Integer)",
+               rb_obj_class(entry));
+    }
+  }
+  std::vector<double> percentile_args{};
+  percentile_args.reserve(static_cast<std::size_t>(percentiles_len));
+  for (long i = 0; i < percentiles_len; ++i) {
+    percentile_args.push_back(NUM2DBL(rb_ary_entry(percentiles, i)));
+  }
+
   std::vector<std::int64_t> percentile_values{};
+  percentile_values.reserve(percentile_args.size());
   std::int64_t total_count;
   {
     const std::unique_lock lock(hdr_histogram->mutex);
     total_count = hdr_histogram->histogram->total_count;
-    for (std::size_t i = 0; i < static_cast<std::size_t>(RARRAY_LEN(percentiles)); ++i) {
-      VALUE entry = rb_ary_entry(percentiles, static_cast<long>(i));
-      Check_Type(entry, T_FLOAT);
-      double perc = NUM2DBL(entry);
+    for (const double perc : percentile_args) {
       std::int64_t value_at_perc = hdr_value_at_percentile(hdr_histogram->histogram, perc);
       percentile_values.push_back(value_at_perc);
     }
