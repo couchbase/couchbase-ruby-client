@@ -18,7 +18,15 @@ module Couchbase
   module ForkHooks
     def _fork
       Couchbase::Backend.notify_fork(:prepare)
-      pid = super
+      forked = false
+      begin
+        pid = super
+        forked = true
+      ensure
+        # :prepare stopped the instances. When the fork raises or its thread is killed, no fork
+        # happened to restart them.
+        Couchbase::Backend.notify_fork(:parent) unless forked
+      end
       if pid
         Couchbase::Backend.notify_fork(:parent)
       else
