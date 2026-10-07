@@ -25,13 +25,16 @@ concurrency:
 jobs:
   rubocop:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - name: Set up ruby
+        timeout-minutes: 10
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: 3.4
       - name: Install dependencies
+        timeout-minutes: 10
         run: bundle install
       - name: Run rubocop
         run: |
@@ -40,12 +43,14 @@ jobs:
 
   clang_format:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 2
       - name: Install dependencies
+        timeout-minutes: 15
         run: |
           sudo apt-get update -y
           sudo apt-get install -y wget gnupg2 git
@@ -61,15 +66,18 @@ jobs:
 
   clang_static_analyzer:
     runs-on: ubuntu-24.04
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Set up ruby
+        timeout-minutes: 10
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: 3.4
       - name: Install dependencies
+        timeout-minutes: 15
         run: |
           sudo apt-get update -y
           sudo apt-get install -y libssl-dev cmake curl wget gnupg2 libcurl4-openssl-dev libprotobuf-dev libgrpc-dev gdb
