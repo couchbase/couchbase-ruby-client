@@ -32,6 +32,7 @@
 #include <queue>
 
 #include <ruby.h>
+#include <ruby/vm.h>
 
 #include "rcb_logger.hxx"
 #include "rcb_utils.hxx"
@@ -308,9 +309,33 @@ flush_logger()
   }
 }
 
+namespace
+{
+// Flushes the core logger. With a Ruby logger installed, delivers what the async
+// thread has already passed to its sink, while Ruby can still run the logger.
+void
+flush_logger_at_exit(VALUE /* data */)
+{
+  flush_logger();
+}
+
+// Joins the async logger thread while it is still running. VM at-exit hooks
+// run after every end proc and finalizer, so what those log, such as a cluster
+// closed in its finalizer, still reaches the built-in sinks. Left to the spdlog
+// destructors, the join happens after ExitProcess has killed the thread. That
+// never returns under winpthreads, and the Ruby process hangs on Windows.
+void
+shutdown_logger(ruby_vm_t* /* vm */)
+{
+  core::logger::shutdown();
+}
+} // namespace
+
 void
 init_logger_methods(VALUE cBackend)
 {
+  rb_set_end_proc(flush_logger_at_exit, Qnil);
+  ruby_vm_at_exit(shutdown_logger);
   rb_define_singleton_method(cBackend, "set_log_level", cb_Backend_set_log_level, 1);
   rb_define_singleton_method(cBackend, "get_log_level", cb_Backend_get_log_level, 0);
   rb_define_singleton_method(cBackend, "install_logger_shim", cb_Backend_install_logger_shim, 2);
