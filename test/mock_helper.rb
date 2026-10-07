@@ -24,7 +24,7 @@ require "socket"
 class Caves
   attr_accessor :verbose
 
-  VERSION = "v0.0.1-79"
+  VERSION = "v0.0.1-81"
   FORK = "couchbaselabs"
 
   def download_mock(url = caves_url)
@@ -206,12 +206,16 @@ class Caves
 
   def caves_url
     go_os = case RUBY_PLATFORM
+            when /aarch64-linux/
+              "linux-arm64"
             when /linux/
               "linux-amd64"
             when /arm64-darwin/
               "macos-arm64"
             when /darwin/
               "macos"
+            when /aarch64-mingw/
+              "windows-arm64"
             when /mingw/
               "windows"
             else
