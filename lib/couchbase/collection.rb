@@ -18,6 +18,7 @@ require "couchbase/errors"
 require "couchbase/collection_options"
 require "couchbase/binary_collection"
 require "couchbase/key_value_scan"
+require "couchbase/get_replica_strategy"
 
 module Couchbase
   # Provides access to all collection APIs
@@ -199,6 +200,39 @@ module Couchbase
             res.encoded = entry[:content]
             res.is_replica = entry[:is_replica]
           end
+        end
+      end
+    end
+
+    # Reads the document from the replica the strategy selects.
+    #
+    # @param [String] id the document id which is used to uniquely identify it.
+    # @param [GetReplicaStrategy] strategy selects the replica to read from
+    # @param [Options::GetReplica] options request customization
+    #
+    # @example Read the document from the second replica
+    #   res = collection.get_replica("customer123", GetReplicaStrategy.from_index(:second))
+    #   res.replica? #=> true
+    #   res.content["addresses"]
+    #
+    # @raise [Error::DocumentNotFoundOnReplica] if the replica does not hold the document
+    # @raise [Error::ReplicaIndexOutOfBounds] if the bucket is not configured with the requested replica
+    # @raise [Error::ReplicaIndexCurrentlyUnavailable] if the current topology does not place the requested replica
+    #   on a node
+    #
+    # @since 3.9.0
+    #
+    # @return [GetReplicaResult]
+    def get_replica(id, strategy, options = Options::GetReplica::DEFAULT)
+      @observability.record_operation(Observability::OP_GET_REPLICA, options.parent_span, self, :kv) do |obs_handler|
+        resp = @backend.document_get_replica(@bucket_name, @scope_name, @name, id, strategy.to_backend,
+                                             options.to_backend, obs_handler)
+        GetReplicaResult.new do |res|
+          res.transcoder = options.transcoder
+          res.cas = resp[:cas]
+          res.flags = resp[:flags]
+          res.encoded = resp[:content]
+          res.is_replica = true
         end
       end
     end

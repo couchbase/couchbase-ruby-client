@@ -102,6 +102,124 @@ module Couchbase
       end
     end
 
+    def test_get_replica_strategy_rejects_unknown_index
+      assert_raises(Couchbase::Error::InvalidArgument) do
+        GetReplicaStrategy.from_index(:fourth)
+      end
+      assert_raises(Couchbase::Error::InvalidArgument) do
+        GetReplicaStrategy.from_index(0)
+      end
+      assert_raises(Couchbase::Error::InvalidArgument) do
+        GetReplicaStrategy.from_index(:first, wrap: "yes")
+      end
+    end
+
+    def test_get_replica_reads_from_selected_replica
+      skip_unless_first_replica_placed
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document)
+
+      res = retry_for_duration(expected_errors: [Couchbase::Error::DocumentNotFoundOnReplica]) do
+        @collection.get_replica(doc_id, GetReplicaStrategy.from_index(:first))
+      end
+
+      assert_equal document, res.content
+    end
+
+    def test_get_replica_reads_each_placed_replica
+      placed = skip_unless_first_replica_placed
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document)
+
+      [:first, :second, :third].first(placed).each do |index|
+        res = retry_for_duration(expected_errors: [Couchbase::Error::DocumentNotFoundOnReplica]) do
+          @collection.get_replica(doc_id, GetReplicaStrategy.from_index(index))
+        end
+
+        assert_equal document, res.content, "replica #{index.inspect}"
+        assert_predicate res, :replica?
+      end
+    end
+
+    def test_get_replica_document_not_found_on_replica
+      skip_unless_first_replica_placed
+
+      error = assert_raises(Couchbase::Error::DocumentNotFoundOnReplica) do
+        @collection.get_replica(uniq_id(:foo), GetReplicaStrategy.from_index(:first))
+      end
+
+      assert_kind_of Couchbase::Error::DocumentNotFound, error
+    end
+
+    def test_get_replica_index_out_of_bounds
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support get replica") if env.protostellar?
+      skip("#{name}: the bucket is configured with three replicas") if bucket_num_replicas >= 3
+
+      assert_raises(Couchbase::Error::ReplicaIndexOutOfBounds) do
+        @collection.get_replica(uniq_id(:foo), GetReplicaStrategy.from_index(:third))
+      end
+    end
+
+    def test_get_replica_index_currently_unavailable
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support get replica") if env.protostellar?
+
+      bucket, kv_nodes = bucket_with_unplaced_replica
+      skip("#{name}: every configured replica is placed on a node") unless bucket
+
+      # Replicas 0 to kv_nodes - 2 are placed; the next configured one has no node.
+      unplaced = [:first, :second, :third].fetch(kv_nodes - 1)
+      assert_raises(Couchbase::Error::ReplicaIndexCurrentlyUnavailable) do
+        bucket.default_collection.get_replica(uniq_id(:foo), GetReplicaStrategy.from_index(unplaced))
+      end
+    end
+
+    def test_get_replica_wraps_past_unplaced_replica
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support get replica") if env.protostellar?
+
+      bucket, kv_nodes = bucket_with_unplaced_replica
+      skip("#{name}: every configured replica is placed on a node") unless bucket
+      skip("#{name}: no replica is placed on a node") if kv_nodes < 2
+
+      collection = bucket.default_collection
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      collection.upsert(doc_id, document)
+
+      unplaced = [:first, :second, :third].fetch(kv_nodes - 1)
+      res = retry_for_duration(expected_errors: [Couchbase::Error::DocumentNotFoundOnReplica]) do
+        collection.get_replica(doc_id, GetReplicaStrategy.from_index(unplaced, wrap: true))
+      end
+
+      assert_equal document, res.content
+    end
+
+    def test_get_replica_wraps_out_of_bounds_index
+      skip_unless_first_replica_placed
+      skip("#{name}: the bucket is configured with three replicas") if bucket_num_replicas >= 3
+
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document)
+
+      res = retry_for_duration(expected_errors: [Couchbase::Error::DocumentNotFoundOnReplica]) do
+        @collection.get_replica(doc_id, GetReplicaStrategy.from_index(:third, wrap: true))
+      end
+
+      assert_equal document, res.content
+    end
+
+    def test_get_replica_not_supported_by_protostellar
+      skip("#{name}: only the #{Couchbase::Protostellar::NAME} protocol rejects get replica") unless env.protostellar?
+
+      assert_raises(Couchbase::Error::FeatureNotAvailable) do
+        @collection.get_replica(uniq_id(:foo), GetReplicaStrategy.from_index(:first))
+      end
+    end
+
     def test_replica_reads_from_preferred_server_group
       skip("#{name}: CAVES does not server group replica reads") if use_caves?
       skip("#{name}: Server does not support server group replica reads") unless env.server_version.supports_server_group_replica_reads?
@@ -961,6 +1079,38 @@ module Couchbase
       old_cas = res.cas
 
       refute_equal 0, old_cas
+    end
+
+    private
+
+    def bucket_num_replicas
+      @cluster.buckets.get_bucket(env.bucket).num_replicas
+    end
+
+    # A bucket configured with at least as many replicas as there are KV nodes, and the number of KV nodes.
+    # CI creates "three-replicas" for clusters where the default bucket has every replica placed.
+    def bucket_with_unplaced_replica
+      [env.bucket, "three-replicas"].each do |bucket_name|
+        num_replicas = @cluster.buckets.get_bucket(bucket_name).num_replicas
+        bucket = @cluster.bucket(bucket_name)
+        kv_nodes = bucket.ping(Options::Ping.new(service_types: [:kv])).services[:kv].size
+        return [bucket, kv_nodes] if num_replicas >= kv_nodes
+      rescue Couchbase::Error::BucketNotFound
+        next
+      end
+      nil
+    end
+
+    # Skips unless the first replica is placed. Returns the number of placed replicas.
+    def skip_unless_first_replica_placed
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support get replica") if env.protostellar?
+      skip("#{name}: the bucket is configured without replicas") if bucket_num_replicas.zero?
+
+      kv_nodes = @bucket.ping(Options::Ping.new(service_types: [:kv])).services[:kv].size
+      skip("#{name}: a replica needs a second key/value node") if kv_nodes < 2
+
+      # Each copy needs its own node, so replicas past kv_nodes - 1 have none.
+      [bucket_num_replicas, kv_nodes - 1].min
     end
   end
 end
