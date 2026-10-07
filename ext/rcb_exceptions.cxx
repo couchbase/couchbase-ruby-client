@@ -68,6 +68,7 @@ VALUE eDocumentLocked;
 VALUE eDocumentNotFound;
 VALUE eDocumentNotLocked;
 VALUE eDocumentNotJson;
+VALUE eDocumentNotFoundOnReplica;
 VALUE eDurabilityAmbiguous;
 VALUE eDurabilityImpossible;
 VALUE eDurabilityLevelNotAvailable;
@@ -96,6 +97,8 @@ VALUE ePathTooBig;
 VALUE ePathTooDeep;
 VALUE ePlanningFailure;
 VALUE ePreparedStatementFailure;
+VALUE eReplicaIndexCurrentlyUnavailable;
+VALUE eReplicaIndexOutOfBounds;
 VALUE eRequestCanceled;
 VALUE eScopeExists;
 VALUE eScopeNotFound;
@@ -197,6 +200,8 @@ init_exceptions(VALUE mCouchbase)
   eDocumentIrretrievable = rb_define_class_under(mError, "DocumentIrretrievable", eCouchbaseError);
   eDocumentLocked = rb_define_class_under(mError, "DocumentLocked", eCouchbaseError);
   eDocumentNotFound = rb_define_class_under(mError, "DocumentNotFound", eCouchbaseError);
+  eDocumentNotFoundOnReplica =
+    rb_define_class_under(mError, "DocumentNotFoundOnReplica", eDocumentNotFound);
   eDocumentNotLocked = rb_define_class_under(mError, "DocumentNotLocked", eCouchbaseError);
   eDocumentNotJson = rb_define_class_under(mError, "DocumentNotJson", eCouchbaseError);
   eDurabilityAmbiguous = rb_define_class_under(mError, "DurabilityAmbiguous", eCouchbaseError);
@@ -231,6 +236,10 @@ init_exceptions(VALUE mCouchbase)
   ePlanningFailure = rb_define_class_under(mError, "PlanningFailure", eCouchbaseError);
   ePreparedStatementFailure =
     rb_define_class_under(mError, "PreparedStatementFailure", eCouchbaseError);
+  eReplicaIndexCurrentlyUnavailable =
+    rb_define_class_under(mError, "ReplicaIndexCurrentlyUnavailable", eCouchbaseError);
+  eReplicaIndexOutOfBounds =
+    rb_define_class_under(mError, "ReplicaIndexOutOfBounds", eCouchbaseError);
   eRequestCanceled = rb_define_class_under(mError, "RequestCanceled", eCouchbaseError);
   eScopeExists = rb_define_class_under(mError, "ScopeExists", eCouchbaseError);
   eScopeNotFound = rb_define_class_under(mError, "ScopeNotFound", eCouchbaseError);
@@ -370,6 +379,15 @@ cb_map_error_code(std::error_code ec, const std::string& message, bool include_e
 
       case errc::key_value::document_irretrievable:
         return rb_exc_new_cstr(eDocumentIrretrievable, what.c_str());
+
+      case errc::key_value::document_not_found_on_replica:
+        return rb_exc_new_cstr(eDocumentNotFoundOnReplica, what.c_str());
+
+      case errc::key_value::replica_index_out_of_bounds:
+        return rb_exc_new_cstr(eReplicaIndexOutOfBounds, what.c_str());
+
+      case errc::key_value::replica_index_currently_unavailable:
+        return rb_exc_new_cstr(eReplicaIndexCurrentlyUnavailable, what.c_str());
 
       case errc::key_value::document_locked:
         return rb_exc_new_cstr(eDocumentLocked, what.c_str());

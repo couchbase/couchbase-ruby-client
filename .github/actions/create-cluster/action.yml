@@ -65,6 +65,11 @@ runs:
       shell: bash
       run: |
         cbdinocluster buckets add $CBDC_ID default --ram-quota-mb 100 --flush-enabled true
+    - name: Add bucket with an unplaced replica
+      shell: bash
+      run: |
+        # Three replicas on three KV nodes leave the third replica without a node.
+        cbdinocluster buckets add $CBDC_ID three-replicas --ram-quota-mb 100 --num-replicas 3
     - name: Load travel-sample bucket
       shell: bash
       run: |

@@ -318,6 +318,43 @@ module Couchbase
       DEFAULT = GetAnyReplica.new.freeze
     end
 
+    # Options for {Collection#get_replica}
+    #
+    # @since 3.9.0
+    class GetReplica < Base
+      attr_accessor :transcoder # @return [JsonTranscoder, #decode(String, Integer)]
+
+      # Creates an instance of options for {Collection#get_replica}
+      #
+      # @param [JsonTranscoder, #decode(String, Integer)] transcoder used for decoding
+      #
+      # @param [Integer, #in_milliseconds, nil] timeout
+      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Hash, nil] client_context the client context data, if set
+      # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
+      #
+      # @yieldparam [GetReplica] self
+      def initialize(transcoder: JsonTranscoder.new,
+                     timeout: nil,
+                     retry_strategy: nil,
+                     client_context: nil,
+                     parent_span: nil)
+        super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+        @transcoder = transcoder
+        yield self if block_given?
+      end
+
+      # @api private
+      def to_backend
+        {
+          timeout: Utils::Time.extract_duration(@timeout),
+        }
+      end
+
+      # @api private
+      DEFAULT = GetReplica.new.freeze
+    end
+
     # Options for {Collection#exists}
     class Exists < Base
       # Creates an instance of options for {Collection#exists}
@@ -2692,6 +2729,13 @@ module Couchbase
     # @return [GetAnyReplica]
     def GetAnyReplica(**args)
       GetAnyReplica.new(**args)
+    end
+
+    # Construct {GetReplica} options for {Collection#get_replica}
+    #
+    # @return [GetReplica]
+    def GetReplica(**args)
+      GetReplica.new(**args)
     end
 
     # Construct {Exists} options for {Collection#exists}

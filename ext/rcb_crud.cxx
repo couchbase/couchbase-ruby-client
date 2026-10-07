@@ -26,6 +26,7 @@
 #include <core/operations/document_get_and_touch.hxx>
 #include <core/operations/document_get_any_replica.hxx>
 #include <core/operations/document_get_projected.hxx>
+#include <core/operations/document_get_replica.hxx>
 #include <core/operations/document_increment.hxx>
 #include <core/operations/document_insert.hxx>
 #include <core/operations/document_lookup_in.hxx>
@@ -181,6 +182,71 @@ cb_Backend_document_get_any_replica(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
     rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
     rb_hash_aset(res, rb_id2sym(rb_intern("replica")), resp.replica ? Qtrue : Qfalse);
+    return res;
+  } catch (const std::system_error& se) {
+    rb_exc_raise(cb_map_error_code(
+      se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+  } catch (const ruby_exception& e) {
+    rb_exc_raise(e.exception_object());
+  }
+  return Qnil;
+}
+
+VALUE
+cb_Backend_document_get_replica(VALUE self,
+                                VALUE bucket,
+                                VALUE scope,
+                                VALUE collection,
+                                VALUE id,
+                                VALUE strategy,
+                                VALUE options,
+                                VALUE observability_handler)
+{
+  auto cluster = cb_backend_to_core_api_cluster(self);
+
+  Check_Type(bucket, T_STRING);
+  Check_Type(scope, T_STRING);
+  Check_Type(collection, T_STRING);
+  Check_Type(id, T_STRING);
+  Check_Type(strategy, T_HASH);
+
+  try {
+    core::document_id doc_id{
+      cb_string_new(bucket),
+      cb_string_new(scope),
+      cb_string_new(collection),
+      cb_string_new(id),
+    };
+
+    core::operations::get_replica_request req{ doc_id };
+    req.selection.emplace();
+    cb_extract_option_number(req.selection->replica_index, strategy, "replica_index");
+    cb_extract_option_bool(req.selection->wrap, strategy, "wrap");
+    cb_extract_timeout(req, options);
+
+    auto parent_span = cb_create_parent_span(req, self);
+
+    std::promise<core::operations::get_replica_response> promise;
+    auto f = promise.get_future();
+    cluster.execute(req, [promise = std::move(promise)](auto&& resp) mutable {
+      promise.set_value(std::forward<decltype(resp)>(resp));
+    });
+    auto resp = cb_wait_for_future(f);
+    cb_add_core_spans(observability_handler, std::move(parent_span), resp.ctx.retry_attempts());
+    if (resp.ctx.ec()) {
+      // Overriding the code keeps the Hash error context of the other KV bindings.
+      // Error::DocumentNotFoundOnReplica subclasses Error::DocumentNotFound, which stands in for
+      // the document_not_found cause that core::impl::make_get_replica_error() attaches.
+      if (resp.ctx.ec() == errc::key_value::document_not_found) {
+        resp.ctx.override_ec(errc::key_value::document_not_found_on_replica);
+      }
+      cb_throw_error(resp.ctx, "unable to get replica of the document");
+    }
+
+    VALUE res = rb_hash_new();
+    rb_hash_aset(res, rb_id2sym(rb_intern("content")), cb_str_new(resp.value));
+    rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
+    rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
     return res;
   } catch (const std::system_error& se) {
     rb_exc_raise(cb_map_error_code(
@@ -1838,6 +1904,7 @@ init_crud(VALUE cBackend)
   rb_define_method(cBackend, "document_get", cb_Backend_document_get, 6);
   rb_define_method(cBackend, "document_get_any_replica", cb_Backend_document_get_any_replica, 6);
   rb_define_method(cBackend, "document_get_all_replicas", cb_Backend_document_get_all_replicas, 6);
+  rb_define_method(cBackend, "document_get_replica", cb_Backend_document_get_replica, 7);
   rb_define_method(cBackend, "document_get_projected", cb_Backend_document_get_projected, 6);
   rb_define_method(cBackend, "document_get_and_lock", cb_Backend_document_get_and_lock, 7);
   rb_define_method(cBackend, "document_get_and_touch", cb_Backend_document_get_and_touch, 7);
