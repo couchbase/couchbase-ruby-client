@@ -92,3 +92,11 @@ endif()
 if(APPLE)
   target_link_libraries(couchbase PRIVATE -Wl,-undefined,dynamic_lookup)
 endif()
+
+if(UNIX AND NOT APPLE)
+  # Keep symbols from statically linked archives (libstdc++/libgcc when
+  # COUCHBASE_CXX_CLIENT_STATIC_STDLIB is on, BoringSSL, etc.) private to this
+  # extension. Ruby loads extensions with RTLD_GLOBAL, so exporting them lets a
+  # second copy of libstdc++ interpose on other C++ extensions in the process.
+  target_link_options(couchbase PRIVATE "LINKER:--exclude-libs,ALL")
+endif()
