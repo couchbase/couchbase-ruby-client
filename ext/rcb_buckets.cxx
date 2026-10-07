@@ -307,10 +307,8 @@ cb_Backend_bucket_create(VALUE self,
 
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -347,10 +345,8 @@ cb_Backend_bucket_update(VALUE self,
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -382,10 +378,8 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE options, VALUE obser
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -418,10 +412,8 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE options, VALUE obse
 
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -613,10 +605,8 @@ cb_Backend_bucket_get_all(VALUE self, VALUE options, VALUE observability_handler
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -651,10 +641,8 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options, VALUE observ
     cb_extract_bucket_settings(resp.bucket, res);
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -663,11 +651,11 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options, VALUE observ
 void
 init_buckets(VALUE cBackend)
 {
-  rb_define_method(cBackend, "bucket_create", cb_Backend_bucket_create, 3);
-  rb_define_method(cBackend, "bucket_update", cb_Backend_bucket_update, 3);
-  rb_define_method(cBackend, "bucket_drop", cb_Backend_bucket_drop, 3);
-  rb_define_method(cBackend, "bucket_flush", cb_Backend_bucket_flush, 3);
-  rb_define_method(cBackend, "bucket_get_all", cb_Backend_bucket_get_all, 2);
-  rb_define_method(cBackend, "bucket_get", cb_Backend_bucket_get, 3);
+  rb_define_method(cBackend, "bucket_create", cb_method<cb_Backend_bucket_create>::invoke, 3);
+  rb_define_method(cBackend, "bucket_update", cb_method<cb_Backend_bucket_update>::invoke, 3);
+  rb_define_method(cBackend, "bucket_drop", cb_method<cb_Backend_bucket_drop>::invoke, 3);
+  rb_define_method(cBackend, "bucket_flush", cb_method<cb_Backend_bucket_flush>::invoke, 3);
+  rb_define_method(cBackend, "bucket_get_all", cb_method<cb_Backend_bucket_get_all>::invoke, 2);
+  rb_define_method(cBackend, "bucket_get", cb_method<cb_Backend_bucket_get>::invoke, 3);
 }
 } // namespace couchbase::ruby

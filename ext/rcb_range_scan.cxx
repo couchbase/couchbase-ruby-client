@@ -143,10 +143,8 @@ cb_CoreScanResult_next_item(VALUE self)
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -201,7 +199,7 @@ cb_Backend_document_scan_create(VALUE self,
             case T_BIGNUM:
               break;
             default:
-              rb_raise(rb_eArgError, "partition_uuid must be an Integer");
+              throw ruby_exception(rb_eArgError, "partition_uuid must be an Integer");
           }
           VALUE sequence_number = rb_hash_aref(token, rb_id2sym(rb_intern("sequence_number")));
           switch (TYPE(sequence_number)) {
@@ -209,7 +207,7 @@ cb_Backend_document_scan_create(VALUE self,
             case T_BIGNUM:
               break;
             default:
-              rb_raise(rb_eArgError, "sequence_number must be an Integer");
+              throw ruby_exception(rb_eArgError, "sequence_number must be an Integer");
           }
           core_mut_state.tokens.emplace_back(
             NUM2ULL(partition_uuid),
@@ -232,13 +230,11 @@ cb_Backend_document_scan_create(VALUE self,
     auto err = agent_group.open_bucket(bucket_name);
     if (err) {
       cb_throw_error_code(err, "unable to open bucket for range scan");
-      return Qnil;
     }
     auto agent = agent_group.get_agent(bucket_name);
     if (!agent.has_value()) {
-      rb_raise(exc_couchbase_error(),
-               "Cannot perform scan operation. Unable to get operation agent");
-      return Qnil;
+      throw ruby_exception(exc_couchbase_error(),
+                           "Cannot perform scan operation. Unable to get operation agent");
     }
 
     // Getting the vbucket map
@@ -253,18 +249,17 @@ cb_Backend_document_scan_create(VALUE self,
       });
     auto config = cb_wait_for_future(f);
     if (!config.has_value()) {
-      rb_raise(exc_couchbase_error(),
-               "Cannot perform scan operation. Unable to get bucket configuration");
-      return Qnil;
+      throw ruby_exception(exc_couchbase_error(),
+                           "Cannot perform scan operation. Unable to get bucket configuration");
     }
     if (!config->capabilities.supports_range_scan()) {
-      rb_raise(exc_feature_not_available(), "Server does not support key-value scan operations");
-      return Qnil;
+      throw ruby_exception(exc_feature_not_available(),
+                           "Server does not support key-value scan operations");
     }
     auto vbucket_map = config->vbmap;
     if (!vbucket_map || vbucket_map->empty()) {
-      rb_raise(exc_couchbase_error(), "Cannot perform scan operation. Unable to get vbucket map");
-      return Qnil;
+      throw ruby_exception(exc_couchbase_error(),
+                           "Cannot perform scan operation. Unable to get vbucket map");
     }
 
     // Constructing the scan type
@@ -303,7 +298,7 @@ cb_Backend_document_scan_create(VALUE self,
       cb_extract_option_number(sampling_scan.seed, scan_type, "seed");
       core_scan_type = sampling_scan;
     } else {
-      rb_raise(exc_invalid_argument(), "Invalid scan operation type");
+      throw ruby_exception(exc_invalid_argument(), "Invalid scan operation type");
     }
 
     auto orchestrator = couchbase::core::range_scan_orchestrator(cluster.io_context(),
@@ -323,7 +318,10 @@ cb_Backend_document_scan_create(VALUE self,
     // Wrap core scan_result inside Ruby ScanResult
     // Creating a Ruby CoreScanResult object *after* checking that no error occurred during
     // orchestrator.scan()
-    VALUE core_scan_result_obj = rb_class_new_instance(0, nullptr, cCoreScanResult);
+    VALUE core_scan_result_obj = Qnil;
+    cb_protect([&core_scan_result_obj] {
+      core_scan_result_obj = rb_class_new_instance(0, nullptr, cCoreScanResult);
+    });
     rb_ivar_set(core_scan_result_obj, rb_intern("@backend"), self);
     cb_core_scan_result_data* data = nullptr;
     TypedData_Get_Struct(
@@ -332,10 +330,8 @@ cb_Backend_document_scan_create(VALUE self,
     return core_scan_result_obj;
 
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -345,11 +341,12 @@ cb_Backend_document_scan_create(VALUE self,
 void
 init_range_scan(VALUE mCouchbase, VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_scan_create", cb_Backend_document_scan_create, 5);
+  rb_define_method(
+    cBackend, "document_scan_create", cb_method<cb_Backend_document_scan_create>::invoke, 5);
 
   cCoreScanResult = rb_define_class_under(mCouchbase, "CoreScanResult", rb_cObject);
   rb_define_alloc_func(cCoreScanResult, cb_CoreScanResult_allocate);
-  rb_define_method(cCoreScanResult, "next_item", cb_CoreScanResult_next_item, 0);
+  rb_define_method(cCoreScanResult, "next_item", cb_method<cb_CoreScanResult_next_item>::invoke, 0);
   rb_define_method(cCoreScanResult, "cancelled?", cb_CoreScanResult_is_cancelled, 0);
   rb_define_method(cCoreScanResult, "cancel", cb_CoreScanResult_cancel, 0);
 }

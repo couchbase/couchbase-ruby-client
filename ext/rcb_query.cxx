@@ -113,10 +113,8 @@ cb_Backend_query_index_get_all(VALUE self,
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -219,10 +217,8 @@ cb_Backend_query_index_create(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -304,10 +300,8 @@ cb_Backend_query_index_drop(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -398,10 +392,8 @@ cb_Backend_query_index_create_primary(VALUE self,
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -484,10 +476,8 @@ cb_Backend_query_index_drop_primary(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -559,10 +549,8 @@ cb_Backend_query_index_build_deferred(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -572,10 +560,7 @@ cb_for_each_named_param(VALUE key, VALUE value, VALUE arg)
 {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   auto* preq = reinterpret_cast<core::operations::query_request*>(arg);
-  try {
-    cb_check_type(key, T_STRING);
-    cb_check_type(value, T_STRING);
-  } catch (const ruby_exception&) {
+  if (!RB_TYPE_P(key, T_STRING) || !RB_TYPE_P(value, T_STRING)) {
     return ST_STOP;
   }
   preq->named_parameters[cb_string_new(key)] = cb_string_new(value);
@@ -587,10 +572,7 @@ cb_for_each_raw_param(VALUE key, VALUE value, VALUE arg)
 {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   auto* preq = reinterpret_cast<core::operations::query_request*>(arg);
-  try {
-    cb_check_type(key, T_STRING);
-    cb_check_type(value, T_STRING);
-  } catch (const ruby_exception&) {
+  if (!RB_TYPE_P(key, T_STRING) || !RB_TYPE_P(value, T_STRING)) {
     return ST_STOP;
   }
   preq->raw[cb_string_new(key)] = cb_string_new(value);
@@ -686,7 +668,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options, VALUE obse
           case T_BIGNUM:
             break;
           default:
-            rb_raise(rb_eArgError, "partition_uuid must be an Integer");
+            throw ruby_exception(rb_eArgError, "partition_uuid must be an Integer");
         }
         VALUE sequence_number = rb_hash_aref(token, rb_id2sym(rb_intern("sequence_number")));
         switch (TYPE(sequence_number)) {
@@ -694,7 +676,7 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options, VALUE obse
           case T_BIGNUM:
             break;
           default:
-            rb_raise(rb_eArgError, "sequence_number must be an Integer");
+            throw ruby_exception(rb_eArgError, "sequence_number must be an Integer");
         }
         req.mutation_state.emplace_back(NUM2ULL(partition_uuid),
                                         NUM2ULL(sequence_number),
@@ -776,10 +758,8 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options, VALUE obse
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -856,10 +836,8 @@ cb_Backend_collection_query_index_get_all(VALUE self,
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -967,10 +945,8 @@ cb_Backend_collection_query_index_create(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1058,10 +1034,8 @@ cb_Backend_collection_query_index_drop(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1158,10 +1132,8 @@ cb_Backend_collection_query_index_create_primary(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1251,10 +1223,8 @@ cb_Backend_collection_query_index_drop_primary(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1320,10 +1290,8 @@ cb_Backend_collection_query_index_build_deferred(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1333,34 +1301,49 @@ cb_Backend_collection_query_index_build_deferred(VALUE self,
 void
 init_query(VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_query", cb_Backend_document_query, 3);
-
-  rb_define_method(cBackend, "query_index_get_all", cb_Backend_query_index_get_all, 3);
-  rb_define_method(cBackend, "query_index_create", cb_Backend_query_index_create, 5);
-  rb_define_method(
-    cBackend, "query_index_create_primary", cb_Backend_query_index_create_primary, 3);
-  rb_define_method(cBackend, "query_index_drop", cb_Backend_query_index_drop, 4);
-  rb_define_method(cBackend, "query_index_drop_primary", cb_Backend_query_index_drop_primary, 3);
-  rb_define_method(
-    cBackend, "query_index_build_deferred", cb_Backend_query_index_build_deferred, 3);
+  rb_define_method(cBackend, "document_query", cb_method<cb_Backend_document_query>::invoke, 3);
 
   rb_define_method(
-    cBackend, "collection_query_index_get_all", cb_Backend_collection_query_index_get_all, 5);
+    cBackend, "query_index_get_all", cb_method<cb_Backend_query_index_get_all>::invoke, 3);
   rb_define_method(
-    cBackend, "collection_query_index_create", cb_Backend_collection_query_index_create, 7);
+    cBackend, "query_index_create", cb_method<cb_Backend_query_index_create>::invoke, 5);
+  rb_define_method(cBackend,
+                   "query_index_create_primary",
+                   cb_method<cb_Backend_query_index_create_primary>::invoke,
+                   3);
+  rb_define_method(cBackend, "query_index_drop", cb_method<cb_Backend_query_index_drop>::invoke, 4);
+  rb_define_method(cBackend,
+                   "query_index_drop_primary",
+                   cb_method<cb_Backend_query_index_drop_primary>::invoke,
+                   3);
+  rb_define_method(cBackend,
+                   "query_index_build_deferred",
+                   cb_method<cb_Backend_query_index_build_deferred>::invoke,
+                   3);
+
+  rb_define_method(cBackend,
+                   "collection_query_index_get_all",
+                   cb_method<cb_Backend_collection_query_index_get_all>::invoke,
+                   5);
+  rb_define_method(cBackend,
+                   "collection_query_index_create",
+                   cb_method<cb_Backend_collection_query_index_create>::invoke,
+                   7);
   rb_define_method(cBackend,
                    "collection_query_index_create_primary",
-                   cb_Backend_collection_query_index_create_primary,
+                   cb_method<cb_Backend_collection_query_index_create_primary>::invoke,
                    5);
-  rb_define_method(
-    cBackend, "collection_query_index_drop", cb_Backend_collection_query_index_drop, 6);
+  rb_define_method(cBackend,
+                   "collection_query_index_drop",
+                   cb_method<cb_Backend_collection_query_index_drop>::invoke,
+                   6);
   rb_define_method(cBackend,
                    "collection_query_index_drop_primary",
-                   cb_Backend_collection_query_index_drop_primary,
+                   cb_method<cb_Backend_collection_query_index_drop_primary>::invoke,
                    5);
   rb_define_method(cBackend,
                    "collection_query_index_build_deferred",
-                   cb_Backend_collection_query_index_build_deferred,
+                   cb_method<cb_Backend_collection_query_index_build_deferred>::invoke,
                    5);
 }
 } // namespace couchbase::ruby

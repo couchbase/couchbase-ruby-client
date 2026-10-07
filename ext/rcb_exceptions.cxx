@@ -143,6 +143,27 @@ VALUE eBucketClosed;
 
 } // namespace
 
+auto
+cb_exc_new(VALUE exc_type, const std::string& message) -> VALUE
+{
+  VALUE exc = Qnil;
+  const char* text = message.c_str();
+  cb_protect([exc_type, text, &exc] {
+    exc = rb_exc_new_cstr(exc_type, text);
+  });
+  return exc;
+}
+
+auto
+cb_exc_new(VALUE exc_type, VALUE message) -> VALUE
+{
+  VALUE exc = Qnil;
+  cb_protect([exc_type, message, &exc] {
+    exc = rb_exc_new_str(exc_type, message);
+  });
+  return exc;
+}
+
 ruby_exception::ruby_exception(VALUE exc)
   : std::runtime_error("ruby_exception")
   , exc_{ exc }
@@ -151,13 +172,13 @@ ruby_exception::ruby_exception(VALUE exc)
 
 ruby_exception::ruby_exception(VALUE exc_type, VALUE exc_message)
   : std::runtime_error("ruby_exception")
-  , exc_{ rb_exc_new_str(exc_type, exc_message) }
+  , exc_{ cb_exc_new(exc_type, exc_message) }
 {
 }
 
 ruby_exception::ruby_exception(VALUE exc_type, const std::string& exc_message)
   : std::runtime_error("ruby_exception")
-  , exc_{ rb_exc_new_cstr(exc_type, exc_message.c_str()) }
+  , exc_{ cb_exc_new(exc_type, exc_message) }
 {
 }
 
@@ -165,6 +186,17 @@ VALUE
 ruby_exception::exception_object() const
 {
   return exc_;
+}
+
+ruby_jump::ruby_jump(int state)
+  : state_{ state }
+{
+}
+
+auto
+ruby_jump::state() const -> int
+{
+  return state_;
 }
 
 void
@@ -301,304 +333,304 @@ cb_map_error_code(std::error_code ec, const std::string& message, bool include_e
   if (ec.category() == core::impl::common_category()) {
     switch (static_cast<errc::common>(ec.value())) {
       case errc::common::unambiguous_timeout:
-        return rb_exc_new_cstr(eUnambiguousTimeout, what.c_str());
+        return cb_exc_new(eUnambiguousTimeout, what);
 
       case errc::common::ambiguous_timeout:
-        return rb_exc_new_cstr(eAmbiguousTimeout, what.c_str());
+        return cb_exc_new(eAmbiguousTimeout, what);
 
       case errc::common::request_canceled:
-        return rb_exc_new_cstr(eRequestCanceled, what.c_str());
+        return cb_exc_new(eRequestCanceled, what);
 
       case errc::common::invalid_argument:
-        return rb_exc_new_cstr(eInvalidArgument, what.c_str());
+        return cb_exc_new(eInvalidArgument, what);
 
       case errc::common::service_not_available:
-        return rb_exc_new_cstr(eServiceNotAvailable, what.c_str());
+        return cb_exc_new(eServiceNotAvailable, what);
 
       case errc::common::internal_server_failure:
-        return rb_exc_new_cstr(eInternalServerFailure, what.c_str());
+        return cb_exc_new(eInternalServerFailure, what);
 
       case errc::common::authentication_failure:
-        return rb_exc_new_cstr(eAuthenticationFailure, what.c_str());
+        return cb_exc_new(eAuthenticationFailure, what);
 
       case errc::common::temporary_failure:
-        return rb_exc_new_cstr(eTemporaryFailure, what.c_str());
+        return cb_exc_new(eTemporaryFailure, what);
 
       case errc::common::parsing_failure:
-        return rb_exc_new_cstr(eParsingFailure, what.c_str());
+        return cb_exc_new(eParsingFailure, what);
 
       case errc::common::cas_mismatch:
-        return rb_exc_new_cstr(eCasMismatch, what.c_str());
+        return cb_exc_new(eCasMismatch, what);
 
       case errc::common::bucket_not_found:
-        return rb_exc_new_cstr(eBucketNotFound, what.c_str());
+        return cb_exc_new(eBucketNotFound, what);
 
       case errc::common::scope_not_found:
-        return rb_exc_new_cstr(eScopeNotFound, what.c_str());
+        return cb_exc_new(eScopeNotFound, what);
 
       case errc::common::collection_not_found:
-        return rb_exc_new_cstr(eCollectionNotFound, what.c_str());
+        return cb_exc_new(eCollectionNotFound, what);
 
       case errc::common::unsupported_operation:
-        return rb_exc_new_cstr(eUnsupportedOperation, what.c_str());
+        return cb_exc_new(eUnsupportedOperation, what);
 
       case errc::common::feature_not_available:
-        return rb_exc_new_cstr(eFeatureNotAvailable, what.c_str());
+        return cb_exc_new(eFeatureNotAvailable, what);
 
       case errc::common::encoding_failure:
-        return rb_exc_new_cstr(eEncodingFailure, what.c_str());
+        return cb_exc_new(eEncodingFailure, what);
 
       case errc::common::decoding_failure:
-        return rb_exc_new_cstr(eDecodingFailure, what.c_str());
+        return cb_exc_new(eDecodingFailure, what);
 
       case errc::common::index_not_found:
-        return rb_exc_new_cstr(eIndexNotFound, what.c_str());
+        return cb_exc_new(eIndexNotFound, what);
 
       case errc::common::index_exists:
-        return rb_exc_new_cstr(eIndexExists, what.c_str());
+        return cb_exc_new(eIndexExists, what);
 
       case errc::common::rate_limited:
-        return rb_exc_new_cstr(eRateLimited, what.c_str());
+        return cb_exc_new(eRateLimited, what);
 
       case errc::common::quota_limited:
-        return rb_exc_new_cstr(eQuotaLimited, what.c_str());
+        return cb_exc_new(eQuotaLimited, what);
     }
   } else if (ec.category() == core::impl::key_value_category()) {
     switch (static_cast<errc::key_value>(ec.value())) {
       case errc::key_value::document_not_found:
-        return rb_exc_new_cstr(eDocumentNotFound, what.c_str());
+        return cb_exc_new(eDocumentNotFound, what);
 
       case errc::key_value::document_irretrievable:
-        return rb_exc_new_cstr(eDocumentIrretrievable, what.c_str());
+        return cb_exc_new(eDocumentIrretrievable, what);
 
       case errc::key_value::document_locked:
-        return rb_exc_new_cstr(eDocumentLocked, what.c_str());
+        return cb_exc_new(eDocumentLocked, what);
 
       case errc::key_value::document_not_locked:
-        return rb_exc_new_cstr(eDocumentNotLocked, what.c_str());
+        return cb_exc_new(eDocumentNotLocked, what);
 
       case errc::key_value::value_too_large:
-        return rb_exc_new_cstr(eValueTooLarge, what.c_str());
+        return cb_exc_new(eValueTooLarge, what);
 
       case errc::key_value::document_exists:
-        return rb_exc_new_cstr(eDocumentExists, what.c_str());
+        return cb_exc_new(eDocumentExists, what);
 
       case errc::key_value::durability_level_not_available:
-        return rb_exc_new_cstr(eDurabilityLevelNotAvailable, what.c_str());
+        return cb_exc_new(eDurabilityLevelNotAvailable, what);
 
       case errc::key_value::durability_impossible:
-        return rb_exc_new_cstr(eDurabilityImpossible, what.c_str());
+        return cb_exc_new(eDurabilityImpossible, what);
 
       case errc::key_value::durability_ambiguous:
-        return rb_exc_new_cstr(eDurabilityAmbiguous, what.c_str());
+        return cb_exc_new(eDurabilityAmbiguous, what);
 
       case errc::key_value::durable_write_in_progress:
-        return rb_exc_new_cstr(eDurableWriteInProgress, what.c_str());
+        return cb_exc_new(eDurableWriteInProgress, what);
 
       case errc::key_value::durable_write_re_commit_in_progress:
-        return rb_exc_new_cstr(eDurableWriteReCommitInProgress, what.c_str());
+        return cb_exc_new(eDurableWriteReCommitInProgress, what);
 
       case errc::key_value::mutation_token_outdated:
-        return rb_exc_new_cstr(eMutationTokenOutdated, what.c_str());
+        return cb_exc_new(eMutationTokenOutdated, what);
 
       case errc::key_value::path_not_found:
-        return rb_exc_new_cstr(ePathNotFound, what.c_str());
+        return cb_exc_new(ePathNotFound, what);
 
       case errc::key_value::path_mismatch:
-        return rb_exc_new_cstr(ePathMismatch, what.c_str());
+        return cb_exc_new(ePathMismatch, what);
 
       case errc::key_value::path_invalid:
-        return rb_exc_new_cstr(ePathInvalid, what.c_str());
+        return cb_exc_new(ePathInvalid, what);
 
       case errc::key_value::path_too_big:
-        return rb_exc_new_cstr(ePathTooBig, what.c_str());
+        return cb_exc_new(ePathTooBig, what);
 
       case errc::key_value::path_too_deep:
-        return rb_exc_new_cstr(ePathTooDeep, what.c_str());
+        return cb_exc_new(ePathTooDeep, what);
 
       case errc::key_value::value_too_deep:
-        return rb_exc_new_cstr(eValueTooDeep, what.c_str());
+        return cb_exc_new(eValueTooDeep, what);
 
       case errc::key_value::value_invalid:
-        return rb_exc_new_cstr(eValueInvalid, what.c_str());
+        return cb_exc_new(eValueInvalid, what);
 
       case errc::key_value::document_not_json:
-        return rb_exc_new_cstr(eDocumentNotJson, what.c_str());
+        return cb_exc_new(eDocumentNotJson, what);
 
       case errc::key_value::number_too_big:
-        return rb_exc_new_cstr(eNumberTooBig, what.c_str());
+        return cb_exc_new(eNumberTooBig, what);
 
       case errc::key_value::delta_invalid:
-        return rb_exc_new_cstr(eDeltaInvalid, what.c_str());
+        return cb_exc_new(eDeltaInvalid, what);
 
       case errc::key_value::path_exists:
-        return rb_exc_new_cstr(ePathExists, what.c_str());
+        return cb_exc_new(ePathExists, what);
 
       case errc::key_value::xattr_unknown_macro:
-        return rb_exc_new_cstr(eXattrUnknownMacro, what.c_str());
+        return cb_exc_new(eXattrUnknownMacro, what);
 
       case errc::key_value::xattr_invalid_key_combo:
-        return rb_exc_new_cstr(eXattrInvalidKeyCombo, what.c_str());
+        return cb_exc_new(eXattrInvalidKeyCombo, what);
 
       case errc::key_value::xattr_unknown_virtual_attribute:
-        return rb_exc_new_cstr(eXattrUnknownVirtualAttribute, what.c_str());
+        return cb_exc_new(eXattrUnknownVirtualAttribute, what);
 
       case errc::key_value::xattr_cannot_modify_virtual_attribute:
-        return rb_exc_new_cstr(eXattrCannotModifyVirtualAttribute, what.c_str());
+        return cb_exc_new(eXattrCannotModifyVirtualAttribute, what);
 
       case errc::key_value::xattr_no_access:
-        return rb_exc_new_cstr(eXattrNoAccess, what.c_str());
+        return cb_exc_new(eXattrNoAccess, what);
 
       case errc::key_value::cannot_revive_living_document:
-        return rb_exc_new_cstr(eCannotReviveLivingDocument, what.c_str());
+        return cb_exc_new(eCannotReviveLivingDocument, what);
 
       case errc::key_value::range_scan_completed:
         // Should not be exposed to the Ruby SDK, map it to a BackendError
-        return rb_exc_new_cstr(eBackendError, what.c_str());
+        return cb_exc_new(eBackendError, what);
     }
   } else if (ec.category() == core::impl::query_category()) {
     switch (static_cast<errc::query>(ec.value())) {
       case errc::query::planning_failure:
-        return rb_exc_new_cstr(ePlanningFailure, what.c_str());
+        return cb_exc_new(ePlanningFailure, what);
 
       case errc::query::index_failure:
-        return rb_exc_new_cstr(eIndexFailure, what.c_str());
+        return cb_exc_new(eIndexFailure, what);
 
       case errc::query::prepared_statement_failure:
-        return rb_exc_new_cstr(ePreparedStatementFailure, what.c_str());
+        return cb_exc_new(ePreparedStatementFailure, what);
 
       case errc::query::dml_failure:
-        return rb_exc_new_cstr(eDmlFailure, what.c_str());
+        return cb_exc_new(eDmlFailure, what);
     }
   } else if (ec.category() == core::impl::search_category()) {
     switch (static_cast<errc::search>(ec.value())) {
       case errc::search::index_not_ready:
-        return rb_exc_new_cstr(eIndexNotReady, what.c_str());
+        return cb_exc_new(eIndexNotReady, what);
       case errc::search::consistency_mismatch:
-        return rb_exc_new_cstr(eConsistencyMismatch, what.c_str());
+        return cb_exc_new(eConsistencyMismatch, what);
     }
   } else if (ec.category() == core::impl::view_category()) {
     switch (static_cast<errc::view>(ec.value())) {
       case errc::view::view_not_found:
-        return rb_exc_new_cstr(eViewNotFound, what.c_str());
+        return cb_exc_new(eViewNotFound, what);
 
       case errc::view::design_document_not_found:
-        return rb_exc_new_cstr(eDesignDocumentNotFound, what.c_str());
+        return cb_exc_new(eDesignDocumentNotFound, what);
     }
   } else if (ec.category() == core::impl::analytics_category()) {
     switch (static_cast<errc::analytics>(ec.value())) {
       case errc::analytics::compilation_failure:
-        return rb_exc_new_cstr(eCompilationFailure, what.c_str());
+        return cb_exc_new(eCompilationFailure, what);
 
       case errc::analytics::job_queue_full:
-        return rb_exc_new_cstr(eJobQueueFull, what.c_str());
+        return cb_exc_new(eJobQueueFull, what);
 
       case errc::analytics::dataset_not_found:
-        return rb_exc_new_cstr(eDatasetNotFound, what.c_str());
+        return cb_exc_new(eDatasetNotFound, what);
 
       case errc::analytics::dataverse_not_found:
-        return rb_exc_new_cstr(eDataverseNotFound, what.c_str());
+        return cb_exc_new(eDataverseNotFound, what);
 
       case errc::analytics::dataset_exists:
-        return rb_exc_new_cstr(eDatasetExists, what.c_str());
+        return cb_exc_new(eDatasetExists, what);
 
       case errc::analytics::dataverse_exists:
-        return rb_exc_new_cstr(eDataverseExists, what.c_str());
+        return cb_exc_new(eDataverseExists, what);
 
       case errc::analytics::link_not_found:
-        return rb_exc_new_cstr(eLinkNotFound, what.c_str());
+        return cb_exc_new(eLinkNotFound, what);
 
       case errc::analytics::link_exists:
-        return rb_exc_new_cstr(eLinkExists, what.c_str());
+        return cb_exc_new(eLinkExists, what);
     }
   } else if (ec.category() == core::impl::management_category()) {
     switch (static_cast<errc::management>(ec.value())) {
       case errc::management::collection_exists:
-        return rb_exc_new_cstr(eCollectionExists, what.c_str());
+        return cb_exc_new(eCollectionExists, what);
 
       case errc::management::scope_exists:
-        return rb_exc_new_cstr(eScopeExists, what.c_str());
+        return cb_exc_new(eScopeExists, what);
 
       case errc::management::user_not_found:
-        return rb_exc_new_cstr(eUserNotFound, what.c_str());
+        return cb_exc_new(eUserNotFound, what);
 
       case errc::management::group_not_found:
-        return rb_exc_new_cstr(eGroupNotFound, what.c_str());
+        return cb_exc_new(eGroupNotFound, what);
 
       case errc::management::user_exists:
-        return rb_exc_new_cstr(eUserExists, what.c_str());
+        return cb_exc_new(eUserExists, what);
 
       case errc::management::bucket_exists:
-        return rb_exc_new_cstr(eBucketExists, what.c_str());
+        return cb_exc_new(eBucketExists, what);
 
       case errc::management::bucket_not_flushable:
-        return rb_exc_new_cstr(eBucketNotFlushable, what.c_str());
+        return cb_exc_new(eBucketNotFlushable, what);
 
       case errc::management::eventing_function_not_found:
-        return rb_exc_new_cstr(eEventingFunctionNotFound, what.c_str());
+        return cb_exc_new(eEventingFunctionNotFound, what);
 
       case errc::management::eventing_function_not_deployed:
-        return rb_exc_new_cstr(eEventingFunctionNotDeployed, what.c_str());
+        return cb_exc_new(eEventingFunctionNotDeployed, what);
 
       case errc::management::eventing_function_compilation_failure:
-        return rb_exc_new_cstr(eEventingFunctionCompilationFailure, what.c_str());
+        return cb_exc_new(eEventingFunctionCompilationFailure, what);
 
       case errc::management::eventing_function_identical_keyspace:
-        return rb_exc_new_cstr(eEventingFunctionIdentialKeyspace, what.c_str());
+        return cb_exc_new(eEventingFunctionIdentialKeyspace, what);
 
       case errc::management::eventing_function_not_bootstrapped:
-        return rb_exc_new_cstr(eEventingFunctionNotBootstrapped, what.c_str());
+        return cb_exc_new(eEventingFunctionNotBootstrapped, what);
 
       case errc::management::eventing_function_deployed:
-        return rb_exc_new_cstr(eEventingFunctionDeployed, what.c_str());
+        return cb_exc_new(eEventingFunctionDeployed, what);
 
       case errc::management::eventing_function_paused:
-        return rb_exc_new_cstr(eEventingFunctionPaused, what.c_str());
+        return cb_exc_new(eEventingFunctionPaused, what);
     }
   } else if (ec.category() == core::impl::network_category()) {
     switch (static_cast<errc::network>(ec.value())) {
       case errc::network::resolve_failure:
-        return rb_exc_new_cstr(eResolveFailure, what.c_str());
+        return cb_exc_new(eResolveFailure, what);
 
       case errc::network::no_endpoints_left:
-        return rb_exc_new_cstr(eNoEndpointsLeft, what.c_str());
+        return cb_exc_new(eNoEndpointsLeft, what);
 
       case errc::network::handshake_failure:
-        return rb_exc_new_cstr(eHandshakeFailure, what.c_str());
+        return cb_exc_new(eHandshakeFailure, what);
 
       case errc::network::protocol_error:
-        return rb_exc_new_cstr(eProtocolError, what.c_str());
+        return cb_exc_new(eProtocolError, what);
 
       case errc::network::configuration_not_available:
-        return rb_exc_new_cstr(eConfigurationNotAvailable, what.c_str());
+        return cb_exc_new(eConfigurationNotAvailable, what);
 
       case errc::network::cluster_closed:
-        return rb_exc_new_cstr(eClusterClosed, what.c_str());
+        return cb_exc_new(eClusterClosed, what);
 
       case errc::network::end_of_stream:
-        return rb_exc_new_cstr(eEndOfStream, what.c_str());
+        return cb_exc_new(eEndOfStream, what);
 
       case errc::network::need_more_data:
-        return rb_exc_new_cstr(eNeedMoreData, what.c_str());
+        return cb_exc_new(eNeedMoreData, what);
 
       case errc::network::operation_queue_closed:
-        return rb_exc_new_cstr(eOperationQueueClosed, what.c_str());
+        return cb_exc_new(eOperationQueueClosed, what);
 
       case errc::network::operation_queue_full:
-        return rb_exc_new_cstr(eOperationQueueFull, what.c_str());
+        return cb_exc_new(eOperationQueueFull, what);
 
       case errc::network::request_already_queued:
-        return rb_exc_new_cstr(eRequestAlreadyQueued, what.c_str());
+        return cb_exc_new(eRequestAlreadyQueued, what);
 
       case errc::network::request_cancelled:
-        return rb_exc_new_cstr(eNetworkRequestCanceled, what.c_str());
+        return cb_exc_new(eNetworkRequestCanceled, what);
 
       case errc::network::bucket_closed:
-        return rb_exc_new_cstr(eBucketClosed, what.c_str());
+        return cb_exc_new(eBucketClosed, what);
     }
   }
 
-  return rb_exc_new_cstr(eBackendError, what.c_str());
+  return cb_exc_new(eBackendError, what);
 }
 
 [[noreturn]] void
@@ -912,8 +944,11 @@ cb_map_error(const core::error_context::search& ctx, const std::string& message)
 cb_map_error(const error& err, const std::string& message)
 {
   VALUE exc = cb_map_error_code(err.ec(), fmt::format("{}: {}", message, err.message()), true);
-  static const auto id_context_eq = rb_intern("context=");
-  rb_funcall(exc, id_context_eq, 1, cb_str_new(err.ctx().to_json()));
+  VALUE context = cb_str_new(err.ctx().to_json());
+  cb_protect([exc, context] {
+    static const auto id_context_eq = rb_intern("context=");
+    rb_funcall(exc, id_context_eq, 1, context);
+  });
   if (auto cause = err.cause(); cause) {
     rb_iv_set(exc, "@cause", cb_map_error(cause.value(), "Caused by"));
   }
