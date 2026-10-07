@@ -28,6 +28,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <exception>
 #include <optional>
 #include <string>
 #include <vector>
@@ -98,19 +99,84 @@ cb_wait_for_future(Future&& f) -> decltype(f.get())
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     Future&& f;
     decltype(f.get()) res{};
-  } arg{ std::forward<Future>(f) };
-  rb_thread_call_without_gvl(
-    [](void* param) -> void* {
+    std::exception_ptr error{};
+    bool done{ false };
+
+    // Runs without the GVL, inside Ruby C frames, so no exception leaves it.
+    static auto wait(void* param) -> void*
+    {
       auto* pack = static_cast<arg_pack*>(param);
-      pack->res = std::move(pack->f.get());
+      try {
+        pack->res = std::move(pack->f.get());
+      } catch (...) {
+        pack->error = std::current_exception();
+      }
+      pack->done = true;
       return nullptr;
-    },
-    &arg,
-    nullptr,
-    nullptr);
+    }
+
+    // No unblocking function: the wait ends only when the operation completes or times out.
+    // Interrupts are checked before and after it, and a pending one raises there.
+    static auto protected_wait(VALUE param) -> VALUE
+    {
+      rb_thread_call_without_gvl(
+        wait,
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
+        reinterpret_cast<void*>(param),
+        nullptr,
+        nullptr);
+      return Qnil;
+    }
+  } arg{ std::forward<Future>(f) };
+
+  // rb_protect stops an interrupt (Timeout, Thread#raise, Thread#kill, a signal) raised at the
+  // checks around the wait. One raised before the wait leaves the operation in flight, so the
+  // wait is retried until the operation completes; no attempt waits with the GVL held. A later
+  // interrupt replaces the earlier one, which is discarded.
+  int state = 0;
+  VALUE interrupt = Qnil;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  rb_protect(arg_pack::protected_wait, reinterpret_cast<VALUE>(&arg), &state);
+  if (state != 0) {
+    interrupt = rb_errinfo();
+  }
+  while (!arg.done) {
+    int next = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    rb_protect(arg_pack::protected_wait, reinterpret_cast<VALUE>(&arg), &next);
+    if (next != 0) {
+      state = next;
+      interrupt = rb_errinfo();
+    }
+  }
+  if (state != 0) {
+    // A trap handler run by a retry's interrupt check can clear errinfo by rescuing, so a raised
+    // exception is restored before ruby_jump carries the interrupt to cb_method. Trap handlers run
+    // only on the main thread, which never receives a kill interrupt. errinfo holds an Exception
+    // only after a raise: a kill leaves an Integer, and a throw (Timeout on Ruby 3.2 uses catch
+    // and throw) leaves internal throw data, which rb_obj_is_kind_of cannot read.
+    if (RB_TYPE_P(interrupt, T_OBJECT) && rb_obj_is_kind_of(interrupt, rb_eException) == Qtrue) {
+      rb_set_errinfo(interrupt);
+    }
+    throw ruby_jump(state);
+  }
+  // Only when no interrupt was stopped: the logger runs Ruby code, which would replace errinfo.
+  // Otherwise its messages stay queued for the next flush.
   cb_protect([] {
     flush_logger();
   });
+  if (arg.error) {
+    // The promises waited on here are fulfilled only with set_value, so a future fails only with
+    // std::future_error, when its promise is destroyed unfulfilled.
+    std::string message{ "unable to wait for the operation result" };
+    try {
+      std::rethrow_exception(arg.error);
+    } catch (const std::exception& e) {
+      message.append(": ").append(e.what());
+    } catch (...) {
+    }
+    throw ruby_exception(cb_exc_new(exc_couchbase_error(), message));
+  }
   return std::move(arg.res);
 }
 
