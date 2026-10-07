@@ -30,15 +30,17 @@ when /mingw/
   # ridk install 1
   # ridk install 3
   # ridk exec pacman --sync --noconfirm \
-  #   mingw-w64-ucrt-x86_64-ninja \
-  #   mingw-w64-ucrt-x86_64-cmake \
-  #   mingw-w64-ucrt-x86_64-toolchain \
-  #   mingw-w64-ucrt-x86_64-go \
-  #   mingw-w64-ucrt-x86_64-nasm \
-  #   mingw-w64-ucrt-x86_64-ccache
+  #   ${MINGW_PACKAGE_PREFIX}-ninja \
+  #   ${MINGW_PACKAGE_PREFIX}-cmake \
+  #   ${MINGW_PACKAGE_PREFIX}-toolchain \
+  #   ${MINGW_PACKAGE_PREFIX}-go \
+  #   ${MINGW_PACKAGE_PREFIX}-nasm \
+  #   ${MINGW_PACKAGE_PREFIX}-ccache
+  # MINGW_PACKAGE_PREFIX is mingw-w64-ucrt-x86_64 or mingw-w64-clang-aarch64; nasm is needed on x64 only.
   ENV["CB_STATIC_BORINGSSL"] = "true"
   ENV["CB_STATIC_STDLIB"] = "true"
-  ENV["GOROOT"] = File.join(RubyInstaller::Runtime.msys2_installation.msys_path, "ucrt64/lib/go")
+  msys2 = RubyInstaller::Runtime.msys2_installation
+  ENV["GOROOT"] = File.join(msys2.msys_path, msys2.mingw_prefix, "lib/go") # /ucrt64 or /clangarm64
 end
 
 pp ENV.select { |k, _| k =~ /^CB_|^DEBUG$/ }.merge("SDK_VERSION" => SDK_VERSION)

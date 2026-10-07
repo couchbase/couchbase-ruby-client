@@ -915,18 +915,27 @@ jobs:
             test/**/*.{log,xml}
           retention-days: 5
 
-  windows_x64:
+  build_windows:
     needs: source
-    runs-on: windows-2022
+    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-2022' }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
+        arch:
+          - x64
+          - arm64
         ruby:
           - '3.2'
           - '3.3'
           - '3.4'
           - '4.0'
+        exclude:
+          # RubyInstaller ships arm64 builds starting with Ruby 3.4
+          - arch: arm64
+            ruby: '3.2'
+          - arch: arm64
+            ruby: '3.3'
     steps:
       - uses: ruby/setup-ruby@v1
         timeout-minutes: 10
@@ -935,7 +944,12 @@ jobs:
       - name: Install dependencies
         timeout-minutes: 15
         run: |
-          ridk exec pacman --sync --noconfirm --needed mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-go mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-toolchain
+          $PREFIX = $env:MINGW_PACKAGE_PREFIX
+          $PACKAGES = @("patch", "$PREFIX-cmake", "$PREFIX-go", "$PREFIX-ninja", "$PREFIX-toolchain")
+          if ("${{ matrix.arch }}" -eq "x64") { $PACKAGES += "$PREFIX-nasm" }
+          # A slow mirror can fail the download; retry once
+          ridk exec pacman --sync --noconfirm --needed @PACKAGES
+          if ($LASTEXITCODE -ne 0) { ridk exec pacman --sync --noconfirm --needed @PACKAGES }
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}
@@ -952,36 +966,30 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           retention-days: 1
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-${{ matrix.ruby }}
+          name: couchbase-${{ needs.source.outputs.gem_version }}-${{ matrix.arch }}-mingw-${{ matrix.ruby }}
           path: |
-            *-x64-mingw*.gem
+            *-mingw*.gem
 
-  repackage_windows_x64:
+  repackage_windows:
     needs:
       - source
-      - windows_x64
-    runs-on: windows-2022
+      - build_windows
+    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-2022' }}
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x64
+          - arm64
     steps:
       - uses: actions/download-artifact@v8
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - uses: actions/download-artifact@v8
         with:
-          path: pkg/binary/3.2
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-3.2
-      - uses: actions/download-artifact@v8
-        with:
-          path: pkg/binary/3.3
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-3.3
-      - uses: actions/download-artifact@v8
-        with:
-          path: pkg/binary/3.4
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-3.4
-      - uses: actions/download-artifact@v8
-        with:
-          path: pkg/binary/4.0
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-4.0
+          path: pkg/binary
+          pattern: couchbase-${{ needs.source.outputs.gem_version }}-${{ matrix.arch }}-mingw-*
       - uses: ruby/setup-ruby@v1
         timeout-minutes: 10
         with:
@@ -991,31 +999,40 @@ jobs:
           ruby bin/jenkins/repackage-extension.rb
       - uses: actions/upload-artifact@v7
         with:
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw
+          name: couchbase-${{ needs.source.outputs.gem_version }}-${{ matrix.arch }}-mingw
           path: |
             pkg/fat/*.gem
 
-  mock_windows_x64:
+  mock_windows:
     timeout-minutes: 15
     needs:
       - source
-      - repackage_windows_x64
-    runs-on: windows-2022
+      - repackage_windows
+    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-2022' }}
     strategy:
       fail-fast: false
       matrix:
+        arch:
+          - x64
+          - arm64
         ruby:
           - '3.2'
           - '3.3'
           - '3.4'
           - '4.0'
+        exclude:
+          # RubyInstaller ships arm64 builds starting with Ruby 3.4
+          - arch: arm64
+            ruby: '3.2'
+          - arch: arm64
+            ruby: '3.3'
     defaults:
       run:
         shell: bash
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw
+          name: couchbase-${{ needs.source.outputs.gem_version }}-${{ matrix.arch }}-mingw
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
@@ -1053,7 +1070,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.arch }}-${{ matrix.ruby }}-logs
           path: |
             caves-logs/*
             logs/*
@@ -1063,7 +1080,7 @@ jobs:
         uses: mikepenz/action-junit-report@v6.4.2
         if: always()
         with:
-          check_name: 🪟caves, ruby-${{ matrix.ruby }}
+          check_name: 🪟caves, ${{ matrix.arch }}, ruby-${{ matrix.ruby }}
           report_paths: test/reports/*.xml
           require_tests: true
           annotate_only: true

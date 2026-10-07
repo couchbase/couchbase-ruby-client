@@ -97,6 +97,8 @@ module Gem
         gemspec.original_platform = gemspec.platform
       end
       gemspec.required_ruby_version = "> 3.2"
+      # grpc does not build on aarch64-mingw-ucrt; without it only couchbase2:// connections are unavailable
+      gemspec.dependencies.reject! { |dep| dep.name == "grpc" } if gemspec.platform.to_s == "aarch64-mingw-ucrt"
 
       # build new gem
       output_gem = nil
