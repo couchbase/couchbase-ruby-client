@@ -40,8 +40,33 @@
 
 namespace couchbase::ruby
 {
-// Wraps Method, which may throw ruby_exception, for rb_define_method. Method's frames unwind
-// first; the Ruby raise happens here, where no C++ object is live and no catch handler is active.
+// Runs fn, which calls Ruby code, under rb_protect. A Ruby non-local exit from fn stops at
+// rb_protect and continues as ruby_jump, so the C++ frames between the caller and cb_method
+// unwind. The longjmp still skips objects held in fn's own frames. fn must not throw; the
+// rb_protect callback is noexcept, so an exception terminates instead of crossing rb_protect's
+// frame.
+template<typename Callable>
+inline void
+cb_protect(const Callable& fn)
+{
+  int state = 0;
+  rb_protect(
+    [](VALUE arg) noexcept -> VALUE {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+      (*reinterpret_cast<const Callable*>(arg))();
+      return Qnil;
+    },
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    reinterpret_cast<VALUE>(&fn),
+    &state);
+  if (state != 0) {
+    throw ruby_jump(state);
+  }
+}
+
+// Wraps Method, which may throw ruby_exception or ruby_jump, for rb_define_method. Method's
+// frames unwind first; the Ruby raise or jump happens here, where no C++ object is live and no
+// catch handler is active.
 template<auto Method, typename = decltype(Method)>
 struct cb_method;
 
@@ -49,11 +74,17 @@ template<auto Method, typename... Args>
 struct cb_method<Method, VALUE (*)(Args...)> {
   static auto invoke(Args... args) -> VALUE
   {
+    int state = 0;
     VALUE exc = Qnil;
     try {
       return Method(args...);
+    } catch (const ruby_jump& e) {
+      state = e.state();
     } catch (const ruby_exception& e) {
       exc = e.exception_object();
+    }
+    if (state != 0) {
+      rb_jump_tag(state);
     }
     rb_exc_raise(exc);
   }
@@ -77,7 +108,9 @@ cb_wait_for_future(Future&& f) -> decltype(f.get())
     &arg,
     nullptr,
     nullptr);
-  flush_logger();
+  cb_protect([] {
+    flush_logger();
+  });
   return std::move(arg.res);
 }
 

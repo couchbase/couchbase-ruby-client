@@ -89,11 +89,13 @@ cb_add_core_spans(VALUE observability_handler,
     rb_ary_push(spans, core_span_to_rb_hash(child));
   }
 
-  static ID add_backend_spans_func = rb_intern("add_spans_from_backend");
-  rb_funcall(observability_handler, add_backend_spans_func, 1, spans);
+  cb_protect([observability_handler, spans, retry_attempts] {
+    static ID add_backend_spans_func = rb_intern("add_spans_from_backend");
+    rb_funcall(observability_handler, add_backend_spans_func, 1, spans);
 
-  static ID add_retries_func = rb_intern("add_retries");
-  rb_funcall(observability_handler, add_retries_func, 1, ULONG2NUM(retry_attempts));
+    static ID add_retries_func = rb_intern("add_retries");
+    rb_funcall(observability_handler, add_retries_func, 1, ULONG2NUM(retry_attempts));
+  });
 }
 
 namespace

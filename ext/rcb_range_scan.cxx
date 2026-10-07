@@ -199,7 +199,7 @@ cb_Backend_document_scan_create(VALUE self,
             case T_BIGNUM:
               break;
             default:
-              throw ruby_exception(rb_eArgError, "partition_uuid must be an Integer");
+              throw ruby_exception(cb_exc_new(rb_eArgError, "partition_uuid must be an Integer"));
           }
           VALUE sequence_number = rb_hash_aref(token, rb_id2sym(rb_intern("sequence_number")));
           switch (TYPE(sequence_number)) {
@@ -207,7 +207,7 @@ cb_Backend_document_scan_create(VALUE self,
             case T_BIGNUM:
               break;
             default:
-              throw ruby_exception(rb_eArgError, "sequence_number must be an Integer");
+              throw ruby_exception(cb_exc_new(rb_eArgError, "sequence_number must be an Integer"));
           }
           core_mut_state.tokens.emplace_back(
             NUM2ULL(partition_uuid),
@@ -233,8 +233,8 @@ cb_Backend_document_scan_create(VALUE self,
     }
     auto agent = agent_group.get_agent(bucket_name);
     if (!agent.has_value()) {
-      throw ruby_exception(exc_couchbase_error(),
-                           "Cannot perform scan operation. Unable to get operation agent");
+      throw ruby_exception(cb_exc_new(
+        exc_couchbase_error(), "Cannot perform scan operation. Unable to get operation agent"));
     }
 
     // Getting the vbucket map
@@ -249,17 +249,18 @@ cb_Backend_document_scan_create(VALUE self,
       });
     auto config = cb_wait_for_future(f);
     if (!config.has_value()) {
-      throw ruby_exception(exc_couchbase_error(),
-                           "Cannot perform scan operation. Unable to get bucket configuration");
+      throw ruby_exception(
+        cb_exc_new(exc_couchbase_error(),
+                   "Cannot perform scan operation. Unable to get bucket configuration"));
     }
     if (!config->capabilities.supports_range_scan()) {
-      throw ruby_exception(exc_feature_not_available(),
-                           "Server does not support key-value scan operations");
+      throw ruby_exception(cb_exc_new(exc_feature_not_available(),
+                                      "Server does not support key-value scan operations"));
     }
     auto vbucket_map = config->vbmap;
     if (!vbucket_map || vbucket_map->empty()) {
-      throw ruby_exception(exc_couchbase_error(),
-                           "Cannot perform scan operation. Unable to get vbucket map");
+      throw ruby_exception(cb_exc_new(exc_couchbase_error(),
+                                      "Cannot perform scan operation. Unable to get vbucket map"));
     }
 
     // Constructing the scan type
@@ -298,7 +299,7 @@ cb_Backend_document_scan_create(VALUE self,
       cb_extract_option_number(sampling_scan.seed, scan_type, "seed");
       core_scan_type = sampling_scan;
     } else {
-      throw ruby_exception(exc_invalid_argument(), "Invalid scan operation type");
+      throw ruby_exception(cb_exc_new(exc_invalid_argument(), "Invalid scan operation type"));
     }
 
     auto orchestrator = couchbase::core::range_scan_orchestrator(cluster.io_context(),
@@ -318,7 +319,10 @@ cb_Backend_document_scan_create(VALUE self,
     // Wrap core scan_result inside Ruby ScanResult
     // Creating a Ruby CoreScanResult object *after* checking that no error occurred during
     // orchestrator.scan()
-    VALUE core_scan_result_obj = rb_class_new_instance(0, nullptr, cCoreScanResult);
+    VALUE core_scan_result_obj = Qnil;
+    cb_protect([&core_scan_result_obj] {
+      core_scan_result_obj = rb_class_new_instance(0, nullptr, cCoreScanResult);
+    });
     rb_ivar_set(core_scan_result_obj, rb_intern("@backend"), self);
     cb_core_scan_result_data* data = nullptr;
     TypedData_Get_Struct(
