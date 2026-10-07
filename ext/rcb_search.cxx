@@ -116,10 +116,8 @@ cb_Backend_search_index_get_all(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("indexes")), indexes);
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -169,10 +167,8 @@ cb_Backend_search_index_get(VALUE self,
     cb_extract_search_index(res, resp.index);
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -272,10 +268,8 @@ cb_Backend_search_index_upsert(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -326,10 +320,8 @@ cb_Backend_search_index_drop(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -386,10 +378,8 @@ cb_Backend_search_index_get_documents_count(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("count")), ULL2NUM(resp.count));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -429,10 +419,8 @@ cb_Backend_search_index_get_stats(VALUE self,
     }
     return cb_str_new(resp.stats);
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -458,10 +446,8 @@ cb_Backend_search_get_stats(VALUE self, VALUE timeout, VALUE observability_handl
     }
     return cb_str_new(resp.stats);
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -515,10 +501,8 @@ cb_Backend_search_index_pause_ingest(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -572,10 +556,8 @@ cb_Backend_search_index_resume_ingest(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -629,10 +611,8 @@ cb_Backend_search_index_allow_querying(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -686,10 +666,8 @@ cb_Backend_search_index_disallow_querying(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -742,10 +720,8 @@ cb_Backend_search_index_freeze_plan(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -799,10 +775,8 @@ cb_Backend_search_index_unfreeze_plan(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("status")), cb_str_new(resp.status));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -862,10 +836,8 @@ cb_Backend_search_index_analyze_document(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("analysis")), cb_str_new(resp.analysis));
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1261,10 +1233,8 @@ cb_Backend_document_search(VALUE self,
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1274,27 +1244,49 @@ cb_Backend_document_search(VALUE self,
 void
 init_search(VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_search", cb_Backend_document_search, 7);
+  rb_define_method(cBackend, "document_search", cb_method<cb_Backend_document_search>::invoke, 7);
 
-  rb_define_method(cBackend, "search_get_stats", cb_Backend_search_get_stats, 2);
-  rb_define_method(cBackend, "search_index_get_all", cb_Backend_search_index_get_all, 4);
-  rb_define_method(cBackend, "search_index_get", cb_Backend_search_index_get, 5);
-  rb_define_method(cBackend, "search_index_upsert", cb_Backend_search_index_upsert, 5);
-  rb_define_method(cBackend, "search_index_drop", cb_Backend_search_index_drop, 5);
-  rb_define_method(cBackend, "search_index_get_stats", cb_Backend_search_index_get_stats, 3);
+  rb_define_method(cBackend, "search_get_stats", cb_method<cb_Backend_search_get_stats>::invoke, 2);
   rb_define_method(
-    cBackend, "search_index_get_documents_count", cb_Backend_search_index_get_documents_count, 5);
-  rb_define_method(cBackend, "search_index_pause_ingest", cb_Backend_search_index_pause_ingest, 5);
+    cBackend, "search_index_get_all", cb_method<cb_Backend_search_index_get_all>::invoke, 4);
+  rb_define_method(cBackend, "search_index_get", cb_method<cb_Backend_search_index_get>::invoke, 5);
   rb_define_method(
-    cBackend, "search_index_resume_ingest", cb_Backend_search_index_resume_ingest, 5);
+    cBackend, "search_index_upsert", cb_method<cb_Backend_search_index_upsert>::invoke, 5);
   rb_define_method(
-    cBackend, "search_index_allow_querying", cb_Backend_search_index_allow_querying, 5);
+    cBackend, "search_index_drop", cb_method<cb_Backend_search_index_drop>::invoke, 5);
   rb_define_method(
-    cBackend, "search_index_disallow_querying", cb_Backend_search_index_disallow_querying, 5);
-  rb_define_method(cBackend, "search_index_freeze_plan", cb_Backend_search_index_freeze_plan, 5);
-  rb_define_method(
-    cBackend, "search_index_unfreeze_plan", cb_Backend_search_index_unfreeze_plan, 5);
-  rb_define_method(
-    cBackend, "search_index_analyze_document", cb_Backend_search_index_analyze_document, 6);
+    cBackend, "search_index_get_stats", cb_method<cb_Backend_search_index_get_stats>::invoke, 3);
+  rb_define_method(cBackend,
+                   "search_index_get_documents_count",
+                   cb_method<cb_Backend_search_index_get_documents_count>::invoke,
+                   5);
+  rb_define_method(cBackend,
+                   "search_index_pause_ingest",
+                   cb_method<cb_Backend_search_index_pause_ingest>::invoke,
+                   5);
+  rb_define_method(cBackend,
+                   "search_index_resume_ingest",
+                   cb_method<cb_Backend_search_index_resume_ingest>::invoke,
+                   5);
+  rb_define_method(cBackend,
+                   "search_index_allow_querying",
+                   cb_method<cb_Backend_search_index_allow_querying>::invoke,
+                   5);
+  rb_define_method(cBackend,
+                   "search_index_disallow_querying",
+                   cb_method<cb_Backend_search_index_disallow_querying>::invoke,
+                   5);
+  rb_define_method(cBackend,
+                   "search_index_freeze_plan",
+                   cb_method<cb_Backend_search_index_freeze_plan>::invoke,
+                   5);
+  rb_define_method(cBackend,
+                   "search_index_unfreeze_plan",
+                   cb_method<cb_Backend_search_index_unfreeze_plan>::invoke,
+                   5);
+  rb_define_method(cBackend,
+                   "search_index_analyze_document",
+                   cb_method<cb_Backend_search_index_analyze_document>::invoke,
+                   6);
 }
 } // namespace couchbase::ruby

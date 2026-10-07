@@ -40,6 +40,25 @@
 
 namespace couchbase::ruby
 {
+// Wraps Method, which may throw ruby_exception, for rb_define_method. Method's frames unwind
+// first; the Ruby raise happens here, where no C++ object is live and no catch handler is active.
+template<auto Method, typename = decltype(Method)>
+struct cb_method;
+
+template<auto Method, typename... Args>
+struct cb_method<Method, VALUE (*)(Args...)> {
+  static auto invoke(Args... args) -> VALUE
+  {
+    VALUE exc = Qnil;
+    try {
+      return Method(args...);
+    } catch (const ruby_exception& e) {
+      exc = e.exception_object();
+    }
+    rb_exc_raise(exc);
+  }
+};
+
 template<typename Future>
 inline auto
 cb_wait_for_future(Future&& f) -> decltype(f.get())

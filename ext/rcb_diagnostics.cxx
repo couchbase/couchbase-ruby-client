@@ -117,11 +117,8 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
-    return Qnil;
   }
 }
 
@@ -246,10 +243,8 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -258,7 +253,7 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
 void
 init_diagnostics(VALUE cBackend)
 {
-  rb_define_method(cBackend, "diagnostics", cb_Backend_diagnostics, 1);
-  rb_define_method(cBackend, "ping", cb_Backend_ping, 2);
+  rb_define_method(cBackend, "diagnostics", cb_method<cb_Backend_diagnostics>::invoke, 1);
+  rb_define_method(cBackend, "ping", cb_method<cb_Backend_ping>::invoke, 2);
 }
 } // namespace couchbase::ruby
