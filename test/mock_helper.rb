@@ -78,6 +78,23 @@ class Caves
     raise "CAVES didn't greet us, something happened, check logs at #{logs_path}" if hello_cmd["type"] != "hello"
   end
 
+  def stop
+    @caves&.close
+    @control_sock&.close
+    return unless @pid
+
+    begin
+      Process.kill(:KILL, @pid)
+    rescue Errno::ESRCH, Errno::EPERM
+      # CAVES exits by itself once the control socket closes; Windows reports killing it then as EPERM
+    end
+    Process.wait(@pid)
+  rescue Errno::ECHILD
+    nil
+  ensure
+    @pid = nil
+  end
+
   # @param [String] cluster_id
   # @return [String] connection string
   def create_cluster(cluster_id)
@@ -210,8 +227,7 @@ class Caves
   def binary_ready?
     return false unless File.executable?(mock_path)
 
-    system("#{mock_path} --help #{windows? ? '>NUL 2>NUL' : '>/dev/null 2>&1'}")
-    $CHILD_STATUS.success?
+    system(mock_path, "--help", out: File::NULL, err: File::NULL)
   end
 
   def open_control_socket

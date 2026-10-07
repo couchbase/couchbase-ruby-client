@@ -46,7 +46,6 @@ Gem::Specification.new do |spec|
                           "ext/*.cxx",
                           "ext/*.hxx",
                           "ext/*.hxx.in",
-                          "ext/*.patch",
                           "ext/*.rb",
                           "ext/CMakeLists.txt",
                           "ext/cache/**/*",

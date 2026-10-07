@@ -263,6 +263,12 @@ module Couchbase
       end
     end
 
+    # Each test starts its own CAVES process; stopping it on teardown keeps them from accumulating.
+    def after_teardown
+      super
+      @caves&.stop
+    end
+
     def use_caves?
       env
       defined? @caves
