@@ -106,10 +106,8 @@ cb_Backend_view_index_get_all(VALUE self,
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -186,10 +184,8 @@ cb_Backend_view_index_get(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("views")), views);
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -242,10 +238,8 @@ cb_Backend_view_index_drop(VALUE self,
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -322,10 +316,8 @@ cb_Backend_view_index_upsert(VALUE self,
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -486,10 +478,8 @@ cb_Backend_document_view(VALUE self,
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -499,11 +489,13 @@ cb_Backend_document_view(VALUE self,
 void
 init_views(VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_view", cb_Backend_document_view, 6);
+  rb_define_method(cBackend, "document_view", cb_method<cb_Backend_document_view>::invoke, 6);
 
-  rb_define_method(cBackend, "view_index_get_all", cb_Backend_view_index_get_all, 4);
-  rb_define_method(cBackend, "view_index_get", cb_Backend_view_index_get, 5);
-  rb_define_method(cBackend, "view_index_drop", cb_Backend_view_index_drop, 5);
-  rb_define_method(cBackend, "view_index_upsert", cb_Backend_view_index_upsert, 5);
+  rb_define_method(
+    cBackend, "view_index_get_all", cb_method<cb_Backend_view_index_get_all>::invoke, 4);
+  rb_define_method(cBackend, "view_index_get", cb_method<cb_Backend_view_index_get>::invoke, 5);
+  rb_define_method(cBackend, "view_index_drop", cb_method<cb_Backend_view_index_drop>::invoke, 5);
+  rb_define_method(
+    cBackend, "view_index_upsert", cb_method<cb_Backend_view_index_upsert>::invoke, 5);
 }
 } // namespace couchbase::ruby

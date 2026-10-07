@@ -89,10 +89,8 @@ cb_Backend_role_get_all(VALUE self, VALUE timeout, VALUE observability_handler)
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -212,10 +210,8 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout, VALUE observabi
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -260,10 +256,8 @@ cb_Backend_user_get(VALUE self,
     cb_extract_user(resp.user, res);
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -306,10 +300,8 @@ cb_Backend_user_drop(VALUE self,
 
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -406,10 +398,8 @@ cb_Backend_user_upsert(VALUE self,
 
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -442,10 +432,8 @@ cb_Backend_change_password(VALUE self,
 
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -508,10 +496,8 @@ cb_Backend_group_get_all(VALUE self, VALUE timeout, VALUE observability_handler)
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -543,10 +529,8 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout, VALUE observability_
     cb_extract_group(resp.group, res);
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -576,10 +560,8 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout, VALUE observability
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -652,10 +634,8 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout, VALUE observabil
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -664,16 +644,16 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout, VALUE observabil
 void
 init_users(VALUE cBackend)
 {
-  rb_define_method(cBackend, "role_get_all", cb_Backend_role_get_all, 2);
-  rb_define_method(cBackend, "user_get_all", cb_Backend_user_get_all, 3);
-  rb_define_method(cBackend, "user_get", cb_Backend_user_get, 4);
-  rb_define_method(cBackend, "user_drop", cb_Backend_user_drop, 4);
-  rb_define_method(cBackend, "user_upsert", cb_Backend_user_upsert, 4);
-  rb_define_method(cBackend, "group_get_all", cb_Backend_group_get_all, 2);
-  rb_define_method(cBackend, "group_get", cb_Backend_group_get, 3);
-  rb_define_method(cBackend, "group_drop", cb_Backend_group_drop, 3);
-  rb_define_method(cBackend, "group_upsert", cb_Backend_group_upsert, 3);
+  rb_define_method(cBackend, "role_get_all", cb_method<cb_Backend_role_get_all>::invoke, 2);
+  rb_define_method(cBackend, "user_get_all", cb_method<cb_Backend_user_get_all>::invoke, 3);
+  rb_define_method(cBackend, "user_get", cb_method<cb_Backend_user_get>::invoke, 4);
+  rb_define_method(cBackend, "user_drop", cb_method<cb_Backend_user_drop>::invoke, 4);
+  rb_define_method(cBackend, "user_upsert", cb_method<cb_Backend_user_upsert>::invoke, 4);
+  rb_define_method(cBackend, "group_get_all", cb_method<cb_Backend_group_get_all>::invoke, 2);
+  rb_define_method(cBackend, "group_get", cb_method<cb_Backend_group_get>::invoke, 3);
+  rb_define_method(cBackend, "group_drop", cb_method<cb_Backend_group_drop>::invoke, 3);
+  rb_define_method(cBackend, "group_upsert", cb_method<cb_Backend_group_upsert>::invoke, 3);
 
-  rb_define_method(cBackend, "change_password", cb_Backend_change_password, 3);
+  rb_define_method(cBackend, "change_password", cb_method<cb_Backend_change_password>::invoke, 3);
 }
 } // namespace couchbase::ruby
