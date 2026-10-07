@@ -22,6 +22,7 @@ concurrency:
 jobs:
   source:
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     outputs:
       gem_version: ${{ steps.build_gem.outputs.gem_version }}
       otel_gem_version: ${{ steps.build_otel_gem.outputs.otel_gem_version }}
@@ -32,6 +33,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: 3.3
           bundler-cache: true
@@ -135,10 +137,12 @@ jobs:
     #   runners. Detected Linux Arm64
     needs: source
     runs-on: ubuntu-22.04
+    timeout-minutes: 150
     container:
       image: alpine:3.18
     steps:
       - name: Install build environment
+        timeout-minutes: 15
         run: |
           apk update
           apk add --no-cache \
@@ -168,6 +172,8 @@ jobs:
         with:
           name: scripts-${{ needs.source.outputs.gem_version }}
       - name: Install build environment
+        # Downloads and compiles four Rubies.
+        timeout-minutes: 40
         env:
           SUPPORTED_RUBY_VERSIONS: "3.2 3.3 3.4 4.0"
         run: |
@@ -181,6 +187,7 @@ jobs:
           path: pkg
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
       - name: Build gem
+        timeout-minutes: 90
         env:
           SUPPORTED_RUBY_VERSIONS: "3.2 3.3 3.4 4.0"
           BUNDLE_ALLOW_ROOT: true
@@ -195,6 +202,7 @@ jobs:
   build_linux_x86_64:
     needs: source
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -209,18 +217,21 @@ jobs:
           max-size: 2G
           key: ${{ github.job }}-${{ matrix.ruby }}
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: ${{ matrix.ruby }}
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Install gem-compiler
+        timeout-minutes: 10
+        run: gem install gem-compiler
       - name: Precompile
         env:
           CB_STATIC_BORINGSSL: 1
           CB_STATIC_STDLIB: 1
           CB_REMOVE_EXT_DIRECTORY: 1
         run: |
-          gem install gem-compiler
           gem compile --strip --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
       - uses: actions/upload-artifact@v7
         with:
@@ -234,6 +245,7 @@ jobs:
       - source
       - build_linux_x86_64
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -255,6 +267,7 @@ jobs:
           path: pkg/binary/4.0
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-4.0
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: 4.0
       - name: Repackage
@@ -269,6 +282,7 @@ jobs:
   build_linux_aarch64:
     needs: source
     runs-on: ubuntu-22.04-arm
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -283,18 +297,21 @@ jobs:
           max-size: 2G
           key: ${{ github.job }}-${{ matrix.ruby }}
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: ${{ matrix.ruby }}
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Install gem-compiler
+        timeout-minutes: 10
+        run: gem install gem-compiler
       - name: Precompile
         env:
           CB_STATIC_BORINGSSL: 1
           CB_STATIC_STDLIB: 1
           CB_REMOVE_EXT_DIRECTORY: 1
         run: |
-          gem install gem-compiler
           gem compile --strip --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
       - uses: actions/upload-artifact@v7
         with:
@@ -308,6 +325,7 @@ jobs:
       - source
       - build_linux_aarch64
     runs-on: ubuntu-22.04-arm
+    timeout-minutes: 15
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -329,6 +347,7 @@ jobs:
           path: pkg/binary/4.0
           name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-4.0
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: 4.0
       - name: Repackage
@@ -343,6 +362,7 @@ jobs:
   build_macos_arm64:
     needs: source
     runs-on: macos-14
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -357,18 +377,21 @@ jobs:
           max-size: 2G
           key: ${{ github.job }}-${{ matrix.ruby }}
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: ${{ matrix.ruby }}
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Install gem-compiler
+        timeout-minutes: 10
+        run: gem install gem-compiler
       - name: Precompile
         env:
           CB_STATIC_BORINGSSL: 1
           CB_STATIC_STDLIB: 1
           CB_REMOVE_EXT_DIRECTORY: 1
         run: |
-          gem install gem-compiler
           gem compile --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
       - uses: actions/upload-artifact@v7
         with:
@@ -382,6 +405,7 @@ jobs:
       - source
       - build_macos_arm64
     runs-on: macos-14
+    timeout-minutes: 15
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -403,6 +427,7 @@ jobs:
           path: pkg/binary/4.0
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin-4.0
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: 4.0
       - name: Repackage
@@ -417,6 +442,7 @@ jobs:
   build_macos_x86_64:
     needs: source
     runs-on: macos-15-intel
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -431,18 +457,21 @@ jobs:
           max-size: 2G
           key: ${{ github.job }}-${{ matrix.ruby }}
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: ${{ matrix.ruby }}
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Install gem-compiler
+        timeout-minutes: 10
+        run: gem install gem-compiler
       - name: Precompile
         env:
           CB_STATIC_BORINGSSL: 1
           CB_STATIC_STDLIB: 1
           CB_REMOVE_EXT_DIRECTORY: 1
         run: |
-          gem install gem-compiler
           gem compile --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
       - uses: actions/upload-artifact@v7
         with:
@@ -456,6 +485,7 @@ jobs:
       - source
       - build_macos_x86_64
     runs-on: macos-15-intel
+    timeout-minutes: 15
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -477,6 +507,7 @@ jobs:
           path: pkg/binary/4.0
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin-4.0
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: 4.0
       - name: Repackage
@@ -516,9 +547,11 @@ jobs:
         with:
           name: tests-${{ needs.source.outputs.gem_version }}
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: ${{ matrix.ruby }}
       - name: Install
+        timeout-minutes: 10
         run: |
           COUCHBASE_GEM_PATH=$(realpath couchbase-${{ needs.source.outputs.gem_version }}-*.gem)
           COUCHBASE_OPENTELEMETRY_GEM_PATH=$(realpath couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}.gem)
@@ -585,9 +618,11 @@ jobs:
         with:
           name: tests-${{ needs.source.outputs.gem_version }}
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: ${{ matrix.ruby }}
       - name: Install
+        timeout-minutes: 10
         run: |
           set -xe
           COUCHBASE_GEM_PATH=$(realpath couchbase-${{ needs.source.outputs.gem_version }}-*.gem)
@@ -664,9 +699,11 @@ jobs:
         with:
           name: tests-${{ needs.source.outputs.gem_version }}
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: ${{ matrix.ruby }}
       - name: Install
+        timeout-minutes: 10
         run: |
           COUCHBASE_GEM_PATH=$(realpath couchbase-${{ needs.source.outputs.gem_version }}-*.gem)
           COUCHBASE_OPENTELEMETRY_GEM_PATH=$(realpath couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}.gem)
@@ -747,9 +784,11 @@ jobs:
         with:
           name: tests-${{ needs.source.outputs.gem_version }}
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: 3.3
       - name: Install
+        timeout-minutes: 10
         run: |
           COUCHBASE_GEM_PATH=$(realpath couchbase-${{ needs.source.outputs.gem_version }}-*.gem)
           COUCHBASE_OPENTELEMETRY_GEM_PATH=$(realpath couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}.gem)
@@ -829,9 +868,11 @@ jobs:
         with:
           name: tests-${{ needs.source.outputs.gem_version }}
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: 3.3
       - name: Install
+        timeout-minutes: 10
         run: |
           COUCHBASE_GEM_PATH=$(realpath couchbase-${{ needs.source.outputs.gem_version }}-*.gem)
           COUCHBASE_OPENTELEMETRY_GEM_PATH=$(realpath couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}.gem)
@@ -879,6 +920,7 @@ jobs:
     if: false
     needs: source
     runs-on: windows-2022
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -889,21 +931,25 @@ jobs:
           - '4.0'
     steps:
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: ${{ matrix.ruby }}
       - name: Install dependencies
+        timeout-minutes: 15
         run: |
           ridk exec pacman --sync --noconfirm --needed mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-go mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-toolchain
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Install gem-compiler
+        timeout-minutes: 10
+        run: gem install gem-compiler
       - name: Precompile
         env:
           CB_STATIC_BORINGSSL: 1
           CB_STATIC_STDLIB: 1
           CB_REMOVE_EXT_DIRECTORY: 1
         run: |
-          gem install gem-compiler
           gem compile --prune couchbase-${{ needs.source.outputs.gem_version }}.gem
       - uses: actions/upload-artifact@v7
         with:
@@ -917,6 +963,7 @@ jobs:
       - source
       - windows_x64
     runs-on: windows-2022
+    timeout-minutes: 15
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -938,6 +985,7 @@ jobs:
           path: pkg/binary/4.0
           name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-4.0
       - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
         with:
           ruby-version: 4.0
       - name: Repackage
