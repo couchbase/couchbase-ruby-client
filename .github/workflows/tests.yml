@@ -560,6 +560,8 @@ jobs:
           retention-days: 5
       - name: Upload test report
         if: always()
+        # The summary marks a configuration without a report.
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: junit-${{ github.job }} (${{ matrix.ruby }})
@@ -640,6 +642,8 @@ jobs:
           retention-days: 5
       - name: Upload test report
         if: always()
+        # The summary marks a configuration without a report.
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: junit-${{ github.job }} (${{ matrix.ruby }})
@@ -719,6 +723,8 @@ jobs:
           retention-days: 5
       - name: Upload test report
         if: always()
+        # The summary marks a configuration without a report.
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: junit-${{ github.job }} (${{ matrix.ruby }})
@@ -781,6 +787,8 @@ jobs:
           bundle exec rake test
       - name: Upload test report
         if: always()
+        # The summary marks a configuration without a report.
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: junit-${{ github.job }} (${{ matrix.server }})
@@ -863,6 +871,8 @@ jobs:
           bundle exec rake test
       - name: Upload test report
         if: always()
+        # The summary marks a configuration without a report.
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: junit-${{ github.job }} (${{ matrix.server }})
@@ -1050,6 +1060,8 @@ jobs:
           retention-days: 5
       - name: Upload test report
         if: always()
+        # The summary marks a configuration without a report.
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: junit-${{ github.job }} (${{ matrix.arch }}, ${{ matrix.ruby }})
@@ -1059,7 +1071,10 @@ jobs:
           retention-days: 3
 
   summary:
-    if: ${{ !cancelled() }}
+    # Runs after failed jobs and after cancellation, by a person or by a newer run
+    # in the concurrency group; each step is always() too, so a cancellation that
+    # arrives while it runs does not stop it. Fails if the report is incomplete.
+    if: always()
     needs:
       - source
       - build_alpine_x86_64
@@ -1073,29 +1088,64 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      # list jobs and delete intermediate artifacts
-      actions: write
+      actions: write # list jobs, delete intermediate artifacts
+      checks: read # job annotations, to tell timeouts and lost runners apart
       contents: read
     steps:
+      # Each step may fail: the script reports the inputs it could not get, and
+      # the fallback step below reports when the script did not run.
       - uses: actions/checkout@v7
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           sparse-checkout: bin/ci-summary.rb
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v8
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: reports
           pattern: junit-*
       - uses: ruby/setup-ruby@v1
-        timeout-minutes: 10
+        # Without it the runner image's Ruby is used.
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 5
         with:
           ruby-version: 3.4
       - name: Summarize
+        id: summarize
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 8
         env:
           GH_TOKEN: ${{ github.token }}
           SUMMARY_CLEANUP: true
           SUMMARY_TITLE: ${{ github.workflow }}
           SUMMARY_SUBTITLE: >-
-            couchbase ${{ needs.source.outputs.gem_version }},
-            couchbase-opentelemetry ${{ needs.source.outputs.otel_gem_version }},
+            couchbase ${{ needs.source.outputs.gem_version || '(not built)' }},
+            couchbase-opentelemetry ${{ needs.source.outputs.otel_gem_version || '(not built)' }},
             ${{ github.sha }}
         run: ruby bin/ci-summary.rb reports
+      - name: Summarize job results without details
+        if: always() && steps.summarize.outputs.written != 'true'
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          {
+            echo "## ⚠️ ${GITHUB_WORKFLOW}: detailed report unavailable"
+            echo
+            echo "bin/ci-summary.rb did not write a report; its output is in the log of this job."
+            echo "Only the jobs this job needs directly are listed; a matrix entry shows the worst result."
+            echo
+            echo "| Job | Result |"
+            echo "|---|---|"
+            jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"' <<< "${NEEDS}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - name: Fail if the report is incomplete
+        if: always() && steps.summarize.outcome != 'success'
+        run: |
+          echo "::error title=Incomplete summary::bin/ci-summary.rb failed or reported problems; see the Summarize step."
+          exit 1
