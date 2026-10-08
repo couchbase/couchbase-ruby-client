@@ -24,12 +24,9 @@
 # REPORTS_DIR holds one "junit-<job name>" directory per test job, as
 # actions/download-artifact lays them out. Job results, job annotations and
 # artifacts come from the API through `gh`, so GH_TOKEN needs `actions: read`
-# and `checks: read`. With SUMMARY_CLEANUP=true and `actions: write` it also
-# deletes artifacts that are no longer needed:
-#
-# * per-Ruby binary gems once their fat gem exists;
-# * JUnit reports when every job succeeded. After a failure they stay, so that
-#   "Re-run failed jobs" can still summarize the jobs it does not re-run.
+# and `checks: read`, and nothing more: this runs code from the pull request.
+# The artifact list leaves out what the tests-cleanup workflow deletes once the
+# run completes (see .github/workflows/tests-cleanup.yml).
 #
 # Any input may be missing or broken: each section that cannot be built is
 # replaced by a note, the rest of the report is still written, and the exit
@@ -285,25 +282,15 @@ section.call("Failure classification") do
   failures.sort_by! { |failure| [CAUSES.keys.index(failure.cause), failure.job["name"]] }
 end
 
-cleanup_note = nil
-section.call("Cleanup") do
-  next unless ENV["SUMMARY_CLEANUP"] == "true" && !jobs.empty?
-
+# Mirrors the selection in tests-cleanup.yml: per-Ruby gems whose fat gem exists,
+# and JUnit reports once every job succeeded.
+intermediate = []
+section.call("Intermediate artifacts") do
   names = artifacts.to_set { |artifact| artifact["name"] }
-  obsolete = artifacts.select do |artifact|
+  intermediate = artifacts.select do |artifact|
     name = artifact["name"]
     (name.start_with?("couchbase-") && name =~ /-\d+\.\d+\z/ && names.include?(name.sub(/-\d+\.\d+\z/, ""))) ||
-      (name.start_with?("junit-") && unsuccessful.empty?)
-  end
-  obsolete.each do |artifact|
-    # A read-only token (pull requests from forks) fails every delete the same way.
-    _, err = gh("api", "--method", "DELETE", "repos/#{repo}/actions/artifacts/#{artifact['id']}", attempts: 1)
-    if err
-      cleanup_note = "#{obsolete.size - obsolete.index(artifact)} intermediate artifacts were not deleted and " \
-                     "expire with their retention period: #{err}"
-      break
-    end
-    artifacts.delete(artifact)
+      (name.start_with?("junit-") && unsuccessful.empty? && !jobs.empty?)
   end
 end
 
@@ -477,13 +464,16 @@ section.call("Artifact list") do
   out << ""
   out << "| Artifact | Size |"
   out << "|---|--:|"
-  artifacts.sort_by { |artifact| artifact["name"] }.each do |artifact|
+  (artifacts - intermediate).sort_by { |artifact| artifact["name"] }.each do |artifact|
     url = "https://github.com/#{repo}/actions/runs/#{run_id}/artifacts/#{artifact['id']}"
     out << "| #{link(artifact['name'], url)} | #{human_size(artifact['size_in_bytes'])} |"
   end
   out << ""
 end
-out << cleanup_note << "" if cleanup_note
+unless intermediate.empty?
+  out << "#{intermediate.size} intermediate artifacts are not listed; tests-cleanup deletes them when the run completes."
+  out << ""
+end
 
 unless problems.empty?
   out << "### Report problems"

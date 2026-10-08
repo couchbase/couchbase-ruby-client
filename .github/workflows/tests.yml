@@ -1087,8 +1087,10 @@ jobs:
       - test_cng_linux_x86_64
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # Read-only: on a pull request this runs the pull request's own script.
+    # Artifact deletion happens in tests-cleanup.yml.
     permissions:
-      actions: write # list jobs, delete intermediate artifacts
+      actions: read # jobs and artifacts
       checks: read # job annotations, to tell timeouts and lost runners apart
       contents: read
     steps:
@@ -1122,7 +1124,6 @@ jobs:
         timeout-minutes: 8
         env:
           GH_TOKEN: ${{ github.token }}
-          SUMMARY_CLEANUP: true
           SUMMARY_TITLE: ${{ github.workflow }}
           SUMMARY_SUBTITLE: >-
             couchbase ${{ needs.source.outputs.gem_version || '(not built)' }},
