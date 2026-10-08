@@ -74,6 +74,9 @@ STEP_KINDS = {
   /\AInstall\z/ => :install,
   /\A(Precompile|Repackage|Build |Generate documentation)/ => :build,
 }.freeze
+# Test job names as tests.yml spells them. A job skipped because a job it needs
+# failed has no steps, and a skipped matrix job is not expanded per entry.
+TEST_JOB_PATTERN = /\A(mock|test)_/
 TIMEOUT_PATTERN = /exceeded the maximum execution time|has timed out/
 # GitHub's annotations on the jobs of a cancelled run, by a person or by a newer
 # run in the same concurrency group.
@@ -148,6 +151,15 @@ def link(text, url)
   url ? "[#{text}](#{url})" : text
 end
 
+# The line of the test file where the failure happened, from the "[path:line]"
+# and backtrace entries of the failure text. Assertion helpers and library
+# frames name other files and are passed over; nil when no entry names the file.
+def failure_line(body, file)
+  return nil unless file
+
+  body.scan(/([^\s\[\]'"]+):(\d+)/).find { |path, _| path == file || path.end_with?("/#{file}") }&.last
+end
+
 # Returns [test cases, names of files that could not be parsed].
 def parse_reports(dir)
   broken = []
@@ -159,9 +171,11 @@ def parse_reports(dir)
         elsif tc.elements["skipped"] then :skipped
         else :passed
         end
-      TestCase.new("#{tc.attributes['classname']}##{tc.attributes['name']}", tc.attributes["file"],
-                   tc.attributes["lineno"], tc.attributes["time"].to_f, outcome,
-                   problem&.attributes&.[]("message"), problem&.text.to_s.strip)
+      file = tc.attributes["file"]
+      body = problem&.text.to_s.strip
+      line = failure_line(body, file) || tc.attributes["lineno"]
+      TestCase.new("#{tc.attributes['classname']}##{tc.attributes['name']}", file, line,
+                   tc.attributes["time"].to_f, outcome, problem&.attributes&.[]("message"), body)
     end
   rescue REXML::ParseException, SystemCallError
     broken << File.basename(path)
@@ -337,8 +351,12 @@ end
 
 all_cases = suites.flat_map { |suite| suite[:cases].map { |tc| [suite, tc] } }
 section.call("Tests") do
-  # Jobs with a "Test" step that left no report, so a lost report is not a silent gap.
-  missing = jobs.select { |job| job["steps"].to_a.any? { |s| s["name"] == "Test" } && !suites_by_name.key?(job["name"]) }
+  # Test jobs that left no report, so a lost report or a configuration that
+  # never ran is not a silent gap.
+  missing = jobs.select do |job|
+    !suites_by_name.key?(job["name"]) &&
+      (job["name"].match?(TEST_JOB_PATTERN) || job["steps"].to_a.any? { |s| s["name"] == "Test" })
+  end
   next if suites.empty? && missing.empty?
 
   count = lambda { |cases, outcome| cases.count { |tc| tc.outcome == outcome } }
@@ -348,14 +366,18 @@ section.call("Tests") do
   out << "|---|---|--:|--:|--:|--:|--:|--:|"
   rows = suites.map { |suite| [suite[:name], link(suite[:name], suite[:url]), suite[:cases], suite[:broken]] }
   rows += missing.map do |job|
-    note = stale.include?(job["name"]) ? "stale report from an earlier attempt" : "no report"
+    note =
+      if job["conclusion"] == "skipped" then "⏭️ | not run"
+      elsif stale.include?(job["name"]) then "⚠️ | stale report from an earlier attempt"
+      else "⚠️ | no report"
+      end
     [job["name"], link(job["name"], job["html_url"]), nil, note]
   end
   rows.sort_by!(&:first)
   rows << [nil, "**Total**", all_cases.map(&:last), suites.flat_map { |suite| suite[:broken] }]
   rows.each do |_, label, cases, broken|
     if cases.nil?
-      out << "| #{label} | ⚠️ | #{broken} | | | | | |"
+      out << "| #{label} | #{broken} | | | | | |"
       next
     end
     bad = count.call(cases, :failure) + count.call(cases, :error)
@@ -371,6 +393,8 @@ section.call("Tests") do
   broken = suites.select { |suite| suite[:broken].any? }
   broken.each { |suite| out << "⚠️ #{suite[:name]}: unreadable report files #{suite[:broken].join(', ')}" }
   out << "" unless broken.empty?
+  # Unreadable reports mean lost results, so the report counts as incomplete.
+  broken.each { |suite| problems << "#{suite[:name]}: unreadable report files #{suite[:broken].join(', ')}" }
 end
 
 section.call("Failed tests") do
