@@ -36,6 +36,13 @@ flush_logger();
 int
 try_flush_logger();
 
+// Like try_flush_logger, but accepts asynchronous interrupts while the logger runs, even inside
+// Thread.handle_interrupt(Object => :never). An interrupt delivered there ends the flush as a
+// failed logger call and is returned as its rb_protect state. One deferred before the call is
+// delivered at the first logger call, and stays deferred when nothing is queued.
+int
+try_flush_logger_interruptible();
+
 void
 init_logger_methods(VALUE cBackend);
 

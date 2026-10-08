@@ -79,7 +79,9 @@ public:
     }
 
     if (event == couchbase::fork_event::prepare) {
-      int state = try_flush_logger();
+      // The fork hook defers interrupts from :prepare until the fork, but a blocked logger must
+      // still be interruptible by Timeout or Thread#kill.
+      int state = try_flush_logger_interruptible();
       couchbase::core::logger::shutdown();
       if (state != 0) {
         // The fork does not happen, so the instances stopped above are restarted as in the
@@ -118,7 +120,8 @@ cb_Backend_notify_fork(VALUE self, VALUE event)
                          rb_sprintf("unexpected fork event type %" PRIsVALUE "", event));
   }
   if (state != 0) {
-    // notify_fork has already restarted the instances and run no Ruby code since the flush failed.
+    // notify_fork has already restarted the instances. Only the interrupt check that ends
+    // Thread.handle_interrupt can have run Ruby code since the flush failed.
     throw ruby_jump(state);
   }
 

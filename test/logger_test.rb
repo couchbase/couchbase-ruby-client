@@ -160,6 +160,24 @@ class LoggerTest < Minitest::Test
     assert_includes events, [:mark, "next"]
   end
 
+  def test_timeout_interrupts_logger_blocking_in_fork_prepare_flush
+    failure = lambda { sleep }
+    events = run_with_failing_logger(failure, level: :trace) do |child|
+      child.arm
+      begin
+        Timeout.timeout(1) { Process.wait(Process.fork { exit!(0) }) }
+      rescue Timeout::Error
+        child.mark(:fork_timed_out)
+      end
+      child.collection.upsert(uniq_id(:logger), {})
+      child.mark(:next)
+      child.cluster.disconnect
+    end
+
+    assert_stopped_at_failure(events, :fork_timed_out)
+    assert_requeued_delivered(events, :fork_timed_out, :next)
+  end
+
   def test_exception_during_set_logger_installs_the_new_logger
     failure = lambda { raise Exception, "logger failure" } # rubocop:disable Lint/RaiseException
     events = run_with_failing_logger(failure) do |child|

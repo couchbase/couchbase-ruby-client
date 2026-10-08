@@ -408,6 +408,30 @@ flush_logger()
   }
 }
 
+int
+try_flush_logger_interruptible()
+{
+  int state = 0;
+  rb_protect(
+    [](VALUE) noexcept -> VALUE {
+      VALUE mask = rb_hash_new();
+      rb_hash_aset(mask, rb_cObject, rb_id2sym(rb_intern("immediate")));
+      return rb_block_call(
+        rb_cThread,
+        rb_intern("handle_interrupt"),
+        1,
+        &mask,
+        [](VALUE, VALUE, int, const VALUE*, VALUE) noexcept -> VALUE {
+          flush_logger();
+          return Qnil;
+        },
+        Qnil);
+    },
+    Qnil,
+    &state);
+  return state;
+}
+
 namespace
 {
 // Joins the async logger thread while it is still running. VM at-exit hooks

@@ -51,6 +51,7 @@ module Couchbase
     def teardown
       disconnect_store(@cache)
       disconnect_store(@peek) if defined?(@peek)
+      disconnect_store(@store) if defined?(@store)
     end
 
     private

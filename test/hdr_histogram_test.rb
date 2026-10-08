@@ -22,6 +22,8 @@ module Couchbase
   # Regression tests for RCBC-569. A histogram left locked aborts the process or blocks every Ruby
   # thread, so each case runs in a forked child under a watchdog.
   class HdrHistogramTest < Minitest::Test
+    include TestUtilities
+
     CHILD_TIMEOUT = 10
 
     def test_integer_percentile_reports_same_as_float
@@ -107,25 +109,6 @@ module Couchbase
       status = wait_for_child_or_kill(pid, timeout: CHILD_TIMEOUT)
 
       assert_predicate status, :success?, "Child process failed: #{status.inspect}"
-    end
-
-    # Polls for +pid+ to exit, killing it and failing the test if it doesn't within +timeout+ seconds.
-    def wait_for_child_or_kill(pid, timeout:)
-      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
-
-      loop do
-        _, status = Process.waitpid2(pid, Process::WNOHANG)
-        return status if status
-
-        if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
-          Process.kill("KILL", pid)
-          Process.waitpid2(pid)
-
-          flunk "Child process (pid #{pid}) did not exit within #{timeout}s."
-        end
-
-        sleep 0.1
-      end
     end
   end
 end
