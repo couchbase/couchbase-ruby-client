@@ -28,6 +28,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Set up ruby
         timeout-minutes: 10
         uses: ruby/setup-ruby@v1
@@ -47,6 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           submodules: recursive
           fetch-depth: 2
       - name: Install dependencies
@@ -70,6 +73,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           submodules: recursive
       - name: Set up ruby
         timeout-minutes: 10
