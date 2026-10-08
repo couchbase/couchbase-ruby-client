@@ -26,6 +26,7 @@ jobs:
     outputs:
       gem_version: ${{ steps.build_gem.outputs.gem_version }}
       otel_gem_version: ${{ steps.build_otel_gem.outputs.otel_gem_version }}
+      build_number: ${{ steps.build_gem.outputs.build_number }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -42,6 +43,7 @@ jobs:
         run: |
           COMMITS_SINCE_LAST_TAG=$(git describe --tags --always --long | awk -F '-' '{print $2}')
           ruby bin/jenkins/patch-version.rb ${COMMITS_SINCE_LAST_TAG}
+          echo "build_number=${COMMITS_SINCE_LAST_TAG}" >> "$GITHUB_OUTPUT"
           GEM_VERSION=$(ruby -r ./lib/couchbase/version.rb -e "puts Couchbase::VERSION[:sdk]")
           echo "gem_version=${GEM_VERSION}" >> "$GITHUB_OUTPUT"
           bundle exec rake build
@@ -90,31 +92,8 @@ jobs:
         with:
           name: couchbase-opentelemetry-${{ steps.build_otel_gem.outputs.otel_gem_version }}
           path: |
-            couchbase-opentelemetry/pkg/*.gem      
-      - name: Upload artifact - scripts
-        uses: actions/upload-artifact@v7
-        with:
-          retention-days: 1
-          name: scripts-${{ steps.build_gem.outputs.gem_version }}
-          path: |
-            Rakefile
-            couchbase*.gemspec
-            lib/couchbase/**/version.rb
-            Gemfile
-            bin/**/*
-            task/**/*
-            couchbase-opentelemetry/Rakefile
-            couchbase-opentelemetry/couchbase-opentelemetry*.gemspec
-            couchbase-opentelemetry/lib/couchbase/opentelemetry/version.rb
-      - name: Upload artifact - tests and test data
-        uses: actions/upload-artifact@v7
-        with:
-          retention-days: 1
-          name: tests-${{ steps.build_gem.outputs.gem_version }}
-          path: |
-            test/**/*
-            test_data/**/*
-      - name: Upload artifact - couchbase gem docs      
+            couchbase-opentelemetry/pkg/*.gem
+      - name: Upload artifact - couchbase gem docs
         uses: actions/upload-artifact@v7
         with:
           name: docs-${{ steps.build_gem.outputs.gem_version }}
@@ -164,13 +143,12 @@ jobs:
             xz \
             yaml-dev \
             zlib-dev
+      # Before ccache-action: checkout empties the workspace, where the cache lives.
+      - uses: actions/checkout@v7
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
           max-size: 2G
           key: ${{ github.job }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
       - name: Install build environment
         # Downloads and compiles four Rubies.
         timeout-minutes: 40
@@ -192,6 +170,7 @@ jobs:
           SUPPORTED_RUBY_VERSIONS: "3.2 3.3 3.4 4.0"
           BUNDLE_ALLOW_ROOT: true
         run: |
+          ruby bin/jenkins/patch-version.rb ${{ needs.source.outputs.build_number }}
           bash bin/jenkins/build-gem.sh
       - uses: actions/upload-artifact@v7
         with:
@@ -247,9 +226,9 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v7
         with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
+          sparse-checkout: bin/jenkins
       - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.2
@@ -327,9 +306,9 @@ jobs:
     runs-on: ubuntu-22.04-arm
     timeout-minutes: 15
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v7
         with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
+          sparse-checkout: bin/jenkins
       - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.2
@@ -407,9 +386,9 @@ jobs:
     runs-on: macos-14
     timeout-minutes: 15
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v7
         with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
+          sparse-checkout: bin/jenkins
       - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.2
@@ -487,9 +466,9 @@ jobs:
     runs-on: macos-15-intel
     timeout-minutes: 15
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v7
         with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
+          sparse-checkout: bin/jenkins
       - uses: actions/download-artifact@v8
         with:
           path: pkg/binary/3.2
@@ -534,18 +513,15 @@ jobs:
           - '3.4'
           - '4.0'
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: tests-${{ needs.source.outputs.gem_version }}
+      - name: Use the installed gem instead of lib/
+        run: rm -rf lib
       - uses: ruby/setup-ruby@v1
         timeout-minutes: 10
         with:
@@ -579,7 +555,8 @@ jobs:
           path: |
             caves-logs/*
             logs/*
-            test/**/*.{log,xml}
+            test/**/*.log
+            test/reports/
           retention-days: 5
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v6.4.2
@@ -605,18 +582,15 @@ jobs:
           - '3.4'
           - '4.0'
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-darwin
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: tests-${{ needs.source.outputs.gem_version }}
+      - name: Use the installed gem instead of lib/
+        run: rm -rf lib
       - uses: ruby/setup-ruby@v1
         timeout-minutes: 10
         with:
@@ -651,7 +625,8 @@ jobs:
           path: |
             caves-logs/*
             logs/*
-            test/**/*.{log,xml}
+            test/**/*.log
+            test/reports/
           retention-days: 5
       - name: Upload crash logs
         if: failure()
@@ -686,18 +661,15 @@ jobs:
           - '3.4'
           - '4.0'
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-darwin
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: tests-${{ needs.source.outputs.gem_version }}
+      - name: Use the installed gem instead of lib/
+        run: rm -rf lib
       - uses: ruby/setup-ruby@v1
         timeout-minutes: 10
         with:
@@ -731,7 +703,8 @@ jobs:
           path: |
             caves-logs/*
             logs/*
-            test/**/*.{log,xml}
+            test/**/*.log
+            test/reports/
           retention-days: 5
       - name: Upload crash logs
         if: failure()
@@ -777,12 +750,8 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: tests-${{ needs.source.outputs.gem_version }}
+      - name: Use the installed gem instead of lib/
+        run: rm -rf lib
       - uses: ruby/setup-ruby@v1
         timeout-minutes: 10
         with:
@@ -828,7 +797,8 @@ jobs:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.server }}-logs
           path: |
             logs/*
-            test/**/*.{log,xml}
+            test/**/*.log
+            test/reports/
           retention-days: 5
 
   test_cng_linux_x86_64:
@@ -861,12 +831,8 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: tests-${{ needs.source.outputs.gem_version }}
+      - name: Use the installed gem instead of lib/
+        run: rm -rf lib
       - uses: ruby/setup-ruby@v1
         timeout-minutes: 10
         with:
@@ -912,7 +878,8 @@ jobs:
           name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.server }}-logs
           path: |
             logs/*
-            test/**/*.{log,xml}
+            test/**/*.log
+            test/reports/
           retention-days: 5
 
   build_windows:
@@ -983,9 +950,9 @@ jobs:
           - x64
           - arm64
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v7
         with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
+          sparse-checkout: bin/jenkins
       - uses: actions/download-artifact@v8
         with:
           path: pkg/binary
@@ -1030,18 +997,17 @@ jobs:
       run:
         shell: bash
     steps:
+      - name: Keep LF line endings in the checkout
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-${{ matrix.arch }}-mingw
       - uses: actions/download-artifact@v8
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: scripts-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: tests-${{ needs.source.outputs.gem_version }}
+      - name: Use the installed gem instead of lib/
+        run: rm -rf lib
       - uses: ruby/setup-ruby@v1
         timeout-minutes: 10
         with:
@@ -1074,7 +1040,8 @@ jobs:
           path: |
             caves-logs/*
             logs/*
-            test/**/*.{log,xml}
+            test/**/*.log
+            test/reports/
           retention-days: 5
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v6.4.2
