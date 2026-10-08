@@ -39,7 +39,7 @@ jobs:
       - name: Run rubocop
         run: |
           bundle exec rubocop -v
-          bundle exec rubocop
+          bundle exec rubocop --format progress --format github
 
   clang_format:
     runs-on: ubuntu-24.04
