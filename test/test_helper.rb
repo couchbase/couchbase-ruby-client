@@ -302,9 +302,10 @@ module Couchbase
       end
     end
 
-    # Each test starts its own CAVES process; stopping it on teardown keeps them from accumulating.
+    # Each test owns a CAVES process. Its cluster is closed before that process stops, as forks reopen it (servers: RCBC-564).
     def after_teardown
       super
+      disconnect if @caves
       @caves&.stop
     end
 

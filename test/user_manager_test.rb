@@ -76,6 +76,7 @@ module Couchbase
     def teardown
       return if @test_username.nil?
 
+      disconnect
       connect
       @cluster.users.drop_user(@test_username)
       disconnect

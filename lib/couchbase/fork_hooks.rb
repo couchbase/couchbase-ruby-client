@@ -17,22 +17,23 @@
 module Couchbase
   module ForkHooks
     def _fork
-      Couchbase::Backend.notify_fork(:prepare)
-      forked = false
-      begin
-        pid = super
-        forked = true
-      ensure
-        # :prepare stopped the instances. When the fork raises or its thread is killed, no fork
-        # happened to restart them.
-        Couchbase::Backend.notify_fork(:parent) unless forked
+      # :prepare stops the instances and only :parent or :child restarts them, so an asynchronous
+      # exception is deferred everywhere except inside the fork itself.
+      Thread.handle_interrupt(Object => :never) do
+        parent_pid = Process.pid
+        Couchbase::Backend.notify_fork(:prepare)
+        begin
+          Thread.handle_interrupt(Object => :immediate) do
+            # A check point: an interrupt deferred during :prepare lands here, before the fork.
+            Thread.pass
+            super
+          end
+        ensure
+          # Decided by pid rather than by the return value, which an exception raised after the fork
+          # never delivers.
+          Couchbase::Backend.notify_fork(Process.pid == parent_pid ? :parent : :child)
+        end
       end
-      if pid
-        Couchbase::Backend.notify_fork(:parent)
-      else
-        Couchbase::Backend.notify_fork(:child)
-      end
-      pid
     end
   end
 end
