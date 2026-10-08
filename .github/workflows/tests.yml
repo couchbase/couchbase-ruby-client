@@ -1150,7 +1150,9 @@ jobs:
         timeout-minutes: 3
         with:
           persist-credentials: false
-          sparse-checkout: bin/ci-summary.rb
+          sparse-checkout: |
+            bin/ci-summary.rb
+            bin/ci-cleanup.rb
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v8
         if: always()
