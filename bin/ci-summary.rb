@@ -25,8 +25,14 @@
 # actions/download-artifact lays them out. Job results, job annotations and
 # artifacts come from the API through `gh`, so GH_TOKEN needs `actions: read`
 # and `checks: read`, and nothing more: this runs code from the pull request.
-# The artifact list leaves out what the tests-cleanup workflow deletes once the
-# run completes (see .github/workflows/tests-cleanup.yml).
+# The artifact list leaves out the per-Ruby gems that bin/ci-cleanup.rb
+# deletes once the run completes.
+#
+# Text from reports, artifact names and annotations is escaped so that it cannot
+# break the Markdown tables, become a link or image, or start a workflow command.
+# This keeps the report readable; it is not a trust boundary. On a pull request
+# this script comes from the pull request too, and the token is read-only. The
+# trust boundary is tests-cleanup.yml.
 #
 # Any input may be missing or broken: each section that cannot be built is
 # replaced by a note, the rest of the report is still written, and the exit
@@ -37,6 +43,7 @@ require "json"
 require "open3"
 require "rexml/document"
 require "time"
+require_relative "ci-cleanup"
 
 ICONS = {
   "success" => "✅",
@@ -54,6 +61,7 @@ MAX_BODY_BYTES = 4_000
 MAX_FAILED_ROWS = 100
 MAX_LINKED_CONFIGURATIONS = 4
 MAX_BODIES_PER_TEST = 3
+MAX_SLOWEST = 15
 MAX_SUMMARY_BYTES = 1_000_000 # GitHub rejects a step summary over 1 MiB
 
 # Order is the order of the "Failures by cause" table.
@@ -139,7 +147,7 @@ def cell(text, limit = 200, code: false)
   text = "#{text[0, limit]}…" if text.size > limit
   return text.tr("|`", "¦'") if code
 
-  CGI.escapeHTML(text).gsub("\\", "&#92;").gsub("|", "&#124;").tr("`", "'")
+  CGI.escapeHTML(text).gsub(/[\\|\[\]!]/) { |char| "&##{char.ord};" }.tr("`", "'")
 end
 
 # Workflow command property values, escaped as @actions/core escapeProperty does.
@@ -147,8 +155,11 @@ def property(value)
   value.to_s.gsub("%", "%25").gsub("\r", "%0D").gsub("\n", "%0A").gsub(":", "%3A").gsub(",", "%2C")
 end
 
+# Link texts come from job and artifact names, so they go through cell(). URLs
+# come from the API; one that is not on github.com is dropped.
 def link(text, url)
-  url ? "[#{text}](#{url})" : text
+  safe = url.is_a?(String) && url.match?(/\Ahttps:\/\/github\.com\/[\w\/.-]*\z/) && !url.include?("..")
+  safe ? "[#{cell(text)}](#{url})" : cell(text)
 end
 
 # The line of the test file where the failure happened, from the "[path:line]"
@@ -163,7 +174,8 @@ end
 # Returns [test cases, names of files that could not be parsed].
 def parse_reports(dir)
   broken = []
-  cases = Dir.glob(File.join(dir, "**", "*.xml")).flat_map do |path|
+  # base: keeps glob characters in a directory name from being read as a pattern.
+  cases = Dir.glob("**/*.xml", base: dir).map { |rel| File.join(dir, rel) }.flat_map do |path|
     REXML::Document.new(File.read(path)).get_elements("//testcase").map do |tc|
       problem = tc.elements["failure"] || tc.elements["error"]
       outcome =
@@ -229,8 +241,8 @@ def classify(job, suite, annotations, run_cancel, stale)
   Failure.new(job, cause, step&.[]("name"), detail)
 end
 
-repo = ENV.fetch("GITHUB_REPOSITORY")
-run_id = ENV.fetch("GITHUB_RUN_ID")
+repo = CiCleanup.repo!(ENV.fetch("GITHUB_REPOSITORY"))
+run_id = CiCleanup.id!(ENV.fetch("GITHUB_RUN_ID"))
 reports_dir = ARGV.fetch(0)
 self_name = ENV.fetch("SUMMARY_JOB_NAME", "summary")
 problems = []
@@ -247,7 +259,8 @@ section.call("Jobs") do
   jobs.reject! { |job| job["name"] == self_name }
 end
 jobs_by_name = jobs.to_h { |job| [job["name"], job] }
-unsuccessful = jobs.reject { |job| GOOD_CONCLUSIONS.include?(job["conclusion"]) }
+# A job that has not completed has no conclusion yet; it is shown as running, not as a failure.
+unsuccessful = jobs.select { |job| job["status"] == "completed" && !GOOD_CONCLUSIONS.include?(job["conclusion"]) }
 
 artifacts = []
 section.call("Artifacts") do
@@ -284,7 +297,8 @@ section.call("Failure classification") do
   messages = unsuccessful.to_h do |job|
     annotations = []
     section.call("Annotations of #{job['name']}") do
-      annotations = gh_list("repos/#{repo}/check-runs/#{job['id']}/annotations?per_page=100", ".[] | {message, annotation_level}")
+      annotations = gh_list("repos/#{repo}/check-runs/#{CiCleanup.id!(job['id'])}/annotations?per_page=100",
+                            ".[] | {message, annotation_level}")
     end
     [job["name"], annotations]
   end
@@ -296,20 +310,12 @@ section.call("Failure classification") do
   failures.sort_by! { |failure| [CAUSES.keys.index(failure.cause), failure.job["name"]] }
 end
 
-# Mirrors the selection in tests-cleanup.yml: per-Ruby gems whose fat gem exists,
-# and JUnit reports once every job succeeded.
-intermediate = []
-section.call("Intermediate artifacts") do
-  names = artifacts.to_set { |artifact| artifact["name"] }
-  intermediate = artifacts.select do |artifact|
-    name = artifact["name"]
-    (name.start_with?("couchbase-") && name =~ /-\d+\.\d+\z/ && names.include?(name.sub(/-\d+\.\d+\z/, ""))) ||
-      (name.start_with?("junit-") && unsuccessful.empty? && !jobs.empty?)
-  end
-end
+# Whether JUnit reports go depends on the run's final conclusion, which is not
+# known until this job ends, so only the per-Ruby gems are counted here.
+intermediate = CiCleanup.intermediate(artifacts, run_succeeded: false)
 
 out = []
-title = ENV.fetch("SUMMARY_TITLE", "Workflow")
+title = cell(ENV.fetch("SUMMARY_TITLE", "Workflow"))
 if jobs.empty?
   out << "## ⚠️ #{title}: job results unavailable"
 elsif unsuccessful.empty?
@@ -317,14 +323,14 @@ elsif unsuccessful.empty?
 else
   causes = failures.group_by(&:cause).map { |cause, list| "#{list.size} × #{CAUSES.fetch(cause)}" }
   out << if run_cancel
-           "## 🛑 #{title}: cancelled. #{describe_cancel(run_cancel)}"
+           "## 🛑 #{title}: cancelled. #{cell(describe_cancel(run_cancel), 500)}"
          else
            "## ❌ #{title}: #{unsuccessful.size} of #{jobs.size} jobs did not succeed"
          end
   out << ""
   out << causes.join(" · ")
 end
-out << "" << ENV["SUMMARY_SUBTITLE"] if ENV["SUMMARY_SUBTITLE"]
+out << "" << cell(ENV["SUMMARY_SUBTITLE"], 500) if ENV["SUMMARY_SUBTITLE"]
 out << ""
 
 section.call("Failures by cause") do
@@ -359,7 +365,6 @@ section.call("Tests") do
   end
   next if suites.empty? && missing.empty?
 
-  count = lambda { |cases, outcome| cases.count { |tc| tc.outcome == outcome } }
   out << "### Tests"
   out << ""
   out << "| Configuration | | Tests | Passed | Failed | Errors | Skipped | Time |"
@@ -367,34 +372,45 @@ section.call("Tests") do
   rows = suites.map { |suite| [suite[:name], link(suite[:name], suite[:url]), suite[:cases], suite[:broken]] }
   rows += missing.map do |job|
     note =
-      if job["conclusion"] == "skipped" then "⏭️ | not run"
+      if job["conclusion"] == "skipped" then "⏭️ | not run#{' (any configuration)' unless job['name'].include?('(')}"
       elsif stale.include?(job["name"]) then "⚠️ | stale report from an earlier attempt"
       else "⚠️ | no report"
       end
     [job["name"], link(job["name"], job["html_url"]), nil, note]
   end
+  # A job that passed without a fresh report lost its results: with
+  # continue-on-error on the upload, nothing else turns that red.
+  missing.select { |job| job["conclusion"] == "success" }.each do |job|
+    problems << "#{job['name']} succeeded but left no current test report"
+  end
+  # A report without tests is a lost result too, whatever the job's conclusion.
+  suites.select { |suite| suite[:cases].empty? }.each do |suite|
+    problems << "#{suite[:name]}: the test report holds no tests"
+  end
   rows.sort_by!(&:first)
   rows << [nil, "**Total**", all_cases.map(&:last), suites.flat_map { |suite| suite[:broken] }]
-  rows.each do |_, label, cases, broken|
+  # The last element is the unreadable report files, or the note of a job without a report.
+  rows.each do |_, label, cases, extra|
     if cases.nil?
-      out << "| #{label} | #{broken} | | | | | |"
+      out << "| #{label} | #{extra} | | | | | |"
       next
     end
-    bad = count.call(cases, :failure) + count.call(cases, :error)
-    icon = if bad.positive? then "❌"
-           elsif cases.empty? || broken.any? then "⚠️"
+    tally = cases.map(&:outcome).tally
+    passed, failed, errors, skipped = tally.values_at(:passed, :failure, :error, :skipped).map(&:to_i)
+    icon = if (failed + errors).positive? then "❌"
+           elsif cases.empty? || extra.any? then "⚠️"
            else "✅"
            end
-    cells = [cases.size, count.call(cases, :passed), count.call(cases, :failure), count.call(cases, :error),
-             count.call(cases, :skipped), human_time(cases.sum(&:time))]
+    cells = [cases.size, passed, failed, errors, skipped, human_time(cases.sum(&:time))]
     out << "| #{label} | #{icon} | #{cells.join(' | ')} |"
   end
   out << ""
-  broken = suites.select { |suite| suite[:broken].any? }
-  broken.each { |suite| out << "⚠️ #{suite[:name]}: unreadable report files #{suite[:broken].join(', ')}" }
-  out << "" unless broken.empty?
   # Unreadable reports mean lost results, so the report counts as incomplete.
-  broken.each { |suite| problems << "#{suite[:name]}: unreadable report files #{suite[:broken].join(', ')}" }
+  unreadable = suites.select { |suite| suite[:broken].any? }
+                     .map { |suite| "#{suite[:name]}: unreadable report files #{suite[:broken].join(', ')}" }
+  unreadable.each { |text| out << "⚠️ #{cell(text, 500)}" }
+  out << "" unless unreadable.empty?
+  problems.concat(unreadable)
 end
 
 section.call("Failed tests") do
@@ -423,7 +439,7 @@ section.call("Failed tests") do
       body = body.first(MAX_BODY_LINES) + ["... #{body.size - MAX_BODY_LINES} more lines\n"] if body.size > MAX_BODY_LINES
       body = body.join.rstrip
       body = "#{body.byteslice(0, MAX_BODY_BYTES).scrub('')}\n... truncated" if body.bytesize > MAX_BODY_BYTES
-      out << [link(suite[:name], suite[:url]), tc.file && "`#{tc.file}:#{tc.line}`"].compact.join(", ")
+      out << [link(suite[:name], suite[:url]), tc.file && "`#{cell("#{tc.file}:#{tc.line}", code: true)}`"].compact.join(", ")
       out << ""
       out << "````"
       out << body.gsub("````", "''''")
@@ -455,7 +471,7 @@ section.call("Slowest tests") do
   out << ""
   out << "| Test | Configuration | Time |"
   out << "|---|---|--:|"
-  all_cases.max_by(15) { |_, tc| tc.time }.each do |suite, tc|
+  all_cases.max_by(MAX_SLOWEST) { |_, tc| tc.time }.each do |suite, tc|
     out << "| `#{cell(tc.id, code: true)}` | #{link(suite[:name], suite[:url])} | #{human_time(tc.time)} |"
   end
   out << ""
@@ -476,7 +492,7 @@ section.call("Job results") do
       icon = ICONS.fetch(job["conclusion"].to_s) { job["status"] == "completed" ? "❔" : "⏳" }
       link([icon, variant].compact.join(" "), job["html_url"])
     end
-    out << "| `#{base}` | #{cells.join(' ')} |"
+    out << "| `#{cell(base, code: true)}` | #{cells.join(' ')} |"
   end
   out << ""
 end
@@ -489,13 +505,14 @@ section.call("Artifact list") do
   out << "| Artifact | Size |"
   out << "|---|--:|"
   (artifacts - intermediate).sort_by { |artifact| artifact["name"] }.each do |artifact|
-    url = "https://github.com/#{repo}/actions/runs/#{run_id}/artifacts/#{artifact['id']}"
+    url = "https://github.com/#{repo}/actions/runs/#{run_id}/artifacts/#{CiCleanup.id!(artifact['id'])}"
     out << "| #{link(artifact['name'], url)} | #{human_size(artifact['size_in_bytes'])} |"
   end
   out << ""
 end
 unless intermediate.empty?
-  out << "#{intermediate.size} intermediate artifacts are not listed; tests-cleanup deletes them when the run completes."
+  out << "#{intermediate.size} per-Ruby gems are not listed; bin/ci-cleanup.rb deletes them, and the JUnit " \
+         "reports if the run succeeds, when the run completes."
   out << ""
 end
 
@@ -532,5 +549,6 @@ if summary.bytesize > MAX_SUMMARY_BYTES
 end
 File.write(ENV.fetch("GITHUB_STEP_SUMMARY", "/dev/stdout"), summary, mode: "a")
 File.write(ENV["GITHUB_OUTPUT"], "written=true\n", mode: "a") if ENV["GITHUB_OUTPUT"]
-problems.each { |problem| warn(problem) }
+# stderr is parsed for workflow commands too; a prefix keeps untrusted text off the start of a line.
+problems.each { |problem| warn("report problem: #{problem.gsub(/\s+/, ' ')}") }
 exit(problems.empty? ? 0 : 1)

@@ -1,10 +1,14 @@
 name: tests-cleanup
 permissions: {}
 
-# Deletes the intermediate artifacts of a completed tests run. It runs from the
-# default branch and checks out nothing, so a pull request cannot change what
-# runs with the write token, and it also covers pull requests from forks.
-on:
+# Deletes the intermediate artifacts of a completed tests run with
+# bin/ci-cleanup.rb. For workflow_run, GitHub takes this file and the checkout
+# from the default branch, so a pull request, including one from a fork, cannot
+# change what runs with the write token. It downloads no artifact and runs
+# nothing from the triggering run, which is what makes workflow_run dangerous
+# elsewhere. workflow_dispatch runs from the chosen branch and is for people
+# who can push to the repository anyway.
+on: # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows:
       - tests
@@ -22,28 +26,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
-      actions: write
+      actions: write # delete artifacts
+      contents: read # check out the script
     steps:
+      # Pinned: this job holds a write token. v7.0.1.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: bin/ci-cleanup.rb
+          sparse-checkout-cone-mode: false
       - name: Delete intermediate artifacts
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
-        run: |
-          conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq .conclusion)
-          # Per-Ruby gems are deleted once their fat gem exists. JUnit reports
-          # stay after a failure, so "Re-run failed jobs" can still summarize
-          # the jobs it does not re-run.
-          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts?per_page=100" \
-            | jq -r --arg conclusion "${conclusion}" '
-                [.[].artifacts[] | select(.expired | not)] as $all
-                | ($all | map(.name)) as $names
-                | $all[]
-                | select(
-                    ((.name | test("^couchbase-.*-[0-9]+\\.[0-9]+$"))
-                      and ((.name | sub("-[0-9]+\\.[0-9]+$"; "")) as $fat | $names | index($fat)))
-                    or ($conclusion == "success" and (.name | startswith("junit-"))))
-                | "\(.id)\t\(.name)"' \
-            | while IFS=$'\t' read -r id name; do
-                echo "deleting ${name}"
-                gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}"
-              done
+        # The runner image's Ruby; the script needs only the standard library and gh.
+        run: ruby bin/ci-cleanup.rb "${RUN_ID}"
