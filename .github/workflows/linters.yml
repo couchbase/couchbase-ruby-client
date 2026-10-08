@@ -27,12 +27,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Set up ruby
         timeout-minutes: 10
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
         with:
           ruby-version: 3.4
       - name: Install dependencies
@@ -43,11 +43,26 @@ jobs:
           bundle exec rubocop -v
           bundle exec rubocop --format progress --format github
 
+  action_pins:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout, and tags of public action repositories
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check action pins
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # The runner image's Ruby; the script needs only the standard library and gh.
+        run: ruby bin/check-action-pins.rb
+
   clang_format:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           submodules: recursive
@@ -71,13 +86,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           submodules: recursive
       - name: Set up ruby
         timeout-minutes: 10
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
         with:
           ruby-version: 3.4
       - name: Install dependencies
@@ -89,7 +104,7 @@ jobs:
           sudo bash -c "echo 'deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-${LLVM_VERSION} main' >> /etc/apt/sources.list"
           sudo apt-get update -y
           sudo apt-get install -y clang-${LLVM_VERSION} clang-tools-${LLVM_VERSION}
-      - uses: hendrikmuhs/ccache-action@v1.2
+      - uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2.20
         with:
           max-size: 2G
           key: ${{ github.job }}
@@ -101,7 +116,7 @@ jobs:
           CB_SCAN_BUILD: /usr/bin/scan-build-${{ env.LLVM_VERSION }}
       - name: Upload scan-build report
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: report
           path: ext/cmake-build-report.tar.gz

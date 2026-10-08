@@ -39,7 +39,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: couchbaselabs/sdk-docker-build-action@v1
+      - uses: couchbaselabs/sdk-docker-build-action@9ebcad6d35c4390a79e768eafd5eef2cfacc82a4 # v1
         with:
           sdk: ruby
           ref: ${{ inputs.ref }}

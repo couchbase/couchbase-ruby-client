@@ -29,8 +29,7 @@ jobs:
       actions: write # delete artifacts
       contents: read # check out the script
     steps:
-      # Pinned: this job holds a write token. v7.0.1.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           sparse-checkout: bin/ci-cleanup.rb

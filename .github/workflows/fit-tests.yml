@@ -37,7 +37,11 @@ permissions:
 
 jobs:
   fit:
-    uses: couchbaselabs/fit-cli/.github/workflows/fit-cli.yaml@main
+    # Not pinned: the nightly FIT runs follow fit-cli's latest stable release,
+    # its "ci" release tag. "ci" is also the default install channel below, so
+    # the workflow and the binary come from the same release.
+    # bin/check-action-pins.rb allows exactly this reference.
+    uses: couchbaselabs/fit-cli/.github/workflows/fit-cli.yaml@ci
     with:
       preset: ${{ inputs.preset || vars.FIT_CLI_PRESET || 'op-multi-lite' }}
       collect_extra_diagnostics: ${{ inputs.collect_extra_diagnostics != false }}

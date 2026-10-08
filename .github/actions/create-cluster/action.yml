@@ -25,6 +25,8 @@ runs:
       run: |
         mkdir -p "$HOME/bin"
         wget -nv -O $HOME/bin/cbdinocluster https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.113/cbdinocluster-linux-amd64
+        # The digest GitHub records for this release asset; a replaced binary fails here.
+        echo "f0e15302baceb0880c58a413adbe785b85de8d88c7f44c3213a956f0a98354dd  $HOME/bin/cbdinocluster" | sha256sum --check -
         chmod +x $HOME/bin/cbdinocluster
         echo "$HOME/bin" >> $GITHUB_PATH
     - name: Initialize cbdinocluster
