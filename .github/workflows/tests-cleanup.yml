@@ -1,0 +1,49 @@
+name: tests-cleanup
+permissions: {}
+
+# Deletes the intermediate artifacts of a completed tests run. It runs from the
+# default branch and checks out nothing, so a pull request cannot change what
+# runs with the write token, and it also covers pull requests from forks.
+on:
+  workflow_run:
+    workflows:
+      - tests
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: ID of the tests run to clean up
+        required: true
+        type: string
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: write
+    steps:
+      - name: Delete intermediate artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
+        run: |
+          conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq .conclusion)
+          # Per-Ruby gems are deleted once their fat gem exists. JUnit reports
+          # stay after a failure, so "Re-run failed jobs" can still summarize
+          # the jobs it does not re-run.
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts?per_page=100" \
+            | jq -r --arg conclusion "${conclusion}" '
+                [.[].artifacts[] | select(.expired | not)] as $all
+                | ($all | map(.name)) as $names
+                | $all[]
+                | select(
+                    ((.name | test("^couchbase-.*-[0-9]+\\.[0-9]+$"))
+                      and ((.name | sub("-[0-9]+\\.[0-9]+$"; "")) as $fat | $names | index($fat)))
+                    or ($conclusion == "success" and (.name | startswith("junit-"))))
+                | "\(.id)\t\(.name)"' \
+            | while IFS=$'\t' read -r id name; do
+                echo "deleting ${name}"
+                gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}"
+              done
