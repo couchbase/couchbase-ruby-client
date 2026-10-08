@@ -558,14 +558,15 @@ jobs:
             test/**/*.log
             test/reports/
           retention-days: 5
-      - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v6.4.2
+      - name: Upload test report
         if: always()
+        uses: actions/upload-artifact@v7
         with:
-          check_name: 🐧caves, ruby-${{ matrix.ruby }}
-          report_paths: test/reports/*.xml
-          require_tests: true
-          annotate_only: true
+          name: junit-${{ github.job }} (${{ matrix.ruby }})
+          path: test/reports/*.xml
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 3
 
   mock_macos_arm64:
     timeout-minutes: 15
@@ -637,14 +638,15 @@ jobs:
             ~/Library/Logs/DiagnosticReports/
             /Library/Logs/DiagnosticReports/
           retention-days: 5
-      - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v6.4.2
+      - name: Upload test report
         if: always()
+        uses: actions/upload-artifact@v7
         with:
-          check_name: 🍎caves, ruby-${{ matrix.ruby }}
-          report_paths: test/reports/*.xml
-          require_tests: true
-          annotate_only: true
+          name: junit-${{ github.job }} (${{ matrix.ruby }})
+          path: test/reports/*.xml
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 3
 
   mock_macos_x86_64:
     timeout-minutes: 15
@@ -715,14 +717,15 @@ jobs:
             ~/Library/Logs/DiagnosticReports/
             /Library/Logs/DiagnosticReports/
           retention-days: 5
-      - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v6.4.2
+      - name: Upload test report
         if: always()
+        uses: actions/upload-artifact@v7
         with:
-          check_name: 🍏caves, ruby-${{ matrix.ruby }}
-          report_paths: test/reports/*.xml
-          require_tests: true
-          annotate_only: true
+          name: junit-${{ github.job }} (${{ matrix.ruby }})
+          path: test/reports/*.xml
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 3
 
   test_linux_x86_64:
     timeout-minutes: 60
@@ -776,14 +779,15 @@ jobs:
           TEST_SERVER_VERSION: ${{ matrix.server }}
         run: |
           bundle exec rake test
-      - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v6.4.2
+      - name: Upload test report
         if: always()
+        uses: actions/upload-artifact@v7
         with:
-          check_name: 🐧server, ee-${{ matrix.server }}
-          report_paths: test/reports/*.xml
-          require_tests: true
-          annotate_only: true
+          name: junit-${{ github.job }} (${{ matrix.server }})
+          path: test/reports/*.xml
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 3
       - name: Collect server logs
         timeout-minutes: 15
         if: failure()
@@ -857,14 +861,15 @@ jobs:
           TEST_SERVER_VERSION: ${{ matrix.server }}
         run: |
           bundle exec rake test
-      - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v6.4.2
+      - name: Upload test report
         if: always()
+        uses: actions/upload-artifact@v7
         with:
-          check_name: 🐧cng, ee-${{ matrix.server }}
-          report_paths: test/reports/*.xml
-          require_tests: true
-          annotate_only: true
+          name: junit-${{ github.job }} (${{ matrix.server }})
+          path: test/reports/*.xml
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 3
       - name: Collect server logs
         timeout-minutes: 15
         if: failure()
@@ -1043,11 +1048,54 @@ jobs:
             test/**/*.log
             test/reports/
           retention-days: 5
-      - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v6.4.2
+      - name: Upload test report
         if: always()
+        uses: actions/upload-artifact@v7
         with:
-          check_name: 🪟caves, ${{ matrix.arch }}, ruby-${{ matrix.ruby }}
-          report_paths: test/reports/*.xml
-          require_tests: true
-          annotate_only: true
+          name: junit-${{ github.job }} (${{ matrix.arch }}, ${{ matrix.ruby }})
+          path: test/reports/*.xml
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 3
+
+  summary:
+    if: ${{ !cancelled() }}
+    needs:
+      - source
+      - build_alpine_x86_64
+      - repackage_linux_aarch64
+      - mock_linux_x86_64
+      - mock_macos_arm64
+      - mock_macos_x86_64
+      - mock_windows
+      - test_linux_x86_64
+      - test_cng_linux_x86_64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      # list jobs and delete intermediate artifacts
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: bin/ci-summary.rb
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v8
+        with:
+          path: reports
+          pattern: junit-*
+      - uses: ruby/setup-ruby@v1
+        timeout-minutes: 10
+        with:
+          ruby-version: 3.4
+      - name: Summarize
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUMMARY_CLEANUP: true
+          SUMMARY_TITLE: ${{ github.workflow }}
+          SUMMARY_SUBTITLE: >-
+            couchbase ${{ needs.source.outputs.gem_version }},
+            couchbase-opentelemetry ${{ needs.source.outputs.otel_gem_version }},
+            ${{ github.sha }}
+        run: ruby bin/ci-summary.rb reports
