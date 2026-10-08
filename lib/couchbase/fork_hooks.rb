@@ -27,10 +27,11 @@ module Couchbase
         # happened to restart them.
         Couchbase::Backend.notify_fork(:parent) unless forked
       end
-      if pid
-        Couchbase::Backend.notify_fork(:parent)
-      else
+      # 0 in the child. Ruby treats 0 as true, so the test has to be explicit.
+      if pid.zero?
         Couchbase::Backend.notify_fork(:child)
+      else
+        Couchbase::Backend.notify_fork(:parent)
       end
       pid
     end
