@@ -126,6 +126,33 @@ module Couchbase
       assert_equal "value_bar", @cache.read(bar)
     end
 
+    def test_delete_matched_after_write_multi
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support consistent_with yet") if env.protostellar?
+      skip("#{name}: CAVES does not support query service yet for delete_matched in cache adapter") if use_caves?
+      skip("The server #{env.server_version} does not support delete_matched") unless env.server_version.supports_regexp_matches?
+
+      ensure_primary_index!
+
+      foo = uniq_id(:foo)
+      @cache.write_multi(foo => "value_foo", uniq_id(:bar) => "value_bar")
+
+      assert_kind_of Integer, @cache.delete_matched(/#{foo}/)
+    end
+
+    def test_clear_after_delete_multi
+      skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support consistent_with yet") if env.protostellar?
+      skip("#{name}: CAVES does not support query service yet for clear in cache adapter") if use_caves?
+
+      ensure_primary_index!
+
+      foo = uniq_id(:foo)
+      bar = uniq_id(:bar)
+      @cache.write_multi(foo => "value_foo", bar => "value_bar")
+      @cache.delete_multi([foo])
+
+      assert_kind_of ::Couchbase::Cluster::QueryResult, @cache.clear
+    end
+
     def test_delete_multi
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support multi ops") if env.protostellar?
 

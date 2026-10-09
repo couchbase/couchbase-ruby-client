@@ -259,7 +259,7 @@ module ActiveSupport
           successful = collection.upsert_multi(serialize_entries(entries, **options), operation_options).select(&:success?)
           return 0 if successful.empty?
 
-          @last_mutation_token = successful.max_by { |r| r.mutation_token.sequence_number }
+          @last_mutation_token = successful.map(&:mutation_token).max_by(&:sequence_number)
           successful.count
         end
       end
@@ -282,7 +282,7 @@ module ActiveSupport
           successful = collection.remove_multi(entries).select(&:success?)
           return 0 if successful.empty?
 
-          @last_mutation_token = successful.max_by { |r| r.mutation_token.sequence_number }
+          @last_mutation_token = successful.map(&:mutation_token).max_by(&:sequence_number)
           successful.count
         end
       end
