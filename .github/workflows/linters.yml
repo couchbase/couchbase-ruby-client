@@ -104,7 +104,7 @@ jobs:
           sudo bash -c "echo 'deb [signed-by=/etc/apt/keyrings/llvm-snapshot.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-${LLVM_VERSION} main' >> /etc/apt/sources.list"
           sudo apt-get update -y
           sudo apt-get install -y clang-${LLVM_VERSION} clang-tools-${LLVM_VERSION}
-      - uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2.20
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           max-size: 2G
           key: ${{ github.job }}
