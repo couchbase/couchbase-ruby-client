@@ -511,7 +511,8 @@ jobs:
             pkg/fat/*.gem
 
   mock_linux_x86_64:
-    timeout-minutes: 15
+    # Above the sum of the step timeouts, so that a step times out before the job does.
+    timeout-minutes: 35
     needs:
       - source
       - repackage_linux_x86_64
@@ -558,6 +559,8 @@ jobs:
           bundle install
           bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
       - name: Test
+        # Below the job timeout, so that the failure() steps still upload the logs.
+        timeout-minutes: 8
         env:
           CB_CAVES_LOGS_DIR: caves-logs
           COUCHBASE_BACKEND_DONT_WRITE_TO_STDERR: true
@@ -588,7 +591,8 @@ jobs:
           retention-days: 3
 
   mock_macos_arm64:
-    timeout-minutes: 15
+    # Above the sum of the step timeouts, so that a step times out before the job does.
+    timeout-minutes: 35
     needs:
       - source
       - repackage_macos_arm64
@@ -636,6 +640,8 @@ jobs:
           bundle install
           bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
       - name: Test
+        # Below the job timeout, so that the failure() steps still upload the logs.
+        timeout-minutes: 8
         env:
           CB_CAVES_LOGS_DIR: caves-logs
           COUCHBASE_BACKEND_DONT_WRITE_TO_STDERR: true
@@ -675,7 +681,8 @@ jobs:
           retention-days: 3
 
   mock_macos_x86_64:
-    timeout-minutes: 15
+    # Above the sum of the step timeouts, so that a step times out before the job does.
+    timeout-minutes: 35
     needs:
       - source
       - repackage_macos_x86_64
@@ -722,6 +729,8 @@ jobs:
           bundle install
           bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
       - name: Test
+        # Below the job timeout, so that the failure() steps still upload the logs.
+        timeout-minutes: 8
         env:
           CB_CAVES_LOGS_DIR: caves-logs
           COUCHBASE_BACKEND_DONT_WRITE_TO_STDERR: true
@@ -761,7 +770,8 @@ jobs:
           retention-days: 3
 
   test_linux_x86_64:
-    timeout-minutes: 60
+    # Above the sum of the step timeouts, so that a step times out before the job does.
+    timeout-minutes: 75
     needs:
       - source
       - repackage_linux_x86_64
@@ -812,6 +822,8 @@ jobs:
           bundle install
           bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
       - name: Test
+        # Below the job timeout, so that the failure() steps still upload the logs.
+        timeout-minutes: 20
         env:
           TEST_CONNECTION_STRING: ${{ steps.create-cluster.outputs.connstr }}?dump_configuration=true
           TEST_SERVER_VERSION: ${{ matrix.server }}
@@ -848,7 +860,8 @@ jobs:
           retention-days: 5
 
   test_cng_linux_x86_64:
-    timeout-minutes: 60
+    # Above the sum of the step timeouts, so that a step times out before the job does.
+    timeout-minutes: 75
     needs:
       - source
       - repackage_linux_x86_64
@@ -903,6 +916,8 @@ jobs:
           bundle install
           bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
       - name: Test
+        # Below the job timeout, so that the failure() steps still upload the logs.
+        timeout-minutes: 20
         env:
           TEST_CONNECTION_STRING: ${{ steps.start-cng.outputs.cng-connection-string }}?trust_certificate=${{ steps.start-cng.outputs.ca-cert-path }}
           TEST_SERVER_VERSION: ${{ matrix.server }}
@@ -1029,7 +1044,8 @@ jobs:
             pkg/fat/*.gem
 
   mock_windows:
-    timeout-minutes: 15
+    # Above the sum of the step timeouts, so that a step times out before the job does.
+    timeout-minutes: 40
     needs:
       - source
       - repackage_windows
@@ -1089,6 +1105,8 @@ jobs:
           bundle install
           bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
       - name: Test
+        # Below the job timeout, so that the failure() steps still upload the logs.
+        timeout-minutes: 8
         env:
           CB_CAVES_LOGS_DIR: caves-logs
           COUCHBASE_BACKEND_DONT_WRITE_TO_STDERR: true
@@ -1134,7 +1152,8 @@ jobs:
       - test_linux_x86_64
       - test_cng_linux_x86_64
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # Above the sum of the step timeouts, so that a step times out before the job does.
+    timeout-minutes: 25
     # Read-only: on a pull request this runs the pull request's own script.
     # Artifact deletion happens in tests-cleanup.yml.
     permissions:
