@@ -38,6 +38,7 @@ module Couchbase
         password: env.password,
         bucket: env.bucket,
         namespace: @namespace,
+        mutation_tracking: :all,
       }.merge(options))
     end
 

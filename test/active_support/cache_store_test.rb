@@ -30,6 +30,7 @@ module Couchbase
         username: env.username,
         password: env.password,
         bucket: env.bucket,
+        mutation_tracking: :all,
       })
     end
 
@@ -120,7 +121,6 @@ module Couchbase
       end
 
       assert_predicate total_deleted, :positive?, "delete_matched performed #{total_deleted} mutations"
-      sleep(0.3) while @cache.exist?(foo) # HACK: to ensure that query changes have been propagated
 
       assert_nil @cache.read(foo)
       assert_equal "value_bar", @cache.read(bar)
@@ -151,6 +151,7 @@ module Couchbase
       @cache.delete_multi([foo])
 
       assert_kind_of ::Couchbase::Cluster::QueryResult, @cache.clear
+      assert_nil @cache.read(bar)
     end
 
     def test_delete_multi
