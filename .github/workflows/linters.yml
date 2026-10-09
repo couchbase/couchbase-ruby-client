@@ -58,6 +58,22 @@ jobs:
         # The runner image's Ruby; the script needs only the standard library and gh.
         run: ruby bin/check-action-pins.rb
 
+  zizmor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The action commit fixes the digest of the zizmor image it runs.
+      - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          advanced-security: false
+          annotations: true
+          min-severity: medium
+
   alpine_image:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
