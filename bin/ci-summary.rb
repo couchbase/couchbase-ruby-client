@@ -77,14 +77,15 @@ CAUSES = {
 }.freeze
 
 # Step names as tests.yml spells them. Any other failed step is infrastructure.
+TEST_STEP = /\ATest(\z| )/
 STEP_KINDS = {
-  /\ATest\z/ => :test,
+  TEST_STEP => :test,
   /\AInstall\z/ => :install,
   /\A(Precompile|Repackage|Build |Generate documentation)/ => :build,
 }.freeze
 # Test job names as tests.yml spells them. A job skipped because a job it needs
 # failed has no steps, and a skipped matrix job is not expanded per entry.
-TEST_JOB_PATTERN = /\A(mock|test)_/
+TEST_JOB_PATTERN = /\A(mock_|test_|coverage\z)/
 TIMEOUT_PATTERN = /exceeded the maximum execution time|has timed out/
 # GitHub's annotations on the jobs of a cancelled run, by a person or by a newer
 # run in the same concurrency group.
@@ -275,7 +276,11 @@ section.call("Test reports") do
   entries = Dir.exist?(reports_dir) ? Dir.children(reports_dir).sort : []
   dirs = entries.select { |entry| entry.start_with?("junit-") }.to_h { |entry| [entry, File.join(reports_dir, entry)] }
   # download-artifact extracts a lone matching artifact without its directory.
-  dirs[reports.first["name"]] = reports_dir if dirs.empty? && reports.size == 1 && entries.any? { |e| e.end_with?(".xml") }
+  dirs[reports.first["name"]] = reports_dir if dirs.empty? && reports.size == 1 && Dir.glob("**/*.xml", base: reports_dir).any?
+  # An uploaded report that did not arrive is lost, not missing.
+  (reports.map { |artifact| artifact["name"] } - dirs.keys).each do |name|
+    problems << "#{name} was uploaded but not downloaded"
+  end
   suites = dirs.map do |entry, dir|
     cases, broken = parse_reports(dir)
     {name: entry.delete_prefix("junit-"), cases: cases, broken: broken}
@@ -361,7 +366,7 @@ section.call("Tests") do
   # never ran is not a silent gap.
   missing = jobs.select do |job|
     !suites_by_name.key?(job["name"]) &&
-      (job["name"].match?(TEST_JOB_PATTERN) || job["steps"].to_a.any? { |s| s["name"] == "Test" })
+      (job["name"].match?(TEST_JOB_PATTERN) || job["steps"].to_a.any? { |s| s["name"].to_s.match?(TEST_STEP) })
   end
   next if suites.empty? && missing.empty?
 
@@ -390,15 +395,17 @@ section.call("Tests") do
   rows.sort_by!(&:first)
   rows << [nil, "**Total**", all_cases.map(&:last), suites.flat_map { |suite| suite[:broken] }]
   # The last element is the unreadable report files, or the note of a job without a report.
-  rows.each do |_, label, cases, extra|
+  rows.each do |name, label, cases, extra|
     if cases.nil?
       out << "| #{label} | #{extra} | | | | | |"
       next
     end
     tally = cases.map(&:outcome).tally
     passed, failed, errors, skipped = tally.values_at(:passed, :failure, :error, :skipped).map(&:to_i)
+    # A job with two test steps can fail in the second after a clean report from the first.
+    conclusion = jobs_by_name.dig(name, "conclusion")
     icon = if (failed + errors).positive? then "❌"
-           elsif cases.empty? || extra.any? then "⚠️"
+           elsif cases.empty? || extra.any? || (conclusion && !GOOD_CONCLUSIONS.include?(conclusion)) then "⚠️"
            else "✅"
            end
     cells = [cases.size, passed, failed, errors, skipped, human_time(cases.sum(&:time))]
@@ -414,7 +421,9 @@ section.call("Tests") do
 end
 
 section.call("Failed tests") do
+  # One hit per configuration: the coverage job runs the suite twice into one report.
   grouped = all_cases.select { |_, tc| BAD_OUTCOMES.include?(tc.outcome) }.group_by { |_, tc| tc.id }
+                     .transform_values { |hits| hits.uniq { |suite, _| suite[:name] } }
   next if grouped.empty?
 
   ranked = grouped.sort_by { |id, hits| [-hits.size, id] }

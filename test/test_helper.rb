@@ -25,6 +25,14 @@ begin
   require "simplecov"
   require "simplecov-cobertura"
   SimpleCov.formatter = SimpleCov::Formatter::CoberturaFormatter
+  # Runs with different COVERAGE_NAME values merge into one report, as long as
+  # each is less than merge_timeout seconds old.
+  SimpleCov.command_name(ENV.fetch("COVERAGE_NAME", "tests"))
+  SimpleCov.merge_timeout(3 * 60 * 60)
+  # Only the Ruby code of the two gems in this repository.
+  SimpleCov.skip do |source|
+    !source.filename.start_with?("#{SimpleCov.root}/lib/", "#{SimpleCov.root}/couchbase-opentelemetry/lib/")
+  end
   SimpleCov.start
 rescue LoadError
   warn("running tests without coverage")
