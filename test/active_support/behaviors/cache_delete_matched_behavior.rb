@@ -23,7 +23,6 @@ module CacheDeleteMatchedBehavior
       total_deleted += deleted
     end
     assert total_deleted >= 2, "delete_matched performed #{total_deleted} mutations"
-    sleep(0.3) while @cache.exist?("foo") || @cache.exist?("foo/bar") # HACK: to ensure that query changes have been propagated
     assert_not @cache.exist?("foo")
     assert @cache.exist?("fu")
     assert_not @cache.exist?("foo/bar")

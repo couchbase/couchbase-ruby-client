@@ -36,11 +36,63 @@ module ActiveSupport
     #       bucket: "app_cache"
     #     }
     #
+    # +delete_matched+ and +clear+ query with +consistent_with+ the store's writes.
+    # By default that covers the last write only, which leaves earlier writes to
+    # other vBuckets out of the query until the index catches up. With
+    # +mutation_tracking: :all+ the store keeps the newest mutation token of every
+    # vBucket it wrote to, so both see every earlier write. It also accepts an
+    # object that responds to +record(*tokens)+ and +mutation_state+.
+    #
     # @see https://guides.rubyonrails.org/caching_with_rails.html#cache-stores
     class CouchbaseStore < Store
       MAX_KEY_BYTESIZE = 250
       DEFAULT_ERROR_HANDLER = lambda do |method:, returning:, exception:, logger: CouchbaseStore.logger|
         logger&.error { "CouchbaseStore: #{method} failed, returned #{returning.inspect}: #{exception.class}: #{exception.message}" }
+      end
+
+      # Default +mutation_tracking+: the token of the last write.
+      class LastMutation
+        def initialize
+          @token = nil
+        end
+
+        def record(*tokens)
+          latest = tokens.compact.max_by(&:sequence_number)
+          @token = latest if latest
+        end
+
+        def mutation_state
+          token = @token
+          token && ::Couchbase::MutationState.new(token)
+        end
+      end
+
+      # +mutation_tracking: :all+: the newest token of every vBucket written to,
+      # at most one per vBucket however many writes there were.
+      class AllMutations
+        def initialize
+          @tokens = {}
+          @lock = Mutex.new
+        end
+
+        def record(*tokens)
+          @lock.synchronize do
+            tokens.compact.each do |token|
+              key = [token.bucket_name, token.partition_id]
+              known = @tokens[key]
+              # After a failover the partition_uuid changes and sequence numbers
+              # do not compare across it, so the token recorded last is kept.
+              next if known && known.partition_uuid == token.partition_uuid && known.sequence_number >= token.sequence_number
+
+              @tokens[key] = token
+            end
+          end
+        end
+
+        def mutation_state
+          tokens = @lock.synchronize { @tokens.values }
+          ::Couchbase::MutationState.new(*tokens) unless tokens.empty?
+        end
       end
 
       # Advertise cache versioning support.
@@ -70,7 +122,17 @@ module ActiveSupport
           @options.delete(:bucket) { raise ArgumentError, "Missing bucket for Couchbase cache store. Use :bucket in the store options" }
         @couchbase_options[:scope] = @options.delete(:scope) if @options.key?(:scope)
         @couchbase_options[:collection] = @options.delete(:collection) if @options.key?(:collection)
-        @last_mutation_token = nil
+        @mutations =
+          case (tracking = @options.delete(:mutation_tracking) { :last })
+          when :last, "last" then LastMutation.new
+          when :all, "all" then AllMutations.new
+          else
+            unless tracking.respond_to?(:record) && tracking.respond_to?(:mutation_state)
+              raise ArgumentError, "mutation_tracking must be :last, :all, or respond to #record and #mutation_state"
+            end
+
+            tracking
+          end
       end
 
       def collection
@@ -90,9 +152,10 @@ module ActiveSupport
       # The +matcher+ must be valid pattern for N1QL +REGEXP_MATCHES+ function. More info at
       # https://docs.couchbase.com/server/current/n1ql/n1ql-language-reference/patternmatchingfun.html#section_regex_matches
       #
-      # Because the operation performed on query engine, and it might take time to propagate changes
-      # from key/value engine to the indexer. Therefore the keys, that were created a moment ago
-      # might not be deleted.
+      # The query is consistent with the writes this store recorded, as selected by
+      # +mutation_tracking+. With the default +:last+, keys written shortly before the
+      # last write to other vBuckets might not be deleted. Writes by other processes
+      # are not covered.
       #
       # Also this method assumes, that primary index created on the target bucket
       def delete_matched(matcher, _options = nil)
@@ -106,7 +169,8 @@ module ActiveSupport
             raise NotImplementedError, "Unable to convert #{matcher.inspect} to Regexp pattern"
           end
         operation_options = ::Couchbase::Options::Query(named_parameters: {"pattern" => pattern}, metrics: true)
-        operation_options.consistent_with(::Couchbase::MutationState.new(@last_mutation_token)) if @last_mutation_token
+        mutation_state = @mutations.mutation_state
+        operation_options.consistent_with(mutation_state) if mutation_state
         begin
           result = cluster.query("DELETE FROM #{scope_qualifier} cache_store_ WHERE REGEXP_MATCHES(META(cache_store_).id, $pattern)",
                                  operation_options)
@@ -127,7 +191,7 @@ module ActiveSupport
             res = collection.binary.increment(
               key, ::Couchbase::Options::Increment(delta: amount, expiry: expires_in, initial: initial)
             )
-            @last_mutation_token = res.mutation_token
+            @mutations.record(res.mutation_token)
             res.content
           end
         end
@@ -147,7 +211,7 @@ module ActiveSupport
             res = collection.binary.decrement(
               key, ::Couchbase::Options::Decrement(delta: amount, expiry: expires_in, initial: initial)
             )
-            @last_mutation_token = res.mutation_token
+            @mutations.record(res.mutation_token)
             res.content
           end
         end
@@ -164,7 +228,8 @@ module ActiveSupport
             cluster.buckets.flush_bucket(@couchbase_options[:bucket_name])
           else
             operation_options = ::Couchbase::Options::Query.new
-            operation_options.consistent_with(::Couchbase::MutationState.new(@last_mutation_token)) if @last_mutation_token
+            mutation_state = @mutations.mutation_state
+            operation_options.consistent_with(mutation_state) if mutation_state
             cluster.query("DELETE FROM #{scope_qualifier}", operation_options)
           end
         end
@@ -239,7 +304,7 @@ module ActiveSupport
         end
         failsafe(:write_entry, returning: false) do
           res = collection.upsert(key, payload, ::Couchbase::Options::Upsert(transcoder: nil, expiry: expires_in))
-          @last_mutation_token = res.mutation_token
+          @mutations.record(res.mutation_token)
           true
         end
       end
@@ -259,7 +324,7 @@ module ActiveSupport
           successful = collection.upsert_multi(serialize_entries(entries, **options), operation_options).select(&:success?)
           return 0 if successful.empty?
 
-          @last_mutation_token = successful.map(&:mutation_token).max_by(&:sequence_number)
+          @mutations.record(*successful.map(&:mutation_token))
           successful.count
         end
       end
@@ -269,7 +334,7 @@ module ActiveSupport
       def delete_entry(key, **_options)
         failsafe(:delete_entry, returning: false) do
           res = collection.remove(key)
-          @last_mutation_token = res.mutation_token
+          @mutations.record(res.mutation_token)
           true
         end
       end
@@ -282,7 +347,7 @@ module ActiveSupport
           successful = collection.remove_multi(entries).select(&:success?)
           return 0 if successful.empty?
 
-          @last_mutation_token = successful.map(&:mutation_token).max_by(&:sequence_number)
+          @mutations.record(*successful.map(&:mutation_token))
           successful.count
         end
       end
