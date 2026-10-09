@@ -155,7 +155,6 @@ jobs:
             openssl \
             openssl-dev \
             readline-dev \
-            ruby \
             tar \
             xz \
             yaml-dev \
@@ -170,34 +169,42 @@ jobs:
           key: ${{ github.job }}-${{ matrix.ruby }}
       - name: Install Ruby
         # Downloads and compiles Ruby.
-        timeout-minutes: 20
+        timeout-minutes: 10
         env:
           SUPPORTED_RUBY_VERSIONS: ${{ matrix.ruby }}
         run: |
           bash bin/jenkins/install-rubies.sh
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          path: pkg
           name: couchbase-${{ needs.source.outputs.gem_version }}
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          path: pkg
-          name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
-      - name: Build gem
-        # build-gem.sh skips the Rubies that install-rubies.sh did not install.
-        timeout-minutes: 40
+      - name: Install gem-compiler
+        timeout-minutes: 5
+        shell: bash
         env:
-          BUNDLE_ALLOW_ROOT: true
-          BUILD_NUMBER: ${{ needs.source.outputs.build_number }}
+          MATRIX_RUBY: ${{ matrix.ruby }}
         run: |
-          ruby bin/jenkins/patch-version.rb "${BUILD_NUMBER}"
-          bash bin/jenkins/build-gem.sh
+          source /usr/local/share/chruby/chruby.sh
+          chruby "ruby-${MATRIX_RUBY}"
+          gem install gem-compiler
+      - name: Precompile
+        timeout-minutes: 40
+        shell: bash
+        env:
+          MATRIX_RUBY: ${{ matrix.ruby }}
+          GEM_VERSION: ${{ needs.source.outputs.gem_version }}
+          CB_STATIC_BORINGSSL: 1
+          CB_STATIC_STDLIB: 1
+          CB_REMOVE_EXT_DIRECTORY: 1
+        run: |
+          source /usr/local/share/chruby/chruby.sh
+          chruby "ruby-${MATRIX_RUBY}"
+          gem compile --strip --prune "couchbase-${GEM_VERSION}.gem"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           retention-days: 1
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-musl-${{ matrix.ruby }}
           path: |
-            pkg/binary/*/*.gem
+            *-x86_64-linux-musl.gem
 
   repackage_alpine_x86_64:
     needs:
