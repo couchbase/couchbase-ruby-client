@@ -87,10 +87,8 @@ cb_Backend_analytics_get_pending_mutations(VALUE self, VALUE options, VALUE obse
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -135,10 +133,8 @@ cb_Backend_analytics_dataset_get_all(VALUE self, VALUE options, VALUE observabil
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -192,10 +188,8 @@ cb_Backend_analytics_dataset_drop(VALUE self,
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -247,10 +241,8 @@ cb_Backend_analytics_dataset_create(VALUE self,
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -292,10 +284,8 @@ cb_Backend_analytics_dataverse_drop(VALUE self,
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -341,10 +331,8 @@ cb_Backend_analytics_dataverse_create(VALUE self,
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -387,10 +375,8 @@ cb_Backend_analytics_index_get_all(VALUE self, VALUE options, VALUE observabilit
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -457,10 +443,8 @@ cb_Backend_analytics_index_create(VALUE self,
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -512,10 +496,8 @@ cb_Backend_analytics_index_drop(VALUE self,
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -558,10 +540,8 @@ cb_Backend_analytics_link_connect(VALUE self, VALUE options, VALUE observability
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -603,10 +583,8 @@ cb_Backend_analytics_link_disconnect(VALUE self, VALUE options, VALUE observabil
     }
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -782,10 +760,8 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options, VALUE ob
 
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -916,10 +892,8 @@ cb_Backend_analytics_link_replace(VALUE self,
 
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -975,10 +949,8 @@ cb_Backend_analytics_link_drop(VALUE self,
 
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1082,10 +1054,8 @@ cb_Backend_analytics_link_get_all(VALUE self, VALUE options, VALUE observability
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1268,10 +1238,8 @@ cb_Backend_document_analytics(VALUE self,
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -1281,25 +1249,51 @@ cb_Backend_document_analytics(VALUE self,
 void
 init_analytics(VALUE cBackend)
 {
-  rb_define_method(cBackend, "document_analytics", cb_Backend_document_analytics, 3);
+  rb_define_method(
+    cBackend, "document_analytics", cb_method<cb_Backend_document_analytics>::invoke, 3);
 
   // Management APIs
+  rb_define_method(cBackend,
+                   "analytics_get_pending_mutations",
+                   cb_method<cb_Backend_analytics_get_pending_mutations>::invoke,
+                   2);
+  rb_define_method(cBackend,
+                   "analytics_dataverse_drop",
+                   cb_method<cb_Backend_analytics_dataverse_drop>::invoke,
+                   3);
+  rb_define_method(cBackend,
+                   "analytics_dataverse_create",
+                   cb_method<cb_Backend_analytics_dataverse_create>::invoke,
+                   3);
+  rb_define_method(cBackend,
+                   "analytics_dataset_create",
+                   cb_method<cb_Backend_analytics_dataset_create>::invoke,
+                   4);
   rb_define_method(
-    cBackend, "analytics_get_pending_mutations", cb_Backend_analytics_get_pending_mutations, 2);
-  rb_define_method(cBackend, "analytics_dataverse_drop", cb_Backend_analytics_dataverse_drop, 3);
+    cBackend, "analytics_dataset_drop", cb_method<cb_Backend_analytics_dataset_drop>::invoke, 3);
+  rb_define_method(cBackend,
+                   "analytics_dataset_get_all",
+                   cb_method<cb_Backend_analytics_dataset_get_all>::invoke,
+                   2);
   rb_define_method(
-    cBackend, "analytics_dataverse_create", cb_Backend_analytics_dataverse_create, 3);
-  rb_define_method(cBackend, "analytics_dataset_create", cb_Backend_analytics_dataset_create, 4);
-  rb_define_method(cBackend, "analytics_dataset_drop", cb_Backend_analytics_dataset_drop, 3);
-  rb_define_method(cBackend, "analytics_dataset_get_all", cb_Backend_analytics_dataset_get_all, 2);
-  rb_define_method(cBackend, "analytics_index_get_all", cb_Backend_analytics_index_get_all, 2);
-  rb_define_method(cBackend, "analytics_index_create", cb_Backend_analytics_index_create, 5);
-  rb_define_method(cBackend, "analytics_index_drop", cb_Backend_analytics_index_drop, 4);
-  rb_define_method(cBackend, "analytics_link_connect", cb_Backend_analytics_link_connect, 2);
-  rb_define_method(cBackend, "analytics_link_disconnect", cb_Backend_analytics_link_disconnect, 2);
-  rb_define_method(cBackend, "analytics_link_create", cb_Backend_analytics_link_create, 3);
-  rb_define_method(cBackend, "analytics_link_replace", cb_Backend_analytics_link_replace, 3);
-  rb_define_method(cBackend, "analytics_link_drop", cb_Backend_analytics_link_drop, 4);
-  rb_define_method(cBackend, "analytics_link_get_all", cb_Backend_analytics_link_get_all, 2);
+    cBackend, "analytics_index_get_all", cb_method<cb_Backend_analytics_index_get_all>::invoke, 2);
+  rb_define_method(
+    cBackend, "analytics_index_create", cb_method<cb_Backend_analytics_index_create>::invoke, 5);
+  rb_define_method(
+    cBackend, "analytics_index_drop", cb_method<cb_Backend_analytics_index_drop>::invoke, 4);
+  rb_define_method(
+    cBackend, "analytics_link_connect", cb_method<cb_Backend_analytics_link_connect>::invoke, 2);
+  rb_define_method(cBackend,
+                   "analytics_link_disconnect",
+                   cb_method<cb_Backend_analytics_link_disconnect>::invoke,
+                   2);
+  rb_define_method(
+    cBackend, "analytics_link_create", cb_method<cb_Backend_analytics_link_create>::invoke, 3);
+  rb_define_method(
+    cBackend, "analytics_link_replace", cb_method<cb_Backend_analytics_link_replace>::invoke, 3);
+  rb_define_method(
+    cBackend, "analytics_link_drop", cb_method<cb_Backend_analytics_link_drop>::invoke, 4);
+  rb_define_method(
+    cBackend, "analytics_link_get_all", cb_method<cb_Backend_analytics_link_get_all>::invoke, 2);
 }
 } // namespace couchbase::ruby

@@ -48,6 +48,8 @@ class ruby_exception : public std::runtime_error
 {
 public:
   explicit ruby_exception(VALUE exc);
+  // These build the exception through cb_exc_new, so they may be thrown only from a method body
+  // registered through cb_method.
   ruby_exception(VALUE exc_type, VALUE exc_message);
   ruby_exception(VALUE exc_type, const std::string& exc_message);
 
@@ -55,6 +57,21 @@ public:
 
 private:
   VALUE exc_;
+};
+
+// A Ruby non-local exit (raise, throw, Thread#kill) stopped by rb_protect, carried through C++
+// frames so that they unwind until cb_method resumes it with rb_jump_tag. What the exit carries
+// stays in ec->errinfo, which GC marks. No Ruby code may run between the failed rb_protect and
+// cb_method: code that rescues replaces errinfo, and rb_jump_tag would resume that instead.
+class ruby_jump : public std::exception
+{
+public:
+  explicit ruby_jump(int state);
+
+  [[nodiscard]] auto state() const -> int;
+
+private:
+  int state_;
 };
 
 auto
@@ -68,6 +85,14 @@ exc_cluster_closed() -> VALUE;
 
 auto
 exc_invalid_argument() -> VALUE;
+
+// Builds an exception of exc_type under cb_protect: the exception classes define initialize in
+// Ruby. Call it only from a method body registered through cb_method.
+[[nodiscard]] auto
+cb_exc_new(VALUE exc_type, const std::string& message) -> VALUE;
+
+[[nodiscard]] auto
+cb_exc_new(VALUE exc_type, VALUE message) -> VALUE;
 
 [[nodiscard]] auto
 cb_map_error_code(std::error_code ec,

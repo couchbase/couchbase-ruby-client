@@ -64,7 +64,8 @@ public:
     known_instances_.remove(instance);
   }
 
-  void notify_fork(couchbase::fork_event event)
+  // Returns the rb_protect state of a failed logger flush during prepare, or zero.
+  int notify_fork(couchbase::fork_event event)
   {
     if (event != couchbase::fork_event::prepare) {
       init_logger();
@@ -78,9 +79,16 @@ public:
     }
 
     if (event == couchbase::fork_event::prepare) {
-      flush_logger();
+      int state = try_flush_logger();
       couchbase::core::logger::shutdown();
+      if (state != 0) {
+        // The fork does not happen, so the instances stopped above are restarted as in the
+        // parent of a completed fork.
+        notify_fork(couchbase::fork_event::parent);
+      }
+      return state;
     }
+    return 0;
   }
 
 private:
@@ -97,21 +105,21 @@ cb_Backend_notify_fork(VALUE self, VALUE event)
   static const auto id_parent{ rb_intern("parent") };
   static const auto id_child{ rb_intern("child") };
 
-  try {
-    cb_check_type(event, T_SYMBOL);
-
-    if (rb_sym2id(event) == id_prepare) {
-      instances.notify_fork(couchbase::fork_event::prepare);
-    } else if (rb_sym2id(event) == id_parent) {
-      instances.notify_fork(couchbase::fork_event::parent);
-    } else if (rb_sym2id(event) == id_child) {
-      instances.notify_fork(couchbase::fork_event::child);
-    } else {
-      throw ruby_exception(rb_eTypeError,
-                           rb_sprintf("unexpected fork event type %" PRIsVALUE "", event));
-    }
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
+  cb_check_type(event, T_SYMBOL);
+  int state = 0;
+  if (rb_sym2id(event) == id_prepare) {
+    state = instances.notify_fork(couchbase::fork_event::prepare);
+  } else if (rb_sym2id(event) == id_parent) {
+    instances.notify_fork(couchbase::fork_event::parent);
+  } else if (rb_sym2id(event) == id_child) {
+    instances.notify_fork(couchbase::fork_event::child);
+  } else {
+    throw ruby_exception(rb_eTypeError,
+                         rb_sprintf("unexpected fork event type %" PRIsVALUE "", event));
+  }
+  if (state != 0) {
+    // notify_fork has already restarted the instances and run no Ruby code since the flush failed.
+    throw ruby_jump(state);
   }
 
   return Qnil;
@@ -535,10 +543,8 @@ cb_Backend_open(VALUE self, VALUE connstr, VALUE credentials, VALUE options)
     backend->instance = std::make_unique<couchbase::cluster>(std::move(cluster));
     instances.add(backend->instance.get());
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -579,10 +585,8 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
       });
     }
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -610,10 +614,8 @@ cb_Backend_update_credentials(VALUE self, VALUE credentials)
       cb_throw_error(err, "failed to update authenticator");
     }
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to update authenticator {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
 
   return Qnil;
@@ -626,12 +628,13 @@ init_backend(VALUE mCouchbase)
 {
   VALUE cBackend = rb_define_class_under(mCouchbase, "Backend", rb_cObject);
   rb_define_alloc_func(cBackend, cb_Backend_allocate);
-  rb_define_method(cBackend, "open", cb_Backend_open, 3);
-  rb_define_method(cBackend, "open_bucket", cb_Backend_open_bucket, 2);
+  rb_define_method(cBackend, "open", cb_method<cb_Backend_open>::invoke, 3);
+  rb_define_method(cBackend, "open_bucket", cb_method<cb_Backend_open_bucket>::invoke, 2);
   rb_define_method(cBackend, "close", cb_Backend_close, 0);
-  rb_define_method(cBackend, "update_credentials", cb_Backend_update_credentials, 1);
+  rb_define_method(
+    cBackend, "update_credentials", cb_method<cb_Backend_update_credentials>::invoke, 1);
 
-  rb_define_singleton_method(cBackend, "notify_fork", cb_Backend_notify_fork, 1);
+  rb_define_singleton_method(cBackend, "notify_fork", cb_method<cb_Backend_notify_fork>::invoke, 1);
   return cBackend;
 }
 

@@ -91,10 +91,8 @@ cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout
 
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -152,10 +150,8 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
     }
     return res;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -370,10 +366,8 @@ cb_Backend_cluster_enable_developer_preview(VALUE self)
                         "upgrade. DO NOT USE IN PRODUCTION.");
     return Qtrue;
   } catch (const std::system_error& se) {
-    rb_exc_raise(cb_map_error_code(
+    throw ruby_exception(cb_map_error_code(
       se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
-  } catch (const ruby_exception& e) {
-    rb_exc_raise(e.exception_object());
   }
   return Qnil;
 }
@@ -384,11 +378,16 @@ void
 init_extras(VALUE cBackend)
 {
   /* utility function that are not intended for public usage */
-  rb_define_method(cBackend, "collections_manifest_get", cb_Backend_collections_manifest_get, 2);
-  rb_define_method(
-    cBackend, "cluster_enable_developer_preview!", cb_Backend_cluster_enable_developer_preview, 0);
+  rb_define_method(cBackend,
+                   "collections_manifest_get",
+                   cb_method<cb_Backend_collections_manifest_get>::invoke,
+                   2);
+  rb_define_method(cBackend,
+                   "cluster_enable_developer_preview!",
+                   cb_method<cb_Backend_cluster_enable_developer_preview>::invoke,
+                   0);
 
-  rb_define_singleton_method(cBackend, "dns_srv", cb_Backend_dns_srv, 2);
+  rb_define_singleton_method(cBackend, "dns_srv", cb_method<cb_Backend_dns_srv>::invoke, 2);
   rb_define_singleton_method(
     cBackend, "parse_connection_string", cb_Backend_parse_connection_string, 1);
   rb_define_singleton_method(cBackend, "snappy_compress", cb_Backend_snappy_compress, 1);

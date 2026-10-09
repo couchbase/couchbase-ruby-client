@@ -69,7 +69,7 @@ module Couchbase
   def self.set_logger(logger, adapter_class: nil, verbose: false, level: :info)
     @logger = logger # rubocop:disable ThreadSafety/ClassInstanceVariable
     if @logger.nil? # rubocop:disable ThreadSafety/ClassInstanceVariable
-      Backend.install_logger_shim(nil)
+      Backend.install_logger_shim(nil, nil)
       return
     end
     shim =
