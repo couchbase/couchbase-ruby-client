@@ -358,9 +358,51 @@ end
 
 unless ENV['RM_INFO']
   require "minitest/reporters"
+
+  # Prints each test's name and UTC start time when it starts, and its result
+  # when it ends. A log keeps a line only once it ends, so a test still running
+  # after STALL_AFTER seconds gets its line ended by a watchdog thread. No such
+  # line in a hung run means the process stopped while holding the GVL.
+  class StartTimeSpecReporter < Minitest::Reporters::SpecReporter
+    STALL_AFTER = 60
+
+    def start
+      super
+      @running = nil
+      Thread.new do # rubocop:disable ThreadSafety/NewThread
+        loop do
+          sleep 5
+          running = @running
+          next if running.nil? || running[:reported] || Time.now - running[:started] < STALL_AFTER
+
+          running[:reported] = true
+          puts " still running after #{STALL_AFTER}s"
+          io.flush
+        end
+      end
+    end
+
+    def before_test(test)
+      super
+      @running = {started: Time.now, reported: false}
+      print pad_test(test.name.gsub(/^test_: /, "test:"))
+      print @running[:started].utc.strftime("%H:%M:%S.%L ")
+      io.flush
+    end
+
+    def record(test)
+      @running = nil
+      Minitest::Reporters::BaseReporter.instance_method(:record).bind_call(self, test)
+      print_colored_status(test)
+      print(format(" (%.2fs)", test.time)) unless test.time.nil?
+      puts
+      record_print_failures_if_any(test) unless @suppress_inline_failure_output
+    end
+  end
+
   Minitest::Reporters.use!(
     [
-      Minitest::Reporters::SpecReporter.new(print_failure_summary: true),
+      StartTimeSpecReporter.new(print_failure_summary: true),
       Minitest::Reporters::JUnitReporter.new(Minitest::Reporters::JUnitReporter::DEFAULT_REPORTS_DIR, true, include_timestamp: true),
     ],
   )
