@@ -110,13 +110,6 @@ jobs:
             couchbase-opentelemetry/doc/**/*
       
   build_alpine_x86_64:
-    # FIXME(SA): add aarch64 for Alpine Linux
-    # Right now github does not allow to execute JS-based actions (like
-    # download-artifact) inside alpine container, throwing the following
-    # message:
-    #
-    #   JavaScript Actions in Alpine containers are only supported on x64 Linux
-    #   runners. Detected Linux Arm64
     needs: source
     runs-on: ubuntu-22.04
     timeout-minutes: 80
@@ -247,6 +240,147 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux-musl
+          path: |
+            pkg/fat/*.gem
+
+  # JavaScript actions cannot run in an Alpine container on an arm64 runner, so
+  # the actions run on the host and the build runs in the container.
+  build_alpine_aarch64:
+    needs: source
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '3.2'
+          - '3.3'
+          - '3.4'
+          - '4.0'
+    env:
+      ALPINE_IMAGE: public.ecr.aws/docker/library/alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          max-size: 2G
+          key: ${{ github.job }}-${{ matrix.ruby }}
+      - name: Start Alpine container
+        timeout-minutes: 5
+        run: |
+          docker run --detach --name alpine \
+            --volume "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" --workdir "${GITHUB_WORKSPACE}" \
+            --env CCACHE_DIR="${GITHUB_WORKSPACE}/.ccache" --env CCACHE_MAXSIZE=2G \
+            "${ALPINE_IMAGE}" sleep infinity
+      - name: Install build environment
+        timeout-minutes: 15
+        run: |
+          docker exec alpine apk add --no-cache \
+            bash \
+            build-base \
+            ccache \
+            cmake \
+            curl \
+            g++ \
+            gcc \
+            git \
+            linux-headers \
+            make \
+            openssl \
+            openssl-dev \
+            readline-dev \
+            tar \
+            xz \
+            yaml-dev \
+            zlib-dev
+      - name: Install Ruby
+        # Downloads and compiles Ruby.
+        timeout-minutes: 10
+        env:
+          SUPPORTED_RUBY_VERSIONS: ${{ matrix.ruby }}
+        run: |
+          docker exec --env SUPPORTED_RUBY_VERSIONS alpine bash bin/jenkins/install-rubies.sh
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Install gem-compiler
+        timeout-minutes: 5
+        env:
+          MATRIX_RUBY: ${{ matrix.ruby }}
+        run: |
+          docker exec --env MATRIX_RUBY alpine bash -c '
+            source /usr/local/share/chruby/chruby.sh
+            chruby "ruby-${MATRIX_RUBY}"
+            gem install gem-compiler'
+      - name: Precompile
+        timeout-minutes: 40
+        env:
+          MATRIX_RUBY: ${{ matrix.ruby }}
+          GEM_VERSION: ${{ needs.source.outputs.gem_version }}
+        run: |
+          docker exec --env MATRIX_RUBY --env GEM_VERSION \
+            --env CB_STATIC_BORINGSSL=1 --env CB_STATIC_STDLIB=1 --env CB_REMOVE_EXT_DIRECTORY=1 \
+            alpine bash -c '
+              source /usr/local/share/chruby/chruby.sh
+              chruby "ruby-${MATRIX_RUBY}"
+              gem compile --strip --prune "couchbase-${GEM_VERSION}.gem"'
+      # The container writes as root; the post steps of the actions run as the runner user.
+      - name: Return the workspace to the runner user
+        if: always()
+        run: |
+          docker exec alpine chown -R "$(id -u):$(id -g)" "${GITHUB_WORKSPACE}" || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          retention-days: 1
+          name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-musl-${{ matrix.ruby }}
+          path: |
+            *-aarch64-linux-musl.gem
+
+  repackage_alpine_aarch64:
+    needs:
+      - source
+      - build_alpine_aarch64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      ALPINE_IMAGE: public.ecr.aws/docker/library/alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: bin/jenkins
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: pkg/binary/3.2
+          name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-musl-3.2
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: pkg/binary/3.3
+          name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-musl-3.3
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: pkg/binary/3.4
+          name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-musl-3.4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: pkg/binary/4.0
+          name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-musl-4.0
+      - name: Repackage
+        # The fat gem takes its platform from the Ruby that repackages it.
+        timeout-minutes: 10
+        run: |
+          docker run --rm \
+            --volume "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" --workdir "${GITHUB_WORKSPACE}" \
+            --env HOST_USER="$(id -u):$(id -g)" \
+            "${ALPINE_IMAGE}" sh -euc '
+              apk add --no-cache binutils ruby
+              ruby bin/jenkins/repackage-extension.rb
+              chown -R "${HOST_USER}" pkg'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-aarch64-linux-musl
           path: |
             pkg/fat/*.gem
 
@@ -1331,6 +1465,7 @@ jobs:
     needs:
       - source
       - repackage_alpine_x86_64
+      - repackage_alpine_aarch64
       - repackage_linux_aarch64
       - mock_linux_x86_64
       - mock_macos_arm64
