@@ -34,11 +34,13 @@ jobs:
           submodules: recursive
           fetch-depth: 0
           fetch-tags: true
+      # Caches are scoped by branch: a pull request reads the caches of main or
+      # release*, but writes caches that only its own runs can read.
       - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
         timeout-minutes: 10
         with:
           ruby-version: 3.3
-          bundler-cache: true
+          bundler-cache: true # zizmor: ignore[cache-poisoning]
       - name: Build couchbase gem
         id: build_gem
         run: |

@@ -23,12 +23,10 @@ runs:
     - name: Install cbdinocluster
       shell: bash
       run: |
-        mkdir -p "$HOME/bin"
-        wget -nv -O $HOME/bin/cbdinocluster https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.113/cbdinocluster-linux-amd64
+        wget -nv -O "$RUNNER_TEMP/cbdinocluster" https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.113/cbdinocluster-linux-amd64
         # The digest GitHub records for this release asset; a replaced binary fails here.
-        echo "f0e15302baceb0880c58a413adbe785b85de8d88c7f44c3213a956f0a98354dd  $HOME/bin/cbdinocluster" | sha256sum --check -
-        chmod +x $HOME/bin/cbdinocluster
-        echo "$HOME/bin" >> $GITHUB_PATH
+        echo "f0e15302baceb0880c58a413adbe785b85de8d88c7f44c3213a956f0a98354dd  $RUNNER_TEMP/cbdinocluster" | sha256sum --check -
+        sudo install -m 0755 "$RUNNER_TEMP/cbdinocluster" /usr/local/bin/cbdinocluster
     - name: Initialize cbdinocluster
       shell: bash
       run: |
@@ -57,7 +55,6 @@ runs:
             expiry: 1h
       run: |
         CBDC_ID=$(cbdinocluster -v alloc --def="${CLUSTER_CONFIG}")
-        echo "CBDC_ID=$CBDC_ID" >> "$GITHUB_ENV"
         echo "ip=$(cbdinocluster -v ip $CBDC_ID)" >> "$GITHUB_OUTPUT"
         echo "connstr=$(cbdinocluster -v connstr --no-tls $CBDC_ID)" >> "$GITHUB_OUTPUT"
         echo "tls-connstr=$(cbdinocluster -v connstr --tls $CBDC_ID)" >> "$GITHUB_OUTPUT"
@@ -65,9 +62,13 @@ runs:
         cbdinocluster certificates get-ca $CBDC_ID >> "$GITHUB_WORKSPACE/cluster.crt"
     - name: Add default bucket
       shell: bash
+      env:
+        CLUSTER_ID: ${{ steps.start-cluster.outputs.id }}
       run: |
-        cbdinocluster buckets add $CBDC_ID default --ram-quota-mb 100 --flush-enabled true
+        cbdinocluster buckets add "${CLUSTER_ID}" default --ram-quota-mb 100 --flush-enabled true
     - name: Load travel-sample bucket
       shell: bash
+      env:
+        CLUSTER_ID: ${{ steps.start-cluster.outputs.id }}
       run: |
-        cbdinocluster buckets load-sample $CBDC_ID travel-sample
+        cbdinocluster buckets load-sample "${CLUSTER_ID}" travel-sample
