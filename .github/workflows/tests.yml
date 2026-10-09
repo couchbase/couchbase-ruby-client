@@ -118,8 +118,11 @@ jobs:
     needs: source
     runs-on: ubuntu-22.04
     timeout-minutes: 150
+    # The extension links musl dynamically, and loads on the musl it was built
+    # against or a newer one, so build on the oldest supported Alpine release.
+    # bin/check-alpine-image.rb in linters warns when that changes.
     container:
-      image: alpine:3.18@sha256:de0eb0b3f2a47ba1eb89389859a9bd88b28e82f5826b6969ad604979713c2d4f
+      image: alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507
     steps:
       - name: Install build environment
         timeout-minutes: 15
