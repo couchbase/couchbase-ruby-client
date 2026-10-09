@@ -54,6 +54,8 @@ group :development do
   gem "rubocop-rake", require: false
   gem "rubocop-thread_safety", require: false
   gem "ruby-lsp", require: false
+  # test/test_helper.rb uses SimpleCov.skip, which 1.0 introduced.
+  gem "simplecov", "~> 1.0"
   gem "simplecov-cobertura"
   gem "yard"
 end

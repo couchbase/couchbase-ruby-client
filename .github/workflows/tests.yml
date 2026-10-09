@@ -1141,6 +1141,125 @@ jobs:
           overwrite: true
           retention-days: 3
 
+  coverage:
+    # Coverage of lib/ needs lib/ on the load path, so this job builds the
+    # extension from the checkout instead of installing the packaged gem, and
+    # runs the tests against the mock and against a cluster. SimpleCov merges
+    # both runs into one report.
+    runs-on: ubuntu-26.04
+    # Above the sum of the step timeouts, so that a step times out before the job does.
+    timeout-minutes: 150
+    env:
+      SERVER_VERSION: 8.0.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Install build dependencies
+        timeout-minutes: 10
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libssl-dev
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        timeout-minutes: 10
+        with:
+          ruby-version: '4.0'
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          max-size: 2G
+          key: ${{ github.job }}
+      - name: Install
+        timeout-minutes: 10
+        run: bundle install
+      - name: Build extension
+        id: build
+        timeout-minutes: 60
+        run: bundle exec rake compile
+      - name: Test against the mock
+        timeout-minutes: 8
+        env:
+          CB_CAVES_LOGS_DIR: caves-logs
+          COUCHBASE_BACKEND_DONT_WRITE_TO_STDERR: true
+          COUCHBASE_BACKEND_LOG_PATH: logs/couchbase.log
+          COVERAGE_NAME: mock
+        run: |
+          bundle exec rake test
+      # The cluster run writes its report to the same directory.
+      - name: Keep the mock test report
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          if [ -d test/reports ]; then mv test/reports test/reports-mock; fi
+      # The cluster run goes ahead after failed mock tests, so the report covers both.
+      - name: Create Couchbase cluster
+        id: create-cluster
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        uses: ./.github/actions/create-cluster
+        with:
+          version: ${{ env.SERVER_VERSION }}
+      - name: Test against the cluster
+        if: ${{ !cancelled() && steps.create-cluster.outcome == 'success' }}
+        timeout-minutes: 20
+        env:
+          TEST_CONNECTION_STRING: ${{ steps.create-cluster.outputs.connstr }}?dump_configuration=true
+          TEST_SERVER_VERSION: ${{ env.SERVER_VERSION }}
+          COVERAGE_NAME: cluster
+        run: |
+          bundle exec rake test
+      # Without SimpleCov the tests pass and write no report.
+      - name: Check the coverage report
+        run: |
+          ruby -rjson -e '
+            abort "coverage/coverage.xml was not written" unless File.size?("coverage/coverage.xml")
+            runs = JSON.parse(File.read("coverage/.resultset.json")).keys
+            abort "the report merges #{runs.inspect}, not mock and cluster" unless (%w[mock cluster] - runs).empty?
+          '
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: |
+            coverage/coverage.xml
+            coverage/.resultset.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 14
+      - name: Upload test report
+        if: always()
+        # The summary marks a configuration without a report.
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: junit-${{ github.job }}
+          path: |
+            test/reports-mock/*.xml
+            test/reports/*.xml
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 3
+      - name: Collect server logs
+        timeout-minutes: 15
+        if: ${{ failure() && steps.create-cluster.outcome == 'success' }}
+        env:
+          CLUSTER_ID: ${{ steps.create-cluster.outputs.id }}
+        run: |
+          mkdir -p logs
+          cbdinocluster -v collect-logs "${CLUSTER_ID}" ./logs
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-logs
+          path: |
+            caves-logs/*
+            logs/*
+            test/**/*.log
+            test/reports-mock/
+            test/reports/
+          retention-days: 5
+
   summary:
     # Runs after failed jobs and after cancellation, by a person or by a newer run
     # in the concurrency group; each step is always() too, so a cancellation that
@@ -1156,6 +1275,7 @@ jobs:
       - mock_windows
       - test_linux_x86_64
       - test_cng_linux_x86_64
+      - coverage
     runs-on: ubuntu-24.04
     # Above the sum of the step timeouts, so that a step times out before the job does.
     timeout-minutes: 25
