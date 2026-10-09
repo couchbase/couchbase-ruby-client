@@ -38,7 +38,7 @@ module CiCleanup
   WORKFLOW_PATH = ".github/workflows/tests.yml"
   # "couchbase-<version>-<platform>-<ruby>" as the build jobs of tests.yml name
   # them; captures the name of the fat gem built from it.
-  PER_RUBY_GEM = /\A(couchbase-[^-]+-(?:x86_64|aarch64|arm64|x64)-(?:linux|darwin|mingw))-\d+\.\d+\z/
+  PER_RUBY_GEM = /\A(couchbase-[^-]+-(?:x86_64|aarch64|arm64|x64)-(?:linux-musl|linux|darwin|mingw))-\d+\.\d+\z/
 
   module_function
 
