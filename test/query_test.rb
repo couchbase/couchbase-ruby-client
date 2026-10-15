@@ -291,4 +291,16 @@ module Couchbase
       assert_equal({"location" => "local"}, res.rows.first)
     end
   end
+
+  class QueryOptionsTest < Minitest::Test
+    # A Symbol raw parameter key must reach the backend as a String.
+    def test_raw_parameter_keys_are_exported_as_strings
+      options = Options::Query.new
+      options.raw("before", 1)
+      options.raw(:sym, 2)
+      options.raw("after", 3)
+
+      assert_equal({"before" => "1", "sym" => "2", "after" => "3"}, options.to_backend[:raw_parameters])
+    end
+  end
 end
