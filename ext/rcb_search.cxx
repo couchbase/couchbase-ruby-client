@@ -870,21 +870,6 @@ cb_Backend_search_index_analyze_document(VALUE self,
   return Qnil;
 }
 
-int
-cb_for_each_raw_param(VALUE key, VALUE value, VALUE arg)
-{
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-  auto* preq = reinterpret_cast<core::operations::search_request*>(arg);
-  try {
-    cb_check_type(key, T_STRING);
-    cb_check_type(value, T_STRING);
-  } catch (const ruby_exception&) {
-    return ST_STOP;
-  }
-  preq->raw[cb_string_new(key)] = cb_string_new(value);
-  return ST_CONTINUE;
-}
-
 VALUE
 cb_Backend_document_search(VALUE self,
                            VALUE bucket,
@@ -1094,8 +1079,7 @@ cb_Backend_document_search(VALUE self,
     if (VALUE raw_params = rb_hash_aref(options, rb_id2sym(rb_intern("raw_parameters")));
         !NIL_P(raw_params)) {
       cb_check_type(raw_params, T_HASH);
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      rb_hash_foreach(raw_params, cb_for_each_raw_param, reinterpret_cast<VALUE>(&req));
+      cb_extract_string_hash(req.raw, raw_params, "raw_parameters");
     }
 
     auto parent_span = cb_create_parent_span(req, self);

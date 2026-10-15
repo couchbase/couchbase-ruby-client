@@ -1121,17 +1121,6 @@ cb_analytics_status_str(core::operations::analytics_response::analytics_status s
   return "unknown";
 }
 
-int
-cb_for_each_named_param_analytics(VALUE key, VALUE value, VALUE arg)
-{
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-  auto* preq = reinterpret_cast<core::operations::analytics_request*>(arg);
-  cb_check_type(key, T_STRING);
-  cb_check_type(value, T_STRING);
-  preq->named_parameters[cb_string_new(key)] = cb_string_new(value);
-  return ST_CONTINUE;
-}
-
 VALUE
 cb_Backend_document_analytics(VALUE self,
                               VALUE statement,
@@ -1171,9 +1160,7 @@ cb_Backend_document_analytics(VALUE self,
     if (VALUE named_params = rb_hash_aref(options, rb_id2sym(rb_intern("named_parameters")));
         !NIL_P(named_params)) {
       cb_check_type(named_params, T_HASH);
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      rb_hash_foreach(
-        named_params, cb_for_each_named_param_analytics, reinterpret_cast<VALUE>(&req));
+      cb_extract_string_hash(req.named_parameters, named_params, "named_parameters");
     }
     if (VALUE scan_consistency = rb_hash_aref(options, rb_id2sym(rb_intern("scan_consistency")));
         !NIL_P(scan_consistency)) {
@@ -1206,8 +1193,7 @@ cb_Backend_document_analytics(VALUE self,
     if (VALUE raw_params = rb_hash_aref(options, rb_id2sym(rb_intern("raw_parameters")));
         !NIL_P(raw_params)) {
       cb_check_type(raw_params, T_HASH);
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      rb_hash_foreach(raw_params, cb_for_each_named_param_analytics, reinterpret_cast<VALUE>(&req));
+      cb_extract_string_hash(req.named_parameters, raw_params, "raw_parameters");
     }
 
     auto parent_span = cb_create_parent_span(req, self);
