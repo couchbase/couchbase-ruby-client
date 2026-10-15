@@ -1193,7 +1193,7 @@ cb_Backend_document_analytics(VALUE self,
     if (VALUE raw_params = rb_hash_aref(options, rb_id2sym(rb_intern("raw_parameters")));
         !NIL_P(raw_params)) {
       cb_check_type(raw_params, T_HASH);
-      cb_extract_string_hash(req.named_parameters, raw_params, "raw_parameters");
+      cb_extract_string_hash(req.raw, raw_params, "raw_parameters");
     }
 
     auto parent_span = cb_create_parent_span(req, self);
