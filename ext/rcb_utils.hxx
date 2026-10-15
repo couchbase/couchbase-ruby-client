@@ -564,6 +564,48 @@ cb_extract_store_semantics(Request& req, VALUE options)
                          rb_sprintf("unexpected store_semantics, given %+" PRIsVALUE, val));
   }
 }
+
+// Copies a Hash of String => String into target. The type check does not raise or throw inside
+// rb_hash_foreach: the callback records the first entry of another type and stops, and the
+// ArgumentError is thrown after rb_hash_foreach returns. kind names the option in the message.
+template<typename Map>
+void
+cb_extract_string_hash(Map& target, VALUE hash, const char* kind)
+{
+  struct state {
+    Map& target;
+    VALUE key{ Qundef };
+    VALUE value{ Qundef };
+  } st{ target };
+  rb_hash_foreach(
+    hash,
+    [](VALUE key, VALUE value, VALUE arg) -> int {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+      auto* s = reinterpret_cast<state*>(arg);
+      if (!RB_TYPE_P(key, T_STRING) || !RB_TYPE_P(value, T_STRING)) {
+        s->key = key;
+        s->value = value;
+        return ST_STOP;
+      }
+      s->target[cb_string_new(key)] = cb_string_new(value);
+      return ST_CONTINUE;
+    },
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    reinterpret_cast<VALUE>(&st));
+  if (st.key == Qundef) {
+    return;
+  }
+  if (!RB_TYPE_P(st.key, T_STRING)) {
+    throw ruby_exception(
+      rb_eArgError, rb_sprintf("%s key must be a String, but given %+" PRIsVALUE, kind, st.key));
+  }
+  throw ruby_exception(rb_eArgError,
+                       rb_sprintf("%s value for %+" PRIsVALUE
+                                  " must be a String, but given %+" PRIsVALUE,
+                                  kind,
+                                  st.key,
+                                  st.value));
+}
 } // namespace couchbase::ruby
 
 #endif

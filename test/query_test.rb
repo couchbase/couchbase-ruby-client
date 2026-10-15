@@ -303,4 +303,13 @@ module Couchbase
       assert_equal({"before" => "1", "sym" => "2", "after" => "3"}, options.to_backend[:raw_parameters])
     end
   end
+
+  class AnalyticsOptionsTest < Minitest::Test
+    def test_raw_parameter_keys_are_exported_as_strings
+      options = Options::Analytics.new
+      options.raw(:sym, 2)
+
+      assert_equal({"sym" => "2"}, options.to_backend[:raw_parameters])
+    end
+  end
 end

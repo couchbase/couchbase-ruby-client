@@ -2043,10 +2043,10 @@ module Couchbase
 
       # Allows providing custom JSON key/value pairs for advanced usage
       #
-      # @param [String] key the parameter name (key of the JSON property)
+      # @param [String, Symbol] key the parameter name (key of the JSON property), converted with +to_s+
       # @param [Object] value the parameter value (value of the JSON property)
       def raw(key, value)
-        @raw_parameters[key] = JSON.generate(value)
+        @raw_parameters[key.to_s] = JSON.generate(value)
       end
 
       # @api private
