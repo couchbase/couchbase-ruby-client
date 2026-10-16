@@ -210,7 +210,7 @@ module Couchbase
     #
     # @example Get document contents
     #   res = collection.get_any_replica("customer123")
-    #   res.is_active #=> false
+    #   res.replica? #=> true when a replica answered first, false for the active copy
     #   res.content["addresses"]
     #
     #   # {"billing"=>

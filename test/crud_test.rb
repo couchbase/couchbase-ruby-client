@@ -67,15 +67,16 @@ module Couchbase
       res = @collection.get_any_replica(doc_id)
 
       assert_equal document, res.content
-      assert_respond_to res, :replica?
+      assert_includes [true, false], res.replica?
 
       res = @collection.get_all_replicas(doc_id)
 
       refute_empty res
       res.each do |entry|
         assert_equal document, entry.content
-        assert_respond_to entry, :replica?
+        assert_includes [true, false], entry.replica?
       end
+      assert_equal 1, res.count { |entry| !entry.replica? }, "exactly one result comes from the active copy"
     end
 
     def test_get_any_replica_does_not_exist

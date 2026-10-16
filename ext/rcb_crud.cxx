@@ -178,7 +178,7 @@ cb_Backend_document_get_any_replica(VALUE self,
     rb_hash_aset(res, rb_id2sym(rb_intern("content")), cb_str_new(resp.value));
     rb_hash_aset(res, rb_id2sym(rb_intern("cas")), cb_cas_to_num(resp.cas));
     rb_hash_aset(res, rb_id2sym(rb_intern("flags")), UINT2NUM(resp.flags));
-    rb_hash_aset(res, rb_id2sym(rb_intern("replica")), resp.replica ? Qtrue : Qfalse);
+    rb_hash_aset(res, rb_id2sym(rb_intern("is_replica")), resp.replica ? Qtrue : Qfalse);
     return res;
   } catch (const std::system_error& se) {
     throw ruby_exception(cb_map_error_code(
@@ -235,7 +235,7 @@ cb_Backend_document_get_all_replicas(VALUE self,
       rb_hash_aset(response, rb_id2sym(rb_intern("content")), cb_str_new(entry.value));
       rb_hash_aset(response, rb_id2sym(rb_intern("cas")), cb_cas_to_num(entry.cas));
       rb_hash_aset(response, rb_id2sym(rb_intern("flags")), UINT2NUM(entry.flags));
-      rb_hash_aset(response, rb_id2sym(rb_intern("replica")), entry.replica ? Qtrue : Qfalse);
+      rb_hash_aset(response, rb_id2sym(rb_intern("is_replica")), entry.replica ? Qtrue : Qfalse);
       rb_ary_push(res, response);
     }
     return res;
