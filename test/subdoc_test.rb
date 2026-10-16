@@ -1366,6 +1366,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+      wait_until_every_replica_has(doc_id)
 
       res = @collection.lookup_in_all_replicas(doc_id, [
                                                  LookupInSpec.get("value"),
@@ -1404,6 +1405,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+      wait_until_every_replica_has(doc_id)
 
       res = @collection.lookup_in_all_replicas(doc_id, [
                                                  LookupInSpec.get(""),
@@ -1447,6 +1449,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+      wait_until_every_replica_has(doc_id)
 
       options = Options::LookupInAllReplicas.new
       res = @collection.lookup_in_all_replicas(doc_id, [
@@ -1602,6 +1605,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+      wait_until_every_replica_has(doc_id)
 
       res = @collection.lookup_in_all_replicas(doc_id, [
                                                  LookupInSpec.count("value.."),
@@ -1626,6 +1630,7 @@ module Couchbase
       doc_id = uniq_id(:foo)
       document = {"value" => 42}
       @collection.upsert(doc_id, document, Options::Upsert.new(durability_level: :majority_and_persist_to_active))
+      wait_until_every_replica_has(doc_id)
 
       res = @collection.lookup_in_all_replicas(doc_id, [
                                                  LookupInSpec.count("value"),
@@ -1638,6 +1643,17 @@ module Couchbase
         assert_raises(Error::PathMismatch) do
           entry.content(0)
         end
+      end
+    end
+
+    private
+
+    # A majority_and_persist_to_active upsert can return before every replica has applied it. Until a replica does,
+    # reading a new document from it fails with document_not_found, which lookup_in_all_replicas reports as the
+    # error of every spec in that replica's entry.
+    def wait_until_every_replica_has(doc_id)
+      retry_for_duration(expected_errors: [Error::DocumentNotFound]) do
+        @collection.lookup_in_all_replicas(doc_id, [LookupInSpec.get("")]).each { |entry| entry.content(0) }
       end
     end
   end
