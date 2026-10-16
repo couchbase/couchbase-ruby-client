@@ -1155,27 +1155,18 @@ jobs:
             test/reports/
           retention-days: 5
 
-  build_windows:
+  build_windows_x64:
     needs: source
-    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-2022' }}
+    runs-on: windows-2022
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        arch:
-          - x64
-          - arm64
         ruby:
           - '3.2'
           - '3.3'
           - '3.4'
           - '4.0'
-        exclude:
-          # RubyInstaller ships arm64 builds starting with Ruby 3.4
-          - arch: arm64
-            ruby: '3.2'
-          - arch: arm64
-            ruby: '3.3'
     steps:
       - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
         timeout-minutes: 10
@@ -1185,8 +1176,7 @@ jobs:
         timeout-minutes: 15
         run: |
           $PREFIX = $env:MINGW_PACKAGE_PREFIX
-          $PACKAGES = @("patch", "$PREFIX-cmake", "$PREFIX-go", "$PREFIX-ninja", "$PREFIX-toolchain")
-          if ("${{ matrix.arch }}" -eq "x64") { $PACKAGES += "$PREFIX-nasm" }
+          $PACKAGES = @("patch", "$PREFIX-cmake", "$PREFIX-go", "$PREFIX-ninja", "$PREFIX-toolchain", "$PREFIX-nasm")
           # A slow mirror can fail the download; retry once
           ridk exec pacman --sync --noconfirm --needed @PACKAGES
           if ($LASTEXITCODE -ne 0) { ridk exec pacman --sync --noconfirm --needed @PACKAGES }
@@ -1207,22 +1197,16 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           retention-days: 1
-          name: couchbase-${{ needs.source.outputs.gem_version }}-${{ matrix.arch }}-mingw-${{ matrix.ruby }}
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-${{ matrix.ruby }}
           path: |
             *-mingw*.gem
 
-  repackage_windows:
+  repackage_windows_x64:
     needs:
       - source
-      - build_windows
-    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-2022' }}
+      - build_windows_x64
+    runs-on: windows-2022
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          - x64
-          - arm64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1231,7 +1215,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: pkg/binary
-          pattern: couchbase-${{ needs.source.outputs.gem_version }}-${{ matrix.arch }}-mingw-*
+          pattern: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw-*
       - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
         timeout-minutes: 10
         with:
@@ -1241,34 +1225,25 @@ jobs:
           ruby bin/jenkins/repackage-extension.rb
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: couchbase-${{ needs.source.outputs.gem_version }}-${{ matrix.arch }}-mingw
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw
           path: |
             pkg/fat/*.gem
 
-  mock_windows:
+  mock_windows_x64:
     # Above the sum of the step timeouts, so that a step times out before the job does.
     timeout-minutes: 40
     needs:
       - source
-      - repackage_windows
-    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-2022' }}
+      - repackage_windows_x64
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
-        arch:
-          - x64
-          - arm64
         ruby:
           - '3.2'
           - '3.3'
           - '3.4'
           - '4.0'
-        exclude:
-          # RubyInstaller ships arm64 builds starting with Ruby 3.4
-          - arch: arm64
-            ruby: '3.2'
-          - arch: arm64
-            ruby: '3.3'
     defaults:
       run:
         shell: bash
@@ -1280,7 +1255,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: couchbase-${{ needs.source.outputs.gem_version }}-${{ matrix.arch }}-mingw
+          name: couchbase-${{ needs.source.outputs.gem_version }}-x64-mingw
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
@@ -1319,7 +1294,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.arch }}-${{ matrix.ruby }}-logs
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
           path: |
             caves-logs/*
             logs/*
@@ -1332,7 +1307,163 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: junit-${{ github.job }} (${{ matrix.arch }}, ${{ matrix.ruby }})
+          name: junit-${{ github.job }} (${{ matrix.ruby }})
+          path: test/reports/*.xml
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 3
+
+  build_windows_arm64:
+    needs: source
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          # RubyInstaller ships arm64 builds starting with Ruby 3.4
+          - '3.4'
+          - '4.0'
+    steps:
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        timeout-minutes: 10
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - name: Install dependencies
+        timeout-minutes: 15
+        run: |
+          $PREFIX = $env:MINGW_PACKAGE_PREFIX
+          $PACKAGES = @("patch", "$PREFIX-cmake", "$PREFIX-go", "$PREFIX-ninja", "$PREFIX-toolchain")
+          # A slow mirror can fail the download; retry once
+          ridk exec pacman --sync --noconfirm --needed @PACKAGES
+          if ($LASTEXITCODE -ne 0) { ridk exec pacman --sync --noconfirm --needed @PACKAGES }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}
+      - name: Install gem-compiler
+        timeout-minutes: 10
+        run: gem install gem-compiler
+      - name: Precompile
+        env:
+          GEM_VERSION: ${{ needs.source.outputs.gem_version }}
+          CB_STATIC_BORINGSSL: 1
+          CB_STATIC_STDLIB: 1
+          CB_REMOVE_EXT_DIRECTORY: 1
+        run: |
+          gem compile --prune "couchbase-$($env:GEM_VERSION).gem"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          retention-days: 1
+          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-mingw-${{ matrix.ruby }}
+          path: |
+            *-mingw*.gem
+
+  repackage_windows_arm64:
+    needs:
+      - source
+      - build_windows_arm64
+    runs-on: windows-11-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: bin/jenkins
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: pkg/binary
+          pattern: couchbase-${{ needs.source.outputs.gem_version }}-arm64-mingw-*
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        timeout-minutes: 10
+        with:
+          ruby-version: 4.0
+      - name: Repackage
+        run: |
+          ruby bin/jenkins/repackage-extension.rb
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-mingw
+          path: |
+            pkg/fat/*.gem
+
+  mock_windows_arm64:
+    # Above the sum of the step timeouts, so that a step times out before the job does.
+    timeout-minutes: 40
+    needs:
+      - source
+      - repackage_windows_arm64
+    runs-on: windows-11-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          # RubyInstaller ships arm64 builds starting with Ruby 3.4
+          - '3.4'
+          - '4.0'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Keep LF line endings in the checkout
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: couchbase-${{ needs.source.outputs.gem_version }}-arm64-mingw
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: couchbase-opentelemetry-${{ needs.source.outputs.otel_gem_version }}
+      - name: Use the installed gem instead of lib/
+        run: rm -rf lib
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        timeout-minutes: 10
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - name: Install
+        timeout-minutes: 15
+        env:
+          GEM_VERSION: ${{ needs.source.outputs.gem_version }}
+          OTEL_GEM_VERSION: ${{ needs.source.outputs.otel_gem_version }}
+        run: |
+          mkdir -p local-gem-repo/gems
+          mv "couchbase-${GEM_VERSION}"-*.gem local-gem-repo/gems
+          mv "couchbase-opentelemetry-${OTEL_GEM_VERSION}.gem" local-gem-repo/gems
+          # realpath in Git Bash prints /d/a/..., which is not a Windows path; File.expand_path gives D:/a/...
+          GEM_REPO_URL=$(ruby -e 'puts "file:///#{File.expand_path("local-gem-repo")}"')
+          gem generate_index --directory local-gem-repo
+          ruby -i.bak -pe "gsub(/gemspec$/, 'gem \"couchbase\", source: \"${GEM_REPO_URL}\"')" Gemfile
+          ruby -i.bak -pe "gsub(/gemspec path: \"couchbase-opentelemetry\"$/, 'gem \"couchbase-opentelemetry\", source: \"${GEM_REPO_URL}\"')" Gemfile
+          bundle install
+          bundle exec ruby -r bundler/setup -r couchbase -r couchbase/opentelemetry -e 'pp Couchbase::VERSION, Couchbase::BUILD_INFO, {otel: Couchbase::OpenTelemetry::VERSION}'
+      - name: Test
+        # Below the job timeout, so that the failure() steps still upload the logs.
+        timeout-minutes: 8
+        env:
+          CB_CAVES_LOGS_DIR: caves-logs
+          COUCHBASE_BACKEND_DONT_WRITE_TO_STDERR: true
+          COUCHBASE_BACKEND_LOG_PATH: logs/couchbase.log
+        run: |
+          bundle exec rake test
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ github.job }}-${{ github.run_attempt }}-${{ matrix.ruby }}-logs
+          path: |
+            caves-logs/*
+            logs/*
+            test/**/*.log
+            test/reports/
+          retention-days: 5
+      - name: Upload test report
+        if: always()
+        # The summary marks a configuration without a report.
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: junit-${{ github.job }} (${{ matrix.ruby }})
           path: test/reports/*.xml
           if-no-files-found: ignore
           overwrite: true
@@ -1470,7 +1601,8 @@ jobs:
       - mock_linux_x86_64
       - mock_macos_arm64
       - mock_macos_x86_64
-      - mock_windows
+      - mock_windows_x64
+      - mock_windows_arm64
       - test_linux_x86_64
       - test_cng_linux_x86_64
       - coverage
