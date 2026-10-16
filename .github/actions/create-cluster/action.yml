@@ -66,6 +66,13 @@ runs:
         CLUSTER_ID: ${{ steps.start-cluster.outputs.id }}
       run: |
         cbdinocluster buckets add "${CLUSTER_ID}" default --ram-quota-mb 100 --flush-enabled true
+    - name: Add bucket with an unplaced replica
+      shell: bash
+      env:
+        CLUSTER_ID: ${{ steps.start-cluster.outputs.id }}
+      run: |
+        # Three replicas on three KV nodes leave the third replica without a node.
+        cbdinocluster buckets add "${CLUSTER_ID}" three-replicas --ram-quota-mb 100 --num-replicas 3
     - name: Load travel-sample bucket
       shell: bash
       env:
