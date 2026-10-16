@@ -16,11 +16,10 @@
 #  limitations under the License.
 
 # Checks every "[<registry>/]alpine:<branch>@sha256:<digest>" image under .github against
-# the Alpine releases and the ECR Public mirror of Docker Hub:
+# the Alpine releases and the Docker Hub image, read through mirror.gcr.io:
 #
 # * warning: the branch is not the oldest Alpine release that still has
-#   security support, the tag now points at another image, or the image is not
-#   pulled from the mirror;
+#   security support, or the tag now points at another image;
 # * error: the release list or the current digest could not be fetched.
 #
 # The musl gem is built in that image and loads only on the same musl or a
@@ -34,9 +33,7 @@ require "json"
 require "net/http"
 
 FILES = Dir[".github/**/*.{yml,yaml}"].freeze
-IMAGE = /(?<name>[\w.\-\/]*\balpine):(?<branch>\d+\.\d+)@(?<digest>sha256:[0-9a-f]{64})/
-# Docker Hub limits anonymous pulls per IP address, which GitHub runners share.
-MIRROR = "public.ecr.aws/docker/library/alpine"
+IMAGE = /\balpine:(?<branch>\d+\.\d+)@(?<digest>sha256:[0-9a-f]{64})/
 RELEASES = URI("https://alpinelinux.org/releases.json")
 INDEX = "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json"
 
@@ -69,9 +66,8 @@ def fetch(uri, headers = {}, method: Net::HTTP::Get)
 end
 
 def current_digest(branch)
-  token = JSON.parse(fetch(URI("https://public.ecr.aws/token/")).body)["token"]
-  fetch(URI("https://public.ecr.aws/v2/docker/library/alpine/manifests/#{branch}"),
-        {"Authorization" => "Bearer #{token}", "Accept" => INDEX}, method: Net::HTTP::Head)["docker-content-digest"] or
+  fetch(URI("https://mirror.gcr.io/v2/library/alpine/manifests/#{branch}"),
+        {"Accept" => INDEX}, method: Net::HTTP::Head)["docker-content-digest"] or
     raise "alpine:#{branch}: the registry returned no digest"
 end
 
@@ -80,7 +76,7 @@ def version(branch) = Gem::Version.new(branch)
 refs = FILES.flat_map do |file|
   File.readlines(file).each_with_index.filter_map do |text, index|
     match = IMAGE.match(text)
-    [file, index + 1, match[:branch], match[:digest], match[:name]] if match
+    [file, index + 1, match[:branch], match[:digest]] if match
   end
 end
 exit 0 if refs.empty?
@@ -100,10 +96,6 @@ begin
 rescue StandardError => e
   refs.each { |file, line| annotate("error", file, line, "Alpine image not checked", e.message) }
   exit 1
-end
-
-refs.each do |file, line, _, _, name|
-  annotate("warning", file, line, "Alpine image", "#{name} is not #{MIRROR}") if name != MIRROR
 end
 
 refs.group_by { |_, _, branch, digest| [branch, digest] }.each do |(branch, digest), group|
