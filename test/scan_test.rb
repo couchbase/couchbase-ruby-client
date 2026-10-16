@@ -14,6 +14,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require "weakref"
+
 require_relative "test_helper"
 
 module Couchbase
@@ -333,6 +335,21 @@ module Couchbase
       end
     end
 
+    # RCBC-564: under AddressSanitizer, a heap-use-after-free in channel_service::base_destroy unless
+    # the scan result keeps the cluster's io_context alive. The disconnect case reports it every run;
+    # the same-GC case only when the sweep frees the backend first.
+    def test_scan_result_freed_after_cluster_disconnect
+      _, scan_result = scan_on_new_cluster(&:disconnect)
+
+      assert_collected(scan_result)
+    end
+
+    def test_scan_result_freed_in_the_same_gc_as_its_cluster
+      cluster, scan_result = scan_on_new_cluster
+
+      assert_collected(cluster, scan_result)
+    end
+
     def test_range_scan_same_from_to
       expected_ids = ["#{@shared_prefix}-10"]
       scan_result = @collection.scan(
@@ -382,6 +399,37 @@ module Couchbase
       assert_raises(Error::InvalidArgument) do
         collection.scan(RangeScan.new, Options::Scan.new(concurrency: 0, mutation_state: @mutation_state))
       end
+    end
+
+    private
+
+    # Runs on its own thread so that no stale reference is left on the caller's machine stack,
+    # which the GC scans conservatively. The scan result stays reachable while the block runs, so
+    # it outlives anything the block tears down.
+    def scan_on_new_cluster
+      Thread.new do # rubocop:disable ThreadSafety/NewThread
+        Thread.current.report_on_exception = false # #value re-raises it
+        options = Options::Cluster.new
+        options.authenticate(env.username, env.password)
+        cluster = Cluster.connect(env.connection_string, options)
+        scan_result = cluster.bucket(env.bucket).default_collection.scan(
+          PrefixScan.new(@shared_prefix),
+          Options::Scan.new(ids_only: true, mutation_state: @mutation_state),
+        )
+
+        refute_nil(scan_result.first)
+        yield cluster if block_given?
+        [WeakRef.new(cluster), WeakRef.new(scan_result)]
+      end.value
+    end
+
+    def assert_collected(*refs)
+      10.times do
+        GC.start(full_mark: true, immediate_sweep: true)
+        return pass if refs.none?(&:weakref_alive?)
+      end
+
+      flunk("still reachable after 10 full GC cycles")
     end
   end
 

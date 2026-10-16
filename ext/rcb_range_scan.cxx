@@ -15,6 +15,8 @@
  *   limitations under the License.
  */
 
+#include <couchbase/cluster.hxx>
+
 #include <core/agent_group.hxx>
 #include <core/agent_group_config.hxx>
 #include <core/cluster.hxx>
@@ -40,6 +42,10 @@ namespace couchbase::ruby
 namespace
 {
 struct cb_core_scan_result_data {
+  // The orchestrator behind scan_result holds the cluster's io_context by reference. This copy
+  // keeps the io_context alive until scan_result is destroyed, even after Cluster#disconnect or
+  // when the GC frees the backend first.
+  std::unique_ptr<couchbase::cluster> cluster;
   std::unique_ptr<couchbase::core::scan_result> scan_result;
 };
 
@@ -57,6 +63,7 @@ cb_CoreScanResult_free(void* ptr)
     data->scan_result->cancel();
   }
   data->scan_result.reset();
+  data->cluster.reset();
   ruby_xfree(data);
 }
 
@@ -159,7 +166,8 @@ cb_Backend_document_scan_create(VALUE self,
                                 VALUE scan_type,
                                 VALUE options)
 {
-  auto cluster = cb_backend_to_core_api_cluster(self);
+  auto public_cluster = cb_backend_to_public_api_cluster(self);
+  auto cluster = couchbase::core::get_core_cluster(public_cluster);
 
   Check_Type(bucket, T_STRING);
   Check_Type(scope, T_STRING);
@@ -326,6 +334,7 @@ cb_Backend_document_scan_create(VALUE self,
     cb_core_scan_result_data* data = nullptr;
     TypedData_Get_Struct(
       core_scan_result_obj, cb_core_scan_result_data, &cb_core_scan_result_type, data);
+    data->cluster = std::make_unique<couchbase::cluster>(std::move(public_cluster));
     data->scan_result = std::make_unique<couchbase::core::scan_result>(resp.value());
     return core_scan_result_obj;
 
