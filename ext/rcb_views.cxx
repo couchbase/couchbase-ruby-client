@@ -23,6 +23,7 @@
 #include <core/operations/management/view_index_get.hxx>
 #include <core/operations/management/view_index_get_all.hxx>
 #include <core/operations/management/view_index_upsert.hxx>
+#include <core/utils/url_codec.hxx>
 #undef COUCHBASE_CXX_CLIENT_IGNORE_CORE_DEPRECATIONS
 
 #include <future>
@@ -429,6 +430,17 @@ cb_Backend_document_view(VALUE self,
           VALUE entry = rb_ary_entry(keys, static_cast<long>(i));
           cb_check_type(entry, T_STRING);
           req.keys.emplace_back(cb_string_new(entry));
+        }
+      }
+      if (VALUE raw_params = rb_hash_aref(options, rb_id2sym(rb_intern("raw_parameters")));
+          !NIL_P(raw_params)) {
+        cb_check_type(raw_params, T_HASH);
+        std::map<std::string, std::string> raw{};
+        cb_extract_string_hash(raw, raw_params, "raw_parameters");
+        // The core appends raw entries to the query string verbatim.
+        for (const auto& [name, value] : raw) {
+          req.raw[core::utils::string_codec::form_encode(name)] =
+            core::utils::string_codec::form_encode(value);
         }
       }
     }

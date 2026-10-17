@@ -2566,7 +2566,7 @@ module Couchbase
                      retry_strategy: nil,
                      client_context: nil,
                      parent_span: nil)
-        super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span)
+        super(timeout: timeout, retry_strategy: retry_strategy, client_context: client_context, parent_span: parent_span, &nil)
 
         @scan_consistency = scan_consistency
         @namespace = namespace
@@ -2585,15 +2585,24 @@ module Couchbase
         @reduce = reduce
         @on_error = on_error
         @debug = debug
+        @raw_parameters = {}
         yield self if block_given?
       end
 
-      # Allows providing custom JSON key/value pairs for advanced usage
+      # Allows providing custom query-string parameters for advanced usage
       #
-      # @param [String] key the parameter name (key of the JSON property)
-      # @param [Object] value the parameter value (value of the JSON property)
+      # The SDK form-encodes the name and the value. A parameter that shares its name with a typed option is sent
+      # in addition to it.
+      #
+      # @param [String, Symbol] key the parameter name
+      # @param [Object] value the parameter value. A String must already be in the form the view engine expects,
+      #   such as JSON for +key+ or +keys+. Any other value is converted with +JSON.generate+.
+      #
+      # @example Pass parameters as raw values
+      #   options.raw("limit", 2)       # limit=2
+      #   options.raw(:key, '"k2"')     # key="k2", form-encoded
       def raw(key, value)
-        @raw_parameters[key] = JSON.generate(value)
+        @raw_parameters[key.to_s] = value.is_a?(String) ? value : JSON.generate(value)
       end
 
       # @api private
@@ -2616,6 +2625,7 @@ module Couchbase
           reduce: @reduce,
           on_error: @on_error,
           debug: @debug,
+          raw_parameters: @raw_parameters,
         }
       end
 
