@@ -205,6 +205,7 @@ cb_Backend_document_get_multi(VALUE self, VALUE keys, VALUE options)
   try {
     std::chrono::milliseconds timeout{ 0 };
     cb_extract_timeout(timeout, options);
+    auto retry_strategy = cb_extract_retry_strategy(options);
 
     std::vector<core::document_id> ids{};
     cb_extract_array_of_ids(ids, keys);
@@ -214,7 +215,7 @@ cb_Backend_document_get_multi(VALUE self, VALUE keys, VALUE options)
     futures.reserve(num_of_ids);
 
     for (auto& id : ids) {
-      core::operations::get_request req{ std::move(id) };
+      core::operations::get_request req{ std::move(id), {}, {}, {}, { retry_strategy } };
       if (timeout.count() > 0) {
         req.timeout = timeout;
       }
@@ -269,6 +270,7 @@ cb_Backend_document_upsert_multi(VALUE self,
   try {
     std::vector<std::pair<core::document_id, couchbase::codec::encoded_value>> tuples{};
     cb_extract_array_of_id_content(tuples, bucket, scope, collection, id_content);
+    auto retry_strategy = cb_extract_retry_strategy(options);
 
     auto num_of_tuples = tuples.size();
     std::vector<std::pair<std::string, std::future<core::operations::upsert_response>>> futures;
@@ -276,8 +278,8 @@ cb_Backend_document_upsert_multi(VALUE self,
 
     for (auto& [id, content] : tuples) {
       core::operations::upsert_request req{
-        id,
-        std::move(content.data),
+        id, std::move(content.data), {}, {}, 0, 0, couchbase::durability_level::none,
+        {}, { retry_strategy },
       };
       req.flags = content.flags;
       cb_extract_timeout(req, options);
@@ -350,6 +352,7 @@ cb_Backend_document_remove_multi(VALUE self,
   try {
     std::vector<std::pair<core::document_id, couchbase::cas>> tuples{};
     cb_extract_array_of_id_cas(tuples, bucket, scope, collection, id_cas);
+    auto retry_strategy = cb_extract_retry_strategy(options);
 
     auto num_of_tuples = tuples.size();
     std::vector<std::pair<std::string, std::future<core::operations::remove_response>>> futures;
@@ -357,7 +360,7 @@ cb_Backend_document_remove_multi(VALUE self,
 
     for (const auto& [id, cas] : tuples) {
       core::operations::remove_request req{
-        id,
+        id, {}, {}, {}, couchbase::durability_level::none, {}, { retry_strategy },
       };
       cb_extract_timeout(req, options);
       cb_extract_durability_level(req, options);

@@ -24,11 +24,13 @@
 #include <couchbase/persist_to.hxx>
 #include <couchbase/read_preference.hxx>
 #include <couchbase/replicate_to.hxx>
+#include <couchbase/retry_strategy.hxx>
 #include <couchbase/store_semantics.hxx>
 
 #include <chrono>
 #include <cstdint>
 #include <exception>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -363,6 +365,11 @@ cb_extract_timeout(std::chrono::milliseconds& field, VALUE options);
 
 void
 cb_extract_timeout(std::optional<std::chrono::milliseconds>& field, VALUE options);
+
+// nil selects the cluster's default strategy; :best_effort and :fail_fast select the built-ins.
+// Any other value raises InvalidArgument.
+auto
+cb_extract_retry_strategy(VALUE options) -> std::shared_ptr<couchbase::retry_strategy>;
 
 void
 cb_extract_option_symbol(VALUE& val, VALUE options, const char* name);

@@ -24,12 +24,13 @@ module Couchbase
     # Base class for most of the options
     class Base
       attr_accessor :timeout # @return [Integer, #in_milliseconds, nil]
-      attr_accessor :retry_strategy # @return [Proc, nil]
+      attr_accessor :retry_strategy # @return [Symbol, nil]
       attr_accessor :client_context # @return [Hash, nil]
       attr_accessor :parent_span # @return [Span, nil]
 
       # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+, honoured by key/value operations
+      #   other than replica reads and range scans; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -65,7 +66,7 @@ module Couchbase
       # @param [JsonTranscoder, #decode(String, Integer)] transcoder used for decoding
       #
       # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -114,6 +115,7 @@ module Couchbase
       def to_backend
         options = {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
         }
         options.update(with_expiry: true) if @with_expiry
         unless @projections.nil? || @projections.empty?
@@ -138,7 +140,7 @@ module Couchbase
       # @param [JsonTranscoder, #decode(String, Integer)] transcoder used for decoding
       #
       # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -157,6 +159,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
         }
       end
 
@@ -173,7 +176,7 @@ module Couchbase
       # @param [JsonTranscoder, #decode(String, Integer)] transcoder used for decoding
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -192,6 +195,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
         }
       end
 
@@ -208,7 +212,7 @@ module Couchbase
       # @param [JsonTranscoder, #decode(String, Integer)] transcoder used for decoding
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -227,6 +231,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
         }
       end
 
@@ -247,7 +252,7 @@ module Couchbase
       #  +:selected_server_group+:: restrict to nodes in {Cluster#preferred_server_group}
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy ignored by this operation
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -289,7 +294,7 @@ module Couchbase
       #  +:selected_server_group+:: restrict to nodes in {Cluster#preferred_server_group}
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy ignored by this operation
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -323,7 +328,7 @@ module Couchbase
       # Creates an instance of options for {Collection#exists}
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -340,6 +345,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
         }
       end
 
@@ -352,7 +358,7 @@ module Couchbase
       # Creates an instance of options for {Collection#touch}
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -369,6 +375,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
         }
       end
 
@@ -381,7 +388,7 @@ module Couchbase
       # Creates an instance of options for {Collection#unlock}
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -398,6 +405,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
         }
       end
 
@@ -440,7 +448,7 @@ module Couchbase
       #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -469,6 +477,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           durability_level: @durability_level,
           persist_to: @persist_to,
           replicate_to: @replicate_to,
@@ -513,7 +522,7 @@ module Couchbase
       #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -540,6 +549,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           durability_level: @durability_level,
           persist_to: @persist_to,
           replicate_to: @replicate_to,
@@ -587,7 +597,7 @@ module Couchbase
       #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -618,6 +628,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           expiry: Utils::Time.extract_expiry_time(@expiry),
           durability_level: @durability_level,
           persist_to: @persist_to,
@@ -669,7 +680,7 @@ module Couchbase
       #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -701,6 +712,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           expiry: Utils::Time.extract_expiry_time(@expiry),
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
@@ -753,7 +765,7 @@ module Couchbase
       #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -785,6 +797,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           expiry: Utils::Time.extract_expiry_time(@expiry),
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
@@ -839,7 +852,7 @@ module Couchbase
       #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -873,6 +886,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           expiry: Utils::Time.extract_expiry_time(@expiry),
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
@@ -935,7 +949,7 @@ module Couchbase
       # @param [JsonTranscoder, #encode(Object)] transcoder used for encoding
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -976,6 +990,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           expiry: Utils::Time.extract_expiry_time(@expiry),
           preserve_expiry: @preserve_expiry,
           durability_level: @durability_level,
@@ -1010,7 +1025,7 @@ module Couchbase
       # @param [JsonTranscoder, #decode(String)] transcoder used for encoding
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -1031,6 +1046,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           access_deleted: @access_deleted,
         }
       end
@@ -1056,7 +1072,7 @@ module Couchbase
       #  +:selected_server_group+:: restrict to nodes in {Cluster#preferred_server_group}
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy ignored by this operation
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -1102,7 +1118,7 @@ module Couchbase
       #  +:selected_server_group+:: restrict to nodes in {Cluster#preferred_server_group}
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy ignored by this operation
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -1153,7 +1169,7 @@ module Couchbase
       #   defaults to 1
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy ignored by this operation
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -1239,7 +1255,7 @@ module Couchbase
       #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -1269,6 +1285,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           cas: @cas,
           durability_level: @durability_level,
           persist_to: @persist_to,
@@ -1317,7 +1334,7 @@ module Couchbase
       #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -1347,6 +1364,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           cas: @cas,
           durability_level: @durability_level,
           persist_to: @persist_to,
@@ -1397,7 +1415,7 @@ module Couchbase
       #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -1439,6 +1457,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           delta: @delta,
           initial_value: @initial,
           expiry: Utils::Time.extract_expiry_time(@expiry),
@@ -1491,7 +1510,7 @@ module Couchbase
       #  +:four+:: wait for persistence to four nodes (active and replicas).
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy +:best_effort+ or +:fail_fast+; the cluster's default when +nil+
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -1533,6 +1552,7 @@ module Couchbase
       def to_backend
         {
           timeout: Utils::Time.extract_duration(@timeout),
+          retry_strategy: @retry_strategy,
           delta: @delta,
           initial_value: @initial,
           expiry: Utils::Time.extract_expiry_time(@expiry),
@@ -1991,7 +2011,7 @@ module Couchbase
       #   The qualifier must be in form +{bucket_name}.{scope_name}+ or +default:{bucket_name}.{scope_name}+.
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy ignored by this operation
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -2162,7 +2182,7 @@ module Couchbase
       #   Overrides +scan_consistency+.
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy ignored by this operation
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -2369,7 +2389,7 @@ module Couchbase
       # @param [JsonTranscoder, #decode(String)] transcoder to use for the results
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy ignored by this operation
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #
@@ -2540,7 +2560,7 @@ module Couchbase
       # @param [Boolean, nil] debug allows to return debug information as part of the view response
       #
       # @param [Integer, #in_milliseconds, nil] timeout
-      # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+      # @param [Symbol, nil] retry_strategy ignored by this operation
       # @param [Hash, nil] client_context the client context data, if set
       # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
       #

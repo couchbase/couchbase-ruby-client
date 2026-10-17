@@ -24,7 +24,8 @@ module Couchbase
     module Retry
       # @api private
       class Orchestrator
-        def self.maybe_retry(request, reason)
+        # @param [Couchbase::Error::CouchbaseError, nil] cause raised when the strategy declines the retry
+        def self.maybe_retry(request, reason, cause = nil)
           if reason.always_retry
             retry_duration = get_controlled_backoff(request)
             request.add_retry_attempt(reason)
@@ -35,7 +36,7 @@ module Couchbase
             duration = retry_action.duration
             if duration.nil?
               # TODO: Log not retried
-              RequestBehaviour.fail(Couchbase::Error::RequestCanceled.new('Cannot retry request', request.error_context))
+              RequestBehaviour.fail(cause || Couchbase::Error::RequestCanceled.new('Cannot retry request', request.error_context))
             else
               request.add_retry_attempt(reason)
               # TODO: Log retry
