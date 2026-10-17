@@ -347,7 +347,8 @@ module Couchbase
             **location,
           )
 
-          create_kv_request(proto_req, :get_all_replicas, options, idempotent: true)
+          create_kv_request(proto_req, :get_all_replicas, options,
+                            idempotent: true, retry_strategy: Retry::Strategies::BestEffort::DEFAULT)
         end
 
         def get_any_replica_request(id, options)
@@ -357,14 +358,27 @@ module Couchbase
 
         private
 
-        def create_kv_request(proto_request, rpc, options, idempotent: false)
+        def create_kv_request(proto_request, rpc, options, idempotent: false,
+                              retry_strategy: kv_retry_strategy(options.retry_strategy))
           Request.new(
             service: :kv,
             rpc: rpc,
             proto_request: proto_request,
             timeout: options.timeout,
+            retry_strategy: retry_strategy,
             idempotent: idempotent,
           )
+        end
+
+        def kv_retry_strategy(name)
+          case name
+          when nil, :best_effort
+            Retry::Strategies::BestEffort::DEFAULT
+          when :fail_fast
+            Retry::Strategies::FailFast::DEFAULT
+          else
+            raise Error::InvalidArgument, "retry_strategy must be :best_effort or :fail_fast, but given #{name.inspect}"
+          end
         end
 
         def get_expiry(options_or_expiry)

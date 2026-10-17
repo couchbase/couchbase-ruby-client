@@ -15,6 +15,7 @@
 # frozen_string_literal: true
 
 require_relative "strategies/best_effort"
+require_relative "strategies/fail_fast"
 
 module Couchbase
   module Protostellar

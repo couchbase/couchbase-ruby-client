@@ -15,7 +15,9 @@
  *   limitations under the License.
  */
 
+#include <couchbase/best_effort_retry_strategy.hxx>
 #include <couchbase/expiry.hxx>
+#include <couchbase/fail_fast_retry_strategy.hxx>
 
 #include <core/utils/binary.hxx>
 
@@ -238,6 +240,31 @@ void
 cb_extract_timeout(std::optional<std::chrono::milliseconds>& field, VALUE options)
 {
   cb_extract_duration(field, options, "timeout");
+}
+
+auto
+cb_extract_retry_strategy(VALUE options) -> std::shared_ptr<couchbase::retry_strategy>
+{
+  if (NIL_P(options) || TYPE(options) != T_HASH) {
+    return nullptr;
+  }
+  static VALUE property_name{ rb_id2sym(rb_intern("retry_strategy")) };
+  VALUE val = rb_hash_aref(options, property_name);
+  if (NIL_P(val)) {
+    return nullptr;
+  }
+  if (TYPE(val) == T_SYMBOL) {
+    ID name = rb_sym2id(val);
+    if (name == rb_intern("best_effort")) {
+      return couchbase::make_best_effort_retry_strategy();
+    }
+    if (name == rb_intern("fail_fast")) {
+      return couchbase::make_fail_fast_retry_strategy();
+    }
+  }
+  throw ruby_exception(
+    exc_invalid_argument(),
+    rb_sprintf("retry_strategy must be :best_effort or :fail_fast, but given %+" PRIsVALUE, val));
 }
 
 void

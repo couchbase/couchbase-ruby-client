@@ -26,7 +26,7 @@ module Couchbase
           # Creates an instance of options for {ViewIndexManager#get_design_document}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetDesignDocument]
@@ -46,7 +46,7 @@ module Couchbase
           # Creates an instance of options for {ViewIndexManager#get_all_design_documents}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetAllDesignDocuments]
@@ -66,7 +66,7 @@ module Couchbase
           # Creates an instance of options for {ViewIndexManager#upsert_design_document}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [UpsertDesignDocument]
@@ -86,7 +86,7 @@ module Couchbase
           # Creates an instance of options for {ViewIndexManager#drop_design_document}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [DropDesignDocument]
@@ -106,7 +106,7 @@ module Couchbase
           # Creates an instance of options for {ViewIndexManager#publish_design_document}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [PublishDesignDocument]

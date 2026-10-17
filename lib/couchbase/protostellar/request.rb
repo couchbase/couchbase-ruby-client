@@ -16,6 +16,7 @@
 
 require "couchbase/utils/time"
 require_relative "retry/strategies/best_effort"
+require_relative "retry/strategies/fail_fast"
 
 module Couchbase
   module Protostellar

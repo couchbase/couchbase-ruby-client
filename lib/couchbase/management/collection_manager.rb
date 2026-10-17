@@ -28,7 +28,7 @@ module Couchbase
           # Creates an instance of options for {CollectionManager#get_all_scopes}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -49,7 +49,7 @@ module Couchbase
           # Creates an instance of options for {CollectionManager#create_scope}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -70,7 +70,7 @@ module Couchbase
           # Creates an instance of options for {CollectionManager#drop_scope}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -91,7 +91,7 @@ module Couchbase
           # Creates an instance of options for {CollectionManager#create_collection}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -112,7 +112,7 @@ module Couchbase
           # Creates an instance of options for {CollectionManager#update_collection}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -133,7 +133,7 @@ module Couchbase
           # Creates an instance of options for {CollectionManager#drop_collection}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #

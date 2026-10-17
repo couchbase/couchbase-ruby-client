@@ -198,6 +198,34 @@ module Couchbase
       @collection.upsert(doc_id, document)
     end
 
+    def test_fail_fast_retry_strategy_does_not_retry_locked_document
+      doc_id = uniq_id(:foo)
+      document = {"value" => 42}
+      @collection.upsert(doc_id, document)
+      cas = @collection.get_and_lock(doc_id, 15).cas
+
+      assert_raises(Couchbase::Error::Timeout) do
+        @collection.upsert(doc_id, document, Couchbase::Options::Upsert.new(timeout: 1_000))
+      end
+
+      assert_raises(Couchbase::Error::DocumentLocked) do
+        @collection.upsert(doc_id, document, Couchbase::Options::Upsert.new(timeout: 5_000, retry_strategy: :fail_fast))
+      end
+
+      @collection.unlock(doc_id, cas)
+    end
+
+    def test_invalid_retry_strategy_raises_invalid_argument
+      doc_id = uniq_id(:foo)
+
+      assert_raises(Couchbase::Error::InvalidArgument) do
+        @collection.upsert(doc_id, {"value" => 42}, Couchbase::Options::Upsert.new(retry_strategy: proc {}))
+      end
+      assert_raises(Couchbase::Error::InvalidArgument) do
+        @collection.get(doc_id, Couchbase::Options::Get.new(retry_strategy: :sometimes))
+      end
+    end
+
     def test_unlock_document_not_locked
       skip("#{name}: Server does not support the not_locked KV status") unless env.server_version.trinity?
       skip("#{name}: The mock server does not support the not_locked KV status") if use_caves?

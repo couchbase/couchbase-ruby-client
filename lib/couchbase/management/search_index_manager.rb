@@ -26,7 +26,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#get_index}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetIndex] self
@@ -46,7 +46,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#get_all_indexes}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetAllIndexes] self
@@ -66,7 +66,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#upsert_index}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [UpsertIndex] self
@@ -86,7 +86,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#drop_index}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [DropIndex] self
@@ -106,7 +106,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#get_indexed_documents_count}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetIndexedDocumentsCount] self
@@ -126,7 +126,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#get_index_stats}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetIndexStats] self
@@ -146,7 +146,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#pause_ingest}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [PauseIngest] self
@@ -166,7 +166,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#resume_ingest}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [ResumeIngest] self
@@ -186,7 +186,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#allow_querying}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [AllowQuerying] self
@@ -206,7 +206,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#disallow_querying}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [DisallowQuerying] self
@@ -226,7 +226,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#freeze_plan}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [FreezePlan] self
@@ -246,7 +246,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#unfreeze_plan}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [UnfreezePlan] self
@@ -266,7 +266,7 @@ module Couchbase
           # Creates an instance of options for {SearchIndexManager#analyze_document}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [AnalyzeDocument] self

@@ -31,7 +31,7 @@ module Couchbase
           # Creates an instance of options for {UserManager#get_user}
           # @param [:local, :external] domain the name of the user's domain. Defaults to +:local+
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetUser] self
@@ -56,7 +56,7 @@ module Couchbase
           # Creates an instance of options for {UserManager#get_all_users}
           # @param [:local, :external] the name of the user's domain. Defaults to +:local+
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetAllUsers] self
@@ -78,7 +78,7 @@ module Couchbase
           # Creates an instance of options for {UserManager#upsert_user}
           # @param [:local, :external] domain the name of the user's domain. Defaults to +:local+
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [UpsertUser] self
@@ -103,7 +103,7 @@ module Couchbase
           # Creates an instance of options for {UserManager#drop_user}
           # @param [:local, :external] domain the name of the user's domain. Defaults to +:local+
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [DropUser] self
@@ -124,7 +124,7 @@ module Couchbase
         class ChangePassword < ::Couchbase::Options::Base
           # Creates an instance of options for {UserManager#change_password}
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [ChangePassword] self
@@ -143,7 +143,7 @@ module Couchbase
         class GetRoles < ::Couchbase::Options::Base
           # Creates an instance of options for {UserManager#get_roles}
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetRoles] self
@@ -162,7 +162,7 @@ module Couchbase
         class GetGroup < ::Couchbase::Options::Base
           # Creates an instance of options for {UserManager#get_group}
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetGroup] self
@@ -181,7 +181,7 @@ module Couchbase
         class GetAllGroups < ::Couchbase::Options::Base
           # Creates an instance of options for {UserManager#get_all_groups}
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [GetAllGroups] self
@@ -200,7 +200,7 @@ module Couchbase
         class UpsertGroup < ::Couchbase::Options::Base
           # Creates an instance of options for {UserManager#upsert_group}
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [UpsertGroup] self
@@ -219,7 +219,7 @@ module Couchbase
         class DropGroup < ::Couchbase::Options::Base
           # Creates an instance of options for {UserManager#drop_group}
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
           # @yieldparam [DropGroup] self
