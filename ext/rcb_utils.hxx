@@ -89,6 +89,48 @@ cb_sprintf(const char* format, ...) -> VALUE
   return str;
 }
 
+// NUM2ULL, NUM2LL, NUM2UINT and NUM2INT under cb_protect. Each raises RangeError for a value out of
+// its target range. Call them only from a method body registered through cb_method.
+inline auto
+cb_num2ull(VALUE num) -> std::uint64_t
+{
+  std::uint64_t value{};
+  cb_protect([num, &value] {
+    value = NUM2ULL(num);
+  });
+  return value;
+}
+
+inline auto
+cb_num2ll(VALUE num) -> std::int64_t
+{
+  std::int64_t value{};
+  cb_protect([num, &value] {
+    value = NUM2LL(num);
+  });
+  return value;
+}
+
+inline auto
+cb_num2uint(VALUE num) -> std::uint32_t
+{
+  std::uint32_t value{};
+  cb_protect([num, &value] {
+    value = NUM2UINT(num);
+  });
+  return value;
+}
+
+inline auto
+cb_num2int(VALUE num) -> std::int32_t
+{
+  std::int32_t value{};
+  cb_protect([num, &value] {
+    value = NUM2INT(num);
+  });
+  return value;
+}
+
 // Wraps Method, which may throw ruby_exception or ruby_jump, for rb_define_method. Method's
 // frames unwind first; the Ruby raise or jump happens here, where no C++ object is live and no
 // catch handler is active.
@@ -266,7 +308,7 @@ cb_extract_timeout(Request& req, VALUE options)
         return cb_extract_timeout(req, rb_hash_aref(options, rb_id2sym(rb_intern("timeout"))));
       case T_FIXNUM:
       case T_BIGNUM:
-        req.timeout = std::chrono::milliseconds(NUM2ULL(options));
+        req.timeout = std::chrono::milliseconds(cb_num2ull(options));
         break;
       default:
         throw ruby_exception(
@@ -353,7 +395,7 @@ cb_extract_duration(Field& field, VALUE options, const char* name)
         return cb_extract_duration(field, rb_hash_aref(options, rb_id2sym(rb_intern(name))), name);
       case T_FIXNUM:
       case T_BIGNUM:
-        field = std::chrono::milliseconds(NUM2ULL(options));
+        field = std::chrono::milliseconds(cb_num2ull(options));
         break;
       default:
         throw ruby_exception(
@@ -438,7 +480,7 @@ cb_extract_option_uint64(T& field, VALUE options, const char* name)
   VALUE val = Qnil;
   cb_extract_option_bignum(val, options, name);
   if (!NIL_P(val)) {
-    field = NUM2ULL(val);
+    field = cb_num2ull(val);
   }
 }
 
@@ -456,7 +498,7 @@ cb_extract_option_number(Integer& field, VALUE options, const char* name)
         field = static_cast<Integer>(FIX2ULONG(val));
         break;
       case T_BIGNUM:
-        field = static_cast<Integer>(NUM2ULL(val));
+        field = static_cast<Integer>(cb_num2ull(val));
         break;
       default:
         throw ruby_exception(rb_eArgError,
@@ -573,7 +615,7 @@ set_timeout(CommandOptions& opts, VALUE options)
     switch (TYPE(val)) {
       case T_FIXNUM:
       case T_BIGNUM:
-        opts.timeout(std::chrono::milliseconds(NUM2ULL(val)));
+        opts.timeout(std::chrono::milliseconds(cb_num2ull(val)));
         break;
 
       default:

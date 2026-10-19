@@ -227,7 +227,7 @@ void
 cb_extract_flags(std::uint32_t& field, VALUE flags)
 {
   cb_check_type(flags, T_FIXNUM);
-  field = FIX2UINT(flags);
+  field = cb_num2uint(flags);
 }
 
 void
@@ -378,7 +378,7 @@ cb_cas_to_num(const couchbase::cas& cas)
 couchbase::cas
 cb_num_to_cas(VALUE num)
 {
-  return couchbase::cas{ static_cast<std::uint64_t>(NUM2ULL(num)) };
+  return couchbase::cas{ static_cast<std::uint64_t>(cb_num2ull(num)) };
 }
 
 VALUE
@@ -461,7 +461,7 @@ std::pair<expiry_type, std::chrono::seconds>
 unpack_expiry(VALUE val, bool allow_nil)
 {
   if (TYPE(val) == T_FIXNUM || TYPE(val) == T_BIGNUM) {
-    return { expiry_type::relative, std::chrono::seconds(NUM2ULL(val)) };
+    return { expiry_type::relative, std::chrono::seconds(cb_num2ull(val)) };
   }
   if (TYPE(val) != T_ARRAY || RARRAY_LEN(val) != 2) {
     throw ruby_exception(
@@ -479,7 +479,7 @@ unpack_expiry(VALUE val, bool allow_nil)
     throw ruby_exception(
       rb_eArgError, cb_sprintf("expiry value must be an Integer, but given %+" PRIsVALUE, expiry));
   }
-  auto duration = std::chrono::seconds(NUM2ULL(expiry));
+  auto duration = std::chrono::seconds(cb_num2ull(expiry));
 
   VALUE type = rb_ary_entry(val, 0);
   if (TYPE(type) != T_SYMBOL) {
@@ -573,7 +573,7 @@ get_milliseconds(VALUE options, VALUE name)
       case T_FIXNUM:
         return std::chrono::milliseconds(FIX2ULONG(val));
       case T_BIGNUM:
-        return std::chrono::milliseconds(NUM2ULL(val));
+        return std::chrono::milliseconds(cb_num2ull(val));
       default:
         throw ruby_exception(
           rb_eArgError,
@@ -599,7 +599,7 @@ get_size_t(VALUE options, VALUE name)
       case T_FIXNUM:
         return static_cast<std::size_t>(FIX2ULONG(val));
       case T_BIGNUM:
-        return static_cast<std::size_t>(NUM2ULL(val));
+        return static_cast<std::size_t>(cb_num2ull(val));
       default:
         throw ruby_exception(
           rb_eArgError,
@@ -630,7 +630,7 @@ get_uint16_t(VALUE options, VALUE name)
         }
         return static_cast<std::uint16_t>(FIX2ULONG(val));
       case T_BIGNUM:
-        if (NUM2ULL(val) > std::numeric_limits<std::uint16_t>::max()) {
+        if (cb_num2ull(val) > std::numeric_limits<std::uint16_t>::max()) {
           throw ruby_exception(
             rb_eArgError,
             cb_sprintf("%+" PRIsVALUE " must not be larger than %d , but given %+" PRIsVALUE,
@@ -638,7 +638,7 @@ get_uint16_t(VALUE options, VALUE name)
                        static_cast<int>(std::numeric_limits<std::uint16_t>::max()),
                        val));
         }
-        return static_cast<std::uint16_t>(NUM2ULL(val));
+        return static_cast<std::uint16_t>(cb_num2ull(val));
       default:
         throw ruby_exception(
           rb_eArgError,

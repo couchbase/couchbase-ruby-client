@@ -218,9 +218,9 @@ cb_Backend_document_scan_create(VALUE self,
               throw ruby_exception(rb_eArgError, "sequence_number must be an Integer");
           }
           core_mut_state.tokens.emplace_back(
-            NUM2ULL(partition_uuid),
-            NUM2ULL(sequence_number),
-            gsl::narrow_cast<std::uint16_t>(NUM2UINT(partition_id)),
+            cb_num2ull(partition_uuid),
+            cb_num2ull(sequence_number),
+            gsl::narrow_cast<std::uint16_t>(cb_num2uint(partition_id)),
             cb_string_new(bucket_name));
         }
 

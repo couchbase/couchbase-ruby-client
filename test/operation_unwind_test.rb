@@ -189,6 +189,13 @@ module Couchbase
       end
     end
 
+    def test_mutate_in_with_counter_delta_out_of_range_does_not_leak_specs
+      specs = [MutateInSpec.upsert("body", @content), MutateInSpec.increment("counter", 2**64)]
+      assert_no_leak do
+        assert_raises(RangeError) { @collection.mutate_in(@doc_id, specs) }
+      end
+    end
+
     def test_get_with_tracer_not_raising_returns_document
       @tracer.hook = lambda { @entered += 1 }
       res = @collection.get(@doc_id, @get_options)
