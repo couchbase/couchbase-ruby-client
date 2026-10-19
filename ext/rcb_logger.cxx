@@ -338,7 +338,7 @@ VALUE
 cb_Backend_install_logger_shim(VALUE self, VALUE logger, VALUE log_level)
 {
   if (!NIL_P(logger)) {
-    Check_Type(log_level, T_SYMBOL);
+    cb_check_type(log_level, T_SYMBOL);
   }
   VALUE old_logger = rb_iv_get(self, "@__logger_shim");
   // The new sink is installed before the old one is flushed, so a failed flush leaves the new

@@ -407,7 +407,7 @@ cb_extract_expiry(std::uint32_t& field, VALUE options)
   if (NIL_P(options)) {
     return;
   }
-  Check_Type(options, T_HASH);
+  cb_check_type(options, T_HASH);
 
   static VALUE property_name = rb_id2sym(rb_intern("expiry"));
   VALUE val = rb_hash_aref(options, property_name);
@@ -435,7 +435,7 @@ cb_extract_expiry(std::optional<std::uint32_t>& field, VALUE options)
   if (NIL_P(options)) {
     return;
   }
-  Check_Type(options, T_HASH);
+  cb_check_type(options, T_HASH);
 
   static VALUE property_name = rb_id2sym(rb_intern("expiry"));
   VALUE val = rb_hash_aref(options, property_name);

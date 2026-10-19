@@ -169,12 +169,12 @@ cb_Backend_document_scan_create(VALUE self,
   auto public_cluster = cb_backend_to_public_api_cluster(self);
   auto cluster = couchbase::core::get_core_cluster(public_cluster);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(scan_type, T_HASH);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(scan_type, T_HASH);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -284,13 +284,13 @@ cb_Backend_document_scan_create(VALUE self,
       VALUE to_hash = rb_hash_aref(scan_type, rb_id2sym(rb_intern("to")));
 
       if (!NIL_P(from_hash)) {
-        Check_Type(from_hash, T_HASH);
+        cb_check_type(from_hash, T_HASH);
         range_scan.from = couchbase::core::scan_term{};
         cb_extract_option_string(range_scan.from->term, from_hash, "term");
         cb_extract_option_bool(range_scan.from->exclusive, from_hash, "exclusive");
       }
       if (!NIL_P(to_hash)) {
-        Check_Type(to_hash, T_HASH);
+        cb_check_type(to_hash, T_HASH);
         range_scan.to = couchbase::core::scan_term{};
         cb_extract_option_string(range_scan.to->term, to_hash, "term");
         cb_extract_option_bool(range_scan.to->exclusive, to_hash, "exclusive");

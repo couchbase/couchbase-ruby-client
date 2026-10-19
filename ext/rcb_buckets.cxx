@@ -281,9 +281,9 @@ cb_Backend_bucket_create(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_settings, T_HASH);
+  cb_check_type(bucket_settings, T_HASH);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -321,9 +321,9 @@ cb_Backend_bucket_update(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_settings, T_HASH);
+  cb_check_type(bucket_settings, T_HASH);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
   try {
     core::operations::management::bucket_update_request req{};
@@ -356,9 +356,9 @@ cb_Backend_bucket_drop(VALUE self, VALUE bucket_name, VALUE options, VALUE obser
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -389,9 +389,9 @@ cb_Backend_bucket_flush(VALUE self, VALUE bucket_name, VALUE options, VALUE obse
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -578,7 +578,7 @@ cb_Backend_bucket_get_all(VALUE self, VALUE options, VALUE observability_handler
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -616,9 +616,9 @@ cb_Backend_bucket_get(VALUE self, VALUE bucket_name, VALUE options, VALUE observ
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {

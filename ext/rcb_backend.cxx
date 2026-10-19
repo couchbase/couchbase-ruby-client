@@ -513,7 +513,7 @@ cb_Backend_open(VALUE self, VALUE connstr, VALUE credentials, VALUE options)
     return Qnil;
   }
 
-  Check_Type(connstr, T_STRING);
+  cb_check_type(connstr, T_STRING);
 
   try {
     auto connection_string = cb_string_new(connstr);
@@ -567,7 +567,7 @@ cb_Backend_open_bucket(VALUE self, VALUE bucket, VALUE wait_until_ready)
 {
   const auto& cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
+  cb_check_type(bucket, T_STRING);
   bool wait = RTEST(wait_until_ready);
 
   try {

@@ -52,7 +52,7 @@ cb_Backend_collections_manifest_get(VALUE self, VALUE bucket_name, VALUE timeout
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
 
   try {
     core::operations::management::collections_manifest_get_request req{ core::document_id{
@@ -101,8 +101,8 @@ VALUE
 cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
 {
   (void)self;
-  Check_Type(hostname, T_STRING);
-  Check_Type(service, T_SYMBOL);
+  cb_check_type(hostname, T_STRING);
+  cb_check_type(service, T_SYMBOL);
 
   bool tls = false;
 

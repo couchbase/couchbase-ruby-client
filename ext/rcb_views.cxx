@@ -47,8 +47,8 @@ cb_Backend_view_index_get_all(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(name_space, T_SYMBOL);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(name_space, T_SYMBOL);
 
   core::design_document_namespace ns{};
   if (ID type = rb_sym2id(name_space); type == rb_intern("development")) {
@@ -123,9 +123,9 @@ cb_Backend_view_index_get(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(document_name, T_STRING);
-  Check_Type(name_space, T_SYMBOL);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(document_name, T_STRING);
+  cb_check_type(name_space, T_SYMBOL);
 
   core::design_document_namespace ns{};
   if (ID type = rb_sym2id(name_space); type == rb_intern("development")) {
@@ -201,9 +201,9 @@ cb_Backend_view_index_drop(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(document_name, T_STRING);
-  Check_Type(name_space, T_SYMBOL);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(document_name, T_STRING);
+  cb_check_type(name_space, T_SYMBOL);
 
   core::design_document_namespace ns{};
   if (ID type = rb_sym2id(name_space); type == rb_intern("development")) {
@@ -255,9 +255,9 @@ cb_Backend_view_index_upsert(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(document, T_HASH);
-  Check_Type(name_space, T_SYMBOL);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(document, T_HASH);
+  cb_check_type(name_space, T_SYMBOL);
 
   core::design_document_namespace ns{};
   if (ID type = rb_sym2id(name_space); type == rb_intern("development")) {
@@ -275,18 +275,18 @@ cb_Backend_view_index_upsert(VALUE self,
     req.document.ns = ns;
     if (VALUE document_name = rb_hash_aref(document, rb_id2sym(rb_intern("name")));
         !NIL_P(document_name)) {
-      Check_Type(document_name, T_STRING);
+      cb_check_type(document_name, T_STRING);
       req.document.name = cb_string_new(document_name);
     }
     if (VALUE views = rb_hash_aref(document, rb_id2sym(rb_intern("views"))); !NIL_P(views)) {
-      Check_Type(views, T_ARRAY);
+      cb_check_type(views, T_ARRAY);
       auto entries_num = static_cast<std::size_t>(RARRAY_LEN(views));
       for (std::size_t i = 0; i < entries_num; ++i) {
         VALUE entry = rb_ary_entry(views, static_cast<long>(i));
-        Check_Type(entry, T_HASH);
+        cb_check_type(entry, T_HASH);
         core::management::views::design_document::view view;
         VALUE name = rb_hash_aref(entry, rb_id2sym(rb_intern("name")));
-        Check_Type(name, T_STRING);
+        cb_check_type(name, T_STRING);
         view.name = cb_string_new(name);
         if (VALUE map = rb_hash_aref(entry, rb_id2sym(rb_intern("map"))); !NIL_P(map)) {
           view.map.emplace(cb_string_new(map));
@@ -334,10 +334,10 @@ cb_Backend_document_view(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(design_document_name, T_STRING);
-  Check_Type(view_name, T_STRING);
-  Check_Type(name_space, T_SYMBOL);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(design_document_name, T_STRING);
+  cb_check_type(view_name, T_STRING);
+  cb_check_type(name_space, T_SYMBOL);
 
   core::design_document_namespace ns{};
   if (ID type = rb_sym2id(name_space); type == rb_intern("development")) {
@@ -349,7 +349,7 @@ cb_Backend_document_view(VALUE self,
                          cb_sprintf("Unknown design document namespace: %+" PRIsVALUE, name_space));
   }
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {

@@ -92,10 +92,10 @@ cb_Backend_document_get(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
 
   try {
     core::document_id doc_id{
@@ -145,10 +145,10 @@ cb_Backend_document_get_any_replica(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
 
   try {
     core::document_id doc_id{
@@ -199,10 +199,10 @@ cb_Backend_document_get_all_replicas(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
 
   try {
     core::document_id doc_id{
@@ -258,12 +258,12 @@ cb_Backend_document_get_projected(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -335,13 +335,13 @@ cb_Backend_document_get_and_lock(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
-  Check_Type(lock_time, T_FIXNUM);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
+  cb_check_type(lock_time, T_FIXNUM);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -394,12 +394,12 @@ cb_Backend_document_get_and_touch(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -453,12 +453,12 @@ cb_Backend_document_touch(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -509,12 +509,12 @@ cb_Backend_document_exists(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -570,12 +570,12 @@ cb_Backend_document_unlock(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -627,14 +627,14 @@ cb_Backend_document_upsert(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
-  Check_Type(content, T_STRING);
-  Check_Type(flags, T_FIXNUM);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
+  cb_check_type(content, T_STRING);
+  cb_check_type(flags, T_FIXNUM);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -710,13 +710,13 @@ cb_Backend_document_append(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
-  Check_Type(content, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
+  cb_check_type(content, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -789,13 +789,13 @@ cb_Backend_document_prepend(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
-  Check_Type(content, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
+  cb_check_type(content, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -868,14 +868,14 @@ cb_Backend_document_replace(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
-  Check_Type(content, T_STRING);
-  Check_Type(flags, T_FIXNUM);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
+  cb_check_type(content, T_STRING);
+  cb_check_type(flags, T_FIXNUM);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -953,14 +953,14 @@ cb_Backend_document_insert(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
-  Check_Type(content, T_STRING);
-  Check_Type(flags, T_FIXNUM);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
+  cb_check_type(content, T_STRING);
+  cb_check_type(flags, T_FIXNUM);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -1032,12 +1032,12 @@ cb_Backend_document_remove(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -1105,12 +1105,12 @@ cb_Backend_document_increment(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -1187,12 +1187,12 @@ cb_Backend_document_decrement(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -1270,16 +1270,16 @@ cb_Backend_document_lookup_in(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
-  Check_Type(specs, T_ARRAY);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
+  cb_check_type(specs, T_ARRAY);
   if (RARRAY_LEN(specs) <= 0) {
     throw ruby_exception(rb_eArgError, "Array with specs cannot be empty");
   }
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -1399,16 +1399,16 @@ cb_Backend_document_lookup_in_any_replica(VALUE self,
 
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
-  Check_Type(specs, T_ARRAY);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
+  cb_check_type(specs, T_ARRAY);
   if (RARRAY_LEN(specs) <= 0) {
     throw ruby_exception(rb_eArgError, "Array with specs cannot be empty");
   }
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -1528,16 +1528,16 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
-  Check_Type(specs, T_ARRAY);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
+  cb_check_type(specs, T_ARRAY);
   if (RARRAY_LEN(specs) <= 0) {
     throw ruby_exception(rb_eArgError, "Array with specs cannot be empty");
   }
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -1668,17 +1668,17 @@ cb_Backend_document_mutate_in(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
-  Check_Type(id, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
+  cb_check_type(id, T_STRING);
 
-  Check_Type(specs, T_ARRAY);
+  cb_check_type(specs, T_ARRAY);
   if (RARRAY_LEN(specs) <= 0) {
     throw ruby_exception(rb_eArgError, "Array with specs cannot be empty");
   }
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {

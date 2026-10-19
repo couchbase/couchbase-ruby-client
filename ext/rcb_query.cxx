@@ -45,9 +45,9 @@ cb_Backend_query_index_get_all(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -129,11 +129,11 @@ cb_Backend_query_index_create(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(index_name, T_STRING);
-  Check_Type(keys, T_ARRAY);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
+  cb_check_type(keys, T_ARRAY);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -232,10 +232,10 @@ cb_Backend_query_index_drop(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(index_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -314,9 +314,9 @@ cb_Backend_query_index_create_primary(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -406,9 +406,9 @@ cb_Backend_query_index_drop_primary(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -490,9 +490,9 @@ cb_Backend_query_index_build_deferred(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -560,8 +560,8 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options, VALUE obse
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(statement, T_STRING);
-  Check_Type(options, T_HASH);
+  cb_check_type(statement, T_STRING);
+  cb_check_type(options, T_HASH);
 
   try {
     core::operations::query_request req;
@@ -748,11 +748,11 @@ cb_Backend_collection_query_index_get_all(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(scope_name, T_STRING);
-  Check_Type(collection_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
+  cb_check_type(collection_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -827,13 +827,13 @@ cb_Backend_collection_query_index_create(VALUE self,
                                          VALUE observability_handler)
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(scope_name, T_STRING);
-  Check_Type(collection_name, T_STRING);
-  Check_Type(index_name, T_STRING);
-  Check_Type(keys, T_ARRAY);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
+  cb_check_type(collection_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
+  cb_check_type(keys, T_ARRAY);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -936,12 +936,12 @@ cb_Backend_collection_query_index_drop(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(scope_name, T_STRING);
-  Check_Type(collection_name, T_STRING);
-  Check_Type(index_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
+  cb_check_type(collection_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -1024,11 +1024,11 @@ cb_Backend_collection_query_index_create_primary(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(scope_name, T_STRING);
-  Check_Type(collection_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
+  cb_check_type(collection_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -1122,11 +1122,11 @@ cb_Backend_collection_query_index_drop_primary(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(scope_name, T_STRING);
-  Check_Type(collection_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
+  cb_check_type(collection_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -1213,11 +1213,11 @@ cb_Backend_collection_query_index_build_deferred(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(scope_name, T_STRING);
-  Check_Type(collection_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
+  cb_check_type(collection_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
