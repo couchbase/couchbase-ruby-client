@@ -115,7 +115,7 @@ extract_legacy_durability_replicate_to(VALUE options)
       return couchbase::replicate_to::three;
     }
     throw ruby_exception(exc_invalid_argument(),
-                         rb_sprintf("unknown replicate_to: %+" PRIsVALUE, val));
+                         cb_sprintf("unknown replicate_to: %+" PRIsVALUE, val));
   }
   return couchbase::replicate_to::none;
 }
@@ -145,7 +145,7 @@ extract_legacy_durability_persist_to(VALUE options)
       return couchbase::persist_to::four;
     }
     throw ruby_exception(exc_invalid_argument(),
-                         rb_sprintf("unknown persist_to value: %+" PRIsVALUE, val));
+                         cb_sprintf("unknown persist_to value: %+" PRIsVALUE, val));
   }
   return couchbase::persist_to::none;
 }
@@ -167,7 +167,7 @@ cb_check_type(VALUE object, int type)
   if (auto object_type = TYPE(object);
       object_type != type || (object_type == T_DATA && RTYPEDDATA_P(object))) {
     throw ruby_exception(rb_eTypeError,
-                         rb_sprintf("wrong argument type %" PRIsVALUE " (expected %s)",
+                         cb_sprintf("wrong argument type %" PRIsVALUE " (expected %s)",
                                     cb_displaying_class_of(object),
                                     cb_builtin_type_name(type)));
   }
@@ -264,7 +264,7 @@ cb_extract_retry_strategy(VALUE options) -> std::shared_ptr<couchbase::retry_str
   }
   throw ruby_exception(
     exc_invalid_argument(),
-    rb_sprintf("retry_strategy must be :best_effort or :fail_fast, but given %+" PRIsVALUE, val));
+    cb_sprintf("retry_strategy must be :best_effort or :fail_fast, but given %+" PRIsVALUE, val));
 }
 
 void
@@ -279,7 +279,7 @@ cb_extract_option_symbol(VALUE& val, VALUE options, const char* name)
       return;
     }
     throw couchbase::ruby::ruby_exception(
-      rb_eArgError, rb_sprintf("%s must be an Symbol, but given %+" PRIsVALUE, name, val));
+      rb_eArgError, cb_sprintf("%s must be an Symbol, but given %+" PRIsVALUE, name, val));
   }
 }
 
@@ -295,7 +295,7 @@ cb_extract_option_string(VALUE& val, VALUE options, const char* name)
       return;
     }
     throw couchbase::ruby::ruby_exception(
-      rb_eArgError, rb_sprintf("%s must be an String, but given %+" PRIsVALUE, name, val));
+      rb_eArgError, cb_sprintf("%s must be an String, but given %+" PRIsVALUE, name, val));
   }
 }
 
@@ -312,7 +312,7 @@ cb_extract_option_string(std::string& target, VALUE options, const char* name)
       return;
     }
     throw couchbase::ruby::ruby_exception(
-      rb_eArgError, rb_sprintf("%s must be an String, but given %+" PRIsVALUE, name, val));
+      rb_eArgError, cb_sprintf("%s must be an String, but given %+" PRIsVALUE, name, val));
   }
 }
 
@@ -329,7 +329,7 @@ cb_extract_option_string(std::optional<std::string>& target, VALUE options, cons
       return;
     }
     throw couchbase::ruby::ruby_exception(
-      rb_eArgError, rb_sprintf("%s must be an String, but given %+" PRIsVALUE, name, val));
+      rb_eArgError, cb_sprintf("%s must be an String, but given %+" PRIsVALUE, name, val));
   }
 }
 
@@ -349,7 +349,7 @@ cb_extract_option_bignum(VALUE& val, VALUE options, const char* name)
         break;
     }
     throw couchbase::ruby::ruby_exception(
-      rb_eArgError, rb_sprintf("%s must be an Integer, but given %+" PRIsVALUE, name, val));
+      rb_eArgError, cb_sprintf("%s must be an Integer, but given %+" PRIsVALUE, name, val));
   }
 }
 
@@ -365,7 +365,7 @@ cb_extract_option_array(VALUE& val, VALUE options, const char* name)
       return;
     }
     throw couchbase::ruby::ruby_exception(
-      rb_eArgError, rb_sprintf("%s must be an Array, but given %+" PRIsVALUE, name, val));
+      rb_eArgError, cb_sprintf("%s must be an Array, but given %+" PRIsVALUE, name, val));
   }
 }
 
@@ -397,7 +397,7 @@ cb_extract_cas(couchbase::cas& field, VALUE cas)
       break;
     default:
       throw couchbase::ruby::ruby_exception(
-        rb_eArgError, rb_sprintf("CAS must be an Integer, but given %+" PRIsVALUE, cas));
+        rb_eArgError, cb_sprintf("CAS must be an Integer, but given %+" PRIsVALUE, cas));
   }
 }
 
@@ -466,7 +466,7 @@ unpack_expiry(VALUE val, bool allow_nil)
   if (TYPE(val) != T_ARRAY || RARRAY_LEN(val) != 2) {
     throw ruby_exception(
       rb_eArgError,
-      rb_sprintf("expected expiry to be Array[Symbol, Integer|nil], given %+" PRIsVALUE, val));
+      cb_sprintf("expected expiry to be Array[Symbol, Integer|nil], given %+" PRIsVALUE, val));
   }
   VALUE expiry = rb_ary_entry(val, 1);
   if (NIL_P(expiry)) {
@@ -477,14 +477,14 @@ unpack_expiry(VALUE val, bool allow_nil)
   }
   if (TYPE(expiry) != T_FIXNUM && TYPE(expiry) != T_BIGNUM) {
     throw ruby_exception(
-      rb_eArgError, rb_sprintf("expiry value must be an Integer, but given %+" PRIsVALUE, expiry));
+      rb_eArgError, cb_sprintf("expiry value must be an Integer, but given %+" PRIsVALUE, expiry));
   }
   auto duration = std::chrono::seconds(NUM2ULL(expiry));
 
   VALUE type = rb_ary_entry(val, 0);
   if (TYPE(type) != T_SYMBOL) {
     throw ruby_exception(rb_eArgError,
-                         rb_sprintf("expiry type must be a Symbol, but given %+" PRIsVALUE, type));
+                         cb_sprintf("expiry type must be a Symbol, but given %+" PRIsVALUE, type));
   }
   static VALUE duration_type = rb_id2sym(rb_intern("duration"));
   static VALUE time_point_type = rb_id2sym(rb_intern("time_point"));
@@ -494,7 +494,7 @@ unpack_expiry(VALUE val, bool allow_nil)
   if (type == time_point_type) {
     return { expiry_type::absolute, duration };
   }
-  throw ruby_exception(rb_eArgError, rb_sprintf("unknown expiry type: %+" PRIsVALUE, type));
+  throw ruby_exception(rb_eArgError, cb_sprintf("unknown expiry type: %+" PRIsVALUE, type));
 }
 
 std::optional<couchbase::durability_level>
@@ -516,7 +516,7 @@ extract_durability_level(VALUE options)
       return couchbase::durability_level::persist_to_majority;
     }
     throw ruby_exception(exc_invalid_argument(),
-                         rb_sprintf("unknown durability level: %+" PRIsVALUE, val));
+                         cb_sprintf("unknown durability level: %+" PRIsVALUE, val));
   }
   return couchbase::durability_level::none;
 }
@@ -554,7 +554,7 @@ get_bool(VALUE options, VALUE name)
       default:
         throw ruby_exception(
           rb_eArgError,
-          rb_sprintf("%+" PRIsVALUE " must be a Boolean, but given %+" PRIsVALUE, name, val));
+          cb_sprintf("%+" PRIsVALUE " must be a Boolean, but given %+" PRIsVALUE, name, val));
     }
   }
   return {};
@@ -577,7 +577,7 @@ get_milliseconds(VALUE options, VALUE name)
       default:
         throw ruby_exception(
           rb_eArgError,
-          rb_sprintf("%+" PRIsVALUE
+          cb_sprintf("%+" PRIsVALUE
                      " must be a Integer representing milliseconds, but given %+" PRIsVALUE,
                      name,
                      val));
@@ -603,7 +603,7 @@ get_size_t(VALUE options, VALUE name)
       default:
         throw ruby_exception(
           rb_eArgError,
-          rb_sprintf("%+" PRIsVALUE " must be a Integer, but given %+" PRIsVALUE, name, val));
+          cb_sprintf("%+" PRIsVALUE " must be a Integer, but given %+" PRIsVALUE, name, val));
     }
   }
   return {};
@@ -623,7 +623,7 @@ get_uint16_t(VALUE options, VALUE name)
         if (FIX2ULONG(val) > std::numeric_limits<std::uint16_t>::max()) {
           throw ruby_exception(
             rb_eArgError,
-            rb_sprintf("%+" PRIsVALUE " must not be larger than %d , but given %+" PRIsVALUE,
+            cb_sprintf("%+" PRIsVALUE " must not be larger than %d , but given %+" PRIsVALUE,
                        name,
                        static_cast<int>(std::numeric_limits<std::uint16_t>::max()),
                        val));
@@ -633,7 +633,7 @@ get_uint16_t(VALUE options, VALUE name)
         if (NUM2ULL(val) > std::numeric_limits<std::uint16_t>::max()) {
           throw ruby_exception(
             rb_eArgError,
-            rb_sprintf("%+" PRIsVALUE " must not be larger than %d , but given %+" PRIsVALUE,
+            cb_sprintf("%+" PRIsVALUE " must not be larger than %d , but given %+" PRIsVALUE,
                        name,
                        static_cast<int>(std::numeric_limits<std::uint16_t>::max()),
                        val));
@@ -642,7 +642,7 @@ get_uint16_t(VALUE options, VALUE name)
       default:
         throw ruby_exception(
           rb_eArgError,
-          rb_sprintf("%+" PRIsVALUE " must be a Integer, but given %+" PRIsVALUE, name, val));
+          cb_sprintf("%+" PRIsVALUE " must be a Integer, but given %+" PRIsVALUE, name, val));
     }
   }
   return {};
@@ -662,7 +662,7 @@ get_symbol(VALUE options, VALUE name)
     }
     throw couchbase::ruby::ruby_exception(
       rb_eArgError,
-      rb_sprintf("%+" PRIsVALUE " must be an Symbol, but given %+" PRIsVALUE, name, val));
+      cb_sprintf("%+" PRIsVALUE " must be an Symbol, but given %+" PRIsVALUE, name, val));
   }
   return {};
 }
@@ -681,7 +681,7 @@ get_hash(VALUE options, VALUE name)
     }
     throw couchbase::ruby::ruby_exception(
       rb_eArgError,
-      rb_sprintf("%+" PRIsVALUE " must be a Hash, but given %+" PRIsVALUE, name, val));
+      cb_sprintf("%+" PRIsVALUE " must be a Hash, but given %+" PRIsVALUE, name, val));
   }
   return {};
 }
@@ -700,7 +700,7 @@ get_string(VALUE options, VALUE name)
     }
     throw couchbase::ruby::ruby_exception(
       rb_eArgError,
-      rb_sprintf("%+" PRIsVALUE " must be an String, but given %+" PRIsVALUE, name, val));
+      cb_sprintf("%+" PRIsVALUE " must be an String, but given %+" PRIsVALUE, name, val));
   }
   return {};
 }

@@ -188,7 +188,7 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout, VALUE observabi
       req.domain = core::management::rbac::auth_domain::external;
     } else {
       throw ruby_exception(exc_invalid_argument(),
-                           rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
+                           cb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
     }
     auto parent_span = cb_create_parent_span(req, self);
     std::promise<core::operations::management::user_get_all_response> promise;
@@ -237,7 +237,7 @@ cb_Backend_user_get(VALUE self,
       req.domain = core::management::rbac::auth_domain::external;
     } else {
       throw ruby_exception(exc_invalid_argument(),
-                           rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
+                           cb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
     }
     req.username = cb_string_new(username);
     auto parent_span = cb_create_parent_span(req, self);
@@ -283,7 +283,7 @@ cb_Backend_user_drop(VALUE self,
       req.domain = core::management::rbac::auth_domain::external;
     } else {
       throw ruby_exception(exc_invalid_argument(),
-                           rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
+                           cb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
     }
     req.username = cb_string_new(username);
     auto parent_span = cb_create_parent_span(req, self);
@@ -327,7 +327,7 @@ cb_Backend_user_upsert(VALUE self,
       req.domain = core::management::rbac::auth_domain::external;
     } else {
       throw ruby_exception(exc_invalid_argument(),
-                           rb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
+                           cb_sprintf("unsupported authentication domain: %+" PRIsVALUE, domain));
     }
     VALUE name = rb_hash_aref(user, rb_id2sym(rb_intern("username")));
     if (NIL_P(name) || TYPE(name) != T_STRING) {

@@ -902,7 +902,7 @@ cb_Backend_document_search(VALUE self,
         req.scoring = rsf;
       } else {
         throw ruby_exception(rb_eArgError,
-                             rb_sprintf("unknown search scoring mode: %+" PRIsVALUE, mode));
+                             cb_sprintf("unknown search scoring mode: %+" PRIsVALUE, mode));
       }
     }
 

@@ -117,7 +117,7 @@ cb_Backend_notify_fork(VALUE self, VALUE event)
     instances.notify_fork(couchbase::fork_event::child);
   } else {
     throw ruby_exception(rb_eTypeError,
-                         rb_sprintf("unexpected fork event type %" PRIsVALUE "", event));
+                         cb_sprintf("unexpected fork event type %" PRIsVALUE "", event));
   }
   if (state != 0) {
     // notify_fork has already restarted the instances. Only the interrupt check that ends
@@ -319,7 +319,7 @@ initialize_cluster_options(const core::utils::connection_string& connstr,
     } else {
       throw ruby_exception(
         exc_invalid_argument(),
-        rb_sprintf("Failed to select verification mode for TLS: %+" PRIsVALUE, mode.value()));
+        cb_sprintf("Failed to select verification mode for TLS: %+" PRIsVALUE, mode.value()));
     }
   }
 
@@ -347,7 +347,7 @@ initialize_cluster_options(const core::utils::connection_string& connstr,
     } else {
       throw ruby_exception(
         exc_invalid_argument(),
-        rb_sprintf("Failed to setect preferred IP protocol: %+" PRIsVALUE, proto.value()));
+        cb_sprintf("Failed to setect preferred IP protocol: %+" PRIsVALUE, proto.value()));
     }
   }
 
@@ -508,7 +508,7 @@ cb_Backend_open(VALUE self, VALUE connstr, VALUE credentials, VALUE options)
 
   if (backend->instance != nullptr) {
     CB_LOG_TRACE("Trying to open the same backend twice: {}, instance={}",
-                 rb_sprintf("%+" PRIsVALUE ", connection_string=%+" PRIsVALUE, self, connstr),
+                 cb_sprintf("%+" PRIsVALUE ", connection_string=%+" PRIsVALUE, self, connstr),
                  static_cast<const void*>(backend->instance.get()));
     return Qnil;
   }

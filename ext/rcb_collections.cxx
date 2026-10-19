@@ -215,14 +215,14 @@ cb_Backend_collection_create(VALUE self,
           if (req.max_expiry < -1) {
             throw ruby_exception(
               exc_invalid_argument(),
-              rb_sprintf(
+              cb_sprintf(
                 "collection max expiry must be greater than or equal to -1, given %+" PRIsVALUE,
                 max_expiry));
           }
         } else {
           throw ruby_exception(
             rb_eArgError,
-            rb_sprintf("collection max expiry must be an Integer, given %+" PRIsVALUE, max_expiry));
+            cb_sprintf("collection max expiry must be an Integer, given %+" PRIsVALUE, max_expiry));
         }
       }
       if (VALUE history = rb_hash_aref(settings, rb_id2sym(rb_intern("history")));
@@ -289,14 +289,14 @@ cb_Backend_collection_update(VALUE self,
           if (req.max_expiry < -1) {
             throw ruby_exception(
               exc_invalid_argument(),
-              rb_sprintf(
+              cb_sprintf(
                 "collection max expiry must be greater than or equal to -1, given %+" PRIsVALUE,
                 max_expiry));
           }
         } else {
           throw ruby_exception(
             rb_eArgError,
-            rb_sprintf("collection max expiry must be an Integer, given %+" PRIsVALUE, max_expiry));
+            cb_sprintf("collection max expiry must be an Integer, given %+" PRIsVALUE, max_expiry));
         }
       }
       if (VALUE history = rb_hash_aref(settings, rb_id2sym(rb_intern("history")));

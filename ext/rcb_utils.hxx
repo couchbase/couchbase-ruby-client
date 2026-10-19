@@ -28,6 +28,7 @@
 #include <couchbase/store_semantics.hxx>
 
 #include <chrono>
+#include <cstdarg>
 #include <cstdint>
 #include <exception>
 #include <memory>
@@ -65,6 +66,27 @@ cb_protect(const Callable& fn)
   if (state != 0) {
     throw ruby_jump(state);
   }
+}
+
+// rb_sprintf under cb_protect. A PRIsVALUE argument is formatted with its inspect or to_s, which
+// may raise. Call it only from a method body registered through cb_method.
+RBIMPL_ATTR_FORMAT(RBIMPL_PRINTF_FORMAT, 1, 2)
+inline auto
+cb_sprintf(const char* format, ...) -> VALUE
+{
+  VALUE str = Qnil;
+  std::va_list args;
+  va_start(args, format);
+  try {
+    cb_protect([format, &args, &str] {
+      str = rb_vsprintf(format, args);
+    });
+  } catch (...) {
+    va_end(args);
+    throw;
+  }
+  va_end(args);
+  return str;
 }
 
 // Wraps Method, which may throw ruby_exception or ruby_jump, for rb_define_method. Method's
@@ -248,7 +270,7 @@ cb_extract_timeout(Request& req, VALUE options)
         break;
       default:
         throw ruby_exception(
-          rb_eArgError, rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
+          rb_eArgError, cb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, options));
     }
   }
 }
@@ -263,7 +285,7 @@ cb_extract_durability_level(Request& req, VALUE options)
 
   if (TYPE(options) != T_HASH) {
     throw ruby_exception(rb_eArgError,
-                         rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+                         cb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
   }
 
   static VALUE property_name = rb_id2sym(rb_intern("durability_level"));
@@ -274,7 +296,7 @@ cb_extract_durability_level(Request& req, VALUE options)
   }
   if (TYPE(val) != T_SYMBOL) {
     throw ruby_exception(
-      rb_eArgError, rb_sprintf("durability_level must be a Symbol, but given %+" PRIsVALUE, val));
+      rb_eArgError, cb_sprintf("durability_level must be a Symbol, but given %+" PRIsVALUE, val));
   }
   if (ID level = rb_sym2id(val); level == rb_intern("none")) {
     req.durability_level = couchbase::durability_level::none;
@@ -286,7 +308,7 @@ cb_extract_durability_level(Request& req, VALUE options)
     req.durability_level = couchbase::durability_level::persist_to_majority;
   } else {
     throw ruby_exception(rb_eArgError,
-                         rb_sprintf("unexpected durability_level, given %+" PRIsVALUE, val));
+                         cb_sprintf("unexpected durability_level, given %+" PRIsVALUE, val));
   }
 }
 
@@ -298,7 +320,7 @@ cb_extract_read_preference(Request& req, VALUE options)
   if (!NIL_P(options)) {
     if (TYPE(options) != T_HASH) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+                           cb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
     }
 
     VALUE val = rb_hash_aref(options, property_name);
@@ -307,7 +329,7 @@ cb_extract_read_preference(Request& req, VALUE options)
     }
     if (TYPE(val) != T_SYMBOL) {
       throw ruby_exception(
-        rb_eArgError, rb_sprintf("read_preference must be a Symbol, but given %+" PRIsVALUE, val));
+        rb_eArgError, cb_sprintf("read_preference must be a Symbol, but given %+" PRIsVALUE, val));
     }
 
     if (ID mode = rb_sym2id(val); mode == rb_intern("no_preference")) {
@@ -316,7 +338,7 @@ cb_extract_read_preference(Request& req, VALUE options)
       req.read_preference = couchbase::read_preference::selected_server_group;
     } else {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("unexpected read_preference, given %+" PRIsVALUE, val));
+                           cb_sprintf("unexpected read_preference, given %+" PRIsVALUE, val));
     }
   }
 }
@@ -335,7 +357,7 @@ cb_extract_duration(Field& field, VALUE options, const char* name)
         break;
       default:
         throw ruby_exception(
-          rb_eArgError, rb_sprintf("%s must be an Integer, but given %+" PRIsVALUE, name, options));
+          rb_eArgError, cb_sprintf("%s must be an Integer, but given %+" PRIsVALUE, name, options));
     }
   }
 }
@@ -401,7 +423,7 @@ cb_extract_option_bool(Boolean& field, VALUE options, const char* name)
         break;
       default:
         throw ruby_exception(rb_eArgError,
-                             rb_sprintf("%s must be a Boolean, but given %+" PRIsVALUE, name, val));
+                             cb_sprintf("%s must be a Boolean, but given %+" PRIsVALUE, name, val));
     }
   }
 }
@@ -438,7 +460,7 @@ cb_extract_option_number(Integer& field, VALUE options, const char* name)
         break;
       default:
         throw ruby_exception(rb_eArgError,
-                             rb_sprintf("%s must be a Integer, but given %+" PRIsVALUE, name, val));
+                             cb_sprintf("%s must be a Integer, but given %+" PRIsVALUE, name, val));
     }
   }
 }
@@ -542,7 +564,7 @@ set_timeout(CommandOptions& opts, VALUE options)
   if (!NIL_P(options)) {
     if (TYPE(options) != T_HASH) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+                           cb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
     }
     VALUE val = rb_hash_aref(options, property_name);
     if (NIL_P(val)) {
@@ -556,7 +578,7 @@ set_timeout(CommandOptions& opts, VALUE options)
 
       default:
         throw ruby_exception(rb_eArgError,
-                             rb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, val));
+                             cb_sprintf("timeout must be an Integer, but given %+" PRIsVALUE, val));
     }
   }
 }
@@ -578,7 +600,7 @@ set_expiry(CommandOptions& opts, VALUE options)
   if (!NIL_P(options)) {
     if (TYPE(options) != T_HASH) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+                           cb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
     }
     VALUE val = rb_hash_aref(options, property_name);
     if (NIL_P(val)) {
@@ -608,7 +630,7 @@ set_preserve_expiry(CommandOptions& opts, VALUE options)
   if (!NIL_P(options)) {
     if (TYPE(options) != T_HASH) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+                           cb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
     }
     VALUE val = rb_hash_aref(options, property_name);
     if (NIL_P(val)) {
@@ -624,7 +646,7 @@ set_preserve_expiry(CommandOptions& opts, VALUE options)
       default:
         throw ruby_exception(
           rb_eArgError,
-          rb_sprintf("preserve_expiry must be a Boolean, but given %+" PRIsVALUE, val));
+          cb_sprintf("preserve_expiry must be a Boolean, but given %+" PRIsVALUE, val));
     }
   }
 }
@@ -642,7 +664,7 @@ set_durability(CommandOptions& opts, VALUE options)
   if (!NIL_P(options)) {
     if (TYPE(options) != T_HASH) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+                           cb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
     }
     if (auto level = extract_durability_level(options); level.has_value()) {
       opts.durability(level.value());
@@ -666,7 +688,7 @@ cb_extract_store_semantics(Request& req, VALUE options)
   }
   if (TYPE(options) != T_HASH) {
     throw ruby_exception(rb_eArgError,
-                         rb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
+                         cb_sprintf("expected options to be Hash, given %+" PRIsVALUE, options));
   }
 
   VALUE val = rb_hash_aref(options, property_name);
@@ -675,7 +697,7 @@ cb_extract_store_semantics(Request& req, VALUE options)
   }
   if (TYPE(val) != T_SYMBOL) {
     throw ruby_exception(
-      rb_eArgError, rb_sprintf("store_semantics must be a Symbol, but given %+" PRIsVALUE, val));
+      rb_eArgError, cb_sprintf("store_semantics must be a Symbol, but given %+" PRIsVALUE, val));
   }
 
   if (ID mode = rb_sym2id(val); mode == rb_intern("replace")) {
@@ -686,7 +708,7 @@ cb_extract_store_semantics(Request& req, VALUE options)
     req.store_semantics = couchbase::store_semantics::upsert;
   } else {
     throw ruby_exception(rb_eArgError,
-                         rb_sprintf("unexpected store_semantics, given %+" PRIsVALUE, val));
+                         cb_sprintf("unexpected store_semantics, given %+" PRIsVALUE, val));
   }
 }
 
@@ -722,10 +744,10 @@ cb_extract_string_hash(Map& target, VALUE hash, const char* kind)
   }
   if (!RB_TYPE_P(st.key, T_STRING)) {
     throw ruby_exception(
-      rb_eArgError, rb_sprintf("%s key must be a String, but given %+" PRIsVALUE, kind, st.key));
+      rb_eArgError, cb_sprintf("%s key must be a String, but given %+" PRIsVALUE, kind, st.key));
   }
   throw ruby_exception(rb_eArgError,
-                       rb_sprintf("%s value for %+" PRIsVALUE
+                       cb_sprintf("%s value for %+" PRIsVALUE
                                   " must be a String, but given %+" PRIsVALUE,
                                   kind,
                                   st.key,

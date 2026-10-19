@@ -25,11 +25,21 @@ module Couchbase
   # RCBC-567: an operation's C++ frame must unwind, destroying its response and cluster
   # reference, when the operation fails and when a Ruby exception or interrupt is raised while
   # the backend records spans or builds the error. Each leaked response holds one large document
-  # body or query row, so RSS over many such operations shows the leak.
+  # body or query row, so RSS over many such operations shows the leak. The same holds when the
+  # backend rejects an argument after it has copied a large one.
   class OperationUnwindTest < Minitest::Test
     include TestUtilities
 
     class TracerError < StandardError; end
+    class InspectError < StandardError; end
+
+    # A counter delta that reaches the backend unconverted. The backend formats a non-Integer delta
+    # with inspect in its error.
+    class UninspectableDelta
+      def abs = self
+      def to_i = self
+      def inspect = raise(InspectError, "inspect failed")
+    end
 
     # Calls the hook when the observability handler records a span reported by the backend,
     # the only caller that passes start_timestamp.
@@ -167,6 +177,15 @@ module Couchbase
 
         assert_match(/\Aunable to fetch document: document_not_found \(101\)/, error.message)
         assert_equal "document_get", error.backtrace_locations.first.base_label
+      end
+    end
+
+    def test_mutate_in_with_counter_delta_whose_inspect_raises_does_not_leak_specs
+      specs = [MutateInSpec.upsert("body", @content), MutateInSpec.increment("counter", UninspectableDelta.new)]
+      assert_no_leak do
+        error = assert_raises(InspectError) { @collection.mutate_in(@doc_id, specs) }
+
+        assert_equal "inspect failed", error.message
       end
     end
 
