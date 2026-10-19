@@ -24,13 +24,20 @@ module Couchbase
     TEST_MAGMA_BUCKET_NAME = 'test-magma-bucket'
 
     def create_magma_bucket
-      @cluster.buckets.create_bucket(
-        Management::BucketSettings.new do |s|
-          s.name = TEST_MAGMA_BUCKET_NAME
-          s.storage_backend = :magma
-          s.ram_quota_mb = 1024
-        end,
-      )
+      # Teardown drops the bucket whenever this ran, even if the wait for the bucket below raised.
+      @magma_bucket_requested = true
+      begin
+        @cluster.buckets.create_bucket(
+          Management::BucketSettings.new do |s|
+            s.name = TEST_MAGMA_BUCKET_NAME
+            s.storage_backend = :magma
+            s.ram_quota_mb = 1024
+          end,
+        )
+      rescue Error::BucketExists
+        # Left by a run that ended before its teardown; this test's teardown drops it.
+        nil
+      end
 
       env.consistency.wait_until_bucket_present(TEST_MAGMA_BUCKET_NAME)
 
@@ -74,13 +81,14 @@ module Couchbase
       end
       @used_scopes = []
 
-      unless @magma_bucket.nil?
+      if @magma_bucket_requested
         begin
           @cluster.buckets.drop_bucket(TEST_MAGMA_BUCKET_NAME)
         rescue Error::BucketNotFound
           # Ignored
         end
       end
+      @magma_bucket_requested = false
       @magma_bucket = nil
       @magma_collection_manager = nil
       disconnect
