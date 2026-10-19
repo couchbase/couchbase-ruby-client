@@ -355,7 +355,7 @@ cb_Backend_document_get_and_lock(VALUE self,
     auto retry_strategy = cb_extract_retry_strategy(options);
     core::operations::get_and_lock_request req{ doc_id, {}, {}, {}, {}, { retry_strategy } };
     cb_extract_timeout(req, options);
-    req.lock_time = NUM2UINT(lock_time);
+    req.lock_time = cb_num2uint(lock_time);
 
     auto parent_span = cb_create_parent_span(req, self);
 
@@ -1782,7 +1782,7 @@ cb_Backend_document_mutate_in(VALUE self,
                                 .create_path(create_path));
         } else if (operation_id == rb_intern("counter")) {
           if (TYPE(param) == T_FIXNUM || TYPE(param) == T_BIGNUM) {
-            if (std::int64_t num = NUM2LL(param); num < 0) {
+            if (std::int64_t num = cb_num2ll(param); num < 0) {
               cxx_specs.push_back(
                 couchbase::mutate_in_specs::decrement(cb_string_new(path), -1 * num)
                   .xattr(xattr)

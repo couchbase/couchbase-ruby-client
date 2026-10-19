@@ -82,7 +82,7 @@ cb_generate_bucket_settings(VALUE bucket,
 
   if (VALUE expiry = rb_hash_aref(bucket, rb_id2sym(rb_intern("max_expiry"))); !NIL_P(expiry)) {
     if (TYPE(expiry) == T_FIXNUM) {
-      entry.max_expiry = FIX2UINT(expiry);
+      entry.max_expiry = cb_num2uint(expiry);
     } else {
       throw ruby_exception(
         rb_eArgError,
@@ -93,7 +93,7 @@ cb_generate_bucket_settings(VALUE bucket,
   if (VALUE num_replicas = rb_hash_aref(bucket, rb_id2sym(rb_intern("num_replicas")));
       !NIL_P(num_replicas)) {
     if (TYPE(num_replicas) == T_FIXNUM) {
-      entry.num_replicas = FIX2UINT(num_replicas);
+      entry.num_replicas = cb_num2uint(num_replicas);
     } else {
       throw ruby_exception(
         rb_eArgError,
@@ -211,7 +211,7 @@ cb_generate_bucket_settings(VALUE bucket,
         rb_hash_aref(bucket, rb_id2sym(rb_intern("history_retention_bytes")));
       !NIL_P(history_retention_bytes)) {
     if (TYPE(history_retention_bytes) == T_FIXNUM) {
-      entry.history_retention_bytes = FIX2UINT(history_retention_bytes);
+      entry.history_retention_bytes = cb_num2uint(history_retention_bytes);
     } else {
       throw ruby_exception(
         rb_eArgError,
@@ -224,7 +224,7 @@ cb_generate_bucket_settings(VALUE bucket,
         rb_hash_aref(bucket, rb_id2sym(rb_intern("history_retention_duration")));
       !NIL_P(history_retention_duration)) {
     if (TYPE(history_retention_duration) == T_FIXNUM) {
-      entry.history_retention_duration = FIX2UINT(history_retention_duration);
+      entry.history_retention_duration = cb_num2uint(history_retention_duration);
     } else {
       throw ruby_exception(
         rb_eArgError,
@@ -236,7 +236,7 @@ cb_generate_bucket_settings(VALUE bucket,
   if (VALUE num_vbuckets = rb_hash_aref(bucket, rb_id2sym(rb_intern("num_vbuckets")));
       !NIL_P(num_vbuckets)) {
     if (TYPE(num_vbuckets) == T_FIXNUM) {
-      entry.num_vbuckets = FIX2UINT(num_vbuckets);
+      entry.num_vbuckets = cb_num2uint(num_vbuckets);
     } else {
       throw ruby_exception(
         rb_eArgError,

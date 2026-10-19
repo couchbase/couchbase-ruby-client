@@ -211,7 +211,7 @@ cb_Backend_collection_create(VALUE self,
       if (VALUE max_expiry = rb_hash_aref(settings, rb_id2sym(rb_intern("max_expiry")));
           !NIL_P(max_expiry)) {
         if (TYPE(max_expiry) == T_FIXNUM) {
-          req.max_expiry = FIX2INT(max_expiry);
+          req.max_expiry = cb_num2int(max_expiry);
           if (req.max_expiry < -1) {
             throw ruby_exception(
               exc_invalid_argument(),
@@ -285,7 +285,7 @@ cb_Backend_collection_update(VALUE self,
       if (VALUE max_expiry = rb_hash_aref(settings, rb_id2sym(rb_intern("max_expiry")));
           !NIL_P(max_expiry)) {
         if (TYPE(max_expiry) == T_FIXNUM) {
-          req.max_expiry = FIX2INT(max_expiry);
+          req.max_expiry = cb_num2int(max_expiry);
           if (req.max_expiry < -1) {
             throw ruby_exception(
               exc_invalid_argument(),

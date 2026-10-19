@@ -163,7 +163,7 @@ cb_Backend_query_index_create(VALUE self,
       } /* else use backend default */
       if (VALUE num_replicas = rb_hash_aref(options, rb_id2sym(rb_intern("num_replicas")));
           !NIL_P(num_replicas)) {
-        req.num_replicas = NUM2UINT(num_replicas);
+        req.num_replicas = cb_num2uint(num_replicas);
       } /* else use backend default */
       if (VALUE condition = rb_hash_aref(options, rb_id2sym(rb_intern("condition")));
           !NIL_P(condition)) {
@@ -339,7 +339,7 @@ cb_Backend_query_index_create_primary(VALUE self,
       } /* else use backend default */
       if (VALUE num_replicas = rb_hash_aref(options, rb_id2sym(rb_intern("num_replicas")));
           !NIL_P(num_replicas)) {
-        req.num_replicas = NUM2UINT(num_replicas);
+        req.num_replicas = cb_num2uint(num_replicas);
       } /* else use backend default */
       if (VALUE index_name = rb_hash_aref(options, rb_id2sym(rb_intern("index_name")));
           TYPE(index_name) == T_STRING) {
@@ -653,9 +653,9 @@ cb_Backend_document_query(VALUE self, VALUE statement, VALUE options, VALUE obse
           default:
             throw ruby_exception(rb_eArgError, "sequence_number must be an Integer");
         }
-        req.mutation_state.emplace_back(NUM2ULL(partition_uuid),
-                                        NUM2ULL(sequence_number),
-                                        gsl::narrow_cast<std::uint16_t>(NUM2UINT(partition_id)),
+        req.mutation_state.emplace_back(cb_num2ull(partition_uuid),
+                                        cb_num2ull(sequence_number),
+                                        gsl::narrow_cast<std::uint16_t>(cb_num2uint(partition_id)),
                                         cb_string_new(bucket_name));
       }
     }
@@ -865,7 +865,7 @@ cb_Backend_collection_query_index_create(VALUE self,
       } /* else use backend default */
       if (VALUE num_replicas = rb_hash_aref(options, rb_id2sym(rb_intern("num_replicas")));
           !NIL_P(num_replicas)) {
-        req.num_replicas = NUM2UINT(num_replicas);
+        req.num_replicas = cb_num2uint(num_replicas);
       } /* else use backend default */
       if (VALUE condition = rb_hash_aref(options, rb_id2sym(rb_intern("condition")));
           !NIL_P(condition)) {
@@ -1053,7 +1053,7 @@ cb_Backend_collection_query_index_create_primary(VALUE self,
       } /* else use backend default */
       if (VALUE num_replicas = rb_hash_aref(options, rb_id2sym(rb_intern("num_replicas")));
           !NIL_P(num_replicas)) {
-        req.num_replicas = NUM2UINT(num_replicas);
+        req.num_replicas = cb_num2uint(num_replicas);
       } /* else use backend default */
       if (VALUE index_name = rb_hash_aref(options, rb_id2sym(rb_intern("index_name")));
           TYPE(index_name) == T_STRING) {

@@ -144,7 +144,7 @@ cb_extract_array_of_id_content(
                                                cb_string_new(id) },
                             couchbase::codec::encoded_value{
                               cb_binary_new(content),
-                              FIX2UINT(flags),
+                              cb_num2uint(flags),
                             });
   }
 }
