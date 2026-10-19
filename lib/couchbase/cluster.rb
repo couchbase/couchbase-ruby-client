@@ -348,6 +348,23 @@ module Couchbase
       end
     end
 
+    # Waits until the cluster reaches the desired state, actively pinging its services
+    #
+    # +Thread#raise+ does not interrupt the wait. It ends on success, on +timeout+, or when the cluster is disconnected.
+    #
+    # @param [Integer, #in_milliseconds] timeout the maximum time to wait
+    # @param [Options::WaitUntilReady] options
+    #
+    # @return [void]
+    #
+    # @raise [Error::UnambiguousTimeout] if the desired state is not reached within +timeout+
+    # @raise [Error::ClusterClosed] if the cluster has been disconnected
+    # @raise [Error::InvalidArgument] if +timeout+ is negative or longer than 365 days, or +options+ name an
+    #   unsupported desired state or service type
+    def wait_until_ready(timeout, options = Options::WaitUntilReady::DEFAULT)
+      @backend.wait_until_ready(nil, Utils::Time.extract_duration(timeout), options.to_backend)
+    end
+
     private
 
     # Initialize {Cluster} object

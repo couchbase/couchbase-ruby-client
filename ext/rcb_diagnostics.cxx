@@ -17,19 +17,53 @@
 
 #include <core/cluster.hxx>
 
+#include <couchbase/bucket.hxx>
+#include <couchbase/cluster.hxx>
+
 #include <spdlog/fmt/bundled/core.h>
 
 #include <future>
+#include <optional>
 
 #include <ruby.h>
 
 #include "rcb_backend.hxx"
+#include "rcb_exceptions.hxx"
 #include "rcb_utils.hxx"
 
 namespace couchbase::ruby
 {
 namespace
 {
+// Enumerator names are shared by core::service_type and couchbase::service_type.
+template<typename ServiceType>
+auto
+cb_service_type_from_symbol(VALUE entry) -> std::optional<ServiceType>
+{
+  if (entry == rb_id2sym(rb_intern("kv"))) {
+    return ServiceType::key_value;
+  }
+  if (entry == rb_id2sym(rb_intern("query"))) {
+    return ServiceType::query;
+  }
+  if (entry == rb_id2sym(rb_intern("analytics"))) {
+    return ServiceType::analytics;
+  }
+  if (entry == rb_id2sym(rb_intern("search"))) {
+    return ServiceType::search;
+  }
+  if (entry == rb_id2sym(rb_intern("views"))) {
+    return ServiceType::view;
+  }
+  if (entry == rb_id2sym(rb_intern("management"))) {
+    return ServiceType::management;
+  }
+  if (entry == rb_id2sym(rb_intern("eventing"))) {
+    return ServiceType::eventing;
+  }
+  return std::nullopt;
+}
+
 VALUE
 cb_Backend_diagnostics(VALUE self, VALUE report_id)
 {
@@ -151,21 +185,9 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
     if (!NIL_P(services)) {
       auto entries_num = static_cast<std::size_t>(RARRAY_LEN(services));
       for (std::size_t i = 0; i < entries_num; ++i) {
-        VALUE entry = rb_ary_entry(services, static_cast<long>(i));
-        if (entry == rb_id2sym(rb_intern("kv"))) {
-          selected_services.insert(core::service_type::key_value);
-        } else if (entry == rb_id2sym(rb_intern("query"))) {
-          selected_services.insert(core::service_type::query);
-        } else if (entry == rb_id2sym(rb_intern("analytics"))) {
-          selected_services.insert(core::service_type::analytics);
-        } else if (entry == rb_id2sym(rb_intern("search"))) {
-          selected_services.insert(core::service_type::search);
-        } else if (entry == rb_id2sym(rb_intern("views"))) {
-          selected_services.insert(core::service_type::view);
-        } else if (entry == rb_id2sym(rb_intern("management"))) {
-          selected_services.insert(core::service_type::management);
-        } else if (entry == rb_id2sym(rb_intern("eventing"))) {
-          selected_services.insert(core::service_type::eventing);
+        if (auto type = cb_service_type_from_symbol<core::service_type>(
+              rb_ary_entry(services, static_cast<long>(i)))) {
+          selected_services.insert(*type);
         }
       }
     }
@@ -248,6 +270,78 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
   }
   return Qnil;
 }
+
+VALUE
+cb_Backend_wait_until_ready(VALUE self, VALUE bucket, VALUE timeout, VALUE options)
+{
+  if (!NIL_P(bucket)) {
+    Check_Type(bucket, T_STRING);
+  }
+  if (!NIL_P(options)) {
+    Check_Type(options, T_HASH);
+  }
+
+  try {
+    const auto wait_timeout = cb_to_timeout(timeout, "timeout");
+
+    couchbase::wait_until_ready_options wait_options{};
+
+    VALUE desired_state = Qnil;
+    cb_extract_option_symbol(desired_state, options, "desired_state");
+    if (!NIL_P(desired_state)) {
+      if (desired_state == rb_id2sym(rb_intern("online"))) {
+        wait_options.desired_state(couchbase::cluster_state::online);
+      } else if (desired_state == rb_id2sym(rb_intern("degraded"))) {
+        wait_options.desired_state(couchbase::cluster_state::degraded);
+      } else {
+        VALUE message = Qnil;
+        cb_protect([&message, desired_state] {
+          message = rb_sprintf("unsupported desired_state, given %+" PRIsVALUE, desired_state);
+        });
+        throw ruby_exception(exc_invalid_argument(), message);
+      }
+    }
+
+    VALUE services = Qnil;
+    cb_extract_option_array(services, options, "service_types");
+    if (!NIL_P(services)) {
+      std::set<couchbase::service_type> selected_services{};
+      auto entries_num = static_cast<std::size_t>(RARRAY_LEN(services));
+      for (std::size_t i = 0; i < entries_num; ++i) {
+        VALUE entry = rb_ary_entry(services, static_cast<long>(i));
+        auto type = cb_service_type_from_symbol<couchbase::service_type>(entry);
+        if (!type) {
+          // inspect may raise; cb_protect lets selected_services unwind.
+          VALUE message = Qnil;
+          cb_protect([&message, entry] {
+            message = rb_sprintf("unsupported service type, given %+" PRIsVALUE, entry);
+          });
+          throw ruby_exception(exc_invalid_argument(), message);
+        }
+        selected_services.insert(*type);
+      }
+      wait_options.service_types(std::move(selected_services));
+    }
+
+    // Acquired after the options are parsed: a Ruby raise above must not skip its destructor.
+    auto cluster = cb_backend_to_public_api_cluster(self);
+    couchbase::error err{};
+    if (NIL_P(bucket)) {
+      auto f = cluster.wait_until_ready(wait_timeout, wait_options);
+      err = cb_wait_for_future(f);
+    } else {
+      auto f = cluster.bucket(cb_string_new(bucket)).wait_until_ready(wait_timeout, wait_options);
+      err = cb_wait_for_future(f);
+    }
+    if (err) {
+      cb_throw_error(err, "unable to wait until ready");
+    }
+  } catch (const std::system_error& se) {
+    throw ruby_exception(cb_map_error_code(
+      se.code(), fmt::format("failed to perform {}: {}", __func__, se.what()), false));
+  }
+  return Qnil;
+}
 } // namespace
 
 void
@@ -255,5 +349,6 @@ init_diagnostics(VALUE cBackend)
 {
   rb_define_method(cBackend, "diagnostics", cb_method<cb_Backend_diagnostics>::invoke, 1);
   rb_define_method(cBackend, "ping", cb_method<cb_Backend_ping>::invoke, 2);
+  rb_define_method(cBackend, "wait_until_ready", cb_method<cb_Backend_wait_until_ready>::invoke, 3);
 }
 } // namespace couchbase::ruby

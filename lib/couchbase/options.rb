@@ -1975,6 +1975,41 @@ module Couchbase
       DEFAULT = Ping.new.freeze
     end
 
+    # Options for {Couchbase::Cluster#wait_until_ready} and {Couchbase::Bucket#wait_until_ready}
+    class WaitUntilReady
+      attr_accessor :desired_state # @return [Symbol]
+      attr_accessor :service_types # @return [Array<Symbol>, nil]
+
+      # Creates an instance of options for {Couchbase::Cluster#wait_until_ready} and {Couchbase::Bucket#wait_until_ready}
+      #
+      # @param [Symbol] desired_state the state to wait for
+      #   +:online+:: every endpoint the ping reports for each requested service responds
+      #   +:degraded+:: at least one endpoint the ping reports for each requested service responds
+      # @param [Array<Symbol>, nil] service_types the service types to wait for (same names as {Ping#service_types}).
+      #   When +nil+ or empty, every service in the ping report is considered. A requested service that no node runs
+      #   is never ready, so the wait times out.
+      #
+      # @yieldparam [WaitUntilReady] self
+      def initialize(desired_state: :online,
+                     service_types: nil)
+        @desired_state = desired_state
+        @service_types = service_types
+
+        yield self if block_given?
+      end
+
+      # @api private
+      def to_backend
+        {
+          desired_state: @desired_state,
+          service_types: @service_types,
+        }
+      end
+
+      # @api private
+      DEFAULT = WaitUntilReady.new.freeze
+    end
+
     # Options for {Couchbase::Cluster#analytics_query}
     class Analytics < Base
       attr_accessor :client_context_id # @return [String]

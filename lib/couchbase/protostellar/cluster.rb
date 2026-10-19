@@ -155,6 +155,10 @@ module Couchbase
         raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support ping"
       end
 
+      def wait_until_ready(_timeout, _options = Options::WaitUntilReady::DEFAULT)
+        raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support wait_until_ready"
+      end
+
       def search_indexes
         raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support search index management"
       end

@@ -340,6 +340,20 @@ cb_extract_duration(Field& field, VALUE options, const char* name)
   }
 }
 
+// The default upper bound of cb_to_timeout. It lies far inside the range of steady_clock, so a
+// deadline steady_clock::now() + timeout cannot overflow.
+constexpr std::chrono::milliseconds cb_max_timeout{ std::chrono::hours{ 24 * 365 } };
+static_assert(cb_max_timeout < std::chrono::steady_clock::duration::max() / 2);
+
+// Converts timeout, an Integer number of milliseconds from 0 to max_timeout, which must not be
+// negative. Throws ArgumentError for a non-Integer, and Error::InvalidArgument for a value out of
+// that range; name labels the value in the messages. Call it only from a method body registered
+// through cb_method.
+[[nodiscard]] auto
+cb_to_timeout(VALUE timeout,
+              const char* name,
+              std::chrono::milliseconds max_timeout = cb_max_timeout) -> std::chrono::milliseconds;
+
 void
 cb_extract_content(std::vector<std::byte>& field, VALUE content);
 
