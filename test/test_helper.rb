@@ -189,6 +189,12 @@ module Couchbase
       @bucket ||= ENV.fetch("TEST_BUCKET", nil) || "default"
     end
 
+    # CAVES starts a cluster per test. Its KV endpoints must answer before the first operation;
+    # the bootstrap itself is already awaited by Cluster#bucket.
+    def wait_until_kv_ready(cluster)
+      cluster.bucket(bucket).wait_until_ready(10_000, Options::WaitUntilReady.new(service_types: [:kv]))
+    end
+
     def management_endpoint
       @management_endpoint ||= ENV.fetch("TEST_MANAGEMENT_ENDPOINT") do
         if connection_string
@@ -320,7 +326,7 @@ module Couchbase
 
     def connect(options = Options::Cluster.new)
       options.authenticate(env.username, env.password)
-      @cluster = Cluster.connect(env.connection_string, options)
+      (@cluster = Cluster.connect(env.connection_string, options)).tap { |c| env.wait_until_kv_ready(c) if use_caves? }
     end
 
     def ensure_primary_index!
