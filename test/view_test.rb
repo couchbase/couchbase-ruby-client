@@ -20,6 +20,8 @@ module Couchbase
   class ViewTest < Minitest::Test
     include TestUtilities
 
+    class NoRowsYet < StandardError; end
+
     def setup
       skip("#{name}: CAVES does not support views") if use_caves?
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support views") if env.protostellar?
@@ -98,10 +100,15 @@ module Couchbase
       @bucket.view_indexes.upsert_design_document(document, :production)
     end
 
+    # Every query here selects at least one row. Right after the design document is published, a query
+    # can still return none.
     def keys(options)
       options.scan_consistency = :request_plus
-      retry_for_duration(expected_errors: [Error::DesignDocumentNotFound, Error::ViewNotFound]) do
-        @bucket.view_query(@design_document, "by_k", options).rows.map(&:key).sort
+      retry_for_duration(expected_errors: [Error::DesignDocumentNotFound, Error::ViewNotFound, NoRowsYet]) do
+        rows = @bucket.view_query(@design_document, "by_k", options).rows.map(&:key).sort
+        raise NoRowsYet if rows.empty?
+
+        rows
       end
     end
   end
