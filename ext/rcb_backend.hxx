@@ -33,6 +33,8 @@ class cluster;
 
 namespace couchbase::ruby
 {
+// Both throw ruby_exception with Error::ClusterClosed once the backend is closed, so they may be
+// called only from a method body registered through cb_method.
 auto
 cb_backend_to_public_api_cluster(VALUE self) -> couchbase::cluster;
 

@@ -129,6 +129,6 @@ cb_Backend_cluster_labels(VALUE self)
 void
 init_observability(VALUE cBackend)
 {
-  rb_define_method(cBackend, "cluster_labels", cb_Backend_cluster_labels, 0);
+  rb_define_method(cBackend, "cluster_labels", cb_method<cb_Backend_cluster_labels>::invoke, 0);
 }
 } // namespace couchbase::ruby

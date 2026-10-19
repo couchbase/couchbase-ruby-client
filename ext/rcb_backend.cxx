@@ -648,7 +648,7 @@ cb_backend_to_public_api_cluster(VALUE self) -> couchbase::cluster
   TypedData_Get_Struct(self, cb_backend_data, &cb_backend_type, backend);
 
   if (backend->instance == nullptr) {
-    rb_raise(exc_cluster_closed(), "Cluster has been closed already");
+    throw ruby_exception(exc_cluster_closed(), "Cluster has been closed already");
   }
 
   return *backend->instance;
