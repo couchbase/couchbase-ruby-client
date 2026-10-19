@@ -20,8 +20,6 @@ module Couchbase
   class ViewTest < Minitest::Test
     include TestUtilities
 
-    class NoRowsYet < StandardError; end
-
     def setup
       skip("#{name}: CAVES does not support views") if use_caves?
       skip("#{name}: The #{Couchbase::Protostellar::NAME} protocol does not support views") if env.protostellar?
@@ -33,8 +31,9 @@ module Couchbase
       @tag = uniq_id(:view_raw).delete(".")
       @design_document = "dd_#{@tag}"
       create_design_document
+      # A view indexes only persisted documents, even with request_plus.
       %w[k1 k2 k3].each do |key|
-        @bucket.default_collection.upsert("#{@tag}_#{key}", {"tag" => @tag, "k" => key})
+        @bucket.default_collection.upsert("#{@tag}_#{key}", {"tag" => @tag, "k" => key}, Options::Upsert.new(persist_to: :active))
       end
     end
 
@@ -100,15 +99,10 @@ module Couchbase
       @bucket.view_indexes.upsert_design_document(document, :production)
     end
 
-    # Every query here selects at least one row. Right after the design document is published, a query
-    # can still return none.
     def keys(options)
       options.scan_consistency = :request_plus
-      retry_for_duration(expected_errors: [Error::DesignDocumentNotFound, Error::ViewNotFound, NoRowsYet]) do
-        rows = @bucket.view_query(@design_document, "by_k", options).rows.map(&:key).sort
-        raise NoRowsYet if rows.empty?
-
-        rows
+      retry_for_duration(expected_errors: [Error::DesignDocumentNotFound, Error::ViewNotFound]) do
+        @bucket.view_query(@design_document, "by_k", options).rows.map(&:key).sort
       end
     end
   end
