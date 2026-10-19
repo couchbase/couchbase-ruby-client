@@ -36,7 +36,7 @@ cb_Backend_diagnostics(VALUE self, VALUE report_id)
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(report_id)) {
-    Check_Type(report_id, T_STRING);
+    cb_check_type(report_id, T_STRING);
   }
 
   try {
@@ -128,11 +128,11 @@ cb_Backend_ping(VALUE self, VALUE bucket, VALUE options)
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(bucket)) {
-    Check_Type(bucket, T_STRING);
+    cb_check_type(bucket, T_STRING);
   }
 
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
   try {
     VALUE id = Qnil;

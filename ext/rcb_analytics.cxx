@@ -147,7 +147,7 @@ cb_Backend_analytics_dataset_drop(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(dataset_name, T_STRING);
+  cb_check_type(dataset_name, T_STRING);
 
   try {
     core::operations::management::analytics_dataset_drop_request req{};
@@ -203,8 +203,8 @@ cb_Backend_analytics_dataset_create(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(dataset_name, T_STRING);
-  Check_Type(bucket_name, T_STRING);
+  cb_check_type(dataset_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
 
   try {
     core::operations::management::analytics_dataset_create_request req{};
@@ -255,7 +255,7 @@ cb_Backend_analytics_dataverse_drop(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(dataverse_name, T_STRING);
+  cb_check_type(dataverse_name, T_STRING);
 
   try {
     core::operations::management::analytics_dataverse_drop_request req{};
@@ -298,9 +298,9 @@ cb_Backend_analytics_dataverse_create(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(dataverse_name, T_STRING);
+  cb_check_type(dataverse_name, T_STRING);
   if (!NIL_P(dataverse_name)) {
-    Check_Type(dataverse_name, T_STRING);
+    cb_check_type(dataverse_name, T_STRING);
   }
 
   try {
@@ -391,9 +391,9 @@ cb_Backend_analytics_index_create(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
-  Check_Type(dataset_name, T_STRING);
-  Check_Type(fields, T_ARRAY);
+  cb_check_type(index_name, T_STRING);
+  cb_check_type(dataset_name, T_STRING);
+  cb_check_type(fields, T_ARRAY);
 
   try {
     core::operations::management::analytics_index_create_request req{};
@@ -403,7 +403,7 @@ cb_Backend_analytics_index_create(VALUE self,
     auto fields_num = static_cast<std::size_t>(RARRAY_LEN(fields));
     for (std::size_t i = 0; i < fields_num; ++i) {
       VALUE entry = rb_ary_entry(fields, static_cast<long>(i));
-      Check_Type(entry, T_ARRAY);
+      cb_check_type(entry, T_ARRAY);
       if (RARRAY_LEN(entry) == 2) {
         VALUE field = rb_ary_entry(entry, 0);
         VALUE type = rb_ary_entry(entry, 1);
@@ -458,8 +458,8 @@ cb_Backend_analytics_index_drop(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
-  Check_Type(dataset_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
+  cb_check_type(dataset_name, T_STRING);
 
   try {
     core::operations::management::analytics_index_drop_request req{};
@@ -645,7 +645,7 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options, VALUE ob
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -775,7 +775,7 @@ cb_Backend_analytics_link_replace(VALUE self,
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -907,10 +907,10 @@ cb_Backend_analytics_link_drop(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(link, T_STRING);
-  Check_Type(dataverse, T_STRING);
+  cb_check_type(link, T_STRING);
+  cb_check_type(dataverse, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -961,7 +961,7 @@ cb_Backend_analytics_link_get_all(VALUE self, VALUE options, VALUE observability
   auto cluster = cb_backend_to_core_api_cluster(self);
 
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -1099,9 +1099,9 @@ cb_Backend_document_analytics(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(statement, T_STRING);
+  cb_check_type(statement, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {

@@ -132,7 +132,7 @@ cb_Backend_search_index_get(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
 
   try {
     core::operations::management::search_index_get_request req{};
@@ -183,7 +183,7 @@ cb_Backend_search_index_upsert(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_definition, T_HASH);
+  cb_check_type(index_definition, T_HASH);
 
   try {
     core::operations::management::search_index_upsert_request req{};
@@ -284,7 +284,7 @@ cb_Backend_search_index_drop(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
 
   try {
     core::operations::management::search_index_drop_request req{};
@@ -336,7 +336,7 @@ cb_Backend_search_index_get_documents_count(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
 
   try {
     core::operations::management::search_index_get_documents_count_request req{};
@@ -392,7 +392,7 @@ cb_Backend_search_index_get_stats(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
 
   try {
     core::operations::management::search_index_get_stats_request req{};
@@ -462,7 +462,7 @@ cb_Backend_search_index_pause_ingest(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
 
   try {
     core::operations::management::search_index_control_ingest_request req{};
@@ -517,7 +517,7 @@ cb_Backend_search_index_resume_ingest(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
 
   try {
     core::operations::management::search_index_control_ingest_request req{};
@@ -572,7 +572,7 @@ cb_Backend_search_index_allow_querying(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
 
   try {
     core::operations::management::search_index_control_query_request req{};
@@ -627,7 +627,7 @@ cb_Backend_search_index_disallow_querying(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
 
   try {
     core::operations::management::search_index_control_query_request req{};
@@ -682,7 +682,7 @@ cb_Backend_search_index_freeze_plan(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
 
   try {
     core::operations::management::search_index_control_plan_freeze_request req{};
@@ -736,7 +736,7 @@ cb_Backend_search_index_unfreeze_plan(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
+  cb_check_type(index_name, T_STRING);
 
   try {
     core::operations::management::search_index_control_plan_freeze_request req{};
@@ -792,8 +792,8 @@ cb_Backend_search_index_analyze_document(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
-  Check_Type(encoded_document, T_STRING);
+  cb_check_type(index_name, T_STRING);
+  cb_check_type(encoded_document, T_STRING);
 
   try {
     core::operations::management::search_index_analyze_document_request req{};
@@ -854,10 +854,10 @@ cb_Backend_document_search(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(index_name, T_STRING);
-  Check_Type(query, T_STRING);
+  cb_check_type(index_name, T_STRING);
+  cb_check_type(query, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {

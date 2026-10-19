@@ -260,11 +260,11 @@ cb_Backend_document_upsert_multi(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -342,11 +342,11 @@ cb_Backend_document_remove_multi(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket, T_STRING);
-  Check_Type(scope, T_STRING);
-  Check_Type(collection, T_STRING);
+  cb_check_type(bucket, T_STRING);
+  cb_check_type(scope, T_STRING);
+  cb_check_type(collection, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {

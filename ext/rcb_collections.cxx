@@ -43,9 +43,9 @@ cb_Backend_scope_get_all(VALUE self, VALUE bucket_name, VALUE options, VALUE obs
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -106,10 +106,10 @@ cb_Backend_scope_create(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(scope_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -148,10 +148,10 @@ cb_Backend_scope_drop(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(scope_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -191,14 +191,14 @@ cb_Backend_collection_create(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(scope_name, T_STRING);
-  Check_Type(collection_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
+  cb_check_type(collection_name, T_STRING);
   if (!NIL_P(settings)) {
-    Check_Type(settings, T_HASH);
+    cb_check_type(settings, T_HASH);
   }
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -265,14 +265,14 @@ cb_Backend_collection_update(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(scope_name, T_STRING);
-  Check_Type(collection_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
+  cb_check_type(collection_name, T_STRING);
   if (!NIL_P(settings)) {
-    Check_Type(settings, T_HASH);
+    cb_check_type(settings, T_HASH);
   }
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {
@@ -338,11 +338,11 @@ cb_Backend_collection_drop(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(bucket_name, T_STRING);
-  Check_Type(scope_name, T_STRING);
-  Check_Type(collection_name, T_STRING);
+  cb_check_type(bucket_name, T_STRING);
+  cb_check_type(scope_name, T_STRING);
+  cb_check_type(collection_name, T_STRING);
   if (!NIL_P(options)) {
-    Check_Type(options, T_HASH);
+    cb_check_type(options, T_HASH);
   }
 
   try {

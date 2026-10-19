@@ -210,6 +210,12 @@ module Couchbase
       end
     end
 
+    def test_mutate_in_with_non_string_id_raises_type_error
+      error = assert_raises(TypeError) { @collection.mutate_in(42, [MutateInSpec.upsert("body", 1)]) }
+
+      assert_equal "wrong argument type Integer (expected String)", error.message
+    end
+
     def test_get_with_tracer_not_raising_returns_document
       @tracer.hook = lambda { @entered += 1 }
       res = @collection.get(@doc_id, @get_options)

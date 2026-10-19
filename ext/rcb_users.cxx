@@ -177,7 +177,7 @@ cb_Backend_user_get_all(VALUE self, VALUE domain, VALUE timeout, VALUE observabi
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(domain, T_SYMBOL);
+  cb_check_type(domain, T_SYMBOL);
 
   try {
     core::operations::management::user_get_all_request req{};
@@ -225,8 +225,8 @@ cb_Backend_user_get(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(domain, T_SYMBOL);
-  Check_Type(username, T_STRING);
+  cb_check_type(domain, T_SYMBOL);
+  cb_check_type(username, T_STRING);
 
   try {
     core::operations::management::user_get_request req{};
@@ -271,8 +271,8 @@ cb_Backend_user_drop(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(domain, T_SYMBOL);
-  Check_Type(username, T_STRING);
+  cb_check_type(domain, T_SYMBOL);
+  cb_check_type(username, T_STRING);
 
   try {
     core::operations::management::user_drop_request req{};
@@ -315,8 +315,8 @@ cb_Backend_user_upsert(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(domain, T_SYMBOL);
-  Check_Type(user, T_HASH);
+  cb_check_type(domain, T_SYMBOL);
+  cb_check_type(user, T_HASH);
 
   try {
     core::operations::management::user_upsert_request req{};
@@ -412,7 +412,7 @@ cb_Backend_change_password(VALUE self,
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(new_password, T_STRING);
+  cb_check_type(new_password, T_STRING);
 
   try {
     core::operations::management::change_password_request req{};
@@ -507,7 +507,7 @@ cb_Backend_group_get(VALUE self, VALUE name, VALUE timeout, VALUE observability_
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(name, T_STRING);
+  cb_check_type(name, T_STRING);
 
   try {
     core::operations::management::group_get_request req{};
@@ -540,7 +540,7 @@ cb_Backend_group_drop(VALUE self, VALUE name, VALUE timeout, VALUE observability
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(name, T_STRING);
+  cb_check_type(name, T_STRING);
 
   try {
     core::operations::management::group_drop_request req{};
@@ -571,7 +571,7 @@ cb_Backend_group_upsert(VALUE self, VALUE group, VALUE timeout, VALUE observabil
 {
   auto cluster = cb_backend_to_core_api_cluster(self);
 
-  Check_Type(group, T_HASH);
+  cb_check_type(group, T_HASH);
 
   try {
     core::operations::management::group_upsert_request req{};
