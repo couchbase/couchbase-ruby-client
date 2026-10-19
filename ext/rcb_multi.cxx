@@ -51,7 +51,7 @@ cb_extract_array_of_ids(std::vector<core::document_id>& ids, VALUE arg)
   if (TYPE(arg) != T_ARRAY) {
     throw ruby_exception(
       rb_eArgError,
-      rb_sprintf("Type of IDs argument must be an Array, but given %+" PRIsVALUE, arg));
+      cb_sprintf("Type of IDs argument must be an Array, but given %+" PRIsVALUE, arg));
   }
   auto num_of_ids = static_cast<std::size_t>(RARRAY_LEN(arg));
   if (num_of_ids < 1) {
@@ -62,30 +62,30 @@ cb_extract_array_of_ids(std::vector<core::document_id>& ids, VALUE arg)
     VALUE entry = rb_ary_entry(arg, static_cast<long>(i));
     if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 4) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("ID tuple must be represented as an Array[bucket, scope, "
+                           cb_sprintf("ID tuple must be represented as an Array[bucket, scope, "
                                       "collection, id], but given %+" PRIsVALUE,
                                       entry));
     }
     VALUE bucket = rb_ary_entry(entry, 0);
     if (TYPE(bucket) != T_STRING) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("Bucket must be a String, but given %+" PRIsVALUE, bucket));
+                           cb_sprintf("Bucket must be a String, but given %+" PRIsVALUE, bucket));
     }
     VALUE scope = rb_ary_entry(entry, 1);
     if (TYPE(scope) != T_STRING) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("Scope must be a String, but given %+" PRIsVALUE, scope));
+                           cb_sprintf("Scope must be a String, but given %+" PRIsVALUE, scope));
     }
     VALUE collection = rb_ary_entry(entry, 2);
     if (TYPE(collection) != T_STRING) {
       throw ruby_exception(
         rb_eArgError,
-        rb_sprintf("Collection must be a String, but given %+" PRIsVALUE, collection));
+        cb_sprintf("Collection must be a String, but given %+" PRIsVALUE, collection));
     }
     VALUE id = rb_ary_entry(entry, 3);
     if (TYPE(id) != T_STRING) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
+                           cb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
     }
     ids.emplace_back(
       cb_string_new(bucket), cb_string_new(scope), cb_string_new(collection), cb_string_new(id));
@@ -107,7 +107,7 @@ cb_extract_array_of_id_content(
   if (TYPE(tuples) != T_ARRAY) {
     throw ruby_exception(
       rb_eArgError,
-      rb_sprintf("Type of ID/content tuples must be an Array, but given %+" PRIsVALUE, tuples));
+      cb_sprintf("Type of ID/content tuples must be an Array, but given %+" PRIsVALUE, tuples));
   }
 
   auto num_of_tuples = static_cast<std::size_t>(RARRAY_LEN(tuples));
@@ -119,24 +119,24 @@ cb_extract_array_of_id_content(
     VALUE entry = rb_ary_entry(tuples, static_cast<long>(i));
     if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 3) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("ID/content tuple must be represented as an Array[id, "
+                           cb_sprintf("ID/content tuple must be represented as an Array[id, "
                                       "content, flags], but given %+" PRIsVALUE,
                                       entry));
     }
     VALUE id = rb_ary_entry(entry, 0);
     if (TYPE(id) != T_STRING) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
+                           cb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
     }
     VALUE content = rb_ary_entry(entry, 1);
     if (TYPE(content) != T_STRING) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("Content must be a String, but given %+" PRIsVALUE, content));
+                           cb_sprintf("Content must be a String, but given %+" PRIsVALUE, content));
     }
     VALUE flags = rb_ary_entry(entry, 2);
     if (TYPE(flags) != T_FIXNUM) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("Flags must be an Integer, but given %+" PRIsVALUE, flags));
+                           cb_sprintf("Flags must be an Integer, but given %+" PRIsVALUE, flags));
     }
     id_content.emplace_back(core::document_id{ cb_string_new(bucket_name),
                                                cb_string_new(scope_name),
@@ -163,7 +163,7 @@ cb_extract_array_of_id_cas(std::vector<std::pair<core::document_id, couchbase::c
   if (TYPE(tuples) != T_ARRAY) {
     throw ruby_exception(
       rb_eArgError,
-      rb_sprintf("Type of ID/CAS tuples must be an Array, but given %+" PRIsVALUE, tuples));
+      cb_sprintf("Type of ID/CAS tuples must be an Array, but given %+" PRIsVALUE, tuples));
   }
   auto num_of_tuples = static_cast<std::size_t>(RARRAY_LEN(tuples));
   if (num_of_tuples < 1) {
@@ -175,14 +175,14 @@ cb_extract_array_of_id_cas(std::vector<std::pair<core::document_id, couchbase::c
     if (TYPE(entry) != T_ARRAY || RARRAY_LEN(entry) != 2) {
       throw ruby_exception(
         rb_eArgError,
-        rb_sprintf(
+        cb_sprintf(
           "ID/content tuple must be represented as an Array[id, CAS], but given %+" PRIsVALUE,
           entry));
     }
     VALUE id = rb_ary_entry(entry, 0);
     if (TYPE(id) != T_STRING) {
       throw ruby_exception(rb_eArgError,
-                           rb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
+                           cb_sprintf("ID must be a String, but given %+" PRIsVALUE, id));
     }
     couchbase::cas cas_val{};
     if (VALUE cas = rb_ary_entry(entry, 1); !NIL_P(cas)) {

@@ -1321,7 +1321,7 @@ cb_Backend_document_lookup_in(VALUE self,
       } else {
         throw ruby_exception(
           exc_invalid_argument(),
-          rb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
+          cb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
       }
       cb_check_type(path, T_STRING);
 
@@ -1450,7 +1450,7 @@ cb_Backend_document_lookup_in_any_replica(VALUE self,
       } else {
         throw ruby_exception(
           exc_invalid_argument(),
-          rb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
+          cb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
       }
       cb_check_type(path, T_STRING);
       req.specs.emplace_back(core::impl::subdoc::command{
@@ -1581,7 +1581,7 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self,
       } else {
         throw ruby_exception(
           exc_invalid_argument(),
-          rb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
+          cb_sprintf("unsupported operation for subdocument lookup: %+" PRIsVALUE, operation));
       }
       cb_check_type(path, T_STRING);
 
@@ -1795,7 +1795,7 @@ cb_Backend_document_mutate_in(VALUE self,
           } else {
             throw ruby_exception(
               exc_invalid_argument(),
-              rb_sprintf("subdocument counter operation expects number, but given: %+" PRIsVALUE,
+              cb_sprintf("subdocument counter operation expects number, but given: %+" PRIsVALUE,
                          param));
           }
         } else if (operation_id == rb_intern("set_doc")) {
@@ -1808,7 +1808,7 @@ cb_Backend_document_mutate_in(VALUE self,
         } else {
           throw ruby_exception(
             exc_invalid_argument(),
-            rb_sprintf("unsupported operation for subdocument mutation: %+" PRIsVALUE, operation));
+            cb_sprintf("unsupported operation for subdocument mutation: %+" PRIsVALUE, operation));
         }
       }
     }

@@ -56,11 +56,11 @@ cb_generate_bucket_settings(VALUE bucket,
         entry.bucket_type = core::management::cluster::bucket_type::ephemeral;
       } else {
         throw ruby_exception(rb_eArgError,
-                             rb_sprintf("unknown bucket type, given %+" PRIsVALUE, bucket_type));
+                             cb_sprintf("unknown bucket type, given %+" PRIsVALUE, bucket_type));
       }
     } else {
       throw ruby_exception(
-        rb_eArgError, rb_sprintf("bucket type must be a Symbol, given %+" PRIsVALUE, bucket_type));
+        rb_eArgError, cb_sprintf("bucket type must be a Symbol, given %+" PRIsVALUE, bucket_type));
     }
   }
 
@@ -68,7 +68,7 @@ cb_generate_bucket_settings(VALUE bucket,
     entry.name = cb_string_new(name);
   } else {
     throw ruby_exception(rb_eArgError,
-                         rb_sprintf("bucket name must be a String, given %+" PRIsVALUE, name));
+                         cb_sprintf("bucket name must be a String, given %+" PRIsVALUE, name));
   }
 
   if (VALUE quota = rb_hash_aref(bucket, rb_id2sym(rb_intern("ram_quota_mb"))); !NIL_P(quota)) {
@@ -76,7 +76,7 @@ cb_generate_bucket_settings(VALUE bucket,
       entry.ram_quota_mb = FIX2ULONG(quota);
     } else {
       throw ruby_exception(
-        rb_eArgError, rb_sprintf("bucket RAM quota must be an Integer, given %+" PRIsVALUE, quota));
+        rb_eArgError, cb_sprintf("bucket RAM quota must be an Integer, given %+" PRIsVALUE, quota));
     }
   }
 
@@ -86,7 +86,7 @@ cb_generate_bucket_settings(VALUE bucket,
     } else {
       throw ruby_exception(
         rb_eArgError,
-        rb_sprintf("bucket max expiry must be an Integer, given %+" PRIsVALUE, expiry));
+        cb_sprintf("bucket max expiry must be an Integer, given %+" PRIsVALUE, expiry));
     }
   }
 
@@ -97,7 +97,7 @@ cb_generate_bucket_settings(VALUE bucket,
     } else {
       throw ruby_exception(
         rb_eArgError,
-        rb_sprintf("bucket number of replicas must be an Integer, given %+" PRIsVALUE,
+        cb_sprintf("bucket number of replicas must be an Integer, given %+" PRIsVALUE,
                    num_replicas));
     }
   }
@@ -124,12 +124,12 @@ cb_generate_bucket_settings(VALUE bucket,
       } else {
         throw ruby_exception(
           rb_eArgError,
-          rb_sprintf("unknown compression mode, given %+" PRIsVALUE, compression_mode));
+          cb_sprintf("unknown compression mode, given %+" PRIsVALUE, compression_mode));
       }
     } else {
       throw ruby_exception(
         rb_eArgError,
-        rb_sprintf("bucket compression mode must be a Symbol, given %+" PRIsVALUE,
+        cb_sprintf("bucket compression mode must be a Symbol, given %+" PRIsVALUE,
                    compression_mode));
     }
   }
@@ -148,12 +148,12 @@ cb_generate_bucket_settings(VALUE bucket,
           core::management::cluster::bucket_eviction_policy::not_recently_used;
       } else {
         throw ruby_exception(
-          rb_eArgError, rb_sprintf("unknown eviction policy, given %+" PRIsVALUE, eviction_policy));
+          rb_eArgError, cb_sprintf("unknown eviction policy, given %+" PRIsVALUE, eviction_policy));
       }
     } else {
       throw ruby_exception(
         rb_eArgError,
-        rb_sprintf("bucket eviction policy must be a Symbol, given %+" PRIsVALUE, eviction_policy));
+        cb_sprintf("bucket eviction policy must be a Symbol, given %+" PRIsVALUE, eviction_policy));
     }
   }
 
@@ -167,12 +167,12 @@ cb_generate_bucket_settings(VALUE bucket,
       } else {
         throw ruby_exception(
           rb_eArgError,
-          rb_sprintf("unknown storage backend type, given %+" PRIsVALUE, storage_backend));
+          cb_sprintf("unknown storage backend type, given %+" PRIsVALUE, storage_backend));
       }
     } else {
       throw ruby_exception(
         rb_eArgError,
-        rb_sprintf("bucket storage backend type must be a Symbol, given %+" PRIsVALUE,
+        cb_sprintf("bucket storage backend type must be a Symbol, given %+" PRIsVALUE,
                    storage_backend));
     }
   }
@@ -191,12 +191,12 @@ cb_generate_bucket_settings(VALUE bucket,
         entry.minimum_durability_level = couchbase::durability_level::persist_to_majority;
       } else {
         throw ruby_exception(
-          rb_eArgError, rb_sprintf("unknown durability level, given %+" PRIsVALUE, minimum_level));
+          rb_eArgError, cb_sprintf("unknown durability level, given %+" PRIsVALUE, minimum_level));
       }
     } else {
       throw ruby_exception(
         rb_eArgError,
-        rb_sprintf("bucket minimum durability level must be a Symbol, given %+" PRIsVALUE,
+        cb_sprintf("bucket minimum durability level must be a Symbol, given %+" PRIsVALUE,
                    minimum_level));
     }
   }
@@ -215,7 +215,7 @@ cb_generate_bucket_settings(VALUE bucket,
     } else {
       throw ruby_exception(
         rb_eArgError,
-        rb_sprintf("history retention bytes must be an Integer, given %+" PRIsVALUE,
+        cb_sprintf("history retention bytes must be an Integer, given %+" PRIsVALUE,
                    history_retention_bytes));
     }
   }
@@ -228,7 +228,7 @@ cb_generate_bucket_settings(VALUE bucket,
     } else {
       throw ruby_exception(
         rb_eArgError,
-        rb_sprintf("history retention duration must be an Integer, given %+" PRIsVALUE,
+        cb_sprintf("history retention duration must be an Integer, given %+" PRIsVALUE,
                    history_retention_duration));
     }
   }
@@ -240,7 +240,7 @@ cb_generate_bucket_settings(VALUE bucket,
     } else {
       throw ruby_exception(
         rb_eArgError,
-        rb_sprintf("num vbuckets must be an Integer, given %+" PRIsVALUE, num_vbuckets));
+        cb_sprintf("num vbuckets must be an Integer, given %+" PRIsVALUE, num_vbuckets));
     }
   }
 
@@ -260,13 +260,13 @@ cb_generate_bucket_settings(VALUE bucket,
             core::management::cluster::bucket_conflict_resolution::custom;
         } else {
           throw ruby_exception(rb_eArgError,
-                               rb_sprintf("unknown conflict resolution type, given %+" PRIsVALUE,
+                               cb_sprintf("unknown conflict resolution type, given %+" PRIsVALUE,
                                           conflict_resolution_type));
         }
       } else {
         throw ruby_exception(
           rb_eArgError,
-          rb_sprintf("bucket conflict resolution type must be a Symbol, given %+" PRIsVALUE,
+          cb_sprintf("bucket conflict resolution type must be a Symbol, given %+" PRIsVALUE,
                      conflict_resolution_type));
       }
     }
