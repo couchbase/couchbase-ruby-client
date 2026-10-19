@@ -42,7 +42,8 @@ module Couchbase
         @retry_strategy = retry_strategy
         @client_context = client_context
         @parent_span = parent_span
-        yield self if block_given?
+        # A subclass yields at the end of its own initialize, once its defaults are set.
+        yield self if block_given? && instance_of?(Base)
       end
 
       # @api private
