@@ -105,7 +105,8 @@ cb_Backend_document_get(VALUE self,
       cb_string_new(id),
     };
 
-    core::operations::get_request req{ doc_id };
+    auto retry_strategy = cb_extract_retry_strategy(options);
+    core::operations::get_request req{ doc_id, {}, {}, {}, { retry_strategy } };
     cb_extract_timeout(req, options);
 
     auto parent_span = cb_create_parent_span(req, self);
@@ -273,7 +274,10 @@ cb_Backend_document_get_projected(VALUE self,
       cb_string_new(id),
     };
 
-    core::operations::get_projected_request req{ doc_id };
+    auto retry_strategy = cb_extract_retry_strategy(options);
+    core::operations::get_projected_request req{
+      doc_id, {}, {}, {}, false, {}, false, {}, { retry_strategy },
+    };
     cb_extract_timeout(req, options);
     auto parent_span = cb_create_parent_span(req, self);
     cb_extract_option_bool(req.with_expiry, options, "with_expiry");
@@ -348,7 +352,8 @@ cb_Backend_document_get_and_lock(VALUE self,
       cb_string_new(id),
     };
 
-    core::operations::get_and_lock_request req{ doc_id };
+    auto retry_strategy = cb_extract_retry_strategy(options);
+    core::operations::get_and_lock_request req{ doc_id, {}, {}, {}, {}, { retry_strategy } };
     cb_extract_timeout(req, options);
     req.lock_time = NUM2UINT(lock_time);
 
@@ -405,7 +410,8 @@ cb_Backend_document_get_and_touch(VALUE self,
       cb_string_new(id),
     };
 
-    core::operations::get_and_touch_request req{ doc_id };
+    auto retry_strategy = cb_extract_retry_strategy(options);
+    core::operations::get_and_touch_request req{ doc_id, {}, {}, {}, {}, { retry_strategy } };
     cb_extract_timeout(req, options);
     auto [type, duration] = unpack_expiry(expiry, false);
     req.expiry = static_cast<std::uint32_t>(duration.count());
@@ -463,7 +469,8 @@ cb_Backend_document_touch(VALUE self,
       cb_string_new(id),
     };
 
-    core::operations::touch_request req{ doc_id };
+    auto retry_strategy = cb_extract_retry_strategy(options);
+    core::operations::touch_request req{ doc_id, {}, {}, {}, {}, { retry_strategy } };
     cb_extract_timeout(req, options);
     auto [type, duration] = unpack_expiry(expiry, false);
     req.expiry = static_cast<std::uint32_t>(duration.count());
@@ -518,7 +525,8 @@ cb_Backend_document_exists(VALUE self,
       cb_string_new(id),
     };
 
-    core::operations::exists_request req{ doc_id };
+    auto retry_strategy = cb_extract_retry_strategy(options);
+    core::operations::exists_request req{ doc_id, {}, {}, {}, { retry_strategy } };
     cb_extract_timeout(req, options);
 
     auto parent_span = cb_create_parent_span(req, self);
@@ -578,7 +586,8 @@ cb_Backend_document_unlock(VALUE self,
       cb_string_new(id),
     };
 
-    core::operations::unlock_request req{ doc_id };
+    auto retry_strategy = cb_extract_retry_strategy(options);
+    core::operations::unlock_request req{ doc_id, {}, {}, {}, {}, { retry_strategy } };
     cb_extract_timeout(req, options);
     cb_extract_cas(req.cas, cas);
 
@@ -636,6 +645,14 @@ cb_Backend_document_upsert(VALUE self,
         cb_string_new(collection),
         cb_string_new(id),
       },
+      {},
+      {},
+      {},
+      0,
+      0,
+      couchbase::durability_level::none,
+      {},
+      { cb_extract_retry_strategy(options) },
     };
     cb_extract_content(req, content);
     cb_extract_flags(req, flags);
@@ -710,6 +727,13 @@ cb_Backend_document_append(VALUE self,
         cb_string_new(collection),
         cb_string_new(id),
       },
+      {},
+      {},
+      {},
+      {},
+      couchbase::durability_level::none,
+      {},
+      { cb_extract_retry_strategy(options) },
     };
     cb_extract_content(req, content);
     cb_extract_timeout(req, options);
@@ -782,6 +806,13 @@ cb_Backend_document_prepend(VALUE self,
         cb_string_new(collection),
         cb_string_new(id),
       },
+      {},
+      {},
+      {},
+      {},
+      couchbase::durability_level::none,
+      {},
+      { cb_extract_retry_strategy(options) },
     };
     cb_extract_content(req, content);
     cb_extract_timeout(req, options);
@@ -855,6 +886,15 @@ cb_Backend_document_replace(VALUE self,
         cb_string_new(collection),
         cb_string_new(id),
       },
+      {},
+      {},
+      {},
+      0,
+      0,
+      {},
+      couchbase::durability_level::none,
+      {},
+      { cb_extract_retry_strategy(options) },
     };
     cb_extract_content(req, content);
     cb_extract_flags(req, flags);
@@ -931,6 +971,14 @@ cb_Backend_document_insert(VALUE self,
         cb_string_new(collection),
         cb_string_new(id),
       },
+      {},
+      {},
+      {},
+      0,
+      0,
+      couchbase::durability_level::none,
+      {},
+      { cb_extract_retry_strategy(options) },
     };
     cb_extract_content(req, content);
     cb_extract_flags(req, flags);
@@ -1000,6 +1048,12 @@ cb_Backend_document_remove(VALUE self,
         cb_string_new(collection),
         cb_string_new(id),
       },
+      {},
+      {},
+      {},
+      couchbase::durability_level::none,
+      {},
+      { cb_extract_retry_strategy(options) },
     };
     cb_extract_timeout(req, options);
     cb_extract_durability_level(req, options);
@@ -1067,6 +1121,14 @@ cb_Backend_document_increment(VALUE self,
         cb_string_new(collection),
         cb_string_new(id),
       },
+      {},
+      {},
+      0,
+      1,
+      {},
+      couchbase::durability_level::none,
+      {},
+      { cb_extract_retry_strategy(options) },
     };
 
     cb_extract_timeout(req, options);
@@ -1141,6 +1203,14 @@ cb_Backend_document_decrement(VALUE self,
         cb_string_new(collection),
         cb_string_new(id),
       },
+      {},
+      {},
+      0,
+      1,
+      {},
+      couchbase::durability_level::none,
+      {},
+      { cb_extract_retry_strategy(options) },
     };
 
     cb_extract_timeout(req, options);
@@ -1221,7 +1291,8 @@ cb_Backend_document_lookup_in(VALUE self,
       cb_string_new(id),
     };
 
-    core::operations::lookup_in_request req{ doc_id };
+    auto retry_strategy = cb_extract_retry_strategy(options);
+    core::operations::lookup_in_request req{ doc_id, {}, {}, false, {}, {}, { retry_strategy } };
     cb_extract_timeout(req, options);
     cb_extract_option_bool(req.access_deleted, options, "access_deleted");
 
@@ -1622,6 +1693,18 @@ cb_Backend_document_mutate_in(VALUE self,
         cb_string_new(collection),
         cb_string_new(id),
       },
+      {},
+      {},
+      {},
+      false,
+      false,
+      false,
+      {},
+      couchbase::store_semantics::replace,
+      {},
+      couchbase::durability_level::none,
+      {},
+      { cb_extract_retry_strategy(options) },
     };
     cb_extract_timeout(req, options);
     cb_extract_durability_level(req, options);

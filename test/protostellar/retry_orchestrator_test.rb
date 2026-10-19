@@ -51,6 +51,15 @@ module Couchbase
         assert behaviour.error
         assert_instance_of Couchbase::Error::RequestCanceled, behaviour.error
       end
+
+      def test_maybe_retry_fail_fast_fails_with_cause
+        req = @request_generator.replace_request("a_key", {"foo" => "bar"}, Couchbase::Options::Replace.new(retry_strategy: :fail_fast))
+        cause = Couchbase::Error::DocumentLocked.new("locked", nil)
+        behaviour = Retry::Orchestrator.maybe_retry(req, Retry::Reason::KV_LOCKED, cause)
+
+        assert_nil behaviour.retry_duration
+        assert_same cause, behaviour.error
+      end
     end
   end
 end

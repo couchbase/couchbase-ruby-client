@@ -144,7 +144,8 @@ module Couchbase
           when Google::Rpc::Code::FAILED_PRECONDITION
             case detail_block[:precondition_failure].violations[0].type
             when "LOCKED"
-              Retry::Orchestrator.maybe_retry(request, Retry::Reason::KV_LOCKED)
+              Retry::Orchestrator.maybe_retry(request, Retry::Reason::KV_LOCKED,
+                                              Couchbase::Error::DocumentLocked.new(message, request.error_context))
             when "DOC_TOO_DEEP"
               RequestBehaviour.fail(Couchbase::Error::PathTooDeep.new(message, request.error_context))
             when "DOC_NOT_JSON"

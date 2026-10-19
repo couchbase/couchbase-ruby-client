@@ -31,7 +31,7 @@ module Couchbase
           #  dataverse with the specified name already exists.
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -65,7 +65,7 @@ module Couchbase
           #  if the dataverse with the specified name does not exist.
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -103,7 +103,7 @@ module Couchbase
           # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -145,7 +145,7 @@ module Couchbase
           # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -177,7 +177,7 @@ module Couchbase
           # Creates an instance of options for {AnalyticsIndexManager#get_all_datasets}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -203,7 +203,7 @@ module Couchbase
           # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -242,7 +242,7 @@ module Couchbase
           # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -274,7 +274,7 @@ module Couchbase
           # Creates an instance of options for {AnalyticsIndexManager#get_all_indexes}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -302,7 +302,7 @@ module Couchbase
           # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -343,7 +343,7 @@ module Couchbase
           # @param [String] dataverse_name the name of the dataverse to use (defaults to +nil+)
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -375,7 +375,7 @@ module Couchbase
           # Creates an instance of options for {AnalyticsIndexManager#get_pending_mutations}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -394,7 +394,7 @@ module Couchbase
           # Creates an instance of options for {AnalyticsIndexManager#create_link}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -420,7 +420,7 @@ module Couchbase
           # Creates an instance of options for {AnalyticsIndexManager#replace_link}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -446,7 +446,7 @@ module Couchbase
           # Creates an instance of options for {AnalyticsIndexManager#drop_link}
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
@@ -483,7 +483,7 @@ module Couchbase
           #
           # @param [Integer, #in_milliseconds, nil] timeout the time in milliseconds allowed for the operation to
           #   complete
-          # @param [Proc, nil] retry_strategy the custom retry strategy, if set
+          # @param [Symbol, nil] retry_strategy ignored by this operation
           # @param [Hash, nil] client_context the client context data, if set
           # @param [Span, nil] parent_span if set holds the parent span, that should be used for this request
           #
