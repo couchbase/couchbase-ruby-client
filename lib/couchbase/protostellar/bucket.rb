@@ -50,6 +50,10 @@ module Couchbase
       def ping(_options = Options::Ping::DEFAULT)
         raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support ping"
       end
+
+      def wait_until_ready(_timeout, _options = Options::WaitUntilReady::DEFAULT)
+        raise Couchbase::Error::FeatureNotAvailable, "The #{Protostellar::NAME} protocol does not support wait_until_ready"
+      end
     end
   end
 end

@@ -24,6 +24,8 @@
 #include "rcb_exceptions.hxx"
 #include "rcb_utils.hxx"
 
+#include <chrono>
+#include <cinttypes>
 #include <cstdint>
 #include <ruby.h>
 
@@ -705,4 +707,38 @@ get_string(VALUE options, VALUE name)
   return {};
 }
 } // namespace options
+
+auto
+cb_to_timeout(VALUE timeout, const char* name, std::chrono::milliseconds max_timeout)
+  -> std::chrono::milliseconds
+{
+  if (!RB_INTEGER_TYPE_P(timeout)) {
+    VALUE message = Qnil;
+    cb_protect([&message, timeout, name] {
+      message = rb_sprintf("%s must be an Integer, but given %+" PRIsVALUE, name, timeout);
+    });
+    throw ruby_exception(rb_eArgError, message);
+  }
+  std::uint64_t timeout_ms = 0;
+  // The sign is -2 or -1 for a negative value, and 2 for one that does not fit timeout_ms.
+  if (int sign = rb_integer_pack(timeout,
+                                 &timeout_ms,
+                                 1,
+                                 sizeof(timeout_ms),
+                                 0,
+                                 INTEGER_PACK_LSWORD_FIRST | INTEGER_PACK_NATIVE_BYTE_ORDER);
+      sign < 0 || sign > 1 || timeout_ms > static_cast<std::uint64_t>(max_timeout.count())) {
+    VALUE message = Qnil;
+    cb_protect([&message, timeout, name, max = static_cast<std::int64_t>(max_timeout.count())] {
+      message =
+        rb_sprintf("%s must be between 0 and %" PRId64 " milliseconds, but given %+" PRIsVALUE,
+                   name,
+                   max,
+                   timeout);
+    });
+    throw ruby_exception(exc_invalid_argument(), message);
+  }
+  return std::chrono::milliseconds{ static_cast<std::int64_t>(timeout_ms) };
+}
+
 } // namespace couchbase::ruby
