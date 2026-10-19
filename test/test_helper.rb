@@ -306,7 +306,7 @@ module Couchbase
     def after_teardown
       super
       disconnect if @caves
-      @caves&.stop
+      @caves&.stop(remove_logs: failures.all?(Minitest::Skip))
     end
 
     def use_caves?

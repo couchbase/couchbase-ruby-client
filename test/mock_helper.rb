@@ -78,7 +78,9 @@ class Caves
     raise "CAVES didn't greet us, something happened, check logs at #{logs_path}" if hello_cmd["type"] != "hello"
   end
 
-  def stop
+  # CAVES logs every KV packet with its value, so one test that writes a large document leaves gigabytes behind.
+  # Pass remove_logs: true for a test that passed or was skipped; CI uploads the logs directory when a job fails.
+  def stop(remove_logs: false)
     @caves&.close
     @control_sock&.close
     return unless @pid
@@ -93,6 +95,7 @@ class Caves
     nil
   ensure
     @pid = nil
+    FileUtils.rm_f(%w[err out].map { |kind| File.join(logs_dir, "#{@logs_prefix}.#{kind}.txt") }) if remove_logs
   end
 
   # @param [String] cluster_id
