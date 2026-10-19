@@ -167,7 +167,7 @@ cb_extract_array_of_id_cas(std::vector<std::pair<core::document_id, couchbase::c
   }
   auto num_of_tuples = static_cast<std::size_t>(RARRAY_LEN(tuples));
   if (num_of_tuples < 1) {
-    rb_raise(rb_eArgError, "Array of ID/CAS tuples must not be empty");
+    throw ruby_exception(rb_eArgError, "Array of ID/CAS tuples must not be empty");
   }
   id_cas.reserve(num_of_tuples);
   for (std::size_t i = 0; i < num_of_tuples; ++i) {

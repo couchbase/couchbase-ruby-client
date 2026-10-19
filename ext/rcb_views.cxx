@@ -56,8 +56,8 @@ cb_Backend_view_index_get_all(VALUE self,
   } else if (type == rb_intern("production")) {
     ns = core::design_document_namespace::production;
   } else {
-    rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
-    return Qnil;
+    throw ruby_exception(rb_eArgError,
+                         cb_sprintf("Unknown design document namespace: %+" PRIsVALUE, name_space));
   }
 
   try {
@@ -133,8 +133,8 @@ cb_Backend_view_index_get(VALUE self,
   } else if (type == rb_intern("production")) {
     ns = core::design_document_namespace::production;
   } else {
-    rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
-    return Qnil;
+    throw ruby_exception(rb_eArgError,
+                         cb_sprintf("Unknown design document namespace: %+" PRIsVALUE, name_space));
   }
 
   try {
@@ -211,8 +211,8 @@ cb_Backend_view_index_drop(VALUE self,
   } else if (type == rb_intern("production")) {
     ns = core::design_document_namespace::production;
   } else {
-    rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
-    return Qnil;
+    throw ruby_exception(rb_eArgError,
+                         cb_sprintf("Unknown design document namespace: %+" PRIsVALUE, name_space));
   }
 
   try {
@@ -265,8 +265,8 @@ cb_Backend_view_index_upsert(VALUE self,
   } else if (type == rb_intern("production")) {
     ns = core::design_document_namespace::production;
   } else {
-    rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
-    return Qnil;
+    throw ruby_exception(rb_eArgError,
+                         cb_sprintf("Unknown design document namespace: %+" PRIsVALUE, name_space));
   }
 
   try {
@@ -345,8 +345,8 @@ cb_Backend_document_view(VALUE self,
   } else if (type == rb_intern("production")) {
     ns = core::design_document_namespace::production;
   } else {
-    rb_raise(rb_eArgError, "Unknown design document namespace: %+" PRIsVALUE, type);
-    return Qnil;
+    throw ruby_exception(rb_eArgError,
+                         cb_sprintf("Unknown design document namespace: %+" PRIsVALUE, name_space));
   }
   if (!NIL_P(options)) {
     Check_Type(options, T_HASH);

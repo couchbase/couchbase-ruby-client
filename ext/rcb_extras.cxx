@@ -111,8 +111,8 @@ cb_Backend_dns_srv(VALUE self, VALUE hostname, VALUE service)
   } else if (type == rb_intern("couchbases")) {
     tls = true;
   } else {
-    rb_raise(rb_eArgError, "Unsupported service type: %+" PRIsVALUE, service);
-    return Qnil;
+    throw ruby_exception(rb_eArgError,
+                         cb_sprintf("Unsupported service type: %+" PRIsVALUE, service));
   }
 
   try {

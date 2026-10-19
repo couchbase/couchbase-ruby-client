@@ -196,6 +196,20 @@ module Couchbase
       end
     end
 
+    # The message carries the namespace's inspect, not its ID; formatting the ID of a dynamic
+    # Symbol as an object crashed the process.
+    def test_view_requests_with_unknown_namespace_raise_argument_error
+      bucket = @cluster.bucket(env.bucket)
+      [:unknown, :"unknown_#{@doc_id}"].each do |namespace|
+        message = "Unknown design document namespace: #{namespace.inspect}"
+
+        error = assert_raises(ArgumentError) { bucket.view_query("dd", "view", Options::View.new(namespace: namespace)) }
+        assert_equal message, error.message
+        error = assert_raises(ArgumentError) { bucket.view_indexes.get_design_document("dd", namespace) }
+        assert_equal message, error.message
+      end
+    end
+
     def test_get_with_tracer_not_raising_returns_document
       @tracer.hook = lambda { @entered += 1 }
       res = @collection.get(@doc_id, @get_options)

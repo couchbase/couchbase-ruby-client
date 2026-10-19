@@ -1276,8 +1276,7 @@ cb_Backend_document_lookup_in(VALUE self,
   Check_Type(id, T_STRING);
   Check_Type(specs, T_ARRAY);
   if (RARRAY_LEN(specs) <= 0) {
-    rb_raise(rb_eArgError, "Array with specs cannot be empty");
-    return Qnil;
+    throw ruby_exception(rb_eArgError, "Array with specs cannot be empty");
   }
   if (!NIL_P(options)) {
     Check_Type(options, T_HASH);
@@ -1406,8 +1405,7 @@ cb_Backend_document_lookup_in_any_replica(VALUE self,
   Check_Type(id, T_STRING);
   Check_Type(specs, T_ARRAY);
   if (RARRAY_LEN(specs) <= 0) {
-    rb_raise(rb_eArgError, "Array with specs cannot be empty");
-    return Qnil;
+    throw ruby_exception(rb_eArgError, "Array with specs cannot be empty");
   }
   if (!NIL_P(options)) {
     Check_Type(options, T_HASH);
@@ -1536,8 +1534,7 @@ cb_Backend_document_lookup_in_all_replicas(VALUE self,
   Check_Type(id, T_STRING);
   Check_Type(specs, T_ARRAY);
   if (RARRAY_LEN(specs) <= 0) {
-    rb_raise(rb_eArgError, "Array with specs cannot be empty");
-    return Qnil;
+    throw ruby_exception(rb_eArgError, "Array with specs cannot be empty");
   }
   if (!NIL_P(options)) {
     Check_Type(options, T_HASH);
@@ -1678,8 +1675,7 @@ cb_Backend_document_mutate_in(VALUE self,
 
   Check_Type(specs, T_ARRAY);
   if (RARRAY_LEN(specs) <= 0) {
-    rb_raise(rb_eArgError, "Array with specs cannot be empty");
-    return Qnil;
+    throw ruby_exception(rb_eArgError, "Array with specs cannot be empty");
   }
   if (!NIL_P(options)) {
     Check_Type(options, T_HASH);
