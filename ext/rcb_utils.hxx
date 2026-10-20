@@ -256,6 +256,15 @@ cb_str_new(const StringLike str)
 void
 cb_check_type(VALUE object, int type);
 
+// rb_sym2id for a value not yet checked to be a Symbol. A non-Symbol throws the TypeError, with the
+// message, that rb_sym2id raises. Call it only from a method body registered through cb_method.
+inline auto
+cb_sym2id(VALUE sym) -> ID
+{
+  cb_check_type(sym, T_SYMBOL);
+  return rb_sym2id(sym);
+}
+
 std::string
 cb_string_new(VALUE str);
 

@@ -651,7 +651,7 @@ cb_Backend_analytics_link_create(VALUE self, VALUE link, VALUE options, VALUE ob
   try {
     VALUE link_type = Qnil;
     cb_extract_option_symbol(link_type, link, "type");
-    if (ID type = rb_sym2id(link_type); type == rb_intern("couchbase")) {
+    if (ID type = cb_sym2id(link_type); type == rb_intern("couchbase")) {
       core::operations::management::analytics_link_create_request<
         core::management::analytics::couchbase_remote_link>
         req{};
@@ -782,7 +782,7 @@ cb_Backend_analytics_link_replace(VALUE self,
     VALUE link_type = Qnil;
     cb_extract_option_symbol(link_type, link, "type");
 
-    if (ID type = rb_sym2id(link_type); type == rb_intern("couchbase")) {
+    if (ID type = cb_sym2id(link_type); type == rb_intern("couchbase")) {
       core::operations::management::analytics_link_replace_request<
         core::management::analytics::couchbase_remote_link>
         req{};
