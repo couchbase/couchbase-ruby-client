@@ -196,6 +196,17 @@ module Couchbase
       end
     end
 
+    def test_upsert_with_non_symbol_legacy_durability_does_not_leak_content
+      [{replicate_to: "one"}, {persist_to: 1}].each do |durability|
+        options = Options::Upsert.new(transcoder: @transcoder, **durability)
+        assert_no_leak do
+          error = assert_raises(TypeError) { @collection.upsert(@doc_id, @content, options) }
+
+          assert_match(/\Awrong argument type (String|Integer) \(expected Symbol\)\z/, error.message)
+        end
+      end
+    end
+
     # The message carries the namespace's inspect, not its ID; formatting the ID of a dynamic
     # Symbol as an object crashed the process.
     def test_view_requests_with_unknown_namespace_raise_argument_error

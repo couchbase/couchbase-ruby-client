@@ -101,7 +101,7 @@ extract_legacy_durability_replicate_to(VALUE options)
 {
   static VALUE property_name{ rb_id2sym(rb_intern("replicate_to")) };
   if (VALUE val = rb_hash_aref(options, property_name); !NIL_P(val)) {
-    ID mode = rb_sym2id(val);
+    ID mode = cb_sym2id(val);
     if (mode == rb_intern("none")) {
       return {};
     }
@@ -125,7 +125,7 @@ extract_legacy_durability_persist_to(VALUE options)
 {
   static VALUE property_name{ rb_id2sym(rb_intern("persist_to")) };
   if (VALUE val = rb_hash_aref(options, property_name); !NIL_P(val)) {
-    ID mode = rb_sym2id(val);
+    ID mode = cb_sym2id(val);
     if (mode == rb_intern("none")) {
       return {};
     }
@@ -502,7 +502,7 @@ extract_durability_level(VALUE options)
 {
   static VALUE property_name{ rb_id2sym(rb_intern("durability_level")) };
   if (VALUE val = rb_hash_aref(options, property_name); !NIL_P(val)) {
-    ID level = rb_sym2id(val);
+    ID level = cb_sym2id(val);
     if (level == rb_intern("none")) {
       return {};
     }

@@ -276,7 +276,7 @@ cb_Backend_document_scan_create(VALUE self,
                  couchbase::core::prefix_scan,
                  couchbase::core::sampling_scan>
       core_scan_type{};
-    ID scan_type_id = rb_sym2id(rb_hash_aref(scan_type, rb_id2sym(rb_intern("scan_type"))));
+    ID scan_type_id = cb_sym2id(rb_hash_aref(scan_type, rb_id2sym(rb_intern("scan_type"))));
     if (scan_type_id == rb_intern("range")) {
       auto range_scan = couchbase::core::range_scan{};
 
