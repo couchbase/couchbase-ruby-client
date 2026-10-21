@@ -464,7 +464,7 @@ def plan_rubygems_push(gems)
     elsif published["sha"] && published["sha"] != local
       mismatch << [gem, spec, local, published["sha"]]
     else
-      skip << [gem, spec]
+      skip << spec
     end
   end
   [to_push, skip, mismatch]
@@ -498,7 +498,7 @@ def push_to_rubygems(gems, version, runner)
     abort!("live gems differ from the built ones — investigate before publishing (nothing was pushed)")
   end
 
-  skip.each_value { |spec| puts "  already live (checksum matches), skipping: #{spec.name} #{spec.version} #{spec.platform}" }
+  skip.each { |spec| puts "  already live (checksum matches), skipping: #{spec.name} #{spec.version} #{spec.platform}" }
 
   if to_push.empty?
     puts "Nothing to push — every gem is already on rubygems.org."
