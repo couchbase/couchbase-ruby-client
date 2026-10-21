@@ -185,6 +185,24 @@ module Couchbase
     class DocumentNotFound < CouchbaseError
     end
 
+    # Indicates that the replica selected by {Collection#get_replica} does not hold the document.
+    #
+    # @since 3.9.0
+    class DocumentNotFoundOnReplica < DocumentNotFound
+    end
+
+    # Indicates that {Collection#get_replica} requested a replica the bucket is not configured with.
+    #
+    # @since 3.9.0
+    class ReplicaIndexOutOfBounds < CouchbaseError
+    end
+
+    # Indicates that {Collection#get_replica} requested a configured replica. The vbucket map places it on no node.
+    #
+    # @since 3.9.0
+    class ReplicaIndexCurrentlyUnavailable < CouchbaseError
+    end
+
     # Indicates an operation completed but no successful document was retrievable.
     class DocumentIrretrievable < CouchbaseError
     end
