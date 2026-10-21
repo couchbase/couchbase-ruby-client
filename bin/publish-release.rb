@@ -787,6 +787,7 @@ DOCS_PLATFORM_LABELS = {
   "x86_64-darwin" => "macOS x86_64",
   "arm64-darwin" => "macOS arm64",
   "x64-mingw-ucrt" => "Windows x64",
+  "aarch64-mingw-ucrt" => "Windows arm64",
   "java" => "JRuby",
 }.freeze
 DOCS_PLATFORM_ORDER = DOCS_PLATFORM_LABELS.keys.freeze
