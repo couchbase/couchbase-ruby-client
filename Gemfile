@@ -20,6 +20,9 @@ git_source(:github) { |repo_name| "https://github.com/#{repo_name}" }
 gemspec
 gemspec path: "couchbase-opentelemetry"
 
+# grpc 1.85 publishes no x64-mingw-ucrt gem, and building it from source fails on Windows
+gem "grpc", "< 1.85" if Gem::Platform.local.then { |p| p.cpu == "x64" && p.os == "mingw" }
+
 gem "rake"
 
 group :fit_performer, :development do
