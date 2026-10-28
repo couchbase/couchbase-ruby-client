@@ -1018,22 +1018,35 @@ jobs:
       - source
       - repackage_linux_x86_64
     runs-on: ubuntu-22.04
+    # Pulls non-GA server images from GitHub Packages.
+    permissions:
+      packages: read
     strategy:
       fail-fast: false
       matrix:
+        # Aliases from couchbaselabs/cb-alias, resolved to a server version at run time.
         server:
-          - 8.0.0
-          - 7.6.8
-          - 7.2.9
+          - 8.5-stable
+          - 8.0-stable
+          - 8.0-release
+          - 7.6-stable
+          - 7.6-release
+          - 7.2-release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Resolve server version
+        id: resolve-server
+        uses: couchbaselabs/sdk-resolve-cb-alias-action@3f0d92ad9b0061e46dad23bf3a93dd915ea78343 # v1
+        with:
+          alias: ${{ matrix.server }}
       - name: Create Couchbase cluster
         id: create-cluster
         uses: ./.github/actions/create-cluster
         with:
-          version: ${{ matrix.server }}
+          version: ${{ steps.resolve-server.outputs.version }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: couchbase-${{ needs.source.outputs.gem_version }}-x86_64-linux
@@ -1068,7 +1081,7 @@ jobs:
         timeout-minutes: 20
         env:
           TEST_CONNECTION_STRING: ${{ steps.create-cluster.outputs.connstr }}?dump_configuration=true
-          TEST_SERVER_VERSION: ${{ matrix.server }}
+          TEST_SERVER_VERSION: ${{ steps.resolve-server.outputs.version }}
         run: |
           bundle exec rake test
       - name: Upload test report
@@ -1108,20 +1121,30 @@ jobs:
       - source
       - repackage_linux_x86_64
     runs-on: ubuntu-22.04
+    # Pulls non-GA server images from GitHub Packages.
+    permissions:
+      packages: read
     strategy:
       fail-fast: false
       matrix:
+        # Aliases from couchbaselabs/cb-alias, resolved to a server version at run time.
         server:
-          - 8.0.0
+          - 8.0-release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Resolve server version
+        id: resolve-server
+        uses: couchbaselabs/sdk-resolve-cb-alias-action@3f0d92ad9b0061e46dad23bf3a93dd915ea78343 # v1
+        with:
+          alias: ${{ matrix.server }}
       - name: Create Couchbase cluster
         id: create-cluster
         uses: ./.github/actions/create-cluster
         with:
-          version: ${{ matrix.server }}
+          version: ${{ steps.resolve-server.outputs.version }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Start CNG
         id: start-cng
         uses: ./.github/actions/start-cng
@@ -1162,7 +1185,7 @@ jobs:
         timeout-minutes: 20
         env:
           TEST_CONNECTION_STRING: ${{ steps.start-cng.outputs.cng-connection-string }}?trust_certificate=${{ steps.start-cng.outputs.ca-cert-path }}
-          TEST_SERVER_VERSION: ${{ matrix.server }}
+          TEST_SERVER_VERSION: ${{ steps.resolve-server.outputs.version }}
         run: |
           bundle exec rake test
       - name: Upload test report
@@ -1517,8 +1540,12 @@ jobs:
     runs-on: ubuntu-26.04
     # Above the sum of the step timeouts, so that a step times out before the job does.
     timeout-minutes: 150
+    # Pulls non-GA server images from GitHub Packages.
+    permissions:
+      packages: read
     env:
-      SERVER_VERSION: 8.0.0
+      # An alias from couchbaselabs/cb-alias, resolved to a server version at run time.
+      SERVER_ALIAS: 8.0-release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1559,18 +1586,25 @@ jobs:
         run: |
           if [ -d test/reports ]; then mv test/reports test/reports-mock; fi
       # The cluster run goes ahead after failed mock tests, so the report covers both.
+      - name: Resolve server version
+        id: resolve-server
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        uses: couchbaselabs/sdk-resolve-cb-alias-action@3f0d92ad9b0061e46dad23bf3a93dd915ea78343 # v1
+        with:
+          alias: ${{ env.SERVER_ALIAS }}
       - name: Create Couchbase cluster
         id: create-cluster
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.resolve-server.outcome == 'success' }}
         uses: ./.github/actions/create-cluster
         with:
-          version: ${{ env.SERVER_VERSION }}
+          version: ${{ steps.resolve-server.outputs.version }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Test against the cluster
         if: ${{ !cancelled() && steps.create-cluster.outcome == 'success' }}
         timeout-minutes: 20
         env:
           TEST_CONNECTION_STRING: ${{ steps.create-cluster.outputs.connstr }}?dump_configuration=true
-          TEST_SERVER_VERSION: ${{ env.SERVER_VERSION }}
+          TEST_SERVER_VERSION: ${{ steps.resolve-server.outputs.version }}
           COVERAGE_NAME: cluster
         run: |
           bundle exec rake test
