@@ -80,6 +80,7 @@ module FIT
         :SDK_SEARCH_SCORE_FUSION,
         :SDK_QUERY_2120,
         :PROTOSTELLAR,
+        :SDK_SEARCH_CUSTOM_SCRIPT_QUERIES,
       ].freeze
 
       # We don't currently support transactions. However, the driver calls transactions_factory_create during the

@@ -14,6 +14,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+require 'google/protobuf/well_known_types'
+
 require_relative 'search/search_query_command'
 require_relative 'search/search_command'
 require_relative 'search/options_builder'
@@ -212,6 +214,16 @@ module FIT
             Couchbase::Cluster::SearchQuery.match_all
           when :match_none
             Couchbase::Cluster::SearchQuery.match_none
+          when :custom_score
+            Couchbase::Cluster::SearchQuery.custom_score(get_search_query(query.query), query.source) do |q|
+              q.parameters = query.parameters.to_h.transform_keys(&:to_sym) if query.has_parameters?
+              q.fields = query.fields.to_a unless query.fields.empty?
+            end
+          when :custom_filter
+            Couchbase::Cluster::SearchQuery.custom_filter(get_search_query(query.query), query.source) do |q|
+              q.parameters = query.parameters.to_h.transform_keys(&:to_sym) if query.has_parameters?
+              q.fields = query.fields.to_a unless query.fields.empty?
+            end
           else
             raise PerformerError, "Query type #{raw_search_query.query} not supported"
           end

@@ -133,6 +133,9 @@ module Couchbase
             res.term_range_query = create_term_range_query(query)
           when sq::WildcardQuery
             res.wildcard_query = create_wildcard_query(query)
+          when sq::CustomScoreQuery, sq::CustomFilterQuery
+            raise Couchbase::Error::FeatureNotAvailable,
+                  "The #{Protostellar::NAME} protocol does not support #{query.class} search queries"
           else
             raise Couchbase::Error::CouchbaseError, "Unexpected search query type #{query.class}"
           end
@@ -159,7 +162,7 @@ module Couchbase
         def create_conjunction_query(query)
           query_attrs = {
             boost: query.boost,
-            queries: query.instance_variable_get(:@queries).uniq.map(&:create_query),
+            queries: query.instance_variable_get(:@queries).uniq.map { |q| create_query(q) },
           }
           Generated::Search::V1::ConjunctionQuery.new(query_attrs)
         end
@@ -175,7 +178,7 @@ module Couchbase
         def create_disjunction_query(query)
           query_attrs = {
             boost: query.boost,
-            queries: query.instance_variable_get(:@queries).uniq.map(&:create_query),
+            queries: query.instance_variable_get(:@queries).uniq.map { |q| create_query(q) },
             minimum: query.min,
           }
           Generated::Search::V1::DisjunctionQuery.new(query_attrs)

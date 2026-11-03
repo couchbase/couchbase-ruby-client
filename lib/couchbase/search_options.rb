@@ -1040,6 +1040,132 @@ module Couchbase
         {:match_none => nil}
       end
     end
+
+    # Prepare {CustomScoreQuery} body
+    #
+    # @yieldparam [CustomScoreQuery] query
+    #
+    # @return [CustomScoreQuery]
+    def self.custom_score(inner_query, source, &)
+      CustomScoreQuery.new(inner_query, source, &)
+    end
+
+    # {CustomScoreQuery} is a search query that wraps another query and applies a custom user-defined
+    # JavaScript function to compute the score of each matching document, in place of the score that
+    # would otherwise be assigned by the wrapped query.
+    #
+    # The scoring function is invoked as <tt>function(doc, params)</tt>, where <tt>doc.score</tt> is the score assigned
+    # by the wrapped query, <tt>doc.fields</tt> holds the document fields specified via +CustomScoreQuery#fields+, and
+    # <tt>params</tt> is the value supplied via +CustomScoreQuery#parameters+. The function must return a number to be
+    # used as the document's score.
+    #
+    # This feature must be enabled on the server, as it is disabled by default.
+    class CustomScoreQuery < SearchQuery
+      # The document fields that will be made available to the scoring function, via <tt>doc.fields</tt>. By default,
+      # no fields are available to the function. Pass +"*"+ to make all fields of documents available.
+      #
+      # @return [Array<String>]
+      attr_accessor :fields
+
+      # Additional parameters to be passed to the scoring function. The values must be JSON-serializable.
+      #
+      # @return [Hash<Symbol, #to_json>]
+      attr_accessor :parameters
+
+      # Initializes a new +CustomScoreQuery+. The +inner_query+ parameter is the query whose results will be re-scored
+      # by the custom scoring JavaScript function provided in the +source+ parameter.
+      #
+      # @yieldparam [CustomScoreQuery] self
+      #
+      # @param [SearchQuery] inner_query
+      # @param [String] source
+      def initialize(inner_query, source)
+        super()
+
+        @inner_query = inner_query
+        @source = source
+
+        yield self if block_given?
+      end
+
+      # @return [Hash<Symbol, #to_json>]
+      def to_h
+        raise Error::InvalidArgument, "CustomScoreQuery requires an inner query" if @inner_query.nil?
+        raise Error::InvalidArgument, "CustomScoreQuery requires a source" if @source.nil? || @source.empty?
+
+        {
+          custom_score: {
+            query: @inner_query.to_h,
+            source: @source,
+            fields: @fields,
+            params: @parameters,
+          }.compact,
+        }
+      end
+    end
+
+    # Prepare {CustomFilterQuery} body
+    #
+    # @yieldparam [CustomFilterQuery] query
+    #
+    # @return [CustomFilterQuery]
+    def self.custom_filter(inner_query, source, &)
+      CustomFilterQuery.new(inner_query, source, &)
+    end
+
+    # {CustomFilterQuery} is a search query that wraps another query and applies a custom user-defined
+    # JavaScript function to filter its matching documents, so that only documents accepted by the function
+    # are included in the results.
+    #
+    # The filtering function is invoked as <tt>function(doc, params)</tt>, where <tt>doc.score</tt> is the score
+    # assigned by the wrapped query, <tt>doc.fields</tt> holds the document fields specified via
+    # +CustomFilterQuery#fields+, and <tt>params</tt> is the value supplied via +CustomFilterQuery#parameters+.
+    # The function must return a boolean indicating whether the document should be included in the results.
+    #
+    # This feature must be enabled on the server, as it is disabled by default.
+    class CustomFilterQuery < SearchQuery
+      # The document fields that will be made available to the filtering function, via <tt>doc.fields</tt>. By default,
+      # no fields are available to the function. Pass +"*"+ to make all fields of documents available.
+      #
+      # @return [Array<String>]
+      attr_accessor :fields
+
+      # Additional parameters to be passed to the filtering function. The values must be JSON-serializable.
+      #
+      # @return [Hash<Symbol, #to_json>]
+      attr_accessor :parameters
+
+      # Initializes a new +CustomFilterQuery+. The +inner_query+ parameter is the query whose results will be filtered
+      # by the custom filtering JavaScript function provided in the +source+ parameter.
+      #
+      # @yieldparam [CustomFilterQuery] self
+      #
+      # @param [SearchQuery] inner_query
+      # @param [String] source
+      def initialize(inner_query, source)
+        super()
+
+        @inner_query = inner_query
+        @source = source
+
+        yield self if block_given?
+      end
+
+      # @return [Hash<Symbol, #to_json>]
+      def to_h
+        raise Error::InvalidArgument, "CustomFilterQuery requires an inner query" if @inner_query.nil?
+        raise Error::InvalidArgument, "CustomFilterQuery requires a source" if @source.nil? || @source.empty?
+
+        {
+          custom_filter: {
+            query: @inner_query.to_h,
+            source: @source,
+            fields: @fields,
+            params: @parameters,
+          }.compact,
+        }
+      end
+    end
   end
 
   class VectorSearch
