@@ -14,7 +14,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-rm -rf fit-performer/proto
 mkdir -p fit-performer/proto
+
+# Clear out the previous protocol files, but keep .clang-format: it is local to this
+# repository (it stops clang-format from reformatting the upstream .proto files)
+find fit-performer/proto -mindepth 1 ! -name .clang-format -delete
+
 curl --location --fail https://github.com/couchbaselabs/fit-protocol/archive/refs/heads/main.tar.gz \
     | tar -xz --strip-components=2 -C fit-performer/proto fit-protocol-main/operational
