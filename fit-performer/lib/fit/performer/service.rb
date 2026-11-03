@@ -81,6 +81,7 @@ module FIT
         :SDK_QUERY_2120,
         :PROTOSTELLAR,
         :SDK_SEARCH_CUSTOM_SCRIPT_QUERIES,
+        :SDK_HTTP_400_INVALID_ARGUMENT,
       ].freeze
 
       # We don't currently support transactions. However, the driver calls transactions_factory_create during the
