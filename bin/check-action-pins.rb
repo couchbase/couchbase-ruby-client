@@ -81,38 +81,66 @@ end
 
 def version(tag) = Gem::Version.new(tag.delete_prefix("v"))
 
-# Scalar values of `uses:` keys anywhere in the document.
-def uses_nodes(node, found = [])
+# Anchor name => anchored node, anywhere in the document, and the nodes that define a name again.
+# An alias names the nearest definition before it, which the map does not keep, so a redefinition
+# fails the check.
+def anchors(node, found = {}, redefined = [])
+  return [found, redefined] unless node.is_a?(Psych::Nodes::Node)
+
+  # An alias carries the name of the anchor it refers to; only the anchored node defines it.
+  if node.respond_to?(:anchor) && node.anchor && !node.is_a?(Psych::Nodes::Alias)
+    redefined << node if found.key?(node.anchor)
+    found[node.anchor] = node
+  end
+  node.children&.each { |child| anchors(child, found, redefined) }
+  [found, redefined]
+end
+
+# Values of `uses:` keys anywhere in the document, with an alias, as key or value, replaced by the
+# node it names. A value that is not a scalar is returned as is, and fails the pin check.
+def uses_nodes(node, aliases, found = [])
   case node
   when Psych::Nodes::Mapping
     node.children.each_slice(2) do |key, value|
-      found << value if key.is_a?(Psych::Nodes::Scalar) && key.value == "uses" && value.is_a?(Psych::Nodes::Scalar)
-      uses_nodes(value, found)
+      key = deref(key, aliases)
+      found << deref(value, aliases) if key.is_a?(Psych::Nodes::Scalar) && key.value == "uses"
+      uses_nodes(value, aliases, found)
     end
   when Psych::Nodes::Node
-    node.children&.each { |child| uses_nodes(child, found) }
+    node.children&.each { |child| uses_nodes(child, aliases, found) }
   end
   found
 end
 
-def child(mapping, name)
-  return unless mapping.is_a?(Psych::Nodes::Mapping)
+# The node an alias names; any other node as is.
+def deref(node, aliases) = node.is_a?(Psych::Nodes::Alias) ? aliases.fetch(node.anchor, node) : node
 
-  mapping.children.each_slice(2).find { |key, _| key.is_a?(Psych::Nodes::Scalar) && key.value == name }&.last
+# Key and value nodes of a mapping, with aliases resolved and `<<` merge keys expanded into the
+# pairs of the mappings they name. A key of the mapping itself comes before a merged one.
+def pairs(mapping, aliases, seen = [])
+  mapping = deref(mapping, aliases)
+  return [] unless mapping.is_a?(Psych::Nodes::Mapping) && !seen.include?(mapping)
+
+  seen += [mapping]
+  own, merged = mapping.children.each_slice(2).map { |key, value| [deref(key, aliases), deref(value, aliases)] }
+                       .partition { |key, _| !(key.is_a?(Psych::Nodes::Scalar) && key.value == "<<") }
+  sources = merged.flat_map { |_, value| value.is_a?(Psych::Nodes::Sequence) ? value.children : [value] }
+  own + sources.flat_map { |source| pairs(source, aliases, seen) }
 end
 
-# Image nodes of `jobs.<id>.container` and `jobs.<id>.services.<id>`, in the
-# string form or as their `image:`. A non-scalar image is returned as is, and
-# fails the digest check.
-def image_nodes(document)
-  jobs = child(document.root, "jobs")
-  return [] unless jobs.is_a?(Psych::Nodes::Mapping)
+def child(mapping, name, aliases)
+  pairs(mapping, aliases).find { |key, _| key.is_a?(Psych::Nodes::Scalar) && key.value == name }&.last
+end
 
-  jobs.children.each_slice(2).flat_map do |_, job|
-    services = child(job, "services")
-    containers = [child(job, "container")]
-    containers += services.children.each_slice(2).map(&:last) if services.is_a?(Psych::Nodes::Mapping)
-    containers.compact.filter_map { |node| node.is_a?(Psych::Nodes::Mapping) ? child(node, "image") : node }
+# Image nodes of `jobs.<id>.container` and `jobs.<id>.services.<id>`, in the string form or as
+# their `image:`, through aliases and merge keys. A non-scalar image is returned as is, and fails
+# the digest check.
+def image_nodes(document, aliases)
+  pairs(child(document.root, "jobs", aliases), aliases).flat_map do |_, job|
+    services = pairs(child(job, "services", aliases), aliases).map(&:last)
+    ([child(job, "container", aliases)] + services).compact.filter_map do |node|
+      node.is_a?(Psych::Nodes::Mapping) ? child(node, "image", aliases) : node
+    end
   end
 end
 
@@ -120,13 +148,18 @@ images = []
 refs = FILES.flat_map do |file|
   lines = File.readlines(file)
   document = Psych.parse_file(file)
-  image_nodes(document).each do |node|
+  aliases, redefined = anchors(document)
+  redefined.each do |node|
+    annotate("error", [Ref.new(file, node.start_line + 1)], "Redefined anchor",
+             "&#{node.anchor} is defined more than once, so its aliases cannot be checked")
+  end
+  image_nodes(document, aliases).each do |node|
     images << Ref.new(file, node.start_line + 1, node.is_a?(Psych::Nodes::Scalar) ? node.value : "(not a string)")
   end
-  uses_nodes(document).map do |node|
+  uses_nodes(document, aliases).map do |node|
     # The comment after the value when it is one word, as in "# v1.2.3"; nil otherwise.
     comment = lines[node.end_line].to_s[/\A[^#]*\S\s+#\s*(\S+)\s*\z/, 1]
-    Ref.new(file, node.start_line + 1, node.value, comment)
+    Ref.new(file, node.start_line + 1, node.is_a?(Psych::Nodes::Scalar) ? node.value : "(not a string)", comment)
   end
 end
 # This repository's own actions and workflows, and the allowed floating references.
@@ -167,9 +200,18 @@ pinned.group_by { |ref| PINNED.match(ref.ref)[:repo] }.each do |repo, repo_refs|
         end
       end
     else
+      # A tag that is not a version number must still point at the pinned commit; only a branch
+      # may move on.
+      _, tag_err = gh("api", "repos/#{repo}/git/ref/tags/#{comment}", "--jq", ".ref")
+      if tag_err && !tag_err.include?("HTTP 404")
+        annotate("error", group, "Action not checked", "#{repo}@#{comment}: #{tag_err}")
+        next
+      end
       out, err = gh("api", "repos/#{repo}/commits/#{comment}", "--jq", ".sha")
       if err
         annotate("error", group, "Action not checked", "#{repo}@#{comment}: #{err}")
+      elsif out.strip != sha && tag_err.nil?
+        annotate("error", group, "Moved tag", "#{repo} #{comment} points at #{out.strip}, pinned #{sha}")
       elsif out.strip != sha
         annotate("warning", group, "Moved branch", "#{repo} #{comment} is at #{out.strip}, pinned #{sha}")
       end
